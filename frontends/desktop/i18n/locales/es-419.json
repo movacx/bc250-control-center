@@ -5586,5 +5586,16 @@
   "This browser session has expired": "Esta sesión del navegador ha caducado",
   "Start the web interface first to prepare its local HTTPS certificate.": "Inicia primero la interfaz web para preparar su certificado HTTPS local.",
   "Device code: {code}": "Código del dispositivo: {code}",
-  "New devices can monitor only. Match the device code shown on your phone before allowing hardware control below.": "Los dispositivos nuevos solo pueden monitorizar. Comprueba el código que muestra tu teléfono antes de permitir su control de hardware abajo."
+  "New devices can monitor only. Match the device code shown on your phone before allowing hardware control below.": "Los dispositivos nuevos solo pueden monitorizar. Comprueba el código que muestra tu teléfono antes de permitir su control de hardware abajo.",
+  "Connected devices": "Dispositivos conectados",
+  "IP address": "Dirección IP",
+  "Device code": "Código del dispositivo",
+  "Permissions": "Permisos",
+  "Last activity": "Última actividad",
+  "Expires": "Caduca",
+  "Session started: {time}": "Sesión iniciada: {time}",
+  "Cannot connect to the web server. Check that it is running, then reload the page.": "No se puede conectar con el servidor web. Comprueba que esté iniciado y recarga la página.",
+  "The web server dependencies are unavailable. Install requirements-web.txt in the web runtime or install the distribution's python3-cheroot package.": "Faltan las dependencias del servidor web. Instala requirements-web.txt en su entorno aislado o el paquete python3-cheroot de tu distribución.",
+  "The web server did not start. Check its runtime dependencies and whether its port is available.": "El servidor web no se inició. Revisa sus dependencias y comprueba que su puerto esté disponible.",
+  "The web server could not restart. Its previous network settings were restored; check the runtime dependencies.": "El servidor web no pudo reiniciarse. Se restauró la configuración de red anterior; revisa sus dependencias."
 }

@@ -3,6 +3,7 @@
 from bc250cc.infrastructure.web_control import (
     DEFAULT_PORT,
     access_key,
+    configure,
     options,
     pairing_svg,
     read_settings,
@@ -19,4 +20,4 @@ from bc250cc.infrastructure.web_devices import devices, revoke, revoke_all, set_
 from bc250cc.infrastructure.web_tls import trust_certificate
 
 __all__ = ["DEFAULT_PORT", "access_key", "options", "read_settings", "save_settings", "set_autostart", "start", "status",
-           "stop", "write_pid", "pairing_svg", "ssh_target", "tls_certificate", "devices", "revoke", "revoke_all", "set_control", "trust_certificate"]
+           "stop", "write_pid", "pairing_svg", "ssh_target", "tls_certificate", "configure", "devices", "revoke", "revoke_all", "set_control", "trust_certificate"]

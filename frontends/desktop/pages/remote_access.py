@@ -2,18 +2,24 @@
 from __future__ import annotations
 
 import shutil
+import time
+from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtCore import QByteArray, Qt, QTimer, QUrl
 from PyQt6.QtGui import QDesktopServices, QGuiApplication, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
+    QAbstractItemView,
     QBoxLayout,
     QFileDialog,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QScrollArea,
     QSizePolicy,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -43,7 +49,6 @@ class RemoteAccessPage(QWidget):
         self._syncing_web = False
         self._code_boxes = []
         self._qr_signature = None
-        self._device_signature = None
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea()
@@ -103,12 +108,34 @@ class RemoteAccessPage(QWidget):
         note = self._label("Scan on the same Wi-Fi. This QR contains your access key; keep it private.")
         note.setMaximumWidth(300)
         pairing.addWidget(note)
-        body.addWidget(self._label("Browser sessions", strong=True))
+        body.addWidget(self._label("Connected devices", strong=True))
         body.addWidget(self._label("Sessions expire after 30 minutes without activity or eight hours in total. Closing access disconnects the selected browser; a new login starts with monitoring permission."))
-        self.device_list = QVBoxLayout()
-        body.addLayout(self.device_list)
+        self.device_table = QTableWidget(0, 7)
+        self.device_table.setAccessibleName(tr("Connected devices"))
+        self.device_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.device_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.device_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.device_table.setShowGrid(False)
+        self.device_table.setWordWrap(False)
+        self.device_table.verticalHeader().hide()
+        self.device_table.verticalHeader().setDefaultSectionSize(40)
+        self.device_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.device_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.device_table.setMinimumHeight(120)
+        self.device_table.setMaximumHeight(320)
+        self.device_table.itemSelectionChanged.connect(self._update_device_actions)
+        body.addWidget(self.device_table)
+        self.device_empty_label = self._label("No connected browsers.")
+        body.addWidget(self.device_empty_label)
+        actions = QHBoxLayout()
+        self.device_control_button = self._button("Allow hardware control", self._toggle_selected_device)
+        self.device_disconnect_button = self._button("Disconnect", self._disconnect_selected_device)
         self.revoke_all_button = self._button("Disconnect all devices", self._revoke_all)
-        body.addWidget(self.revoke_all_button)
+        actions.addWidget(self.device_control_button)
+        actions.addWidget(self.device_disconnect_button)
+        actions.addStretch(1)
+        actions.addWidget(self.revoke_all_button)
+        body.addLayout(actions)
 
         body.addWidget(self._label("Network and connection", strong=True))
         self.web_lan_switch = ToggleSwitch()
@@ -185,7 +212,6 @@ class RemoteAccessPage(QWidget):
                                on_error=lambda message: self.web_state_label.setText(tr(message)))
 
     def retranslate_dynamic_copy(self):
-        self._device_signature = None
         self._render_web()
 
     def _apply_web(self, state):
@@ -251,39 +277,78 @@ class RemoteAccessPage(QWidget):
         painter.end()
         self.web_qr_image.setPixmap(pixmap)
 
+    def _selected_device(self):
+        row = self.device_table.currentRow()
+        item = self.device_table.item(row, 0) if row >= 0 and self.device_table.selectedItems() else None
+        identifier = item.data(Qt.ItemDataRole.UserRole) if item else None
+        return next((d for d in self._web_state.get("devices", []) if d["id"] == identifier), None)
+
     def _render_devices(self):
         devices = self._web_state.get("devices") or []
-        signature = tuple((d["id"], d.get("control"), d.get("address"), d.get("agent")) for d in devices)
-        if signature == self._device_signature:
-            return
-        self._device_signature = signature
-        while self.device_list.count():
-            item = self.device_list.takeAt(0)
-            if item.widget():
-                item.widget().hide()
-                item.widget().deleteLater()
-        for device in devices:
-            row = QWidget()
-            layout = QHBoxLayout(row)
-            layout.setContentsMargins(0, 4, 0, 4)
-            description = self._label("")
+        selected = self._selected_device()
+        selected_id = selected["id"] if selected else None
+        position = self.device_table.verticalScrollBar().value()
+        self.device_table.blockSignals(True)
+        self.device_table.setHorizontalHeaderLabels([tr(label) for label in (
+            "Device", "IP address", "Device code", "Permissions", "Status", "Last activity", "Expires")])
+        self.device_table.setRowCount(len(devices))
+        self.device_table.clearSelection()
+        now = time.time()
+
+        def timestamp(value):
+            if not value:
+                return "—", ""
+            date = datetime.fromtimestamp(float(value)).astimezone()
+            return date.strftime("%H:%M:%S"), date.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+        for index, device in enumerate(devices):
             raw_agent = device.get("agent") or ""
             platform = next((name for marker, name in (("Android", "Android"), ("iPhone", "iPhone"), ("iPad", "iPad"),
                             ("Windows", "Windows"), ("Macintosh", "macOS"), ("Linux", "Linux")) if marker in raw_agent), tr("Browser"))
             browser = next((name for marker, name in (("Edg/", "Edge"), ("Firefox/", "Firefox"), ("Chrome/", "Chrome"),
                            ("Safari/", "Safari")) if marker in raw_agent), "")
-            agent = " · ".join(part for part in (platform, browser) if part)
-            description.setText(f"{agent} · {device.get('address', '')} · {device['id'][:8]}\n{tr('Hardware control' if device.get('control') else 'Monitoring only')}")
-            layout.addWidget(description, 1)
-            device_id = device["id"]
-            control = bool(device.get("control"))
-            layout.addWidget(self._button("Monitoring only" if control else "Allow hardware control",
-                                          lambda d=device_id, c=control: self._device_control(d, not c)))
-            layout.addWidget(self._button("Disconnect", lambda d=device_id: self._run("revoke", lambda: web_access.revoke(d))))
-            self.device_list.addWidget(row)
-        if not devices:
-            self.device_list.addWidget(self._label("No connected browsers."))
+            seen = device.get("seen")
+            active = seen is not None and now - float(seen) <= 15
+            seen_text, seen_full = timestamp(seen)
+            expiry = min(float(device.get("expires") or 0), float(seen or 0) + 1800)
+            expiry_text, expiry_full = timestamp(expiry)
+            values = (" · ".join(part for part in (platform, browser) if part), device.get("address", "—"),
+                      device["id"][:8], tr("Hardware control" if device.get("control") else "Monitoring only"),
+                      tr("Active" if active else "Idle") if seen else "—", seen_text, expiry_text)
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setData(Qt.ItemDataRole.UserRole, device["id"])
+                if column == 0:
+                    item.setToolTip(raw_agent)
+                elif column == 2:
+                    item.setToolTip(tr_format("Session started: {time}", time=timestamp(device.get("created"))[1] or "—"))
+                elif column in (5, 6):
+                    item.setToolTip(seen_full if column == 5 else expiry_full)
+                self.device_table.setItem(index, column, item)
+            if device["id"] == selected_id:
+                self.device_table.selectRow(index)
+        self.device_table.blockSignals(False)
+        self.device_table.verticalScrollBar().setValue(position)
+        self.device_table.setFixedHeight(min(320, max(86, 40 * len(devices) + 42)))
+        self.device_empty_label.setVisible(not devices)
         self.revoke_all_button.setEnabled(bool(devices))
+        self._update_device_actions()
+
+    def _update_device_actions(self):
+        device = self._selected_device()
+        self.device_control_button.setEnabled(device is not None)
+        self.device_disconnect_button.setEnabled(device is not None)
+        self.device_control_button.setText(tr("Monitoring only" if device and device.get("control") else "Allow hardware control"))
+
+    def _toggle_selected_device(self):
+        device = self._selected_device()
+        if device:
+            self._device_control(device["id"], not bool(device.get("control")))
+
+    def _disconnect_selected_device(self):
+        device = self._selected_device()
+        if device:
+            self._run("revoke", lambda: web_access.revoke(device["id"]))
 
     def _run(self, name, work):
         self._background.start(name, work, on_success=lambda _r: self.refresh(),
@@ -319,12 +384,7 @@ class RemoteAccessPage(QWidget):
         if self._syncing_web:
             return
 
-        def apply():
-            web_access.save_settings(**{name: checked}, tls=True)
-            if self._web_state.get("running"):
-                web_access.stop()
-                web_access.start()
-        self._run("web_option", apply)
+        self._run("web_option", lambda: web_access.configure(**{name: checked}, tls=True))
 
     def _new_web_key(self):
         self._run("web_key", lambda: web_access.access_key(renew=True))

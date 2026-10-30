@@ -16,7 +16,7 @@ export async function api(path, body) {
     if (response.status === 401 && path !== "login") onLost();
     return { ...data, status: response.status };
   } catch {
-    return { ok: false, status: 0, error: t("Not detected") };
+    return { ok: false, status: 0, error: t("Cannot connect to the web server. Check that it is running, then reload the page.") };
   }
 }
 

@@ -67,8 +67,37 @@ def test_device_control_and_revocation_are_owner_actions(qtbot, monkeypatch):
     monkeypatch.setattr("frontends.desktop.pages.remote_access.web_access.set_control", lambda d, a: calls.append((d, a)))
     monkeypatch.setattr("frontends.desktop.pages.remote_access.web_access.revoke", lambda d: calls.append(d))
     page._apply_web({"devices": [{"id": "device", "address": "192.168.0.22", "agent": "Phone", "control": False}]})
+    page.device_table.selectRow(0)
     from PyQt6.QtWidgets import QPushButton
     buttons = page.findChildren(QPushButton)
     next(b for b in buttons if b.text() == "Allow hardware control").click()
     next(b for b in buttons if b.text() == "Disconnect").click()
     assert calls == [("device", True), "device"]
+
+
+def test_device_table_is_read_only_and_tracks_the_selected_identity_across_refresh(qtbot):
+    from PyQt6.QtWidgets import QAbstractItemView
+    page = RemoteAccessPage()
+    qtbot.addWidget(page)
+    first = {"id": "aaaaaaaa11", "address": "192.168.0.22", "agent": "Android Chrome/123", "control": False, "seen": 100000}
+    other = {"id": "bbbbbbbb22", "address": "192.168.0.23", "agent": "iPhone Safari/123", "control": True, "seen": 100001}
+    page._apply_web({"devices": [first, other]})
+    table = page.device_table
+    assert table.columnCount() == 7 and table.rowCount() == 2
+    assert table.editTriggers() == QAbstractItemView.EditTrigger.NoEditTriggers
+    assert not page.device_control_button.isEnabled()
+    table.selectRow(0)
+    assert page._selected_device()["id"] == first["id"]
+    assert page.device_control_button.text() == "Allow hardware control"
+    before = table.item(0, 5).text()
+    page._apply_web({"devices": [other, {**first, "seen": 100100, "control": True}]})
+    assert page._selected_device()["id"] == first["id"]
+    assert table.currentRow() == 1
+    assert table.item(1, 1).text() == first["address"]
+    assert table.item(1, 2).text() == "aaaaaaaa"
+    assert table.item(1, 5).text() != before
+    assert page.device_control_button.text() == "Monitoring only"
+    page._apply_web({"devices": [other]})
+    assert page._selected_device() is None
+    assert not page.device_control_button.isEnabled()
+    assert not page.device_disconnect_button.isEnabled()

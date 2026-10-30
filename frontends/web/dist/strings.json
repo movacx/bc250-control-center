@@ -48,6 +48,7 @@
  "CU write actions are locked until a verified root-owned backend is installed.",
  "Cache hierarchy",
  "Cancel",
+ "Cannot connect to the web server. Check that it is running, then reload the page.",
  "Clocks",
  "Close",
  "Collapse sidebar",

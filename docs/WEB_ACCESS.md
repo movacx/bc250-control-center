@@ -21,7 +21,7 @@ the frontend.
    it only on devices you own and protect the board's private CA key.
 4. Scan the visible QR from the same home network, or enter the address and key.
    New browser sessions have **monitoring-only** permission. In the desktop's
-   **Browser sessions** list, match the device code displayed on the phone (plus browser/address) and press **Allow
+   **Connected devices** table, match the device code displayed on the phone (plus browser/address) and press **Allow
    hardware control**. This is independent of native administrator authorization.
 5. The owner can downgrade or disconnect each browser, or disconnect all of them.
    Reconnecting starts in monitoring-only mode. Sessions expire after 30 minutes
@@ -51,6 +51,30 @@ Use `--http` only for loopback development or a protected SSH tunnel. Network
 HTTP connections cannot log in, run control actions or submit Linux passwords, including when an old
 `lan_password` setting is present. The service does not change firewall rules
 or router forwarding.
+
+## Source-install runtime and safe restarts
+
+If the desktop's system Python lacks the web dependencies, prepare a stable,
+user-owned environment instead of modifying system Python:
+
+```sh
+python3 -m venv --system-site-packages ~/.local/share/bc250-control-center/web-runtime
+~/.local/share/bc250-control-center/web-runtime/bin/python -m pip install -r requirements-web.txt
+```
+
+The launcher probes the current interpreter and then this environment. The user
+service records the working interpreter in `ExecStart`. A network-mode switch
+checks dependencies before stopping the current endpoint; if restart fails it
+restores the previous settings and tries the previous mode. Starting reports
+success only once the listener is ready. Restart an already-open desktop after
+updating launcher code so its in-memory functions use the new implementation.
+
+With LAN disabled the server listens on `127.0.0.1`, remains protected by the
+access key, and can be opened only from the board itself. A phone's localhost
+refers to the phone. The connected-devices table lists signed-in browsers,
+not all hosts on the Wi-Fi. Rows show browser, IP, device code, permissions,
+active/idle state, last activity and effective expiry. Selection survives
+refreshes; granting control or disconnecting targets that selected session.
 
 ## Local-network boundary and server
 

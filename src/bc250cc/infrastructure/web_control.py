@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 
 from bc250cc.infrastructure.blackbox_control import systemd_available
-from bc250cc.infrastructure.persistence.config_paths import app_config_dir
+from bc250cc.infrastructure.persistence.config_paths import app_config_dir, app_data_dir
 from bc250cc.infrastructure.remote_access import addresses
 from bc250cc.shared.errors import ActionNeeded, BoundaryError, ErrorDetail
 
@@ -156,7 +156,21 @@ def _unit_path() -> Path:
 
 
 def _command() -> list[str]:
-    return [sys.executable, "-m", "frontends.web"]
+    # Packaged installs use the system runtime. Source installs can keep web
+    # dependencies in their own stable environment, without altering system Python.
+    candidates = [Path(sys.executable), app_data_dir() / "web-runtime" / "bin" / "python"]
+    for interpreter in dict.fromkeys(candidates):
+        if not interpreter.is_file():
+            continue
+        try:
+            probe = subprocess.run([str(interpreter), "-c", "import frontends.web.server"],
+                                   cwd=APP_ROOT, env={**os.environ, **_environment()},
+                                   capture_output=True, timeout=10, check=False)
+            if probe.returncode == 0:
+                return [str(interpreter), "-m", "frontends.web"]
+        except (OSError, subprocess.SubprocessError):
+            continue
+    raise ActionNeeded("The web server dependencies are unavailable. Install requirements-web.txt in the web runtime or install the distribution's python3-cheroot package.")
 
 
 def _environment() -> dict[str, str]:
@@ -187,17 +201,50 @@ def status() -> dict:
 def start() -> dict:
     if _listening(options()["port"]):
         return {"started": False}
-    import importlib.util
-    if importlib.util.find_spec("cheroot") is None:
-        raise ActionNeeded("The web interface requires Cheroot. Install requirements-web.txt with this Python interpreter, or the distribution's python3-cheroot package.")
+    command = _command()  # Preflight before touching a running service or its unit.
     access_key()
     if autostart_state()["enabled"]:
-        _systemctl("start", UNIT_FILE_NAME)
+        set_autostart(True)  # Refresh ExecStart if the interpreter changed.
+        process = None
     else:
-        subprocess.Popen(  # nosec B603 - this interpreter, on the code that shows the window
-            _command(), cwd=APP_ROOT, env={**os.environ, **_environment()}, start_new_session=True,
+        process = subprocess.Popen(  # nosec B603 - this interpreter, on the code that shows the window
+            command, cwd=APP_ROOT, env={**os.environ, **_environment()}, start_new_session=True,
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return {"started": True}
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        if _listening(options()["port"]):
+            return {"started": True}
+        if process is not None and process.poll() is not None:
+            break
+        time.sleep(0.1)
+    if process is not None and process.poll() is None:
+        process.terminate()
+    raise ActionNeeded("The web server did not start. Check its runtime dependencies and whether its port is available.")
+
+
+def configure(**changes) -> dict:
+    """Validate a restart before stopping the working endpoint; restore on failure."""
+    if set(changes) - {"lan", "tls"} or any(not isinstance(value, bool) for value in changes.values()):
+        raise ValueError("Invalid web network option")
+    previous = options()
+    running = _listening(previous["port"])
+    if running:
+        _command()  # Missing dependencies must not bring down the live service.
+        if changes.get("tls"):
+            tls_certificate()
+        stop()
+    save_settings(**changes)
+    try:
+        if running:
+            start()
+    except Exception:
+        save_settings(**{key: previous[key] for key in changes})
+        try:
+            start()
+        except Exception:
+            raise ActionNeeded("The web server could not restart. Its previous network settings were restored; check the runtime dependencies.") from None
+        raise
+    return options()
 
 
 def stop() -> dict:

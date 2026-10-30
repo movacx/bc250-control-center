@@ -5586,5 +5586,16 @@
   "This browser session has expired": "This browser session has expired",
   "Start the web interface first to prepare its local HTTPS certificate.": "Start the web interface first to prepare its local HTTPS certificate.",
   "Device code: {code}": "Device code: {code}",
-  "New devices can monitor only. Match the device code shown on your phone before allowing hardware control below.": "New devices can monitor only. Match the device code shown on your phone before allowing hardware control below."
+  "New devices can monitor only. Match the device code shown on your phone before allowing hardware control below.": "New devices can monitor only. Match the device code shown on your phone before allowing hardware control below.",
+  "Connected devices": "Connected devices",
+  "IP address": "IP address",
+  "Device code": "Device code",
+  "Permissions": "Permissions",
+  "Last activity": "Last activity",
+  "Expires": "Expires",
+  "Session started: {time}": "Session started: {time}",
+  "Cannot connect to the web server. Check that it is running, then reload the page.": "Cannot connect to the web server. Check that it is running, then reload the page.",
+  "The web server dependencies are unavailable. Install requirements-web.txt in the web runtime or install the distribution's python3-cheroot package.": "The web server dependencies are unavailable. Install requirements-web.txt in the web runtime or install the distribution's python3-cheroot package.",
+  "The web server did not start. Check its runtime dependencies and whether its port is available.": "The web server did not start. Check its runtime dependencies and whether its port is available.",
+  "The web server could not restart. Its previous network settings were restored; check the runtime dependencies.": "The web server could not restart. Its previous network settings were restored; check the runtime dependencies."
 }
