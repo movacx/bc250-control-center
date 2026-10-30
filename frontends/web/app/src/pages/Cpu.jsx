@@ -40,6 +40,8 @@ export default function Cpu() {
         <Card title={t("Operating profile")} sub={t("One click sets the range. The pencil changes name and frequencies.")}>
           <div className="tiles profiles">{profiles.map((item, i) => <Tile key={item.key} label={t(item.name)} value={`${item.frequency} MHz`} note={`${item.vid} mV · ${item.temperature} °C`}
             on={i === chosen} onClick={() => setChosen(i)} onEdit={() => setEditing(i)} />)}</div>
+      {editing !== null && <ProfileEditor key={profiles[editing].key} profile={profiles[editing]} fields={fields()} onClose={() => setEditing(null)}
+        onSave={(next) => { setProfiles(profiles.map((p, i) => (i === editing ? next : p))); setEditing(null); }} />}
         </Card>
         <Card title={t("Live scale test")}>
           <Check checked={manual} onChange={setManual}>{t("Use manual scale")}</Check>
@@ -83,8 +85,7 @@ export default function Cpu() {
       </div>
       {review && <Dialog title={t("Boot persistence")} onClose={() => setReview(false)} footer={<Btn onClick={() => setReview(false)}>{t("Close")}</Btn>}>
         <div className="reads">{Object.entries(data.persistent || {}).filter(([, v]) => typeof v !== "object").map(([k, v]) => <Read key={k} label={k} value={String(v)} />)}</div></Dialog>}
-      {editing !== null && <ProfileEditor profile={profiles[editing]} fields={fields()} onClose={() => setEditing(null)}
-        onSave={(next) => { setProfiles(profiles.map((p, i) => (i === editing ? next : p))); setEditing(null); }} />}
+
     </div></>
   );
 }

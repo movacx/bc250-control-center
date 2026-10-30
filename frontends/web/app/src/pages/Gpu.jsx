@@ -36,6 +36,8 @@ export default function Gpu() {
           <Card title={t("Operating profile")} sub={t("One click sets the range. The pencil changes name and frequencies.")}>
             <div className="tiles profiles">{profiles.map((p) => <Tile key={p.key} label={p.label} value={`${p.min} – ${p.max} MHz`} note={`${volts[p.max] ?? "--"} mV`} on={p.min === cur[0] && p.max === cur[1]}
               onClick={() => act({ action: "gpu.profile", level: p.max > SAFE_CEILING ? 2 : 1, params: { min: p.min, max: p.max }, title: p.label, body: `${p.min}–${p.max} MHz` })} onEdit={() => setEditing(p)} />)}</div>
+      {editing && <ProfileEditor key={editing.key} profile={{ name: editing.label, min: editing.min, max: editing.max }} fields={[["min", t("Minimum frequency"), lowest, highest, "MHz"], ["max", t("Maximum frequency"), lowest, highest, "MHz"]]}
+        onClose={() => setEditing(null)} onSave={(p) => { setEdited({ ...edited, [editing.key]: { label: p.name, min: Math.min(p.min, p.max), max: Math.max(p.min, p.max) } }); setEditing(null); }} />}
           </Card>
           {backend.startsWith("cyan") && <Fold title={t("Cyan kernel compatibility")}>
             <div className="tiles" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))" }}>
@@ -77,8 +79,7 @@ export default function Gpu() {
         {advanced && <div className="reads">{stops.map((f) => volts[f] != null && <div className="read" key={f}><span>{f} MHz</span><b>{volts[f]} mV</b></div>)}
           <div className="read"><span>{t("Frequency range")}</span><b>{lowest}–{highest} MHz</b></div><div className="read"><span>{t("Active range")}</span><b>{cur[0]}–{cur[1]} MHz</b></div><div className="read"><span>{t("Backend")}</span><b>{backend || "--"}</b></div><div className="read"><span>config.toml</span><b>{raw.config_path || "--"}</b></div></div>}
       </Card>
-      {editing && <ProfileEditor profile={{ name: editing.label, min: editing.min, max: editing.max }} fields={[["min", t("Minimum frequency"), lowest, highest, "MHz"], ["max", t("Maximum frequency"), lowest, highest, "MHz"]]}
-        onClose={() => setEditing(null)} onSave={(p) => { setEdited({ ...edited, [editing.key]: { label: p.name, min: Math.min(p.min, p.max), max: Math.max(p.min, p.max) } }); setEditing(null); }} />}
+
     </>
   );
 }

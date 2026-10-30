@@ -92,7 +92,7 @@ headings and the CU overview card are omitted. Secondary and experimental contro
 expandable. CU rows show five WGP pairs each and warn about engine imbalance. Selecting a preset or toggling a pair only edits the draft; applying
 still needs confirmation.
 
-The voltage laboratory opens a focused panel matching the desktop drawer:
+The voltage laboratory expands an in-page workspace:
 Gentle, Moderate, High and Custom modes; a scrollable table of active points;
 and Frequency, Current, Selected and delta-from-packaged-default columns.
 The fixed footer previews changed points and peak voltage before review.
@@ -110,14 +110,26 @@ Commenting is blocked while the active range is above 2000 MHz; select and
 apply a lower profile first. Completion invalidates the reader's caches even
 when an operation fails, so partial outcomes can be read back.
 
-Sensors have search, category filters and list/graph layouts. On a phone the
-main list uses dedicated mobile rows with name and current value; a button
-exposes min/average/max below each reading. Resource tabs and filters wrap
-without clipping. Operations use a keyboard-accessible dialog with a separate
-status, output, password form and action footer; it can be minimized while
-monitoring continues.
-CPU, GPU, VRAM, RAM, disk and network retain their resource views. Polling pauses
-in a hidden tab; stale responses from a previous view are discarded.
+Sensors use two primary mobile views: **List** and **Graphs**. Search and a
+category selector remain visible; less frequent options sit under **More**.
+Tap a reading to reveal its statistics and history in place. Checkboxes choose
+which sensors are available to plot; filtering preserves selections outside
+the visible list. Graphs show one focused sensor with a picker for the other
+selected traces. Desktop web retains the table and multiple plots.
+
+Mobile plots use fewer axis labels and separate numerical readouts rather
+than overlapping labels on the curve. Touch or drag a plot to inspect a
+sample; arrow keys move the cursor and Escape returns to live readings. The
+mobile time axis grows with the available history up to two minutes; it does
+not fill missing history with synthetic samples. Per-core heat maps become
+readable rows with individual history lines and current values on phones.
+
+Profile editing and routine hardware reviews happen in the page. Higher-risk
+actions still require an explicit confirmation dialog. Mobile operations start
+in a compact progress bar and open their console when authentication is needed
+or an operation fails. Finished progress can be dismissed directly. The
+voltage editor expands in its own card and keeps drafts across preview changes.
+Navigating between pages resets the main scroll position.
 
 Themes and language are browser-local. The shared desktop catalogs supply all
 30 languages; changing the web preference does not alter desktop settings.

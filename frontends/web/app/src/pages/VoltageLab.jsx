@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { keep, t, useApp } from "../lib.jsx";
-import { Btn, Icon, Modal, Number_, Pill } from "../ui.jsx";
+import { Btn, Icon, Number_, Pill } from "../ui.jsx";
 
 /** Curves and limits come from the same model as the desktop laboratory. */
 export default function VoltageLab({ data }) {
   const { act, running, again } = useApp();
   const lab = data.voltage_lab || {};
+  const workspace = useRef(null);
   const [open, setOpen] = useState(false);
+  useEffect(() => { if (open) workspace.current?.scrollIntoView({ block: "start" }); }, [open]);
   const [selection, setSelection] = useState(null);
   const [draft, setDraft] = useState({});
   useEffect(() => { setDraft({}); setSelection(null); }, [again]);
@@ -39,9 +41,8 @@ export default function VoltageLab({ data }) {
     warning: t("Stop every game, benchmark, and 3D workload before continuing."),
   }); };
   return <>
-    <p className="note">{t("Choose a safe boost or edit the active points")}</p>
-    <Btn onClick={() => setOpen(true)}>{t("Open voltage laboratory")}</Btn>
-    {open && <Modal onClose={() => setOpen(false)}><section className="dialog voltage-dialog" role="dialog" aria-modal="true" aria-label={t("GPU voltage curve")}>
+    {!open && <><p className="note">{t("Choose a safe boost or edit the active points")}</p><Btn onClick={() => setOpen(true)}>{t("Open voltage laboratory")}</Btn></>}
+    {open && <section ref={workspace} className="voltage-workspace voltage-dialog" role="region" aria-label={t("GPU voltage curve")}>
     <header><div className="dialog-heading"><button className="ghost" onClick={() => setOpen(false)} aria-label={t("Close GPU voltage curve")}><Icon name="collapse_gray" /></button><div><h3>{t("GPU voltage curve")}</h3><p className="note">{t("Choose a safe boost or edit the active points")}</p></div></div></header>
     <section className="voltage-lab">
     <div className="lab-status"><span>{t("GPU voltage curve")}</span><Pill>{lab.applied_level == null ? t("Custom") : t("Level {level}", { level: lab.applied_level })}</Pill></div>
@@ -60,6 +61,6 @@ export default function VoltageLab({ data }) {
       </div>)}</div>
     {invalid && <p className="notice" role="status">{t("Invalid voltage curve")} · {lab.minimum_mv}–{lab.maximum_mv} mV{falling > 0 && <span className="curve-error">{t("{frequency} MHz uses {voltage} mV, below {previous_frequency} MHz at {previous_voltage} mV. Voltage cannot decrease while frequency increases.", { frequency: curve[falling][0], voltage: curve[falling][1], previous_frequency: curve[falling - 1][0], previous_voltage: curve[falling - 1][1] })}</span>}</p>}
     </section><footer className="voltage-footer"><p className="note">{changed === 1 ? t("1 point changed") : t("{count} points changed", { count: changed })} · {t("peak {value} mV", { value: maximum })}{added.length > 0 ? ` · ${t("max {value} mV", { value: deltaText(Math.max(...added)) })}` : ""}</p><div className="action-dock"><Btn disabled={unavailable || running} onClick={() => apply(true)}>{t("Restore governor defaults")}</Btn><Btn kind="primary" disabled={unavailable || invalid || running || !curve.length} onClick={() => apply()}>{t("Review and apply")}</Btn></div></footer>
-  </section></Modal>}
+  </section>}
   </>;
 }

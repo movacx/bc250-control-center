@@ -61,15 +61,16 @@ function Login({ onDone, error }) {
 function Activity({ job, onClose, canType }) {
   const [text, setText] = useState("");
   const out = useRef(null);
-  const [expanded, setExpanded] = useState(true);
-  useEffect(() => setExpanded(true), [job?.id]);
+  const [expanded, setExpanded] = useState(() => !matchMedia("(max-width: 820px)").matches);
+  useEffect(() => { setExpanded(!matchMedia("(max-width: 820px)").matches); }, [job?.id]);
+  useEffect(() => { if (job?.waiting || job?.done && !job?.ok) setExpanded(true); }, [job?.waiting, job?.done, job?.ok]);
   useEffect(() => setText(""), [job?.id, job?.waiting]);
   useEffect(() => { if (out.current) out.current.scrollTop = out.current.scrollHeight; }, [job?.text]);
   if (!job) return null;
   const send = async (e) => { e.preventDefault(); const value = text; setText(""); await api("job/input", { text: value }); };
   const status = job.done ? (job.ok ? t("Done") : t("Failed")) : job.waiting ? t("Administrator password") : t("Running…");
   const tone = job.done ? (job.ok ? "green" : "red") : "blue";
-  if (!expanded) return <button className="operation-minimized" onClick={() => setExpanded(true)} aria-expanded={false}><span className={`pill ${tone}`}>{status}</span><span>{job.label}</span><Icon name="expand_gray" /></button>;
+  if (!expanded) return <div className="operation-minimized"><button className="operation-open" onClick={() => setExpanded(true)} aria-expanded={false}><span className={`pill ${tone}`}>{status}</span><span>{job.label}</span><Icon name="expand_gray" /></button>{job.done && <button className="ghost" aria-label={t("Close")} onClick={onClose}><Icon name="close_gray" /></button>}</div>;
   return <Modal onClose={() => setExpanded(false)}><section className="dialog operation-dialog" role="dialog" aria-modal="true" aria-label={job.label}>
     <header><div className="dialog-heading"><span className={`dialog-symbol ${tone}`}><Icon name={job.done ? (job.ok ? "check_green" : "warning_orange") : "nav_performance"} /></span><div><span className="dialog-caption">{t("Hardware")}</span><h3>{job.label}</h3></div></div>
       <div className="operation-status"><span className={`pill ${tone}`} role="status">{status}</span></div></header>
@@ -102,13 +103,14 @@ function SSH({ onClose, canType }) {
 function Confirm({ spec, onCancel, onGo }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const review = useRef(null);
+  useEffect(() => { if (spec.level === 1) { review.current?.scrollIntoView({ block: "start" }); review.current?.focus({ preventScroll: true }); } }, [spec]);
   const go = async () => {
     setBusy(true);
     const result = await onGo();
     if (!result.ok) { setError(t(result.error || "Not detected")); setBusy(false); }
   };
-  return (
-    <Modal onClose={() => { if (!busy) onCancel(); }}><div className="dialog" role="alertdialog" aria-label={spec.title} aria-modal="true">
+  const content = <div ref={review} tabIndex={-1} className={spec.level === 1 ? "inline-review" : "dialog"} role={spec.level === 1 ? "region" : "alertdialog"} aria-label={spec.title} aria-modal={spec.level === 1 ? undefined : true}>
       <header><div className="dialog-heading"><span className={`dialog-symbol ${spec.level === 2 ? "orange" : "blue"}`}><Icon name="warning_orange" /></span><div><span className="dialog-caption">{t("Confirm")}</span><h3>{spec.title}</h3></div></div></header>
       <section>{spec.body && <p style={{ margin: 0 }}>{spec.body}</p>}
         {spec.summary?.length > 0 && <dl className="dialog-summary">{spec.summary.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
@@ -116,8 +118,8 @@ function Confirm({ spec, onCancel, onGo }) {
         {error && <p className="err" role="alert">{error}</p>}</section>
       <footer><Btn disabled={busy} onClick={onCancel}>{t("Cancel")}</Btn>
         <Btn kind={spec.level === 2 ? "danger" : "primary"} disabled={busy} onClick={go}>{spec.go || t("Apply")}</Btn></footer>
-    </div></Modal>
-  );
+    </div>;
+  return spec.level === 1 ? content : <Modal onClose={() => { if (!busy) onCancel(); }}>{content}</Modal>;
 }
 
 function Shell({ session, onLogout }) {
@@ -130,6 +132,7 @@ function Shell({ session, onLogout }) {
   const [toast, setToast] = useState(null);
   const [again, setAgain] = useState(0);
   const [sshOpen, setSshOpen] = useState(false);
+  useEffect(() => { document.querySelector("main")?.scrollTo(0, 0); }, [page]);
   const ssh = usePoll("ssh", 3000, 0);
   const live = usePoll("live", 1000, 0);
   const release = usePoll("version", 15000, 0);
@@ -137,7 +140,7 @@ function Shell({ session, onLogout }) {
   const updateAvailable = loadedBuild && release?.version && loadedBuild !== release.version;
   const refreshBuild = () => { const url = new URL(location.href); url.searchParams.set("v", release.version); location.replace(url); };
 
-  useEffect(() => { const on = () => { setPage(route()); setMenu(false); }; addEventListener("hashchange", on); return () => removeEventListener("hashchange", on); }, []);
+  useEffect(() => { const on = () => { setPage(route()); setMenu(false); setConfirm(null); }; addEventListener("hashchange", on); return () => removeEventListener("hashchange", on); }, []);
   useEffect(() => { localStorage.setItem("slim", slim ? "1" : "0"); }, [slim]);
   useEffect(() => { if (!toast) return undefined; const id = setTimeout(() => setToast(null), 5000); return () => clearTimeout(id); }, [toast]);
   useEffect(() => {
@@ -175,7 +178,7 @@ function Shell({ session, onLogout }) {
   return (
     <App.Provider value={{ live: live?.metrics ? live : null, history: live?.history || {}, act, again, running, toast: setToast, session, ssh, openSsh: () => setSshOpen(true) }}>
       <div className="shell">
-        <header className="topbar"><a className="mobile-brand" href="#/dashboard"><img src="logo.png" alt="" /><strong>BC250</strong></a><span className="topbar-title">{current.title()}</span><button className="ghost" aria-label={t("Menu")} aria-expanded={menu} onClick={() => setMenu(!menu)}><Icon name="nav_settings" /></button></header>
+        <header className="topbar"><a className="mobile-brand" aria-label={`BC250 · ${t("Dashboard")}`} href="#/dashboard"><img src="logo.png" alt="" /><strong>BC250</strong></a><span className="topbar-title">{current.title()}</span><button className="ghost" aria-label={t("Menu")} aria-expanded={menu} onClick={() => setMenu(!menu)}><Icon name="nav_settings" /></button></header>
         {menu && <div className="scrim menu-scrim" style={{ zIndex: 24 }} onClick={() => setMenu(false)} />}
         <nav className={`side ${slim ? "slim" : ""} ${menu ? "open" : ""}`} aria-label="BC250">
           <div className="brand"><img src="logo.png" alt="" /><div className="grow"><b>BC250</b><small>{name[0]?.toUpperCase() + name.slice(1)}</small></div>
@@ -184,13 +187,13 @@ function Shell({ session, onLogout }) {
           <div className="spring" /><div className="rule" />
           {link(SETTINGS)}
         </nav>
-        <main className={`main page-${page}`}><h1 className="sr-only">{current.title()}</h1>{updateAvailable && <div className="update-notice" role="status"><span>{t("Update available")}</span><Btn small disabled={running} onClick={refreshBuild}>{t("Refresh")}</Btn></div>}{live?._disconnected && <p className="notice" role="status">{t("Not connected")}</p>}<Page onLogout={onLogout} /></main>
+        <main className={`main page-${page} ${job && (jobId || running) ? "with-operation" : ""}`}><h1 className="sr-only">{current.title()}</h1>{confirm?.level === 1 && <Confirm spec={confirm} onCancel={() => setConfirm(null)} onGo={() => go(confirm)} />}{updateAvailable && <div className="update-notice" role="status"><span>{t("Update available")}</span><Btn small disabled={running} onClick={refreshBuild}>{t("Refresh")}</Btn></div>}{live?._disconnected && <p className="notice" role="status">{t("Not connected")}</p>}<Page onLogout={onLogout} /></main>
         <nav className="bottom-nav" aria-label={t("Hardware")}>{["dashboard", "cpu", "cu", "gpu", "performance"].map((key, i) => {
           const item = ALL.find((v) => v.key === key);
           return <a href={`#/${key}`} key={key} className={page === key ? "on" : ""} aria-current={page === key ? "page" : undefined}><Icon name={item.icon} /><span>{[t("Dashboard"), "CPU", "CU", "GPU", t("Sensors")][i]}</span></a>;
         })}</nav>
       </div>
-      {confirm && <Confirm spec={confirm} onCancel={() => { setConfirm(null); confirm.onCancel?.(); }} onGo={() => go(confirm)} />}
+      {confirm && confirm.level !== 1 && <Confirm spec={confirm} onCancel={() => { setConfirm(null); confirm.onCancel?.(); }} onGo={() => go(confirm)} />}
       {(job && (jobId || running)) && <Activity job={job} canType={session.password} onClose={() => { setJob(null); setJobId(0); }} />}
       {sshOpen && <SSH onClose={() => setSshOpen(false)} canType={session.password} />}
       {toast && <div className={`toast ${toast.tone}`} role="status"><Icon name={toast.tone === "ok" ? "check_green" : "warning_orange"} /><span>{toast.text}</span><button className="ghost" aria-label={t("Close")} onClick={() => setToast(null)}><Icon name="close_gray" /></button></div>}

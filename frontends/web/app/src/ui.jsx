@@ -1,7 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import icons from "./icons.gen.js";
 import { t } from "./lib.jsx";
+
+export function useMobile() {
+  const [mobile, setMobile] = useState(() => matchMedia("(max-width: 820px)").matches);
+  useEffect(() => { const media = matchMedia("(max-width: 820px)"); const update = () => setMobile(media.matches); media.addEventListener("change", update); return () => media.removeEventListener("change", update); }, []);
+  return mobile;
+}
 
 export const Icon = ({ name }) => <svg className="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: icons[name] || "" }} />;
 
@@ -131,44 +137,59 @@ const ageLabel = (age) => (age === 0 ? t("Now") : age >= 60 ? `-${Math.floor(age
 
 export function LineChart({ chart, small, single }) {
   const [ref, { w, h }] = useWidth();
-  const { series, ages, min, max, ticks } = chart;
-  const left = 10, right = 58, top = 14, bottom = 26, pw = Math.max(10, w - left - right), ph = Math.max(10, h - top - bottom);
-  const x = (age) => left + pw * (1 - age / WINDOW), y = (v) => top + ph * (1 - (v - min) / (max - min || 1));
-  const step = w < 420 ? 60 : w < 700 ? 30 : 15, marks = [];
-  for (let age = WINDOW; age >= 0; age -= step) marks.push(age);
-  const first = series[0]?.values || [];
-  const mean = first.length ? first.reduce((a, b) => a + b, 0) / first.length : 0;
-  const peak = first.length ? Math.max(...first) : 0;
-  const path = (values) => values.map((v, i) => `${i ? "L" : "M"}${x(ages[i]).toFixed(1)},${y(v).toFixed(1)}`).join("");
-  return (
+  const [cursor, setCursor] = useState(null);
+  const drag = useRef(false), clip = useId().replace(/:/g, "");
+  const { series, ages = [], min, max, ticks = [] } = chart;
+  const mobile = w < 560;
+  const left = mobile ? Math.max(40, Math.min(70, Math.max(0, ...ticks.map((tick) => tick.label.length)) * 5 + 8)) : 12, right = mobile ? 14 : 64, top = 12, bottom = 30;
+  const pw = Math.max(10, w - left - right), ph = Math.max(10, h - top - bottom);
+  const span = mobile ? Math.max(5, Math.min(WINDOW, Math.ceil(Math.max(0, ...ages)))) : WINDOW;
+  const x = (age) => left + pw * (1 - age / span), y = (v) => top + ph * (1 - (v - min) / (max - min || 1));
+  const marks = mobile ? [span, Math.round(span / 2), 0] : [120, 90, 60, 30, 0];
+  const shownTicks = mobile && ticks.length > 3 ? [ticks[0], ticks[Math.floor((ticks.length - 1) / 2)], ticks.at(-1)] : ticks;
+  const index = cursor == null ? Math.max(0, ages.length - 1) : Math.min(cursor, Math.max(0, ages.length - 1));
+  const format = (value) => {
+    if (!Number.isFinite(value)) return "—";
+    let unit = chart.unit || "", scaled = value;
+    if (unit === "B" || unit === "B/s") {
+      const n = Math.min(4, Math.max(0, Math.floor(Math.log2(Math.max(Math.abs(value), 1)) / 10)));
+      scaled = value / 1024 ** n; unit = ["B", "KiB", "MiB", "GiB", "TiB"][n] + (chart.rate ? "/s" : "");
+    }
+    return `${new Intl.NumberFormat(document.documentElement.lang, { maximumFractionDigits: 1 }).format(scaled)}${unit ? ` ${unit}` : ""}`;
+  };
+  const nearest = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const age = span * (1 - Math.max(0, Math.min(1, ((event.clientX - rect.left) * w / rect.width - left) / pw)));
+    let best = 0;
+    for (let i = 1; i < ages.length; i++) if (Math.abs(ages[i] - age) < Math.abs(ages[best] - age)) best = i;
+    setCursor(best);
+  };
+  const path = (values) => values.map((v, i) => `${i ? "L" : "M"}${x(ages[i] ?? 0).toFixed(1)},${y(v).toFixed(1)}`).join("");
+  return <div className="chart-shell">
+    <div className="chart-readout"><span>{cursor == null ? t("Live") : ageLabel(Math.round(ages[index] || 0))}</span><output aria-live="off">{series.length === 1 ? format(series[0].values[index]) : t("Graphs")}</output>{cursor != null && <button onClick={() => setCursor(null)} aria-label={t("Live")}><Icon name="refresh_gray" /></button>}</div>
     <div ref={ref} className={`chart ${small ? "small" : ""}`}>
-      <svg width={w} height={h} role="img" aria-label={series.map((s) => s.name).join(", ")}>
-        {ticks.map((tick) => <g key={tick.value}><line x1={left} x2={left + pw} y1={y(tick.value)} y2={y(tick.value)} stroke="var(--c-chart-grid)" />
-          <text x={left + pw + 8} y={y(tick.value) + 4} fontSize="11" fill="var(--c-muted)">{tick.label}</text></g>)}
-        {marks.map((age) => <g key={age}><line x1={x(age)} x2={x(age)} y1={top} y2={top + ph} stroke="var(--c-chart-grid)" />
-          <text x={Math.min(x(age), left + pw - 14)} y={h - 8} fontSize="11" textAnchor={age === WINDOW ? "start" : age === 0 ? "end" : "middle"} fill="var(--c-muted)">{ageLabel(age)}</text></g>)}
-        <line x1={left} x2={left + pw} y1={top + ph} y2={top + ph} stroke="var(--c-chart-axis)" />
-        {series.map((s, i) => {
-          const color = single ? "var(--c-blue)" : slot(i);
-          const d = path(s.values);
-          return <g key={s.name}>
-            {series.length === 1 && s.values.length > 1 && <path d={`${d}L${x(ages[s.values.length - 1])},${top + ph}L${x(ages[0])},${top + ph}Z`} fill={color} opacity=".1" />}
-            <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" /></g>;
-        })}
-        {series.length === 1 && first.length > 1 && <>
-          <line x1={left} x2={left + pw} y1={y(mean)} y2={y(mean)} stroke="var(--c-muted)" strokeDasharray="4 3" />
-          <text x={left + 6} y={y(mean) - 5} fontSize="11" fill="var(--c-text)">{t("avg {value}", { value: chart.avg ?? "" })}</text>
-          <g transform={`translate(${left + pw + 4},${y(first[first.length - 1]) - 10})`}><rect width="52" height="20" rx="4" fill="var(--c-blue)" />
-            <text x="26" y="14" fontSize="11" textAnchor="middle" fill="var(--c-on-accent)" fontWeight="700">{chart.last}</text></g>
-          <text x={Math.max(left + 44, Math.min(x(ages[first.indexOf(peak)]), left + pw - 44))} y={Math.max(y(peak) - 8, 12)} fontSize="11" textAnchor="middle" fill="var(--c-text)">{t("peak {value}", { value: chart.peak ?? "" })}</text></>}
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" tabIndex={0} aria-label={series.map((s) => s.name).join(", ")}
+        onPointerDown={(e) => { drag.current = true; e.currentTarget.setPointerCapture(e.pointerId); nearest(e); }}
+        onPointerMove={(e) => { if (drag.current) nearest(e); }} onPointerUp={() => { drag.current = false; }} onPointerCancel={() => { drag.current = false; }}
+        onKeyDown={(e) => { if (e.key === "Escape") setCursor(null); if (["ArrowLeft", "ArrowRight"].includes(e.key)) { e.preventDefault(); setCursor(Math.max(0, Math.min(ages.length - 1, index + (e.key === "ArrowLeft" ? -1 : 1)))); } }}>
+        <defs><clipPath id={clip}><rect x={left} y={top} width={pw} height={ph} /></clipPath></defs>
+        {shownTicks.map((tick) => <g key={tick.value}><line x1={left} x2={left + pw} y1={y(tick.value)} y2={y(tick.value)} stroke="var(--c-chart-grid)" /><text x={mobile ? left - 8 : left + pw + 8} textAnchor={mobile ? "end" : "start"} y={y(tick.value) + 4} fontSize={mobile ? 10 : 11} fill="var(--c-muted)">{tick.label}</text></g>)}
+        {marks.map((age) => <text key={age} x={x(age)} y={h - 8} fontSize="10" textAnchor={age === (mobile ? span : WINDOW) ? "start" : age === 0 ? "end" : "middle"} fill="var(--c-muted)">{ageLabel(age)}</text>)}
+        <g clipPath={`url(#${clip})`}>{series.map((s, i) => {
+          const color = single || series.length === 1 ? "var(--c-blue)" : slot(i), d = path(s.values);
+          return <g key={s.name}>{series.length === 1 && s.values.length > 1 && <path d={`${d}L${x(ages[s.values.length - 1] ?? 0)},${top + ph}L${x(ages[0] ?? 120)},${top + ph}Z`} fill={color} opacity=".07" />}<path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />{cursor != null && Number.isFinite(s.values[index]) && <circle cx={x(ages[index] || 0)} cy={y(s.values[index])} r="4" fill={color} />}</g>;
+        })}{cursor != null && <line x1={x(ages[index] || 0)} x2={x(ages[index] || 0)} y1={top} y2={top + ph} stroke="var(--c-muted)" strokeDasharray="3 4" />}</g>
       </svg>
     </div>
-  );
+    {cursor != null && series.length > 1 && <div className="chart-values">{series.map((s, i) => <span key={s.name}><i style={{ background: slot(i) }} />{s.name}<b>{format(s.values[index])}</b></span>)}</div>}
+  </div>;
 }
 
 /** One row per series, colour = value (the desktop's heat map for per-thread views). */
 export function HeatChart({ chart }) {
+  const mobile = useMobile();
   const { series, min, max } = chart;
+  if (mobile) return <div className="core-histories">{series.map((s, i) => <div key={s.name}><span>{s.name}</span><svg viewBox="0 0 120 30" role="img" aria-label={s.name}><path d={s.values.map((v, n) => `${n ? "L" : "M"}${n * 120 / Math.max(1, s.values.length - 1)},${28 - 26 * (v - min) / (max - min || 1)}`).join(" ")} fill="none" stroke={slot(i)} strokeWidth="2" /></svg><b>{s.values.at(-1)?.toFixed(0)} {chart.unit}</b></div>)}</div>;
   return (
     <div className="chart" style={{ overflow: "auto", padding: 8 }}>
       {series.map((s) => (
@@ -188,14 +209,19 @@ export const Dialog = ({ title, onClose, children, footer }) => (
 
 /** The pencil of a profile card: name and numbers, kept in this browser. */
 export function ProfileEditor({ profile, fields, onSave, onClose }) {
+  const host = useRef(null);
   const [draft, setDraft] = useState(profile);
+  useEffect(() => { host.current?.scrollIntoView({ block: "center" }); host.current?.querySelector("input")?.focus({ preventScroll: true }); }, []);
   const valid = String(draft.name || "").trim() && fields.every(([key, _label, min, max]) => Number.isInteger(draft[key]) && draft[key] >= min && draft[key] <= max);
   return (
-    <Dialog title={t("Profile name")} onClose={onClose} footer={<><Btn onClick={onClose}>{t("Cancel")}</Btn><Btn kind="primary" disabled={!valid} onClick={() => onSave(draft)}>{t("Save")}</Btn></>}>
+    <section ref={host} className="inline-editor" aria-label={t("Profile name")}>
+      <header><h3>{t("Edit")} · {profile.name}</h3><Btn kind="link" onClick={onClose}>{t("Close")}</Btn></header>
+      <form onSubmit={(e) => { e.preventDefault(); if (valid) onSave(draft); }}>
       <label className="field"><span>{t("Profile name")}</span><input className="input" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
-      {fields.map(([key, label, min, max, unit]) => <Number_ key={key} label={`${label} · ${min}–${max} ${unit}`} min={min} max={max} step={key === "frequency" ? 50 : key === "vid" ? 5 : 1} value={draft[key]}
-        onChange={(v) => setDraft({ ...draft, [key]: v })} />)}
-    </Dialog>
+      <div className="editor-fields">{fields.map(([key, label, min, max, unit]) => <Number_ key={key} label={`${label} · ${unit}`} min={min} max={max} step={key === "frequency" ? 50 : key === "vid" ? 5 : 1} value={draft[key]}
+        onChange={(v) => setDraft({ ...draft, [key]: v })} />)}</div>
+      <footer><Btn onClick={onClose}>{t("Cancel")}</Btn><Btn kind="primary" type="submit" disabled={!valid}>{t("Save")}</Btn></footer></form>
+    </section>
   );
 }
 

@@ -201,7 +201,7 @@ def _chart(series: list[tuple[str, list[float]]], ages: list[float], unit: str, 
     chart = {"series": [{"name": name, "values": values} for name, values in series], "ages": ages,
              "min": axis.minimum, "max": axis.maximum,
              "ticks": [{"value": tick, "label": f"{tick:g}%" if unit == "%" and not rate else show(tick)} for tick in axis.ticks],
-             "heatmap": heatmap}
+             "heatmap": heatmap, "unit": unit, "rate": rate}
     if len(series) == 1 and series[0][1]:
         values = series[0][1]
         chart.update(avg=show(sum(values) / len(values)), last=show(values[-1]), peak=show(max(values)))
@@ -289,9 +289,9 @@ def _sensors(recorder: PerformanceRecorder, query: dict) -> dict:
             unit = entry.reading.unit
             chart = _chart([(sensor_label(entry.reading), values)], [now - moment for moment, _v in entry.trace],
                            unit, False, unit == "B/s")
-            traces.append({"label": sensor_label(entry.reading), "value": _shower(unit, unit == "B/s")(values[-1]),
+            traces.append({"key": entry.reading.key, "label": sensor_label(entry.reading), "value": _shower(unit, unit == "B/s")(values[-1]),
                            "chart": chart})
-    return {"rows": rows, "traces": traces, "count": tr_format("{shown} of {count} sensors", shown=len(shown),
+    return {"rows": rows, "traces": traces, "ticked": sorted(ticked), "count": tr_format("{shown} of {count} sensors", shown=len(shown),
                                                               count=len(log.order)),
             "kinds": [{"index": index, "title": tr(label)} for index, (label, _k) in enumerate(KIND_FILTERS)],
             "layouts": [{"key": item.key, "title": tr(item.title), "hint": tr(item.hint)} for item in SENSOR_VIEWS]}
