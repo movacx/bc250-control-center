@@ -136,9 +136,13 @@ def _derive(key: str, raw: dict, ctx: Context) -> dict:
 
 def _cpu(raw: dict, ctx: Context) -> dict:
     persistent = raw.get("persistent") or {}
+    # Actions run in a separate user worker. Read the settings it just saved,
+    # rather than the server's startup snapshot.
+    config = ctx.settings.read_local_config()
     stored = present_cpu_persistence(persistent, {} if persistent else {"persistent": "--"})
     tuning = present_cpu_tuning(persistent, raw.get("detection") or {}, raw.get("scale") or {}, raw.get("quick"),
-                                last_applied_frequency=None, scale_override_enabled=False)
+                                last_applied_frequency=config.get("cpu_oc_last_applied_frequency"),
+                                scale_override_enabled=False)
     return {**raw, "persistence": {"enabled": stored.enabled, "value": said(stored.status_value),
                                    "detail": said(stored.status_detail)},
             "tuning": {name: said(getattr(tuning, name)) for name in (

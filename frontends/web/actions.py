@@ -26,6 +26,7 @@ from bc250cc.shared.contract import (
     CPU_TEMPERATURE_RANGE,
     CPU_VID_RANGE,
 )
+from frontends.tui.i18n import tr_format
 
 SAFE_CEILING = 2000  # past the factory TOML's last point the rail turns red
 LOW_DUTY = 30
@@ -161,12 +162,31 @@ def gddr6_monitor(ctx, p, shell):
 
 def cpu_apply(ctx, p, shell):
     frequency, temperature = number(p, "frequency"), number(p, "temperature")
-    if flag(p, "manual"):
-        scale = number(p, "scale")
-        return 1, lambda: shell(ctx.service.comando_cpu_oc_manual_verificado_embebido(
-            frequency, scale, temperature, confirm_manual=True))
-    vid = number(p, "vid")
-    return 1, lambda: ctx.service.ejecutar_cpu_oc_temporal(frequency, vid, temperature)
+    manual = flag(p, "manual")
+    value = number(p, "scale" if manual else "vid")
+    target = {"frequency": frequency, "temperature": temperature,
+              "manual_scale" if manual else "vid": value}
+
+    def apply():
+        # Both paths run the protected, stress-tested command synchronously.
+        # A dependency-installation workflow is not a completed detection run.
+        command = (ctx.service.comando_cpu_oc_manual_verificado_embebido(
+            frequency, value, temperature, confirm_manual=True) if manual else
+            ctx.service.comando_cpu_oc_temporal_embebido(frequency, value, temperature))
+        shell(command)  # Failure/cancellation must never bind old config evidence.
+        try:
+            snapshot = ctx.service.registrar_resultado_deteccion_cpu(target)
+            # The detector can lower the requested frequency after throttling.
+            ctx.settings.save_local_config({"cpu_oc_last_applied_frequency": int(snapshot["frequency"])})
+        except Exception as error:
+            # The hardware operation already succeeded. Do not rerun it or
+            # report a rollback when only the local evidence failed to save.
+            return tr_format("Warning: the completed detection run could not be bound to persistence: {message}",
+                             message=str(error))
+        return tr_format("Recorded detection run: {frequency} MHz | scale {scale} | {temperature} °C",
+                         frequency=snapshot["frequency"], scale=snapshot["scale"], temperature=snapshot["temperature"])
+
+    return 1, apply
 
 
 def cpu_unlock(ctx, p, shell):
