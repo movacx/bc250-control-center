@@ -5604,5 +5604,20 @@
   "In Safari, open Share, then Add to Home Screen and Open as Web App.": "In Safari, open Share, then Add to Home Screen and Open as Web App.",
   "Open your browser menu and choose Install app or Add to Home screen. If it is unavailable, trust this board's HTTPS certificate first.": "Open your browser menu and choose Install app or Add to Home screen. If it is unavailable, trust this board's HTTPS certificate first.",
   "Resize connected devices table": "Resize connected devices table",
-  "Drag to resize the table. Double-click to fit its rows.": "Drag to resize the table. Double-click to fit its rows."
+  "Drag to resize the table. Double-click to fit its rows.": "Drag to resize the table. Double-click to fit its rows.",
+  "Choose an expiry for the selected browser. It takes effect immediately and does not change hardware permissions.": "Choose an expiry for the selected browser. It takes effect immediately and does not change hardware permissions.",
+  "Expires in": "Expires in",
+  "Session expiry": "Session expiry",
+  "Choose duration": "Choose duration",
+  "15 minutes": "15 minutes",
+  "30 minutes": "30 minutes",
+  "1 hour": "1 hour",
+  "8 hours": "8 hours",
+  "24 hours": "24 hours",
+  "7 days": "7 days",
+  "30 days": "30 days",
+  "Custom session duration in minutes": "Custom session duration in minutes",
+  "Apply expiry": "Apply expiry",
+  "The selected duration starts now and replaces the inactivity limit for this session.": "The selected duration starts now and replaces the inactivity limit for this session.",
+  "Choose a session duration between one minute and one year.": "Choose a session duration between one minute and one year."
 }

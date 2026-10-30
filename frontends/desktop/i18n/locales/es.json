@@ -5604,5 +5604,20 @@
   "In Safari, open Share, then Add to Home Screen and Open as Web App.": "En Safari, abre Compartir, elige Añadir a pantalla de inicio y activa Abrir como app web si aparece.",
   "Open your browser menu and choose Install app or Add to Home screen. If it is unavailable, trust this board's HTTPS certificate first.": "Abre el menú del navegador y elige Instalar aplicación o Añadir a pantalla de inicio. Si no aparece, configura primero la confianza en el certificado HTTPS de esta placa.",
   "Resize connected devices table": "Cambiar altura de la tabla de dispositivos",
-  "Drag to resize the table. Double-click to fit its rows.": "Arrastra para cambiar la altura. Haz doble clic para ajustarla a las filas."
+  "Drag to resize the table. Double-click to fit its rows.": "Arrastra para cambiar la altura. Haz doble clic para ajustarla a las filas.",
+  "Choose an expiry for the selected browser. It takes effect immediately and does not change hardware permissions.": "Elige el vencimiento del navegador seleccionado. Se aplica de inmediato y no cambia sus permisos de hardware.",
+  "Expires in": "Vence en",
+  "Session expiry": "Vencimiento de sesión",
+  "Choose duration": "Elegir plazo",
+  "15 minutes": "15 minutos",
+  "30 minutes": "30 minutos",
+  "1 hour": "1 hora",
+  "8 hours": "8 horas",
+  "24 hours": "24 horas",
+  "7 days": "7 días",
+  "30 days": "30 días",
+  "Custom session duration in minutes": "Duración personalizada de la sesión en minutos",
+  "Apply expiry": "Aplicar plazo",
+  "The selected duration starts now and replaces the inactivity limit for this session.": "El plazo empieza ahora y sustituye el límite de inactividad de esta sesión.",
+  "Choose a session duration between one minute and one year.": "Elige una duración de sesión entre un minuto y un año."
 }

@@ -489,3 +489,26 @@ def test_rotated_key_allows_a_fresh_monitoring_login_without_old_permissions(cli
     assert client.login(key, control=False)[0].status == 200
     assert client.call("GET", "/api/session")[1]["authenticated"] is True
     assert client.action("gpu.status") == 403
+
+
+def test_selected_duration_survives_the_initial_server_deadline_and_another_login(client):
+    client.login()
+    token = client.cookie.split("=", 1)[1]
+    device = web_devices.identity(token)
+    web_devices.set_lifetime(device, 7 * 86400)
+    client.httpd.web.sessions[token] = (client.csrf, time.monotonic() - 1)
+    assert client.call("GET", "/api/live")[0].status == 200
+    other = Client(client.httpd)
+    other.login()
+    assert client.call("GET", "/api/live")[0].status == 200
+    assert web_devices.session(token)["control"] is True
+
+
+def test_browser_cannot_extend_its_own_session(client):
+    client.login()
+    token = client.cookie.split("=", 1)[1]
+    before = web_devices.session(token)
+    assert client.post("/api/session/expiry", {"seconds": 604800})[0].status == 404
+    assert client.action("device.expiry", {"seconds": 604800}, confirm=True) == 400
+    assert web_devices.session(token)["expires"] == before["expires"]
+    assert web_devices.session(token)["duration_seconds"] is None

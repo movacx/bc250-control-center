@@ -58,6 +58,7 @@ logger = logging.getLogger(__name__)
 DIST = Path(__file__).resolve().parent / "dist"
 COOKIE = "bc250_session"
 SESSION_SECONDS = 8 * 3600
+SESSION_COOKIE_SECONDS = web_devices.MAX_SESSION_SECONDS
 MAX_FAILS, LOCK_SECONDS = 5, 300
 MAX_BODY = 64 * 1024
 CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; "
@@ -142,7 +143,10 @@ class Web:
                 return None
             self.fails.pop(who, None)
             now = time.monotonic()
-            self.sessions = {s: v for s, v in self.sessions.items() if v[1] > now}
+            valid_ids = {device["id"] for device in web_devices.devices()}
+            for token in tuple(self.sessions):
+                if web_devices.identity(token) not in valid_ids:
+                    self._drop_session(token)
             session, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
             web_devices.register(session, who, agent, SESSION_SECONDS)
             self.sessions[session] = (csrf, now + SESSION_SECONDS)
@@ -163,14 +167,21 @@ class Web:
         with self.lock:
             self._sync_key()
             csrf, expires = self.sessions.get(token, ("", 0))
-            if expires <= time.monotonic() or not web_devices.session(token):
-                self.sessions.pop(token, None)
-                for collection in (self.ssh_sessions, self.local_sessions):
-                    terminal = collection.pop(token, None)
-                    if terminal:
-                        terminal.close()
+            device = web_devices.session(token) if csrf else {}
+            # A desktop-selected duration is authoritative; do not silently
+            # reapply the original eight-hour cap held in this process.
+            legacy_expired = expires <= time.monotonic() and device.get("duration_seconds") is None
+            if not csrf or not device or legacy_expired:
+                self._drop_session(token)
                 return None
             return csrf
+
+    def _drop_session(self, token):
+        self.sessions.pop(token, None)
+        for collection in (self.ssh_sessions, self.local_sessions):
+            terminal = collection.pop(token, None)
+            if terminal:
+                terminal.close()
 
     def job(self) -> dict:
         result = self.job_backend.request("job") if self.job_backend is not None else {"id": 0}
@@ -352,7 +363,7 @@ class Handler:
         if result is None:
             return self.fail("That key is not right.", 401)
         session, csrf = result
-        cookie = f"{COOKIE}={session}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_SECONDS}"
+        cookie = f"{COOKIE}={session}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_COOKIE_SECONDS}"
         if getattr(self.server, "secure", False):
             cookie += "; Secure"
         self.json({"ok": True, "csrf": csrf}, extra={"Set-Cookie": cookie})

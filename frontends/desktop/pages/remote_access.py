@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QScrollArea,
     QSizePolicy,
+    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -51,6 +52,7 @@ class RemoteAccessPage(QWidget):
         self._syncing_web = False
         self._code_boxes = []
         self._qr_signature = None
+        self._expiry_signature = None
         self._view_settings = settings if settings is not None else application_settings()
         try:
             saved_height = self._view_settings.value("remote_access/device_table_height")
@@ -131,7 +133,7 @@ class RemoteAccessPage(QWidget):
         pairing.addStretch(1)
         body.addSpacing(8)
         self.device_heading = self._label("Connected devices · Read-only until you verify the code and allow control.", strong=True)
-        self.device_heading.setToolTip(tr("Sessions expire after 30 minutes without activity or eight hours in total. Closing access disconnects the selected browser; a new login starts with monitoring permission."))
+        self.device_heading.setToolTip(tr("Choose an expiry for the selected browser. It takes effect immediately and does not change hardware permissions."))
         body.addWidget(self.device_heading)
         self.device_table = QTableWidget(0, 7)
         self.device_table.setObjectName("remoteDeviceTable")
@@ -150,25 +152,50 @@ class RemoteAccessPage(QWidget):
         self.device_table.setMinimumHeight(120)
         self.device_table.setMaximumHeight(3000)
         self.device_table.itemSelectionChanged.connect(self._update_device_actions)
-        body.addWidget(self.device_table)
+        self.device_group = QVBoxLayout()
+        self.device_group.setSpacing(2)
+        body.addLayout(self.device_group)
+        self.device_group.addWidget(self.device_table)
         self.device_grip = ResizeGrip()
         self.device_grip.setAccessibleName(tr("Resize connected devices table"))
         self.device_grip.setToolTip(tr("Drag to resize the table. Double-click to fit its rows."))
         self.device_grip.pressed.connect(lambda: setattr(self, "_table_drag_start", self.device_table.height()))
         self.device_grip.dragged.connect(lambda delta: self._set_device_table_height(self._table_drag_start + delta))
         self.device_grip.double_clicked.connect(self._fit_device_table)
-        body.addWidget(self.device_grip)
+        self.device_group.addWidget(self.device_grip)
         self.device_empty_label = self._label("No connected browsers.")
-        body.addWidget(self.device_empty_label)
-        actions = QHBoxLayout()
+        self.device_group.addWidget(self.device_empty_label)
+        actions = self.device_actions_layout = QHBoxLayout()
+        actions.setSpacing(8)
         self.device_control_button = self._button("Allow hardware control", self._toggle_selected_device)
         self.device_disconnect_button = self._button("Disconnect", self._disconnect_selected_device)
         self.revoke_all_button = self._button("Disconnect all devices", self._revoke_all)
         actions.addWidget(self.device_control_button)
         actions.addWidget(self.device_disconnect_button)
+        self.expiry_label = self._label("Expires in")
+        actions.addWidget(self.expiry_label)
+        self.device_expiry_choice = GuardedComboBox()
+        self.device_expiry_choice.setObjectName("deviceExpiryChoice")
+        self.device_expiry_choice.setMinimumWidth(150)
+        self.device_expiry_choice.setAccessibleName(tr("Session expiry"))
+        for label, seconds in (("Choose duration", None), ("15 minutes", 900), ("30 minutes", 1800),
+                               ("1 hour", 3600), ("8 hours", 28800), ("24 hours", 86400),
+                               ("7 days", 604800), ("30 days", 2592000), ("Custom", -1)):
+            self.device_expiry_choice.addItem(tr(label), seconds)
+        self.device_expiry_choice.currentIndexChanged.connect(self._update_expiry_form)
+        actions.addWidget(self.device_expiry_choice)
+        self.device_expiry_minutes = QSpinBox()
+        self.device_expiry_minutes.setRange(1, 365 * 24 * 60)
+        self.device_expiry_minutes.setValue(60)
+        self.device_expiry_minutes.setSuffix(" min")
+        self.device_expiry_minutes.setAccessibleName(tr("Custom session duration in minutes"))
+        actions.addWidget(self.device_expiry_minutes)
+        self.device_expiry_apply = self._button("Apply expiry", self._apply_selected_expiry)
+        self.device_expiry_apply.setToolTip(tr("The selected duration starts now and replaces the inactivity limit for this session."))
+        actions.addWidget(self.device_expiry_apply)
         actions.addStretch(1)
         actions.addWidget(self.revoke_all_button)
-        body.addLayout(actions)
+        self.device_group.addLayout(actions)
 
         body.addWidget(self._label("Network and connection", strong=True))
         self.web_lan_switch = ToggleSwitch()
@@ -237,6 +264,23 @@ class RemoteAccessPage(QWidget):
             f"QTableWidget#remoteDeviceTable::item:selected {{ background: {c['blue_soft']}; color: {c['text']}; }}"
             f"QTableWidget#remoteDeviceTable QHeaderView::section {{ background: {c['panel_alt']}; color: {c['text']};"
             f" border: none; border-bottom: 1px solid {c['border']}; padding: 9px 8px; font-size: 11px; font-weight: 700; }}"))
+        arrow = (Path(__file__).resolve().parents[1] / "theme" / "icons" / "chevron_down_gray.svg").as_posix()
+        self.device_expiry_choice.setStyleSheet(scale_stylesheet(
+            f"QComboBox#deviceExpiryChoice {{ background: transparent; color: {c['text']}; border: 1px solid {c['border']};"
+            " border-radius: 8px; min-height: 0px; padding: 0px 32px 0px 12px; font-size: 11px; font-weight: 650; }"
+            f"QComboBox#deviceExpiryChoice:hover {{ background: {c['control_hover']}; border-color: {c['border_strong']}; }}"
+            f"QComboBox#deviceExpiryChoice:focus {{ border-color: {c['blue']}; }}"
+            f"QComboBox#deviceExpiryChoice:disabled {{ color: {c['disabled_text']}; border-color: {c['border_soft']}; }}"
+            "QComboBox#deviceExpiryChoice::drop-down { subcontrol-origin: padding; subcontrol-position: center right; width: 28px; border: none; }"
+            f'QComboBox#deviceExpiryChoice::down-arrow {{ image: url("{arrow}"); width: 12px; height: 12px; }}'
+            f"QComboBox#deviceExpiryChoice QAbstractItemView {{ background: {c['panel']}; color: {c['text']};"
+            f" border: 1px solid {c['border']}; selection-background-color: {c['blue_soft']}; selection-color: {c['text']};"
+            " padding: 4px; outline: 0px; font-size: 11px; }"
+            "QComboBox#deviceExpiryChoice QAbstractItemView::item { min-height: 28px; padding: 4px 10px; }"))
+        self.device_disconnect_button.ensurePolished()
+        control_height = self.device_disconnect_button.sizeHint().height()
+        self.device_expiry_choice.setFixedHeight(control_height)
+        self.device_expiry_minutes.setFixedHeight(control_height)
         for box in self._code_boxes:
             box.setStyleSheet(scale_stylesheet(
                 f"background: {COLORS['panel_alt']}; color: {COLORS['text']}; border: 1px solid {COLORS['border_soft']};"
@@ -245,6 +289,7 @@ class RemoteAccessPage(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.pairing_layout.setDirection(QBoxLayout.Direction.TopToBottom if self.width() < 740 else QBoxLayout.Direction.LeftToRight)
+        self.device_actions_layout.setDirection(QBoxLayout.Direction.TopToBottom if self.width() < 1000 else QBoxLayout.Direction.LeftToRight)
 
     def hideEvent(self, event):
         self._view_settings.sync()
@@ -360,8 +405,13 @@ class RemoteAccessPage(QWidget):
             seen = device.get("seen")
             active = seen is not None and now - float(seen) <= 15
             seen_text, seen_full = timestamp(seen)
-            expiry = min(float(device.get("expires") or 0), float(seen or 0) + 1800)
+            expiry = web_access.deadline(device)
             expiry_text, expiry_full = timestamp(expiry)
+            if expiry:
+                expiry_date = datetime.fromtimestamp(expiry).astimezone()
+                today = datetime.fromtimestamp(now).astimezone()
+                if expiry_date.date() != today.date():
+                    expiry_text = expiry_date.strftime("%d/%m/%Y %H:%M" if expiry_date.year != today.year else "%d/%m %H:%M")
             values = (" · ".join(part for part in (platform, browser) if part), device.get("address", "—"),
                       device["id"][:8], tr("Hardware control" if device.get("control") else "Monitoring only"),
                       tr("Active" if active else "Idle") if seen else "—", seen_text, expiry_text)
@@ -403,6 +453,33 @@ class RemoteAccessPage(QWidget):
         self.device_control_button.setEnabled(device is not None)
         self.device_disconnect_button.setEnabled(device is not None)
         self.device_control_button.setText(tr("Monitoring only" if device and device.get("control") else "Allow hardware control"))
+        signature = (device["id"], device.get("duration_seconds")) if device else None
+        if signature != self._expiry_signature:
+            self._expiry_signature = signature
+            seconds = device.get("duration_seconds") if device else None
+            self.device_expiry_choice.blockSignals(True)
+            index = self.device_expiry_choice.findData(seconds)
+            if seconds is not None and index < 0:
+                index = self.device_expiry_choice.findData(-1)
+                self.device_expiry_minutes.setValue(max(1, int(seconds) // 60))
+            self.device_expiry_choice.setCurrentIndex(max(0, index))
+            self.device_expiry_choice.blockSignals(False)
+        self.device_expiry_choice.setEnabled(device is not None)
+        self.device_expiry_minutes.setEnabled(device is not None)
+        self._update_expiry_form()
+
+    def _update_expiry_form(self):
+        value = self.device_expiry_choice.currentData()
+        self.device_expiry_minutes.setVisible(value == -1)
+        self.device_expiry_apply.setEnabled(self._selected_device() is not None and value is not None)
+
+    def _apply_selected_expiry(self):
+        device = self._selected_device()
+        value = self.device_expiry_choice.currentData()
+        if device is None or value is None:
+            return
+        seconds = self.device_expiry_minutes.value() * 60 if value == -1 else int(value)
+        self._run("device_expiry", lambda: web_access.set_lifetime(device["id"], seconds))
 
     def _toggle_selected_device(self):
         device = self._selected_device()

@@ -97,3 +97,33 @@ def test_certificate_is_trusted_by_its_local_ca_and_serves_verified_https(tmp_pa
     web_tls.certificate()
     assert cert.read_bytes() != original
     assert web_tls.fingerprint(authority) == fingerprint
+
+
+def test_owner_selected_expiry_replaces_old_caps_for_only_one_device(tmp_path, monkeypatch):
+    monkeypatch.setattr(web_devices, "app_config_dir", lambda: tmp_path)
+    now = [100000.0]
+    monkeypatch.setattr(web_devices.time, "time", lambda: now[0])
+    phone = web_devices.register("phone", "192.168.0.2", "Phone", 8 * 3600)
+    web_devices.register("other", "192.168.0.3", "Tablet", 8 * 3600)
+    web_devices.set_control(phone, True)
+    web_devices.set_lifetime(phone, 7 * 86400)
+    assert web_devices.session("phone")["control"] is True
+    assert web_devices.deadline(web_devices.session("phone")) == now[0] + 7 * 86400
+    now[0] += 9 * 3600
+    assert web_devices.session("phone")["duration_seconds"] == 7 * 86400
+    assert not web_devices.session("other")
+    web_devices.set_lifetime(phone, 60)
+    deadline = web_devices.deadline(web_devices.session("phone"))
+    now[0] += 61
+    assert now[0] > deadline
+    assert not web_devices.session("phone")
+
+
+@pytest.mark.parametrize("seconds", [True, False, 0, -1, 59, "3600", 60.5, web_devices.MAX_SESSION_SECONDS + 1])
+def test_invalid_owner_durations_do_not_change_a_session(tmp_path, monkeypatch, seconds):
+    monkeypatch.setattr(web_devices, "app_config_dir", lambda: tmp_path)
+    device = web_devices.register("phone", "192.168.0.2", "Phone", 1000)
+    before = web_devices.session("phone")
+    with pytest.raises(ValueError):
+        web_devices.set_lifetime(device, seconds)
+    assert web_devices.session("phone") == before

@@ -126,3 +126,31 @@ def test_device_table_grip_persists_height_and_refresh_does_not_override_it(qtbo
     assert 90 <= page.device_table.height() < expected
     settings.sync()
     assert settings.value("remote_access/device_table_height", type=int) == page.device_table.height()
+
+
+def test_duration_choice_targets_selected_device_and_preserves_draft(qtbot, monkeypatch):
+    page = RemoteAccessPage()
+    qtbot.addWidget(page)
+    devices = [{"id": "first", "control": False}, {"id": "second", "control": True, "duration_seconds": 86400}]
+    page._apply_web({"devices": devices})
+    assert not page.device_expiry_choice.isEnabled()
+    page.device_table.selectRow(0)
+    choice = page.device_expiry_choice
+    choice.setCurrentIndex(choice.findData(3600))
+    page._apply_web({"devices": devices})
+    assert choice.currentData() == 3600
+    called = []
+    monkeypatch.setattr(page, "_run", lambda _name, work: work())
+    monkeypatch.setattr("frontends.desktop.pages.remote_access.web_access.set_lifetime", lambda device, seconds: called.append((device, seconds)))
+    page.device_expiry_apply.click()
+    assert called == [("first", 3600)]
+    page.device_table.selectRow(1)
+    assert choice.currentData() == 86400
+    choice.setCurrentIndex(choice.findData(-1))
+    assert not page.device_expiry_minutes.isHidden()
+    page.device_expiry_minutes.setValue(73)
+    page.device_expiry_apply.click()
+    assert called[-1] == ("second", 73 * 60)
+    page._apply_web({"devices": []})
+    assert not page.device_expiry_choice.isEnabled()
+    assert not page.device_expiry_apply.isEnabled()

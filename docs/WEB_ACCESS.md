@@ -24,8 +24,9 @@ the frontend.
    **Connected devices** table, match the device code displayed on the phone (plus browser/address) and press **Allow
    hardware control**. This is independent of native administrator authorization.
 5. The owner can downgrade or disconnect each browser, or disconnect all of them.
-   Reconnecting starts in monitoring-only mode. Sessions expire after 30 minutes
-   without requests or eight hours in total; an open monitoring page counts as
+   Reconnecting starts in monitoring-only mode. By default, sessions expire after 30 minutes
+   without requests or eight hours in total; the owner can choose another
+   expiry for each session in the device toolbar; an open monitoring page counts as
    activity. Restarting the server invalidates its browser sessions.
 
 Each installation creates its own local CA. Private keys have owner-only access;
@@ -151,6 +152,27 @@ make an HTTP page encrypted.
 Each browser owns its local/SSH terminal and operation output. Another browser cannot
 read its console, type into its job or cancel it. The server serializes hardware
 jobs across browsers. Logging out, key rotation and session expiry close its terminals. An unused terminal expires after 15 minutes.
+
+## Choose session expiry per device
+
+Select a row in **Connected devices**, choose **Expires in**, then **Apply
+expiry**. Presets cover 15/30 minutes, 1/8/24 hours and 7/30 days. **Custom**
+accepts a duration in minutes, from one minute up to one year. The fixed deadline
+starts when applied, replaces both the default inactivity limit and the original
+eight-hour limit for that browser, and preserves its hardware permissions.
+Other browsers keep their own policies. The table displays a date for deadlines
+on another day, with the complete local date/time in its tooltip.
+
+The choice is stored in the owner-only session registry and is enforced on each
+server request. Only the desktop owner can change it; no HTTP action allows a
+browser to extend its own session. A new login starts a new monitoring-only
+session with the defaults; server restart, key rotation and explicit revocation
+still invalidate sessions. Existing expired sessions cannot be revived.
+
+The transport cookie can remain for up to one year so an owner-selected long
+expiry also works while the browser is closed. Cookie presence is not
+authorization: default idle/absolute limits or the selected server deadline
+still reject an expired session regardless of cookie lifetime.
 
 ## Install on the home screen
 
