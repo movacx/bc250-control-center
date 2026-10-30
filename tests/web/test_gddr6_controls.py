@@ -1,5 +1,8 @@
 """Memory monitoring uses the reviewed helper and preserves its readiness gates."""
 import json
+import os
+import shutil
+import subprocess
 import time
 from types import SimpleNamespace
 
@@ -76,5 +79,40 @@ def test_sudo_passes_the_current_user_identity_to_legacy_memory_helpers(monkeypa
     monkeypatch.setattr(auth.os, "getuid", lambda: 1234)
     monkeypatch.setattr(auth.shutil, "which", lambda _: "/usr/bin/sudo")
     command = auth.pkexec_argv("pkexec", "/usr/libexec/bc250-control-center/bc250-gddr6-temp-helper", "--action", "monitor")
-    assert command == ["/usr/bin/sudo", "-p", "BC250 Linux password: ", "--", "PKEXEC_UID=1234",
+    assert command == ["/usr/bin/sudo", "-p", "BC250 Linux password: ", "PKEXEC_UID=1234", "--",
                        "/usr/libexec/bc250-control-center/bc250-gddr6-temp-helper", "--action", "monitor"]
+
+
+@pytest.mark.parametrize("helper", ["bc250-gddr6-temp-helper", "bc250-gddr6-temp-reader"])
+def test_native_sudo_parses_memory_identity_before_command_separator(monkeypatch, helper):
+    """Exercise real sudo parsing as ourselves; never launch a hardware helper."""
+    from bc250cc.infrastructure import polkit_session as auth
+
+    printenv = shutil.which("printenv")
+    if os.getuid() == 0 or not shutil.which("sudo") or not printenv:
+        pytest.skip("Needs sudo and an ordinary user for a non-privileged parsing probe")
+    monkeypatch.setenv(auth.WEB_SUDO_AUTH_ENV, "1")
+    command = auth.pkexec_argv("pkexec", f"/usr/libexec/bc250-control-center/{helper}", "--help")
+    helper_index = command.index(f"/usr/libexec/bc250-control-center/{helper}")
+    # Retain the production auth prefix and assignment ordering, but explicitly
+    # select our own UID and replace all helper arguments with a harmless read.
+    probe = [command[0], "-n", "-u", f"#{os.getuid()}", *command[1:helper_index], printenv, "PKEXEC_UID"]
+    result = subprocess.run(probe, capture_output=True, text=True, timeout=5, check=False)
+    if result.returncode and any(reason in result.stderr.lower() for reason in (
+        "password is required", "not allowed", "not permitted", "no new privileges",
+    )):
+        pytest.skip("Host sudo policy does not allow a non-interactive self-user probe")
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == str(os.getuid())
+
+
+def test_memory_identity_is_web_only_and_does_not_leak_to_other_helpers(monkeypatch):
+    from bc250cc.infrastructure import polkit_session as auth
+
+    monkeypatch.setenv(auth.WEB_SUDO_AUTH_ENV, "1")
+    monkeypatch.setattr(auth.shutil, "which", lambda _: "/usr/bin/sudo")
+    command = auth.pkexec_argv("pkexec", "/usr/libexec/protected-helper", "status", prepare_agent=False)
+    assert not any(arg.startswith("PKEXEC_UID=") for arg in command)
+    monkeypatch.delenv(auth.WEB_SUDO_AUTH_ENV)
+    command = auth.pkexec_argv("pkexec", "/usr/libexec/bc250-gddr6-temp-helper", "--help", prepare_agent=False)
+    assert command == ["pkexec", "--disable-internal-agent", "/usr/libexec/bc250-gddr6-temp-helper", "--help"]

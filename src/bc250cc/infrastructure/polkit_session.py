@@ -274,7 +274,9 @@ def pkexec_argv(
         # Installed GDDR6 helpers predate SUDO_UID support. Supply their expected
         # identity through sudo's checked environment-assignment syntax. The
         # current UID is fixed by the OS, never provided by a browser request.
-        prefix.append(f"PKEXEC_UID={os.getuid()}")
+        # sudo stops parsing assignments at --. After it, NAME=value is
+        # interpreted as the executable rather than an environment variable.
+        prefix.insert(-1, f"PKEXEC_UID={os.getuid()}")
     return [*prefix, *values]
 
 
