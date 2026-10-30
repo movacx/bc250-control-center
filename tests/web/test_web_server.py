@@ -196,7 +196,7 @@ def test_the_password_is_only_typed_on_this_computer_unless_the_owner_allowed_it
 
 def test_the_action_list_is_closed_and_runs_nothing_outside_the_service_layer():
     assert set(actions.ACTIONS) == {
-        "gpu.profile", "gpu.compat", "gpu.service", "gpu.high_points", "gpu.voltage", "gpu.save_boot",
+        "gpu.profile", "gpu.compat", "gpu.service", "gpu.high_points", "gpu.voltage", "gpu.voltage_custom", "gpu.save_boot",
         "gpu.status", "cpu.apply", "cpu.unlock", "cpu.persist", "cpu.persist_off", "cu.sync", "cu.apply", "cu.save",
         "cu.action", "fan.pwm", "fan.auto", "fan.curve"}
     source = Path(actions.__file__).read_text(encoding="utf-8")
@@ -368,3 +368,16 @@ def test_local_terminal_is_revoked_with_the_browser_session(client, end):
 def test_terminal_input_cannot_inject_controls_or_be_silently_truncated(client, text):
     client.login()
     assert client.post("/api/job/input", {"text": text})[0].status == 400
+
+
+def test_worker_completion_invalidates_the_reader_cache_once_per_job(client):
+    client.login()
+    assert client.action("gpu.status") == 200
+    client.wait_idle()
+    for _ in range(3):
+        client.call("GET", "/api/job")
+    calls = client.httpd.service.calls
+    assert [name for name, _ in calls].count("invalidar_estado_herramientas") == 1
+    assert client.action("gpu.status") == 200
+    client.wait_idle()
+    assert [name for name, _ in calls].count("invalidar_estado_herramientas") == 2

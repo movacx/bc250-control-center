@@ -9,10 +9,16 @@ builds a command line from the request.
 from __future__ import annotations
 
 from bc250cc.application.fan.system_control import build_system_fan_policy
+from bc250cc.application.gpu.voltage_apply import plan_voltage_apply
+from bc250cc.application.gpu.voltage_lab_state import build_voltage_lab_state
 from bc250cc.domain.fan.persistence import (
     CUSTOM_FAN_PRESET,
     normalize_fan_curve,
     validate_fan_curve_points,
+)
+from bc250cc.domain.gpu.voltage_profiles import (
+    CUSTOM_VOLTAGE_MAX_MV,
+    CUSTOM_VOLTAGE_MIN_MV,
 )
 from bc250cc.shared.contract import (
     CPU_FREQUENCY_RANGE,
@@ -24,7 +30,7 @@ from bc250cc.shared.contract import (
 SAFE_CEILING = 2000  # past the factory TOML's last point the rail turns red
 LOW_DUTY = 30
 RANGES = {"frequency": CPU_FREQUENCY_RANGE, "vid": CPU_VID_RANGE, "temperature": CPU_TEMPERATURE_RANGE, "scale": CPU_SCALE_RANGE,
-          "gpu": (300, 3000), "pwm": (1, 8), "percent": (0, 100), "level": (0, 3)}
+          "gpu": (300, 3000), "pwm": (1, 8), "percent": (0, 100), "level": (0, 6)}
 SET_METHODS, USAGE_METHODS, TEMP_READS = ("smu", "kernel"), ("busy-flag", "process", "kernel"), ("drm", "sysfs")
 GOVERNOR_ACTIONS = ("reiniciar", "activar", "desactivar")
 CU_ACTIONS = ("install_service", "remove_service", "factory")
@@ -110,6 +116,32 @@ def gpu_voltage(ctx, p, shell):
     return 2, lambda: ctx.service.aplicar_laboratorio_voltaje_gpu(level)
 
 
+def gpu_voltage_custom(ctx, p, shell):
+    values = p.get("values")
+    if not isinstance(values, dict) or not 1 <= len(values) <= 64:
+        raise Invalid("values")
+    normalized = {}
+    for frequency, voltage in values.items():
+        if (not isinstance(frequency, str) or len(frequency) > 4 or not frequency.isascii() or not frequency.isdecimal()
+                or str(int(frequency)) != frequency or not 300 <= int(frequency) <= 3000
+                or isinstance(voltage, bool) or not isinstance(voltage, int)
+                or not CUSTOM_VOLTAGE_MIN_MV <= voltage <= CUSTOM_VOLTAGE_MAX_MV):
+            raise Invalid("values")
+        normalized[int(frequency)] = voltage
+
+    def apply():
+        lab = build_voltage_lab_state(ctx.service.estado_bc250())
+        if lab.is_oberon or not set(normalized).issubset(lab.editable_frequencies):
+            raise Invalid("active voltage points")
+        plan = plan_voltage_apply(level=-1, editable_frequencies=lab.editable_frequencies,
+                                  profile_frequencies=lab.profile_frequencies,
+                                  current_voltages=dict(lab.current_voltages), custom_values=normalized)
+        if not plan.available or plan.violation:
+            raise Invalid("voltage curve")
+        return ctx.service.aplicar_laboratorio_voltaje_gpu_personalizado(normalized)
+    return 2, apply
+
+
 # -- CPU ------------------------------------------------------------------------------------------
 
 def cpu_apply(ctx, p, shell):
@@ -185,7 +217,7 @@ def fan_curve(ctx, p, shell):
 
 ACTIONS = {
     "gpu.profile": gpu_profile, "gpu.compat": gpu_compat, "gpu.service": gpu_service,
-    "gpu.high_points": gpu_high_points, "gpu.voltage": gpu_voltage,
+    "gpu.high_points": gpu_high_points, "gpu.voltage": gpu_voltage, "gpu.voltage_custom": gpu_voltage_custom,
     "gpu.save_boot": lambda ctx, p, shell: (1, ctx.service.guardar_rango_gpu_arranque),
     "gpu.status": lambda ctx, p, shell: (0, ctx.service.status_governor),
     "cpu.apply": cpu_apply, "cpu.unlock": cpu_unlock,

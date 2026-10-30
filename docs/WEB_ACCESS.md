@@ -92,8 +92,26 @@ headings and the CU overview card are omitted. Secondary and experimental contro
 expandable. CU rows show five WGP pairs each and warn about engine imbalance. Selecting a preset or toggling a pair only edits the draft; applying
 still needs confirmation.
 
+The voltage laboratory uses the desktop's shared calibration model: levels
+0–6, a current/proposed V/F plot, and custom edits of active points within the
+shared 600–1210 mV bounds. The service rechecks active frequencies and rejects
+a decreasing custom curve before any helper call. Restoring defaults also
+comments the high-frequency points, using the existing backup/restart workflow.
+Oberon voltage controls remain unavailable because it has no validated curve.
+
+GPU details distinguish the configured TOML ceiling from the loaded D-Bus
+limits and the active range. Enabled file points become available to profile
+editors before Cyan reloads them. Commented points leave the editor immediately.
+Commenting is blocked while the active range is above 2000 MHz; select and
+apply a lower profile first. Completion invalidates the reader's caches even
+when an operation fails, so partial outcomes can be read back.
+
 Sensors have search, category filters and list/graph layouts. On a phone the
-main list shows name and current value, with a button to expose min/average/max.
+main list uses dedicated mobile rows with name and current value; a button
+exposes min/average/max below each reading. Resource tabs and filters wrap
+without clipping. Operations use a keyboard-accessible dialog with a separate
+status, output, password form and action footer; it can be minimized while
+monitoring continues.
 CPU, GPU, VRAM, RAM, disk and network retain their resource views. Polling pauses
 in a hidden tab; stale responses from a previous view are discarded.
 

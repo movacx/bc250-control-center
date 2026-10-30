@@ -101,6 +101,7 @@ class Web:
         self.ssh_sessions: dict[str, SSHSession] = {}
         self.job_owner = ""
         self.job_backend = None
+        self.completed_job = None
         self.job_lock = threading.Lock()
         self.key = web_access.access_key()
         self.fails: dict[str, list[float]] = {}
@@ -153,7 +154,15 @@ class Web:
             return csrf if expires > time.monotonic() else None
 
     def job(self) -> dict:
-        return self.job_backend.request("job") if self.job_backend is not None else {"id": 0}
+        result = self.job_backend.request("job") if self.job_backend is not None else {"id": 0}
+        identity = (self.job_backend, result.get("id"))
+        if result.get("done") and identity != self.completed_job:
+            self.completed_job = identity
+            # Actions run in another process. Invalidate this reader's caches
+            # after completion, including failed or partially applied actions.
+            self.ctx.service.invalidar_estado_herramientas()
+            self.live.forget()
+        return result
 
 
 class Handler(http.server.BaseHTTPRequestHandler):

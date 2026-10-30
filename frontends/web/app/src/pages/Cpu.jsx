@@ -35,7 +35,6 @@ export default function Cpu() {
   });
   return (
     <>
-    <div className="mobile-stats"><Tile label={t("Frequency")} value={`${num(cpu.frequency_mhz)} MHz`} /><Tile label={t("Total CPU load")} value={`${num(cpu.usage_percent)} %`} /><Tile label={t("Temperature")} value={`${num(cpu.temperature_c, 1)} °C`} /></div>
     <div className="cols two">
       <div className="stack">
         <Card title={t("Operating profile")} sub={t("One click sets the range. The pencil changes name and frequencies.")}>

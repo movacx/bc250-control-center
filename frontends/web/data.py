@@ -9,11 +9,19 @@ from __future__ import annotations
 
 import threading
 import time
+from dataclasses import asdict
 
 from bc250cc.application.fan.system_control import system_fan_control_owns_fan
+from bc250cc.application.gpu.voltage_lab_state import build_voltage_lab_state
 from bc250cc.domain.compute_units import WgpMaskTable
 from bc250cc.domain.fan.persistence import normalize_fan_curve, normalize_fan_preset
 from bc250cc.domain.gpu.profiles import profiles_for_allowed_range
+from bc250cc.domain.gpu.voltage_profiles import (
+    CUSTOM_VOLTAGE_MAX_MV,
+    CUSTOM_VOLTAGE_MIN_MV,
+    SUPPORTED_VOLTAGE_LEVELS,
+    voltage_profile,
+)
 from bc250cc.shared.contract import DESKTOP_FAN_PRESET_PERCENT
 from frontends.desktop.components.chart_axes import (
     range_axis,
@@ -126,10 +134,23 @@ def _cpu(raw: dict, ctx: Context) -> dict:
 
 def _gpu(raw: dict, ctx: Context) -> dict:
     low, high = int(raw.get("allowed_min") or 500), int(raw.get("allowed_max") or 2000)
+    lab = build_voltage_lab_state(raw)
+    # D-Bus describes loaded points; the file can already contain additional
+    # enabled points. Profile application handles their explicit reload.
+    configured = [frequency for frequency, _ in lab.points]
+    high_points = raw.get("high_frequency_points") or {}
+    enabled = set(high_points.get("enabled_frequencies") or [])
+    allowed_values = high_points.get("allowed_frequencies")
+    allowed = enabled if allowed_values is None else set(allowed_values)
     governor = "oberon" if str(raw.get("governor_backend") or "").startswith("oberon") else "cyan"
+    profile_max = high if governor == "oberon" else max(
+        (f for f in configured if f <= 2000 or f in enabled & allowed), default=high)
     profiles = [{"key": item.key, "label": tr(item.label), "min": item.minimum_mhz, "max": item.maximum_mhz}
-                for item in profiles_for_allowed_range(low, high, governor=governor)]
-    return {**raw, "profiles": profiles, "fix_labels": {kind: governor_fix_label(kind) for kind in ("metrics", "frequency")}}
+                for item in profiles_for_allowed_range(low, profile_max, governor=governor)]
+    return {**raw, "profile_max": profile_max, "voltage_lab": {
+        **asdict(lab), "minimum_mv": CUSTOM_VOLTAGE_MIN_MV, "maximum_mv": CUSTOM_VOLTAGE_MAX_MV,
+        "levels": [{"level": level, "values": voltage_profile(level)} for level in SUPPORTED_VOLTAGE_LEVELS],
+    }, "profiles": profiles, "fix_labels": {kind: governor_fix_label(kind) for kind in ("metrics", "frequency")}}
 
 
 def _cu(raw: dict, ctx: Context) -> dict:
@@ -191,7 +212,7 @@ def performance(live: Live, query: dict) -> dict:
     recorder = live.recorder
     tabs = [{"key": "sensors", "title": tr("Sensors")}] + [
         {"key": item.key, "title": tr(item.title)} for item in RESOURCE_DEFINITIONS]
-    out = {"tabs": tabs, "waiting": not recorder.plans}
+    out = {"tabs": tabs, "tab": query.get("tab") or "sensors", "waiting": not recorder.plans}
     if out["waiting"]:
         return out
     tab = query.get("tab") or "sensors"

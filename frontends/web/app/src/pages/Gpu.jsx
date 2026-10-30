@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { num, pick, t, useApp, usePage } from "../lib.jsx";
 import { Btn, Card, Check, Fold, Tile, useStored } from "../ui.jsx";
+import VoltageLab from "./VoltageLab.jsx";
 import { ProfileEditor } from "../ui.jsx";
 
 const SAFE_CEILING = 2000; // the factory TOML's last point; past it the rail turns red
@@ -19,18 +20,17 @@ export default function Gpu() {
   const [advanced, setAdvanced] = useState(false);
   if (!raw) return <Card title={t("GPU Governor")}><p className="note">{t("Waiting for data…")}</p></Card>;
   const gpu = live?.metrics?.gpu || {};
-  const lowest = int(raw.allowed_min, 500), highest = int(raw.allowed_max, 2000), cur = [int(raw.current_min, lowest), int(raw.current_max, highest)];
-  const volts = Object.fromEntries((raw.safe_points || []).map((p) => [Number(p.frequency), p.voltage]));
+  const lowest = int(raw.allowed_min, 500), highest = int(raw.profile_max, int(raw.allowed_max, 2000)), cur = [int(raw.current_min, lowest), int(raw.current_max, highest)];
+  const volts = Object.fromEntries((raw.safe_points_with_voltage || raw.safe_points || []).map((p) => [Number(p.frequency), p.voltage]));
   const stops = [...new Set([...Object.keys(volts).map(Number).filter((f) => f >= lowest && f <= highest), lowest, highest])].sort((a, b) => a - b);
   const backend = String(raw.governor_backend || ""), cyan = raw.cyan_telemetry || {}, high = raw.high_frequency_points || {};
   const unlocked = !!(high.enabled_frequencies || []).length, running = raw.service_active === "active";
-  const profiles = (raw.profiles || []).map((p) => ({ ...p, ...(edited[p.key] || {}) }));
+  const profiles = (raw.profiles || []).map((p) => ({ ...p, ...(edited[p.key] || {}), min: Math.max(lowest, Math.min(highest, edited[p.key]?.min ?? p.min)), max: Math.max(lowest, Math.min(highest, edited[p.key]?.max ?? p.max)) }));
   const opts = compat || { set_method: cyan.set_method || "smu", usage_method: cyan.method || "busy-flag", temp_read: cyan.temp_read || "drm", metrics: cyan.fix_metrics ?? true, frequencies: !!cyan.fix_frequency };
   const busy = pick(gpu.usage_percent, gpu.compute_busy_percent);
   const control = (action, title, level = 1) => act({ action: "gpu.service", level, params: { action }, title });
   return (
     <>
-      <div className="mobile-stats"><Tile label={t("Core clock")} value={`${num(gpu.frequency_mhz)} MHz`} /><Tile label={t("GPU load")} value={`${num(busy)} %`} /><Tile label={t("Thermal")} value={`${num(gpu.temperature_c, 1)} °C`} /></div>
       <div className="cols two">
         <div className="stack">
           <Card title={t("Operating profile")} sub={t("One click sets the range. The pencil changes name and frequencies.")}>
@@ -63,20 +63,19 @@ export default function Gpu() {
               {running ? <Btn kind="danger" wide onClick={() => control("desactivar", t("Stop governor"), 2)}>{t("Stop governor")}</Btn>
                 : <Btn kind="primary" wide onClick={() => control("activar", t("Start governor"))}>{t("Start governor")}</Btn>}</div>
           </Card>
-          <Fold title={t("Voltage laboratory")}>
-            <div className="row">{[[1, t("Gentle")], [2, t("Moderate")], [3, t("High")]].map(([level, label]) => (
-              <Btn key={level} wide onClick={() => act({ action: "gpu.voltage", level: 2, params: { level }, title: t("Apply voltage curve"), body: `+${level * 10} mV ${label}`, warning: t("Stop every game, benchmark, and 3D workload before continuing.") })}>+{level * 10} mV {label}</Btn>))}</div>
-            <Btn onClick={() => act({ action: "gpu.voltage", level: 2, params: { level: 0 }, title: t("Restore governor defaults"), warning: t("Stop every game, benchmark, and 3D workload before continuing.") })}>{t("Restore governor defaults")}</Btn>
-          </Fold>
+          <Fold title={t("Voltage laboratory")}><VoltageLab data={raw} /></Fold>
           {high.available && <Fold risk title={t("TOML points above 2000 MHz")}>
-            <Btn kind="danger" onClick={() => act({ action: "gpu.high_points", level: 2, params: { enable: !unlocked }, title: unlocked ? t("Re-comment the +2000 MHz points") : t("Uncomment +2000 MHz points") })}>
+            <div className="reads"><div className="read"><span>{t("Requested state")}</span><b>{unlocked ? t("Enabled") : t("Commented")}</b></div><div className="read"><span>{t("Safe-points")}</span><b>{(high.frequencies || []).join(" · ")} MHz</b></div></div>
+            <p className="note">{t("No restart or clock change")}</p>
+            {unlocked && cur[1] > 2000 && <p className="notice">{t("Apply a range at or below 2000 MHz before disabling the +2000 MHz TOML points. The live GPU range was not changed.")}</p>}
+            <Btn kind={unlocked ? "" : "danger"} disabled={unlocked && cur[1] > 2000} onClick={() => act({ action: "gpu.high_points", level: 2, params: { enable: !unlocked }, title: unlocked ? t("Re-comment the +2000 MHz points") : t("Uncomment +2000 MHz points"), body: t("This edits only the TOML safe-point blocks above 2000 MHz and validates the complete file. These frequencies are experimental, are not guaranteed stable, and can crash the display or system. This does not reload Cyan or change the live GPU range; use Apply active range explicitly after selecting a point.") })}>
               {unlocked ? t("Re-comment the +2000 MHz points") : t("Uncomment +2000 MHz points")}</Btn>
           </Fold>}
         </div>
       </div>
       <Card title={t("Advanced GPU diagnostics")} action={<Btn kind="link" onClick={() => setAdvanced(!advanced)}>{advanced ? t("Hide") : t("Show")} ›</Btn>}>
         {advanced && <div className="reads">{stops.map((f) => volts[f] != null && <div className="read" key={f}><span>{f} MHz</span><b>{volts[f]} mV</b></div>)}
-          <div className="read"><span>{t("Backend")}</span><b>{backend || "--"}</b></div><div className="read"><span>config.toml</span><b>{raw.config_path || "--"}</b></div></div>}
+          <div className="read"><span>{t("Frequency range")}</span><b>{lowest}–{highest} MHz</b></div><div className="read"><span>{t("Active range")}</span><b>{cur[0]}–{cur[1]} MHz</b></div><div className="read"><span>{t("Backend")}</span><b>{backend || "--"}</b></div><div className="read"><span>config.toml</span><b>{raw.config_path || "--"}</b></div></div>}
       </Card>
       {editing && <ProfileEditor profile={{ name: editing.label, min: editing.min, max: editing.max }} fields={[["min", t("Minimum frequency"), lowest, highest, "MHz"], ["max", t("Maximum frequency"), lowest, highest, "MHz"]]}
         onClose={() => setEditing(null)} onSave={(p) => { setEdited({ ...edited, [editing.key]: { label: p.name, min: Math.min(p.min, p.max), max: Math.max(p.min, p.max) } }); setEditing(null); }} />}

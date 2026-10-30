@@ -34,7 +34,7 @@ await build({
 for (const [from, to] of [[join(icons, "bc250_board_light.png"), "board-light.png"], [join(icons, "bc250_board_dark.png"), "board-dark.png"],
   [join(root, "assets", "icons", "bc250-control-center-64.png"), "logo.png"]]) copyFileSync(from, join(dist, to));
 writeFileSync(join(dist, "index.html"), `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="color-scheme" content="light dark"><title>BC250 Control Center</title>
 <link rel="icon" href="logo.png"><link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="app.css"></head>
 <body><div id="root"></div><script src="app.js"></script></body></html>

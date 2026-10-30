@@ -35,15 +35,19 @@ function Sensors({ data, state, set }) {
   const [details, setDetails] = useState(false);
   return (
     <div className={`pad ${details ? "sensor-details" : ""}`}>
-      <div className="row"><input className="input" style={{ flex: 1, minWidth: 180 }} placeholder={t("Filter by name")} aria-label={t("Filter by name")} value={state.q || ""} onChange={(e) => set({ q: e.target.value })} />
+      <div className="sensor-tools"><input className="input sensor-search" placeholder={t("Filter by name")} aria-label={t("Filter by name")} value={state.q || ""} onChange={(e) => set({ q: e.target.value })} />
         <label className="check" style={{ fontSize: 12 }}><input type="checkbox" checked={state.hide !== "0"} onChange={(e) => set({ hide: e.target.checked ? "1" : "0" })} />{t("Hide unused channels")}</label>
         <Btn small onClick={() => setDetails(!details)} aria-pressed={details}>{t("Min")} / {t("Avg")} / {t("Max")}</Btn>
         <Btn small onClick={() => api("performance/reset", {})}>{t("Reset min/max")}</Btn>
         <Menu label={layouts.find((l) => l.key === layout)?.title || t("Views")} items={layouts} value={layout} onPick={(key) => set({ layout: key })} /></div>
       <div className="chips">{kinds.map((k) => <button key={k.index} className={`chip ${(state.kind || 0) === k.index ? "on" : ""}`} onClick={() => set({ kind: k.index })}><i style={{ background: `var(--c-series-${(k.index % 8) + 1})` }} />{k.title}</button>)}</div>
-      {layout !== "graphs" && <div className="sensors"><table><thead><tr><th>{t("Sensor")}</th><th>{t("Value")}</th><th>{t("Min")}</th><th>{t("Avg")}</th><th>{t("Max")}</th></tr></thead>
+      {layout !== "graphs" && <div className="sensors sensor-desktop"><table><thead><tr><th>{t("Sensor")}</th><th>{t("Value")}</th><th>{t("Min")}</th><th>{t("Avg")}</th><th>{t("Max")}</th></tr></thead>
         <tbody>{rows.map((r) => (r.group ? <tr className="g" key={r.group + rows.indexOf(r)}><td colSpan="5">▾ {r.group}</td></tr>
           : <tr className="s" key={r.key} onDoubleClick={() => { toggle(r.key); set({ layout: "split" }); }}><td><label><input type="checkbox" checked={r.ticked} onChange={() => toggle(r.key)} />{r.label}</label></td><td className="v">{r.value}</td><td data-label={t("Min")}>{r.min}</td><td data-label={t("Avg")}>{r.avg}</td><td data-label={t("Max")}>{r.max}</td></tr>))}</tbody></table></div>}
+      {layout !== "graphs" && <div className="sensor-mobile">{rows.map((r, index) => r.group ? <h3 className="sensor-group" key={`${r.group}-${index}`}>{r.group}</h3> : <div className="sensor-item" key={r.key}>
+        <label><input type="checkbox" checked={r.ticked} onChange={() => toggle(r.key)} /><span>{r.label}</span><b>{r.value}</b></label>
+        {details && <dl>{[[t("Min"), r.min], [t("Avg"), r.avg], [t("Max"), r.max]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
+      </div>)}</div>}
       {layout !== "list" && (traces.length ? traces.map((trace) => <div key={trace.label}><div className="title"><b style={{ fontSize: 14 }}>{trace.label}</b><span>{trace.value}</span></div><Chart chart={trace.chart} small={layout === "split"} /></div>)
         : <p className="note">{t("Tick a sensor in the list to draw its last two minutes here.")}</p>)}
       <p className="note">{data.count}</p>
@@ -61,7 +65,7 @@ export default function Performance() {
   return (
     <section className="card perf">
       <Segments items={data?.tabs || []} value={state.tab} onChange={(tab) => set({ tab })} />
-      {!data || data.waiting ? <p className="note pad">{t("Waiting for first sample")}</p>
+      {!data || data.waiting || data.tab !== state.tab ? <p className="note pad">{t("Waiting for first sample")}</p>
         : state.tab === "sensors" ? <Sensors data={data} state={state} set={set} />
         : <Resource data={data} state={state} set={(patch) => set(patch.view ? { [`view:${state.tab}`]: patch.view } : patch)} />}
     </section>

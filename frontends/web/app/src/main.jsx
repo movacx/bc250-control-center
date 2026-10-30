@@ -67,19 +67,18 @@ function Activity({ job, onClose, canType }) {
   useEffect(() => { if (out.current) out.current.scrollTop = out.current.scrollHeight; }, [job?.text]);
   if (!job) return null;
   const send = async (e) => { e.preventDefault(); const value = text; setText(""); await api("job/input", { text: value }); };
-  return (
-    <div className={`sheet ${expanded ? "" : "minimized"}`} role="region" aria-label={job.label}>
-      <div className="hd"><h2>{job.label}</h2>{job.done ? <span className={`pill ${job.ok ? "green" : "red"}`}>{job.ok ? t("Done") : t("Failed")}</span> : <span className="pill blue">{t("Running…")}</span>}<Btn small onClick={() => setExpanded(!expanded)} aria-expanded={expanded}>{expanded ? t("Hide") : t("Show")}</Btn></div>
-      {expanded && <>
-      <pre className="console" ref={out}>{job.text || t("Waiting for data…")}</pre>
+  const status = job.done ? (job.ok ? t("Done") : t("Failed")) : job.waiting ? t("Administrator password") : t("Running…");
+  const tone = job.done ? (job.ok ? "green" : "red") : "blue";
+  if (!expanded) return <button className="operation-minimized" onClick={() => setExpanded(true)} aria-expanded={false}><span className={`pill ${tone}`}>{status}</span><span>{job.label}</span><Icon name="expand_gray" /></button>;
+  return <Modal onClose={() => setExpanded(false)}><section className="dialog operation-dialog" role="dialog" aria-modal="true" aria-label={job.label}>
+    <header><div className="dialog-heading"><span className={`dialog-symbol ${tone}`}><Icon name={job.done ? (job.ok ? "check_green" : "warning_orange") : "nav_performance"} /></span><div><span className="dialog-caption">{t("Hardware")}</span><h3>{job.label}</h3></div></div>
+      <div className="operation-status"><span className={`pill ${tone}`} role="status">{status}</span></div></header>
+    <section><pre className="console operation-output" ref={out} tabIndex={0} aria-label={t("Terminal output")}>{job.text || t("Waiting for data…")}</pre>
       {!job.done && (job.interactive || job.waiting) && (canType
-        ? <form className="row" onSubmit={send}><input className="input" type={job.waiting ? "password" : "text"} autoComplete="off" placeholder={job.waiting ? t("Password") : t("Terminal input")} aria-label={job.waiting ? t("Password") : t("Terminal input")} value={text}
-            onChange={(e) => setText(e.target.value)} style={{ flex: 1 }} /><Btn type="submit" disabled={job.waiting && !text}>{t("Send")}</Btn></form>
-        : <p className="note warn">{t("The password is only accepted on this computer, or after turning that option on.")}</p>)}
-      <div className="row end">{!job.done && <Btn kind="danger" small onClick={() => api("job/interrupt", {})}>{t("Stop")}</Btn>}
-        {job.done && <Btn small onClick={onClose}>{t("Close")}</Btn>}</div></>}
-    </div>
-  );
+        ? <form className="terminal-auth" onSubmit={send}><label className="field"><span>{job.waiting ? t("Linux password") : t("Terminal input")}</span><input className="input" type={job.waiting ? "password" : "text"} autoComplete="off" value={text} onChange={(e) => setText(e.target.value)} /></label><Btn type="submit" kind="primary" disabled={job.waiting && !text}>{t("Send")}</Btn></form>
+        : <p className="notice">{t("Use HTTPS before entering your Linux password.")}</p>)}
+    </section><footer>{!job.done && <Btn kind="danger" onClick={() => api("job/interrupt", {})}>{t("Stop")}</Btn>}<Btn onClick={() => setExpanded(false)}>{t("Hide")}</Btn>{job.done && <Btn kind="primary" onClick={onClose}>{t("Close")}</Btn>}</footer>
+  </section></Modal>;
 }
 
 function SSH({ onClose, canType }) {
@@ -110,12 +109,13 @@ function Confirm({ spec, onCancel, onGo }) {
   };
   return (
     <Modal onClose={() => { if (!busy) onCancel(); }}><div className="dialog" role="alertdialog" aria-label={spec.title} aria-modal="true">
-      <header><div className="eyebrow">{t("CONFIRM HARDWARE ACTION")}</div><h3>{spec.title}</h3></header>
+      <header><div className="dialog-heading"><span className={`dialog-symbol ${spec.level === 2 ? "orange" : "blue"}`}><Icon name="warning_orange" /></span><div><span className="dialog-caption">{t("Confirm")}</span><h3>{spec.title}</h3></div></div></header>
       <section>{spec.body && <p style={{ margin: 0 }}>{spec.body}</p>}
+        {spec.summary?.length > 0 && <dl className="dialog-summary">{spec.summary.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
         {(spec.warning || spec.level === 2) && <div className="notice">{spec.warning || t("Stop every game, benchmark, and 3D workload before continuing.")}</div>}
         {error && <p className="err" role="alert">{error}</p>}</section>
       <footer><Btn disabled={busy} onClick={onCancel}>{t("Cancel")}</Btn>
-        <Btn kind={spec.level ? "danger" : "primary"} disabled={busy} onClick={go}>{spec.go || t("Apply")}</Btn></footer>
+        <Btn kind={spec.level === 2 ? "danger" : "primary"} disabled={busy} onClick={go}>{spec.go || t("Apply")}</Btn></footer>
     </div></Modal>
   );
 }
@@ -155,7 +155,7 @@ function Shell({ session, onLogout }) {
   /** Every hardware change goes through here: the spec names the closed action, the dialog asks. */
   const go = async (spec) => {
     const result = await api("action", { action: spec.action, title: spec.title, params: spec.params || {}, confirm: spec.level ? true : undefined });
-    if (result.ok) { setConfirm(null); setJob({ label: spec.title, text: "", done: false }); setJobId(result.job); }
+    if (result.ok) { setConfirm(null); setJob({ label: spec.title, text: "", done: false }); setJobId((n) => n + 1); }
     return result;
   };
   const act = (spec) => {
@@ -189,7 +189,7 @@ function Shell({ session, onLogout }) {
       {confirm && <Confirm spec={confirm} onCancel={() => setConfirm(null)} onGo={() => go(confirm)} />}
       {(job && (jobId || running)) && <Activity job={job} canType={session.password} onClose={() => { setJob(null); setJobId(0); }} />}
       {sshOpen && <SSH onClose={() => setSshOpen(false)} canType={session.password} />}
-      {toast && <div className={`toast ${toast.tone}`} role="status">{toast.text}</div>}
+      {toast && <div className={`toast ${toast.tone}`} role="status"><Icon name={toast.tone === "ok" ? "check_green" : "warning_orange"} /><span>{toast.text}</span><button className="ghost" aria-label={t("Close")} onClick={() => setToast(null)}><Icon name="close_gray" /></button></div>}
     </App.Provider>
   );
 }
