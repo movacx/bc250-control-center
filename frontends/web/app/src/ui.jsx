@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import icons from "./icons.gen.js";
-import { t, useApp } from "./lib.jsx";
+import { num, t, useApp } from "./lib.jsx";
 
 export function useMobile() {
   const [mobile, setMobile] = useState(() => matchMedia("(max-width: 820px)").matches);
@@ -79,6 +79,14 @@ export const Tile = ({ label, value, note, tone, on, onClick, onEdit }) => {
 export const Read = ({ label, value, unit, note, tone }) => (
   <div className={`read ${tone || ""}`}><span>{label}</span><div><b>{value ?? "--"}</b>{unit && value !== undefined && value !== "--" && <em>{unit}</em>}{note && <small>{note}</small>}</div></div>
 );
+
+/** Use the same current telemetry as the aggregate CPU readings, never the
+ * cached core-unlock report, whose frequencies and loads are only a snapshot. */
+export function CpuCores({ cpu }) {
+  const usage = cpu.per_core_percent || [], clocks = cpu.per_core_frequency_mhz || [];
+  return <div className="cores">{Array.from({ length: 8 }, (_, i) => (
+    <div className="core" key={i}><b>N{i + 1}</b>{i < usage.length ? <><span>{clocks[i] ? (clocks[i] / 1000).toFixed(2) : "--"} GHz</span><div className="bar"><i style={{ width: `${usage[i]}%` }} /></div><u>{num(usage[i])} %</u></> : <><span>{t("Hidden")}</span><div className="bar" /><u /></>}</div>))}</div>;
+}
 
 export const Segments = ({ items, value, onChange }) => (
   <div className="seg" role="tablist">{items.map((item) => (

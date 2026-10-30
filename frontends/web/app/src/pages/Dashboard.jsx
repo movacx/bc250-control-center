@@ -1,6 +1,6 @@
 import { memory, heat, num, pick, t, useApp, usePage } from "../lib.jsx";
 import Gddr6 from "../Gddr6.jsx";
-import { Btn, Card, Icon, Read } from "../ui.jsx";
+import { Btn, Card, CpuCores, Icon, Read } from "../ui.jsx";
 
 const dark = () => document.documentElement.dataset.theme === "dark" || (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
 
@@ -20,7 +20,6 @@ export default function Dashboard() {
   const pump = ((data?.fans?.sensores?.fans) || []).find((row) => /pump|j4003|fan2/i.test(row.label || "")) || ((data?.fans?.sensores?.fans) || []).find((row) => row.rpm) || {};
   const duty = Number.isInteger(pump.pwm) ? Math.round(pump.pwm * 100 / 255) : undefined;
   const busy = pick(gpu.usage_percent, gpu.compute_busy_percent);
-  const usage = cpu.per_core_percent || [], clocks = cpu.per_core_frequency_mhz || [];
   const rails = [["Vin", sensors.vrm_input_voltage_v, "V", 2], [t("CPU voltage"), sensors.vrm_cpu_voltage_v, "V", 3], [t("GPU voltage"), sensors.vrm_gpu_voltage_v, "V", 3],
     [t("CPU current"), sensors.vrm_cpu_current_a, "A", 1], [t("GPU current"), sensors.vrm_gpu_current_a, "A", 1], [t("Total board power"), sensors.vrm_total_power_w, "W", 1]];
   const shown = (label, value, unit, digits, extra = {}) => value !== undefined && value !== null ? <Read label={label} value={num(value, digits)} unit={unit} {...extra} /> : <Read label={label} value={t("Not detected")} />;
@@ -41,8 +40,7 @@ export default function Dashboard() {
           <Read label={t("CPU usage")} value={num(cpu.usage_percent)} unit="%" />
           <Read label={t("Core voltage")} value={cpu.voltage_mv ? num(cpu.voltage_mv / 1000, 3) : "--"} unit="V" />
           <div className="sum"><span>{t("Live core monitor")}</span><b>{t("{cores} cores / {threads} threads", { cores: cpu.physical_cores ?? "--", threads: cpu.logical_cores ?? "--" })}</b></div>
-          <div className="cores">{Array.from({ length: 8 }, (_, i) => (
-            <div className="core" key={i}><b>N{i + 1}</b>{i < usage.length ? <><span>{clocks[i] ? (clocks[i] / 1000).toFixed(2) : "--"} GHz</span><div className="bar"><i style={{ width: `${usage[i]}%` }} /></div><u>{num(usage[i])} %</u></> : <><span>{t("Hidden")}</span><div className="bar" /><u /></>}</div>))}</div>
+          <CpuCores cpu={cpu} />
           <div className="row" style={{ marginTop: 12 }}><Btn kind="soft" wide onClick={() => (location.hash = "#/cpu")}>{t("Configure CPU")}</Btn></div>
         </section>
         <section className="card inst">

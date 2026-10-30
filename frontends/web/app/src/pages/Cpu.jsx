@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { keep, num, t, useApp, usePage } from "../lib.jsx";
-import { Btn, Card, Check, ControlTabs, Fold, Number_, ProfileDeck, ProfileEditor, Read, useStored } from "../ui.jsx";
+import { Btn, Card, Check, ControlTabs, CpuCores, Fold, Number_, ProfileDeck, ProfileEditor, Read, useStored } from "../ui.jsx";
 
 const PROFILES = [
   { key: "board_average", name: keep("Average board"), frequency: 3550, vid: 1050, temperature: 90 },
@@ -19,7 +19,6 @@ export default function Cpu() {
   if (!data) return <Card><p className="note">{t("Waiting for data…")}</p></Card>;
   const profile = profiles.find((item) => item.key === chosen) || profiles[0], cpu = live?.metrics?.cpu || {};
   const unlock = data.unlock || {}, processor = unlock.processor || {}, enabled = data.persistence.enabled;
-  const cores = new Map((unlock.cores || []).map((core) => [core.index, core]));
   const apply = () => act({ action: "cpu.apply", level: 1, title: manual ? t("Apply temporary OC + manual scale") : t("Apply configuration + automatic scale"),
     body: `${profile.frequency} MHz · ${manual ? `${t("Scale")} ${scale}` : `${profile.vid} mV`} · ${profile.temperature} °C`,
     params: { frequency: profile.frequency, vid: profile.vid, temperature: profile.temperature, manual, scale } });
@@ -32,9 +31,9 @@ export default function Cpu() {
         <details className="control-explanation"><summary>{t("Details")}</summary><p className="note">{t("Enter the exact scale you want. It is stress-tested in 100 MHz steps before it stays applied, the way automatic detection tests its own.")}</p></details></section>
       <Btn kind="primary" wide disabled={running || manual && (!Number.isInteger(scale) || scale < -50 || scale > 0)} onClick={apply}>{t("Review and apply")}</Btn>
     </Card>}
-    {tab === "monitor" && <><Card title={t("Live core monitor")} pill={t("{cores} cores / {threads} threads", { cores: unlock.physical_cores ?? "--", threads: unlock.logical_cpus ?? "--" })}>
+    {tab === "monitor" && <><Card title={t("Live core monitor")} pill={t("{cores} cores / {threads} threads", { cores: cpu.physical_cores ?? "--", threads: cpu.logical_cores ?? "--" })}>
       <Read label={t("Frequency")} value={num(cpu.frequency_mhz)} unit="MHz" /><Read label={t("Total CPU load")} value={num(cpu.usage_percent)} unit="%" /><Read label={t("Temperature")} value={num(cpu.temperature_c, 1)} unit="°C" />
-      <div className="cores">{Array.from({ length: 8 }, (_, i) => { const core = cores.get(i), clock = core?.frequency_mhz ?? cpu.per_core_frequency_mhz?.[i], usage = core?.usage_percent ?? cpu.per_core_percent?.[i]; return <div className="core" key={i}><b>N{i + 1}</b><span>{clock ? `${(clock / 1000).toFixed(2)} GHz` : t("Hidden")}</span><div className="bar"><i style={{ width: `${usage || 0}%` }} /></div><u>{usage == null ? "—" : `${num(usage)} %`}</u></div>; })}</div>
+      <CpuCores cpu={cpu} />
     </Card><Card title={t("Runtime status")}><Read label={t("Applied tuning")} value={data.tuning.applied_value} note={data.tuning.applied_detail} /><Read label={t("Active scale")} value={data.tuning.live_value} /><Read label={t("Detection reference")} value={data.tuning.detection_value} /></Card></>}
     {tab === "boot" && <><Card title={t("Boot persistence")} pill={enabled ? t("Enabled") : t("Temporary")}><Read label={t("Status")} value={data.persistence.value} /><p className="note">{data.persistence.detail}</p><Btn kind="primary" disabled={running} onClick={() => act({ action: "cpu.persist", level: 1, title: t("Enable / update CPU persistence") })}>{t("Save for startup")}</Btn><Btn disabled={!enabled || running} onClick={() => act({ action: "cpu.persist_off", level: 1, title: t("Disable CPU boot service") })}>{t("Remove from boot")}</Btn><details className="control-explanation"><summary>{t("Review persistence")}</summary>{Object.entries(data.persistent || {}).filter(([, v]) => typeof v !== "object").map(([key, value]) => <Read key={key} label={key} value={String(value)} />)}</details></Card>
       <Fold title={t("Processor overview")}>{[["model_name", keep("Processor")], ["architecture", keep("Architecture")], ["topology", keep("Topology")], ["platform_process", keep("Platform / process")], ["microcode", keep("Microcode")], ["cache", keep("Cache hierarchy")], ["features", keep("Instruction features")]].map(([key, label]) => <Read key={key} label={t(label)} value={processor[key] || t("Not exposed")} />)}</Fold>
