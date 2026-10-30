@@ -166,7 +166,7 @@ export function LineChart({ chart, small, single }) {
   };
   const path = (values) => values.map((v, i) => `${i ? "L" : "M"}${x(ages[i] ?? 0).toFixed(1)},${y(v).toFixed(1)}`).join("");
   return <div className="chart-shell">
-    <div className="chart-readout"><span>{cursor == null ? t("Live") : ageLabel(Math.round(ages[index] || 0))}</span><output aria-live="off">{series.length === 1 ? format(series[0].values[index]) : t("Graphs")}</output>{cursor != null && <button onClick={() => setCursor(null)} aria-label={t("Live")}><Icon name="refresh_gray" /></button>}</div>
+    <div className="chart-readout">{cursor != null && <span>{ageLabel(Math.round(ages[index] || 0))}</span>}<output aria-live="off">{series.length === 1 ? format(series[0].values[index]) : t("Graphs")}</output>{cursor != null && <button onClick={() => setCursor(null)} aria-label={t("Live")}><Icon name="refresh_gray" /></button>}</div>
     <div ref={ref} className={`chart ${small ? "small" : ""}`}>
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" tabIndex={0} aria-label={series.map((s) => s.name).join(", ")}
         onPointerDown={(e) => { drag.current = true; e.currentTarget.setPointerCapture(e.pointerId); nearest(e); }}
