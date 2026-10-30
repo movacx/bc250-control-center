@@ -139,6 +139,6 @@ Listed for provenance or compatibility research. None of these is downloaded, bu
 [Nayuki QR Code generator](https://github.com/nayuki/QR-Code-generator) (MIT),
 commit `bcfe1b018cec5f1f91b5705eca5bb4cdd34e9f8d`, is distributed in
 `src/bc250cc/_vendor/qrcodegen.py`. Its original copyright and permission notice
-are preserved; only a file-level Ruff exemption was added. It generates the
+are preserved; a file-level Ruff exemption was added and trailing whitespace removed. It generates the
 Remote access pairing QR locally, with no network service or additional Python
 package. The pinned source URL is in `QRCODEGEN_UPSTREAM` beside it.
