@@ -10,12 +10,16 @@ Nothing here needs root.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import pwd
 import secrets
 import shlex
+import shutil
 import signal
 import socket
+import ssl
 import subprocess
 import sys
 import time
@@ -24,7 +28,7 @@ from pathlib import Path
 from bc250cc.infrastructure.blackbox_control import systemd_available
 from bc250cc.infrastructure.persistence.config_paths import app_config_dir
 from bc250cc.infrastructure.remote_access import addresses
-from bc250cc.shared.errors import ActionNeeded
+from bc250cc.shared.errors import ActionNeeded, BoundaryError, ErrorDetail
 
 UNIT_FILE_NAME = "bc250-web.service"
 UNIT_MARKER = "# Managed by BC250 Control Center"
@@ -75,15 +79,81 @@ def access_key(*, renew: bool = False) -> str:
 def options() -> dict:
     data = read_settings()
     return {"port": int(data.get("port") or DEFAULT_PORT), "lan": bool(data.get("lan", False)),
-            "lan_password": bool(data.get("lan_password", False))}
+            "lan_password": bool(data.get("lan_password", False)), "tls": bool(data.get("tls", True))}
 
 
-def _pid_path() -> Path:
-    return Path(os.environ.get("XDG_RUNTIME_DIR") or app_config_dir()) / "bc250-web.pid"
+def ssh_target() -> dict:
+    """Pin loopback SSH to host keys read from the local, root-owned SSH configuration."""
+    from bc250cc.infrastructure.remote_access import _port
+
+    port = _port()
+    keys = []
+    for path in Path("/etc/ssh").glob("ssh_host_*_key.pub"):
+        try:
+            if path.stat().st_uid != 0 or path.stat().st_mode & 0o022:
+                continue
+            fields = path.read_text(encoding="ascii").split()
+            if len(fields) >= 2:
+                keys.append(f"[127.0.0.1]:{port} {fields[0]} {fields[1]}\n")
+                if port == 22:
+                    keys.append(f"127.0.0.1 {fields[0]} {fields[1]}\n")
+        except (OSError, UnicodeError):
+            continue
+    if not keys:
+        raise BoundaryError(ErrorDetail("BC250-CMD-001",
+                                        "No SSH server is installed. Install the openssh-server package first."))
+    return {"port": port, "user": pwd.getpwuid(os.getuid()).pw_name, "known_hosts": "".join(keys),
+            "root": str(APP_ROOT), "pythonpath": f"{APP_ROOT / 'src'}:{APP_ROOT}", "python": sys.executable}
 
 
-def write_pid() -> None:
-    _pid_path().write_text(str(os.getpid()), encoding="utf-8")
+def tls_certificate() -> tuple[Path, Path]:
+    """A local certificate: no account, external service or Python dependency."""
+    folder = app_config_dir() / "web-tls"
+    folder.mkdir(mode=0o700, parents=True, exist_ok=True)
+    cert, key = folder / "certificate.pem", folder / "private.pem"
+    if not cert.is_file() or not key.is_file():
+        openssl = shutil.which("openssl")
+        if not openssl:
+            raise ActionNeeded("HTTPS needs OpenSSL. Install openssl and start the web interface again.")
+        result = subprocess.run([openssl, "req", "-x509", "-newkey", "rsa:2048", "-sha256", "-days", "365",
+                                 "-nodes", "-subj", "/CN=BC250 Control Center", "-addext",
+                                 "subjectAltName=DNS:localhost,IP:127.0.0.1" + "".join(f",IP:{ip}" for ip in addresses()),
+                                 "-keyout", str(key), "-out", str(cert)], capture_output=True, timeout=30, check=False)
+        if result.returncode:
+            key.unlink(missing_ok=True)
+            cert.unlink(missing_ok=True)
+            raise BoundaryError(ErrorDetail("BC250-DATA-001", "Could not create the local HTTPS certificate.",
+                                             safe_next_step="Check the local certificate folder and OpenSSL."))
+        key.chmod(0o600)
+    return cert, key
+
+
+def pairing_svg(url: str) -> bytes:
+    from bc250cc._vendor.qrcodegen import QrCode
+
+    qr = QrCode.encode_text(url, QrCode.Ecc.MEDIUM)
+    size = qr.get_size()
+    squares = "".join(f"M{x+4},{y+4}h1v1h-1z" for y in range(size) for x in range(size) if qr.get_module(x, y))
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {size+8} {size+8}">'
+            f'<rect width="100%" height="100%" fill="white"/><path d="{squares}" fill="black"/></svg>').encode()
+
+
+def certificate_fingerprint() -> str:
+    try:
+        pem = (app_config_dir() / "web-tls" / "certificate.pem").read_text(encoding="ascii")
+        digest = hashlib.sha256(ssl.PEM_cert_to_DER_cert(pem)).hexdigest().upper()
+        return ":".join(digest[i:i+2] for i in range(0, len(digest), 2))
+    except (OSError, ValueError):
+        return ""
+
+
+def _pid_path(port: int | None = None) -> Path:
+    name = f"bc250-web-{port}.pid" if port is not None and port != options()["port"] else "bc250-web.pid"
+    return Path(os.environ.get("XDG_RUNTIME_DIR") or app_config_dir()) / name
+
+
+def write_pid(port: int | None = None) -> None:
+    _pid_path(port).write_text(str(os.getpid()), encoding="utf-8")
 
 
 def _listening(port: int) -> bool:
@@ -122,9 +192,11 @@ def status() -> dict:
     """Everything the desktop page shows. The key is only revealed here, to the owner's own session."""
     opts = options()
     host = sorted(addresses())
+    scheme = "https" if opts["tls"] else "http"
     return {**opts, "running": _listening(opts["port"]), "key": access_key(), "addresses": host,
-            "urls": [f"http://{ip}:{opts['port']}" for ip in host] if opts["lan"] else [],
-            "local_url": f"http://127.0.0.1:{opts['port']}", "autostart": autostart_state()}
+            "urls": [f"{scheme}://{ip}:{opts['port']}" for ip in host] if opts["lan"] else [],
+            "local_url": f"{scheme}://127.0.0.1:{opts['port']}", "autostart": autostart_state(),
+            "tls_fingerprint": certificate_fingerprint() if opts["tls"] else ""}
 
 
 def start() -> dict:

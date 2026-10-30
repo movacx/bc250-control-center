@@ -30,6 +30,7 @@ AMD, Radeon, NVIDIA, DLSS, Steam, SteamOS and the other names used here are trad
 | [BC250-Telemetry](https://github.com/onlinermm/BC250-Telemetry) photos | The four photos of `hardware.md`, resized and without camera metadata | MIT | `assets/telemetry-i2c/` (license in `LICENSE`) |
 | [@decky/api](https://github.com/SteamDeckHomebrew/loader-api) | 1.1.3 | LGPL-2.1 | Bundled in `integrations/decky/bc250-quick-access/dist/index.js` |
 | [react-icons](https://github.com/react-icons/react-icons) | 5.7.0 | MIT; Font Awesome Free icons under CC BY 4.0, Lucide icons under ISC | Bundled in `integrations/decky/bc250-quick-access/dist/index.js` |
+| [Nayuki QR Code generator](https://github.com/nayuki/QR-Code-generator) | Commit `bcfe1b0` | MIT | `src/bc250cc/_vendor/qrcodegen.py`, including its original license notice |
 
 **bc250_smu_oc local patches.** (1)  The payload holds the PCI configuration lock across each complete `0xB8`/`0xBC` indirect SMU transaction, so that another SMU client such as the Cyan governor cannot move the shared address register between the address and data accesses. The patch follows [keyboardspecialist/bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos/blob/master/smu-oc-patches/0001-transaction-level-flock.patch). The root helper refuses the payload unless its SHA-256 and upstream commit match the reviewed build. (2) The mailbox waits for the SMU's answer for up to five seconds, 1 ms apart, instead of reading the response register 100 times with no pause, which reported a valid command the firmware had not answered yet as status `0x00`; it raises a timeout error when nothing answers. It follows [keyboardspecialist/bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos/blob/master/smu-oc-patches/0004-time-based-mailbox-timeout.patch) (Unlicense).
 
@@ -132,3 +133,12 @@ Listed for provenance or compatibility research. None of these is downloaded, bu
 - **Projects without a license grant** (bc250-cu-live-manager and its SteamOS port, and the reviewed revision of bc250-fsr4) are only fetched from their upstream repositories at the user's request and never redistributed.
 - **HelixSR** is used under the HelixSR Freeware License, which allows running the release unmodified. The network files that its setup derives from NVIDIA's DLSS DLL are created on, and stay on, the user's computer.
 - **BIOS images and flashing tools** remain the property of their authors and of ASRock and AMI. Control Center only downloads them from the pinned sources above and writes them to a USB drive the user selects.
+
+### QR pairing
+
+[Nayuki QR Code generator](https://github.com/nayuki/QR-Code-generator) (MIT),
+commit `bcfe1b018cec5f1f91b5705eca5bb4cdd34e9f8d`, is distributed in
+`src/bc250cc/_vendor/qrcodegen.py`. Its original copyright and permission notice
+are preserved; only a file-level Ruff exemption was added. It generates the
+Remote access pairing QR locally, with no network service or additional Python
+package. The pinned source URL is in `QRCODEGEN_UPSTREAM` beside it.

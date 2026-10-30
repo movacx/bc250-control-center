@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Accesible desde la red local",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Aceptar la contraseña de administrador desde la red (sin cifrar: solo en una red de confianza)",
   "New access key": "Nueva clave de acceso",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "No está cifrada: úsala solo en una red de confianza y nunca abras su puerto a internet."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "No está cifrada: úsala solo en una red de confianza y nunca abras su puerto a internet.",
+  "Another hardware action is still running.": "Todavía hay otra acción de hardware en curso.",
+  "Connect SSH": "Conectar SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Conecta esta placa con tu cuenta de Linux. Los permisos del hardware se solicitan aquí cuando hagan falta.",
+  "Connecting…": "Conectando…",
+  "Disconnect": "Desconectar",
+  "Linux password": "Contraseña de Linux",
+  "Live routing": "Enrutamiento en vivo",
+  "SSH authorization": "Autorización SSH",
+  "Unbalanced": "Desequilibrado",
+  "Use HTTPS before entering your Linux password.": "Usa HTTPS antes de introducir tu contraseña de Linux.",
+  "Connect with QR": "Conectar con QR",
+  "HTTPS (encrypted connection)": "HTTPS (conexión cifrada)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "La primera vez, acepta el certificado local de esta placa en tu navegador. La autorización SSH está disponible dentro de la interfaz web.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Escanea desde tu teléfono en el mismo Wi-Fi. El QR contiene la clave de acceso; no lo compartas.",
+  "HTTPS required": "Se requiere HTTPS",
+  "Terminal input": "Entrada de terminal"
 }

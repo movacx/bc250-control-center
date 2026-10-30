@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Dapat diakses dari jaringan lokal",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Terima kata sandi administrator lewat jaringan (tidak terenkripsi: hanya di jaringan tepercaya)",
   "New access key": "Kunci akses baru",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Tidak terenkripsi: gunakan hanya di jaringan tepercaya dan jangan pernah membuka portnya ke internet."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Tidak terenkripsi: gunakan hanya di jaringan tepercaya dan jangan pernah membuka portnya ke internet.",
+  "Another hardware action is still running.": "Tindakan perangkat keras lain masih berjalan.",
+  "Connect SSH": "Hubungkan SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Hubungkan ke papan ini dengan akun Linux Anda. Izin perangkat keras akan diminta di sini bila diperlukan.",
+  "Connecting…": "Menghubungkan…",
+  "Disconnect": "Putuskan",
+  "Linux password": "Kata sandi Linux",
+  "Live routing": "Perutean langsung",
+  "SSH authorization": "Otorisasi SSH",
+  "Unbalanced": "Tidak seimbang",
+  "Use HTTPS before entering your Linux password.": "Gunakan HTTPS sebelum memasukkan kata sandi Linux.",
+  "Connect with QR": "Hubungkan dengan QR",
+  "HTTPS (encrypted connection)": "HTTPS (koneksi terenkripsi)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Saat pertama kali, terima sertifikat lokal papan ini di peramban. Otorisasi SSH tersedia di antarmuka web.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Pindai dengan ponsel di Wi-Fi yang sama. QR berisi kunci akses; jangan bagikan.",
+  "HTTPS required": "HTTPS diperlukan",
+  "Terminal input": "Masukan terminal"
 }

@@ -15,10 +15,16 @@ from bc250cc.domain.fan.persistence import (
     normalize_fan_curve,
     validate_fan_curve_points,
 )
+from bc250cc.shared.contract import (
+    CPU_FREQUENCY_RANGE,
+    CPU_SCALE_RANGE,
+    CPU_TEMPERATURE_RANGE,
+    CPU_VID_RANGE,
+)
 
 SAFE_CEILING = 2000  # past the factory TOML's last point the rail turns red
 LOW_DUTY = 30
-RANGES = {"frequency": (3100, 4200), "vid": (950, 1325), "temperature": (70, 90), "scale": (-50, 0),
+RANGES = {"frequency": CPU_FREQUENCY_RANGE, "vid": CPU_VID_RANGE, "temperature": CPU_TEMPERATURE_RANGE, "scale": CPU_SCALE_RANGE,
           "gpu": (300, 3000), "pwm": (1, 8), "percent": (0, 100), "level": (0, 3)}
 SET_METHODS, USAGE_METHODS, TEMP_READS = ("smu", "kernel"), ("busy-flag", "process", "kernel"), ("drm", "sysfs")
 GOVERNOR_ACTIONS = ("reiniciar", "activar", "desactivar")
@@ -116,7 +122,7 @@ def gpu_voltage(ctx, p, shell):
 
 def cpu_apply(ctx, p, shell):
     frequency, temperature = number(p, "frequency"), number(p, "temperature")
-    if p.get("manual"):
+    if flag(p, "manual"):
         scale = number(p, "scale")
         return 1, lambda: shell(ctx.service.comando_cpu_oc_manual_verificado_embebido(
             frequency, scale, temperature, confirm_manual=True))

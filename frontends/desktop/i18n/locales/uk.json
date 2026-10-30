@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Доступно з локальної мережі",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Приймати пароль адміністратора через мережу (без шифрування: лише в довіреній мережі)",
   "New access key": "Новий ключ доступу",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "З'єднання не шифрується: використовуйте лише в довіреній мережі та ніколи не відкривайте порт в інтернет."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "З'єднання не шифрується: використовуйте лише в довіреній мережі та ніколи не відкривайте порт в інтернет.",
+  "Another hardware action is still running.": "Інша операція з обладнанням ще виконується.",
+  "Connect SSH": "Підключити SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Підключіться до плати з обліковим записом Linux. За потреби дозволи на керування обладнанням запитуються тут.",
+  "Connecting…": "Підключення…",
+  "Disconnect": "Від’єднати",
+  "Linux password": "Пароль Linux",
+  "Live routing": "Маршрутизація наживо",
+  "SSH authorization": "Авторизація SSH",
+  "Unbalanced": "Незбалансовано",
+  "Use HTTPS before entering your Linux password.": "Використовуйте HTTPS перед введенням пароля Linux.",
+  "Connect with QR": "Підключити через QR",
+  "HTTPS (encrypted connection)": "HTTPS (зашифроване з’єднання)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Під час першого підключення прийміть локальний сертифікат плати в браузері. Авторизація SSH доступна у вебінтерфейсі.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Скануйте телефоном у тій самій мережі Wi-Fi. QR містить ключ доступу; не діліться ним.",
+  "HTTPS required": "Потрібен HTTPS",
+  "Terminal input": "Ввід термінала"
 }

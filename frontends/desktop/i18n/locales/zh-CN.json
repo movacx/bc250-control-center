@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "可从局域网访问",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "允许通过网络输入管理员密码（未加密：仅限可信网络）",
   "New access key": "新的访问密钥",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "未加密：仅在可信网络中使用，切勿将其端口开放到互联网。"
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "未加密：仅在可信网络中使用，切勿将其端口开放到互联网。",
+  "Another hardware action is still running.": "另一项硬件操作仍在运行。",
+  "Connect SSH": "连接 SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "使用 Linux 账户连接此主板。需要时将在此请求硬件权限。",
+  "Connecting…": "正在连接…",
+  "Disconnect": "断开连接",
+  "Linux password": "Linux 密码",
+  "Live routing": "实时路由",
+  "SSH authorization": "SSH 授权",
+  "Unbalanced": "不平衡",
+  "Use HTTPS before entering your Linux password.": "输入 Linux 密码前请使用 HTTPS。",
+  "Connect with QR": "通过 QR 连接",
+  "HTTPS (encrypted connection)": "HTTPS（加密连接）",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "首次连接时，请在浏览器中接受此主板的本地证书。SSH 授权可直接在网页界面中完成。",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "请使用连接同一 Wi-Fi 的手机扫描。QR 包含访问密钥，请勿分享。",
+  "HTTPS required": "需要 HTTPS",
+  "Terminal input": "终端输入"
 }

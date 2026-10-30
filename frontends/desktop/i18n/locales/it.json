@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Raggiungibile dalla rete locale",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Accetta la password di amministratore dalla rete (non cifrata: solo in una rete fidata)",
   "New access key": "Nuova chiave di accesso",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Non è cifrata: usala solo in una rete fidata e non aprire mai la sua porta a internet."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Non è cifrata: usala solo in una rete fidata e non aprire mai la sua porta a internet.",
+  "Another hardware action is still running.": "Un’altra operazione hardware è ancora in corso.",
+  "Connect SSH": "Connetti SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Connetti questa scheda con il tuo account Linux. Le autorizzazioni hardware verranno richieste qui quando necessario.",
+  "Connecting…": "Connessione…",
+  "Disconnect": "Disconnetti",
+  "Linux password": "Password Linux",
+  "Live routing": "Instradamento in tempo reale",
+  "SSH authorization": "Autorizzazione SSH",
+  "Unbalanced": "Sbilanciato",
+  "Use HTTPS before entering your Linux password.": "Usa HTTPS prima di inserire la password Linux.",
+  "Connect with QR": "Connetti con QR",
+  "HTTPS (encrypted connection)": "HTTPS (connessione cifrata)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "La prima volta, accetta nel browser il certificato locale di questa scheda. L’autorizzazione SSH è disponibile nell’interfaccia web.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Scansiona dal telefono sulla stessa rete Wi-Fi. Il QR contiene la chiave di accesso; non condividerlo.",
+  "HTTPS required": "HTTPS richiesto",
+  "Terminal input": "Input del terminale"
 }

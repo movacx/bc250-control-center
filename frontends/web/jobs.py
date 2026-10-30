@@ -10,13 +10,15 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import re
+import termios
 import threading
 
+from bc250cc.application.system.privacy import redact_machine
 from bc250cc.application.system.workflow_console import (
     TerminalLaunchResult,
     set_embedded_terminal_launcher,
 )
-from bc250cc.application.system.privacy import redact_machine
 from bc250cc.shared.failure_text import describe_failure
 from frontends.tui.console import Console
 from frontends.tui.i18n import tr
@@ -56,11 +58,7 @@ class Jobs:
     def _run(self, console: Console, work) -> None:
         try:
             with console.password_agent(), contextlib.redirect_stdout(console):
-                shell = lambda command: self._shell(console, command)
-                try:
-                    result = work(shell)
-                except TypeError:
-                    result = work()
+                result = work()
             console.finish(True, result)
         except Exception as error:  # said in the console: never an empty failure
             logger.debug("job failed", exc_info=True)
@@ -90,10 +88,15 @@ class Jobs:
             return None
         lines = console.view(ROWS * 10)[0]
         text = "\n".join("".join(run[0] for run in line).rstrip() for line in lines)
+        try:
+            waiting = console.master is not None and not bool(termios.tcgetattr(console.master)[3] & termios.ECHO)
+        except (OSError, termios.error):
+            waiting = False
         return {"id": self.id, "label": self.label, "done": console.done.is_set(),
                 "ok": console.succeeded if console.done.is_set() else None,
                 "message": describe_result(console.result) if console.done.is_set() and console.succeeded else "",
-                "text": redact_machine(text), "waiting": console.master is not None}
+                "text": redact_machine(text), "waiting": waiting,
+                "interactive": console.master is not None and (waiting or bool(re.search(r"[:?：？]\s*$|\[[yYnN/]+\]\s*$", text)))}
 
     def send(self, text: str) -> bool:
         return self.console is not None and self.console.send(text.encode() + b"\n")

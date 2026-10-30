@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Προσβάσιμο από το τοπικό δίκτυο",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Αποδοχή του κωδικού διαχειριστή μέσω δικτύου (χωρίς κρυπτογράφηση: μόνο σε αξιόπιστο δίκτυο)",
   "New access key": "Νέο κλειδί πρόσβασης",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Δεν είναι κρυπτογραφημένο: χρησιμοποιήστε το μόνο σε αξιόπιστο δίκτυο και μην ανοίγετε ποτέ τη θύρα του στο διαδίκτυο."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Δεν είναι κρυπτογραφημένο: χρησιμοποιήστε το μόνο σε αξιόπιστο δίκτυο και μην ανοίγετε ποτέ τη θύρα του στο διαδίκτυο.",
+  "Another hardware action is still running.": "Μια άλλη ενέργεια υλικού εκτελείται ακόμη.",
+  "Connect SSH": "Σύνδεση SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Συνδεθείτε στην πλακέτα με τον λογαριασμό Linux σας. Οι άδειες υλικού ζητούνται εδώ όταν χρειάζεται.",
+  "Connecting…": "Σύνδεση…",
+  "Disconnect": "Αποσύνδεση",
+  "Linux password": "Κωδικός Linux",
+  "Live routing": "Ζωντανή δρομολόγηση",
+  "SSH authorization": "Εξουσιοδότηση SSH",
+  "Unbalanced": "Μη ισορροπημένο",
+  "Use HTTPS before entering your Linux password.": "Χρησιμοποιήστε HTTPS πριν εισαγάγετε τον κωδικό Linux.",
+  "Connect with QR": "Σύνδεση με QR",
+  "HTTPS (encrypted connection)": "HTTPS (κρυπτογραφημένη σύνδεση)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Την πρώτη φορά, αποδεχτείτε το τοπικό πιστοποιητικό της πλακέτας στο πρόγραμμα περιήγησης. Η εξουσιοδότηση SSH είναι διαθέσιμη στη διεπαφή ιστού.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Σαρώστε με το τηλέφωνο στο ίδιο Wi-Fi. Το QR περιέχει το κλειδί πρόσβασης· μην το κοινοποιείτε.",
+  "HTTPS required": "Απαιτείται HTTPS",
+  "Terminal input": "Είσοδος τερματικού"
 }

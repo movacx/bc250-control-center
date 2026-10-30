@@ -19,8 +19,9 @@ import mimetypes
 import os
 import secrets
 import signal
-import sys
 import socket
+import ssl
+import sys
 import threading
 import time
 import urllib.parse
@@ -29,13 +30,24 @@ from pathlib import Path
 from bc250cc.application import ApplicationContainer
 from bc250cc.application.system import web_access
 from bc250cc.application.system.privacy import redact_machine
-from bc250cc.application.system.workflow_console import TERMINAL_AUTH_ENV, set_translator
-from frontends.desktop.i18n import SUPPORTED_LANGUAGES, normalize_language, set_language, tr
+from bc250cc.application.system.workflow_console import (
+    TERMINAL_AUTH_ENV,
+    set_translator,
+)
+from bc250cc.shared.errors import BoundaryError
+from frontends.desktop.i18n import (
+    LANGUAGE_OPTIONS,
+    SUPPORTED_LANGUAGES,
+    normalize_language,
+    set_language,
+    tr,
+)
 from frontends.desktop.theme import theme_palette
 from frontends.tui.runtime import Context, describe_error
 from frontends.web.actions import ACTIONS, Invalid
 from frontends.web.data import PAGES, Live, performance
 from frontends.web.jobs import Busy, Jobs
+from frontends.web.ssh import SSHSession
 
 logger = logging.getLogger(__name__)
 DIST = Path(__file__).resolve().parent / "dist"
@@ -85,6 +97,11 @@ class Web:
         self.live, self.jobs = Live(self.ctx), Jobs()
         self.language = normalize_language(self.ctx.config.get("idioma", "auto"))
         self.sessions: dict[str, tuple[str, float]] = {}
+        self.ssh_sessions: dict[str, SSHSession] = {}
+        self.job_owner = ""
+        self.job_backend = None
+        self.job_lock = threading.Lock()
+        self.key = web_access.access_key()
         self.fails: dict[str, list[float]] = {}
         self.lock = threading.Lock()
         self.strings = self._strings()
@@ -118,14 +135,34 @@ class Web:
 
     def session(self, token: str) -> str | None:
         with self.lock:
+            if not same_key(self.key, web_access.access_key()):
+                self.sessions.clear()
+                for ssh in self.ssh_sessions.values():
+                    ssh.close()
+                self.ssh_sessions.clear()
+                self.key = web_access.access_key()
             csrf, expires = self.sessions.get(token, ("", 0))
+            if expires <= time.monotonic():
+                self.sessions.pop(token, None)
+                ssh = self.ssh_sessions.pop(token, None)
+                if ssh:
+                    ssh.close()
             return csrf if expires > time.monotonic() else None
+
+    def job(self) -> dict:
+        return (self.job_backend.request("job") if self.job_backend is not None else self.jobs.view()) or {"id": 0}
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
     server_version = "bc250-web"
     sys_version = ""
     protocol_version = "HTTP/1.1"
+
+    def setup(self) -> None:
+        self.request.settimeout(15)
+        if isinstance(self.request, ssl.SSLSocket):
+            self.request.do_handshake()
+        super().setup()
 
     def log_message(self, *args) -> None:  # addresses and paths are personal data: nothing is logged
         pass
@@ -148,6 +185,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def json(self, payload, status: int = 200, extra: dict | None = None) -> None:
+        language = normalize_language(self.headers.get("X-BC250-Language") or self.web.language)
+        display_fields = {"title", "hint", "label", "name", "detail", "message", "error", "context", "primary", "value",
+                          "applied_value", "applied_detail", "live_value", "live_detail", "detection_value", "detection_detail"}
+
+        def localize(value, key=""):
+            if isinstance(value, dict):
+                return {k: localize(v, k) for k, v in value.items()}
+            if isinstance(value, list):
+                return [localize(v, key) for v in value]
+            return tr(value, language) if isinstance(value, str) and key in display_fields else value
+
+        payload = localize(payload)
         self.reply(json.dumps(payload, ensure_ascii=False, default=str).encode(), "application/json", status, extra)
 
     def fail(self, message: str, status: int = 400, **more) -> None:
@@ -176,7 +225,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return origin is None or urllib.parse.urlsplit(origin).netloc == self.headers.get("Host")
 
     def can_type_password(self) -> bool:
-        return is_loopback(self.client_address[0]) or web_access.options()["lan_password"]
+        return bool(getattr(self.server, "secure", False)) or is_loopback(self.client_address[0])
 
     # -- routing --------------------------------------------------------------------------------
 
@@ -202,11 +251,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path == "/api/i18n":
             lang = normalize_language(query.get("lang") or self.web.language)
             lang = lang if lang in SUPPORTED_LANGUAGES else "en"
-            return self.json({"language": lang, "strings": {s: tr(s, lang) for s in self.web.strings}})
+            return self.json({"language": lang, "languages": [{"key": key, "title": title} for key, title in LANGUAGE_OPTIONS if key != "auto"],
+                              "strings": {s: tr(s, lang) for s in self.web.strings}})
         csrf = self.web.session(self.token())
         if path == "/api/session":
             return self.json({"authenticated": csrf is not None, "csrf": csrf,
-                              "password": self.can_type_password()})
+                              "password": self.can_type_password(), "encrypted": bool(getattr(self.server, "secure", False))})
         if csrf is None:
             return self.fail("Authentication required", 401, authenticated=False)
         if method == "POST" and not hmac.compare_digest(self.headers.get("X-CSRF-Token", ""), csrf):
@@ -216,6 +266,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.fail("Not found", 404)
         try:
             handler(query if method == "GET" else self.body())
+        except BoundaryError as error:
+            self.fail(error.detail.message, 409, code=error.detail.code)
         except Exception as error:  # the page shows the sentence; the log keeps no personal data
             logger.debug("request failed", exc_info=True)
             self.fail(describe_error(error), 500)
@@ -223,16 +275,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
     @property
     def GET(self) -> dict:
         return {"/api/live": self.live, "/api/page": self.page, "/api/performance": self.performance,
-                "/api/job": lambda q: self.json(self.web.jobs.view() or {"id": 0})}
+                "/api/job": self.job, "/api/ssh": self.ssh_status}
 
     @property
     def POST(self) -> dict:
         return {"/api/logout": self.logout, "/api/performance/reset": self.reset_statistics, "/api/action": self.action, "/api/job/input": self.job_input,
-                "/api/job/interrupt": lambda b: (self.web.jobs.interrupt(), self.json({"ok": True}))}
+                "/api/job/interrupt": self.job_interrupt, "/api/ssh/start": self.ssh_start,
+                "/api/ssh/input": self.ssh_input, "/api/ssh/close": self.ssh_close}
 
     # -- endpoints ------------------------------------------------------------------------------
 
     def login(self) -> None:
+        if not self.can_type_password():
+            return self.fail("HTTPS required", 403)
         try:
             result = self.web.login(self.client_address[0], self.body().get("key"))
         except PermissionError:
@@ -241,16 +296,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.fail("That key is not right.", 401)
         session, csrf = result
         cookie = f"{COOKIE}={session}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_SECONDS}"
+        if getattr(self.server, "secure", False):
+            cookie += "; Secure"
         self.json({"ok": True, "csrf": csrf}, extra={"Set-Cookie": cookie})
 
     def logout(self, _body: dict) -> None:
+        if self.web.job_owner == self.token() and self.web.job_backend is None:
+            self.web.jobs.interrupt()
         with self.web.lock:
             self.web.sessions.pop(self.token(), None)
+            ssh = self.web.ssh_sessions.pop(self.token(), None)
+            if ssh:
+                ssh.close()
         self.json({"ok": True}, extra={"Set-Cookie": f"{COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0"})
 
     def live(self, _query: dict) -> None:
         self.web.live.touch()
-        job = self.web.jobs.view()
+        job = self.web.job() if self.web.job_owner == self.token() else None
         self.json({**self.web.live.live(), "job": {"id": job["id"], "done": job["done"]} if job else None})
 
     def page(self, query: dict) -> None:
@@ -269,9 +331,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.json({"ok": True})
 
     def action(self, body: dict) -> None:
+        if not self.can_type_password():
+            return self.fail("HTTPS required", 403)
         build = ACTIONS.get(str(body.get("action")))
         if build is None:
             return self.fail("Unknown action", 400)
+        if not isinstance(body.get("params", {}), dict):
+            return self.fail("Invalid parameter: params", 400)
         jobs = self.web.jobs
         try:
             level, work = build(self.web.ctx, body.get("params") or {}, jobs.shell)
@@ -281,17 +347,81 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.fail("This action needs confirmation.", 403, confirm=True)
         if level == 2 and not same_key(body.get("key"), web_access.access_key()):
             return self.fail("This action needs the access key again.", 403, key=True)
-        try:
-            job = jobs.start(str(body.get("title") or body["action"])[:80], work)
-        except Busy:
-            return self.fail("Another hardware action is still running.", 409)
+        with self.web.job_lock:
+            current = self.web.job()
+            if current.get("id") and not current.get("done", True):
+                return self.fail("Another hardware action is still running.", 409)
+            ssh = self.web.ssh_sessions.get(self.token())
+            if ssh is not None:
+                if not ssh.ready:
+                    return self.fail("Connect SSH before applying changes.", 409)
+                result = ssh.request("action", action=body["action"], params=body.get("params") or {},
+                                     title=str(body.get("title") or body["action"])[:80], confirmed=bool(body.get("confirm")),
+                                     language=normalize_language(self.headers.get("X-BC250-Language") or self.web.language))
+                if not result.get("ok"):
+                    return self.fail(result.get("error", "SSH disconnected"), 409)
+                job = result["job"]
+            else:
+                try:
+                    job = jobs.start(str(body.get("title") or body["action"])[:80], work)
+                except Busy:
+                    return self.fail("Another hardware action is still running.", 409)
+            self.web.job_owner, self.web.job_backend = self.token(), ssh
         self.web.live.forget()
         self.json({"ok": True, "job": job})
 
     def job_input(self, body: dict) -> None:
         if not self.can_type_password():
             return self.fail("The password is only accepted on this computer, or after turning that option on.", 403)
+        if self.web.job_owner and self.web.job_owner != self.token():
+            return self.fail("This operation belongs to another session.", 403)
+        if self.web.job_backend is not None:
+            return self.json(self.web.job_backend.request("input", text=str(body.get("text", ""))[:256]))
         self.json({"ok": self.web.jobs.send(str(body.get("text", ""))[:256])})
+
+    def job(self, _query: dict) -> None:
+        self.json(self.web.job() if self.web.job_owner == self.token() else {"id": 0})
+
+    def job_interrupt(self, _body: dict) -> None:
+        if self.web.job_owner != self.token():
+            return self.fail("This operation belongs to another session.", 403)
+        if self.web.job_backend is not None:
+            return self.json(self.web.job_backend.request("interrupt"))
+        self.web.jobs.interrupt()
+        self.json({"ok": True})
+
+    def ssh_status(self, _query: dict) -> None:
+        ssh = self.web.ssh_sessions.get(self.token())
+        self.json(ssh.status() if ssh else {"ready": False, "closed": True, "text": ""})
+
+    def ssh_start(self, _body: dict) -> None:
+        if not self.can_type_password():
+            return self.fail("Use HTTPS before entering your Linux password.", 403)
+        with self.web.lock:
+            ssh = self.web.ssh_sessions.get(self.token())
+            if ssh is not None and not ssh.closed:
+                return self.json(ssh.status())
+            ledger = "ssh:" + self.token()
+            if self.web.locked(ledger):
+                return self.fail("Too many attempts. Try again in a few minutes.", 429)
+            self.web.fails[ledger].append(time.monotonic())
+            self.web.ssh_sessions[self.token()] = ssh = SSHSession()
+        self.json(ssh.status())
+
+    def ssh_input(self, body: dict) -> None:
+        if not self.can_type_password():
+            return self.fail("Use HTTPS before entering your Linux password.", 403)
+        ssh = self.web.ssh_sessions.get(self.token())
+        text = str(body.get("text", ""))
+        if len(text) > 256 or any(ord(c) < 32 for c in text):
+            return self.fail("Invalid parameter: password", 400)
+        self.json({"ok": bool(ssh and ssh.login_input(text))})
+
+    def ssh_close(self, _body: dict) -> None:
+        ssh = self.web.ssh_sessions.pop(self.token(), None)
+        if ssh:
+            ssh.close()
+        self.json({"ok": True})
 
     def static(self, path: str) -> None:
         target = (DIST / path.lstrip("/")).resolve()
@@ -325,6 +455,15 @@ class Server(http.server.ThreadingHTTPServer):
         self.web = web
         super().__init__(address, Handler)
 
+    def server_close(self) -> None:
+        self.web.jobs.interrupt()
+        for ssh in self.web.ssh_sessions.values():
+            ssh.close()
+        super().server_close()
+
+    def handle_error(self, request, client_address) -> None:
+        logger.debug("web connection closed")
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="bc250-control-center web",
@@ -332,19 +471,28 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host", default="", help="address to listen on (default: this computer only, or the "
                                                    "local network when it was turned on in Remote access)")
     parser.add_argument("--port", type=int, default=0, help=f"port (default {web_access.DEFAULT_PORT})")
+    parser.add_argument("--http", action="store_true", help="disable local HTTPS (for development or an SSH tunnel)")
     args = parser.parse_args(argv)
     options = web_access.options()
     host = args.host or ("0.0.0.0" if options["lan"] else "127.0.0.1")  # nosec B104 - only when the owner turned it on
     port = args.port or options["port"]
     os.environ[TERMINAL_AUTH_ENV] = "1"  # passwords are asked on the job's console, never in a window
+    os.environ["SSH_ASKPASS_REQUIRE"] = "never"
     logging.basicConfig(level=logging.WARNING)
     key = web_access.access_key()
     web = Web()
     set_language(web.language)
     set_translator(tr)
     server = Server((host, port), web)
-    web_access.write_pid()
-    print(f"BC250 Control Center web: http://{host}:{port}", flush=True)
+    server.secure = options["tls"] and not args.http
+    if server.secure:
+        cert, key_path = web_access.tls_certificate()
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.load_cert_chain(cert, key_path)
+        server.socket = context.wrap_socket(server.socket, server_side=True, do_handshake_on_connect=False)
+    web_access.write_pid(port)
+    print(f"BC250 Control Center web: {'https' if server.secure else 'http'}://{host}:{port}", flush=True)
     if sys.stdout.isatty():  # never into a journal: the key opens hardware controls
         print(f"Access key: {key}", flush=True)
     for name in (signal.SIGINT, signal.SIGTERM):

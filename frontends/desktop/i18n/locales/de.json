@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Aus dem lokalen Netzwerk erreichbar",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Administratorpasswort über das Netzwerk annehmen (unverschlüsselt: nur in einem vertrauenswürdigen Netzwerk)",
   "New access key": "Neuer Zugangsschlüssel",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Unverschlüsselt: nur in einem vertrauenswürdigen Netzwerk verwenden und den Port nie ins Internet öffnen."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Unverschlüsselt: nur in einem vertrauenswürdigen Netzwerk verwenden und den Port nie ins Internet öffnen.",
+  "Another hardware action is still running.": "Eine andere Hardwareaktion läuft noch.",
+  "Connect SSH": "SSH verbinden",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Verbinde dieses Board mit deinem Linux-Konto. Hardwareberechtigungen werden bei Bedarf hier abgefragt.",
+  "Connecting…": "Verbindung wird hergestellt…",
+  "Disconnect": "Trennen",
+  "Linux password": "Linux-Passwort",
+  "Live routing": "Live-Routing",
+  "SSH authorization": "SSH-Autorisierung",
+  "Unbalanced": "Unausgeglichen",
+  "Use HTTPS before entering your Linux password.": "Verwende HTTPS, bevor du dein Linux-Passwort eingibst.",
+  "Connect with QR": "Mit QR verbinden",
+  "HTTPS (encrypted connection)": "HTTPS (verschlüsselte Verbindung)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Akzeptiere beim ersten Mal das lokale Zertifikat dieses Boards im Browser. Die SSH-Autorisierung ist in der Weboberfläche verfügbar.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Scanne mit deinem Telefon im selben Wi-Fi. Der QR enthält den Zugangsschlüssel; teile ihn nicht.",
+  "HTTPS required": "HTTPS erforderlich",
+  "Terminal input": "Terminaleingabe"
 }

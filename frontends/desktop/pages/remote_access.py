@@ -6,9 +6,19 @@ says, in four short steps, what to install on the phone and what to type.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices, QGuiApplication
-from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from PyQt6.QtCore import QByteArray, Qt, QUrl
+from PyQt6.QtGui import QDesktopServices, QGuiApplication, QPainter, QPixmap
+from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtWidgets import (
+    QDialog,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QScrollArea,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 from bc250cc.application.system import remote_access, web_access
 
@@ -19,6 +29,7 @@ from ..components.responsive import configure_responsive_scroll_area
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
 from ..components.tui_preview_dialog import TuiPreviewDialog
+from ..components.wheel_guard import GuardedComboBox
 from ..i18n import tr, tr_format
 from ..theme import COLORS, scale_stylesheet
 from .processes import process_stylesheet
@@ -140,6 +151,10 @@ class RemoteAccessPage(QWidget):
         web_controls = QHBoxLayout()
         web_controls.addWidget(self.web_switch_button)
         web_controls.addWidget(self.web_open_button)
+        self.web_qr_button = QPushButton(tr("Connect with QR"))
+        self.web_qr_button.setProperty("processButton", "secondary")
+        self.web_qr_button.clicked.connect(self._show_web_qr)
+        web_controls.addWidget(self.web_qr_button)
         web_controls.addStretch(1)
         web_controls.addWidget(self.web_autostart_switch)
         web_controls.addWidget(self.web_autostart_label)
@@ -174,8 +189,8 @@ class RemoteAccessPage(QWidget):
         self.web_lan_switch.setAccessibleName(tr("Reachable from the local network"))
         self.web_lan_switch.toggled.connect(lambda checked: self._web_option("lan", checked))
         self.web_password_switch = ToggleSwitch()
-        self.web_password_switch.setAccessibleName(tr("Accept the administrator password from the network (not encrypted: only on a network you trust)"))
-        self.web_password_switch.toggled.connect(lambda checked: self._web_option("lan_password", checked))
+        self.web_password_switch.setAccessibleName(tr("HTTPS (encrypted connection)"))
+        self.web_password_switch.toggled.connect(lambda checked: self._web_option("tls", checked))
         self.web_new_key_button = QPushButton(tr("New access key"))
         self.web_new_key_button.setProperty("processButton", "secondary")
         self.web_new_key_button.clicked.connect(lambda _checked=False: self._new_web_key())
@@ -183,7 +198,7 @@ class RemoteAccessPage(QWidget):
         options.addWidget(self.web_lan_switch, 0, 0)
         options.addWidget(self._label("Reachable from the local network", strong=True), 0, 1)
         options.addWidget(self.web_password_switch, 1, 0)
-        options.addWidget(self._label("Accept the administrator password from the network (not encrypted: only on a network you trust)", strong=True), 1, 1)
+        options.addWidget(self._label("HTTPS (encrypted connection)", strong=True), 1, 1)
         options.setColumnStretch(1, 1)
 
         web_details.addWidget(self.web_url_label)
@@ -191,7 +206,7 @@ class RemoteAccessPage(QWidget):
         web_details.addWidget(self.web_pin_label)
         web_details.addLayout(pin_row)
         web_details.addWidget(self.web_new_key_button)
-        web_details.addWidget(self._label("It is not encrypted: use it only on a network you trust and never open its port to the internet."))
+        web_details.addWidget(self._label("The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface."))
         self.web_card.body.addLayout(options)
         self.web_card.body.addWidget(self.web_details_widget)
 
@@ -330,6 +345,7 @@ class RemoteAccessPage(QWidget):
         self.web_switch_button.style().polish(self.web_switch_button)
 
         self.web_open_button.setVisible(running)
+        self.web_qr_button.setVisible(running and bool(urls))
 
         all_urls = ([local_url] if local_url else []) + urls
         self.web_url_box.setText(" · ".join(all_urls) if all_urls else "–")
@@ -339,8 +355,8 @@ class RemoteAccessPage(QWidget):
         self._syncing_web = True
         try:
             self.web_lan_switch.setChecked(bool(state.get("lan")))
-            self.web_password_switch.setChecked(bool(state.get("lan_password")))
-            self.web_password_switch.setEnabled(bool(state.get("lan")))
+            self.web_password_switch.setChecked(bool(state.get("tls", True)))
+            self.web_password_switch.setEnabled(True)
             self.web_autostart_switch.setEnabled(bool(autostart.get("supported")) and not autostart.get("foreign"))
             self.web_autostart_switch.setChecked(bool(autostart.get("enabled")))
         finally:
@@ -406,3 +422,43 @@ class RemoteAccessPage(QWidget):
         if key:
             QGuiApplication.clipboard().setText(key)
             show_toast(self, tr("Copied"), key, tone="green")
+
+    def _show_web_qr(self) -> None:
+        urls = self._web_state.get("urls") or []
+        if not urls:
+            return
+        dialog = QDialog(self.window())
+        dialog.setWindowTitle(tr("Connect with QR"))
+        layout = QVBoxLayout(dialog)
+        address = GuardedComboBox()
+        address.addItems(urls)
+        address.setAccessibleName(tr("Address"))
+        layout.addWidget(address)
+        image = QLabel()
+        image.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(image)
+        note = self._label("Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.")
+        layout.addWidget(note)
+        fingerprint = self._web_state.get("tls_fingerprint")
+        if fingerprint:
+            proof = QLabel("SHA-256\n" + fingerprint[:47] + "\n" + fingerprint[48:])
+            proof.setWordWrap(True)
+            proof.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            layout.addWidget(proof)
+
+        def render() -> None:
+            url = address.currentText() + "#pair=" + self._web_state.get("key", "")
+            renderer = QSvgRenderer(QByteArray(web_access.pairing_svg(url)))
+            pixmap = QPixmap(300, 300)
+            pixmap.fill(Qt.GlobalColor.white)
+            painter = QPainter(pixmap)
+            renderer.render(painter)
+            painter.end()
+            image.setPixmap(pixmap)
+
+        address.currentIndexChanged.connect(render)
+        render()
+        close = QPushButton(tr("Close"))
+        close.clicked.connect(dialog.accept)
+        layout.addWidget(close)
+        dialog.exec()

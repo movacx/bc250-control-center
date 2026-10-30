@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Yerel ağdan erişilebilir",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Yönetici parolasını ağ üzerinden kabul et (şifrelenmez: yalnızca güvendiğiniz ağda)",
   "New access key": "Yeni erişim anahtarı",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Şifrelenmez: yalnızca güvendiğiniz ağda kullanın ve bağlantı noktasını asla internete açmayın."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Şifrelenmez: yalnızca güvendiğiniz ağda kullanın ve bağlantı noktasını asla internete açmayın.",
+  "Another hardware action is still running.": "Başka bir donanım işlemi hâlâ çalışıyor.",
+  "Connect SSH": "SSH bağlan",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Bu karta Linux hesabınızla bağlanın. Gerektiğinde donanım izinleri burada istenir.",
+  "Connecting…": "Bağlanıyor…",
+  "Disconnect": "Bağlantıyı kes",
+  "Linux password": "Linux parolası",
+  "Live routing": "Canlı yönlendirme",
+  "SSH authorization": "SSH yetkilendirmesi",
+  "Unbalanced": "Dengesiz",
+  "Use HTTPS before entering your Linux password.": "Linux parolanızı girmeden önce HTTPS kullanın.",
+  "Connect with QR": "QR ile bağlan",
+  "HTTPS (encrypted connection)": "HTTPS (şifreli bağlantı)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "İlk bağlantıda tarayıcıda bu kartın yerel sertifikasını kabul edin. SSH yetkilendirmesi web arayüzünde kullanılabilir.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Aynı Wi-Fi ağındaki telefonunuzla tarayın. QR erişim anahtarını içerir; paylaşmayın.",
+  "HTTPS required": "HTTPS gerekli",
+  "Terminal input": "Terminal girdisi"
 }

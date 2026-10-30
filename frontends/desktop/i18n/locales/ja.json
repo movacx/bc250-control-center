@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "ローカルネットワークから接続可能",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "ネットワーク経由で管理者パスワードを受け付ける（暗号化なし：信頼できるネットワークのみ）",
   "New access key": "新しいアクセスキー",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "暗号化されていません。信頼できるネットワークでのみ使用し、ポートをインターネットに公開しないでください。"
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "暗号化されていません。信頼できるネットワークでのみ使用し、ポートをインターネットに公開しないでください。",
+  "Another hardware action is still running.": "別のハードウェア操作がまだ実行中です。",
+  "Connect SSH": "SSH に接続",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Linux アカウントでこのボードに接続します。必要なハードウェア権限はここで確認されます。",
+  "Connecting…": "接続中…",
+  "Disconnect": "切断",
+  "Linux password": "Linux パスワード",
+  "Live routing": "ライブ経路設定",
+  "SSH authorization": "SSH 認証",
+  "Unbalanced": "不均衡",
+  "Use HTTPS before entering your Linux password.": "Linux パスワードを入力する前に HTTPS を使用してください。",
+  "Connect with QR": "QR で接続",
+  "HTTPS (encrypted connection)": "HTTPS（暗号化接続）",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "初回はブラウザーでこのボードのローカル証明書を承認してください。SSH 認証はウェブ画面内で利用できます。",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "同じ Wi-Fi の電話でスキャンしてください。QR にはアクセスキーが含まれるため、共有しないでください。",
+  "HTTPS required": "HTTPS が必要です",
+  "Terminal input": "端末入力"
 }

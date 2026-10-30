@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Доступно из локальной сети",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Принимать пароль администратора по сети (без шифрования: только в доверенной сети)",
   "New access key": "Новый ключ доступа",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Соединение не шифруется: используйте его только в доверенной сети и никогда не открывайте порт в интернет."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Соединение не шифруется: используйте его только в доверенной сети и никогда не открывайте порт в интернет.",
+  "Another hardware action is still running.": "Другая операция с оборудованием ещё выполняется.",
+  "Connect SSH": "Подключить SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Подключитесь к плате с учётной записью Linux. При необходимости разрешения на управление оборудованием запрашиваются здесь.",
+  "Connecting…": "Подключение…",
+  "Disconnect": "Отключить",
+  "Linux password": "Пароль Linux",
+  "Live routing": "Маршрутизация в реальном времени",
+  "SSH authorization": "Авторизация SSH",
+  "Unbalanced": "Несбалансировано",
+  "Use HTTPS before entering your Linux password.": "Используйте HTTPS перед вводом пароля Linux.",
+  "Connect with QR": "Подключить по QR",
+  "HTTPS (encrypted connection)": "HTTPS (зашифрованное соединение)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "При первом подключении примите локальный сертификат платы в браузере. Авторизация SSH доступна в веб-интерфейсе.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Сканируйте телефоном в той же сети Wi-Fi. QR содержит ключ доступа; не передавайте его другим.",
+  "HTTPS required": "Требуется HTTPS",
+  "Terminal input": "Ввод терминала"
 }

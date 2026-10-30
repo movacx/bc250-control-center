@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "เข้าถึงได้จากเครือข่ายภายใน",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "รับรหัสผ่านผู้ดูแลระบบผ่านเครือข่าย (ไม่เข้ารหัส: เฉพาะเครือข่ายที่เชื่อถือได้)",
   "New access key": "คีย์การเข้าถึงใหม่",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "ไม่เข้ารหัส: ใช้เฉพาะในเครือข่ายที่เชื่อถือได้ และอย่าเปิดพอร์ตสู่อินเทอร์เน็ต"
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "ไม่เข้ารหัส: ใช้เฉพาะในเครือข่ายที่เชื่อถือได้ และอย่าเปิดพอร์ตสู่อินเทอร์เน็ต",
+  "Another hardware action is still running.": "การทำงานกับฮาร์ดแวร์อื่นยังดำเนินอยู่",
+  "Connect SSH": "เชื่อมต่อ SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "เชื่อมต่อบอร์ดนี้ด้วยบัญชี Linux ระบบจะขอสิทธิ์ฮาร์ดแวร์ที่นี่เมื่อจำเป็น",
+  "Connecting…": "กำลังเชื่อมต่อ…",
+  "Disconnect": "ตัดการเชื่อมต่อ",
+  "Linux password": "รหัสผ่าน Linux",
+  "Live routing": "การกำหนดเส้นทางสด",
+  "SSH authorization": "การอนุญาต SSH",
+  "Unbalanced": "ไม่สมดุล",
+  "Use HTTPS before entering your Linux password.": "ใช้ HTTPS ก่อนป้อนรหัสผ่าน Linux",
+  "Connect with QR": "เชื่อมต่อด้วย QR",
+  "HTTPS (encrypted connection)": "HTTPS (การเชื่อมต่อที่เข้ารหัส)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "ครั้งแรก ให้ยอมรับใบรับรองภายในของบอร์ดนี้ในเบราว์เซอร์ สามารถอนุญาตผ่าน SSH ได้ในหน้าเว็บ",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "สแกนด้วยโทรศัพท์บน Wi-Fi เดียวกัน QR มีคีย์การเข้าถึง ห้ามแชร์",
+  "HTTPS required": "ต้องใช้ HTTPS",
+  "Terminal input": "อินพุตเทอร์มินัล"
 }

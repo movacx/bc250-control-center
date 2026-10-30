@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Bereikbaar vanuit het lokale netwerk",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Beheerderswachtwoord via het netwerk accepteren (niet versleuteld: alleen op een vertrouwd netwerk)",
   "New access key": "Nieuwe toegangssleutel",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Niet versleuteld: gebruik het alleen op een vertrouwd netwerk en open de poort nooit naar internet."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Niet versleuteld: gebruik het alleen op een vertrouwd netwerk en open de poort nooit naar internet.",
+  "Another hardware action is still running.": "Er wordt nog een andere hardwareactie uitgevoerd.",
+  "Connect SSH": "SSH verbinden",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Verbind met dit bord via je Linux-account. Hardwaremachtigingen worden hier gevraagd wanneer dat nodig is.",
+  "Connecting…": "Verbinden…",
+  "Disconnect": "Verbinding verbreken",
+  "Linux password": "Linux-wachtwoord",
+  "Live routing": "Live-routering",
+  "SSH authorization": "SSH-autorisatie",
+  "Unbalanced": "Ongebalanceerd",
+  "Use HTTPS before entering your Linux password.": "Gebruik HTTPS voordat je je Linux-wachtwoord invoert.",
+  "Connect with QR": "Verbinden met QR",
+  "HTTPS (encrypted connection)": "HTTPS (versleutelde verbinding)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Accepteer de eerste keer het lokale certificaat van dit bord in je browser. SSH-autorisatie is beschikbaar in de webinterface.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Scan met je telefoon op hetzelfde Wi-Fi-netwerk. De QR bevat de toegangssleutel; deel deze niet.",
+  "HTTPS required": "HTTPS vereist",
+  "Terminal input": "Terminalinvoer"
 }

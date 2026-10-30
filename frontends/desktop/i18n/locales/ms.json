@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Boleh diakses dari rangkaian setempat",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Terima kata laluan pentadbir melalui rangkaian (tidak disulitkan: hanya pada rangkaian dipercayai)",
   "New access key": "Kunci akses baharu",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Tidak disulitkan: gunakan hanya pada rangkaian dipercayai dan jangan sekali-kali membuka portnya ke internet."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Tidak disulitkan: gunakan hanya pada rangkaian dipercayai dan jangan sekali-kali membuka portnya ke internet.",
+  "Another hardware action is still running.": "Tindakan perkakasan lain masih berjalan.",
+  "Connect SSH": "Sambungkan SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Sambung ke papan ini dengan akaun Linux anda. Kebenaran perkakasan diminta di sini apabila diperlukan.",
+  "Connecting…": "Menyambung…",
+  "Disconnect": "Putuskan",
+  "Linux password": "Kata laluan Linux",
+  "Live routing": "Penghalaan langsung",
+  "SSH authorization": "Kebenaran SSH",
+  "Unbalanced": "Tidak seimbang",
+  "Use HTTPS before entering your Linux password.": "Gunakan HTTPS sebelum memasukkan kata laluan Linux.",
+  "Connect with QR": "Sambung dengan QR",
+  "HTTPS (encrypted connection)": "HTTPS (sambungan disulitkan)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Pada kali pertama, terima sijil setempat papan ini dalam pelayar. Kebenaran SSH tersedia dalam antara muka web.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Imbas dengan telefon pada Wi-Fi yang sama. QR mengandungi kunci akses; jangan kongsikannya.",
+  "HTTPS required": "HTTPS diperlukan",
+  "Terminal input": "Input terminal"
 }

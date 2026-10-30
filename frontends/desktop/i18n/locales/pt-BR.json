@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Acessível pela rede local",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Aceitar a senha de administrador pela rede (sem criptografia: só em uma rede de confiança)",
   "New access key": "Nova chave de acesso",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Não é criptografada: use só em uma rede de confiança e nunca abra a porta para a internet."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Não é criptografada: use só em uma rede de confiança e nunca abra a porta para a internet.",
+  "Another hardware action is still running.": "Outra ação de hardware ainda está em execução.",
+  "Connect SSH": "Conectar SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Conecte esta placa com a sua conta Linux. As permissões de hardware serão pedidas aqui quando necessário.",
+  "Connecting…": "Conectando…",
+  "Disconnect": "Desligar",
+  "Linux password": "Senha Linux",
+  "Live routing": "Encaminhamento em tempo real",
+  "SSH authorization": "Autorização SSH",
+  "Unbalanced": "Desequilibrado",
+  "Use HTTPS before entering your Linux password.": "Use HTTPS antes de introduzir a senha Linux.",
+  "Connect with QR": "Conectar por QR",
+  "HTTPS (encrypted connection)": "HTTPS (conexão cifrada)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Na primeira vez, aceite no navegador o certificado local desta placa. A autorização SSH está disponível na interface web.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Leia com o celular na mesma rede Wi-Fi. O QR contém a chave de acesso; não compartilhe.",
+  "HTTPS required": "HTTPS necessário",
+  "Terminal input": "Entrada do terminal"
 }

@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Dostupné z místní sítě",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Přijímat heslo správce přes síť (bez šifrování: jen v důvěryhodné síti)",
   "New access key": "Nový přístupový klíč",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Spojení není šifrované: používejte ho jen v důvěryhodné síti a nikdy neotevírejte jeho port do internetu."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Spojení není šifrované: používejte ho jen v důvěryhodné síti a nikdy neotevírejte jeho port do internetu.",
+  "Another hardware action is still running.": "Jiná hardwarová akce stále probíhá.",
+  "Connect SSH": "Připojit SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Připojte se k desce pomocí účtu Linux. Oprávnění k hardwaru se zde vyžádají podle potřeby.",
+  "Connecting…": "Připojování…",
+  "Disconnect": "Odpojit",
+  "Linux password": "Heslo Linux",
+  "Live routing": "Živé směrování",
+  "SSH authorization": "Autorizace SSH",
+  "Unbalanced": "Nevyvážené",
+  "Use HTTPS before entering your Linux password.": "Před zadáním hesla Linux použijte HTTPS.",
+  "Connect with QR": "Připojit přes QR",
+  "HTTPS (encrypted connection)": "HTTPS (šifrované připojení)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Při prvním připojení přijměte místní certifikát desky v prohlížeči. Autorizace SSH je dostupná ve webovém rozhraní.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Naskenujte telefonem ve stejné síti Wi-Fi. QR obsahuje přístupový klíč; nesdílejte jej.",
+  "HTTPS required": "Je vyžadováno HTTPS",
+  "Terminal input": "Vstup terminálu"
 }

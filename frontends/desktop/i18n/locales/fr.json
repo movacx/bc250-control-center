@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Accessible depuis le réseau local",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Accepter le mot de passe administrateur par le réseau (non chiffré : uniquement sur un réseau de confiance)",
   "New access key": "Nouvelle clé d'accès",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Non chiffrée : à utiliser uniquement sur un réseau de confiance, sans jamais ouvrir son port sur internet."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Non chiffrée : à utiliser uniquement sur un réseau de confiance, sans jamais ouvrir son port sur internet.",
+  "Another hardware action is still running.": "Une autre action matérielle est encore en cours.",
+  "Connect SSH": "Connecter SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Connectez cette carte avec votre compte Linux. Les autorisations matérielles seront demandées ici si nécessaire.",
+  "Connecting…": "Connexion…",
+  "Disconnect": "Déconnecter",
+  "Linux password": "Mot de passe Linux",
+  "Live routing": "Routage en direct",
+  "SSH authorization": "Autorisation SSH",
+  "Unbalanced": "Déséquilibré",
+  "Use HTTPS before entering your Linux password.": "Utilisez HTTPS avant de saisir votre mot de passe Linux.",
+  "Connect with QR": "Connexion par QR",
+  "HTTPS (encrypted connection)": "HTTPS (connexion chiffrée)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "À la première connexion, acceptez le certificat local de cette carte dans le navigateur. L’autorisation SSH est disponible dans l’interface web.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Scannez avec votre téléphone sur le même Wi-Fi. Le QR contient la clé d’accès ; ne le partagez pas.",
+  "HTTPS required": "HTTPS requis",
+  "Terminal input": "Saisie du terminal"
 }

@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "可從區域網路存取",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "允許透過網路輸入管理員密碼（未加密：僅限可信任的網路）",
   "New access key": "新的存取金鑰",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "未加密：僅在可信任的網路中使用，切勿將其連接埠開放到網際網路。"
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "未加密：僅在可信任的網路中使用，切勿將其連接埠開放到網際網路。",
+  "Another hardware action is still running.": "另一項硬體操作仍在執行。",
+  "Connect SSH": "連線 SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "使用 Linux 帳戶連線此主機板。需要時會在此要求硬體權限。",
+  "Connecting…": "正在連線…",
+  "Disconnect": "中斷連線",
+  "Linux password": "Linux 密碼",
+  "Live routing": "即時路由",
+  "SSH authorization": "SSH 授權",
+  "Unbalanced": "不平衡",
+  "Use HTTPS before entering your Linux password.": "輸入 Linux 密碼前請使用 HTTPS。",
+  "Connect with QR": "透過 QR 連線",
+  "HTTPS (encrypted connection)": "HTTPS（加密連線）",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "首次連線時，請在瀏覽器中接受此主機板的本機憑證。SSH 授權可直接在網頁介面中完成。",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "請使用連接相同 Wi-Fi 的手機掃描。QR 包含存取金鑰，請勿分享。",
+  "HTTPS required": "需要 HTTPS",
+  "Terminal input": "終端輸入"
 }

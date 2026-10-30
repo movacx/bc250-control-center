@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Elérhető a helyi hálózatról",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Rendszergazdai jelszó fogadása hálózaton át (titkosítatlan: csak megbízható hálózaton)",
   "New access key": "Új hozzáférési kulcs",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Nem titkosított: csak megbízható hálózaton használd, és soha ne nyisd meg a portját az internet felé."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Nem titkosított: csak megbízható hálózaton használd, és soha ne nyisd meg a portját az internet felé.",
+  "Another hardware action is still running.": "Egy másik hardverművelet még folyamatban van.",
+  "Connect SSH": "SSH csatlakoztatása",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Csatlakozzon a laphoz a Linux-fiókjával. A szükséges hardverengedélyeket itt kéri a rendszer.",
+  "Connecting…": "Csatlakozás…",
+  "Disconnect": "Leválasztás",
+  "Linux password": "Linux-jelszó",
+  "Live routing": "Élő útválasztás",
+  "SSH authorization": "SSH-hitelesítés",
+  "Unbalanced": "Kiegyensúlyozatlan",
+  "Use HTTPS before entering your Linux password.": "A Linux-jelszó megadása előtt használjon HTTPS-t.",
+  "Connect with QR": "Csatlakozás QR-rel",
+  "HTTPS (encrypted connection)": "HTTPS (titkosított kapcsolat)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Első alkalommal fogadja el a lap helyi tanúsítványát a böngészőben. Az SSH-hitelesítés a webes felületen érhető el.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Olvassa be a telefonjával ugyanazon a Wi-Fi-hálózaton. A QR a hozzáférési kulcsot tartalmazza; ne ossza meg.",
+  "HTTPS required": "HTTPS szükséges",
+  "Terminal input": "Terminálbevitel"
 }

@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Reachable from the local network",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Accept the administrator password from the network (not encrypted: only on a network you trust)",
   "New access key": "New access key",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "It is not encrypted: use it only on a network you trust and never open its port to the internet."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "It is not encrypted: use it only on a network you trust and never open its port to the internet.",
+  "Another hardware action is still running.": "Another hardware action is still running.",
+  "Connect SSH": "Connect SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Connect to this board with your Linux account. Hardware permissions are requested here when needed.",
+  "Connecting…": "Connecting…",
+  "Disconnect": "Disconnect",
+  "Linux password": "Linux password",
+  "Live routing": "Live routing",
+  "SSH authorization": "SSH authorization",
+  "Unbalanced": "Unbalanced",
+  "Use HTTPS before entering your Linux password.": "Use HTTPS before entering your Linux password.",
+  "Connect with QR": "Connect with QR",
+  "HTTPS (encrypted connection)": "HTTPS (encrypted connection)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.",
+  "HTTPS required": "HTTPS required",
+  "Terminal input": "Terminal input"
 }

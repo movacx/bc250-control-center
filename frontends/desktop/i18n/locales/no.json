@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Tilgjengelig fra det lokale nettverket",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Godta administratorpassordet over nettverket (ukryptert: bare på et pålitelig nettverk)",
   "New access key": "Ny tilgangsnøkkel",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Den er ikke kryptert: bruk den bare på et pålitelig nettverk, og åpne aldri porten mot internett."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Den er ikke kryptert: bruk den bare på et pålitelig nettverk, og åpne aldri porten mot internett.",
+  "Another hardware action is still running.": "En annen maskinvarehandling kjører fortsatt.",
+  "Connect SSH": "Koble til SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Koble til kortet med Linux-kontoen din. Maskinvaretillatelser blir bedt om her ved behov.",
+  "Connecting…": "Kobler til…",
+  "Disconnect": "Koble fra",
+  "Linux password": "Linux-passord",
+  "Live routing": "Direkteruting",
+  "SSH authorization": "SSH-godkjenning",
+  "Unbalanced": "Ubalansert",
+  "Use HTTPS before entering your Linux password.": "Bruk HTTPS før du skriver inn Linux-passordet ditt.",
+  "Connect with QR": "Koble til med QR",
+  "HTTPS (encrypted connection)": "HTTPS (kryptert tilkobling)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Godta kortets lokale sertifikat i nettleseren første gang. SSH-godkjenning er tilgjengelig i nettgrensesnittet.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Skann med telefonen på samme Wi-Fi. QR inneholder tilgangsnøkkelen; ikke del den.",
+  "HTTPS required": "HTTPS kreves",
+  "Terminal input": "Terminalinndata"
 }

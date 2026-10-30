@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Käytettävissä paikallisverkosta",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Hyväksy ylläpitäjän salasana verkon kautta (salaamaton: vain luotetussa verkossa)",
   "New access key": "Uusi käyttöavain",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Yhteys ei ole salattu: käytä sitä vain luotetussa verkossa äläkä koskaan avaa sen porttia internetiin."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Yhteys ei ole salattu: käytä sitä vain luotetussa verkossa äläkä koskaan avaa sen porttia internetiin.",
+  "Another hardware action is still running.": "Toinen laitteistotoiminto on vielä käynnissä.",
+  "Connect SSH": "Yhdistä SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Yhdistä tähän korttiin Linux-tililläsi. Laitteiston käyttöoikeuksia pyydetään tässä tarvittaessa.",
+  "Connecting…": "Yhdistetään…",
+  "Disconnect": "Katkaise yhteys",
+  "Linux password": "Linux-salasana",
+  "Live routing": "Reaaliaikainen reititys",
+  "SSH authorization": "SSH-valtuutus",
+  "Unbalanced": "Epätasapainossa",
+  "Use HTTPS before entering your Linux password.": "Käytä HTTPS-yhteyttä ennen Linux-salasanan kirjoittamista.",
+  "Connect with QR": "Yhdistä QR-koodilla",
+  "HTTPS (encrypted connection)": "HTTPS (salattu yhteys)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Hyväksy kortin paikallinen varmenne selaimessa ensimmäisellä kerralla. SSH-valtuutus on käytettävissä verkkokäyttöliittymässä.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Skannaa puhelimella samassa Wi-Fi-verkossa. QR sisältää pääsyavaimen; älä jaa sitä.",
+  "HTTPS required": "HTTPS vaaditaan",
+  "Terminal input": "Päätteen syöte"
 }

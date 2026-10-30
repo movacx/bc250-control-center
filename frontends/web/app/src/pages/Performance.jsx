@@ -32,16 +32,18 @@ function Sensors({ data, state, set }) {
     const base = ticked ?? rows.filter((r) => r.ticked).map((r) => r.key);
     set({ ticked: base.includes(key) ? base.filter((k) => k !== key) : [...base, key] });
   };
+  const [details, setDetails] = useState(false);
   return (
-    <div className="pad">
+    <div className={`pad ${details ? "sensor-details" : ""}`}>
       <div className="row"><input className="input" style={{ flex: 1, minWidth: 180 }} placeholder={t("Filter by name")} aria-label={t("Filter by name")} value={state.q || ""} onChange={(e) => set({ q: e.target.value })} />
         <label className="check" style={{ fontSize: 12 }}><input type="checkbox" checked={state.hide !== "0"} onChange={(e) => set({ hide: e.target.checked ? "1" : "0" })} />{t("Hide unused channels")}</label>
+        <Btn small onClick={() => setDetails(!details)} aria-pressed={details}>{t("Min")} / {t("Avg")} / {t("Max")}</Btn>
         <Btn small onClick={() => api("performance/reset", {})}>{t("Reset min/max")}</Btn>
         <Menu label={layouts.find((l) => l.key === layout)?.title || t("Views")} items={layouts} value={layout} onPick={(key) => set({ layout: key })} /></div>
       <div className="chips">{kinds.map((k) => <button key={k.index} className={`chip ${(state.kind || 0) === k.index ? "on" : ""}`} onClick={() => set({ kind: k.index })}><i style={{ background: `var(--c-series-${(k.index % 8) + 1})` }} />{k.title}</button>)}</div>
       {layout !== "graphs" && <div className="sensors"><table><thead><tr><th>{t("Sensor")}</th><th>{t("Value")}</th><th>{t("Min")}</th><th>{t("Avg")}</th><th>{t("Max")}</th></tr></thead>
         <tbody>{rows.map((r) => (r.group ? <tr className="g" key={r.group + rows.indexOf(r)}><td colSpan="5">▾ {r.group}</td></tr>
-          : <tr className="s" key={r.key}><td><label><input type="checkbox" checked={r.ticked} onChange={() => toggle(r.key)} />{r.label}</label></td><td className="v">{r.value}</td><td>{r.min}</td><td>{r.avg}</td><td>{r.max}</td></tr>))}</tbody></table></div>}
+          : <tr className="s" key={r.key} onDoubleClick={() => { toggle(r.key); set({ layout: "split" }); }}><td><label><input type="checkbox" checked={r.ticked} onChange={() => toggle(r.key)} />{r.label}</label></td><td className="v">{r.value}</td><td data-label={t("Min")}>{r.min}</td><td data-label={t("Avg")}>{r.avg}</td><td data-label={t("Max")}>{r.max}</td></tr>))}</tbody></table></div>}
       {layout !== "list" && (traces.length ? traces.map((trace) => <div key={trace.label}><div className="title"><b style={{ fontSize: 14 }}>{trace.label}</b><span>{trace.value}</span></div><Chart chart={trace.chart} small={layout === "split"} /></div>)
         : <p className="note">{t("Tick a sensor in the list to draw its last two minutes here.")}</p>)}
       <p className="note">{data.count}</p>
@@ -53,8 +55,8 @@ export default function Performance() {
   const [state, setState] = useState({ tab: "sensors" });
   const set = (patch) => setState((s) => ({ ...s, ...patch }));
   const query = new URLSearchParams({ tab: state.tab });
-  const rule = state.tab === "sensors" ? { q: state.q, kind: state.kind, hide: state.hide, ticked: state.ticked?.join(",") } : { view: state[`view:${state.tab}`], scale: state.scale };
-  Object.entries(rule).forEach(([k, v]) => v !== undefined && v !== "" && query.set(k, v));
+  const rule = state.tab === "sensors" ? { layout: state.layout, q: state.q, kind: state.kind, hide: state.hide, ticked: state.ticked?.join(",") } : { view: state[`view:${state.tab}`], scale: state.scale };
+  Object.entries(rule).forEach(([k, v]) => v !== undefined && (v !== "" || k === "ticked") && query.set(k, v));
   const data = usePoll(`performance?${query}`, 1000, 0);
   return (
     <section className="card perf">

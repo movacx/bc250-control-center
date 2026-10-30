@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "로컬 네트워크에서 접속 가능",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "네트워크를 통한 관리자 비밀번호 입력 허용(암호화 안 됨: 신뢰할 수 있는 네트워크에서만)",
   "New access key": "새 액세스 키",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "암호화되지 않습니다. 신뢰할 수 있는 네트워크에서만 사용하고 포트를 인터넷에 열지 마세요."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "암호화되지 않습니다. 신뢰할 수 있는 네트워크에서만 사용하고 포트를 인터넷에 열지 마세요.",
+  "Another hardware action is still running.": "다른 하드웨어 작업이 아직 실행 중입니다.",
+  "Connect SSH": "SSH 연결",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Linux 계정으로 이 보드에 연결하세요. 필요한 하드웨어 권한은 여기에서 요청됩니다.",
+  "Connecting…": "연결 중…",
+  "Disconnect": "연결 끊기",
+  "Linux password": "Linux 암호",
+  "Live routing": "실시간 라우팅",
+  "SSH authorization": "SSH 인증",
+  "Unbalanced": "불균형",
+  "Use HTTPS before entering your Linux password.": "Linux 암호를 입력하기 전에 HTTPS를 사용하세요.",
+  "Connect with QR": "QR로 연결",
+  "HTTPS (encrypted connection)": "HTTPS (암호화 연결)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "처음에는 브라우저에서 이 보드의 로컬 인증서를 수락하세요. SSH 인증은 웹 인터페이스에서 사용할 수 있습니다.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "같은 Wi-Fi에 연결된 휴대전화로 스캔하세요. QR에는 접근 키가 포함되므로 공유하지 마세요.",
+  "HTTPS required": "HTTPS 필요",
+  "Terminal input": "터미널 입력"
 }

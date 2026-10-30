@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Достъпно от локалната мрежа",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Приемане на администраторската парола през мрежата (без криптиране: само в доверена мрежа)",
   "New access key": "Нов ключ за достъп",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Не е криптирано: ползвайте го само в доверена мрежа и никога не отваряйте порта към интернет."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Не е криптирано: ползвайте го само в доверена мрежа и никога не отваряйте порта към интернет.",
+  "Another hardware action is still running.": "Друга хардуерна операция все още се изпълнява.",
+  "Connect SSH": "Свързване чрез SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Свържете се с платката чрез акаунта си в Linux. Разрешенията за хардуера се изискват тук при необходимост.",
+  "Connecting…": "Свързване…",
+  "Disconnect": "Прекъсване",
+  "Linux password": "Парола за Linux",
+  "Live routing": "Маршрутизиране на живо",
+  "SSH authorization": "Удостоверяване чрез SSH",
+  "Unbalanced": "Небалансирано",
+  "Use HTTPS before entering your Linux password.": "Използвайте HTTPS, преди да въведете паролата за Linux.",
+  "Connect with QR": "Свързване с QR",
+  "HTTPS (encrypted connection)": "HTTPS (шифрована връзка)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "При първото свързване приемете локалния сертификат на платката в браузъра. Удостоверяването чрез SSH е достъпно в уеб интерфейса.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Сканирайте с телефона в същата мрежа Wi-Fi. QR съдържа ключа за достъп; не го споделяйте.",
+  "HTTPS required": "Изисква се HTTPS",
+  "Terminal input": "Вход на терминала"
 }

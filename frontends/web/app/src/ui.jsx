@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import icons from "./icons.gen.js";
 import { t } from "./lib.jsx";
 
@@ -24,6 +25,34 @@ export function Card({ title, sub, pill, tone, action, risk, children, className
 
 export const Pill = ({ tone = "", children }) => <span className={`pill ${tone}`}>{children}</span>;
 
+export const Fold = ({ title, risk, children }) => <details className={`card fold ${risk ? "risk" : ""}`}><summary>{risk && <Icon name="warning_orange" />}<h2>{title}</h2><span>+</span></summary><div className="body">{children}</div></details>;
+
+export function Modal({ onClose, children }) {
+  const ref = useRef(null);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const previous = document.activeElement;
+    const shell = document.querySelector(".shell");
+    const wasInert = shell?.inert;
+    if (shell) shell.inert = true;
+    const focusable = () => [...ref.current.querySelectorAll("button, input, select, [tabindex='0']")].filter((el) => !el.disabled && el.getClientRects().length);
+    (focusable()[0] || ref.current).focus();
+    const key = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close.current(); }
+      if (e.key !== "Tab") return;
+      const items = focusable(), first = items[0], last = items.at(-1);
+      if (!items.length) { e.preventDefault(); return; }
+      if (!ref.current.contains(document.activeElement)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("keydown", key); if (shell) shell.inert = wasInert; previous?.focus(); };
+  }, []);
+  return createPortal(<div className="scrim" ref={ref} tabIndex={-1} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>{children}</div>, document.body);
+}
+
 export const Btn = ({ kind = "", small, wide, children, ...rest }) => (
   <button type="button" className={`btn ${kind} ${small ? "small" : ""} ${wide ? "wide" : ""}`} {...rest}>{children}</button>
 );
@@ -35,8 +64,8 @@ export const Check = ({ checked, onChange, children, disabled }) => (
 export const Tile = ({ label, value, note, tone, on, onClick, onEdit }) => {
   const inner = <><small>{label}</small><strong>{value}</strong>{note && <span>{note}</span>}</>;
   return onClick
-    ? <button type="button" className={`tile ${tone || ""} ${on ? "on" : ""}`} onClick={onClick}>{inner}
-        {onEdit && <span className="edit" role="button" tabIndex={0} aria-label={t("Edit")} onClick={(e) => { e.stopPropagation(); onEdit(); }}><Icon name="edit_gray" /></span>}</button>
+    ? <div className={`profile-tile ${on ? "on" : ""}`}><button type="button" className={`tile ${tone || ""} ${on ? "on" : ""}`} aria-pressed={!!on} onClick={onClick}>{inner}</button>
+        {onEdit && <button type="button" className="edit" aria-label={`${t("Edit")} ${label}`} onClick={onEdit}><Icon name="edit_gray" /></button>}</div>
     : <div className={`tile ${tone || ""}`}>{inner}</div>;
 };
 
@@ -51,10 +80,13 @@ export const Segments = ({ items, value, onChange }) => (
 );
 
 export function Number_({ value, onChange, min, max, step = 1, unit, label, disabled }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
   return (
     <label className="field"><span>{label}</span>
-      <div className="row"><input className="input num" type="number" inputMode="numeric" value={value} min={min} max={max} step={step} disabled={disabled}
-        onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} />{unit && <span>{unit}</span>}</div></label>
+      <div className="row"><input className="input num" type="number" inputMode="numeric" value={editing ? draft : value} min={min} max={max} step={step} disabled={disabled}
+        onFocus={(e) => { setDraft(e.target.value); setEditing(true); }} onBlur={() => setEditing(false)}
+        onChange={(e) => { setDraft(e.target.value); onChange(e.target.value === "" ? "" : Number(e.target.value)); }} />{unit && <span>{unit}</span>}</div></label>
   );
 }
 
@@ -150,18 +182,19 @@ export function HeatChart({ chart }) {
 }
 
 export const Dialog = ({ title, onClose, children, footer }) => (
-  <div className="scrim" onClick={onClose}><div className="dialog" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-    <header><h3>{title}</h3></header><section>{children}</section><footer>{footer}</footer></div></div>
+  <Modal onClose={onClose}><div className="dialog" role="dialog" aria-label={title} aria-modal="true">
+    <header><h3>{title}</h3></header><section>{children}</section><footer>{footer}</footer></div></Modal>
 );
 
 /** The pencil of a profile card: name and numbers, kept in this browser. */
 export function ProfileEditor({ profile, fields, onSave, onClose }) {
   const [draft, setDraft] = useState(profile);
+  const valid = String(draft.name || "").trim() && fields.every(([key, _label, min, max]) => Number.isInteger(draft[key]) && draft[key] >= min && draft[key] <= max);
   return (
-    <Dialog title={t("Profile name")} onClose={onClose} footer={<><Btn onClick={onClose}>{t("Cancel")}</Btn><Btn kind="primary" onClick={() => onSave(draft)}>{t("Save")}</Btn></>}>
+    <Dialog title={t("Profile name")} onClose={onClose} footer={<><Btn onClick={onClose}>{t("Cancel")}</Btn><Btn kind="primary" disabled={!valid} onClick={() => onSave(draft)}>{t("Save")}</Btn></>}>
       <label className="field"><span>{t("Profile name")}</span><input className="input" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
-      {fields.map(([key, label, min, max, unit]) => <Number_ key={key} label={`${label} (${unit})`} min={min} max={max} value={draft[key]}
-        onChange={(v) => setDraft({ ...draft, [key]: Math.max(min, Math.min(max, v || min)) })} />)}
+      {fields.map(([key, label, min, max, unit]) => <Number_ key={key} label={`${label} · ${min}–${max} ${unit}`} min={min} max={max} step={key === "frequency" ? 50 : key === "vid" ? 5 : 1} value={draft[key]}
+        onChange={(v) => setDraft({ ...draft, [key]: v })} />)}
     </Dialog>
   );
 }

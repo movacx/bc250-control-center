@@ -171,7 +171,7 @@ def test_the_password_is_only_typed_on_this_computer_unless_the_owner_allowed_it
     monkeypatch.setattr(server, "is_loopback", lambda _address: False)
     assert client.post("/api/job/input", {"text": "x"})[0].status == 403
     web_access.save_settings(lan_password=True)
-    assert client.post("/api/job/input", {"text": "x"})[0].status == 200
+    assert client.post("/api/job/input", {"text": "x"})[0].status == 403
 
 
 def test_the_action_list_is_closed_and_runs_nothing_outside_the_service_layer():
@@ -210,3 +210,126 @@ def test_the_access_key_is_private_and_the_service_unit_needs_systemd(monkeypatc
     monkeypatch.setattr(web_control, "systemd_available", lambda: False)
     with pytest.raises(ActionNeeded):
         web_control.set_autostart(True)
+
+
+def test_plain_http_lan_never_accepts_passwords_even_with_the_old_option(client, monkeypatch):
+    client.login()
+    monkeypatch.setattr(server, "is_loopback", lambda _address: False)
+    web_access.save_settings(lan_password=True)
+    assert client.post("/api/ssh/start", {})[0].status == 403
+    assert client.post("/api/ssh/input", {"text": "secret"})[0].status == 403
+    assert client.post("/api/job/input", {"text": "secret"})[0].status == 403
+    client.httpd.secure = True
+    assert client.call("GET", "/api/session")[1]["password"] is True
+
+
+def test_key_rotation_revokes_existing_browser_sessions(client):
+    client.login()
+    web_access.access_key(renew=True)
+    assert client.call("GET", "/api/live")[0].status == 401
+
+
+def test_another_browser_cannot_read_or_interrupt_a_job(client):
+    client.login()
+    other = Client(client.httpd)
+    other.login()
+    client.httpd.web.job_owner = client.cookie.split("=", 1)[1]
+    assert other.call("GET", "/api/job")[1] == {"id": 0}
+    assert other.post("/api/job/input", {"text": "secret"})[0].status == 403
+    assert other.post("/api/job/interrupt", {})[0].status == 403
+
+
+def test_ssh_endpoints_require_login_and_csrf(client):
+    for path in ("ssh/start", "ssh/input", "ssh/close"):
+        assert client.call("POST", "/api/" + path, {})[0].status == 401
+    client.login()
+    assert client.call("POST", "/api/ssh/start", {})[0].status == 403
+
+
+def test_a_type_error_in_work_is_never_retried():
+    from frontends.web.jobs import Jobs
+    calls = []
+
+    def work():
+        calls.append("started")
+        raise TypeError("a real error inside the action")
+
+    jobs = Jobs()
+    jobs.start("test", work)
+    assert jobs.console.done.wait(3)
+    assert calls == ["started"]
+    assert jobs.view()["ok"] is False
+
+
+def test_http_errors_do_not_log_the_client_address(client, caplog):
+    import logging
+    with caplog.at_level(logging.DEBUG):
+        client.httpd.handle_error(None, ("192.0.2.123", 1234))
+    assert "192.0.2.123" not in caplog.text
+
+
+def test_display_translation_never_changes_protocol_values(client):
+    client.login()
+    _, data = client.call("GET", "/api/i18n?lang=es", headers={"X-BC250-Language": "es"})
+    assert data["language"] == "es"
+    assert data["strings"]["Connect SSH"] == "Conectar SSH"
+    _, session = client.call("GET", "/api/session", headers={"X-BC250-Language": "es"})
+    assert session["authenticated"] is True
+    assert session["csrf"] == client.csrf
+
+
+@pytest.mark.parametrize("params", [[], "command", 1, True])
+def test_actions_reject_non_object_parameters(client, params):
+    client.login()
+    assert client.post("/api/action", {"action": "gpu.range", "params": params, "confirm": True})[0].status == 400
+    assert client.httpd.service.calls == []
+
+
+def test_cpu_manual_mode_must_be_a_boolean(client):
+    client.login()
+    assert client.action("cpu.apply", {"frequency": 3550, "temperature": 90, "vid": 1050, "manual": "yes", "scale": -34}, confirm=True) == 400
+    assert client.httpd.service.calls == []
+
+
+def test_plaintext_network_cannot_log_in_or_reuse_a_session_to_control_hardware(client, monkeypatch):
+    client.login()
+    monkeypatch.setattr(server, "is_loopback", lambda _address: False)
+    assert client.action("gpu.range", {"min": 500, "max": 1800}, confirm=True) == 403
+    other = Client(client.httpd)
+    assert other.login()[0].status == 403
+    assert client.httpd.service.calls == []
+
+
+def test_a_custom_port_does_not_overwrite_the_installed_server_pid(tmp_path, monkeypatch):
+    from bc250cc.infrastructure import web_control
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
+    monkeypatch.setattr(web_control, "options", lambda: {"port": 8250})
+    original = tmp_path / "bc250-web.pid"
+    original.write_text("12345")
+    web_control.write_pid(18250)
+    assert original.read_text() == "12345"
+    assert (tmp_path / "bc250-web-18250.pid").is_file()
+
+
+def test_the_job_panel_supports_identity_selection_and_masked_passwords():
+    import os
+    import termios
+
+    from frontends.tui.console import Console
+    from frontends.web.jobs import Jobs
+    master, slave = os.openpty()
+    jobs = Jobs()
+    jobs.console = console = Console("authorization")
+    console.master = master
+    try:
+        console.write("Choose an identity (1-2): ")
+        assert jobs.view()["interactive"] is True
+        assert jobs.view()["waiting"] is False
+        attrs = termios.tcgetattr(slave)
+        attrs[3] &= ~termios.ECHO
+        termios.tcsetattr(slave, termios.TCSANOW, attrs)
+        assert jobs.view()["waiting"] is True
+    finally:
+        console.master = None
+        os.close(master)
+        os.close(slave)

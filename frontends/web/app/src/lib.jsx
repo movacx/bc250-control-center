@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 // -- talking to the server --------------------------------------------------------------------------
 let csrf = "";
@@ -9,6 +9,7 @@ export const onSessionLost = (fn) => { onLost = fn; };
 export async function api(path, body) {
   const options = body === undefined ? { credentials: "same-origin" }
     : { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf }, body: JSON.stringify(body) };
+  options.headers = { ...options.headers, "X-BC250-Language": document.documentElement.lang || navigator.language };
   try {
     const response = await fetch(`/api/${path}`, options);
     const data = await response.json();
@@ -21,10 +22,12 @@ export async function api(path, body) {
 
 // -- translation: the desktop's catalogues, only the strings this page uses -------------------------
 let strings = {};
+export let languages = [];
 export const loadStrings = async (lang) => {
   const response = await fetch(`/api/i18n${lang ? `?lang=${lang}` : ""}`);
   const data = await response.json();
   strings = data.strings || {};
+  languages = data.languages || [];
   document.documentElement.lang = data.language || "en";
 };
 export function t(source, values) {
@@ -39,18 +42,21 @@ export const useApp = () => useContext(App);
 /** Polls ``path`` every ``ms`` while the tab is visible; ``again`` changes to ask right away. */
 export function usePoll(path, ms, again) {
   const [data, setData] = useState(null);
-  const alive = useRef(true);
-  const load = useCallback(async () => {
-    if (document.hidden) return;
-    const result = await api(path);
-    if (alive.current) setData(result);
-  }, [path]);
   useEffect(() => {
-    alive.current = true;
+    let active = true, pending = false;
+    const load = async () => {
+      if (document.hidden || pending) return;
+      pending = true;
+      const result = await api(path);
+      pending = false;
+      if (active) setData((previous) => (result.status === 0 || result.status >= 500) && previous
+        ? { ...previous, _disconnected: true } : result);
+    };
     load();
     const timer = setInterval(load, ms);
-    return () => { alive.current = false; clearInterval(timer); };
-  }, [load, ms, again]);
+    document.addEventListener("visibilitychange", load);
+    return () => { active = false; clearInterval(timer); document.removeEventListener("visibilitychange", load); };
+  }, [path, ms, again]);
   return data;
 }
 

@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Accesibil din rețeaua locală",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Acceptă parola de administrator prin rețea (necriptat: doar într-o rețea de încredere)",
   "New access key": "Cheie de acces nouă",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Nu este criptat: folosește-l doar într-o rețea de încredere și nu deschide niciodată portul spre internet."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Nu este criptat: folosește-l doar într-o rețea de încredere și nu deschide niciodată portul spre internet.",
+  "Another hardware action is still running.": "O altă acțiune hardware este încă în desfășurare.",
+  "Connect SSH": "Conectare SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Conectați-vă la placă folosind contul Linux. Permisiunile hardware vor fi cerute aici când este necesar.",
+  "Connecting…": "Se conectează…",
+  "Disconnect": "Deconectare",
+  "Linux password": "Parolă Linux",
+  "Live routing": "Rutare în timp real",
+  "SSH authorization": "Autorizare SSH",
+  "Unbalanced": "Dezechilibrat",
+  "Use HTTPS before entering your Linux password.": "Folosiți HTTPS înainte de a introduce parola Linux.",
+  "Connect with QR": "Conectare prin QR",
+  "HTTPS (encrypted connection)": "HTTPS (conexiune criptată)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "La prima conectare, acceptați certificatul local al plăcii în browser. Autorizarea SSH este disponibilă în interfața web.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Scanați cu telefonul în aceeași rețea Wi-Fi. QR conține cheia de acces; nu îl distribuiți.",
+  "HTTPS required": "Este necesar HTTPS",
+  "Terminal input": "Intrare terminal"
 }

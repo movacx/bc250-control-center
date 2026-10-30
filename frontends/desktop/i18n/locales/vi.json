@@ -5535,5 +5535,21 @@
   "Reachable from the local network": "Truy cập được từ mạng nội bộ",
   "Accept the administrator password from the network (not encrypted: only on a network you trust)": "Chấp nhận mật khẩu quản trị qua mạng (không mã hóa: chỉ trong mạng tin cậy)",
   "New access key": "Khóa truy cập mới",
-  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Không được mã hóa: chỉ dùng trong mạng tin cậy và không bao giờ mở cổng ra internet."
+  "It is not encrypted: use it only on a network you trust and never open its port to the internet.": "Không được mã hóa: chỉ dùng trong mạng tin cậy và không bao giờ mở cổng ra internet.",
+  "Another hardware action is still running.": "Một thao tác phần cứng khác vẫn đang chạy.",
+  "Connect SSH": "Kết nối SSH",
+  "Connect to this board with your Linux account. Hardware permissions are requested here when needed.": "Kết nối với bo mạch bằng tài khoản Linux. Quyền phần cứng sẽ được yêu cầu tại đây khi cần.",
+  "Connecting…": "Đang kết nối…",
+  "Disconnect": "Ngắt kết nối",
+  "Linux password": "Mật khẩu Linux",
+  "Live routing": "Định tuyến trực tiếp",
+  "SSH authorization": "Ủy quyền SSH",
+  "Unbalanced": "Không cân bằng",
+  "Use HTTPS before entering your Linux password.": "Dùng HTTPS trước khi nhập mật khẩu Linux.",
+  "Connect with QR": "Kết nối bằng QR",
+  "HTTPS (encrypted connection)": "HTTPS (kết nối mã hóa)",
+  "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Lần đầu, hãy chấp nhận chứng chỉ cục bộ của bo mạch trong trình duyệt. Ủy quyền SSH có sẵn trong giao diện web.",
+  "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Quét bằng điện thoại trên cùng mạng Wi-Fi. QR chứa khóa truy cập; không chia sẻ.",
+  "HTTPS required": "Cần có HTTPS",
+  "Terminal input": "Đầu vào thiết bị đầu cuối"
 }

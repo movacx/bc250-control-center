@@ -35,6 +35,8 @@ QT_OVERRIDES = frozenset({
     "dragLeaveEvent", "dropEvent", "timerEvent", "heightForWidth",
     "hasHeightForWidth", "setVisible", "actionEvent", "tabletEvent",
     "hitButton",
+    # http.server dispatches on the method name; the web interface's handler overrides these.
+    "do_GET", "do_POST", "log_message",
 })
 
 # Features that are fully written but have no control that invokes them.  Each
