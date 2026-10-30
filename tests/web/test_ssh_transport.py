@@ -67,7 +67,10 @@ def test_real_ssh_worker_rejects_arbitrary_actions_and_keeps_the_job_channel(tmp
         assert session.ready, session.status()
         assert session.login_input("must never be sent after authentication") is False
         assert session.request("action", action="exec", params={"command": "id"})["ok"] is False
-        assert session.request("action", action="gpu.range", params={"min": 500, "max": 2400})["ok"] is False
+        # Validation happens again in the unprivileged child before any service call.
+        assert session.request("action", action="gpu.profile", params={"min": 500, "max": 2400})["ok"] is True
+        assert wait_for(lambda: session.request("job").get("done"))
+        assert session.request("job")["ok"] is False
         result = session.request("action", action="gpu.status", title="read-only test")
         assert result["ok"] is True
         assert wait_for(lambda: session.request("job").get("done")), session.status()
@@ -80,3 +83,49 @@ def test_real_ssh_worker_rejects_arbitrary_actions_and_keeps_the_job_channel(tmp
         daemon.wait(timeout=5)
         if agent:
             os.kill(agent, 15)
+
+
+def test_local_persistent_tty_streams_prompts_without_echoing_input(tmp_path, monkeypatch):
+    """Use the real protocol/pty, but a harmless stand-in for hardware services."""
+    from frontends.tui.console import Console
+    standin = tmp_path / "action-child"
+    standin.write_text(f"#!{sys.executable}\n" + '''import sys
+print("BC250 Linux password: ", end="", flush=True)
+with open("/dev/tty") as terminal:
+    value = terminal.readline().strip()
+print("\\ninput accepted" if value == "dummy-secret" else "\\ninput refused", flush=True)
+raise SystemExit(0 if value == "dummy-secret" else 1)
+''')
+    standin.chmod(0o700)
+    spawn = Console._spawn
+    script = ("import sys; from frontends.web import ssh_worker; "
+              f"sys.executable={str(standin)!r}; ssh_worker.main()")
+    monkeypatch.setattr(Console, "_spawn", lambda self, _argv: spawn(self, [sys.executable, "-u", "-c", script]))
+    session = SSHSession(local=True)
+    try:
+        assert wait_for(lambda: session.ready)
+        pid = session.console.process.pid
+        # Model text arriving just after a job exits: even valid-looking JSON
+        # typed in the terminal cannot impersonate transport RPCs.
+        session.console.send(b'{"op":"action","action":"gpu.status","confirmed":true}\n')
+        time.sleep(.1)
+        assert session.ready and not session.closed
+        for _ in range(2):
+            assert session.request("action", action="gpu.status", title="no hardware")["ok"]
+            assert wait_for(lambda: session.view().get("waiting"))
+            assert session.request("input", text="dummy-secret")["ok"]
+            assert wait_for(lambda: session.view().get("done"))
+            job = session.view()
+            assert job["ok"] and "input accepted" in job["text"]
+            assert "dummy-secret" not in job["text"]
+            assert "BC250_RPC" not in job["text"]
+            assert session.request("input", text="never sent after completion")["ok"] is False
+            assert session.console.process.pid == pid
+        session.request("action", action="gpu.status")
+        assert wait_for(lambda: session.view().get("waiting"))
+        session.request("interrupt")
+        assert wait_for(lambda: session.view().get("done"))
+        assert not session.view()["ok"]
+        assert session.ready and not session.closed
+    finally:
+        session.close()

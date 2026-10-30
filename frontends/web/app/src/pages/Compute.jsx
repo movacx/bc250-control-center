@@ -24,11 +24,6 @@ export default function Compute() {
   const toggle = (r, c) => { const next = [...masks]; next[r] ^= 1 << c; setPending(next); };
   const run = (name, title, level = 1) => act({ action: "cu.action", level, params: { name }, title });
   return <>
-    <Card className="cu-overview">
-      <div className="cu-total"><div><span className="eyebrow">{t("Compute Units")}</span><strong>{active}<small>/ 40 CU</small></strong></div><div className="cu-engines"><span>SE0 <b>{se0}</b></span><span>SE1 <b>{se1}</b></span><span className={`pill ${se0 === se1 ? "green" : "orange"}`}>{se0 === se1 ? t("Balanced") : t("Unbalanced")}</span></div></div>
-      <div className="cu-capacity">{Array.from({ length: 20 }, (_, i) => <i key={i} className={i < active / 2 ? "on" : ""} />)}</div>
-      <div className="row"><span className="note">{changed ? t("{pairs} differ from the last authorized live table.", { pairs: `${changed} WGP` }) : t("No pending WGP changes.")}</span></div>
-    </Card>
     <div className="cols two cu-layout"><div className="stack">
       <Card title={t("Live routing")} action={<div className="row"><Btn small disabled={!ready} onClick={() => setPending([7, 7, 7, 7])}>24 CU</Btn><Btn small disabled={!ready} onClick={() => setPending([31, 31, 31, 31])}>40 CU</Btn></div>}>
         <div className="wgp-rows">{masks.map((mask, r) => {

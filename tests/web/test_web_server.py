@@ -48,7 +48,26 @@ def web(monkeypatch, tmp_path):
     web_access.save_settings(pin=KEY, lan_password=False)
     service = Service()
     container = SimpleNamespace(system_service=service, settings_service=Settings(), activity_service=None, platform=None)
-    httpd = server.Server(("127.0.0.1", 0), server.Web(container))
+    class Terminal:
+        ready, closed = True, False
+
+        def __init__(self, **_kwargs):
+            self.job = {"id": 0}
+
+        def request(self, op, **values):
+            if op == "job":
+                return self.job
+            if op == "action":
+                _, work = actions.ACTIONS[values["action"]](httpd.web.ctx, values["params"], lambda _: "")
+                work()
+                self.job = {"id": self.job["id"] + 1, "done": True, "ok": True}
+                return {"ok": True, "job": self.job["id"]}
+            return {"ok": False}
+
+        def close(self):
+            self.closed = True
+
+    httpd = server.Server(("127.0.0.1", 0), server.Web(container, terminal_factory=Terminal))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     httpd.service = service
     yield httpd
@@ -146,23 +165,24 @@ def test_responses_carry_a_strict_policy_and_no_cors(client):
 def test_only_listed_actions_run_and_their_parameters_are_checked(client):
     client.login()
     assert client.action("os.system", {"command": "id"}) == 400
-    assert client.action("gpu.range", {"min": "500; reboot", "max": 1000}, confirm=True) == 400
-    assert client.action("gpu.range", {"min": 500, "max": 99999}, confirm=True) == 400
+    assert client.action("gpu.profile", {"min": "500; reboot", "max": 1000}, confirm=True) == 400
+    assert client.action("gpu.profile", {"min": 500, "max": 99999}, confirm=True) == 400
     assert client.action("cu.apply", {"masks": [31, 31, 31, 99]}, confirm=True) == 400
     assert client.httpd.service.calls == []
 
 
-def test_a_changing_action_needs_confirmation_and_a_risk_zone_needs_the_key_again(client):
+def test_changes_need_confirmation_but_never_repeat_the_web_login_key(client):
     client.login()
-    assert client.action("gpu.range", {"min": 500, "max": 1800}) == 403
-    assert client.action("gpu.range", {"min": 500, "max": 1800}, confirm=True) == 200
+    assert client.action("gpu.profile", {"min": 500, "max": 1800}) == 403
+    assert client.action("gpu.profile", {"min": 500, "max": 1800}, confirm=True) == 200
     client.wait_idle()
-    assert client.action("gpu.range", {"min": 500, "max": 2400}, confirm=True) == 403
-    assert client.action("gpu.range", {"min": 500, "max": 2400}, confirm=True, key="NOPE-NOPE") == 403
-    assert client.action("gpu.range", {"min": 500, "max": 2400}, confirm=True, key=KEY) == 200
+    assert client.action("gpu.profile", {"min": 500, "max": 2400}, confirm=True) == 200
     client.wait_idle()
-    assert [call for call in client.httpd.service.calls if call[0] == "aplicar_rango_bc250"] == [
-        ("aplicar_rango_bc250", (500, 1800)), ("aplicar_rango_bc250", (500, 2400))]
+    assert client.action("cu.apply", {"masks": [7, 7, 7, 7]}) == 403
+    assert client.action("cu.apply", {"masks": [7, 7, 7, 7]}, confirm=True) == 200
+    client.wait_idle()
+    assert [call for call in client.httpd.service.calls if call[0] == "aplicar_perfil_gpu"] == [
+        ("aplicar_perfil_gpu", (500, 1800)), ("aplicar_perfil_gpu", (500, 2400))]
 
 
 def test_the_password_is_only_typed_on_this_computer_unless_the_owner_allowed_it(client, monkeypatch):
@@ -176,7 +196,7 @@ def test_the_password_is_only_typed_on_this_computer_unless_the_owner_allowed_it
 
 def test_the_action_list_is_closed_and_runs_nothing_outside_the_service_layer():
     assert set(actions.ACTIONS) == {
-        "gpu.profile", "gpu.range", "gpu.compat", "gpu.service", "gpu.high_points", "gpu.voltage", "gpu.save_boot",
+        "gpu.profile", "gpu.compat", "gpu.service", "gpu.high_points", "gpu.voltage", "gpu.save_boot",
         "gpu.status", "cpu.apply", "cpu.unlock", "cpu.persist", "cpu.persist_off", "cu.sync", "cu.apply", "cu.save",
         "cu.action", "fan.pwm", "fan.auto", "fan.curve"}
     source = Path(actions.__file__).read_text(encoding="utf-8")
@@ -246,19 +266,15 @@ def test_ssh_endpoints_require_login_and_csrf(client):
     assert client.call("POST", "/api/ssh/start", {})[0].status == 403
 
 
-def test_a_type_error_in_work_is_never_retried():
-    from frontends.web.jobs import Jobs
+def test_failed_inherited_workflow_never_falls_back_to_another_terminal(monkeypatch):
+    from frontends.web.action_worker import InheritedTerminal
     calls = []
-
-    def work():
-        calls.append("started")
-        raise TypeError("a real error inside the action")
-
-    jobs = Jobs()
-    jobs.start("test", work)
-    assert jobs.console.done.wait(3)
-    assert calls == ["started"]
-    assert jobs.view()["ok"] is False
+    monkeypatch.setattr("frontends.web.action_worker.subprocess.call", lambda argv: calls.append(argv) or 1)
+    terminal = InheritedTerminal()
+    request = SimpleNamespace(argv=("bash", "workflow.sh"), title="test", status_file="status", log_file="log")
+    assert terminal(request).terminal == "bc250-web"
+    assert calls == [["bash", "workflow.sh"]]
+    assert terminal.failed
 
 
 def test_http_errors_do_not_log_the_client_address(client, caplog):
@@ -281,7 +297,7 @@ def test_display_translation_never_changes_protocol_values(client):
 @pytest.mark.parametrize("params", [[], "command", 1, True])
 def test_actions_reject_non_object_parameters(client, params):
     client.login()
-    assert client.post("/api/action", {"action": "gpu.range", "params": params, "confirm": True})[0].status == 400
+    assert client.post("/api/action", {"action": "gpu.profile", "params": params, "confirm": True})[0].status == 400
     assert client.httpd.service.calls == []
 
 
@@ -294,7 +310,7 @@ def test_cpu_manual_mode_must_be_a_boolean(client):
 def test_plaintext_network_cannot_log_in_or_reuse_a_session_to_control_hardware(client, monkeypatch):
     client.login()
     monkeypatch.setattr(server, "is_loopback", lambda _address: False)
-    assert client.action("gpu.range", {"min": 500, "max": 1800}, confirm=True) == 403
+    assert client.action("gpu.profile", {"min": 500, "max": 1800}, confirm=True) == 403
     other = Client(client.httpd)
     assert other.login()[0].status == 403
     assert client.httpd.service.calls == []
@@ -311,25 +327,44 @@ def test_a_custom_port_does_not_overwrite_the_installed_server_pid(tmp_path, mon
     assert (tmp_path / "bc250-web-18250.pid").is_file()
 
 
-def test_the_job_panel_supports_identity_selection_and_masked_passwords():
-    import os
-    import termios
-
+def test_job_panel_masks_native_sudo_password_and_rejects_control_input():
     from frontends.tui.console import Console
-    from frontends.web.jobs import Jobs
-    master, slave = os.openpty()
-    jobs = Jobs()
-    jobs.console = console = Console("authorization")
-    console.master = master
-    try:
-        console.write("Choose an identity (1-2): ")
-        assert jobs.view()["interactive"] is True
-        assert jobs.view()["waiting"] is False
-        attrs = termios.tcgetattr(slave)
-        attrs[3] &= ~termios.ECHO
-        termios.tcsetattr(slave, termios.TCSANOW, attrs)
-        assert jobs.view()["waiting"] is True
-    finally:
-        console.master = None
-        os.close(master)
-        os.close(slave)
+    from frontends.web.ssh import SSHSession
+    session = SSHSession.__new__(SSHSession)
+    session.job_console = Console("authorization")
+    session._job_id, session._active = 1, True
+    session._state_lock = threading.Lock()
+    session.console = SimpleNamespace(send=lambda _: True)
+    session.job_console.write("Continue? ")
+    assert session.view()["interactive"] is True
+    assert session.view()["waiting"] is False
+    session.job_console.write("\nBC250 Linux password: ")
+    assert session.view()["waiting"] is True
+    assert session.request("input", text="dummy-password")["ok"] is True
+    assert session.request("input", text="bad\ninput")["ok"] is False
+    session._active = False
+    assert session.request("input", text="dummy-password")["ok"] is False
+
+
+@pytest.mark.parametrize("end", ["logout", "rotate", "expire"])
+def test_local_terminal_is_revoked_with_the_browser_session(client, end):
+    client.login()
+    assert client.action("gpu.status") == 200
+    token = client.cookie.split("=", 1)[1]
+    terminal = client.httpd.web.local_sessions[token]
+    if end == "logout":
+        assert client.post("/api/logout", {})[0].status == 200
+    elif end == "rotate":
+        web_access.access_key(renew=True)
+        assert client.call("GET", "/api/live")[0].status == 401
+    else:
+        client.httpd.web.sessions[token] = (client.csrf, time.monotonic() - 1)
+        assert client.call("GET", "/api/live")[0].status == 401
+    assert terminal.closed
+    assert token not in client.httpd.web.local_sessions
+
+
+@pytest.mark.parametrize("text", ["bad\ninput", "\x03", "\x7f", "x" * 257])
+def test_terminal_input_cannot_inject_controls_or_be_silently_truncated(client, text):
+    client.login()
+    assert client.post("/api/job/input", {"text": text})[0].status == 400

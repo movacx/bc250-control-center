@@ -46,7 +46,6 @@ from frontends.desktop.theme import theme_palette
 from frontends.tui.runtime import Context, describe_error
 from frontends.web.actions import ACTIONS, Invalid
 from frontends.web.data import PAGES, Live, performance
-from frontends.web.jobs import Busy, Jobs
 from frontends.web.ssh import SSHSession
 
 logger = logging.getLogger(__name__)
@@ -89,12 +88,14 @@ def host_allowed(header: str) -> bool:
 class Web:
     """Server state: the services, sessions and the failed-login ledger."""
 
-    def __init__(self, container=None) -> None:
+    def __init__(self, container=None, *, terminal_factory=SSHSession) -> None:
         container = container or ApplicationContainer.production()
         self.ctx = Context(service=container.system_service, settings=container.settings_service,
                            activity=container.activity_service, platform=container.platform,
                            config=container.settings_service.read_local_config())
-        self.live, self.jobs = Live(self.ctx), Jobs()
+        self.live = Live(self.ctx)
+        self.terminal_factory = terminal_factory
+        self.local_sessions: dict[str, SSHSession] = {}
         self.language = normalize_language(self.ctx.config.get("idioma", "auto"))
         self.sessions: dict[str, tuple[str, float]] = {}
         self.ssh_sessions: dict[str, SSHSession] = {}
@@ -137,20 +138,22 @@ class Web:
         with self.lock:
             if not same_key(self.key, web_access.access_key()):
                 self.sessions.clear()
-                for ssh in self.ssh_sessions.values():
-                    ssh.close()
-                self.ssh_sessions.clear()
+                for collection in (self.ssh_sessions, self.local_sessions):
+                    for terminal in collection.values():
+                        terminal.close()
+                    collection.clear()
                 self.key = web_access.access_key()
             csrf, expires = self.sessions.get(token, ("", 0))
             if expires <= time.monotonic():
                 self.sessions.pop(token, None)
-                ssh = self.ssh_sessions.pop(token, None)
-                if ssh:
-                    ssh.close()
+                for collection in (self.ssh_sessions, self.local_sessions):
+                    terminal = collection.pop(token, None)
+                    if terminal:
+                        terminal.close()
             return csrf if expires > time.monotonic() else None
 
     def job(self) -> dict:
-        return (self.job_backend.request("job") if self.job_backend is not None else self.jobs.view()) or {"id": 0}
+        return self.job_backend.request("job") if self.job_backend is not None else {"id": 0}
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -301,19 +304,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.json({"ok": True, "csrf": csrf}, extra={"Set-Cookie": cookie})
 
     def logout(self, _body: dict) -> None:
-        if self.web.job_owner == self.token() and self.web.job_backend is None:
-            self.web.jobs.interrupt()
         with self.web.lock:
             self.web.sessions.pop(self.token(), None)
-            ssh = self.web.ssh_sessions.pop(self.token(), None)
-            if ssh:
-                ssh.close()
+            for collection in (self.web.ssh_sessions, self.web.local_sessions):
+                terminal = collection.pop(self.token(), None)
+                if terminal:
+                    terminal.close()
         self.json({"ok": True}, extra={"Set-Cookie": f"{COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0"})
 
     def live(self, _query: dict) -> None:
         self.web.live.touch()
         job = self.web.job() if self.web.job_owner == self.token() else None
-        self.json({**self.web.live.live(), "job": {"id": job["id"], "done": job["done"]} if job else None})
+        self.json({**self.web.live.live(), "job": {"id": job["id"], "done": job.get("done", True)} if job else None})
 
     def page(self, query: dict) -> None:
         name = query.get("name", "")
@@ -338,35 +340,38 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.fail("Unknown action", 400)
         if not isinstance(body.get("params", {}), dict):
             return self.fail("Invalid parameter: params", 400)
-        jobs = self.web.jobs
+
+        def shell(_command):
+            return None  # Validation only; the tty worker executes it.
+
         try:
-            level, work = build(self.web.ctx, body.get("params") or {}, jobs.shell)
+            level, _work = build(self.web.ctx, body.get("params") or {}, shell)
         except Invalid as error:
             return self.fail(f"Invalid parameter: {error}", 400)
         if level and body.get("confirm") is not True:
             return self.fail("This action needs confirmation.", 403, confirm=True)
-        if level == 2 and not same_key(body.get("key"), web_access.access_key()):
-            return self.fail("This action needs the access key again.", 403, key=True)
         with self.web.job_lock:
             current = self.web.job()
             if current.get("id") and not current.get("done", True):
                 return self.fail("Another hardware action is still running.", 409)
-            ssh = self.web.ssh_sessions.get(self.token())
-            if ssh is not None:
-                if not ssh.ready:
-                    return self.fail("Connect SSH before applying changes.", 409)
-                result = ssh.request("action", action=body["action"], params=body.get("params") or {},
-                                     title=str(body.get("title") or body["action"])[:80], confirmed=bool(body.get("confirm")),
-                                     language=normalize_language(self.headers.get("X-BC250-Language") or self.web.language))
-                if not result.get("ok"):
-                    return self.fail(result.get("error", "SSH disconnected"), 409)
-                job = result["job"]
-            else:
-                try:
-                    job = jobs.start(str(body.get("title") or body["action"])[:80], work)
-                except Busy:
-                    return self.fail("Another hardware action is still running.", 409)
-            self.web.job_owner, self.web.job_backend = self.token(), ssh
+            terminal = self.web.ssh_sessions.get(self.token())
+            if terminal is None:
+                terminal = self.web.local_sessions.get(self.token())
+                if terminal is None or terminal.closed:
+                    terminal = self.web.terminal_factory(local=True)
+                    self.web.local_sessions[self.token()] = terminal
+                    deadline = time.monotonic() + 5
+                    while not terminal.ready and not terminal.closed and time.monotonic() < deadline:
+                        time.sleep(.02)
+            if not terminal.ready:
+                return self.fail("The control terminal is unavailable. Reconnect SSH or retry the action.", 409)
+            result = terminal.request("action", action=body["action"], params=body.get("params") or {},
+                                      title=str(body.get("title") or body["action"])[:80], confirmed=bool(body.get("confirm")),
+                                      language=normalize_language(self.headers.get("X-BC250-Language") or self.web.language))
+            if not result.get("ok"):
+                return self.fail(result.get("error", "Terminal disconnected"), 409)
+            self.web.job_owner, self.web.job_backend = self.token(), terminal
+            job = result["job"]
         self.web.live.forget()
         self.json({"ok": True, "job": job})
 
@@ -375,9 +380,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.fail("The password is only accepted on this computer, or after turning that option on.", 403)
         if self.web.job_owner and self.web.job_owner != self.token():
             return self.fail("This operation belongs to another session.", 403)
+        text = str(body.get("text", ""))
+        if len(text) > 256 or any(ord(c) < 32 or ord(c) == 127 for c in text):
+            return self.fail("Invalid parameter: terminal input", 400)
         if self.web.job_backend is not None:
-            return self.json(self.web.job_backend.request("input", text=str(body.get("text", ""))[:256]))
-        self.json({"ok": self.web.jobs.send(str(body.get("text", ""))[:256])})
+            return self.json(self.web.job_backend.request("input", text=text))
+        self.json({"ok": False})
 
     def job(self, _query: dict) -> None:
         self.json(self.web.job() if self.web.job_owner == self.token() else {"id": 0})
@@ -387,8 +395,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.fail("This operation belongs to another session.", 403)
         if self.web.job_backend is not None:
             return self.json(self.web.job_backend.request("interrupt"))
-        self.web.jobs.interrupt()
-        self.json({"ok": True})
+        self.json({"ok": False})
 
     def ssh_status(self, _query: dict) -> None:
         ssh = self.web.ssh_sessions.get(self.token())
@@ -405,7 +412,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if self.web.locked(ledger):
                 return self.fail("Too many attempts. Try again in a few minutes.", 429)
             self.web.fails[ledger].append(time.monotonic())
-            self.web.ssh_sessions[self.token()] = ssh = SSHSession()
+            self.web.ssh_sessions[self.token()] = ssh = self.web.terminal_factory()
         self.json(ssh.status())
 
     def ssh_input(self, body: dict) -> None:
@@ -413,7 +420,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.fail("Use HTTPS before entering your Linux password.", 403)
         ssh = self.web.ssh_sessions.get(self.token())
         text = str(body.get("text", ""))
-        if len(text) > 256 or any(ord(c) < 32 for c in text):
+        if len(text) > 256 or any(ord(c) < 32 or ord(c) == 127 for c in text):
             return self.fail("Invalid parameter: password", 400)
         self.json({"ok": bool(ssh and ssh.login_input(text))})
 
@@ -456,9 +463,9 @@ class Server(http.server.ThreadingHTTPServer):
         super().__init__(address, Handler)
 
     def server_close(self) -> None:
-        self.web.jobs.interrupt()
-        for ssh in self.web.ssh_sessions.values():
-            ssh.close()
+        for collection in (self.web.ssh_sessions, self.web.local_sessions):
+            for terminal in collection.values():
+                terminal.close()
         super().server_close()
 
     def handle_error(self, request, client_address) -> None:

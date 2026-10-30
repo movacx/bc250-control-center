@@ -25,6 +25,7 @@ AUTH_AGENT_MESSAGE = (
 
 #: Set by the terminal interface: authenticate on its console, never in a window.
 TERMINAL_AUTH_ENV = "BC250_TERMINAL_AUTH"
+WEB_SUDO_AUTH_ENV = "BC250_WEB_SUDO_AUTH"
 
 _AGENT_MARKERS = (
     "hyprpolkitagent",
@@ -239,10 +240,18 @@ def ensure_graphical_polkit_agent(
 
 
 def pkexec_prefix(executor: str, *, prepare_agent: bool = True) -> list[str]:
-    """Return the graphical-only pkexec prefix used by desktop actions."""
+    """Use graphical Polkit by default, or native sudo in the web action child."""
     value = str(executor or "")
     if not value or "\x00" in value:
         raise ValueError("Invalid privileged command")
+    if os.environ.get(WEB_SUDO_AUTH_ENV) == "1":
+        # Only the unprivileged web action child sets this. The caller still
+        # supplies the same installed, validated helper and typed arguments.
+        # Native sudo owns /dev/tty, its password handling and authorization.
+        sudo = shutil.which("sudo")
+        if not sudo:
+            raise RuntimeError("sudo is required for web hardware authorization.")
+        return [sudo, "-p", "BC250 Linux password: ", "--"]
     if prepare_agent:
         ensure_graphical_polkit_agent()
     return [value, "--disable-internal-agent"]

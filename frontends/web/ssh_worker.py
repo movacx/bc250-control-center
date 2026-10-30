@@ -1,71 +1,62 @@
-"""Private SSH stdio protocol. Only the web's validated actions can run here."""
+"""Private tty protocol, shared by local and SSH user sessions.
 
+The worker stops reading requests while an action owns the terminal. Native
+sudo can therefore read /dev/tty without competing with a JSON reader.
+"""
 from __future__ import annotations
 
 import json
-import os
+import secrets
+import signal
+import subprocess
 import sys
+import termios
 
-from bc250cc.application import ApplicationContainer
-from bc250cc.application.system.workflow_console import (
-    TERMINAL_AUTH_ENV,
-    set_translator,
-)
-from frontends.desktop.i18n import set_language, tr
-from frontends.tui.runtime import Context, describe_error
-from frontends.web.actions import ACTIONS, Invalid
-from frontends.web.jobs import Jobs
-
-PREFIX = "BC250_RPC "
+PREFIX = "\x1eBC250_RPC "
 
 
 def reply(value: dict) -> None:
-    # Jobs redirect stdout to their console; the protocol must keep its own stream.
-    sys.__stdout__.write(PREFIX + json.dumps(value, ensure_ascii=True, default=str) + "\n")
-    sys.__stdout__.flush()
+    sys.stdout.write(PREFIX + json.dumps(value, ensure_ascii=True) + "\n")
+    sys.stdout.flush()
 
 
 def main() -> None:
-    os.environ[TERMINAL_AUTH_ENV] = "1"
-    container = ApplicationContainer.production()
-    ctx = Context(service=container.system_service, settings=container.settings_service,
-                  activity=container.activity_service, platform=container.platform,
-                  config=container.settings_service.read_local_config())
-    jobs = Jobs()
-    reply({"event": "ready"})
-    while line := sys.stdin.buffer.readline(65537):
-        if len(line) > 65536:
-            break
-        request = {}
+    terminal = termios.tcgetattr(0)
+    terminal[3] &= ~termios.ECHO
+    termios.tcsetattr(0, termios.TCSANOW, terminal)
+    token = secrets.token_hex(32)
+    reply({"event": "ready", "token": token})
+    while True:
         try:
-            request = json.loads(line)
-            op = request.get("op")
-            if op == "action":
-                set_language(request.get("language") or "en")
-                set_translator(tr)
-                build = ACTIONS.get(request.get("action"))
-                if build is None:
-                    raise Invalid("action")
-                level, work = build(ctx, request.get("params") or {}, jobs.shell)
-                if level and request.get("confirmed") is not True:
-                    raise Invalid("confirmation")
-                result = {"ok": True, "job": jobs.start(str(request.get("title", ""))[:80], work)}
-            elif op == "job":
-                result = jobs.view() or {"id": 0}
-            elif op == "input":
-                result = {"ok": jobs.send(str(request.get("text", ""))[:256])}
-            elif op == "interrupt":
-                jobs.interrupt()
-                result = {"ok": True}
-            elif op == "close":
-                jobs.interrupt()
+            line = sys.stdin.buffer.readline(65537)
+            if not line or len(line) > 65536:
                 break
-            else:
-                raise Invalid("operation")
-            reply({"id": request.get("id"), "result": result})
-        except Exception as error:
-            reply({"id": request.get("id"), "result": {"ok": False, "error": describe_error(error)}})
-    jobs.interrupt()
+            request = json.loads(line)
+            # Late tty input must never become a new RPC when an action ends.
+            # This token stays inside the transport, outside browser responses.
+            if not isinstance(request, dict) or request.get("token") != token:
+                continue
+            if request.get("op") == "close":
+                break
+            if request.get("op") != "action":
+                reply({"id": request.get("id"), "result": {"ok": False, "error": "Invalid operation"}})
+                continue
+            # Caught SIGINT resets to default in the exec'd child; this reader
+            # survives cancelling that child and can serve the next action.
+            previous = signal.signal(signal.SIGINT, lambda *_: None)
+            try:
+                action = {key: request[key] for key in ("action", "params", "confirmed", "language", "title")
+                          if key in request}
+                status = subprocess.call([sys.executable, "-u", "-m", "frontends.web.action_worker",
+                                          json.dumps(action, ensure_ascii=True)])
+            finally:
+                signal.signal(signal.SIGINT, previous)
+                termios.tcsetattr(0, termios.TCSANOW, terminal)
+            reply({"id": request.get("id"), "result": {"ok": status == 0}})
+        except KeyboardInterrupt:
+            continue
+        except (ValueError, OSError):
+            break
 
 
 if __name__ == "__main__":

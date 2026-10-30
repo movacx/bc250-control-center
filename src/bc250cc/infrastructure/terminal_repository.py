@@ -129,9 +129,11 @@ class TerminalRepository:
     def _write_launch_script(
         path: Path, comando, status_path: Path, log_path: Path, *, hold: bool,
         host_logs: bool = False,
+        inherit_tty: bool = False,
     ) -> Path:
         wrapped = workflow_wrapper(
-            comando, status_path, log_path, hold=hold, host_logs=host_logs
+            comando, status_path, log_path, hold=hold, host_logs=host_logs,
+            inherit_tty=inherit_tty,
         )
         path.write_text("#!/usr/bin/env bash\n" + wrapped + "\n", encoding="utf-8")
         path.chmod(0o700)
@@ -150,7 +152,8 @@ class TerminalRepository:
             hold=False,
             # The console writes the log from the pty, so the workflow keeps
             # the terminal as its stdout and draws its real progress.
-            host_logs=True,
+            host_logs=getattr(launcher, "writes_transcript", True),
+            inherit_tty=getattr(launcher, "inherit_tty", False),
         )
         request = EmbeddedTerminalRequest(
             argv=("bash", str(launch_path)),
@@ -168,6 +171,8 @@ class TerminalRepository:
             return None
 
     def _abrir_terminal(self, comando, titulo="BC250 Control Center"):
+        if not str(comando or "").strip():
+            raise RuntimeError("The requested terminal workflow is empty.")
         if shutil.which("rpm-ostree"):
             comando = f"{RPM_OSTREE_IDLE_WAIT}; {comando}"
         state_dir = self._terminal_state_dir()

@@ -36,7 +36,7 @@ or router forwarding.
 ## SSH authorization in the browser
 
 Start the board's SSH server from **Remote access** first. Press **SSH** in the
-web header, then **Connect SSH**. Authentication is handled by the installed
+Dashboard board card, then **Connect SSH**. Authentication is handled by the installed
 OpenSSH client: an existing permitted SSH key/agent may work, otherwise the
 Linux password is requested in the web dialog. No password is retained for
 later commands.
@@ -48,35 +48,48 @@ files. Unknown or changed keys are rejected; there is no automatic acceptance
 or `StrictHostKeyChecking=no` fallback. Custom server configurations without
 those public key files need their local host-key setup corrected first.
 
-After SSH login, a private worker runs as that user. Its protocol accepts only
-the existing action catalog, job status, authentication input, cancellation and
-closing the session. It is not a general-purpose terminal. CPU, GPU and CU
-requests still pass through their normal services and root-owned helpers.
+After SSH login, a private worker runs as that user on a persistent terminal.
+Without SSH, the web creates the same terminal locally. Neither the server nor
+the Python action worker runs as root. SSH is optional when the web already runs
+on the board; it is not a substitute for Linux administrator authorization.
 
-**SSH login does not grant root access.** Sudo and Polkit can still ask for
-permission. Their prompts appear in the operation panel in the phone's browser,
-with password input shown when the terminal disables echo. The existing Polkit
-policy is unchanged; its own authorization retention rules still apply.
-Confirmations and access-key reauthentication for dangerous operations remain
-mandatory. SSH is optional: the original local execution path is available
-when no SSH session is connected.
+Hardware actions use **native sudo** on that terminal to invoke the same
+installed helpers with their existing parameter and ownership checks. This
+avoids graphical Polkit dialogs, including policies that deny remote sessions
+before any password challenge. The desktop and TUI keep their existing Polkit
+path. No Polkit policy, sudoers rule or system SSH configuration is modified.
+The account needs permission under the machine's existing sudo policy.
+
+When sudo needs the Linux password, its prompt appears in the operation panel.
+Input goes directly to the active terminal; it is not saved in a command,
+configuration, protocol message to the worker or transcript. Sudo controls its
+own authorization retention: the persistent terminal permits reuse while the
+installed policy allows it. Passwordless sudo is not required or installed.
+Closing the terminal ends that terminal's authorization context; global sudo
+cache behavior remains subject to the host policy.
+
+The web access key is requested once at login. Changing CPU/GPU/CU settings
+still requires confirmation, but never asks for that web key a second time.
+Hardware bounds, trusted-backend checks and operation locks remain in place.
+The private worker accepts only the existing action catalog; it cannot execute
+an arbitrary browser-supplied shell command.
 
 SSH encrypts the connection between the web process and the SSH service. HTTPS
 protects the separate phone-to-web connection. Using SSH internally does not
 make an HTTP page encrypted.
 
-Each browser owns its SSH session and operation output. Another browser cannot
+Each browser owns its local/SSH terminal and operation output. Another browser cannot
 read its console, type into its job or cancel it. The server serializes hardware
-jobs across browsers. Logging out, key rotation and session expiry close the SSH
-connection. An unused SSH connection expires after 15 minutes.
+jobs across browsers. Logging out, key rotation and session expiry close its terminals. An unused terminal expires after 15 minutes.
 
 ## Phone layout
 
 The bottom bar reaches Dashboard, CPU, CU, GPU and Sensors. Settings and fans
-are in the menu. CPU/GPU show live readings before their controls; profiles have
-separate, touch-sized edit buttons. Secondary and experimental controls are
-expandable. CU rows show five WGP pairs each, the selected total and engine
-balance. Selecting a preset or toggling a pair only edits the draft; applying
+are in the menu. CPU/GPU profiles have separate, touch-sized edit buttons. GPU frequencies
+are changed through profiles; the manual frequency slider belongs to desktop.
+The SSH button appears only inside the Dashboard board card; repeated page
+headings and the CU overview card are omitted. Secondary and experimental controls are
+expandable. CU rows show five WGP pairs each and warn about engine imbalance. Selecting a preset or toggling a pair only edits the draft; applying
 still needs confirmation.
 
 Sensors have search, category filters and list/graph layouts. On a phone the
@@ -101,7 +114,9 @@ pinned MIT-licensed dependency vendored in the source tree; see
 [Third-party notices](THIRD_PARTY_NOTICES.md).
 
 Tests cover the HTTP authentication boundary, CSRF, key rotation, plaintext
-password rejection, browser isolation, action allowlisting, avoiding action
-retries on TypeError, and the real SSH worker against an isolated sshd with
+password rejection, browser isolation, action allowlisting, avoiding duplicate workflow
+execution after a failure, and the real SSH worker against an isolated sshd with
 throwaway keys. The SSH integration test skips when OpenSSH server/client tools
 are unavailable. It does not start or reconfigure the system SSH daemon.
+
+See [Web architecture and file map](WEB_ARCHITECTURE.md) for the execution and authorization diagrams.

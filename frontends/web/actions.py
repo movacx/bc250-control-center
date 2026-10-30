@@ -1,8 +1,7 @@
 """The closed list of things the web interface may do.
 
 Each entry validates its own parameters and returns ``(level, work)``: the
-confirmation it needs (0 none, 1 explicit confirmation, 2 confirmation and the
-access key again, for the risk zones) and the call to run. ``work`` only calls
+confirmation it needs (0 none, 1 explicit confirmation, 2 risk-zone confirmation) and the call to run. ``work`` only calls
 the service layer the desktop and the terminal interface use; nothing here
 builds a command line from the request.
 """
@@ -88,13 +87,6 @@ def gpu_profile(ctx, p, shell):
     if low > high:
         raise Invalid("max")
     return (2 if high > SAFE_CEILING else 1), lambda: ctx.service.aplicar_perfil_gpu(low, high)
-
-
-def gpu_range(ctx, p, shell):
-    low, high = number(p, "min", "gpu"), number(p, "max", "gpu")
-    if low > high:
-        raise Invalid("max")
-    return (2 if high > SAFE_CEILING else 1), lambda: ctx.service.aplicar_rango_bc250(low, high)
 
 
 def gpu_compat(ctx, p, shell):
@@ -192,7 +184,7 @@ def fan_curve(ctx, p, shell):
 
 
 ACTIONS = {
-    "gpu.profile": gpu_profile, "gpu.range": gpu_range, "gpu.compat": gpu_compat, "gpu.service": gpu_service,
+    "gpu.profile": gpu_profile, "gpu.compat": gpu_compat, "gpu.service": gpu_service,
     "gpu.high_points": gpu_high_points, "gpu.voltage": gpu_voltage,
     "gpu.save_boot": lambda ctx, p, shell: (1, ctx.service.guardar_rango_gpu_arranque),
     "gpu.status": lambda ctx, p, shell: (0, ctx.service.status_governor),

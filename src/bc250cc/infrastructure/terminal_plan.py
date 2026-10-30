@@ -240,6 +240,7 @@ def workflow_wrapper(
     *,
     hold: bool = True,
     host_logs: bool = False,
+    inherit_tty: bool = False,
 ) -> str:
     """Wrap a workflow so it logs, records its exit status, and reports it.
 
@@ -285,6 +286,13 @@ def workflow_wrapper(
             f"rm -f {sync}; "
         )
         summary_sink = ""
+    elif inherit_tty:
+        # Web actions share their session's controlling tty (and sudo's tty
+        # timestamp). Record stdout without creating a second authentication
+        # terminal. Sudo reads the password from /dev/tty, outside this log.
+        run = f"bash -o pipefail -c {pipeline}; status=$?; "
+        wait_for_log = ""
+        summary_sink = f"2>&1 | tee -a {log}"
     else:
         runner = shlex.quote(str(_TRANSCRIPT_RUNNER))
         # Chosen before anything runs, so the workflow can never run twice.
