@@ -43,7 +43,7 @@ export default function Dashboard() {
           <div className="sum"><span>{t("Live core monitor")}</span><b>{t("{cores} cores / {threads} threads", { cores: cpu.physical_cores ?? "--", threads: cpu.logical_cores ?? "--" })}</b></div>
           <div className="cores">{Array.from({ length: 8 }, (_, i) => (
             <div className="core" key={i}><b>N{i + 1}</b>{i < usage.length ? <><span>{clocks[i] ? (clocks[i] / 1000).toFixed(2) : "--"} GHz</span><div className="bar"><i style={{ width: `${usage[i]}%` }} /></div><u>{num(usage[i])} %</u></> : <><span>{t("Hidden")}</span><div className="bar" /><u /></>}</div>))}</div>
-          <Btn kind="soft" wide onClick={() => (location.hash = "#/cpu")} style={{ marginTop: 12 }}>{t("Configure CPU")}</Btn>
+          <div className="row" style={{ marginTop: 12 }}><Btn kind="soft" wide onClick={() => (location.hash = "#/cpu")}>{t("Configure CPU")}</Btn></div>
         </section>
         <section className="card inst">
           <div className="top"><h2>{t("Graphics")}</h2><span className="head">{num(gpu.frequency_mhz)}<em>MHz</em></span></div>
