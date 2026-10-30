@@ -157,14 +157,16 @@ jobs across browsers. Logging out, key rotation and session expiry close its ter
 
 The desktop's Remote access page conceals its entire contents after five minutes
 of viewing, even when the user is interacting. **Lock view** in the page header
-conceals it immediately. A frosted cover shows **Show
+conceals it immediately. An opaque cover inside the existing card shows **Show
 information**; pressing it starts another five-minute window. Navigating away,
 refreshing status or returning to the page does not reset that deadline.
 
 The live controls are hidden, including the QR, key, addresses and device table;
 keyboard focus moves to the reveal button and the view's status polling pauses.
-Only a heavily downsampled, tinted snapshot is used for the blurred background.
-No screenshot is saved to disk. In-flight background operations and the web
+The cover uses softly blended theme colours with a slow animated drift; it
+captures no text, QR pixels or screenshots. The animation pauses when the page
+is hidden. The card keeps its dimensions and the reveal action follows the
+visible portion when scrolled. In-flight background operations and the web
 service continue; the cover changes no device permissions or session expiry.
 This is screen privacy, not an operating-system lock or password challenge.
 

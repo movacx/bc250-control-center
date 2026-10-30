@@ -1,26 +1,42 @@
 """One web-access workspace: connection, visible pairing and device permissions."""
 from __future__ import annotations
 
+import math
 import shutil
 import time
 from datetime import datetime
 from pathlib import Path
 
-from PyQt6.QtCore import QByteArray, Qt, QTimer, QUrl
-from PyQt6.QtGui import QColor, QDesktopServices, QGuiApplication, QPainter, QPixmap
+from PyQt6.QtCore import (
+    QByteArray,
+    QEvent,
+    QPoint,
+    QRect,
+    QRectF,
+    Qt,
+    QTimer,
+    QUrl,
+)
+from PyQt6.QtGui import (
+    QColor,
+    QDesktopServices,
+    QGuiApplication,
+    QPainter,
+    QPainterPath,
+    QPixmap,
+    QRadialGradient,
+)
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QBoxLayout,
     QFileDialog,
-    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QScrollArea,
     QSizePolicy,
     QSpinBox,
-    QStackedLayout,
     QTableWidget,
     QTableWidgetItem,
     QToolTip,
@@ -38,7 +54,7 @@ from ..components.responsive import configure_responsive_scroll_area
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
 from ..components.wheel_guard import GuardedComboBox
-from ..components.widgets import apply_shadow, icon, readable_text_on
+from ..components.widgets import readable_text_on
 from ..core.preferences import application_settings
 from ..i18n import tr, tr_format
 from ..theme import COLORS, scale_stylesheet
@@ -56,26 +72,15 @@ def _privacy_time():
 
 
 class _RemotePrivacyCover(QWidget):
-    """A frosted cover backed only by an unreadably small snapshot."""
+    """Opaque animated redaction, clipped to the existing access card."""
 
     def __init__(self, parent):
         super().__init__(parent)
-        self._background = QPixmap()
-        self.setAccessibleName(tr("Hidden remote access information"))
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.addStretch(1)
-        panel = QFrame()
-        panel.setObjectName("remotePrivacyPanel")
-        panel.setMinimumWidth(280)
-        panel.setMaximumWidth(420)
-        box = QVBoxLayout(panel)
-        box.setContentsMargins(28, 28, 28, 28)
-        box.setSpacing(14)
-        symbol = QLabel()
-        symbol.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        symbol.setPixmap(icon("shield_green").pixmap(32, 32))
-        box.addWidget(symbol)
+        self._phase = 0.0
+        self._message = QWidget(self)
+        box = QVBoxLayout(self._message)
+        box.setContentsMargins(0, 0, 0, 0)
+        box.setSpacing(12)
         self.title = QLabel()
         self.title.setObjectName("remotePrivacyTitle")
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -89,49 +94,77 @@ class _RemotePrivacyCover(QWidget):
         self.reveal_button = QPushButton()
         self.reveal_button.setObjectName("remotePrivacyReveal")
         self.reveal_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        box.addWidget(self.reveal_button)
-        layout.addWidget(panel, 0, Qt.AlignmentFlag.AlignHCenter)
-        layout.addStretch(1)
-        apply_shadow(panel, blur=24, y=4, alpha=18)
+        box.addWidget(self.reveal_button, 0, Qt.AlignmentFlag.AlignHCenter)
+        self._sweep = QTimer(self)
+        self._sweep.setInterval(40)
+        self._sweep.timeout.connect(self._animate)
         self.retranslate()
         self.apply_appearance()
+
+    def _animate(self):
+        self._phase = (self._phase + 1 / 750) % 1.0
+        self.update()
 
     def retranslate(self):
         self.setAccessibleName(tr("Hidden remote access information"))
         self.title.setText(tr("Information protected"))
-        self.description.setText(tr("This view is hidden automatically. Show it again for another five minutes."))
+        self.description.setText(tr("Access keys, codes and devices are hidden."))
         self.reveal_button.setText(tr("Show information"))
 
-    def set_snapshot(self, snapshot):
-        # Discard the original pixels: the cover must not retain a legible QR
-        # or key. Smooth scaling of this tiny image provides the blur without
-        # continuously rendering the live sensitive controls behind an effect.
-        height = max(1, round(32 * snapshot.height() / max(1, snapshot.width())))
-        self._background = snapshot.scaled(32, height, Qt.AspectRatioMode.IgnoreAspectRatio,
-                                           Qt.TransformationMode.SmoothTransformation) if not snapshot.isNull() else QPixmap()
-        self.update()
+    def set_visible_region(self, region):
+        width = max(180, min(380, region.width() - 48))
+        self._message.setFixedWidth(width)
+        layout = self._message.layout()
+        height = max(layout.minimumSize().height(), layout.heightForWidth(width))
+        self._message.setFixedHeight(height)
+        self._message.move(max(16, region.center().x() - width // 2),
+                           max(region.top() + 16, region.center().y() - self._message.height() // 2))
 
     def apply_appearance(self):
         c = COLORS
-        button_ink = readable_text_on(QColor(c["blue"])).name()
+        ink = readable_text_on(QColor(c["blue"])).name()
         self.setStyleSheet(scale_stylesheet(
-            f"QFrame#remotePrivacyPanel {{ background: {c['panel']}; border: 1px solid {c['border']}; border-radius: 16px; }}"
             f"QLabel#remotePrivacyTitle {{ color: {c['text']}; font-size: 18px; font-weight: 700; background: transparent; }}"
             f"QLabel#remotePrivacyDescription {{ color: {c['muted']}; font-size: 12px; background: transparent; }}"
-            f"QPushButton#remotePrivacyReveal {{ background: {c['blue']}; color: {button_ink}; border: 1px solid {c['blue']};"
-            " border-radius: 8px; padding: 10px 18px; font-size: 12px; font-weight: 650; }"
+            f"QPushButton#remotePrivacyReveal {{ background: {c['blue']}; color: {ink}; border: 1px solid {c['blue']};"
+            " border-radius: 8px; padding: 9px 18px; font-size: 12px; font-weight: 650; }"
             f"QPushButton#remotePrivacyReveal:hover {{ border-color: {c['blue_border']}; }}"))
         self.update()
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._sweep.start()
+
+    def hideEvent(self, event):
+        self._sweep.stop()
+        super().hideEvent(event)
+
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        painter.fillRect(self.rect(), QColor(COLORS["window"]))
-        if not self._background.isNull():
-            painter.drawPixmap(self.rect(), self._background)
-        veil = QColor(COLORS["panel"])
-        veil.setAlpha(205)
-        painter.fillRect(self.rect(), veil)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        boundary = QPainterPath()
+        boundary.addRoundedRect(QRectF(self.rect()), 14, 14)
+        painter.setClipPath(boundary)
+        painter.fillRect(self.rect(), QColor(COLORS["panel"]))
+        # Soft colour fields are generated, never sampled from access keys,
+        # QR codes or a screenshot. Motion is a slow, seamless 30-second drift.
+        phase = self._phase * math.tau
+        width, height = self.width(), self.height()
+        clouds = ((.14, .24, .72, "blue", 62, 0.0),
+                  (.86, .25, .67, "orange", 38, 2.1),
+                  (.61, .88, .76, "blue", 48, 4.2))
+        for x, y, radius, key, opacity, offset in clouds:
+            cx = width * (x + .035 * math.sin(phase + offset))
+            cy = height * (y + .025 * math.cos(phase + offset))
+            colour = QColor(COLORS[key])
+            colour.setAlpha(opacity)
+            clear = QColor(colour)
+            clear.setAlpha(0)
+            gradient = QRadialGradient(cx, cy, max(width, height) * radius)
+            gradient.setColorAt(0, colour)
+            gradient.setColorAt(.45, QColor(colour.red(), colour.green(), colour.blue(), opacity // 2))
+            gradient.setColorAt(1, clear)
+            painter.fillRect(self.rect(), gradient)
 
 
 class RemoteAccessPage(QWidget):
@@ -160,7 +193,7 @@ class RemoteAccessPage(QWidget):
         self._save_view_timer.setSingleShot(True)
         self._save_view_timer.setInterval(200)
         self._save_view_timer.timeout.connect(self._view_settings.sync)
-        outer = self._privacy_stack = QStackedLayout(self)
+        outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         scroll = self._scroll = QScrollArea()
         content = QWidget()
@@ -319,9 +352,13 @@ class RemoteAccessPage(QWidget):
         self.timer = QTimer(self)
         self.timer.setInterval(5000)
         self.timer.timeout.connect(self.refresh)
-        self._privacy_cover = _RemotePrivacyCover(self)
+        self._privacy_cover = _RemotePrivacyCover(self.card)
         self._privacy_cover.reveal_button.clicked.connect(self._reveal_information)
-        outer.addWidget(self._privacy_cover)
+        self._privacy_cover.hide()
+        self._privacy_widgets = []
+        self.card.installEventFilter(self)
+        self._scroll.viewport().installEventFilter(self)
+        self._scroll.verticalScrollBar().valueChanged.connect(self._position_privacy_cover)
         self._privacy_timer = QTimer(self)
         self._privacy_timer.setSingleShot(True)
         self._privacy_timer.setTimerType(Qt.TimerType.PreciseTimer)
@@ -430,9 +467,21 @@ class RemoteAccessPage(QWidget):
         self.web_address.hidePopup()
         self.device_expiry_choice.hidePopup()
         QToolTip.hideText()
-        snapshot = self._scroll.grab() if self._scroll.isVisible() else QPixmap()
-        self._privacy_cover.set_snapshot(snapshot)
-        self._privacy_stack.setCurrentWidget(self._privacy_cover)
+        self._privacy_widgets = []
+        self._privacy_card_heights = (self.card.minimumHeight(), self.card.maximumHeight())
+        self.card.setFixedHeight(self.card.height())
+        for widget in self.card.findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly):
+            if widget is self._privacy_cover:
+                continue
+            policy = widget.sizePolicy()
+            self._privacy_widgets.append((widget, widget.isHidden(), policy))
+            retained = widget.sizePolicy()
+            retained.setRetainSizeWhenHidden(True)
+            widget.setSizePolicy(retained)
+            widget.hide()
+        self._position_privacy_cover()
+        self._privacy_cover.show()
+        self._privacy_cover.raise_()
         if self.isVisible():
             self._privacy_cover.reveal_button.setFocus(Qt.FocusReason.OtherFocusReason)
 
@@ -440,13 +489,31 @@ class RemoteAccessPage(QWidget):
         if not self._privacy_hidden:
             return
         self._privacy_hidden = False
+        for widget, hidden, policy in self._privacy_widgets:
+            widget.setSizePolicy(policy)
+            widget.setVisible(not hidden)
+        self._privacy_widgets = []
+        self.card.setMinimumHeight(self._privacy_card_heights[0])
+        self.card.setMaximumHeight(self._privacy_card_heights[1])
         self._render_web()
-        self._privacy_stack.setCurrentWidget(self._scroll)
-        self._privacy_cover.set_snapshot(QPixmap())
+        self._privacy_cover.hide()
         self._start_privacy_window()
         if self._updates_active:
             self.timer.start()
             self.refresh()
+
+    def _position_privacy_cover(self):
+        if not self._privacy_hidden:
+            return
+        self._privacy_cover.setGeometry(self.card.rect().adjusted(1, 1, -1, -1))
+        viewport = self._scroll.viewport()
+        visible = self.card.rect().intersected(QRect(self.card.mapFrom(viewport, QPoint(0, 0)), viewport.size()))
+        self._privacy_cover.set_visible_region(visible.translated(-1, -1))
+
+    def eventFilter(self, watched, event):
+        if event.type() in (QEvent.Type.Resize, QEvent.Type.Move) and self._privacy_hidden:
+            QTimer.singleShot(0, self._position_privacy_cover)
+        return super().eventFilter(watched, event)
 
     def _application_state_changed(self, state):
         if state == Qt.ApplicationState.ApplicationActive:

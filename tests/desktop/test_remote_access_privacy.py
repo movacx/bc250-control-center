@@ -31,15 +31,17 @@ def test_privacy_window_begins_when_opened_and_hides_the_whole_view_at_five_minu
     now[0] = 400.0
     page._check_privacy()
     assert page._privacy_hidden
-    assert page._privacy_stack.currentWidget() == page._privacy_cover
-    assert not page._scroll.isVisible()
+    assert page._privacy_cover.isVisible()
+    assert page._privacy_cover.parentWidget() is page.card
+    assert page.card.rect().contains(page._privacy_cover.geometry())
+    assert page._scroll.isVisible()
     assert not page.web_pin_box.isVisible()
     assert not page.web_qr_image.isVisible()
     assert not page.device_table.isVisible()
     assert page._privacy_cover.reveal_button.isVisible()
     assert not page.timer.isActive()
     assert not page._privacy_timer.isActive()
-    assert page._privacy_cover._background.width() == 32
+    assert not hasattr(page._privacy_cover, "_background")
     assert page._web_state["running"] is True  # Only the view was concealed.
 
 
@@ -60,7 +62,7 @@ def test_reveal_starts_a_fresh_window_but_refreshes_and_navigation_do_not(qtbot,
     assert page.web_pin_box.text() == "NEXT-PAIR"
     assert page._scroll.isVisible()
     assert page._privacy_deadline == 701.0
-    assert page._privacy_cover._background.isNull()
+    assert not page._privacy_cover.isVisible()
     now[0] = 701.0
     page._check_privacy()
     assert page._privacy_hidden
@@ -116,4 +118,43 @@ def test_header_button_locks_again_after_revealing_without_waiting(qtbot, monkey
     now[0] += 5
     page.privacy_lock_button.click()
     assert page._privacy_hidden
-    assert page._privacy_stack.currentWidget() == page._privacy_cover
+    assert page._privacy_cover.isVisible()
+    assert page._privacy_cover.parentWidget() is page.card
+    assert page.card.rect().contains(page._privacy_cover.geometry())
+
+
+def test_cover_stays_inside_card_and_reveal_tracks_the_visible_scrolled_area(qtbot, monkeypatch):
+    from PyQt6.QtCore import QPoint, QRect
+    page, now = page_with_clock(qtbot, monkeypatch)
+    page._set_device_table_height(1800)
+    QApplication.processEvents()
+    original_height = page.card.height()
+    page._conceal_information()
+    QApplication.processEvents()
+    assert page.card.height() == original_height
+    assert page._privacy_cover._sweep.isActive()
+    scrollbar = page._scroll.verticalScrollBar()
+    scrollbar.setValue(scrollbar.maximum())
+    page.resize(850, 650)
+    QApplication.processEvents()
+    page._position_privacy_cover()
+    cover = page._privacy_cover
+    assert page.card.rect().contains(cover.geometry())
+    viewport = page._scroll.viewport()
+    visible = QRect(cover.mapFrom(viewport, QPoint(0, 0)), viewport.size()).intersected(cover.rect())
+    assert visible.contains(cover._message.geometry().center())
+    page.hide()
+    assert not cover._sweep.isActive()
+
+
+def test_soft_animation_changes_pixels_without_capturing_private_content(qtbot, monkeypatch):
+    page, now = page_with_clock(qtbot, monkeypatch)
+    page._conceal_information()
+    cover = page._privacy_cover
+    first = cover.grab().toImage()
+    for _ in range(12):
+        cover._animate()
+    second = cover.grab().toImage()
+    assert first != second
+    assert not hasattr(cover, "_background")
+    assert not page.web_qr_image.isVisible()

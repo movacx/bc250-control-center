@@ -5831,9 +5831,12 @@
   "frontends/desktop/pages/remote_access.py": {
    "_privacy_time": "UI-0683",
    "_RemotePrivacyCover.__init__": "UI-0684",
+   "_RemotePrivacyCover._animate": "UI-0695",
    "_RemotePrivacyCover.retranslate": "UI-0685",
-   "_RemotePrivacyCover.set_snapshot": "UI-0686",
+   "_RemotePrivacyCover.set_visible_region": "UI-0696",
    "_RemotePrivacyCover.apply_appearance": "UI-0687",
+   "_RemotePrivacyCover.showEvent": "UI-0697",
+   "_RemotePrivacyCover.hideEvent": "UI-0698",
    "_RemotePrivacyCover.paintEvent": "UI-0688",
    "RemoteAccessPage.__init__": "UI-0633",
    "RemoteAccessPage._label": "UI-0634",
@@ -5847,6 +5850,8 @@
    "RemoteAccessPage._check_privacy": "UI-0691",
    "RemoteAccessPage._conceal_information": "UI-0692",
    "RemoteAccessPage._reveal_information": "UI-0693",
+   "RemoteAccessPage._position_privacy_cover": "UI-0699",
+   "RemoteAccessPage.eventFilter": "UI-0700",
    "RemoteAccessPage._application_state_changed": "UI-0694",
    "RemoteAccessPage.set_updates_active": "UI-0637",
    "RemoteAccessPage.refresh": "UI-0638",
@@ -6117,6 +6122,7 @@
   "UI-0642",
   "UI-0643",
   "UI-0655",
-  "UI-0665"
+  "UI-0665",
+  "UI-0686"
  ]
 }
