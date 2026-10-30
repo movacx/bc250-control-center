@@ -168,6 +168,7 @@ function Shell({ session, onLogout }) {
     return result;
   };
   const act = (spec) => {
+    if (!session.control) { setToast({ tone: "bad", text: t("This device has monitoring access. Enable hardware control in Remote access on the desktop.") }); return; }
     if (job && !job.done && job.kind !== "gddr6.monitor") { setToast({ tone: "bad", text: t("Another hardware action is still running.") }); return; }
     if (spec.level) setConfirm(spec);
     else go(spec).then((r) => { if (!r.ok) setToast({ tone: "bad", text: t(r.error) }); });
@@ -178,7 +179,7 @@ function Shell({ session, onLogout }) {
   const link = (item) => <a key={item.key} className={`nav ${page === item.key ? "on" : ""}`} href={`#/${item.key}`} aria-current={page === item.key ? "page" : undefined}><Icon name={item.icon} /><span>{item.title()}</span></a>;
   const name = t("BC250 Control Center").replace("BC250", "").trim();
   return (
-    <App.Provider value={{ live: live?.metrics ? live : null, history: live?.history || {}, act, again, running, job, cancelReview: () => setConfirm(null), stopJob: () => api("job/interrupt", {}), toast: setToast, session, ssh, openSsh: () => setSshOpen(true) }}>
+    <App.Provider value={{ live: live?.metrics ? live : null, history: live?.history || {}, act, again, running, job, cancelReview: () => setConfirm(null), stopJob: () => api("job/interrupt", {}), toast: setToast, session, ssh, openSsh: () => session.control ? setSshOpen(true) : setToast({ tone: "bad", text: t("This device has monitoring access. Enable hardware control in Remote access on the desktop.") }) }}>
       <div className="shell">
         <header className="topbar"><a className="mobile-brand" aria-label={`BC250 · ${t("Dashboard")}`} href="#/dashboard"><img src="logo.png" alt="" /><strong>BC250</strong></a><span className="topbar-title">{current.title()}</span><button className="ghost" aria-label={t("Menu")} aria-expanded={menu} onClick={() => setMenu(!menu)}><Icon name="nav_settings" /></button></header>
         {menu && <div className="scrim menu-scrim" style={{ zIndex: 24 }} onClick={() => setMenu(false)} />}
@@ -189,7 +190,7 @@ function Shell({ session, onLogout }) {
           <div className="spring" /><div className="rule" />
           {link(SETTINGS)}
         </nav>
-        <main className={`main page-${page} ${job && (jobId || running) ? "with-operation" : ""}`}><h1 className="sr-only">{current.title()}</h1>{(confirm?.level === 1 || confirm?.inline) && <Confirm spec={confirm} onCancel={() => setConfirm(null)} onGo={() => go(confirm)} />}{updateAvailable && <div className="update-notice" role="status"><span>{t("Update available")}</span><Btn small disabled={!!job && !job.done} onClick={refreshBuild}>{t("Refresh")}</Btn></div>}{live?._disconnected && <p className="notice" role="status">{t("Not connected")}</p>}<Page onLogout={onLogout} /></main>
+        <main className={`main page-${page} ${job && (jobId || running) ? "with-operation" : ""}`}><h1 className="sr-only">{current.title()}</h1>{(confirm?.level === 1 || confirm?.inline) && <Confirm spec={confirm} onCancel={() => setConfirm(null)} onGo={() => go(confirm)} />}{updateAvailable && <div className="update-notice" role="status"><span>{t("Update available")}</span><Btn small disabled={!!job && !job.done} onClick={refreshBuild}>{t("Refresh")}</Btn></div>}{live?._disconnected && <p className="notice" role="status">{t("Not connected")}</p>}{!session.control && <p className="notice" role="status">{t("Monitoring only. Enable hardware control for this device in Remote access on the desktop.")} <strong>{t("Device code: {code}", { code: session.device_code })}</strong></p>}<Page onLogout={onLogout} /></main>
         <nav className="bottom-nav" aria-label={t("Hardware")}>{["dashboard", "cpu", "cu", "gpu", "performance"].map((key, i) => {
           const item = ALL.find((v) => v.key === key);
           return <a href={`#/${key}`} key={key} className={page === key ? "on" : ""} aria-current={page === key ? "page" : undefined}><Icon name={item.icon} /><span>{[t("Dashboard"), "CPU", "CU", "GPU", t("Sensors")][i]}</span></a>;
@@ -219,6 +220,13 @@ function Root() {
     loadStrings(localStorage.getItem("language") || navigator.language).then(refresh);
     return () => removeEventListener("languagechanged", changed);
   }, [refresh]);
+  useEffect(() => {
+    if (!state.authenticated) return undefined;
+    const visibleRefresh = () => { if (!document.hidden) refresh(); };
+    const timer = setInterval(visibleRefresh, 5000);
+    document.addEventListener("visibilitychange", visibleRefresh);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", visibleRefresh); };
+  }, [state.authenticated, refresh]);
   if (state.loading) return null;
   if (!state.authenticated) return <Login onDone={refresh} />;
   return <Shell session={state} onLogout={async () => { await api("logout", {}); refresh(); }} />;

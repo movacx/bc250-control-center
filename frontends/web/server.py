@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import hmac
 import http.cookies
-import http.server
+import io
 import ipaddress
 import json
 import logging
@@ -25,7 +25,12 @@ import sys
 import threading
 import time
 import urllib.parse
+from email.message import Message
+from http import HTTPStatus
 from pathlib import Path
+
+from cheroot.ssl.builtin import BuiltinSSLAdapter
+from cheroot.wsgi import Server as WsgiServer
 
 from bc250cc.application import ApplicationContainer
 from bc250cc.application.system import web_access
@@ -34,6 +39,7 @@ from bc250cc.application.system.workflow_console import (
     TERMINAL_AUTH_ENV,
     set_translator,
 )
+from bc250cc.infrastructure import web_devices, web_network
 from bc250cc.shared.errors import BoundaryError
 from frontends.desktop.i18n import (
     LANGUAGE_OPTIONS,
@@ -51,7 +57,7 @@ from frontends.web.ssh import SSHSession
 logger = logging.getLogger(__name__)
 DIST = Path(__file__).resolve().parent / "dist"
 COOKIE = "bc250_session"
-SESSION_SECONDS = 12 * 3600
+SESSION_SECONDS = 8 * 3600
 MAX_FAILS, LOCK_SECONDS = 5, 300
 MAX_BODY = 64 * 1024
 CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; "
@@ -98,6 +104,7 @@ class Web:
         self.local_sessions: dict[str, SSHSession] = {}
         self.language = normalize_language(self.ctx.config.get("idioma", "auto"))
         self.sessions: dict[str, tuple[str, float]] = {}
+        web_devices.revoke_all()  # Cookies from an earlier server process cannot be resumed.
         self.ssh_sessions: dict[str, SSHSession] = {}
         self.job_owner = ""
         self.job_backend = None
@@ -117,41 +124,53 @@ class Web:
 
     def locked(self, who: str) -> bool:
         now = time.monotonic()
+        self.fails = {key: [t for t in times if now - t < LOCK_SECONDS]
+                      for key, times in self.fails.items() if times and now - times[-1] < LOCK_SECONDS}
+        if len(self.fails) >= 256 and who not in self.fails:
+            return True
         recent = [t for t in self.fails.get(who, []) if now - t < LOCK_SECONDS]
         self.fails[who] = recent
         return len(recent) >= MAX_FAILS
 
-    def login(self, who: str, key: object) -> tuple[str, str] | None:
+    def login(self, who: str, key: object, agent: str = "") -> tuple[str, str] | None:
         with self.lock:
             if self.locked(who):
                 raise PermissionError
-            if not same_key(key, web_access.access_key()):
+            self._sync_key()
+            if not same_key(key, self.key):
                 self.fails[who].append(time.monotonic())
                 return None
             self.fails.pop(who, None)
             now = time.monotonic()
             self.sessions = {s: v for s, v in self.sessions.items() if v[1] > now}
             session, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+            web_devices.register(session, who, agent, SESSION_SECONDS)
             self.sessions[session] = (csrf, now + SESSION_SECONDS)
             return session, csrf
 
+    def _sync_key(self):
+        current = web_access.access_key()
+        if not same_key(self.key, current):
+            self.sessions.clear()
+            web_devices.revoke_all()
+            for collection in (self.ssh_sessions, self.local_sessions):
+                for terminal in collection.values():
+                    terminal.close()
+                collection.clear()
+            self.key = current
+
     def session(self, token: str) -> str | None:
         with self.lock:
-            if not same_key(self.key, web_access.access_key()):
-                self.sessions.clear()
-                for collection in (self.ssh_sessions, self.local_sessions):
-                    for terminal in collection.values():
-                        terminal.close()
-                    collection.clear()
-                self.key = web_access.access_key()
+            self._sync_key()
             csrf, expires = self.sessions.get(token, ("", 0))
-            if expires <= time.monotonic():
+            if expires <= time.monotonic() or not web_devices.session(token):
                 self.sessions.pop(token, None)
                 for collection in (self.ssh_sessions, self.local_sessions):
                     terminal = collection.pop(token, None)
                     if terminal:
                         terminal.close()
-            return csrf if expires > time.monotonic() else None
+                return None
+            return csrf
 
     def job(self) -> dict:
         result = self.job_backend.request("job") if self.job_backend is not None else {"id": 0}
@@ -165,18 +184,32 @@ class Web:
         return result
 
 
-class Handler(http.server.BaseHTTPRequestHandler):
-    server_version = "bc250-web"
-    sys_version = ""
-    protocol_version = "HTTP/1.1"
+class Handler:
+    """Request/controller adapter; Cheroot owns HTTP parsing, TLS and workers."""
 
-    def setup(self) -> None:
-        self.request.settimeout(15)
-        if isinstance(self.request, ssl.SSLSocket):
-            self.request.do_handshake()
-        super().setup()
+    def __init__(self, server, environ):
+        self.server = server
+        self.client_address = (environ.get("REMOTE_ADDR", ""), 0)
+        self.path = environ.get("PATH_INFO", "/") + ("?" + environ["QUERY_STRING"] if environ.get("QUERY_STRING") else "")
+        self.headers = Message()
+        for name, value in environ.items():
+            if name.startswith("HTTP_"):
+                self.headers[name[5:].replace("_", "-")] = str(value)
+        for key in ("CONTENT_TYPE", "CONTENT_LENGTH"):
+            if environ.get(key):
+                self.headers[key.replace("_", "-")] = str(environ[key])
+        self.rfile = environ["wsgi.input"]
+        self.wfile = io.BytesIO()
+        self.response_status = 200
+        self.response_headers = []
 
-    def log_message(self, *args) -> None:  # addresses and paths are personal data: nothing is logged
+    def send_response(self, status):
+        self.response_status = status
+
+    def send_header(self, name, value):
+        self.response_headers.append((name, value))
+
+    def end_headers(self):
         pass
 
     @property
@@ -234,20 +267,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def origin_ok(self) -> bool:
         origin = self.headers.get("Origin")
-        return origin is None or urllib.parse.urlsplit(origin).netloc == self.headers.get("Host")
+        return origin is None or (urllib.parse.urlsplit(origin).netloc == self.headers.get("Host")
+                                  and urllib.parse.urlsplit(origin).scheme == ("https" if self.server.secure else "http"))
 
     def can_type_password(self) -> bool:
         return bool(getattr(self.server, "secure", False)) or is_loopback(self.client_address[0])
 
     # -- routing --------------------------------------------------------------------------------
 
-    def do_GET(self) -> None:
-        self.route("GET")
-
-    def do_POST(self) -> None:
-        self.route("POST")
-
     def route(self, method: str) -> None:
+        if method not in {"GET", "POST"}:
+            return self.fail("Method not allowed", 405)
+        if not web_network.allows(self.client_address[0], self.server.allowed_networks):
+            return self.fail("Access is limited to this computer and its home network.", 403)
+        if int(self.headers.get("Content-Length", "0") or 0) > MAX_BODY:
+            return self.fail("Request body too large", 413)
         if not host_allowed(self.headers.get("Host", "")):
             return self.fail("Bad host", 400)
         url = urllib.parse.urlsplit(self.path)
@@ -274,11 +308,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
         csrf = self.web.session(self.token())
         if path == "/api/session":
             return self.json({"authenticated": csrf is not None, "csrf": csrf,
-                              "password": self.can_type_password(), "encrypted": bool(getattr(self.server, "secure", False))})
+                              "password": self.can_type_password(), "encrypted": bool(getattr(self.server, "secure", False)),
+                              "control": bool(csrf and web_devices.session(self.token()).get("control")),
+                              "device_code": web_devices.identity(self.token())[:8] if csrf else None})
         if csrf is None:
             return self.fail("Authentication required", 401, authenticated=False)
         if method == "POST" and not hmac.compare_digest(self.headers.get("X-CSRF-Token", ""), csrf):
             return self.fail("Invalid CSRF token", 403)
+        if method == "POST" and path not in {"/api/logout", "/api/performance/reset", "/api/job/interrupt", "/api/ssh/close"}:
+            if not web_devices.session(self.token()).get("control"):
+                return self.fail("This device has monitoring access. Enable hardware control in Remote access on the desktop.", 403)
         handler = {"GET": self.GET, "POST": self.POST}[method].get(path)
         if handler is None:
             return self.fail("Not found", 404)
@@ -307,7 +346,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not self.can_type_password():
             return self.fail("HTTPS required", 403)
         try:
-            result = self.web.login(self.client_address[0], self.body().get("key"))
+            result = self.web.login(self.client_address[0], self.body().get("key"), self.headers.get("User-Agent", ""))
         except PermissionError:
             return self.fail("Too many attempts. Try again in a few minutes.", 429)
         if result is None:
@@ -321,6 +360,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def logout(self, _body: dict) -> None:
         with self.web.lock:
             self.web.sessions.pop(self.token(), None)
+            web_devices.revoke(web_devices.identity(self.token()))
             for collection in (self.web.ssh_sessions, self.web.local_sessions):
                 terminal = collection.pop(self.token(), None)
                 if terminal:
@@ -477,21 +517,54 @@ def theme_css() -> str:
             f":root[data-theme=light]{{color-scheme:light;{block('light')}}}")
 
 
-class Server(http.server.ThreadingHTTPServer):
-    daemon_threads = True
+class Server(WsgiServer):
+    """Bounded WSGI server with native TLS; no development HTTP server."""
 
-    def __init__(self, address: tuple[str, int], web: Web):
+    def __init__(self, address: tuple[str, int], web: Web, *, certificate=None, networks=None):
         self.web = web
-        super().__init__(address, Handler)
+        self.secure = certificate is not None
+        self.allowed_networks = list(networks or [])
+        super().__init__(address, self.application, numthreads=4, max=12, request_queue_size=16,
+                         accepted_queue_size=16, accepted_queue_timeout=1, timeout=10, shutdown_timeout=2)
+        self.keep_alive_conn_limit = 12
+        self.max_request_header_size = 16 * 1024
+        self.max_request_body_size = MAX_BODY
+        self.software = "bc250-web"
+        if certificate:
+            cert, key = certificate
+            adapter = BuiltinSSLAdapter(str(cert), str(key))
+            adapter.context.minimum_version = ssl.TLSVersion.TLSv1_2
+            self.ssl_adapter = adapter
+        self.prepare()
+        self.server_address = self.bind_addr
 
-    def server_close(self) -> None:
+    def error_log(self, msg="", level=logging.INFO, traceback=False):
+        # Cheroot messages may contain request bytes or addresses. Keep the
+        # event only; never log credentials, URLs or terminal input.
+        logger.log(level, "HTTPS connection failed")
+
+    def application(self, environ, start_response):
+        handler = Handler(self, environ)
+        try:
+            handler.route(environ["REQUEST_METHOD"])
+        except Exception:
+            handler.response_headers.clear()
+            handler.wfile = io.BytesIO()
+            handler.fail("Request could not be processed", 400)
+        start_response(f"{handler.response_status} {HTTPStatus(handler.response_status).phrase}", handler.response_headers)
+        return [handler.wfile.getvalue()]
+
+    def serve_forever(self):
+        self.serve()
+
+    def shutdown(self):
+        self.stop()
+
+    def server_close(self):
         for collection in (self.web.ssh_sessions, self.web.local_sessions):
             for terminal in collection.values():
                 terminal.close()
-        super().server_close()
-
-    def handle_error(self, request, client_address) -> None:
-        logger.debug("web connection closed")
+        self.stop()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -502,6 +575,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=0, help=f"port (default {web_access.DEFAULT_PORT})")
     parser.add_argument("--http", action="store_true", help="disable local HTTPS (for development or an SSH tunnel)")
     args = parser.parse_args(argv)
+    if os.geteuid() == 0:
+        parser.error("Run the web interface as your ordinary Linux user, never as root.")
     options = web_access.options()
     host = args.host or ("0.0.0.0" if options["lan"] else "127.0.0.1")  # nosec B104 - only when the owner turned it on
     port = args.port or options["port"]
@@ -512,14 +587,11 @@ def main(argv: list[str] | None = None) -> int:
     web = Web()
     set_language(web.language)
     set_translator(tr)
-    server = Server((host, port), web)
-    server.secure = options["tls"] and not args.http
-    if server.secure:
-        cert, key_path = web_access.tls_certificate()
-        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        context.minimum_version = ssl.TLSVersion.TLSv1_2
-        context.load_cert_chain(cert, key_path)
-        server.socket = context.wrap_socket(server.socket, server_side=True, do_handshake_on_connect=False)
+    encrypted = options["tls"] and not args.http
+    if not encrypted and not is_loopback(host):
+        parser.error("Home-network access requires HTTPS. HTTP is available only on loopback.")
+    networks = web_network.home_networks() if not is_loopback(host) else []
+    server = Server((host, port), web, certificate=web_access.tls_certificate() if encrypted else None, networks=networks)
     web_access.write_pid(port)
     print(f"BC250 Control Center web: {'https' if server.secure else 'http'}://{host}:{port}", flush=True)
     if sys.stdout.isatty():  # never into a journal: the key opens hardware controls

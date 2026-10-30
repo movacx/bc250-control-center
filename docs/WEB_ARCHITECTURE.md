@@ -7,10 +7,12 @@ autorizaciones. Node se necesita para compilar React, no para usar la web.
 
 ```mermaid
 flowchart TD
-    Phone["Teléfono · React"] -->|"HTTPS · clave web al iniciar sesión"| Web["Servidor web · usuario Linux normal"]
+    Phone["Teléfono · React"] -->|"HTTPS · clave web al iniciar sesión"| Web["Cheroot HTTPS · redes locales permitidas"]
     Desktop["Escritorio · Acceso remoto"] -->|"URL + QR de emparejamiento"| Phone
+    Desktop -->|"Habilitar control / revocar sesión"| Permissions["Registro local de dispositivos"]
+    Web --> Permissions
     Web -->|"CPU, GPU, CU y sensores"| Read["Servicios de lectura y monitoreo"]
-    Web -->|"Acción permitida + parámetros + confirmación"| Choice{"Transporte de esta sesión"}
+    Web -->|"Permiso de control del dispositivo + acción + parámetros + confirmación"| Choice{"Transporte de esta sesión"}
     Choice -->|"Local · no requiere SSH"| TTY["Terminal privada persistente"]
     Choice -->|"SSH opcional · 127.0.0.1 · host key verificada"| SSH["OpenSSH · cuenta Linux actual"]
     SSH --> TTY
@@ -48,7 +50,10 @@ frontends/
 src/bc250cc/
 ├── application/system/web_access.py  # Fachada del acceso web
 ├── infrastructure/
-│   ├── web_control.py               # Configuración, certificados, procesos y SSH local
+│   ├── web_control.py               # Configuración, procesos y SSH local
+│   ├── web_devices.py               # Sesiones, consulta/control y revocación local
+│   ├── web_network.py               # Subredes domésticas directamente conectadas
+│   ├── web_tls.py                   # Autoridad local y renovación de certificado HTTPS
 │   ├── polkit_session.py            # Ruta sudo exclusiva del worker web; desktop conserva Polkit
 │   └── terminal_repository.py       # Flujos compartidos; registro de salida
 └── _vendor/                         # Generador QR con su licencia

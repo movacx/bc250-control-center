@@ -2,20 +2,39 @@
 
 The web interface runs on the BC-250. It reuses Control Center's application
 services and privileged helpers. It needs no CDN, external font, cloud account,
-Node runtime or additional Python package. Node is used only to rebuild the
-frontend.
+Node runtime. The HTTPS backend uses Cheroot (`requirements-web.txt`), installed
+as a distribution dependency in packaged builds. Node is used only to rebuild
+the frontend.
 
 ## Open it
 
-1. In the desktop app, open **Remote access** and start the web interface.
-2. Enable **Reachable from the local network** and keep **HTTPS** enabled.
-3. Press **Connect with QR**, select the board's address if more than one is
-   listed, and scan from a phone on the same network. The QR contains the access
-   key: treat it like the key shown on screen.
-4. The first visit uses the board's self-signed certificate. Verify that it is
-   your board before accepting the browser's certificate exception. The SHA-256
-   fingerprint is shown in the QR dialog. No public certificate authority or
-   external service is contacted.
+1. In the desktop app, open **Remote access**. All web connection and security
+   controls live in one card; this page no longer starts SSH or previews the TUI.
+2. Start web access and enable **Reachable from the local network**. HTTPS is
+   mandatory on the LAN. The QR appears directly beside the address and key;
+   select the desired address if the board has multiple interfaces.
+3. Use **Save public certificate** to export only this installation's CA
+   certificate. Transfer it privately to the phone and compare the displayed
+   SHA-256 fingerprint before installing it. On Android install a CA certificate;
+   on iOS/iPadOS install the profile and enable full trust in Certificate Trust
+   Settings. This trusts certificates signed by this local authority, so install
+   it only on devices you own and protect the board's private CA key.
+4. Scan the visible QR from the same home network, or enter the address and key.
+   New browser sessions have **monitoring-only** permission. In the desktop's
+   **Browser sessions** list, match the device code displayed on the phone (plus browser/address) and press **Allow
+   hardware control**. This is independent of native administrator authorization.
+5. The owner can downgrade or disconnect each browser, or disconnect all of them.
+   Reconnecting starts in monitoring-only mode. Sessions expire after 30 minutes
+   without requests or eight hours in total; an open monitoring page counts as
+   activity. Restarting the server invalidates its browser sessions.
+
+Each installation creates its own local CA. Private keys have owner-only access;
+only the public CA certificate is exported. A certificate for the web server is
+renewed when it is expiring or the board's LAN addresses change, keeping the same
+CA so the phone does not need to install a new authority. Old self-signed server
+certificates are replaced on the first start with this implementation. Until the
+public CA is trusted on the phone, the browser will still show a warning. This
+application cannot install trust on the phone remotely.
 
 The pairing key travels in the URL fragment, which browsers do not send in HTTP
 requests. The page removes the fragment before sending the key in the login
@@ -33,9 +52,34 @@ HTTP connections cannot log in, run control actions or submit Linux passwords, i
 `lan_password` setting is present. The service does not change firewall rules
 or router forwarding.
 
+## Local-network boundary and server
+
+Cheroot handles HTTP parsing and TLS with 4–12 worker threads, a 16-connection
+accepted queue, 12 keep-alive slots, a 10-second socket timeout, 16 KiB headers
+and 64 KiB request bodies. The server refuses to start as root. HTTP is allowed
+only on loopback. It never silently falls back from HTTPS.
+
+Remote peers must belong to a directly attached RFC1918 home-network subnet.
+Docker/VM links and common VPN links are excluded from discovery. Discovery
+failure leaves only loopback accessible. The policy uses the actual connection
+peer, ignoring forwarded IP headers. An interface/subnet change requires a
+server restart. A custom bridge or VPN named like a physical interface is not
+an authenticated trust boundary; keep router forwarding, public reverse proxies
+and tunnels disabled. Loopback remains available for the owner's local browser.
+This policy is an application check, not a replacement for firewall rules.
+
+The desktop lists up to 16 browser sessions in an owner-only registry. It stores
+hashed session identifiers, address, browser metadata, role and expiry; it never
+stores the session cookie, CSRF token or Linux password. Only the local owner
+can grant control. A browser cannot self-promote by changing a request or the UI.
+Revocation takes effect on its next request; it closes the terminal and may
+interrupt an operation in progress. Downgrading prevents new control requests
+and terminal input; the owner of an already-running job can still stop it.
+
 ## SSH authorization in the browser
 
-Start the board's SSH server from **Remote access** first. Press **SSH** in the
+SSH is optional. If it is needed, enable the board's SSH service through the
+operating system first; the redesigned Remote access page manages only the web. Press **SSH** in the
 Dashboard board card, then **Connect SSH**. Authentication is handled by the installed
 OpenSSH client: an existing permitted SSH key/agent may work, otherwise the
 Linux password is requested in the web dialog. No password is retained for
@@ -145,6 +189,7 @@ Themes and language are browser-local. The shared desktop catalogs supply all
 ## Development and verification
 
 ```sh
+python -m pip install -r requirements-web.txt
 npm ci --prefix frontends/web/app
 npm run build --prefix frontends/web/app
 QT_QPA_PLATFORM=offscreen python -m pytest tests/web -q -o addopts=''

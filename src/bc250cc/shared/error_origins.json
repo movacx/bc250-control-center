@@ -2498,6 +2498,26 @@
    "stop": "CORE-0154",
    "set_autostart": "CORE-0155"
   },
+  "bc250cc/infrastructure/web_devices.py": {
+   "identity": "CORE-0206",
+   "_store": "CORE-0207",
+   "register": "CORE-0208",
+   "session": "CORE-0209",
+   "devices": "CORE-0210",
+   "set_control": "CORE-0211",
+   "revoke": "CORE-0212",
+   "revoke_all": "CORE-0213"
+  },
+  "bc250cc/infrastructure/web_network.py": {
+   "home_networks": "CORE-0214",
+   "allows": "CORE-0215"
+  },
+  "bc250cc/infrastructure/web_tls.py": {
+   "folder": "CORE-0216",
+   "fingerprint": "CORE-0217",
+   "certificate": "CORE-0218",
+   "trust_certificate": "CORE-0219"
+  },
   "bc250cc/platform/capabilities/detector.py": {
    "PlatformCapabilities.__post_init__": "DIST-0083",
    "PlatformCapabilities.detect": "DIST-0084",
@@ -5809,26 +5829,28 @@
    "RemoteAccessPage.__init__": "UI-0633",
    "RemoteAccessPage._label": "UI-0634",
    "RemoteAccessPage._code": "UI-0635",
+   "RemoteAccessPage._button": "UI-0666",
    "RemoteAccessPage.apply_appearance": "UI-0636",
+   "RemoteAccessPage.resizeEvent": "UI-0667",
    "RemoteAccessPage.set_updates_active": "UI-0637",
    "RemoteAccessPage.refresh": "UI-0638",
    "RemoteAccessPage.retranslate_dynamic_copy": "UI-0639",
    "RemoteAccessPage._apply_web": "UI-0656",
-   "RemoteAccessPage._apply": "UI-0640",
-   "RemoteAccessPage._command": "UI-0641",
-   "RemoteAccessPage._render": "UI-0642",
-   "RemoteAccessPage._toggle": "UI-0643",
-   "RemoteAccessPage._preview": "UI-0655",
-   "RemoteAccessPage._copy": "UI-0644",
    "RemoteAccessPage._render_web": "UI-0657",
+   "RemoteAccessPage._render_qr": "UI-0668",
+   "RemoteAccessPage._render_devices": "UI-0669",
+   "RemoteAccessPage._run": "UI-0670",
+   "RemoteAccessPage._device_control": "UI-0671",
+   "RemoteAccessPage._revoke_all": "UI-0672",
    "RemoteAccessPage._toggle_web": "UI-0658",
    "RemoteAccessPage._open_web": "UI-0659",
    "RemoteAccessPage._autostart_web_toggled": "UI-0660",
-   "RemoteAccessPage._copy_web_url": "UI-0661",
    "RemoteAccessPage._web_option": "UI-0663",
    "RemoteAccessPage._new_web_key": "UI-0664",
+   "RemoteAccessPage._copy_web_url": "UI-0661",
    "RemoteAccessPage._copy_web_pin": "UI-0662",
-   "RemoteAccessPage._show_web_qr": "UI-0665"
+   "RemoteAccessPage._copy": "UI-0644",
+   "RemoteAccessPage._save_certificate": "UI-0673"
   },
   "frontends/desktop/pages/settings.py": {
    "settings_stylesheet": "SET-0017",
@@ -6065,6 +6087,12 @@
   "UI-0592",
   "UI-0593",
   "UI-0594",
-  "UI-0608"
+  "UI-0608",
+  "UI-0640",
+  "UI-0641",
+  "UI-0642",
+  "UI-0643",
+  "UI-0655",
+  "UI-0665"
  ]
 }

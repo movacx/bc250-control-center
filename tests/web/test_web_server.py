@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 from bc250cc.application.system import web_access
+from bc250cc.infrastructure import web_devices
 from frontends.web import actions, server
 
 KEY = "ABCD-EFGH"
@@ -95,11 +96,13 @@ class Client:
         except ValueError:
             return response, raw
 
-    def login(self, key=KEY):
+    def login(self, key=KEY, *, control=True):
         response, data = self.call("POST", "/api/login", {"key": key})
         if response.status == 200:
             self.cookie = response.getheader("Set-Cookie").split(";")[0]
             self.csrf = data["csrf"]
+            if control:
+                web_devices.set_control(web_devices.identity(self.cookie.split("=", 1)[1]), True)
         return response, data
 
     def post(self, path, body, **headers):
@@ -280,7 +283,7 @@ def test_failed_inherited_workflow_never_falls_back_to_another_terminal(monkeypa
 def test_http_errors_do_not_log_the_client_address(client, caplog):
     import logging
     with caplog.at_level(logging.DEBUG):
-        client.httpd.handle_error(None, ("192.0.2.123", 1234))
+        client.httpd.error_log("Connection from 192.0.2.123", logging.DEBUG)
     assert "192.0.2.123" not in caplog.text
 
 
@@ -432,3 +435,57 @@ def test_another_browser_cannot_automatically_stop_the_memory_monitor(client):
     client.httpd.web.job_owner = client.cookie.split("=", 1)[1]
     assert other.action("gpu.status") == 409
     assert "interrupt" not in operations
+
+
+def test_new_device_can_monitor_but_cannot_self_grant_hardware_control(client):
+    assert client.login(control=False)[0].status == 200
+    assert client.call("GET", "/api/live")[0].status == 200
+    assert client.call("GET", "/api/session")[1]["control"] is False
+    for route, body in (("/api/action", {"action": "gpu.status"}), ("/api/ssh/start", {}),
+                        ("/api/job/input", {"text": "password"}), ("/api/ssh/input", {"text": "password"})):
+        assert client.post(route, {**body, "control": True, "confirm": True})[0].status == 403
+    assert not client.httpd.web.local_sessions
+    device = web_devices.devices()[0]
+    assert client.call("GET", "/api/session")[1]["device_code"] == device["id"][:8]
+    web_devices.set_control(device["id"], True)
+    assert client.call("GET", "/api/session")[1]["control"] is True
+    assert client.action("gpu.status") == 200
+    web_devices.set_control(device["id"], False)
+    assert client.action("gpu.status") == 403
+
+
+def test_desktop_revocation_invalidates_only_the_selected_browser(client):
+    client.login()
+    other = Client(client.httpd)
+    other.login()
+    web_devices.revoke(web_devices.identity(client.cookie.split("=", 1)[1]))
+    assert client.call("GET", "/api/live")[0].status == 401
+    assert other.call("GET", "/api/live")[0].status == 200
+    web_devices.revoke_all()
+    assert other.call("GET", "/api/live")[0].status == 401
+
+
+def test_revoked_device_cannot_reuse_permission_on_a_new_login(client):
+    client.login()
+    web_devices.revoke_all()
+    client.login(control=False)
+    assert client.action("gpu.status") == 403
+
+
+def test_wrong_origin_scheme_is_rejected_even_on_same_host(client):
+    client.login()
+    assert client.post("/api/logout", {}, Origin=f"https://127.0.0.1:{client.port}")[0].status == 403
+
+
+def test_network_policy_ignores_proxy_headers(client, monkeypatch):
+    client.login()
+    monkeypatch.setattr(server.web_network, "allows", lambda _peer, _networks: False)
+    assert client.call("GET", "/api/live", headers={"X-Forwarded-For": "192.168.0.25"})[0].status == 403
+
+
+def test_rotated_key_allows_a_fresh_monitoring_login_without_old_permissions(client):
+    client.login()
+    key = web_access.access_key(renew=True)
+    assert client.login(key, control=False)[0].status == 200
+    assert client.call("GET", "/api/session")[1]["authenticated"] is True
+    assert client.action("gpu.status") == 403

@@ -38,6 +38,7 @@ depend = python
 depend = bash
 depend = python-pyqt6
 depend = python-psutil
+depend = python-cheroot>=11.1.2
 depend = qt6-svg
 depend = polkit
 depend = jq

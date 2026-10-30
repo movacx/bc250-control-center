@@ -16,7 +16,6 @@ import os
 import pwd
 import secrets
 import shlex
-import shutil
 import signal
 import socket
 import ssl
@@ -107,25 +106,8 @@ def ssh_target() -> dict:
 
 
 def tls_certificate() -> tuple[Path, Path]:
-    """A local certificate: no account, external service or Python dependency."""
-    folder = app_config_dir() / "web-tls"
-    folder.mkdir(mode=0o700, parents=True, exist_ok=True)
-    cert, key = folder / "certificate.pem", folder / "private.pem"
-    if not cert.is_file() or not key.is_file():
-        openssl = shutil.which("openssl")
-        if not openssl:
-            raise ActionNeeded("HTTPS needs OpenSSL. Install openssl and start the web interface again.")
-        result = subprocess.run([openssl, "req", "-x509", "-newkey", "rsa:2048", "-sha256", "-days", "365",
-                                 "-nodes", "-subj", "/CN=BC250 Control Center", "-addext",
-                                 "subjectAltName=DNS:localhost,IP:127.0.0.1" + "".join(f",IP:{ip}" for ip in addresses()),
-                                 "-keyout", str(key), "-out", str(cert)], capture_output=True, timeout=30, check=False)
-        if result.returncode:
-            key.unlink(missing_ok=True)
-            cert.unlink(missing_ok=True)
-            raise BoundaryError(ErrorDetail("BC250-DATA-001", "Could not create the local HTTPS certificate.",
-                                             safe_next_step="Check the local certificate folder and OpenSSL."))
-        key.chmod(0o600)
-    return cert, key
+    from bc250cc.infrastructure.web_tls import certificate
+    return certificate()
 
 
 def pairing_svg(url: str) -> bytes:
@@ -193,7 +175,10 @@ def status() -> dict:
     opts = options()
     host = sorted(addresses())
     scheme = "https" if opts["tls"] else "http"
-    return {**opts, "running": _listening(opts["port"]), "key": access_key(), "addresses": host,
+    from bc250cc.infrastructure import web_devices, web_network, web_tls
+    return {"devices": web_devices.devices(), "networks": web_network.home_networks() if opts["lan"] else [],
+            "trust_fingerprint": web_tls.fingerprint(web_tls.folder() / "authority.crt"),
+            **opts, "running": _listening(opts["port"]), "key": access_key(), "addresses": host,
             "urls": [f"{scheme}://{ip}:{opts['port']}" for ip in host] if opts["lan"] else [],
             "local_url": f"{scheme}://127.0.0.1:{opts['port']}", "autostart": autostart_state(),
             "tls_fingerprint": certificate_fingerprint() if opts["tls"] else ""}
@@ -202,6 +187,9 @@ def status() -> dict:
 def start() -> dict:
     if _listening(options()["port"]):
         return {"started": False}
+    import importlib.util
+    if importlib.util.find_spec("cheroot") is None:
+        raise ActionNeeded("The web interface requires Cheroot. Install requirements-web.txt with this Python interpreter, or the distribution's python3-cheroot package.")
     access_key()
     if autostart_state()["enabled"]:
         _systemctl("start", UNIT_FILE_NAME)

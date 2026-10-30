@@ -4,30 +4,26 @@ from bc250cc.infrastructure import remote_access
 from frontends.desktop.pages.remote_access import RemoteAccessPage
 
 
-def _state(**changes):
-    state = {"systemd": True, "unit": "sshd.service", "active": False, "enabled": False,
-             "port": 22, "user": "deck", "addresses": ["192.168.1.40"]}
-    return {**state, **changes}
+def test_remote_access_is_one_web_workspace(qtbot):
+    from PyQt6.QtWidgets import QPushButton
 
-
-def test_the_page_offers_the_switch_and_the_command_to_type(qtbot):
+    from frontends.desktop.components.page_widgets import SectionCard
     page = RemoteAccessPage()
     qtbot.addWidget(page)
-    page._apply(_state())
-    assert page.switch_button.text() == "Turn on remote access" and not page.switch_button.isHidden()
-    assert page.command_box.text() == "ssh deck@192.168.1.40"
-    page._apply(_state(active=True, port=2222))
-    assert page.switch_button.text() == "Turn off remote access"
-    assert page.command_box.text() == "ssh -p 2222 deck@192.168.1.40"
+    assert len(page.findChildren(SectionCard)) == 1
+    assert not hasattr(page, "command_box")
+    assert not any("SSH" in button.text() or "terminal" in button.text().lower() for button in page.findChildren(QPushButton))
+    assert not hasattr(page, "web_qr_button")
 
 
-def test_without_a_server_or_systemd_there_is_no_switch(qtbot):
+def test_web_controls_stay_visible_when_stopped(qtbot):
     page = RemoteAccessPage()
     qtbot.addWidget(page)
-    page._apply(_state(unit=""))
-    assert page.switch_button.isHidden()
-    page._apply(_state(systemd=False))
-    assert page.switch_button.isHidden()
+    page._apply_web({"running": False, "key": "ABCD-EFGH", "tls": True})
+    assert not page.web_qr_image.isHidden()
+    assert page.web_qr_image.pixmap().isNull()
+    assert page.web_switch_button.text() == "Start web access"
+    assert page.web_pin_box.text() == "ABCD-EFGH"
 
 
 def test_addresses_skip_container_and_loopback_links(monkeypatch):
@@ -63,17 +59,16 @@ def test_turning_it_on_without_a_server_says_what_to_install(monkeypatch):
         remote_access.set_enabled(True)
 
 
-def test_the_page_has_no_status_pill_and_previews_every_screenshot(qtbot):
-    from frontends.desktop.components.tui_preview_dialog import SCREENSHOTS, SHOTS, TuiPreviewDialog
-
+def test_device_control_and_revocation_are_owner_actions(qtbot, monkeypatch):
     page = RemoteAccessPage()
     qtbot.addWidget(page)
-    assert page.card.status is None
-    assert all((SCREENSHOTS / name).exists() for name, _caption in SHOTS)
-    dialog = TuiPreviewDialog()
-    qtbot.addWidget(dialog)
-    dialog.next.click()
-    assert "2/5" in dialog.caption.text()
-    dialog.previous.click()
-    dialog.previous.click()
-    assert "5/5" in dialog.caption.text()
+    calls = []
+    monkeypatch.setattr(page, "_run", lambda _name, work: work())
+    monkeypatch.setattr("frontends.desktop.pages.remote_access.web_access.set_control", lambda d, a: calls.append((d, a)))
+    monkeypatch.setattr("frontends.desktop.pages.remote_access.web_access.revoke", lambda d: calls.append(d))
+    page._apply_web({"devices": [{"id": "device", "address": "192.168.0.22", "agent": "Phone", "control": False}]})
+    from PyQt6.QtWidgets import QPushButton
+    buttons = page.findChildren(QPushButton)
+    next(b for b in buttons if b.text() == "Allow hardware control").click()
+    next(b for b in buttons if b.text() == "Disconnect").click()
+    assert calls == [("device", True), "device"]

@@ -97,6 +97,14 @@ All BIOS files are downloaded from one pinned commit per source, verified agains
 
 ## 3. External installs
 
+**Web server runtime:** [Cheroot](https://github.com/cherrypy/cheroot) (BSD-3-Clause;
+minimum 11.1.2, below 12), with its upstream dependencies
+[jaraco.functools](https://github.com/jaraco/jaraco.functools) (MIT) and
+[more-itertools](https://github.com/more-itertools/more-itertools) (MIT).
+Installed separately by the distribution or `requirements-web.txt`; their code
+is not vendored or embedded in the frontend assets. Cheroot provides the bounded
+WSGI HTTP/TLS server. Upstream packages retain their own license notices.
+
 **[bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix)**. GFX1013 compute queue, kernel and Mesa/RADV stack. External install; Control Center updates official `main`, applies only the reviewed Fedora 44 RPM 6 source-path compatibility repair when its exact upstream line is present, and runs the complete upstream lifecycle after local safety checks.
 
 **[linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250)** (GPL-2.0). Matched Arch and CachyOS kernel and Mesa/RADV with GFX1013 async-compute fixes, plus the Proton BC-250 builds (proton-cachyos-native-bc250, protonge-latest-bc250, proton-cachyos-slr-bc250), added as an opt-in unsigned package repository. The BC-250 toolkit by redbeard1083 (https://github.com/redbeard1083/bc250-toolkit) was the reference for the Proton packages. Not enabled on Manjaro.

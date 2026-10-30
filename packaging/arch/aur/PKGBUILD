@@ -14,6 +14,7 @@ depends=(
   'python'
   'python-pyqt6'
   'python-psutil'
+  'python-cheroot>=11.1.2'
   'qt6-svg'
   'polkit'
   'jq'
