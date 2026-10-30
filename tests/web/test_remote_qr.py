@@ -21,3 +21,15 @@ def test_remote_access_renders_a_local_qr_and_certificate_fingerprint(qtbot, mon
     monkeypatch.setattr(QDialog, "exec", inspect)
     page._show_web_qr()
     assert seen == [True]
+
+
+def test_pairing_qr_is_not_generated_for_plaintext_network_access(qtbot, monkeypatch):
+    page = RemoteAccessPage()
+    qtbot.addWidget(page)
+    page._web_state = {"urls": ["http://192.0.2.1:8250"], "key": "TEST-PAIR", "tls": False}
+
+    def forbidden(_dialog):
+        raise AssertionError("network pairing must use HTTPS")
+
+    monkeypatch.setattr(QDialog, "exec", forbidden)
+    page._show_web_qr()

@@ -346,6 +346,8 @@ class RemoteAccessPage(QWidget):
 
         self.web_open_button.setVisible(running)
         self.web_qr_button.setVisible(running and bool(urls))
+        self.web_qr_button.setEnabled(bool(state.get("tls", True)))
+        self.web_qr_button.setToolTip("" if state.get("tls", True) else tr("HTTPS required"))
 
         all_urls = ([local_url] if local_url else []) + urls
         self.web_url_box.setText(" · ".join(all_urls) if all_urls else "–")
@@ -425,7 +427,7 @@ class RemoteAccessPage(QWidget):
 
     def _show_web_qr(self) -> None:
         urls = self._web_state.get("urls") or []
-        if not urls:
+        if not urls or not self._web_state.get("tls", True):
             return
         dialog = QDialog(self.window())
         dialog.setWindowTitle(tr("Connect with QR"))
