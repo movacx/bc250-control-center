@@ -56,9 +56,10 @@ from frontends.tui.i18n import tr, tr_format
 from frontends.tui.pages import build_pages
 from frontends.tui.pages.cpu import said
 from frontends.tui.runtime import Context, record_metrics
+from frontends.web.gddr6 import Gddr6Page
 
 IDLE_SECONDS = 20  # sampling stops this long after the last request
-PAGES = ("dashboard", "cpu", "gpu", "cu", "fans")
+PAGES = ("dashboard", "cpu", "gpu", "cu", "fans", "gddr6")
 
 
 class Live:
@@ -67,6 +68,9 @@ class Live:
     def __init__(self, ctx: Context):
         self.ctx, self.recorder = ctx, PerformanceRecorder()
         self.pages = build_pages()
+        self.pages["gddr6"] = Gddr6Page()
+        self.monitor_job = lambda: {}
+        self.gddr6 = {"active": False, "sample": {}}
         self._wanted = 0.0
         self._thread: threading.Thread | None = None
         self._cache: dict[str, tuple[float, object]] = {}
@@ -86,7 +90,16 @@ class Live:
             try:
                 metrics = ctx.service.metricas_tiempo_real()
                 metrics = metrics if isinstance(metrics, dict) else {}
+                job = self.monitor_job()
+                active = job.get("kind") == "gddr6.monitor" and not job.get("done", True)
+                sample = job.get("sample") or {} if active and job.get("sample_age", 999) <= 15 else {}
+                source = "web" if active else ""
+                stamp, status = self._cache.get("gddr6", (0, {}))
+                external = (status or {}).get("external") or {}
+                if not active and time.monotonic() - stamp <= 15 and external.get("state") == "active":
+                    sample, source = external, "bc250-telemetry"
                 readings = self.recorder.read(metrics)
+                self.gddr6 = {"active": active or source == "bc250-telemetry", "sample": sample, "source": source}
                 with ctx.lock:
                     ctx.metrics, ctx.metrics_error = metrics, ""
                     record_metrics(ctx, metrics)
@@ -98,7 +111,7 @@ class Live:
 
     def live(self) -> dict:
         with self.ctx.lock:
-            return {"metrics": self.ctx.metrics, "error": self.ctx.metrics_error,
+            return {"metrics": self.ctx.metrics, "gddr6": self.gddr6, "error": self.ctx.metrics_error,
                     "history": {name: list(values) for name, values in self.ctx.history.items()}}
 
     def page(self, key: str) -> dict:
@@ -283,15 +296,20 @@ def _sensors(recorder: PerformanceRecorder, query: dict) -> dict:
                      "min": text(entry.minimum), "avg": text(entry.average), "max": text(entry.maximum),
                      "ticked": reading.key in ticked})
     now, traces = time.monotonic(), []
-    for entry in shown:
+    for entry in (log.entries[key] for key in log.order if key in log.entries):
         values = [value for _moment, value in entry.trace]
         if entry.reading.key in ticked and values:
             unit = entry.reading.unit
             chart = _chart([(sensor_label(entry.reading), values)], [now - moment for moment, _v in entry.trace],
                            unit, False, unit == "B/s")
             traces.append({"key": entry.reading.key, "label": sensor_label(entry.reading), "value": _shower(unit, unit == "B/s")(values[-1]),
-                           "chart": chart})
-    return {"rows": rows, "traces": traces, "ticked": sorted(ticked), "count": tr_format("{shown} of {count} sensors", shown=len(shown),
+                           "chart": chart, "fresh": now - entry.trace[-1][0] <= 15,
+                           "min": _shower(unit, unit == "B/s")(entry.minimum) if entry.minimum is not None else "--",
+                           "avg": _shower(unit, unit == "B/s")(entry.average) if entry.average is not None else "--",
+                           "max": _shower(unit, unit == "B/s")(entry.maximum) if entry.maximum is not None else "--"})
+    return {"rows": rows, "traces": traces,
+            "missing_traces": [{"key": key, "label": sensor_label(log.entries[key].reading) if key in log.entries else key}
+                               for key in sorted(ticked - {item["key"] for item in traces})], "ticked": sorted(ticked), "count": tr_format("{shown} of {count} sensors", shown=len(shown),
                                                               count=len(log.order)),
             "kinds": [{"index": index, "title": tr(label)} for index, (label, _k) in enumerate(KIND_FILTERS)],
             "layouts": [{"key": item.key, "title": tr(item.title), "hint": tr(item.hint)} for item in SENSOR_VIEWS]}

@@ -267,7 +267,15 @@ def pkexec_argv(
     values = [str(program or ""), *(str(item) for item in arguments)]
     if not values[0] or any("\x00" in value for value in values):
         raise ValueError("Invalid privileged command")
-    return [*pkexec_prefix(executor, prepare_agent=prepare_agent), *values]
+    prefix = pkexec_prefix(executor, prepare_agent=prepare_agent)
+    if os.environ.get(WEB_SUDO_AUTH_ENV) == "1" and Path(values[0]).name in {
+        "bc250-gddr6-temp-helper", "bc250-gddr6-temp-reader",
+    }:
+        # Installed GDDR6 helpers predate SUDO_UID support. Supply their expected
+        # identity through sudo's checked environment-assignment syntax. The
+        # current UID is fixed by the OS, never provided by a browser request.
+        prefix.append(f"PKEXEC_UID={os.getuid()}")
+    return [*prefix, *values]
 
 
 def normalize_polkit_error(command: Sequence[object], detail: object) -> str:

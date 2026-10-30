@@ -44,6 +44,11 @@ class SSHSession:
         self._token = ""
         self._job_id = 0
         self._active = False
+        self._kind = ""
+        self._sample = {}
+        self._sample_at = 0.0
+        self._sample_buffer = b""
+        self._monitor_stopped = False
         self._directory = tempfile.TemporaryDirectory(prefix="bc250-web-tty-")
         if local:
             argv = [sys.executable, "-u", "-m", "frontends.web.ssh_worker"]
@@ -73,6 +78,18 @@ class SSHSession:
         target = self.job_console if self._active else self.console
         if target is not None and data:
             target._feed(data)
+        if self._active and self._kind == "gddr6.monitor":
+            self._sample_buffer += data
+            while b"\n" in self._sample_buffer:
+                line, self._sample_buffer = self._sample_buffer.split(b"\n", 1)
+                try:
+                    sample = json.loads(line[line.find(b"{"):].strip())
+                except ValueError:
+                    continue
+                if isinstance(sample, dict) and isinstance(sample.get("chips"), list):
+                    self._sample, self._sample_at = sample, time.monotonic()
+            if len(self._sample_buffer) > 65536:
+                self._sample_buffer = b""
 
     def _read(self) -> None:
         pending = b""
@@ -149,7 +166,7 @@ class SSHSession:
                 if answer["id"] in (None, identifier):
                     result = answer["result"]
                     with self._state_lock:
-                        self.job_console.finish(bool(result.get("ok")), result.get("error", ""))
+                        self.job_console.finish(bool(result.get("ok")) or (self._monitor_stopped and result.get("exit_code") in (-2, 130)), result.get("error", ""))
                         self._active = False
                     break
 
@@ -166,6 +183,7 @@ class SSHSession:
         if op == "interrupt":
             with self._state_lock:
                 if self._active:
+                    self._monitor_stopped = self._kind == "gddr6.monitor"
                     self.console.interrupt()
             return {"ok": True}
         if op != "action" or values.get("action") not in ACTIONS:
@@ -174,6 +192,9 @@ class SSHSession:
             if not self.ready or self.closed or self._active:
                 return {"ok": False, "error": "Terminal unavailable or busy"}
             self._job_id += 1
+            self._kind = values["action"]
+            self._sample, self._sample_at, self._sample_buffer = {}, 0.0, b""
+            self._monitor_stopped = False
             self.job_console = Console(str(values.get("title", ""))[:80], 24, 100)
             self._active = True
             threading.Thread(target=self._execute, args=(values,), name="bc250-web-action", daemon=True).start()
@@ -187,7 +208,9 @@ class SSHSession:
         text = "\n".join("".join(run[0] for run in line).rstrip() for line in lines)
         waiting = self._active and bool(re.search(r"BC250 Linux password:\s*$", text))
         interactive = self._active and (waiting or bool(re.search(r"[:?：？]\s*$|\[[yYnN/]+\]\s*$", text)))
-        return {"id": self._job_id, "label": console.label, "done": console.done.is_set(),
+        return {"id": self._job_id, "kind": getattr(self, "_kind", ""),
+                "sample": getattr(self, "_sample", {}), "sample_age": time.monotonic() - getattr(self, "_sample_at", 0.0),
+                "label": console.label, "done": console.done.is_set(),
                 "ok": console.succeeded if console.done.is_set() else None, "message": "",
                 "text": redact_machine(text), "waiting": waiting, "interactive": interactive}
 

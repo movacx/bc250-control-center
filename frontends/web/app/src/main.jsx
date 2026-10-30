@@ -70,7 +70,7 @@ function Activity({ job, onClose, canType }) {
   const send = async (e) => { e.preventDefault(); const value = text; setText(""); await api("job/input", { text: value }); };
   const status = job.done ? (job.ok ? t("Done") : t("Failed")) : job.waiting ? t("Administrator password") : t("Running…");
   const tone = job.done ? (job.ok ? "green" : "red") : "blue";
-  if (!expanded) return <div className="operation-minimized"><button className="operation-open" onClick={() => setExpanded(true)} aria-expanded={false}><span className={`pill ${tone}`}>{status}</span><span>{job.label}</span><Icon name="expand_gray" /></button>{job.done && <button className="ghost" aria-label={t("Close")} onClick={onClose}><Icon name="close_gray" /></button>}</div>;
+  if (!expanded) return <div className="operation-minimized"><button className="operation-open" onClick={() => setExpanded(true)} aria-expanded={false}><span className={`pill ${tone}`}>{status}</span><span>{job.label}</span><Icon name="expand_gray" /></button>{!job.done && job.kind === "gddr6.monitor" && <button className="ghost" aria-label={t("Stop monitoring")} onClick={() => api("job/interrupt", {})}><Icon name="stop_red" /></button>}{job.done && <button className="ghost" aria-label={t("Close")} onClick={onClose}><Icon name="close_gray" /></button>}</div>;
   return <Modal onClose={() => setExpanded(false)}><section className="dialog operation-dialog" role="dialog" aria-modal="true" aria-label={job.label}>
     <header><div className="dialog-heading"><span className={`dialog-symbol ${tone}`}><Icon name={job.done ? (job.ok ? "check_green" : "warning_orange") : "nav_performance"} /></span><div><span className="dialog-caption">{t("Hardware")}</span><h3>{job.label}</h3></div></div>
       <div className="operation-status"><span className={`pill ${tone}`} role="status">{status}</span></div></header>
@@ -104,13 +104,14 @@ function Confirm({ spec, onCancel, onGo }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const review = useRef(null);
-  useEffect(() => { if (spec.level === 1) { review.current?.scrollIntoView({ block: "start" }); review.current?.focus({ preventScroll: true }); } }, [spec]);
+  const inline = spec.level === 1 || spec.inline === true;
+  useEffect(() => { if (inline) { review.current?.scrollIntoView({ block: "start" }); review.current?.focus({ preventScroll: true }); } }, [spec, inline]);
   const go = async () => {
     setBusy(true);
     const result = await onGo();
     if (!result.ok) { setError(t(result.error || "Not detected")); setBusy(false); }
   };
-  const content = <div ref={review} tabIndex={-1} className={spec.level === 1 ? "inline-review" : "dialog"} role={spec.level === 1 ? "region" : "alertdialog"} aria-label={spec.title} aria-modal={spec.level === 1 ? undefined : true}>
+  const content = <div ref={review} tabIndex={-1} className={inline ? "inline-review" : "dialog"} role={inline ? "region" : "alertdialog"} aria-label={spec.title} aria-modal={inline ? undefined : true}>
       <header><div className="dialog-heading"><span className={`dialog-symbol ${spec.level === 2 ? "orange" : "blue"}`}><Icon name="warning_orange" /></span><div><span className="dialog-caption">{t("Confirm")}</span><h3>{spec.title}</h3></div></div></header>
       <section>{spec.body && <p style={{ margin: 0 }}>{spec.body}</p>}
         {spec.summary?.length > 0 && <dl className="dialog-summary">{spec.summary.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
@@ -119,7 +120,7 @@ function Confirm({ spec, onCancel, onGo }) {
       <footer><Btn disabled={busy} onClick={onCancel}>{t("Cancel")}</Btn>
         <Btn kind={spec.level === 2 ? "danger" : "primary"} disabled={busy} onClick={go}>{spec.go || t("Apply")}</Btn></footer>
     </div>;
-  return spec.level === 1 ? content : <Modal onClose={() => { if (!busy) onCancel(); }}>{content}</Modal>;
+  return inline ? content : <Modal onClose={() => { if (!busy) onCancel(); }}>{content}</Modal>;
 }
 
 function Shell({ session, onLogout }) {
@@ -133,6 +134,7 @@ function Shell({ session, onLogout }) {
   const [again, setAgain] = useState(0);
   const [sshOpen, setSshOpen] = useState(false);
   useEffect(() => { document.querySelector("main")?.scrollTo(0, 0); }, [page]);
+  useEffect(() => { api("job").then((current) => { if (current.id && !current.done) { setJob(current); setJobId((n) => n + 1); } }); }, []);
   const ssh = usePoll("ssh", 3000, 0);
   const live = usePoll("live", 1000, 0);
   const release = usePoll("version", 15000, 0);
@@ -162,21 +164,21 @@ function Shell({ session, onLogout }) {
   /** Every hardware change goes through here: the spec names the closed action, the dialog asks. */
   const go = async (spec) => {
     const result = await api("action", { action: spec.action, title: spec.title, params: spec.params || {}, confirm: spec.level ? true : undefined });
-    if (result.ok) { setConfirm(null); setJob({ label: spec.title, text: "", done: false }); setJobId((n) => n + 1); }
+    if (result.ok) { setConfirm(null); setJob({ label: spec.title, kind: spec.action, text: "", done: false }); setJobId((n) => n + 1); }
     return result;
   };
   const act = (spec) => {
-    if (job && !job.done) { setToast({ tone: "bad", text: t("Another hardware action is still running.") }); return; }
+    if (job && !job.done && job.kind !== "gddr6.monitor") { setToast({ tone: "bad", text: t("Another hardware action is still running.") }); return; }
     if (spec.level) setConfirm(spec);
     else go(spec).then((r) => { if (!r.ok) setToast({ tone: "bad", text: t(r.error) }); });
   };
-  const running = job && !job.done;
+  const running = job && !job.done && job.kind !== "gddr6.monitor";
   const current = ALL.find((item) => item.key === page);
   const Page = current.page;
   const link = (item) => <a key={item.key} className={`nav ${page === item.key ? "on" : ""}`} href={`#/${item.key}`} aria-current={page === item.key ? "page" : undefined}><Icon name={item.icon} /><span>{item.title()}</span></a>;
   const name = t("BC250 Control Center").replace("BC250", "").trim();
   return (
-    <App.Provider value={{ live: live?.metrics ? live : null, history: live?.history || {}, act, again, running, toast: setToast, session, ssh, openSsh: () => setSshOpen(true) }}>
+    <App.Provider value={{ live: live?.metrics ? live : null, history: live?.history || {}, act, again, running, job, cancelReview: () => setConfirm(null), stopJob: () => api("job/interrupt", {}), toast: setToast, session, ssh, openSsh: () => setSshOpen(true) }}>
       <div className="shell">
         <header className="topbar"><a className="mobile-brand" aria-label={`BC250 · ${t("Dashboard")}`} href="#/dashboard"><img src="logo.png" alt="" /><strong>BC250</strong></a><span className="topbar-title">{current.title()}</span><button className="ghost" aria-label={t("Menu")} aria-expanded={menu} onClick={() => setMenu(!menu)}><Icon name="nav_settings" /></button></header>
         {menu && <div className="scrim menu-scrim" style={{ zIndex: 24 }} onClick={() => setMenu(false)} />}
@@ -187,13 +189,13 @@ function Shell({ session, onLogout }) {
           <div className="spring" /><div className="rule" />
           {link(SETTINGS)}
         </nav>
-        <main className={`main page-${page} ${job && (jobId || running) ? "with-operation" : ""}`}><h1 className="sr-only">{current.title()}</h1>{confirm?.level === 1 && <Confirm spec={confirm} onCancel={() => setConfirm(null)} onGo={() => go(confirm)} />}{updateAvailable && <div className="update-notice" role="status"><span>{t("Update available")}</span><Btn small disabled={running} onClick={refreshBuild}>{t("Refresh")}</Btn></div>}{live?._disconnected && <p className="notice" role="status">{t("Not connected")}</p>}<Page onLogout={onLogout} /></main>
+        <main className={`main page-${page} ${job && (jobId || running) ? "with-operation" : ""}`}><h1 className="sr-only">{current.title()}</h1>{(confirm?.level === 1 || confirm?.inline) && <Confirm spec={confirm} onCancel={() => setConfirm(null)} onGo={() => go(confirm)} />}{updateAvailable && <div className="update-notice" role="status"><span>{t("Update available")}</span><Btn small disabled={!!job && !job.done} onClick={refreshBuild}>{t("Refresh")}</Btn></div>}{live?._disconnected && <p className="notice" role="status">{t("Not connected")}</p>}<Page onLogout={onLogout} /></main>
         <nav className="bottom-nav" aria-label={t("Hardware")}>{["dashboard", "cpu", "cu", "gpu", "performance"].map((key, i) => {
           const item = ALL.find((v) => v.key === key);
           return <a href={`#/${key}`} key={key} className={page === key ? "on" : ""} aria-current={page === key ? "page" : undefined}><Icon name={item.icon} /><span>{[t("Dashboard"), "CPU", "CU", "GPU", t("Sensors")][i]}</span></a>;
         })}</nav>
       </div>
-      {confirm && confirm.level !== 1 && <Confirm spec={confirm} onCancel={() => { setConfirm(null); confirm.onCancel?.(); }} onGo={() => go(confirm)} />}
+      {confirm && confirm.level !== 1 && !confirm.inline && <Confirm spec={confirm} onCancel={() => { setConfirm(null); confirm.onCancel?.(); }} onGo={() => go(confirm)} />}
       {(job && (jobId || running)) && <Activity job={job} canType={session.password} onClose={() => { setJob(null); setJobId(0); }} />}
       {sshOpen && <SSH onClose={() => setSshOpen(false)} canType={session.password} />}
       {toast && <div className={`toast ${toast.tone}`} role="status"><Icon name={toast.tone === "ok" ? "check_green" : "warning_orange"} /><span>{toast.text}</span><button className="ghost" aria-label={t("Close")} onClick={() => setToast(null)}><Icon name="close_gray" /></button></div>}

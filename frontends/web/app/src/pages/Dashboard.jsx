@@ -1,4 +1,5 @@
 import { memory, heat, num, pick, t, useApp, usePage } from "../lib.jsx";
+import Gddr6 from "../Gddr6.jsx";
 import { Btn, Card, Icon, Read } from "../ui.jsx";
 
 const dark = () => document.documentElement.dataset.theme === "dark" || (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
@@ -20,9 +21,6 @@ export default function Dashboard() {
   const duty = Number.isInteger(pump.pwm) ? Math.round(pump.pwm * 100 / 255) : undefined;
   const busy = pick(gpu.usage_percent, gpu.compute_busy_percent);
   const usage = cpu.per_core_percent || [], clocks = cpu.per_core_frequency_mhz || [];
-  const sample = data?.sample || {}, status = data?.gddr6 || {};
-  const chips = sample.chips || status.external?.chips || [];
-  const average = pick(sample.average_c, status.external?.average_c);
   const rails = [["Vin", sensors.vrm_input_voltage_v, "V", 2], [t("CPU voltage"), sensors.vrm_cpu_voltage_v, "V", 3], [t("GPU voltage"), sensors.vrm_gpu_voltage_v, "V", 3],
     [t("CPU current"), sensors.vrm_cpu_current_a, "A", 1], [t("GPU current"), sensors.vrm_gpu_current_a, "A", 1], [t("Total board power"), sensors.vrm_total_power_w, "W", 1]];
   const shown = (label, value, unit, digits, extra = {}) => value !== undefined && value !== null ? <Read label={label} value={num(value, digits)} unit={unit} {...extra} /> : <Read label={label} value={t("Not detected")} />;
@@ -81,10 +79,7 @@ export default function Dashboard() {
           <div className="row" style={{ marginTop: 12 }}><Btn kind="soft" wide onClick={() => (location.hash = "#/fans")}>{t("Fan Control")}</Btn></div>
         </section>
       </div>
-      <Card title={t("GDDR6 memory temperature")} pill={average != null ? `${num(average, 1)} °C` : undefined}>
-        {average != null ? <div className="tiles">{chips.slice(0, 8).map((chip) => <div className="tile" key={chip.chip}><small>Chip {chip.chip}</small><strong>{num(chip.temperature_c, 1)} °C</strong></div>)}</div>
-          : <p className="note">{sample.error || t("Waiting for data…")}</p>}
-      </Card>
+      <Gddr6 />
       <Card title={t("Power")}>
         {rails.every(([, value]) => value == null) ? <p className="note">{t("Not detected")}</p>
           : <div className="tiles">{rails.map(([label, value, unit, digits]) => <div className="tile" key={label}><small>{label}</small><strong>{num(value, digits)} {unit}</strong></div>)}</div>}

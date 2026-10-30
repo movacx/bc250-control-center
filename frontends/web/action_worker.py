@@ -48,7 +48,7 @@ class InheritedTerminal:
                                     status_file=request.status_file, log_file=request.log_file)
 
     def shell(self, command):
-        if self.run(["bash", "-c", command]):
+        if self.run(list(command) if isinstance(command, (list, tuple)) else ["bash", "-c", command]):
             raise RuntimeError("The hardware workflow did not complete successfully.")
         return ""
 
@@ -84,7 +84,7 @@ def main() -> int:
         return 0
     except (Exception, KeyboardInterrupt) as error:
         print(describe_error(error) if isinstance(error, Exception) else "Operation cancelled.", flush=True)
-        return 1
+        return 130 if isinstance(error, KeyboardInterrupt) else 1
 
 
 if __name__ == "__main__":

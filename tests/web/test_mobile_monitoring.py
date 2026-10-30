@@ -31,5 +31,6 @@ def test_filtering_does_not_drop_selected_sensors_outside_the_visible_list():
     data = _sensors(recorder, {"q": "Visible"})
     assert [row["key"] for row in data["rows"] if "key" in row] == ["cpu/usage"]
     assert set(data["ticked"]) == {"cpu/usage", "hwmon/k10temp/temp1"}
+    assert {trace["key"] for trace in data["traces"]} == {"cpu/usage", "hwmon/k10temp/temp1"}
     assert data["traces"][0]["key"] == "cpu/usage"
     assert data["traces"][0]["chart"]["unit"] == "%"

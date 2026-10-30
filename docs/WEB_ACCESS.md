@@ -92,16 +92,21 @@ headings and the CU overview card are omitted. Secondary and experimental contro
 expandable. CU rows show five WGP pairs each and warn about engine imbalance. Selecting a preset or toggling a pair only edits the draft; applying
 still needs confirmation.
 
-The voltage laboratory expands an in-page workspace:
-Gentle, Moderate, High and Custom modes; a scrollable table of active points;
-and Frequency, Current, Selected and delta-from-packaged-default columns.
-The fixed footer previews changed points and peak voltage before review.
-Draft values survive polling, mode changes, closing the panel and cancelling
-the confirmation. Additional settings retain all shared levels 0–6. Custom
-edits use the shared 600–1210 mV bounds. The service rechecks active frequencies and rejects
-a decreasing custom curve before any helper call. Restoring defaults also
-comments the high-frequency points, using the existing backup/restart workflow.
-Oberon voltage controls remain unavailable because it has no validated curve.
+CPU and GPU control pages separate profile configuration from monitoring.
+Their profile choices remain vertical bars with a right-side edit button,
+without an operating-profile heading or subtitle. Editing stays inline. The
+GPU governor service card contains its three service buttons, then the Cyan
+method/usage/temperature selectors, the telemetry checkboxes and the Apply
+compatibility button. Compatibility has no separate card or disclosure.
+
+The GPU voltage laboratory keeps its own navigation section. Entering it
+immediately shows Gentle, Moderate, High and Custom, followed by the active
+frequency/current/selected/delta table and actions. There is no extra open
+button, nested disclosure, repeated title or additional-settings menu in that
+workspace. The web exposes only those three boost presets and custom editing;
+restoration remains a separate action. Review is inline and still requires
+explicit confirmation before executing a helper. Changes to the draft cancel
+a stale review. The shared 600–1210 mV bounds and monotonic-curve checks remain.
 
 GPU details distinguish the configured TOML ceiling from the loaded D-Bus
 limits and the active range. Enabled file points become available to profile
@@ -114,8 +119,9 @@ Sensors use two primary mobile views: **List** and **Graphs**. Search and a
 category selector remain visible; less frequent options sit under **More**.
 Tap a reading to reveal its statistics and history in place. Checkboxes choose
 which sensors are available to plot; filtering preserves selections outside
-the visible list. Graphs show one focused sensor with a picker for the other
-selected traces. Desktop web retains the table and multiple plots.
+the visible list. Graphs show a separate history for every selected sensor, including selections
+outside the current list filter. Selected sensors without data have an explicit
+waiting state. Desktop web retains the table and multiple plots.
 
 Mobile plots use fewer axis labels and separate numerical readouts rather
 than overlapping labels on the curve. Touch or drag a plot to inspect a
@@ -124,11 +130,13 @@ mobile time axis grows with the available history up to two minutes; it does
 not fill missing history with synthetic samples. Per-core heat maps become
 readable rows with individual history lines and current values on phones.
 
-Profile editing and routine hardware reviews happen in the page. Higher-risk
-actions still require an explicit confirmation dialog. Mobile operations start
+Profile editing and routine hardware reviews happen in the page. Voltage
+review is also inline and requires explicit confirmation; other higher-risk
+actions retain their confirmation dialog. Mobile operations start
 in a compact progress bar and open their console when authentication is needed
 or an operation fails. Finished progress can be dismissed directly. The
-voltage editor expands in its own card and keeps drafts across preview changes.
+voltage editor is immediately visible in its own section and keeps drafts
+across preview changes.
 Navigating between pages resets the main scroll position.
 
 Themes and language are browser-local. The shared desktop catalogs supply all
@@ -164,3 +172,24 @@ It never reloads automatically; refreshing is disabled while an operation is
 running. A tab opened before this mechanism was added needs a manual reload
 once. Translation catalogs are reread when the refreshed frontend requests
 them, including after a frontend rebuild without a server restart.
+
+## GDDR6 controls
+
+The GDDR6 temperature block and its Prepare / Monitor live / Stop controls live
+only on Dashboard. The web does not add session chip temperatures to the CPU,
+GPU or Sensors pages. Sampling is explicit and uses the same root-owned helper
+and readiness rules as desktop: reviewed source, protected helpers, firmware,
+external collector and SMU-channel checks. No manual bypass is exposed.
+
+One authenticated session lasts at most 600 seconds and samples every five
+seconds. Structured helper output feeds the Dashboard's average, hotspot and
+per-chip readings; expired or stopped readings are not presented as live. An
+existing BC250-Telemetry collector is displayed without starting a second
+sampler. Your own monitor is stopped before another command can use the
+terminal; another browser cannot stop your session. Sessions can be recovered
+after a page reload and are closed on logout or key rotation.
+
+Legacy installed GDDR6 helpers expect PKEXEC_UID. The web passes its own fixed
+Linux UID through sudo's checked command-environment assignment syntax. The
+browser cannot choose that value, and sudo policy is not changed. Neither the
+web server nor its Python action worker runs as root.

@@ -129,3 +129,26 @@ raise SystemExit(0 if value == "dummy-secret" else 1)
         assert session.ready and not session.closed
     finally:
         session.close()
+
+
+@pytest.mark.parametrize("stop_exit", [None, 42])
+def test_memory_helper_streams_samples_and_only_clean_interrupts_count_as_a_normal_stop(tmp_path, monkeypatch, stop_exit):
+    from frontends.tui.console import Console
+    child = tmp_path / "memory-child"
+    handler = "" if stop_exit is None else f"import signal,sys;signal.signal(signal.SIGINT,lambda *_:sys.exit({stop_exit}))\n"
+    child.write_text(f"#!{sys.executable}\nimport json,time\n" + handler + "print(json.dumps({'chips':[{'chip':0,'temperature_c':52.5}],'average_c':52.5}),flush=True)\ntime.sleep(30)\n")
+    child.chmod(0o700)
+    spawn = Console._spawn
+    script = f"import sys;from frontends.web import ssh_worker;sys.executable={str(child)!r};ssh_worker.main()"
+    monkeypatch.setattr(Console, "_spawn", lambda self, _argv: spawn(self, [sys.executable, "-u", "-c", script]))
+    session = SSHSession(local=True)
+    try:
+        assert wait_for(lambda: session.ready)
+        assert session.request("action", action="gddr6.monitor", confirmed=True)["ok"]
+        sample = wait_for(lambda: session.view().get("sample"))
+        assert sample["average_c"] == 52.5
+        session.request("interrupt")
+        assert wait_for(lambda: session.view().get("done"))
+        assert session.view()["ok"] is (stop_exit is None)
+    finally:
+        session.close()

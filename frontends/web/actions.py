@@ -142,6 +142,21 @@ def gpu_voltage_custom(ctx, p, shell):
     return 2, apply
 
 
+# -- GDDR6: preparation is explicit; one native helper owns a bounded session.
+
+def gddr6_monitor(ctx, p, shell):
+    if p:
+        raise Invalid("params")
+
+    def monitor():
+        from frontends.web.gddr6 import readiness
+        state = readiness(ctx.service)
+        if not state["can_monitor"]:
+            raise Invalid(state["blocker"] or "GDDR6 monitor unavailable")
+        return shell(ctx.service.comando_monitorizar_vram(state["session_seconds"]))
+    return 2, monitor
+
+
 # -- CPU ------------------------------------------------------------------------------------------
 
 def cpu_apply(ctx, p, shell):
@@ -216,6 +231,8 @@ def fan_curve(ctx, p, shell):
 
 
 ACTIONS = {
+    "gddr6.monitor": gddr6_monitor,
+    "gddr6.prepare": lambda ctx, p, shell: (1, ctx.service.comando_preparar_gddr6_memory_temp),
     "gpu.profile": gpu_profile, "gpu.compat": gpu_compat, "gpu.service": gpu_service,
     "gpu.high_points": gpu_high_points, "gpu.voltage": gpu_voltage, "gpu.voltage_custom": gpu_voltage_custom,
     "gpu.save_boot": lambda ctx, p, shell: (1, ctx.service.guardar_rango_gpu_arranque),

@@ -196,7 +196,7 @@ def test_the_password_is_only_typed_on_this_computer_unless_the_owner_allowed_it
 
 def test_the_action_list_is_closed_and_runs_nothing_outside_the_service_layer():
     assert set(actions.ACTIONS) == {
-        "gpu.profile", "gpu.compat", "gpu.service", "gpu.high_points", "gpu.voltage", "gpu.voltage_custom", "gpu.save_boot",
+        "gddr6.monitor", "gddr6.prepare", "gpu.profile", "gpu.compat", "gpu.service", "gpu.high_points", "gpu.voltage", "gpu.voltage_custom", "gpu.save_boot",
         "gpu.status", "cpu.apply", "cpu.unlock", "cpu.persist", "cpu.persist_off", "cu.sync", "cu.apply", "cu.save",
         "cu.action", "fan.pwm", "fan.auto", "fan.curve"}
     source = Path(actions.__file__).read_text(encoding="utf-8")
@@ -402,3 +402,33 @@ def test_build_updates_are_detected_without_restarting_the_server(client, tmp_pa
     assert old_version != client.call("GET", "/api/version")[1]["version"] == "e" * 16
     (tmp_path / "strings.json").write_text(json.dumps(["Custom"]))
     assert client.call("GET", "/api/i18n?lang=es")[1]["strings"] == {"Custom": "Personalizado"}
+
+
+def test_own_memory_monitor_is_stopped_before_another_hardware_action(client):
+    client.login()
+    class Monitor:
+        stopped = False
+        interrupts = 0
+        def request(self, op):
+            if op == "interrupt":
+                self.stopped = True
+                self.interrupts += 1
+                return {"ok": True}
+            return {"id": 7, "kind": "gddr6.monitor", "done": self.stopped, "ok": True}
+    monitor = Monitor()
+    client.httpd.web.job_backend = monitor
+    client.httpd.web.job_owner = client.cookie.split("=", 1)[1]
+    assert client.action("gpu.status") == 200
+    assert monitor.interrupts == 1
+
+
+def test_another_browser_cannot_automatically_stop_the_memory_monitor(client):
+    client.login()
+    other = Client(client.httpd)
+    other.login()
+    operations = []
+    monitor = SimpleNamespace(request=lambda op: operations.append(op) or {"id": 7, "kind": "gddr6.monitor", "done": False})
+    client.httpd.web.job_backend = monitor
+    client.httpd.web.job_owner = client.cookie.split("=", 1)[1]
+    assert other.action("gpu.status") == 409
+    assert "interrupt" not in operations

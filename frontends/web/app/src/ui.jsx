@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import icons from "./icons.gen.js";
-import { t } from "./lib.jsx";
+import { t, useApp } from "./lib.jsx";
 
 export function useMobile() {
   const [mobile, setMobile] = useState(() => matchMedia("(max-width: 820px)").matches);
@@ -230,4 +230,18 @@ export function useStored(key, initial) {
   const [value, setValue] = useState(() => { try { return JSON.parse(localStorage.getItem(key)) ?? initial; } catch { return initial; } });
   const set = (next) => { setValue(next); try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* private window */ } };
   return [value, set];
+}
+
+/** Profile choice is a draft; applying it is always a separate, explicit action. */
+export function ProfileDeck({ profiles, selected, onSelect, onEdit }) {
+  const app = useApp();
+  return <div className="tiles profiles profiles-restored">{profiles.map((profile) => <Tile key={profile.key} label={profile.name}
+    value={profile.frequency ? `${profile.frequency} MHz` : `${profile.min}–${profile.max} MHz`}
+    note={profile.frequency ? `${profile.vid} mV · ${profile.temperature} °C` : `${profile.voltage ?? "—"} mV`}
+    on={profile.key === selected.key} onClick={() => { app?.cancelReview?.(); onSelect(profile.key); }} onEdit={() => { app?.cancelReview?.(); onEdit(profile.key); }} />)}</div>;
+}
+
+export function ControlTabs({ items, value, onChange }) {
+  const app = useApp();
+  return <nav className="control-tabs" style={{ gridTemplateColumns: `repeat(${items.length},minmax(0,1fr))` }} aria-label={t("Views")}>{items.map(([key, label, icon]) => <button key={key} className={value === key ? "on" : ""} aria-pressed={value === key} onClick={() => { app?.cancelReview?.(); onChange(key); }}><Icon name={icon} /><span>{label}</span></button>)}</nav>;
 }

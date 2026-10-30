@@ -101,6 +101,7 @@ class Web:
         self.ssh_sessions: dict[str, SSHSession] = {}
         self.job_owner = ""
         self.job_backend = None
+        self.live.monitor_job = lambda: self.job_backend.view() if self.job_backend is not None and hasattr(self.job_backend, "view") else {}
         self.completed_job = None
         self.job_lock = threading.Lock()
         self.key = web_access.access_key()
@@ -366,6 +367,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.fail("This action needs confirmation.", 403, confirm=True)
         with self.web.job_lock:
             current = self.web.job()
+            if (current.get("kind") == "gddr6.monitor" and not current.get("done", True)
+                    and self.web.job_owner == self.token() and body["action"] != "gddr6.monitor"):
+                self.web.job_backend.request("interrupt")
+                deadline = time.monotonic() + 5
+                while not current.get("done", True) and time.monotonic() < deadline:
+                    time.sleep(.05)
+                    current = self.web.job()
             if current.get("id") and not current.get("done", True):
                 return self.fail("Another hardware action is still running.", 409)
             terminal = self.web.ssh_sessions.get(self.token())

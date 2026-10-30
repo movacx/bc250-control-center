@@ -52,7 +52,7 @@ def main() -> None:
             finally:
                 signal.signal(signal.SIGINT, previous)
                 termios.tcsetattr(0, termios.TCSANOW, terminal)
-            reply({"id": request.get("id"), "result": {"ok": status == 0}})
+            reply({"id": request.get("id"), "result": {"ok": status == 0, "exit_code": status}})
         except KeyboardInterrupt:
             continue
         except (ValueError, OSError):
