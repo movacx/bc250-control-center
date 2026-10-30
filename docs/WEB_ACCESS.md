@@ -153,6 +153,21 @@ Each browser owns its local/SSH terminal and operation output. Another browser c
 read its console, type into its job or cancel it. The server serializes hardware
 jobs across browsers. Logging out, key rotation and session expiry close its terminals. An unused terminal expires after 15 minutes.
 
+## Desktop privacy cover
+
+The desktop's Remote access page conceals its entire contents after five minutes
+of viewing, even when the user is interacting. **Lock view** in the page header
+conceals it immediately. A frosted cover shows **Show
+information**; pressing it starts another five-minute window. Navigating away,
+refreshing status or returning to the page does not reset that deadline.
+
+The live controls are hidden, including the QR, key, addresses and device table;
+keyboard focus moves to the reveal button and the view's status polling pauses.
+Only a heavily downsampled, tinted snapshot is used for the blurred background.
+No screenshot is saved to disk. In-flight background operations and the web
+service continue; the cover changes no device permissions or session expiry.
+This is screen privacy, not an operating-system lock or password challenge.
+
 ## Choose session expiry per device
 
 Select a row in **Connected devices**, choose **Expires in**, then **Apply

@@ -7,20 +7,23 @@ from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtCore import QByteArray, Qt, QTimer, QUrl
-from PyQt6.QtGui import QDesktopServices, QGuiApplication, QPainter, QPixmap
+from PyQt6.QtGui import QColor, QDesktopServices, QGuiApplication, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QBoxLayout,
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QScrollArea,
     QSizePolicy,
     QSpinBox,
+    QStackedLayout,
     QTableWidget,
     QTableWidgetItem,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
@@ -35,10 +38,100 @@ from ..components.responsive import configure_responsive_scroll_area
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
 from ..components.wheel_guard import GuardedComboBox
+from ..components.widgets import apply_shadow, icon, readable_text_on
 from ..core.preferences import application_settings
 from ..i18n import tr, tr_format
 from ..theme import COLORS, scale_stylesheet
 from .processes import process_stylesheet
+
+PRIVACY_SECONDS = 5 * 60
+
+
+def _privacy_time():
+    # Linux's boottime includes suspend, so reopening a laptop cannot extend
+    # the five-minute viewing window. Other platforms use a monotonic clock.
+    if hasattr(time, "CLOCK_BOOTTIME"):
+        return time.clock_gettime(time.CLOCK_BOOTTIME)
+    return time.monotonic()
+
+
+class _RemotePrivacyCover(QWidget):
+    """A frosted cover backed only by an unreadably small snapshot."""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self._background = QPixmap()
+        self.setAccessibleName(tr("Hidden remote access information"))
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.addStretch(1)
+        panel = QFrame()
+        panel.setObjectName("remotePrivacyPanel")
+        panel.setMinimumWidth(280)
+        panel.setMaximumWidth(420)
+        box = QVBoxLayout(panel)
+        box.setContentsMargins(28, 28, 28, 28)
+        box.setSpacing(14)
+        symbol = QLabel()
+        symbol.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        symbol.setPixmap(icon("shield_green").pixmap(32, 32))
+        box.addWidget(symbol)
+        self.title = QLabel()
+        self.title.setObjectName("remotePrivacyTitle")
+        self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title.setWordWrap(True)
+        box.addWidget(self.title)
+        self.description = QLabel()
+        self.description.setObjectName("remotePrivacyDescription")
+        self.description.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.description.setWordWrap(True)
+        box.addWidget(self.description)
+        self.reveal_button = QPushButton()
+        self.reveal_button.setObjectName("remotePrivacyReveal")
+        self.reveal_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        box.addWidget(self.reveal_button)
+        layout.addWidget(panel, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addStretch(1)
+        apply_shadow(panel, blur=24, y=4, alpha=18)
+        self.retranslate()
+        self.apply_appearance()
+
+    def retranslate(self):
+        self.setAccessibleName(tr("Hidden remote access information"))
+        self.title.setText(tr("Information protected"))
+        self.description.setText(tr("This view is hidden automatically. Show it again for another five minutes."))
+        self.reveal_button.setText(tr("Show information"))
+
+    def set_snapshot(self, snapshot):
+        # Discard the original pixels: the cover must not retain a legible QR
+        # or key. Smooth scaling of this tiny image provides the blur without
+        # continuously rendering the live sensitive controls behind an effect.
+        height = max(1, round(32 * snapshot.height() / max(1, snapshot.width())))
+        self._background = snapshot.scaled(32, height, Qt.AspectRatioMode.IgnoreAspectRatio,
+                                           Qt.TransformationMode.SmoothTransformation) if not snapshot.isNull() else QPixmap()
+        self.update()
+
+    def apply_appearance(self):
+        c = COLORS
+        button_ink = readable_text_on(QColor(c["blue"])).name()
+        self.setStyleSheet(scale_stylesheet(
+            f"QFrame#remotePrivacyPanel {{ background: {c['panel']}; border: 1px solid {c['border']}; border-radius: 16px; }}"
+            f"QLabel#remotePrivacyTitle {{ color: {c['text']}; font-size: 18px; font-weight: 700; background: transparent; }}"
+            f"QLabel#remotePrivacyDescription {{ color: {c['muted']}; font-size: 12px; background: transparent; }}"
+            f"QPushButton#remotePrivacyReveal {{ background: {c['blue']}; color: {button_ink}; border: 1px solid {c['blue']};"
+            " border-radius: 8px; padding: 10px 18px; font-size: 12px; font-weight: 650; }"
+            f"QPushButton#remotePrivacyReveal:hover {{ border-color: {c['blue_border']}; }}"))
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        painter.fillRect(self.rect(), QColor(COLORS["window"]))
+        if not self._background.isNull():
+            painter.drawPixmap(self.rect(), self._background)
+        veil = QColor(COLORS["panel"])
+        veil.setAlpha(205)
+        painter.fillRect(self.rect(), veil)
 
 
 class RemoteAccessPage(QWidget):
@@ -53,6 +146,9 @@ class RemoteAccessPage(QWidget):
         self._code_boxes = []
         self._qr_signature = None
         self._expiry_signature = None
+        self._privacy_hidden = False
+        self._privacy_deadline = None
+        self._updates_active = False
         self._view_settings = settings if settings is not None else application_settings()
         try:
             saved_height = self._view_settings.value("remote_access/device_table_height")
@@ -64,9 +160,9 @@ class RemoteAccessPage(QWidget):
         self._save_view_timer.setSingleShot(True)
         self._save_view_timer.setInterval(200)
         self._save_view_timer.timeout.connect(self._view_settings.sync)
-        outer = QVBoxLayout(self)
+        outer = self._privacy_stack = QStackedLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        scroll = QScrollArea()
+        scroll = self._scroll = QScrollArea()
         content = QWidget()
         configure_responsive_scroll_area(scroll, content)
         content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
@@ -75,6 +171,7 @@ class RemoteAccessPage(QWidget):
         root.setContentsMargins(18, 8, 18, 20)
         self.card = self.web_card = SectionCard("Remote access", "Control and monitor this board from a browser on your home network.", icon_name="")
         self.card.root.setSpacing(10)
+        self.privacy_lock_button = self.card.add_header_button("Lock view", self._conceal_information, width=120)
         root.addWidget(self.card)
         root.addStretch(1)
         scroll.setWidget(content)
@@ -222,6 +319,14 @@ class RemoteAccessPage(QWidget):
         self.timer = QTimer(self)
         self.timer.setInterval(5000)
         self.timer.timeout.connect(self.refresh)
+        self._privacy_cover = _RemotePrivacyCover(self)
+        self._privacy_cover.reveal_button.clicked.connect(self._reveal_information)
+        outer.addWidget(self._privacy_cover)
+        self._privacy_timer = QTimer(self)
+        self._privacy_timer.setSingleShot(True)
+        self._privacy_timer.setTimerType(Qt.TimerType.PreciseTimer)
+        self._privacy_timer.timeout.connect(self._check_privacy)
+        QGuiApplication.instance().applicationStateChanged.connect(self._application_state_changed)
         self.apply_appearance()
         self._render_web()
 
@@ -251,6 +356,7 @@ class RemoteAccessPage(QWidget):
 
     def apply_appearance(self):
         self.setStyleSheet(process_stylesheet())
+        self._privacy_cover.apply_appearance()
         c = COLORS
         # Match the light game tables: white rows, a soft grey header and thin
         # separators. Dark mode retains alternating surfaces for distinction.
@@ -295,18 +401,76 @@ class RemoteAccessPage(QWidget):
         self._view_settings.sync()
         super().hideEvent(event)
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self._privacy_deadline is None:
+            self._start_privacy_window()
+        else:
+            self._check_privacy()
+
+    def _start_privacy_window(self):
+        self._privacy_deadline = _privacy_time() + PRIVACY_SECONDS
+        self._privacy_timer.start(PRIVACY_SECONDS * 1000)
+
+    def _check_privacy(self):
+        if self._privacy_hidden or self._privacy_deadline is None:
+            return
+        remaining = self._privacy_deadline - _privacy_time()
+        if remaining > 0:
+            self._privacy_timer.start(max(1, int(remaining * 1000) + 1))
+            return
+        self._conceal_information()
+
+    def _conceal_information(self):
+        if self._privacy_hidden:
+            return
+        self._privacy_hidden = True
+        self._privacy_timer.stop()
+        self.timer.stop()
+        self.web_address.hidePopup()
+        self.device_expiry_choice.hidePopup()
+        QToolTip.hideText()
+        snapshot = self._scroll.grab() if self._scroll.isVisible() else QPixmap()
+        self._privacy_cover.set_snapshot(snapshot)
+        self._privacy_stack.setCurrentWidget(self._privacy_cover)
+        if self.isVisible():
+            self._privacy_cover.reveal_button.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _reveal_information(self):
+        if not self._privacy_hidden:
+            return
+        self._privacy_hidden = False
+        self._render_web()
+        self._privacy_stack.setCurrentWidget(self._scroll)
+        self._privacy_cover.set_snapshot(QPixmap())
+        self._start_privacy_window()
+        if self._updates_active:
+            self.timer.start()
+            self.refresh()
+
+    def _application_state_changed(self, state):
+        if state == Qt.ApplicationState.ApplicationActive:
+            self._check_privacy()
+
     def set_updates_active(self, active):
-        if active:
+        self._updates_active = bool(active)
+        self._check_privacy()
+        if active and not self._privacy_hidden:
             self.timer.start()
             self.refresh()
         else:
             self.timer.stop()
 
     def refresh(self):
+        self._check_privacy()
+        if self._privacy_hidden:
+            return
         self._background.start("web_status", web_access.status, on_success=self._apply_web,
                                on_error=lambda message: self.web_state_label.setText(tr(message)))
 
     def retranslate_dynamic_copy(self):
+        self.privacy_lock_button.setText(tr("Lock view"))
+        self._privacy_cover.retranslate()
         self._render_web()
 
     def _apply_web(self, state):
@@ -314,6 +478,8 @@ class RemoteAccessPage(QWidget):
         self._render_web()
 
     def _render_web(self):
+        if self._privacy_hidden:
+            return
         state = self._web_state
         running = bool(state.get("running"))
         urls = state.get("urls") or []
@@ -492,6 +658,9 @@ class RemoteAccessPage(QWidget):
             self._run("revoke", lambda: web_access.revoke(device["id"]))
 
     def _run(self, name, work):
+        self._check_privacy()
+        if self._privacy_hidden:
+            return
         self._background.start(name, work, on_success=lambda _r: self.refresh(),
                                on_error=lambda message: show_toast(self, tr("Remote access"), tr(message), tone="red"))
 
@@ -513,6 +682,9 @@ class RemoteAccessPage(QWidget):
         self._run("switch_web", apply)
 
     def _open_web(self):
+        self._check_privacy()
+        if self._privacy_hidden:
+            return
         url = self._web_state.get("local_url")
         if url:
             QDesktopServices.openUrl(QUrl(url))
@@ -537,11 +709,17 @@ class RemoteAccessPage(QWidget):
         self._copy(self._web_state.get("key", ""))
 
     def _copy(self, text):
+        self._check_privacy()
+        if self._privacy_hidden:
+            return
         if text:
             QGuiApplication.clipboard().setText(text)
             show_toast(self, tr("Copied"), tr("Remote access"), tone="green")
 
     def _save_certificate(self):
+        self._check_privacy()
+        if self._privacy_hidden:
+            return
         try:
             source = web_access.trust_certificate()
             target, _filter = QFileDialog.getSaveFileName(self, tr("Save public certificate"),

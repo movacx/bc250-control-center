@@ -5619,5 +5619,10 @@
   "Custom session duration in minutes": "Custom session duration in minutes",
   "Apply expiry": "Apply expiry",
   "The selected duration starts now and replaces the inactivity limit for this session.": "The selected duration starts now and replaces the inactivity limit for this session.",
-  "Choose a session duration between one minute and one year.": "Choose a session duration between one minute and one year."
+  "Choose a session duration between one minute and one year.": "Choose a session duration between one minute and one year.",
+  "Hidden remote access information": "Hidden remote access information",
+  "Information protected": "Information protected",
+  "This view is hidden automatically. Show it again for another five minutes.": "This view is hidden automatically. Show it again for another five minutes.",
+  "Show information": "Show information",
+  "Lock view": "Lock view"
 }
