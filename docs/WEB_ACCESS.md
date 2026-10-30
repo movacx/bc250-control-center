@@ -73,7 +73,9 @@ With LAN disabled the server listens on `127.0.0.1`, remains protected by the
 access key, and can be opened only from the board itself. A phone's localhost
 refers to the phone. The connected-devices table lists signed-in browsers,
 not all hosts on the Wi-Fi. Rows show browser, IP, device code, permissions,
-active/idle state, last activity and effective expiry. Selection survives
+active/idle state, last activity and effective expiry. Headers and cells share left alignment. Drag the three-dot grip below the table
+to change its height; the local UI settings remember it across refreshes and
+application restarts. Double-click the grip to fit the rows. Selection survives
 refreshes; granting control or disconnecting targets that selected session.
 
 ## Local-network boundary and server
@@ -149,6 +151,29 @@ make an HTTP page encrypted.
 Each browser owns its local/SSH terminal and operation output. Another browser cannot
 read its console, type into its job or cancel it. The server serializes hardware
 jobs across browsers. Logging out, key rotation and session expiry close its terminals. An unused terminal expires after 15 minutes.
+
+## Install on the home screen
+
+The web includes a same-origin web app manifest with BC250 icons, a standalone
+window and a stable Dashboard entry point. **Install app** appears on the login
+screen and in web Settings. Supporting Chromium browsers use the native install
+prompt; other browsers receive inline menu instructions. Safari on iPhone/iPad
+uses Share → Add to Home Screen (enable Open as Web App if offered).
+
+Installation needs a supported browser and trusted HTTPS on the phone. Trust the
+board's local CA first. The board must remain running and LAN access must be
+on for a phone; an installed shortcut to `127.0.0.1` on the board is not a phone
+address. If the LAN IP or port changes, the installed shortcut points to the old
+origin; use a stable board address or replace the shortcut.
+
+The manifest/start URL contains no pairing key or session token. Installation
+does not grant control, store the Linux password, or extend session expiry.
+Normal key login and desktop device approval remain in force. No service worker
+or offline hardware cache is installed: hardware reads and commands need the
+live server. Existing build notices continue to avoid forced reloads during jobs.
+
+References: [MDN installation criteria](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable),
+[Apple home-screen web apps](https://support.apple.com/guide/iphone/iphea86e5236/ios).
 
 ## Phone layout
 

@@ -660,3 +660,10 @@ button, input, select { font-variant-numeric: tabular-nums; }
 .compat-checks { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
 .compat-checks .check { font-size: 13px; }
 @media (max-width: 560px) { .compat-fields { grid-template-columns: minmax(0,1fr); gap: 12px; } }
+
+.install-app { padding: 12px 0; }
+.install-app-action { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--c-muted); }
+.install-app-action > span { min-width: 0; }
+.install-app-action .btn { flex: 0 0 auto; }
+.install-app > .note { margin-top: 10px; }
+@media (display-mode: standalone) { .install-app { display: none; } }

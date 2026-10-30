@@ -101,3 +101,28 @@ def test_device_table_is_read_only_and_tracks_the_selected_identity_across_refre
     assert page._selected_device() is None
     assert not page.device_control_button.isEnabled()
     assert not page.device_disconnect_button.isEnabled()
+
+
+def test_device_table_grip_persists_height_and_refresh_does_not_override_it(qtbot, tmp_path):
+    from PyQt6.QtCore import QSettings, Qt
+    path = str(tmp_path / "remote-view.ini")
+    settings = QSettings(path, QSettings.Format.IniFormat)
+    page = RemoteAccessPage(settings=settings)
+    qtbot.addWidget(page)
+    page.device_grip.pressed.emit()
+    initial = page.device_table.height()
+    page.device_grip.dragged.emit(240)
+    expected = initial + 240
+    assert page.device_table.height() == expected
+    settings.sync()
+    page._apply_web({"devices": [{"id": "phone", "agent": "Phone", "control": False}]})
+    assert page.device_table.height() == expected
+    restored = RemoteAccessPage(settings=QSettings(path, QSettings.Format.IniFormat))
+    qtbot.addWidget(restored)
+    assert restored.device_table.height() == expected
+    assert restored.device_table.horizontalHeader().defaultAlignment() == (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+    assert restored.device_table.item(0, 0) is None
+    page.device_grip.double_clicked.emit()
+    assert 90 <= page.device_table.height() < expected
+    settings.sync()
+    assert settings.value("remote_access/device_table_height", type=int) == page.device_table.height()

@@ -1,0 +1,29 @@
+{
+  "id": "/",
+  "name": "BC250 Control Center",
+  "short_name": "BC250",
+  "scope": "/",
+  "start_url": "/#/dashboard",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#171717",
+  "description": "BC250 hardware control and monitoring on your home network.",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "app-icon-256.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": [
+    "utilities"
+  ]
+}

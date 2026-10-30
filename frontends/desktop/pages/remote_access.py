@@ -28,11 +28,13 @@ from bc250cc.application.system import web_access
 
 from ..components.async_tools import BackgroundExecutor
 from ..components.buttons import WrappingButton as QPushButton
+from ..components.full_diagnosis_dialog import ResizeGrip
 from ..components.page_widgets import SectionCard
 from ..components.responsive import configure_responsive_scroll_area
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
 from ..components.wheel_guard import GuardedComboBox
+from ..core.preferences import application_settings
 from ..i18n import tr, tr_format
 from ..theme import COLORS, scale_stylesheet
 from .processes import process_stylesheet
@@ -41,7 +43,7 @@ from .processes import process_stylesheet
 class RemoteAccessPage(QWidget):
     """The desktop owner grants control; a newly paired phone can only monitor."""
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None, *, settings=None):
         super().__init__(parent)
         self.setProperty("processPage", True)
         self._background = BackgroundExecutor(self)
@@ -49,6 +51,17 @@ class RemoteAccessPage(QWidget):
         self._syncing_web = False
         self._code_boxes = []
         self._qr_signature = None
+        self._view_settings = settings if settings is not None else application_settings()
+        try:
+            saved_height = self._view_settings.value("remote_access/device_table_height")
+            self._table_height = max(90, min(3000, int(saved_height))) if saved_height is not None else None
+        except (TypeError, ValueError):
+            self._table_height = None
+        self._table_drag_start = 0
+        self._save_view_timer = QTimer(self)
+        self._save_view_timer.setSingleShot(True)
+        self._save_view_timer.setInterval(200)
+        self._save_view_timer.timeout.connect(self._view_settings.sync)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         scroll = QScrollArea()
@@ -65,20 +78,22 @@ class RemoteAccessPage(QWidget):
         outer.addWidget(scroll)
         body = self.card.body
         self.web_state_label = self._label("")
-        body.addWidget(self.web_state_label)
         controls = QHBoxLayout()
         self.web_switch_button = self._button("Start web access", self._toggle_web, primary=True)
         self.web_open_button = self._button("Open in browser", self._open_web)
         controls.addWidget(self.web_switch_button)
         controls.addWidget(self.web_open_button)
         controls.addStretch(1)
-        body.addLayout(controls)
 
         self.pairing_layout = QBoxLayout(QBoxLayout.Direction.LeftToRight)
-        self.pairing_layout.setSpacing(24)
+        self.pairing_layout.setSpacing(20)
         body.addLayout(self.pairing_layout)
         connection = QVBoxLayout()
+        connection.setSpacing(4)
         self.pairing_layout.addLayout(connection, 1)
+        connection.addWidget(self.web_state_label)
+        connection.addLayout(controls)
+        connection.addSpacing(6)
         connection.addWidget(self._label("Connect your phone", strong=True))
         self.web_address = GuardedComboBox()
         self.web_address.setAccessibleName(tr("Address"))
@@ -86,6 +101,7 @@ class RemoteAccessPage(QWidget):
         connection.addWidget(self.web_address)
         self.web_copy_url_button = self._button("Copy address", self._copy_web_url)
         connection.addWidget(self.web_copy_url_button)
+        connection.addSpacing(6)
         connection.addWidget(self._label("Access key", strong=True))
         self.web_pin_box = self._code("")
         connection.addWidget(self.web_pin_box)
@@ -95,22 +111,27 @@ class RemoteAccessPage(QWidget):
         key_controls.addWidget(self.web_copy_pin_button)
         key_controls.addWidget(self.web_new_key_button)
         connection.addLayout(key_controls)
-        connection.addWidget(self._label("New devices can monitor only. Match the device code shown on your phone before allowing hardware control below."))
         connection.addStretch(1)
         pairing = QVBoxLayout()
+        pairing.setSpacing(4)
         self.pairing_layout.addLayout(pairing)
         self.web_qr_image = QLabel()
         self.web_qr_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.web_qr_image.setMinimumSize(240, 240)
+        self.web_qr_image.setFixedSize(240, 240)
         self.web_qr_image.setWordWrap(True)
         self.web_qr_image.setAccessibleName(tr("Scan to connect"))
-        pairing.addWidget(self.web_qr_image)
+        pairing.addWidget(self.web_qr_image, 0, Qt.AlignmentFlag.AlignHCenter)
         note = self._label("Scan on the same Wi-Fi. This QR contains your access key; keep it private.")
-        note.setMaximumWidth(300)
+        note.setFixedWidth(260)
+        self.web_qr_note = note
         pairing.addWidget(note)
-        body.addWidget(self._label("Connected devices", strong=True))
-        body.addWidget(self._label("Sessions expire after 30 minutes without activity or eight hours in total. Closing access disconnects the selected browser; a new login starts with monitoring permission."))
+        pairing.addStretch(1)
+        self.device_heading = self._label("Connected devices · Read-only until you verify the code and allow control.", strong=True)
+        self.device_heading.setToolTip(tr("Sessions expire after 30 minutes without activity or eight hours in total. Closing access disconnects the selected browser; a new login starts with monitoring permission."))
+        body.addWidget(self.device_heading)
         self.device_table = QTableWidget(0, 7)
+        self.device_table.setObjectName("remoteDeviceTable")
+        self.device_table.setAlternatingRowColors(True)
         self.device_table.setAccessibleName(tr("Connected devices"))
         self.device_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.device_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -119,12 +140,20 @@ class RemoteAccessPage(QWidget):
         self.device_table.setWordWrap(False)
         self.device_table.verticalHeader().hide()
         self.device_table.verticalHeader().setDefaultSectionSize(40)
+        self.device_table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.device_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.device_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.device_table.setMinimumHeight(120)
-        self.device_table.setMaximumHeight(320)
+        self.device_table.setMaximumHeight(3000)
         self.device_table.itemSelectionChanged.connect(self._update_device_actions)
         body.addWidget(self.device_table)
+        self.device_grip = ResizeGrip()
+        self.device_grip.setAccessibleName(tr("Resize connected devices table"))
+        self.device_grip.setToolTip(tr("Drag to resize the table. Double-click to fit its rows."))
+        self.device_grip.pressed.connect(lambda: setattr(self, "_table_drag_start", self.device_table.height()))
+        self.device_grip.dragged.connect(lambda delta: self._set_device_table_height(self._table_drag_start + delta))
+        self.device_grip.double_clicked.connect(self._fit_device_table)
+        body.addWidget(self.device_grip)
         self.device_empty_label = self._label("No connected browsers.")
         body.addWidget(self.device_empty_label)
         actions = QHBoxLayout()
@@ -191,6 +220,19 @@ class RemoteAccessPage(QWidget):
 
     def apply_appearance(self):
         self.setStyleSheet(process_stylesheet())
+        c = COLORS
+        # Match the light game tables: white rows, a soft grey header and thin
+        # separators. Dark mode retains alternating surfaces for distinction.
+        from .. import theme
+        light = theme.ACTIVE_MODE == "light"
+        self.device_table.setAlternatingRowColors(not light)
+        self.device_table.setStyleSheet(scale_stylesheet(
+            f"QTableWidget#remoteDeviceTable {{ background: {c['panel']}; alternate-background-color: {c['panel'] if light else c['panel_alt']};"
+            f" color: {c['text']}; border: 1px solid {c['border']}; border-radius: 7px; }}"
+            f"QTableWidget#remoteDeviceTable::item {{ color: {c['text']}; border-bottom: 1px solid {c['border']}; padding: 0 8px; }}"
+            f"QTableWidget#remoteDeviceTable::item:selected {{ background: {c['blue_soft']}; color: {c['text']}; }}"
+            f"QTableWidget#remoteDeviceTable QHeaderView::section {{ background: {c['panel_alt']}; color: {c['text']};"
+            f" border: none; border-bottom: 1px solid {c['border']}; padding: 9px 8px; font-size: 11px; font-weight: 700; }}"))
         for box in self._code_boxes:
             box.setStyleSheet(scale_stylesheet(
                 f"background: {COLORS['panel_alt']}; color: {COLORS['text']}; border: 1px solid {COLORS['border_soft']};"
@@ -199,6 +241,10 @@ class RemoteAccessPage(QWidget):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.pairing_layout.setDirection(QBoxLayout.Direction.TopToBottom if self.width() < 740 else QBoxLayout.Direction.LeftToRight)
+
+    def hideEvent(self, event):
+        self._view_settings.sync()
+        super().hideEvent(event)
 
     def set_updates_active(self, active):
         if active:
@@ -270,7 +316,7 @@ class RemoteAccessPage(QWidget):
             self.web_qr_image.setText(tr("Start web access and enable the local network to display your QR here."))
             return
         renderer = QSvgRenderer(QByteArray(web_access.pairing_svg(address + "#pair=" + state["key"])))
-        pixmap = QPixmap(240, 240)
+        pixmap = QPixmap(self.web_qr_image.size())
         pixmap.fill(Qt.GlobalColor.white)
         painter = QPainter(pixmap)
         renderer.render(painter)
@@ -317,6 +363,7 @@ class RemoteAccessPage(QWidget):
                       tr("Active" if active else "Idle") if seen else "—", seen_text, expiry_text)
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
                 item.setData(Qt.ItemDataRole.UserRole, device["id"])
                 if column == 0:
                     item.setToolTip(raw_agent)
@@ -329,10 +376,23 @@ class RemoteAccessPage(QWidget):
                 self.device_table.selectRow(index)
         self.device_table.blockSignals(False)
         self.device_table.verticalScrollBar().setValue(position)
-        self.device_table.setFixedHeight(min(320, max(86, 40 * len(devices) + 42)))
+        self.device_table.setFixedHeight(self._table_height or min(320, max(90, 40 * len(devices) + 42)))
         self.device_empty_label.setVisible(not devices)
         self.revoke_all_button.setEnabled(bool(devices))
         self._update_device_actions()
+
+    def _set_device_table_height(self, height):
+        self._table_height = max(90, min(3000, int(height)))
+        self.device_table.setFixedHeight(self._table_height)
+        self._view_settings.setValue("remote_access/device_table_height", self._table_height)
+        self._save_view_timer.start()
+
+    def _fit_device_table(self):
+        header = self.device_table.horizontalHeader().height()
+        rows = self.device_table.verticalHeader().length()
+        scrollbar = self.device_table.horizontalScrollBar()
+        extra = scrollbar.height() if scrollbar.isVisible() else 0
+        self._set_device_table_height(header + rows + extra + 4)
 
     def _update_device_actions(self):
         device = self._selected_device()

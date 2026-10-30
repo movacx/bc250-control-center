@@ -5597,5 +5597,12 @@
   "Cannot connect to the web server. Check that it is running, then reload the page.": "No se puede conectar con el servidor web. Comprueba que esté iniciado y recarga la página.",
   "The web server dependencies are unavailable. Install requirements-web.txt in the web runtime or install the distribution's python3-cheroot package.": "Faltan las dependencias del servidor web. Instala requirements-web.txt en su entorno aislado o el paquete python3-cheroot de tu distribución.",
   "The web server did not start. Check its runtime dependencies and whether its port is available.": "El servidor web no se inició. Revisa sus dependencias y comprueba que su puerto esté disponible.",
-  "The web server could not restart. Its previous network settings were restored; check the runtime dependencies.": "El servidor web no pudo reiniciarse. Se restauró la configuración de red anterior; revisa sus dependencias."
+  "The web server could not restart. Its previous network settings were restored; check the runtime dependencies.": "El servidor web no pudo reiniciarse. Se restauró la configuración de red anterior; revisa sus dependencias.",
+  "Connected devices · Read-only until you verify the code and allow control.": "Dispositivos conectados · Solo lectura hasta verificar el código y permitir control.",
+  "Keep BC250 on your home screen": "BC250 en tu pantalla de inicio",
+  "Install app": "Instalar aplicación",
+  "In Safari, open Share, then Add to Home Screen and Open as Web App.": "En Safari, abre Compartir, elige Añadir a pantalla de inicio y activa Abrir como app web si aparece.",
+  "Open your browser menu and choose Install app or Add to Home screen. If it is unavailable, trust this board's HTTPS certificate first.": "Abre el menú del navegador y elige Instalar aplicación o Añadir a pantalla de inicio. Si no aparece, configura primero la confianza en el certificado HTTPS de esta placa.",
+  "Resize connected devices table": "Cambiar altura de la tabla de dispositivos",
+  "Drag to resize the table. Double-click to fit its rows.": "Arrastra para cambiar la altura. Haz doble clic para ajustarla a las filas."
 }

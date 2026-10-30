@@ -5597,5 +5597,12 @@
   "Cannot connect to the web server. Check that it is running, then reload the page.": "Cannot connect to the web server. Check that it is running, then reload the page.",
   "The web server dependencies are unavailable. Install requirements-web.txt in the web runtime or install the distribution's python3-cheroot package.": "The web server dependencies are unavailable. Install requirements-web.txt in the web runtime or install the distribution's python3-cheroot package.",
   "The web server did not start. Check its runtime dependencies and whether its port is available.": "The web server did not start. Check its runtime dependencies and whether its port is available.",
-  "The web server could not restart. Its previous network settings were restored; check the runtime dependencies.": "The web server could not restart. Its previous network settings were restored; check the runtime dependencies."
+  "The web server could not restart. Its previous network settings were restored; check the runtime dependencies.": "The web server could not restart. Its previous network settings were restored; check the runtime dependencies.",
+  "Connected devices · Read-only until you verify the code and allow control.": "Connected devices · Read-only until you verify the code and allow control.",
+  "Keep BC250 on your home screen": "Keep BC250 on your home screen",
+  "Install app": "Install app",
+  "In Safari, open Share, then Add to Home Screen and Open as Web App.": "In Safari, open Share, then Add to Home Screen and Open as Web App.",
+  "Open your browser menu and choose Install app or Add to Home screen. If it is unavailable, trust this board's HTTPS certificate first.": "Open your browser menu and choose Install app or Add to Home screen. If it is unavailable, trust this board's HTTPS certificate first.",
+  "Resize connected devices table": "Resize connected devices table",
+  "Drag to resize the table. Double-click to fit its rows.": "Drag to resize the table. Double-click to fit its rows."
 }

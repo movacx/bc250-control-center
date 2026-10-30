@@ -10,7 +10,8 @@ def test_remote_access_displays_qr_inline_without_opening_a_dialog(qtbot, monkey
     page._apply_web({"running": True, "lan": True, "urls": ["https://192.0.2.1:8250"],
                      "key": "TEST-PAIR", "trust_fingerprint": ":".join(["AB"] * 32)})
     assert not page.web_qr_image.pixmap().isNull()
-    assert page.web_qr_image.pixmap().width() == 240
+    assert page.web_qr_image.pixmap().size() == page.web_qr_image.size()
+    assert page.web_qr_image.width() >= 192
     assert "SHA-256" in page.web_fingerprint_box.text()
     assert not page.web_qr_image.isHidden()
 
