@@ -371,7 +371,6 @@ button, input, select { font-variant-numeric: tabular-nums; }
 .voltage-row small { font-size: 10px; color: var(--c-muted); font-weight: 400; }
 .voltage-row > :nth-child(n+2) { text-align: right; }
 .voltage-head { border: 0; color: var(--c-muted); background: var(--c-panel-alt); font-size: 11px; }
-.voltage-row.changed > b:last-child { color: var(--c-blue); }
 .voltage-row .field > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .voltage-row .input { width: 100%; min-width: 0; text-align: right; }
 .voltage-row .row { display: block; }
@@ -412,14 +411,29 @@ button, input, select { font-variant-numeric: tabular-nums; }
 .toast > span { overflow-wrap: anywhere; }
 
 .curve-error { display: block; margin-top: 8px; }
-.voltage-curve { margin: 0; border: 1px solid var(--c-border-soft); border-radius: 6px; padding: 12px 8px 8px; background: var(--c-chart-surface); }
-.voltage-curve figcaption { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: 0 4px 8px; font-size: 10px; color: var(--c-muted); }
-.voltage-curve figcaption > span:last-child { display: flex; align-items: center; gap: 6px; }
-.voltage-curve i { width: 12px; height: 2px; background: var(--c-muted); display: inline-block; }
-.voltage-curve i.selected { background: var(--c-blue); margin-left: 8px; }
-.voltage-curve svg { width: 100%; height: auto; display: block; overflow: visible; }
-.voltage-curve text { fill: var(--c-muted); font-size: 11px; font-family: inherit; }
-.voltage-curve .grid-line { stroke: var(--c-border-soft); stroke-width: 1; }
-.voltage-curve path { fill: none; stroke-linejoin: round; stroke-linecap: round; stroke-width: 2; }
-.voltage-curve .current-curve { stroke: var(--c-muted); stroke-dasharray: 4 4; }
-.voltage-curve .selected-curve { stroke: var(--c-blue); }
+
+/* Match the desktop voltage drawer: active rows, exact delta, fixed actions. */
+.voltage-dialog { width: min(540px, 100%); height: min(850px, calc(100dvh - 32px)); }
+.voltage-dialog > header { flex: none; }
+.voltage-dialog > .voltage-lab { flex: 1; overflow-y: auto; gap: 12px; }
+.voltage-dialog .lab-status { font-size: 12px; }
+.lab-presets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.lab-presets > button { border: 1px solid var(--c-border); background: var(--c-control); border-radius: 5px; padding: 9px 4px; min-height: 55px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; }
+.lab-presets > button.selected { background: var(--c-blue-soft); border-color: var(--c-blue); color: var(--c-blue); }
+.lab-presets b { font-size: 12px; }
+.lab-presets span { font-size: 10px; line-height: 1.3; }
+.lab-extra summary { min-height: 32px; color: var(--c-muted); font-size: 11px; cursor: pointer; }
+.voltage-dialog .voltage-table { overflow: visible; flex: none; }
+.voltage-dialog .voltage-row { grid-template-columns: minmax(56px, 1fr) minmax(46px, 1fr) minmax(72px, 1fr) 32px; gap: 6px; padding: 8px; font-size: 12px; }
+.voltage-dialog .voltage-row .input { padding: 8px 5px; font-size: 14px; }
+.voltage-dialog .voltage-head { position: sticky; top: -16px; z-index: 2; background: var(--c-panel-alt); font-size: 10px; }
+.voltage-row.changed > :nth-child(3), .voltage-delta { color: var(--c-blue); }
+.voltage-dialog > .voltage-footer { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+.voltage-footer .action-dock { padding: 0; background: transparent; }
+.voltage-footer .action-dock > .btn { flex: 1; font-size: 11px; }
+.update-notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--c-border); border-radius: 6px; background: var(--c-blue-soft); font-size: 12px; }
+@media (max-width: 560px) {
+  .voltage-dialog { height: calc(100dvh - 24px); }
+  .voltage-dialog .lab-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .voltage-footer .action-dock { flex-direction: row; }
+}

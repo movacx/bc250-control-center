@@ -381,3 +381,24 @@ def test_worker_completion_invalidates_the_reader_cache_once_per_job(client):
     assert client.action("gpu.status") == 200
     client.wait_idle()
     assert [name for name, _ in calls].count("invalidar_estado_herramientas") == 2
+
+
+def test_build_identity_is_public_and_asset_urls_change_with_it(client):
+    response, metadata = client.call("GET", "/api/version")
+    assert response.status == 200
+    assert set(metadata) == {"version"}
+    version = metadata["version"]
+    assert re.fullmatch(r"[a-f0-9]{16}", version)
+    html = client.call("GET", "/")[1].decode()
+    assert f'name="bc250-build" content="{version}"' in html
+    assert f'app.js?v={version}' in html and f'app.css?v={version}' in html
+    assert client.call("GET", f"/app.js?v={version}")[0].status == 200
+
+
+def test_build_updates_are_detected_without_restarting_the_server(client, tmp_path, monkeypatch):
+    old_version = client.call("GET", "/api/version")[1]["version"]
+    monkeypatch.setattr(server, "DIST", tmp_path)
+    (tmp_path / "version.json").write_text(json.dumps({"version": "e" * 16}))
+    assert old_version != client.call("GET", "/api/version")[1]["version"] == "e" * 16
+    (tmp_path / "strings.json").write_text(json.dumps(["Custom"]))
+    assert client.call("GET", "/api/i18n?lang=es")[1]["strings"] == {"Custom": "Personalizado"}

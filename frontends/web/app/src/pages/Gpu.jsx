@@ -63,7 +63,7 @@ export default function Gpu() {
               {running ? <Btn kind="danger" wide onClick={() => control("desactivar", t("Stop governor"), 2)}>{t("Stop governor")}</Btn>
                 : <Btn kind="primary" wide onClick={() => control("activar", t("Start governor"))}>{t("Start governor")}</Btn>}</div>
           </Card>
-          <Fold title={t("Voltage laboratory")}><VoltageLab data={raw} /></Fold>
+          <Card title={t("Voltage laboratory")}><VoltageLab data={raw} /></Card>
           {high.available && <Fold risk title={t("TOML points above 2000 MHz")}>
             <div className="reads"><div className="read"><span>{t("Requested state")}</span><b>{unlocked ? t("Enabled") : t("Commented")}</b></div><div className="read"><span>{t("Safe-points")}</span><b>{(high.frequencies || []).join(" · ")} MHz</b></div></div>
             <p className="note">{t("No restart or clock change")}</p>

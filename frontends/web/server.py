@@ -1,7 +1,7 @@
 """The local web interface: a stdlib HTTP server in front of the services the other frontends use.
 
 Authentication is not optional: every route except the page itself, its
-assets, the login and the language catalogue needs a session opened with the
+assets, the login, build version and the language catalogue needs a session opened with the
 access key the desktop application shows. Mutating requests carry the
 session's CSRF token, and only names from ``actions.ACTIONS`` ever run.
 """
@@ -106,7 +106,6 @@ class Web:
         self.key = web_access.access_key()
         self.fails: dict[str, list[float]] = {}
         self.lock = threading.Lock()
-        self.strings = self._strings()
 
     @staticmethod
     def _strings() -> list[str]:
@@ -264,7 +263,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             lang = normalize_language(query.get("lang") or self.web.language)
             lang = lang if lang in SUPPORTED_LANGUAGES else "en"
             return self.json({"language": lang, "languages": [{"key": key, "title": title} for key, title in LANGUAGE_OPTIONS if key != "auto"],
-                              "strings": {s: tr(s, lang) for s in self.web.strings}})
+                              "strings": {s: tr(s, lang) for s in self.web._strings()}})
+        if method == "GET" and path == "/api/version":
+            try:
+                version = json.loads((DIST / "version.json").read_text(encoding="utf-8")).get("version", "")
+            except (OSError, ValueError):
+                version = ""
+            return self.json({"version": version})
         csrf = self.web.session(self.token())
         if path == "/api/session":
             return self.json({"authenticated": csrf is not None, "csrf": csrf,

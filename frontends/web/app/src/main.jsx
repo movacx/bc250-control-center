@@ -132,6 +132,10 @@ function Shell({ session, onLogout }) {
   const [sshOpen, setSshOpen] = useState(false);
   const ssh = usePoll("ssh", 3000, 0);
   const live = usePoll("live", 1000, 0);
+  const release = usePoll("version", 15000, 0);
+  const loadedBuild = document.querySelector('meta[name="bc250-build"]')?.content;
+  const updateAvailable = loadedBuild && release?.version && loadedBuild !== release.version;
+  const refreshBuild = () => { const url = new URL(location.href); url.searchParams.set("v", release.version); location.replace(url); };
 
   useEffect(() => { const on = () => { setPage(route()); setMenu(false); }; addEventListener("hashchange", on); return () => removeEventListener("hashchange", on); }, []);
   useEffect(() => { localStorage.setItem("slim", slim ? "1" : "0"); }, [slim]);
@@ -180,13 +184,13 @@ function Shell({ session, onLogout }) {
           <div className="spring" /><div className="rule" />
           {link(SETTINGS)}
         </nav>
-        <main className={`main page-${page}`}><h1 className="sr-only">{current.title()}</h1>{live?._disconnected && <p className="notice" role="status">{t("Not connected")}</p>}<Page onLogout={onLogout} /></main>
+        <main className={`main page-${page}`}><h1 className="sr-only">{current.title()}</h1>{updateAvailable && <div className="update-notice" role="status"><span>{t("Update available")}</span><Btn small disabled={running} onClick={refreshBuild}>{t("Refresh")}</Btn></div>}{live?._disconnected && <p className="notice" role="status">{t("Not connected")}</p>}<Page onLogout={onLogout} /></main>
         <nav className="bottom-nav" aria-label={t("Hardware")}>{["dashboard", "cpu", "cu", "gpu", "performance"].map((key, i) => {
           const item = ALL.find((v) => v.key === key);
           return <a href={`#/${key}`} key={key} className={page === key ? "on" : ""} aria-current={page === key ? "page" : undefined}><Icon name={item.icon} /><span>{[t("Dashboard"), "CPU", "CU", "GPU", t("Sensors")][i]}</span></a>;
         })}</nav>
       </div>
-      {confirm && <Confirm spec={confirm} onCancel={() => setConfirm(null)} onGo={() => go(confirm)} />}
+      {confirm && <Confirm spec={confirm} onCancel={() => { setConfirm(null); confirm.onCancel?.(); }} onGo={() => go(confirm)} />}
       {(job && (jobId || running)) && <Activity job={job} canType={session.password} onClose={() => { setJob(null); setJobId(0); }} />}
       {sshOpen && <SSH onClose={() => setSshOpen(false)} canType={session.password} />}
       {toast && <div className={`toast ${toast.tone}`} role="status"><Icon name={toast.tone === "ok" ? "check_green" : "warning_orange"} /><span>{toast.text}</span><button className="ghost" aria-label={t("Close")} onClick={() => setToast(null)}><Icon name="close_gray" /></button></div>}

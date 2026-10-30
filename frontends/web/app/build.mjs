@@ -1,5 +1,6 @@
 // Builds ../dist: the bundle, the desktop's own icons, and the list of strings to translate.
 import { build } from "esbuild";
+import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -33,10 +34,13 @@ await build({
 });
 for (const [from, to] of [[join(icons, "bc250_board_light.png"), "board-light.png"], [join(icons, "bc250_board_dark.png"), "board-dark.png"],
   [join(root, "assets", "icons", "bc250-control-center-64.png"), "logo.png"]]) copyFileSync(from, join(dist, to));
+// Content identity: an open tab can detect a new build without interrupting a job.
+const version = createHash("sha256").update(readFileSync(join(dist, "app.js"))).update(readFileSync(join(dist, "app.css"))).update(readFileSync(import.meta.filename)).digest("hex").slice(0, 16);
+writeFileSync(join(dist, "version.json"), JSON.stringify({ version }) + "\n");
 writeFileSync(join(dist, "index.html"), `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
-<meta name="color-scheme" content="light dark"><title>BC250 Control Center</title>
-<link rel="icon" href="logo.png"><link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="app.css"></head>
-<body><div id="root"></div><script src="app.js"></script></body></html>
+<meta name="bc250-build" content="${version}"><meta name="color-scheme" content="light dark"><title>BC250 Control Center</title>
+<link rel="icon" href="logo.png"><link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="app.css?v=${version}"></head>
+<body><div id="root"></div><script src="app.js?v=${version}"></script></body></html>
 `);
 console.log("dist ready");

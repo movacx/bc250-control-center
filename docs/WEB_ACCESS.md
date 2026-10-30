@@ -92,9 +92,13 @@ headings and the CU overview card are omitted. Secondary and experimental contro
 expandable. CU rows show five WGP pairs each and warn about engine imbalance. Selecting a preset or toggling a pair only edits the draft; applying
 still needs confirmation.
 
-The voltage laboratory uses the desktop's shared calibration model: levels
-0–6, a current/proposed V/F plot, and custom edits of active points within the
-shared 600–1210 mV bounds. The service rechecks active frequencies and rejects
+The voltage laboratory opens a focused panel matching the desktop drawer:
+Gentle, Moderate, High and Custom modes; a scrollable table of active points;
+and Frequency, Current, Selected and delta-from-packaged-default columns.
+The fixed footer previews changed points and peak voltage before review.
+Draft values survive polling, mode changes, closing the panel and cancelling
+the confirmation. Additional settings retain all shared levels 0–6. Custom
+edits use the shared 600–1210 mV bounds. The service rechecks active frequencies and rejects
 a decreasing custom curve before any helper call. Restoring defaults also
 comments the high-frequency points, using the existing backup/restart workflow.
 Oberon voltage controls remain unavailable because it has no validated curve.
@@ -138,3 +142,13 @@ throwaway keys. The SSH integration test skips when OpenSSH server/client tools
 are unavailable. It does not start or reconfigure the system SSH daemon.
 
 See [Web architecture and file map](WEB_ARCHITECTURE.md) for the execution and authorization diagrams.
+
+## Frontend updates
+
+The build writes a content identity in `dist/version.json` and the HTML, and
+adds it to the JavaScript/CSS URLs. An open web session checks that identity
+every 15 seconds and offers **Refresh** when a newer frontend is available.
+It never reloads automatically; refreshing is disabled while an operation is
+running. A tab opened before this mechanism was added needs a manual reload
+once. Translation catalogs are reread when the refreshed frontend requests
+them, including after a frontend rebuild without a server restart.
