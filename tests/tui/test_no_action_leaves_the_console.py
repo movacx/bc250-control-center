@@ -33,7 +33,7 @@ class Watched(FakeService):
         call = super().__getattr__(name)
 
         def watched(*args, **kwargs):
-            if not Watched.inside and not name.startswith(("estado_", "ultima_", "obtener_estado")):
+            if not Watched.inside and not name.startswith(("estado_", "ultima_", "obtener_estado", "rendimiento")):
                 Watched.outside.append(name)
             return call(*args, **kwargs)
         return watched

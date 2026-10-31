@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import time
 
+from bc250cc.application.fan.system_control import system_fan_control_owns_fan
 from bc250cc.application.preparation.component_engine import component_capabilities
+from bc250cc.domain.telemetry import voltage_mv
+from frontends.desktop.core.dashboard_presenter import (
+    FAN_OWNER_LABELS,
+    dashboard_fan_owner,
+)
 
 from ..content import (
     Card,
@@ -48,6 +54,8 @@ def _safe(call):
     """A service reading, or None when it fails or is not a mapping."""
     try:
         value = call()
+        if hasattr(value, "to_dict"):
+            value = value.to_dict()
     except Exception:
         return None
     return value if isinstance(value, dict) else None
@@ -89,15 +97,18 @@ class DashboardPage(Page):
         # package managers and git. Polling those every few seconds was most of
         # the interface's idle CPU.
         for keys, seconds, reads in (
-            (("daemon", "cu"), MEDIUM_SECONDS, (service.estado_bc250_daemon, service.obtener_estado_cu_cache)),
+            (("daemon", "cu", "performance", "cpu_persistence", "fan_system"), MEDIUM_SECONDS,
+             (service.estado_bc250_daemon, service.obtener_estado_cu_cache, service.rendimiento,
+              service.estado_cpu_oc_persistente, service.estado_control_fan_sistema)),
             (("tools", "gddr6"), SLOW_SECONDS, (service.estado_herramientas_bc250, service.estado_gddr6_memory_temp)),
         ):
             if now - state.get(f"{keys[0]}_at", -seconds) >= seconds or ctx.page_data.get(self.key) is None:
                 state[f"{keys[0]}_at"] = now
                 state.update({key: _safe(read) or {} for key, read in zip(keys, reads)})
-        data = {key: state.get(key, {}) for key in ("daemon", "cu", "tools", "gddr6")}
+        data = {key: state.get(key, {}) for key in ("daemon", "cu", "tools", "gddr6", "performance", "cpu_persistence", "fan_system")}
         data["fans"] = _safe(service.estado_fans_bc250)
         data["sample"] = _safe(service.ultima_temperatura_vram) or {}
+        data["config"] = _safe(ctx.settings.read_local_config) if ctx.settings is not None else {}
         return data
 
     def build(self, ctx, data, tab, ui):
@@ -107,6 +118,20 @@ class DashboardPage(Page):
         blocks = metric_blocks(ctx)
         gpu, cpu, memory, sensors, power = (blocks[k] for k in ("gpu", "cpu", "memory", "sensors", "power"))
         daemon = data.get("daemon") or {}
+        performance = data.get("performance") or {}
+        disk = blocks["disk"]
+        cpu_voltage = voltage_mv(cpu.get("voltage_mv", performance.get("cpu_voltage")))
+        persistence = data.get("cpu_persistence") or {}
+        registered = persistence.get("config") or {}
+        oc = tr("Not detected")
+        if persistence.get("applied_this_boot") and registered.get("valid"):
+            frequency, scale = registered.get("frequency"), registered.get("scale")
+            if isinstance(frequency, (int, float)) and frequency > 0 and isinstance(scale, int) and -50 <= scale <= 0:
+                oc = f"{frequency} MHz · {tr('Scale')} {scale}"
+        owner = dashboard_fan_owner(data.get("fans") or {},
+            system_owned=system_fan_control_owns_fan(data.get("fan_system") or {}),
+            config=data.get("config") or ctx.config,
+            external=bool((data.get("fan_system") or {}).get("external")))
         pump = pump_row(data.get("fans"))
         busy = gpu.get("usage_percent") if gpu.get("usage_percent") is not None else gpu.get("compute_busy_percent")
         cus = ((data.get("cu") or {}).get("rows")) or []
@@ -115,20 +140,27 @@ class DashboardPage(Page):
         cores = []
         usage = cpu.get("per_core_percent") or []
         clocks = cpu.get("per_core_frequency_mhz") or []
-        for index, value in enumerate(usage[:8]):
+        for index in range(8):
+            if index >= max(len(usage), len(clocks)):
+                cores.append(Field(f"N{index + 1}", tr("Hidden"), "dim"))
+                continue
             freq = clocks[index] if index < len(clocks) else None
+            value = usage[index] if index < len(usage) else None
             cores.append(Meter(f"N{index + 1}", percent(value), f"{number(freq, 'MHz')} {number(value, '%')}", load_tone(value)))
         # One rule for every card: a bar only for a reading with a known ceiling (a
         # temperature, a percentage, memory used of total); clocks, power,
-        # voltages and names are plain values. Absent sensors are left out.
+        # voltages and names are plain values. Missing sensors remain visible,
+        # just as on the desktop, so an unavailable rail is not silently lost.
         def heat(label, value):
-            return [temperature_meter(label, value)] if value is not None else []
+            return [temperature_meter(label, value)] if value is not None else [Field(label, tr("Not detected"), "dim")]
 
         cpu_card = Card(tr("Processor"), [
             Heading(tr("Thermal")),
             *heat(tr("Core temperature"), cpu.get("temperature_c")), *heat("VRM CPU", sensors.get("vrm_cpu_temperature_c")),
             Heading(tr("Activity")),
             load_meter(tr("CPU usage"), cpu.get("usage_percent")),
+            Field(tr("Core voltage"), number(cpu_voltage / 1000 if cpu_voltage is not None else None, "V", 3)),
+            Field(tr("Registered OC"), oc),
             Field(tr("Topology"), f"{cpu.get('physical_cores', '--')} / {cpu.get('logical_cores', '--')}"),
             Heading(tr("Live core monitor")), *cores,
         ], number(cpu.get("frequency_mhz", 0) / 1000 if cpu.get("frequency_mhz") else None, "GHz", 2))
@@ -160,12 +192,14 @@ class DashboardPage(Page):
         cool_card = Card(tr("Cooling"), [
             Heading(tr("Fan")),
             Meter(tr("PWM duty"), percent(duty), number(duty, "%"), "accent"),
-            Field(tr("PWM mode"), {2: "Firmware (BIOS)", 1: tr("Manual")}.get(pump.get("pwm_enable"), "--")),
+            Field(tr("PWM mode"), tr(FAN_OWNER_LABELS.get(owner, "Not detected"))),
             Field(tr("Controller"), str(pump.get("label") or "--")),
             *heat(tr("Board temperature"), sensors.get("board_temperature_c")),
             Heading(tr("M.2 drive")),
             *heat(tr("Temperature"), sensors.get("nvme_temperature_c")),
             *heat(tr("Hotspot"), sensors.get("nvme_hotspot_temperature_c")),
+            memory_meter(tr("Used"), disk.get("used", performance.get("disco_usado")),
+                         disk.get("total", performance.get("disco_total"))),
             memory_meter("Swap", memory.get("swap_used"), memory.get("swap_total")),
             Heading("BIOS"),
             Field(tr("Release"), str(data.get("bios") or ctx.state(self.key).get("bios") or self._bios(ctx))),
@@ -174,6 +208,7 @@ class DashboardPage(Page):
         out = [Columns([cpu_card, gpu_card, cool_card], minimum=40), Gap()]
         out += self._gddr6(ctx, data.get("gddr6") or {}, data.get("sample") or {})
         out += self._power(sensors)
+        out += self._telemetry(ctx)
         out += self._prepare(ctx, data, ui)
         return out
 
@@ -227,6 +262,16 @@ class DashboardPage(Page):
             out.append(Choice(tr("Prepare readings"), prepare))
         return out + [Gap()]
 
+    @staticmethod
+    def _telemetry(ctx):
+        from .extras import INSTALL, run
+
+        return [Heading(tr("BC250-Telemetry service")),
+                Choice(tr("Install") + " BC250-Telemetry", lambda ui_: run(ui_, "BC250-Telemetry service",
+                       ctx.service.gestionar_apu_telemetry, (("install", "Install"),))),
+                Choice(tr("BC250-Telemetry service") + " ›", lambda ui_: run(
+                    ui_, "BC250-Telemetry service", ctx.service.gestionar_apu_telemetry, INSTALL)), Gap()]
+
     # -- power rails ------------------------------------------------------------
 
     @staticmethod
@@ -237,11 +282,12 @@ class DashboardPage(Page):
             (tr("GPU voltage"), number(sensors.get("vrm_gpu_voltage_v"), "V", 3)),
             (tr("CPU current"), number(sensors.get("vrm_cpu_current_a"), "A", 1)),
             (tr("GPU current"), number(sensors.get("vrm_gpu_current_a"), "A", 1)),
+            ("VRM CPU · " + tr("Power"), number(sensors.get("vrm_cpu_power_w"), "W", 1)),
+            ("VRM GPU · " + tr("Power"), number(sensors.get("vrm_gpu_power_w"), "W", 1)),
             (tr("Total board power"), number(sensors.get("vrm_total_power_w"), "W", 1)),
         ]
-        if all(value == "--" for _label, value in rails):
-            return [Heading(tr("Power")), Field(tr("Status"), tr("Not detected"), "dim"), Gap()]
-        return [Heading(tr("Power")), *[Field(label, value) for label, value in rails], Gap()]
+        return [Heading(tr("Power")), *[Field(label, tr("Not detected") if value == "--" else value,
+                "dim" if value == "--" else "") for label, value in rails], Gap()]
 
     # -- system preparation ------------------------------------------------------
 

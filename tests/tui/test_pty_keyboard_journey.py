@@ -1,4 +1,4 @@
-"""Run the actual curses app on Linux-console and xterm PTYs, using keys only."""
+"""Run the actual curses app on Linux-console and xterm PTYs."""
 import fcntl
 import os
 import select
@@ -84,6 +84,49 @@ def test_keyboard_journey_reaches_remote_and_every_resource_on_a_real_pty(tmp_pa
         else:
             pytest.fail('TUI did not restore the terminal and exit after q')
         assert b'Traceback' not in output
+    finally:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+        os.close(fd)
+
+
+def test_mouse_sgr_opens_remote_and_pinned_settings_on_an_actual_terminal(tmp_path):
+    config = tmp_path / 'config/bc250-control-center'
+    config.mkdir(parents=True)
+    (config / 'ui.conf').write_text('[settings]\nupdate_check=false\n')
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.environ.update(TERM='xterm-256color', LANG='C.UTF-8', HOME=str(tmp_path),
+                          XDG_CONFIG_HOME=str(tmp_path / 'config'), XDG_STATE_HOME=str(tmp_path / 'state'),
+                          XDG_DATA_HOME=str(tmp_path / 'data'), PYTHONPATH=f'{ROOT}/src:{ROOT}')
+        os.chdir(ROOT)
+        os.execv(sys.executable, [sys.executable, '-m', 'frontends.tui', '--lang', 'en', '--theme', 'mono'])
+    fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack('HHHH', 30, 100, 0, 0))
+    try:
+        read_until(fd, b'Dashboard')
+        # At 30 rows, the full grouped sidebar places Remote access at y=14.
+        os.write(fd, b'\x1b[<0;4;15M\x1b[<0;4;15m')
+        read_until(fd, b'Information protected')
+        # Settings is anchored at height-2 regardless of scroll/selection.
+        # Let the preceding click release finish before the next physical click;
+        # ncurses coalesces simultaneous mouse reports in its input queue.
+        time.sleep(.15)
+        os.write(fd, b'\x1b[<0;4;29M')
+        time.sleep(.05)
+        os.write(fd, b'\x1b[<0;4;29m')
+        read_until(fd, b'General')
+        os.write(fd, b'q')
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            done, status = os.waitpid(pid, os.WNOHANG)
+            if done:
+                assert os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0
+                break
+            time.sleep(.1)
+        else:
+            pytest.fail('mouse navigation left the TUI unable to quit with the keyboard')
     finally:
         try:
             os.kill(pid, signal.SIGKILL)

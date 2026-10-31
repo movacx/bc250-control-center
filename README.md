@@ -190,11 +190,19 @@ ssh -t user@board-ip bc250-control-center-tui
 ```
 
 The TUI uses the same keyboard navigation on a physical TTY and over SSH.
-It does not capture touch or mouse input, and no narrow-terminal touch mode is
-automatically enabled. For a phone interface, use the local web application.
+Mouse-capable terminals also support clicking sections, tasks, options and CU
+cells, using the wheel to scroll, and dragging scrollbars. Dialogs accept mouse
+input within their own bounds; a running console keeps exclusive input until it
+finishes. Hold Shift for the terminal's own text selection. No separate touch
+layout is enabled; for a phone interface, use the local web application.
 CPU, GPU and Compute Units use compact task tabs. Remote access includes web
 ownership controls and independent SSH start/stop and boot controls; its
 sensitive information starts hidden and is hidden again after five minutes.
+The sidebar groups Hardware, Monitoring and System, with Firmware and Settings
+anchored at the bottom. The dashboard includes CPU voltage and registered OC,
+VRM readings, disk usage and fan ownership, and can install BC250-Telemetry.
+Fans › Automatic curve can save a curve and enable its service at boot, or
+synchronize an already enabled service, directly from the curve editor.
 
 Actions that need the administrator password ask for it inside the interface's console, over SSH as at the board; Esc or Ctrl+C cancels. Compute Unit routing and the Game Mode helper stay limited to the local session.
 

@@ -133,3 +133,51 @@ def test_the_refresher_ignores_a_result_that_arrives_too_late(qtbot):
 
     refresher._result_ready("late", None)
     assert applied == [], "a result was rendered into a destroyed page"
+
+
+def test_worker_completion_after_signal_destruction_does_not_abort(qtbot):
+    from PyQt6 import sip
+
+    from frontends.desktop.components.async_tools import _FunctionTask
+
+    for fails in (False, True):
+        def operation():
+            if fails:
+                raise RuntimeError('backend failed during shutdown')
+            return {'value': 42}
+        task = _FunctionTask('shutdown race', operation)
+        sip.delete(task.signals)
+        task.run()  # both result/error and finished must tolerate the deleted QObject
+
+
+def test_deleted_signal_race_in_an_actual_qt_worker_exits_cleanly(tmp_path):
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    program = '''
+from threading import Event
+from PyQt6 import sip
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import QThreadPool
+from frontends.desktop.components.async_tools import _FunctionTask, _submit, pending_background_tasks
+app=QApplication([])
+started, release=Event(), Event()
+def operation():
+    started.set()
+    release.wait(3)
+    return 42
+pool=QThreadPool()
+task=_FunctionTask('deleted signal race', operation)
+_submit(pool, task)
+assert started.wait(3)
+sip.delete(task.signals)
+release.set()
+assert pool.waitForDone(5000)
+assert pending_background_tasks()==0
+'''
+    result = subprocess.run([sys.executable, '-c', program], env={**os.environ, 'QT_QPA_PLATFORM': 'offscreen', 'PYTHONPATH': f'{root}/src:{root}'},
+                            capture_output=True, text=True, timeout=12)
+    assert result.returncode == 0, result.stdout + result.stderr

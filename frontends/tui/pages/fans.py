@@ -94,7 +94,8 @@ class FansPage(Page):
     def _curve(config):
         return normalize_fan_curve((config or {}).get("fan_curve"))
 
-    def _save(self, ctx, ui, payload: dict, system: dict, label: str, first=None, message: str = "") -> None:
+    def _save(self, ctx, ui, payload: dict, system: dict, label: str, first=None, message: str = "", *,
+              start_service: bool = False) -> bool:
         """Run ``first`` (a PWM write), save fan settings, then hand the new policy to the root service when it is on."""
         def work():
             if first is not None:
@@ -103,13 +104,17 @@ class FansPage(Page):
             config = dict(ctx.page_data.get(self.key, {}).get("config") or {})
             config.update(payload)
             ctx.page_data.get(self.key, {}).update(config=config)
-            if system.get("enabled"):
+            if start_service:
                 policy = build_system_fan_policy(config)
-                if policy is not None:
-                    ctx.service.sincronizar_control_fan_sistema(policy)
+                if policy is None:
+                    raise ValueError(tr("Choose a curve or a preset first"))
+                ctx.service.activar_control_fan_sistema(policy)
+            elif system.get("enabled"):
+                # None clears an old curve and hands the fan back to firmware.
+                ctx.service.sincronizar_control_fan_sistema(build_system_fan_policy(config))
             return message or (tr("Fan curve saved") if "fan_curve" in payload and "fan_preset" not in payload else tr("Saved"))
 
-        guarded(ui, label, work)
+        return guarded(ui, label, work)
 
     # ---------------------------------------------------------------- build
 
@@ -294,7 +299,7 @@ class FansPage(Page):
             if len(ordered) > 2:
                 mine["points"] = ordered[:-1]
 
-        def save(ui_):
+        def save(ui_, *, start_service=False):
             ordered = sorted(mine["points"])
             ok, text = validate_fan_curve_points(ordered)
             if not ok:
@@ -309,9 +314,9 @@ class FansPage(Page):
             payload = {"fan_curve": body}
             if body["enabled"]:
                 payload["fan_preset"] = {"enabled": False, "preset": "", "percent": 0, "pwm": pwm}
-            self._save(ctx, ui_, payload, system, tr("Fan curve saved"))
-            for key in ("points", "enabled"):
-                mine.pop(key, None)
+            if self._save(ctx, ui_, payload, system, tr("Fan curve saved"), start_service=start_service):
+                for key in ("points", "enabled"):
+                    mine.pop(key, None)
 
         def apply_now(ui_):
             if target is None:
@@ -324,6 +329,15 @@ class FansPage(Page):
                 Choice(tr("Remove point"), remove, enabled=len(points) > 2),
                 Choice(tr("Save curve"), save, enabled=valid, tone="accent"),
                 Choice(tr("Apply curve now"), apply_now, enabled=target is not None and not system.get("external"))]
+        def persist(ui_):
+            if ui_.confirm(f"{tr('Save curve')} · {tr('Turn on control from boot')}: PWM {mine['pwm']}"):
+                save(ui_, start_service=not system.get("enabled"))
+
+        out += [Gap(), Heading(tr("Boot persistence")),
+                Choice(tr("Save curve") + " + " + tr("Sync now" if system.get("enabled") else "Turn on control from boot"),
+                       persist, enabled=valid and bool(mine["enabled"]) and
+                       bool(system.get("enabled") or system.get("available")) and not system.get("external")),
+                *self._boot(ctx, ui, mine, system, config)]
         return out
 
     # ----------------------------------------------------------------- boot

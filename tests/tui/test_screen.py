@@ -88,7 +88,7 @@ def test_arrow_keys_move_the_sidebar_and_digits_jump_from_either_pane():
     press(screen, ord(","))
     assert screen.page_key == "settings"
     press(screen, 27, curses.KEY_UP)
-    assert screen.page_key == "remote"
+    assert screen.page_key == "firmware"
 
 
 def test_the_sidebar_groups_sections_like_the_desktop():
@@ -107,13 +107,13 @@ def test_search_jumps_to_an_item_or_a_section():
     assert screen.page_key == "fans"
 
 
-def test_mouse_events_do_not_change_terminal_navigation(monkeypatch):
+def test_mouse_opens_a_section_without_breaking_keyboard_navigation(monkeypatch):
     window, screen = make_screen()
     screen.draw()
     y = next(y for y, index in screen._sidebar_at.items() if screen.order[index] == "gpu")
     monkeypatch.setattr(curses, "getmouse", lambda: (0, 2, y, 0, curses.BUTTON1_PRESSED))
     press(screen, curses.KEY_MOUSE)
-    assert screen.page_key == "dashboard" and screen.focus == "sidebar"
+    assert screen.page_key == "gpu" and screen.focus == "content"
 
 
 def test_vim_keys_and_tab_switch_panes():

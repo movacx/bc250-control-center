@@ -119,6 +119,9 @@ def main(argv: list[str] | None = None) -> int:
             poller.stop()
 
     os.environ.setdefault("ESCDELAY", "25")
+    # Let ncurses query the actual TTY instead of stale exported dimensions.
+    os.environ.pop("LINES", None)
+    os.environ.pop("COLUMNS", None)
     curses.wrapper(start)
     return 0
 

@@ -40,6 +40,9 @@ class FakeService:
             return f"{name} ok"
         return call
 
+    def rendimiento(self):
+        return {}
+
     def metricas_tiempo_real(self):
         return METRICS
 

@@ -82,6 +82,15 @@ class Console:
             scroll = max(0, min(scroll, end - rows))
             return [self._runs(row) for row in grid[max(0, end - scroll - rows):end - scroll]], scroll
 
+    def line_count(self) -> int:
+        """Printed extent for scrollbar geometry, without formatting scrollback."""
+        with self.lock:
+            grid = self.term.scrollback + self.term.lines
+            end = len(grid)
+            while end and not any(cell.text.strip() for cell in grid[end - 1]):
+                end -= 1
+            return end
+
     @staticmethod
     def _runs(row) -> list[tuple[str, str, bool]]:
         runs: list[tuple[str, str, bool]] = []
