@@ -13,6 +13,7 @@ from pathlib import Path
 
 from bc250cc.infrastructure.persistence.config_paths import app_config_dir
 from bc250cc.infrastructure.remote_access import addresses
+from bc250cc.infrastructure.web_network import local_hostname
 from bc250cc.shared.errors import ActionNeeded
 
 
@@ -62,12 +63,16 @@ def certificate() -> tuple[Path, Path]:
                 os.replace(stage / "authority.key", authority_key)
                 os.replace(stage / "authority.crt", authority)
             ips = {"127.0.0.1", *(str(ipaddress.ip_address(value)) for value in addresses())}
+            names = {"localhost"}
+            if name := local_hostname():
+                names.add(name)
             valid = not new_ca and cert.is_file() and key.is_file() and current(cert)
             if valid:
                 try:
-                    run("verify", "-CAfile", authority, cert)
+                    for name in names:
+                        run("verify", "-CAfile", authority, "-verify_hostname", name, cert)
                     for ip in ips:
-                        run("x509", "-in", cert, "-noout", "-checkip", ip)
+                        run("verify", "-CAfile", authority, "-verify_ip", ip, cert)
                 except subprocess.CalledProcessError:
                     valid = False
             if not valid:
@@ -75,8 +80,9 @@ def certificate() -> tuple[Path, Path]:
                     "-keyout", stage / "private.pem", "-out", stage / "request.pem")
                 extensions = stage / "extensions.cnf"
                 extensions.write_text("basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\n"
-                                      "extendedKeyUsage=serverAuth\nsubjectAltName=DNS:localhost," +
-                                      ",".join(f"IP:{ip}" for ip in sorted(ips)) + "\n", encoding="ascii")
+                                      "extendedKeyUsage=serverAuth\nsubjectAltName=" +
+                                      ",".join([*(f"DNS:{name}" for name in sorted(names)),
+                                                *(f"IP:{ip}" for ip in sorted(ips))]) + "\n", encoding="ascii")
                 run("x509", "-req", "-in", stage / "request.pem", "-CA", authority, "-CAkey", authority_key,
                     "-set_serial", "0x" + os.urandom(16).hex(), "-days", "365", "-sha256", "-extfile", extensions,
                     "-out", stage / "certificate.pem")

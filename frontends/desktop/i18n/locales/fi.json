@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Hyväksy kortin paikallinen varmenne selaimessa ensimmäisellä kerralla. SSH-valtuutus on käytettävissä verkkokäyttöliittymässä.",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Skannaa puhelimella samassa Wi-Fi-verkossa. QR sisältää pääsyavaimen; älä jaa sitä.",
   "HTTPS required": "HTTPS vaaditaan",
-  "Terminal input": "Päätteen syöte"
+  "Terminal input": "Päätteen syöte",
+  "Open the installed app to use BC250 without the browser address bar.": "Avaa asennettu sovellus, jotta voit käyttää BC250:tä ilman selaimen osoiteriviä."
 }

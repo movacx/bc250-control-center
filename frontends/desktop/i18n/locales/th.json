@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "ครั้งแรก ให้ยอมรับใบรับรองภายในของบอร์ดนี้ในเบราว์เซอร์ สามารถอนุญาตผ่าน SSH ได้ในหน้าเว็บ",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "สแกนด้วยโทรศัพท์บน Wi-Fi เดียวกัน QR มีคีย์การเข้าถึง ห้ามแชร์",
   "HTTPS required": "ต้องใช้ HTTPS",
-  "Terminal input": "อินพุตเทอร์มินัล"
+  "Terminal input": "อินพุตเทอร์มินัล",
+  "Open the installed app to use BC250 without the browser address bar.": "เปิดแอปที่ติดตั้งไว้เพื่อใช้ BC250 โดยไม่แสดงแถบที่อยู่ของเบราว์เซอร์"
 }

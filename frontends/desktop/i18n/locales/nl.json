@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Accepteer de eerste keer het lokale certificaat van dit bord in je browser. SSH-autorisatie is beschikbaar in de webinterface.",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Scan met je telefoon op hetzelfde Wi-Fi-netwerk. De QR bevat de toegangssleutel; deel deze niet.",
   "HTTPS required": "HTTPS vereist",
-  "Terminal input": "Terminalinvoer"
+  "Terminal input": "Terminalinvoer",
+  "Open the installed app to use BC250 without the browser address bar.": "Open de geïnstalleerde app om BC250 zonder de adresbalk van de browser te gebruiken."
 }

@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Při prvním připojení přijměte místní certifikát desky v prohlížeči. Autorizace SSH je dostupná ve webovém rozhraní.",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Naskenujte telefonem ve stejné síti Wi-Fi. QR obsahuje přístupový klíč; nesdílejte jej.",
   "HTTPS required": "Je vyžadováno HTTPS",
-  "Terminal input": "Vstup terminálu"
+  "Terminal input": "Vstup terminálu",
+  "Open the installed app to use BC250 without the browser address bar.": "Otevřete nainstalovanou aplikaci a používejte BC250 bez adresního řádku prohlížeče."
 }

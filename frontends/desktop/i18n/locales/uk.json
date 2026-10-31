@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Під час першого підключення прийміть локальний сертифікат плати в браузері. Авторизація SSH доступна у вебінтерфейсі.",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Скануйте телефоном у тій самій мережі Wi-Fi. QR містить ключ доступу; не діліться ним.",
   "HTTPS required": "Потрібен HTTPS",
-  "Terminal input": "Ввід термінала"
+  "Terminal input": "Ввід термінала",
+  "Open the installed app to use BC250 without the browser address bar.": "Відкрийте встановлений застосунок, щоб користуватися BC250 без адресного рядка браузера."
 }

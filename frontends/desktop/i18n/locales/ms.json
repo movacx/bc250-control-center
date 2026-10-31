@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Pada kali pertama, terima sijil setempat papan ini dalam pelayar. Kebenaran SSH tersedia dalam antara muka web.",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Imbas dengan telefon pada Wi-Fi yang sama. QR mengandungi kunci akses; jangan kongsikannya.",
   "HTTPS required": "HTTPS diperlukan",
-  "Terminal input": "Input terminal"
+  "Terminal input": "Input terminal",
+  "Open the installed app to use BC250 without the browser address bar.": "Buka aplikasi yang dipasang untuk menggunakan BC250 tanpa bar alamat pelayar."
 }

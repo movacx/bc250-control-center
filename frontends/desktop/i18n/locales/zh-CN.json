@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "首次连接时，请在浏览器中接受此主板的本地证书。SSH 授权可直接在网页界面中完成。",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "请使用连接同一 Wi-Fi 的手机扫描。QR 包含访问密钥，请勿分享。",
   "HTTPS required": "需要 HTTPS",
-  "Terminal input": "终端输入"
+  "Terminal input": "终端输入",
+  "Open the installed app to use BC250 without the browser address bar.": "打开已安装的应用，即可使用 BC250 而不显示浏览器地址栏。"
 }

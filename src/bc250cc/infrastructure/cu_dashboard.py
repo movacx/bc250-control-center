@@ -47,6 +47,9 @@ def _metadata(state: dict[str, object], text: str) -> None:
         "umr_instance": r"^\s*UMR inst\s*:\s*(.+?)\s*$",
         "asic": r"^\s*ASIC\s*:\s*(.+?)\s*$",
         "service": r"^\s*Service\s*:\s*(.+?)\s*$",
+        "cpu_summary": r"^\s*CPU\s*:\s*(.+?)\s*$",
+        "register_source": r"^\s*Source\s*:\s*(.+?)\s*$",
+        "legend": r"^\s*Legend\s*:\s*(.+?)\s*$",
     }
     for key, pattern in patterns.items():
         match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)

@@ -190,10 +190,14 @@ def status() -> dict:
     host = sorted(addresses())
     scheme = "https" if opts["tls"] else "http"
     from bc250cc.infrastructure import web_devices, web_network, web_tls
+    local_name = web_network.local_hostname() if opts["lan"] else ""
+    urls = [f"{scheme}://{ip}:{opts['port']}" for ip in host] if opts["lan"] else []
+    if local_name:
+        urls.insert(0, f"{scheme}://{local_name}:{opts['port']}")
     return {"devices": web_devices.devices(), "networks": web_network.home_networks() if opts["lan"] else [],
             "trust_fingerprint": web_tls.fingerprint(web_tls.folder() / "authority.crt"),
             **opts, "running": _listening(opts["port"]), "key": access_key(), "addresses": host,
-            "urls": [f"{scheme}://{ip}:{opts['port']}" for ip in host] if opts["lan"] else [],
+            "urls": urls,
             "local_url": f"{scheme}://127.0.0.1:{opts['port']}", "autostart": autostart_state(),
             "tls_fingerprint": certificate_fingerprint() if opts["tls"] else ""}
 

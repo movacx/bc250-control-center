@@ -82,3 +82,36 @@ def test_repository_method_is_a_narrow_parser_delegate():
     assert "parse_dashboard(" in source
     assert "re.search" not in source
     assert len(source.splitlines()) <= 9
+
+
+def test_report_metadata_and_nonuniform_topology_are_preserved():
+    text = """UMR: /usr/bin/umr
+UMR inst: 1 (auto)
+ASIC: cyan_skillfish.gfx1013
+amdgpu: bc250_cc_write_mode=not exposed, active_cu_number=24
+CPU: 12 threads present, 6 online; mask not probed (governor active)
+Service: enabled
+Boot sync: pending changes; press [w] Write table
+Source: SPI dispatch masks + amdgpu boot CU map
+Legend: D+ driver+routed, S+ SPI+routed, D! driver+off, -- off
+| SE0.SH0 | D+ | D+ | D+ | S+ | S+ | 0x1f | 0xffe00000 | 10/10 |
+| SE0.SH1 | D+ | D+ | D+ | -- | -- | 0x07 | 0xffe00000 | 6/10 |
+| SE1.SH0 | D+ | D+ | D+ | S+ | S+ | 0x1f | 0xffe00000 | 10/10 |
+| SE1.SH1 | D+ | D+ | D+ | -- | -- | 0x07 | 0xffe00000 | 6/10 |
+CUs active & routed: 32/40
+"""
+    result = parse(text)
+    assert result["available"]
+    assert result["active_cus"] == 32
+    assert result["masks"] == [31, 7, 31, 7]
+    assert result["driver_masks"] == [7, 7, 7, 7]
+    assert [row["spi"] for row in result["rows"]] == ["0x1f", "0x07", "0x1f", "0x07"]
+    assert all(row["cc"] == "0xffe00000" for row in result["rows"])
+    assert result["cpu_summary"] == "12 threads present, 6 online; mask not probed (governor active)"
+    assert result["register_source"] == "SPI dispatch masks + amdgpu boot CU map"
+    assert result["source"] == "fixture"  # Snapshot provenance stays independent.
+    assert result["umr"] == "/usr/bin/umr" and result["umr_instance"] == "1 (auto)"
+    assert result["asic"] == "cyan_skillfish.gfx1013"
+    assert result["amdgpu_active_cus"] == "24"
+    assert result["boot_sync_key"] == "pending"
+    assert result["legend"] == "D+ driver+routed, S+ SPI+routed, D! driver+off, -- off"

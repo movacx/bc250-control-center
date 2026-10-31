@@ -2512,6 +2512,7 @@
    "revoke_all": "CORE-0213"
   },
   "bc250cc/infrastructure/web_network.py": {
+   "local_hostname": "CORE-0223",
    "home_networks": "CORE-0214",
    "allows": "CORE-0215"
   },

@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "La prima conectare, acceptați certificatul local al plăcii în browser. Autorizarea SSH este disponibilă în interfața web.",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Scanați cu telefonul în aceeași rețea Wi-Fi. QR conține cheia de acces; nu îl distribuiți.",
   "HTTPS required": "Este necesar HTTPS",
-  "Terminal input": "Intrare terminal"
+  "Terminal input": "Intrare terminal",
+  "Open the installed app to use BC250 without the browser address bar.": "Deschide aplicația instalată pentru a utiliza BC250 fără bara de adrese a browserului."
 }

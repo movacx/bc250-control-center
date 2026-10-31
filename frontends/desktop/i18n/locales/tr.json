@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "İlk bağlantıda tarayıcıda bu kartın yerel sertifikasını kabul edin. SSH yetkilendirmesi web arayüzünde kullanılabilir.",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Aynı Wi-Fi ağındaki telefonunuzla tarayın. QR erişim anahtarını içerir; paylaşmayın.",
   "HTTPS required": "HTTPS gerekli",
-  "Terminal input": "Terminal girdisi"
+  "Terminal input": "Terminal girdisi",
+  "Open the installed app to use BC250 without the browser address bar.": "BC250’yi tarayıcının adres çubuğu olmadan kullanmak için yüklü uygulamayı açın."
 }

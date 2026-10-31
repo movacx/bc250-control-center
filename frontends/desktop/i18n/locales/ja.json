@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "初回はブラウザーでこのボードのローカル証明書を承認してください。SSH 認証はウェブ画面内で利用できます。",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "同じ Wi-Fi の電話でスキャンしてください。QR にはアクセスキーが含まれるため、共有しないでください。",
   "HTTPS required": "HTTPS が必要です",
-  "Terminal input": "端末入力"
+  "Terminal input": "端末入力",
+  "Open the installed app to use BC250 without the browser address bar.": "インストールしたアプリを開くと、ブラウザーのアドレスバーを表示せずに BC250 を使えます。"
 }

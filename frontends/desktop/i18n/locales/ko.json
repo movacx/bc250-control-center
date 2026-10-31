@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "처음에는 브라우저에서 이 보드의 로컬 인증서를 수락하세요. SSH 인증은 웹 인터페이스에서 사용할 수 있습니다.",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "같은 Wi-Fi에 연결된 휴대전화로 스캔하세요. QR에는 접근 키가 포함되므로 공유하지 마세요.",
   "HTTPS required": "HTTPS 필요",
-  "Terminal input": "터미널 입력"
+  "Terminal input": "터미널 입력",
+  "Open the installed app to use BC250 without the browser address bar.": "설치된 앱을 열면 브라우저 주소 표시줄 없이 BC250을 사용할 수 있습니다."
 }

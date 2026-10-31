@@ -222,6 +222,20 @@ live server. Existing build notices continue to avoid forced reloads during jobs
 References: [MDN installation criteria](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable),
 [Apple home-screen web apps](https://support.apple.com/guide/iphone/iphea86e5236/ios).
 
+## Local name instead of an IP
+
+When Avahi resolves this machine's own `<hostname>.local` name to one of its
+network addresses, Remote access offers that HTTPS address before the IP
+alternatives. The server certificate includes the verified local name and
+renews when names or addresses change, keeping the same local CA. No hostname,
+router configuration, public DNS or port forwarding is changed. Devices whose
+networks cannot resolve mDNS can still use the IP entry.
+
+A web page cannot replace the browser's address bar with its application title.
+Use the local-name URL, or install BC250 and open its standalone window for
+captures without the normal browser address bar. Installation still requires
+trusted HTTPS; it does not change authentication or device permissions.
+
 ## Phone layout
 
 The bottom bar reaches Dashboard, CPU, CU, GPU and Sensors. Settings and fans
@@ -229,8 +243,20 @@ are in the menu. CPU/GPU profiles have separate, touch-sized edit buttons. GPU f
 are changed through profiles; the manual frequency slider belongs to desktop.
 The SSH button appears only inside the Dashboard board card; repeated page
 headings and the CU overview card are omitted. Secondary and experimental controls are
-expandable. CU rows show five WGP pairs each and warn about engine imbalance. Selecting a preset or toggling a pair only edits the draft; applying
-still needs confirmation.
+expandable. CU has separate routing, monitoring and boot views. Its four shader
+rows are grouped under SE0 and SE1, with five touch-sized WGP pairs per row.
+There are no universal 24/40-CU shortcuts. Toggling a pair edits only the draft;
+an inline review confirms application. The full-width Unlock / Sync action sits
+below Reset selection and Review and apply. Unverified fallback topologies are
+not presented as actual readings or enabled for editing.
+
+CU Details shows each row's reported live SPI, pending target SPI, driver map
+and CC harvest register. Mobile presents the table as labelled row groups.
+Missing registers stay unavailable; differing routing or a D! token alone does
+not diagnose a defective hardware module. Monitoring includes the parsed UMR
+path/instance, ASIC, amdgpu fields, CPU report, service, boot synchronization,
+register source and snapshot provenance. It uses the same live-manager report
+parser as desktop; passive polling does not launch privileged register reads.
 
 CPU and GPU control pages separate profile configuration from monitoring.
 Their profile choices remain vertical bars with a right-side edit button,

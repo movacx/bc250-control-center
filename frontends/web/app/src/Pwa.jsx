@@ -36,6 +36,7 @@ export function InstallApp() {
       if (!available) { setHelp(!help); return; }
       try { await install(); } catch { setHelp(true); }
     }} aria-expanded={available ? undefined : help}>{t("Install app")}</Btn></div>
+    <p className="note">{t("Open the installed app to use BC250 without the browser address bar.")}</p>
     {help && <p className="note" role="status">{apple ? t("In Safari, open Share, then Add to Home Screen and Open as Web App.") : t("Open your browser menu and choose Install app or Add to Home screen. If it is unavailable, trust this board's HTTPS certificate first.")}</p>}
   </div>;
 }

@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Első alkalommal fogadja el a lap helyi tanúsítványát a böngészőben. Az SSH-hitelesítés a webes felületen érhető el.",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Olvassa be a telefonjával ugyanazon a Wi-Fi-hálózaton. A QR a hozzáférési kulcsot tartalmazza; ne ossza meg.",
   "HTTPS required": "HTTPS szükséges",
-  "Terminal input": "Terminálbevitel"
+  "Terminal input": "Terminálbevitel",
+  "Open the installed app to use BC250 without the browser address bar.": "Nyisd meg a telepített alkalmazást a BC250 használatához a böngésző címsora nélkül."
 }

@@ -5551,5 +5551,6 @@
   "The first time, accept this board's local certificate in your browser. SSH authorization is available inside the web interface.": "Godkänn kortets lokala certifikat i webbläsaren första gången. SSH-auktorisering finns i webbgränssnittet.",
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Skanna med telefonen på samma Wi-Fi. QR innehåller åtkomstnyckeln; dela den inte.",
   "HTTPS required": "HTTPS krävs",
-  "Terminal input": "Terminalinmatning"
+  "Terminal input": "Terminalinmatning",
+  "Open the installed app to use BC250 without the browser address bar.": "Öppna den installerade appen för att använda BC250 utan webbläsarens adressfält."
 }
