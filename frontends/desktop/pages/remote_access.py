@@ -322,6 +322,8 @@ class RemoteAccessPage(QWidget):
         connection.addSpacing(6)
         connection.addWidget(self._label("Connect your phone", strong=True))
         self.web_address = GuardedComboBox()
+        self._web_address_chosen = False
+        self.web_address.activated.connect(lambda _index: setattr(self, "_web_address_chosen", True))
         self.web_address.setAccessibleName(tr("Address"))
         self.web_address.currentIndexChanged.connect(self._render_qr)
         connection.addWidget(self.web_address)
@@ -704,7 +706,9 @@ class RemoteAccessPage(QWidget):
             self.web_address.blockSignals(True)
             self.web_address.clear()
             self.web_address.addItems(available)
-            if selected in available:
+            # Prefer the announced alias when it arrives after the initial IP
+            # fallback, while respecting an address explicitly chosen by the user.
+            if self._web_address_chosen and selected in available:
                 self.web_address.setCurrentText(selected)
             self.web_address.blockSignals(False)
         self.web_pin_box.setText(state.get("key") or "—")

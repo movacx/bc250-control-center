@@ -252,6 +252,10 @@ local names; renewing a leaf keeps the same local CA. No router configuration,
 public DNS or port forwarding is changed. Phones whose networks cannot resolve
 mDNS can still use the IP entry.
 
+The address selector defaults to the verified alias, including when discovery
+finishes after the first IP-only refresh. The numeric IP remains selectable;
+an address explicitly selected by the user is preserved during refreshes.
+
 The desktop's Open in browser, Copy address and QR all use the selected address,
 including `bc250cc.local`. In localhost-only mode they use loopback. The Remote
 access page does not display permitted subnet/CIDR values; the backend still
