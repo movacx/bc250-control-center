@@ -1,6 +1,6 @@
 import { memory, heat, num, pick, t, useApp, usePage } from "../lib.jsx";
 import Gddr6 from "../Gddr6.jsx";
-import { Btn, Card, CpuCores, Icon, Read } from "../ui.jsx";
+import { Btn, Card, CpuCores, Read } from "../ui.jsx";
 
 const dark = () => document.documentElement.dataset.theme === "dark" || (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
 
@@ -10,7 +10,7 @@ function Mem({ label, used, total }) {
 }
 
 export default function Dashboard() {
-  const { live, ssh, openSsh } = useApp();
+  const { live } = useApp();
   const data = usePage("dashboard");
   if (!live) return <Card title={t("Dashboard")}><p className="note">{t("Waiting for data…")}</p></Card>;
   const { gpu = {}, cpu = {}, memory: ram = {}, sensors = {}, power = {} } = live.metrics;
@@ -29,7 +29,7 @@ export default function Dashboard() {
         <img src={dark() ? "board-dark.png" : "board-light.png"} alt="" width="78" height="52" style={{ objectFit: "contain" }} />
         <div className="board-info"><h2 style={{ margin: "0 0 2px", fontSize: 17, fontWeight: 800 }}>AMD BC-250</h2>
           <p className="note" style={{ fontWeight: 600 }}>{[t("{cores} cores / {threads} threads", { cores: cpu.physical_cores ?? "--", threads: cpu.logical_cores ?? "--" }),
-            cus != null ? `${cus} / 40 ${t("Compute Units")}` : null, gpu.vram_total ? `${Math.round(gpu.vram_total / 2 ** 20)} MB VRAM` : null].filter(Boolean).join(" · ")}</p></div><button className="connection-button" onClick={openSsh}><i className={`connection-dot ${ssh?.ready ? "connected" : ""}`} />SSH<Icon name="chevron_right_gray" /></button></div></Card>
+            cus != null ? `${cus} / 40 ${t("Compute Units")}` : null, gpu.vram_total ? `${Math.round(gpu.vram_total / 2 ** 20)} MB VRAM` : null].filter(Boolean).join(" · ")}</p></div></div></Card>
       <div className="cols dash">
         <section className="card inst">
           <div className="top"><h2>{t("Processor")}</h2><span className="head">{cpu.frequency_mhz ? (cpu.frequency_mhz / 1000).toFixed(2) : "--"}<em>GHz</em></span></div>
