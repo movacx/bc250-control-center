@@ -29,7 +29,7 @@ class LanAlias:
         return self
 
     def _watch(self):
-        while not self._stop.wait(15):
+        while not self._stop.wait(2):
             self._refresh()
 
     def _refresh(self):

@@ -66,7 +66,7 @@ def test_application_alias_is_preferred_only_when_owned(monkeypatch, alias_addre
 
 def test_alias_publisher_follows_lan_address_and_stops_with_server(monkeypatch):
     from bc250cc.infrastructure import web_mdns
-    ips = ["192.168.0.15", "127.0.0.1", "203.0.113.2"]
+    ips = []  # Login can precede DHCP; the watcher must remain alive.
     processes = []
     monkeypatch.setattr(web_mdns.shutil, "which", lambda _: "/usr/bin/avahi-publish-address")
     monkeypatch.setattr(web_mdns, "addresses", lambda: ips)
@@ -84,6 +84,9 @@ def test_alias_publisher_follows_lan_address_and_stops_with_server(monkeypatch):
             return 0
     monkeypatch.setattr(web_mdns.subprocess, "Popen", Process)
     with web_mdns.LanAlias(True) as publisher:
+        assert not processes
+        ips[:] = ["192.168.0.15", "127.0.0.1", "203.0.113.2"]
+        publisher._refresh()
         assert len(processes) == 1
         assert processes[0].argv[-2:] == ["bc250cc.local", "192.168.0.15"]
         ips[:] = ["192.168.0.16"]

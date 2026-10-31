@@ -54,6 +54,7 @@ from frontends.tui.runtime import Context, describe_error
 from frontends.web.actions import ACTIONS, Invalid
 from frontends.web.arguments import argument_parser
 from frontends.web.data import PAGES, Live, performance
+from frontends.web.network import LanMonitor
 from frontends.web.ssh import SSHSession
 
 web_access.require_supported_version()
@@ -578,10 +579,7 @@ class Server(WsgiServer):
         self.max_request_body_size = MAX_BODY
         self.software = "bc250-web"
         if certificate:
-            cert, key = certificate
-            adapter = BuiltinSSLAdapter(str(cert), str(key))
-            adapter.context.minimum_version = ssl.TLSVersion.TLSv1_2
-            self.ssl_adapter = adapter
+            self.update_certificate(certificate)
         self.prepare()
         self.server_address = self.bind_addr
         # Browser permissions and expiry remain in the private registry. A
@@ -589,6 +587,14 @@ class Server(WsgiServer):
         for device in web_devices.devices():
             if device.get("key_id") != web._key_id():
                 web_devices.revoke(device["id"])
+
+    def update_certificate(self, certificate):
+        cert, key = certificate
+        adapter = BuiltinSSLAdapter(str(cert), str(key))
+        adapter.context.minimum_version = ssl.TLSVersion.TLSv1_2
+        # Swap a fully initialized adapter. Existing TLS connections keep their
+        # own context; new connections receive the renewed certificate.
+        self.ssl_adapter = adapter
 
     def error_log(self, msg="", level=logging.INFO, traceback=False):
         # Cheroot messages may contain request bytes or addresses. Keep the
@@ -642,7 +648,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         # Advertise the alias only after acquiring the port. Failed duplicate
         # startups must neither publish a competing alias nor clear sessions.
-        with web_mdns.LanAlias(enabled=bool(networks)):
+        lan_enabled = not is_loopback(host)
+        with LanMonitor(server, enabled=lan_enabled), web_mdns.LanAlias(enabled=lan_enabled):
             web_access.write_pid(port)
             print(f"BC250 Control Center web: {'https' if server.secure else 'http'}://{host}:{port}", flush=True)
             if sys.stdout.isatty():  # never into a journal: the key opens hardware controls
