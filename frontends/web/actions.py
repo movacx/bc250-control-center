@@ -73,17 +73,23 @@ def to_pwm(percent: int) -> int:
     return round(percent * 255 / 100)
 
 
-def _fan_save(ctx, payload: dict, first=None) -> str:
+def _fan_save(ctx, payload: dict, first=None, *, start_service=False) -> str:
     """A PWM write, the saved fan settings, then the new policy to the root service when it is on."""
     service = ctx.service
+    system = service.estado_control_fan_sistema()
+    if start_service and (not isinstance(system, dict) or system.get("external") or not system.get("available")):
+        raise Invalid("Fan service unavailable or controlled by another program")
     if first is not None:
         first()
     ctx.settings.save_local_config(payload)
-    system = service.estado_control_fan_sistema()
-    if isinstance(system, dict) and system.get("enabled"):
+    if start_service:
         policy = build_system_fan_policy(ctx.settings.read_local_config())
-        if policy is not None:
-            service.sincronizar_control_fan_sistema(policy)
+        if policy is None:
+            raise Invalid("Choose a curve or a preset first")
+        service.activar_control_fan_sistema(policy)
+    elif isinstance(system, dict) and system.get("enabled"):
+        policy = build_system_fan_policy(ctx.settings.read_local_config())
+        service.sincronizar_control_fan_sistema(policy)
     return ""
 
 
@@ -229,6 +235,9 @@ def fan_auto(ctx, p, shell):
 
 def fan_curve(ctx, p, shell):
     pwm, enabled = number(p, "pwm"), flag(p, "enabled")
+    start_service = flag(p, "start_service") if "start_service" in p else False
+    if start_service and not enabled:
+        raise Invalid("Enable the curve before starting its service")
     raw = p.get("points")
     if not (isinstance(raw, list) and 2 <= len(raw) <= 8 and all(
             isinstance(item, list) and len(item) == 2 and all(isinstance(v, int) and not isinstance(v, bool) for v in item)
@@ -247,7 +256,29 @@ def fan_curve(ctx, p, shell):
     payload = {"fan_curve": body}
     if enabled:
         payload["fan_preset"] = {"enabled": False, "preset": "", "percent": 0, "pwm": pwm}
-    return 1, lambda: _fan_save(ctx, payload)
+    return 1, lambda: _fan_save(ctx, payload, start_service=start_service)
+
+
+def fan_service(ctx, p, shell):
+    operation = choice(p, "operation", ("enable", "disable", "sync"))
+
+    def apply():
+        state = ctx.service.estado_control_fan_sistema()
+        if not isinstance(state, dict) or state.get("external"):
+            raise Invalid("The fan is handed to another program")
+        if operation == "disable":
+            return ctx.service.desactivar_control_fan_sistema()
+        if not state.get("available") and not state.get("enabled"):
+            raise Invalid("Fan service unavailable")
+        policy = build_system_fan_policy(ctx.settings.read_local_config())
+        if policy is None:
+            raise Invalid("Choose a curve or a preset first")
+        if operation == "sync":
+            if not state.get("enabled"):
+                raise Invalid("Enable the fan service first")
+            return ctx.service.sincronizar_control_fan_sistema(policy)
+        return ctx.service.activar_control_fan_sistema(policy)
+    return 1, apply
 
 
 ACTIONS = {
@@ -263,5 +294,5 @@ ACTIONS = {
         1, lambda: shell(ctx.service.comando_cpu_oc_desactivar_persistente_embebido())),
     "cu.sync": lambda ctx, p, shell: (0, ctx.service.obtener_estado_cu),
     "cu.apply": cu_apply, "cu.save": cu_save, "cu.action": cu_action,
-    "fan.pwm": fan_pwm, "fan.auto": fan_auto, "fan.curve": fan_curve,
+    "fan.pwm": fan_pwm, "fan.auto": fan_auto, "fan.curve": fan_curve, "fan.service": fan_service,
 }

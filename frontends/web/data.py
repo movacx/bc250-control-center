@@ -11,7 +11,11 @@ import threading
 import time
 from dataclasses import asdict
 
-from bc250cc.application.fan.system_control import system_fan_control_owns_fan
+from bc250cc.application.fan.system_control import (
+    build_system_fan_policy,
+    policy_digest,
+    system_fan_control_owns_fan,
+)
 from bc250cc.application.gpu.voltage_lab_state import build_voltage_lab_state
 from bc250cc.domain.compute_units import WgpMaskTable
 from bc250cc.domain.fan.persistence import normalize_fan_curve, normalize_fan_preset
@@ -189,8 +193,12 @@ def _fans(raw: dict, ctx: Context) -> dict:
     owner = fan_owner(system_owned=system_fan_control_owns_fan(system), pwm_enable=selected.get("pwm_enable"),
                       curve_enabled=bool(curve.get("enabled")), preset_enabled=bool(preset.get("enabled")),
                       external=bool(system.get("external")))
+    policy = build_system_fan_policy(config)
+    boot = {"enabled": bool(system.get("enabled")), "available": bool(system.get("available")),
+            "state": str(system.get("state") or "stopped"), "has_policy": policy is not None,
+            "out_of_date": bool(system.get("enabled") and policy and system.get("policy_digest") != policy_digest(policy))}
     return {"rows": rows, "owner": tr(FAN_OWNER_LABELS.get(owner, owner)), "curve": curve, "preset": preset,
-            "external": bool(system.get("external")), "boot": bool(system.get("enabled")),
+            "external": bool(system.get("external")), "boot": bool(system.get("enabled")), "service": boot,
             "presets": DESKTOP_FAN_PRESET_PERCENT}
 
 

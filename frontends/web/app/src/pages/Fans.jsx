@@ -5,6 +5,8 @@ import { Btn, Card, Check, Number_, Read, Segments, Tile } from "../ui.jsx";
 const LOW_DUTY = 30;
 const NAMES = { quiet: keep("Quiet"), balanced: keep("Balanced"), cooling: keep("Cooling"), maximum: keep("Maximum"), silent: keep("Silent"), aggressive: keep("Aggressive"), performance: keep("Performance") };
 const CURVES = { silent: [[45, 40], [55, 50], [65, 65], [72, 85], [78, 100]], balanced: [[40, 50], [50, 60], [60, 75], [67, 90], [74, 100]], aggressive: [[40, 60], [48, 70], [56, 82], [63, 92], [70, 100]] };
+const SERVICE_STATES = { active: keep("Active"), off: keep("Off"), stopped: keep("Stopped"), override: keep("Paused"), idle: keep("Idle"), error: keep("Error"), "waiting-driver": keep("Waiting"), "waiting-sensor": keep("Waiting") };
+const BOOT_LABELS = { enable: keep("Turn on control from boot"), disable: keep("Turn off control from boot") };
 
 function CurvePlot({ points, temp }) {
   const w = 480, h = 180, lo = Math.min(...points.map((p) => p[0])) - 5, hi = Math.max(...points.map((p) => p[0])) + 5;
@@ -37,6 +39,9 @@ export default function Fans() {
   const sorted = [...(points || [])].sort((a, b) => a[0] - b[0]);
   const edit = (i, k, v) => setPoints(sorted.map((p, j) => (j === i ? (k ? [p[0], v] : [v, p[1]]) : p)));
   const presets = Object.entries(data.presets).map(([key, value]) => [key, value]);
+  const service = data.service || {};
+  const bootOperation = service.enabled ? "disable" : "enable", bootTitle = t(BOOT_LABELS[bootOperation]);
+  const serviceAction = (operation, title) => act({ action: "fan.service", level: 1, params: { operation }, title });
   return (
     <div className="cols fan-split">
       <Card title={t("Fan")} sub={`${t("Fan controlled by")}: ${data.owner}`}>
@@ -63,6 +68,15 @@ export default function Fans() {
             <Btn small disabled={sorted.length <= 2} onClick={() => setPoints(sorted.slice(0, -1))}>{t("Remove point")}</Btn><span style={{ flex: 1 }} />
             <Btn kind="primary" disabled={!ready} onClick={() => act({ action: "fan.curve", level: 1, params: { pwm, enabled: auto, points: sorted }, title: t("Save curve") })}>{t("Save curve")}</Btn></div>
         </>}
+        <section className="fan-service" aria-label={t("Boot persistence")}>
+          <h3>{t("Fans from the moment it boots")}</h3>
+          <div className="reads"><Read label={t("State")} value={data.external ? t("Another program") : service.out_of_date ? t("Out of date") : t(SERVICE_STATES[service.state] || "Stopped")} />
+            <Read label={t("Boot persistence")} value={t(service.enabled ? "Enabled" : "Disabled")} /></div>
+          {tab === "curve" && !service.enabled && <Btn wide kind="primary" disabled={!ready || !auto || !service.available} onClick={() => act({ action: "fan.curve", level: 1, params: { pwm, enabled: auto, points: sorted, start_service: true }, title: `${t("Save curve")} + ${t("Turn on control from boot")}` })}>{t("Save curve")} + {t("Turn on control from boot")}</Btn>}
+          <div className="row"><Btn wide disabled={data.external || (!service.enabled && (!service.available || !service.has_policy))} onClick={() => serviceAction(bootOperation, bootTitle)}>{bootTitle}</Btn>
+            <Btn wide disabled={data.external || !service.enabled || !service.has_policy} onClick={() => serviceAction("sync", t("Sync now"))}>{t("Sync now")}</Btn></div>
+          {data.external ? <p className="note">{t("The fan is handed to another program. Nothing here writes to it.")}</p> : !service.available && !service.enabled ? <p className="note">{t("Needs the installed BC250 Control Center package and systemd or OpenRC.")}</p> : !service.has_policy && <p className="note">{t("Choose a curve or a preset first")}</p>}
+        </section>
       </Card>
       <Card title={t("Thermal detail")}><div className="reads">
         <Read label="GPU" value={num(gpu.temperature_c, 1)} unit="°C" /><Read label="CPU" value={num(cpu.temperature_c, 1)} unit="°C" />

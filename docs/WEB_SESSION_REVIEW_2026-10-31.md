@@ -1,5 +1,9 @@
 # Sesiones y gráficas web — 31 de octubre de 2026
 
+Actualización posterior: [Servicio de ventiladores y sesiones recordadas](WEB_FANS_AND_SESSIONS_2026-10-31.md)
+describe cómo se conservan ahora las sesiones al reiniciar. La limpieza de
+arranque se limita a dispositivos vinculados a claves anteriores.
+
 Se reprodujo el login correcto seguido de una respuesta 401 a los dos segundos.
 Había un servidor manual atendiendo el puerto y un servicio de usuario que
 reintentaba arrancar. La construcción del segundo servidor borraba el registro

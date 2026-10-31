@@ -50,7 +50,7 @@ def _store():
             fcntl.flock(lock, fcntl.LOCK_UN)
 
 
-def register(token: str, address: str, agent: str, lifetime: int) -> str:
+def register(token: str, address: str, agent: str, lifetime: int, *, key_id: str = "") -> str:
     device = identity(token)
     with _store() as data:
         if len(data) >= MAX_DEVICES:
@@ -58,7 +58,7 @@ def register(token: str, address: str, agent: str, lifetime: int) -> str:
         now = time.time()
         data[device] = {"id": device, "address": address, "agent": agent[:160],
                         "created": now, "seen": now, "expires": now + lifetime, "control": False,
-                        "idle_seconds": IDLE_SECONDS, "duration_seconds": None}
+                        "idle_seconds": IDLE_SECONDS, "duration_seconds": None, "key_id": key_id}
     return device
 
 

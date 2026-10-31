@@ -210,6 +210,10 @@ function Root() {
   const [state, setState] = useState({ loading: true });
   const refresh = useCallback(async () => {
     const data = await api("session");
+    if (data.status === 0 || data.status >= 500) {
+      setState((previous) => previous.authenticated ? previous : { ...previous, loading: false, error: data.error });
+      return;
+    }
     setCsrf(data.csrf);
     setState({ loading: false, ...data });
   }, []);
@@ -232,7 +236,7 @@ function Root() {
     return () => { clearInterval(timer); document.removeEventListener("visibilitychange", visibleRefresh); };
   }, [state.authenticated, refresh]);
   if (state.loading) return null;
-  if (!state.authenticated) return <Login onDone={refresh} />;
+  if (!state.authenticated) return <Login onDone={refresh} error={state.error} />;
   return <Shell session={state} onLogout={async () => { await api("logout", {}); refresh(); }} />;
 }
 

@@ -90,6 +90,78 @@ def test_duplicate_startup_cannot_revoke_the_active_servers_browsers(web):
         assert web_devices.session(token)["control"]
 
 
+def test_owner_selected_duration_and_hardware_permission_survive_server_restart(client):
+    assert client.login()[0].status == 200
+    token = client.cookie.split("=", 1)[1]
+    device = web_devices.identity(token)
+    web_devices.set_lifetime(device, 30 * 86400)
+    original = web_devices.session(token)
+    old_csrf = client.csrf
+    container = SimpleNamespace(system_service=client.httpd.service, settings_service=Settings(), activity_service=None, platform=None)
+    client.httpd.web = server.Web(container)
+    assert not client.httpd.web.sessions
+    response, restored = client.call("GET", "/api/session")
+    assert response.status == 200 and restored["authenticated"] and restored["control"]
+    assert restored["csrf"] == old_csrf
+    assert web_devices.session(token)["expires"] == original["expires"]
+    assert web_devices.session(token)["duration_seconds"] == 30 * 86400
+    assert client.post("/api/performance/reset", {})[0].status == 200
+    # Owner changes apply immediately to a resumed browser, too.
+    web_devices.set_control(device, False)
+    assert client.call("GET", "/api/session")[1]["control"] is False
+    web_devices.revoke(device)
+    assert client.call("GET", "/api/live")[0].status == 401
+
+
+def test_expired_or_wrong_key_sessions_cannot_be_restored(client, monkeypatch):
+    client.login()
+    token = client.cookie.split("=", 1)[1]
+    device = web_devices.identity(token)
+    web_devices.set_lifetime(device, 30 * 86400)
+    container = SimpleNamespace(system_service=client.httpd.service, settings_service=Settings(), activity_service=None, platform=None)
+    web_access.save_settings(pin="NEWK-EY22")
+    client.httpd.web = server.Web(container)
+    assert client.call("GET", "/api/live")[0].status == 401
+    # Changing the key back does not extend the owner's original deadline.
+    web_access.save_settings(pin=KEY)
+    client.httpd.web = server.Web(container)
+    expiry = web_devices.session(token)["expires"]
+    monkeypatch.setattr(web_devices.time, "time", lambda: expiry + 1)
+    assert client.call("GET", "/api/live")[0].status == 401
+
+
+def test_resume_cannot_use_a_device_code_as_a_cookie_or_grant_control(client):
+    client.login(control=False)
+    token = client.cookie.split("=", 1)[1]
+    device = web_devices.identity(token)
+    container = SimpleNamespace(system_service=client.httpd.service, settings_service=Settings(), activity_service=None, platform=None)
+    client.httpd.web = server.Web(container)
+    assert client.call("GET", "/api/session")[1]["control"] is False
+    client.cookie = server.COOKIE + "=" + device
+    assert client.call("GET", "/api/live")[0].status == 401
+
+
+def test_binding_a_new_server_preserves_current_key_sessions_and_removes_old_generations(client):
+    client.login()
+    token = client.cookie.split("=", 1)[1]
+    web_devices.set_lifetime(web_devices.identity(token), 30 * 86400)
+    stale = web_devices.register("older-generation-cookie", "127.0.0.1", "Old", 3600, key_id="old-key")
+    container = SimpleNamespace(system_service=client.httpd.service, settings_service=Settings(), activity_service=None, platform=None)
+    resumed = server.Server(("127.0.0.1", 0), server.Web(container))
+    thread = threading.Thread(target=resumed.serve_forever, daemon=True)
+    thread.start()
+    try:
+        browser = Client(resumed)
+        browser.cookie, browser.csrf = client.cookie, client.csrf
+        assert browser.call("GET", "/api/session")[1]["control"] is True
+        assert browser.post("/api/performance/reset", {})[0].status == 200
+        assert all(entry["id"] != stale for entry in web_devices.devices())
+    finally:
+        resumed.shutdown()
+        resumed.server_close()
+        thread.join(timeout=5)
+
+
 class Client:
     def __init__(self, httpd):
         self.port, self.cookie, self.csrf, self.httpd = httpd.server_address[1], "", "", httpd
@@ -215,7 +287,7 @@ def test_the_action_list_is_closed_and_runs_nothing_outside_the_service_layer():
     assert set(actions.ACTIONS) == {
         "gddr6.monitor", "gddr6.prepare", "gpu.profile", "gpu.compat", "gpu.service", "gpu.high_points", "gpu.voltage", "gpu.voltage_custom", "gpu.save_boot",
         "gpu.status", "cpu.apply", "cpu.unlock", "cpu.persist", "cpu.persist_off", "cu.sync", "cu.apply", "cu.save",
-        "cu.action", "fan.pwm", "fan.auto", "fan.curve"}
+        "cu.action", "fan.pwm", "fan.auto", "fan.curve", "fan.service"}
     source = Path(actions.__file__).read_text(encoding="utf-8")
     assert not re.search(r"\b(subprocess|os\.system|eval|exec|open)\(|import (subprocess|os)\b", source)
 
@@ -456,7 +528,8 @@ def test_new_device_can_monitor_but_cannot_self_grant_hardware_control(client):
     assert client.login(control=False)[0].status == 200
     assert client.call("GET", "/api/live")[0].status == 200
     assert client.call("GET", "/api/session")[1]["control"] is False
-    for route, body in (("/api/action", {"action": "gpu.status"}), ("/api/ssh/start", {}),
+    for route, body in (("/api/action", {"action": "gpu.status"}),
+                        ("/api/action", {"action": "fan.service", "params": {"operation": "enable"}}), ("/api/ssh/start", {}),
                         ("/api/job/input", {"text": "password"}), ("/api/ssh/input", {"text": "password"})):
         assert client.post(route, {**body, "control": True, "confirm": True})[0].status == 403
     assert not client.httpd.web.local_sessions

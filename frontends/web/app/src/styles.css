@@ -52,6 +52,8 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .cols.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cols.dash { grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1fr); }
 .cols.fan-split { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+.fan-service { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--c-border-soft); display: grid; gap: 12px; }
+.fan-service h3, .fan-service p { margin: 0; }
 .tiles.t3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

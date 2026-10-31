@@ -150,10 +150,18 @@ class Web:
             for token in tuple(self.sessions):
                 if web_devices.identity(token) not in valid_ids:
                     self._drop_session(token)
-            session, csrf = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
-            web_devices.register(session, who, agent, SESSION_SECONDS)
+            session = secrets.token_urlsafe(32)
+            csrf = self._csrf(session)
+            web_devices.register(session, who, agent, SESSION_SECONDS, key_id=self._key_id())
             self.sessions[session] = (csrf, now + SESSION_SECONDS)
             return session, csrf
+
+    def _key_id(self) -> str:
+        return hmac.new(self.key.encode(), b"bc250-session-key", "sha256").hexdigest()
+
+    def _csrf(self, token: str) -> str:
+        # Stable across restarts without persisting a cookie or CSRF secret.
+        return hmac.new(self.key.encode(), b"bc250-csrf\0" + token.encode(), "sha256").hexdigest()
 
     def _sync_key(self):
         current = web_access.access_key()
@@ -170,7 +178,13 @@ class Web:
         with self.lock:
             self._sync_key()
             csrf, expires = self.sessions.get(token, ("", 0))
-            device = web_devices.session(token) if csrf else {}
+            device = web_devices.session(token) if token else {}
+            if device.get("key_id") != self._key_id():
+                device = {}
+            if not csrf and device:
+                csrf = self._csrf(token)
+                expires = time.monotonic() + max(0, float(device["expires"]) - time.time())
+                self.sessions[token] = (csrf, expires)
             # A desktop-selected duration is authoritative; do not silently
             # reapply the original eight-hour cap held in this process.
             legacy_expired = expires <= time.monotonic() and device.get("duration_seconds") is None
@@ -570,10 +584,11 @@ class Server(WsgiServer):
             self.ssl_adapter = adapter
         self.prepare()
         self.server_address = self.bind_addr
-        # Only the process that successfully acquired the listening socket may
-        # invalidate an earlier process's cookies. A duplicate startup must not
-        # log everybody out of the already-running server.
-        web_devices.revoke_all()
+        # Browser permissions and expiry remain in the private registry. A
+        # restart never clears them; Web.session binds them to the current key.
+        for device in web_devices.devices():
+            if device.get("key_id") != web._key_id():
+                web_devices.revoke(device["id"])
 
     def error_log(self, msg="", level=logging.INFO, traceback=False):
         # Cheroot messages may contain request bytes or addresses. Keep the
