@@ -314,3 +314,21 @@ def test_the_test_workflow_checks_the_driver_the_way_gpu_screen_recorder_asks_fo
     command = vaapi.build_vaapi_command("test", family="arch")
     assert f"env -u LIBVA_DRIVER_NAME LIBVA_DRIVERS_PATH={vaapi.RUNTIME}" in command
     assert "cannot find the driver yet" in command
+
+
+def test_32_bit_probe_does_not_inherit_a_forced_64_bit_vulkan_driver(tmp_path):
+    import os
+    import shlex
+
+    output = tmp_path / "probe-environment"
+    command = vaapi.PROBE32_ENV + " sh -c " + shlex.quote('env > "$BC250_TEST_OUTPUT"')
+    result = subprocess.run(['bash', '-c', command], capture_output=True, text=True,
+                            env={**os.environ, 'VK_ICD_FILENAMES': '/opt/private/radeon_icd.x86_64.json',
+                                 'VK_DRIVER_FILES': '/opt/private/radeon_icd.x86_64.json',
+                                 'BC250_TEST_OUTPUT': str(output)})
+    assert result.returncode == 0, result.stderr
+    observed = output.read_text()
+    assert 'VK_ICD_FILENAMES=' not in observed
+    assert 'VK_DRIVER_FILES=' not in observed
+    assert 'VK_LOADER_LAYERS_DISABLE=~implicit~' in observed
+    assert vaapi.PROBE32_ENV in vaapi.build_vaapi_command('install32', family='cachyos')

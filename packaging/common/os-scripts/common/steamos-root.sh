@@ -142,3 +142,26 @@ bc250_steamos_restore_root() {
   fi
   return "$restore_status"
 }
+
+# SteamOS mirrors can pause while serving a large repository database. Keep
+# signature verification enabled; retry only transport failures, never locks,
+# bad signatures or dependency conflicts.
+bc250_steamos_sync_databases() (
+  set -o pipefail
+  local diagnostic status attempt
+  diagnostic="$(mktemp "${TMPDIR:-/tmp}/bc250-steamos-sync.XXXXXX")" || return 1
+  for attempt in 1 2 3; do
+    if bc250_steamos_root_command env LC_ALL=C pacman -Syy --noconfirm --disable-download-timeout 2>&1 | tee "$diagnostic"; then
+      rm -f -- "$diagnostic"
+      return 0
+    else
+      status=${PIPESTATUS[0]}
+    fi
+    if [[ "$attempt" -eq 3 ]] || ! grep -Eqi 'failed retrieving file|could not resolve host|connection timed out|download library error' "$diagnostic"; then
+      rm -f -- "$diagnostic"
+      return "$status"
+    fi
+    printf '[INFO] SteamOS mirror download failed; retrying database refresh (%s/3).\n' "$((attempt + 1))"
+    sleep 2
+  done
+)

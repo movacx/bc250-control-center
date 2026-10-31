@@ -85,6 +85,50 @@ complete_missing_switches() {
 import re, sys, tomllib
 source, target = sys.argv[1], sys.argv[2]
 text = open(source, encoding="utf-8").read()
+# Older Control Center versions appended [gpu-usage] once per missing key.
+# Recover only those flat compatibility tables; never guess conflicting values
+# or merge safe-point arrays. Validate the entire result before publishing it.
+lines = text.splitlines(keepends=True)
+blocks = []
+for index, value in enumerate(lines):
+    if re.match(r"^[ \t]*\[", value):
+        blocks.append(index)
+blocks.append(len(lines))
+groups = {}
+for start, end in zip(blocks, blocks[1:]):
+    header = re.fullmatch(r"[ \t]*\[(gpu-usage|gpu_usage)\][ \t]*(?:#.*)?", lines[start].rstrip("\r\n"))
+    if header:
+        groups.setdefault(header[1], []).append((start, end))
+replacements = {}
+removed = set()
+repaired = False
+for section, chunks in groups.items():
+    if len(chunks) < 2:
+        continue
+    merged, values = [], {}
+    for start, end in chunks:
+        for line in lines[start + 1:end]:
+            if not line.strip() or line.lstrip().startswith("#"):
+                merged.append(line)
+                continue
+            entry = tomllib.loads(line)
+            if len(entry) != 1 or not set(entry) <= {"fix-metrics", "fix-freq", "fix_freq", "method", "temp-read", "temp_read", "flush-every"}:
+                raise SystemExit(f"Cannot safely repair duplicate [{section}] table")
+            key, value = next(iter(entry.items()))
+            canonical = key.replace("_", "-")
+            if canonical in values:
+                previous = values[canonical]
+                if type(previous) is not type(value) or previous != value:
+                    raise SystemExit(f"Conflicting [{section}] {key}; correct the duplicate values before retrying")
+                continue
+            values[canonical] = value
+            merged.append(line if line.endswith("\n") else line + "\n")
+    first = chunks[0][0]
+    replacements[first] = lines[first].rstrip("\r\n") + "\n" + "".join(merged)
+    for start, end in chunks:
+        removed.update(range(start, end))
+    repaired = True
+text = "".join(replacements.get(index, "" if index in removed else line) for index, line in enumerate(lines))
 config = tomllib.loads(text)
 # (section names, key names, line written when it is missing)
 wanted = (
@@ -93,7 +137,7 @@ wanted = (
     (("gpu",), ("set-method",), 'set-method = "smu"'),
     (("dbus",), ("enabled",), "enabled = true"),
 )
-added = []
+added = ["repaired duplicate compatibility tables"] if repaired else []
 for sections, keys, line in wanted:
     present = next((name for name in sections if isinstance(config.get(name), dict)), None)
     if present is not None and any(key in config[present] for key in keys):
@@ -116,7 +160,7 @@ open(target, "w", encoding="utf-8").write(text)
 print("; ".join(added))
 PY
   then
-    info "Cyan configuration was missing switches; added upstream defaults without changing other values"
+    info "Cyan configuration repaired; existing compatibility values and safe-points preserved"
     as_root install -m 0644 "$completed" "$CONFIG"
   fi
   rm -f -- "$completed"

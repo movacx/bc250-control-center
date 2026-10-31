@@ -115,3 +115,14 @@ CUs active & routed: 32/40
     assert result["amdgpu_active_cus"] == "24"
     assert result["boot_sync_key"] == "pending"
     assert result["legend"] == "D+ driver+routed, S+ SPI+routed, D! driver+off, -- off"
+
+
+def test_missing_umr_is_a_preparation_notice_not_a_topology_format_error():
+    import pytest
+
+    from bc250cc.shared.errors import ActionNeeded
+
+    with pytest.raises(ActionNeeded, match='Prepare the UMR component'):
+        CURepository()._estado_cu_autorizado(
+            '+--- BC-250 CU Dashboard ---+\n[WARN] UMR register view skipped; umr was not found.'
+        )

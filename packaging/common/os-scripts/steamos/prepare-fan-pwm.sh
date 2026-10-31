@@ -22,7 +22,7 @@ bc250_steamos_unlock_root
 as_root pacman-key --init
 as_root pacman-key --populate holo 2>/dev/null || as_root pacman-key --populate
 as_root pacman-key --populate archlinux 2>/dev/null || true
-as_root pacman -Syy --noconfirm
+bc250_steamos_sync_databases
 as_root pacman -S --needed --noconfirm lm_sensors git base-devel fakeroot debugedit gcc make pkgconf pahole dkms curl zstd tar kmod
 
 KERNEL_RELEASE="$(bc250_running_kernel_release)"

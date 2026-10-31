@@ -28,7 +28,7 @@ prepare_steamos_pacman() {
   as_root pacman-key --init
   as_root pacman-key --populate holo 2>/dev/null || as_root pacman-key --populate
   as_root pacman-key --populate archlinux 2>/dev/null || true
-  as_root pacman -Syy --noconfirm
+  bc250_steamos_sync_databases
   BC250_STEAMOS_PACMAN_PREPARED=1
 }
 

@@ -486,3 +486,38 @@ def test_the_snapshot_flag_reads_only_the_files_prepare_leaves(tmp_path):
     (state / "release").write_text("v0.4.14\n", encoding="utf-8")
     (state / "runtime-revision").write_text("bc250cc.2\n", encoding="utf-8")
     assert managed_runtime_update_available(state, binary) is True
+
+
+def test_installer_recovers_tables_left_by_old_missing_switch_completion(tmp_path):
+    import tomllib
+
+    original = ('[[safe-points]]\nfrequency = 1850\nvoltage = 930\n'
+                '\n[gpu-usage]\nfix-metrics = false\n'
+                '\n[gpu-usage]\nfix-freq = false\n'
+                '\n[gpu]\nset-method = "kernel"\n')
+    config = tmp_path / "config.toml"
+    target = tmp_path / "completed.toml"
+    config.write_text(original)
+    result = subprocess.run(["python3", "-", str(config), str(target)],
+                            input=_installer_python("complete_missing_switches"),
+                            text=True, capture_output=True)
+    assert result.returncode == 0, result.stderr
+    parsed = tomllib.loads(target.read_text())
+    assert parsed["gpu-usage"] == {"fix-metrics": False, "fix-freq": False}
+    assert parsed["gpu"]["set-method"] == "kernel"
+    assert parsed["safe-points"] == [{"frequency": 1850, "voltage": 930}]
+    assert config.read_text() == original
+
+
+def test_installer_refuses_conflicting_legacy_tables_without_writing(tmp_path):
+    original = '[gpu-usage]\nfix-metrics = false\n[gpu-usage]\nfix-metrics = true\n'
+    config = tmp_path / "config.toml"
+    target = tmp_path / "completed.toml"
+    config.write_text(original)
+    result = subprocess.run(["python3", "-", str(config), str(target)],
+                            input=_installer_python("complete_missing_switches"),
+                            text=True, capture_output=True)
+    assert result.returncode != 0
+    assert "Conflicting [gpu-usage] fix-metrics" in result.stderr
+    assert not target.exists()
+    assert config.read_text() == original

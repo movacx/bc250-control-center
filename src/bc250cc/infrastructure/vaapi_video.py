@@ -96,6 +96,14 @@ LIB32_PACKAGES = (
     "lib32-glibc", "lib32-gcc-libs", "lib32-libva", "lib32-libdrm",
     "lib32-vulkan-icd-loader", "lib32-vulkan-radeon",
 )
+# A desktop session may force a private 64-bit RADV manifest. That cannot be
+# loaded by this 32-bit probe (R-60c1e16a). Discover the distro's matching ICD
+# and keep session overrides unchanged outside this one diagnostic process.
+PROBE32_ENV = (
+    "env -u VK_ICD_FILENAMES -u VK_DRIVER_FILES -u VK_ADD_DRIVER_FILES "
+    "-u VK_INSTANCE_LAYERS -u VK_LAYER_PATH -u LD_LIBRARY_PATH -u LD_PRELOAD "
+    "VK_LOADER_LAYERS_DISABLE=~implicit~"
+)
 #: What the 32-bit driver loads at run time; a SteamOS update removes them with the rest of /usr.
 LIB32_FILES = tuple(Path("/usr/lib32") / name for name in (
     "libc.so.6", "libgomp.so.1", "libva.so.2", "libva-drm.so.2", "libdrm.so.2", "libvulkan.so.1",
@@ -540,7 +548,7 @@ def _install32(family: str) -> str:
         f'bc250_probe="$({_probe(runtime)})" || {{ echo "$bc250_probe"; echo "ERROR: the 64-bit driver does not start; fix it first."; exit 32; }}',
         'bc250_node="$(python3 -I -c \'import json,sys; print(json.loads(sys.argv[1])["node"])\' "$bc250_probe")"',
         f'cp {runtime}/*.spv "$bc250_stage/out/"',
-        'if ! bc250_probe32="$(LIBVA_DRIVER_NAME=bc250 LIBVA_DRIVERS_PATH="$bc250_stage/out" "$bc250_stage/out/bc250-vaapi-probe32" "$bc250_node" 2>&1)"; then',
+        f'if ! bc250_probe32="$({PROBE32_ENV} LIBVA_DRIVER_NAME=bc250 LIBVA_DRIVERS_PATH="$bc250_stage/out" "$bc250_stage/out/bc250-vaapi-probe32" "$bc250_node" 2>&1)"; then',
         '  echo "$bc250_probe32"',
         "  echo 'ERROR: the 32-bit driver did not start or lacks H.264/HEVC. Nothing was installed.'",
         "  exit 32",
