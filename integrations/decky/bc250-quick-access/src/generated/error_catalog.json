@@ -108,7 +108,9 @@
         "MB free and this needs",
         "SteamOS keeps /var small",
         "not enough free space on",
-        "Insufficient disk space"
+        "Insufficient disk space",
+        "no space left on device",
+        "No space left on device"
       ],
       "exit_statuses": [
         73,
@@ -603,6 +605,8 @@
     "could not lock database",
     "error: target not found",
     "Insufficient disk space",
+    "no space left on device",
+    "No space left on device",
     "Transaction in progress",
     "QUICK_ACCESS_GPU_CONFIG",
     "are different versions.",

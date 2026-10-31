@@ -154,7 +154,8 @@ _CODES: tuple[ErrorCode, ...] = (
         # steamos-root.sh: /var or the root filesystem is too full to install.
         markers=('MB free and this needs', 'SteamOS keeps /var small',
                  # bazzite_memory_tuning.py and the mutable adapter's swapfile check.
-                 'not enough free space on', 'Insufficient disk space'),
+                 'not enough free space on', 'Insufficient disk space',
+                 'no space left on device', 'No space left on device'),
     ),
     ErrorCode(
         "BC250-BUSY-001",
