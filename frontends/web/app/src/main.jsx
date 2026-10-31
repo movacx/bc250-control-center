@@ -11,7 +11,7 @@ import Fans from "./pages/Fans.jsx";
 import Gpu from "./pages/Gpu.jsx";
 import Performance from "./pages/Performance.jsx";
 import Settings from "./pages/Settings.jsx";
-import { InstallApp, PwaProvider } from "./Pwa.jsx";
+import { PwaProvider } from "./Pwa.jsx";
 
 // The desktop's sidebar: same order, same icons, same captions.
 const NAV = [
@@ -55,7 +55,7 @@ function Login({ onDone, error }) {
       {message && <p className="err" role="alert">{message}</p>}
       {!privateConnection && <p className="notice">{t("HTTPS required")}</p>}
       <Btn kind="primary" type="submit" disabled={!privateConnection || busy || !key.trim()}>{busy ? t("Connecting…") : t("Sign in")}</Btn>
-    </Card><InstallApp /></form></div>
+    </Card></form></div>
   );
 }
 
