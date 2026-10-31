@@ -135,7 +135,7 @@ class _RemotePrivacyCover(QWidget):
                     value = 37 + round(silhouette * .23)
                     image.setPixelColor(x, y, QColor(value, value + 2, value + 4))
                     shade = round(silhouette * .20)
-                    night_image.setPixelColor(x, y, QColor(22 + shade, 32 + shade, 47 + shade))
+                    night_image.setPixelColor(x, y, QColor(28 + shade, 34 + shade, 44 + shade))
                     value = 230 - round(silhouette * .20)
                     light_image.setPixelColor(x, y, QColor(value, value + 1, value + 3))
             self._context = QPixmap.fromImage(image)
@@ -190,7 +190,7 @@ class _RemotePrivacyCover(QWidget):
         painter.setClipPath(boundary)
         light = QColor(COLORS["panel"]).lightness() > 127
         night = theme.ACTIVE_THEME == "midnight"
-        base = QColor("#E2E6EB" if light else "#182231" if night else "#27292D")
+        base = QColor("#E2E6EB" if light else "#1D232D" if night else "#27292D")
         painter.fillRect(self.rect(), base)
         phase = self._phase * math.tau
         if not self._context.isNull():
@@ -213,9 +213,9 @@ class _RemotePrivacyCover(QWidget):
                   (.82, .45, .42, "#080A0D", 135, 2.1),
                   (.48, .87, .55, "#868D98", 78, 4.2))
         if night:
-            clouds = ((.18, .20, .48, "#879EBB", 88, 0.0),
-                      (.82, .45, .42, "#070F1C", 135, 2.1),
-                      (.48, .87, .55, "#637D9D", 78, 4.2))
+            clouds = ((.18, .20, .48, "#93A0B1", 88, 0.0),
+                      (.82, .45, .42, "#0B1018", 135, 2.1),
+                      (.48, .87, .55, "#708094", 78, 4.2))
         if light:
             # Silver shadows and broad pearl highlights give the light veil
             # depth without turning it into a white sheet or a dark panel.
