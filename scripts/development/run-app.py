@@ -64,11 +64,12 @@ def _stub_posix_modules(force: bool) -> list[str]:
 
 def _missing_dependencies() -> list[str]:
     missing = []
-    for module, package in (("PyQt6.QtWidgets", "PyQt6"), ("psutil", "psutil")):
+    for module, package in (("PyQt6.QtWidgets", "PyQt6"), ("PyQt6.QtSvg", "PyQt6"), ("psutil", "psutil")):
         try:
             __import__(module)
         except ImportError:
-            missing.append(package)
+            if package not in missing:
+                missing.append(package)
     return missing
 
 

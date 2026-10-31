@@ -86,6 +86,7 @@ def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_p
     assert privileged_root.stat().st_mode & 0o022 == 0
     assert privileged_lib.stat().st_mode & 0o022 == 0
     assert (stage / "usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy").is_file()
+    assert (stage / "usr/share/bc250-control-center/requirements-web.txt").is_file()
     assert (stage / "usr/share/bc250-control-center/VERSION").read_text(encoding="utf-8").strip() == VERSION
     assert (stage / "usr/share/bc250-control-center/src/bc250cc/__init__.py").is_file()
     assert (stage / "usr/share/bc250-control-center/frontends/desktop/features/gpu/presenter.py").is_file()
@@ -106,6 +107,9 @@ def test_deb_dependencies_support_split_and_legacy_polkit_packages(tmp_path):
     depends = _run("dpkg-deb", "--field", package, "Depends").stdout.strip()
 
     assert "python3-pyqt6" in depends
+    assert "python3-pyqt6.qtsvg" in depends
+    assert "python3-pip" in depends and "python3-venv" in depends
+    assert "python3-cheroot" not in depends
     assert "libqt6svg6" in depends
     assert "pkexec | policykit-1" in depends
 
@@ -124,6 +128,7 @@ def test_source_tarball_is_reproducible_and_excludes_qa_payload(tmp_path):
         names = bundle.getnames()
     assert any(name.endswith("/scripts/install-local.sh") for name in names)
     assert any(name.endswith("/VERSION") for name in names)
+    assert any(name.endswith("/requirements-web.txt") for name in names)
     assert any(name.endswith("/packaging/scripts/build-rpm.sh") for name in names)
     assert any(name.endswith("/packaging/scripts/build-deb.sh") for name in names)
     assert any(name.endswith("/src/bc250cc/__init__.py") for name in names)

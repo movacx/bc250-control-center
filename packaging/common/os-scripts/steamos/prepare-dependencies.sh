@@ -6,6 +6,7 @@ source "$SCRIPT_DIR/../common/steamos-root.sh"
 parse_component "$@"
 
 runtime_packages=(
+  python-pip openssl
   python python-pyqt6 qt6-svg python-psutil git pciutils libdrm
   vulkan-tools mesa-utils polkit kmod curl ca-certificates tar zstd
   base-devel fakeroot debugedit gcc make pkgconf pahole dkms jq
@@ -67,7 +68,7 @@ install_umr() {
   verify_command umr
 }
 
-check_runtime() { verify_command python3; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'import PyQt6, psutil'; }
+check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'from PyQt6.QtSvg import QSvgRenderer; from PyQt6.QtWidgets import QApplication; import psutil, pip, venv, ssl'; }
 check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }

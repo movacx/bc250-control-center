@@ -41,12 +41,12 @@ g uninstall bash $R/scripts/uninstall-local.sh -y
 t uninstall-again bash $R/scripts/uninstall-local.sh -y
 t qa-clean-list bash $R/scripts/qa/qa-clean-install-containers.sh --list
 elif [ "$PHASE" = detail ]; then
-cp -a $R /work/repo 2>/dev/null; cd /work/repo; python3 -m venv /work/v >/dev/null 2>&1; . /work/v/bin/activate; pip install -q pytest pytest-qt pytest-cov PyQt6 psutil >/dev/null 2>&1; echo "git=$(command -v git)"; python -m pytest -q --no-cov -p no:cacheprovider -rf --tb=line tests 2>&1 | grep -E "^(FAILED|/work|E  |[0-9]+ failed)|Error" | sed "s/^/D\t/" | cut -c1-330 | head -150
+cp -a $R /work/repo 2>/dev/null; cd /work/repo; python3 -m venv /work/v >/dev/null 2>&1; . /work/v/bin/activate; pip install -q pytest pytest-qt pytest-cov PyQt6 psutil -r /repo/requirements-web.txt >/dev/null 2>&1; echo "git=$(command -v git)"; python -m pytest -q --no-cov -p no:cacheprovider -rf --tb=line tests 2>&1 | grep -E "^(FAILED|/work|E  |[0-9]+ failed)|Error" | sed "s/^/D\t/" | cut -c1-330 | head -150
 else
 cp -a $R /work/repo 2>/dev/null; cd /work/repo
 python3 -m venv /work/v 2>&1 | tail -2
 . /work/v/bin/activate 2>/dev/null
-g pip pip install -q --disable-pip-version-check pytest pytest-qt pytest-cov PyQt6 psutil
+g pip pip install -q --disable-pip-version-check pytest pytest-qt pytest-cov PyQt6 psutil -r /repo/requirements-web.txt
 g pytest python -m pytest -q -x --no-cov -p no:cacheprovider tests
 python -m pytest -q --no-cov -p no:cacheprovider tests 2>&1 | tail -15 | sed 's/^/PYTEST\t/'
 fi

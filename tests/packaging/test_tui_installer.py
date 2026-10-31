@@ -22,6 +22,7 @@ def test_the_tui_profile_installs_launchers_without_desktop_files_and_uninstalls
         assert completed.returncode == 0, completed.stdout + completed.stderr
     assert (prefix / "bin" / "bc250-control-center-tui").stat().st_mode & 0o111
     assert (prefix / "share" / "bc250-control-center" / "frontends" / "tui" / "app.py").is_file()
+    assert (prefix / "share/bc250-control-center/requirements-web.txt").is_file()
     assert not (prefix / "share" / "applications").exists() and not (prefix / "share" / "icons").exists()
     assert "GUI:" not in completed.stdout and "Terminal interface:" in completed.stdout
 

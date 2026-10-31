@@ -8,6 +8,7 @@ parse_component "$@"
 # No dkms: Alpine packages akms instead, and one unknown name makes apk
 # refuse the whole transaction, so git, lspci and jq never arrived either.
 runtime_packages=(
+  py3-pip openssl
   bash python3 py3-qt6 py3-psutil qt6-qtbase qt6-qtsvg git pciutils
   libdrm mesa-dri-gallium vulkan-tools polkit kmod curl ca-certificates tar
   zstd dbus dbus-openrc busctl jq build-base linux-headers
@@ -54,7 +55,7 @@ install_umr() {
   verify_command umr
 }
 
-check_runtime() { verify_command python3; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'import PyQt6, psutil'; }
+check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'from PyQt6.QtSvg import QSvgRenderer; from PyQt6.QtWidgets import QApplication; import psutil, pip, venv, ssl'; }
 check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }

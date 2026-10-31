@@ -199,7 +199,7 @@ def _run_dependencies(args, host, runner) -> int:
 def main(argv: list[str] | None = None, *, host=None, runner=subprocess.run) -> int:
     args = _parser().parse_args(argv)
     if args.command == "web":
-        from frontends.web.server import main as web_main
+        from frontends.web.__main__ import main as web_main
 
         web_argv = []
         if args.host:

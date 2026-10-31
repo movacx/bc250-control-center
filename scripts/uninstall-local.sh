@@ -462,7 +462,7 @@ remove_path "$DOC_DIR"
 # same path. Remove installed program components individually so a normal
 # uninstall preserves Data/, ResourceTools/ and other user-created state.
 if [[ "$APP_DIR" == "$BC250_USER_DATA_DIR" && "$PURGE_USER_DATA" -eq 0 ]]; then
-  for component in src frontends privileged packaging assets integrations scripts mvc VERSION; do
+  for component in src frontends privileged packaging assets integrations scripts mvc VERSION requirements-web.txt; do
     remove_path "$APP_DIR/$component"
   done
   remove_empty_dir "$APP_DIR"

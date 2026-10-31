@@ -101,7 +101,8 @@ All BIOS files are downloaded from one pinned commit per source, verified agains
 minimum 11.1.2, below 12), with its upstream dependencies
 [jaraco.functools](https://github.com/jaraco/jaraco.functools) (MIT) and
 [more-itertools](https://github.com/more-itertools/more-itertools) (MIT).
-Installed separately by the distribution or `requirements-web.txt`; their code
+Installed in a user-owned environment from `requirements-web.txt` when web
+access is first enabled (or reused from a supported system runtime); their code
 is not vendored or embedded in the frontend assets. Cheroot provides the bounded
 WSGI HTTP/TLS server. Upstream packages retain their own license notices.
 

@@ -8,7 +8,6 @@ session's CSRF token, and only names from ``actions.ACTIONS`` ever run.
 
 from __future__ import annotations
 
-import argparse
 import hmac
 import http.cookies
 import io
@@ -53,8 +52,11 @@ from frontends.desktop.i18n import (
 from frontends.desktop.theme import ACCENTS, THEMES, theme_palette
 from frontends.tui.runtime import Context, describe_error
 from frontends.web.actions import ACTIONS, Invalid
+from frontends.web.arguments import argument_parser
 from frontends.web.data import PAGES, Live, performance
 from frontends.web.ssh import SSHSession
+
+web_access.require_supported_version()
 
 logger = logging.getLogger(__name__)
 DIST = Path(__file__).resolve().parent / "dist"
@@ -600,12 +602,7 @@ class Server(WsgiServer):
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="bc250-control-center web",
-                                     description="BC250 Control Center local web interface")
-    parser.add_argument("--host", default="", help="address to listen on (default: this computer only, or the "
-                                                   "local network when it was turned on in Remote access)")
-    parser.add_argument("--port", type=int, default=0, help=f"port (default {web_access.DEFAULT_PORT})")
-    parser.add_argument("--http", action="store_true", help="disable local HTTPS (for development or an SSH tunnel)")
+    parser = argument_parser()
     args = parser.parse_args(argv)
     if os.geteuid() == 0:
         parser.error("Run the web interface as your ordinary Linux user, never as root.")

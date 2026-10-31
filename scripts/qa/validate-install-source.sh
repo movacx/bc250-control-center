@@ -11,6 +11,7 @@ if [[ "$MODE" != "full" && "$MODE" != "--structure-only" ]]; then
 fi
 
 required=(
+  requirements-web.txt
   VERSION
   README.md
   LICENSE

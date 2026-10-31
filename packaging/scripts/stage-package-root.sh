@@ -68,6 +68,7 @@ install -m644 "$ROOT_DIR/docs/THIRD_PARTY_NOTICES.md" "$DESTDIR/usr/share/doc/bc
 install -D -m644 "$ROOT_DIR/packaging/common/50-bc250-system-setup-uninstall.hook" \
   "$DESTDIR/usr/share/libalpm/hooks/50-bc250-system-setup-uninstall.hook"
 install -m644 "$ROOT_DIR/VERSION" "$DESTDIR/usr/share/bc250-control-center/VERSION"
+install -m644 "$ROOT_DIR/requirements-web.txt" "$DESTDIR/usr/share/bc250-control-center/requirements-web.txt"
 for launcher in bc250-control-center bc250-control-center-cli bc250-control-center-tui bc250-control-centerd; do
   install -m755 "$ROOT_DIR/scripts/entrypoints/$launcher" "$DESTDIR/usr/bin/$launcher"
 done

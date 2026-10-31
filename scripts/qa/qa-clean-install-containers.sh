@@ -8,7 +8,7 @@ declare -A IMAGES=(
   [arch]="docker.io/library/archlinux:base"
   [debian]="docker.io/library/debian:stable-slim"
   [ubuntu]="docker.io/library/ubuntu:24.04"
-  [fedora]="registry.fedoraproject.org/fedora:latest"
+  [fedora]="registry.fedoraproject.org/fedora:44"
 )
 
 usage() {
@@ -91,13 +91,13 @@ fi
 
 case "$family" in
   arch)
-    bootstrap='pacman -Syu --needed --noconfirm --noprogressbar bash python python-pyqt6 qt6-svg python-psutil git'
+    bootstrap='pacman -Syu --needed --noconfirm --noprogressbar bash python python-pyqt6 qt6-svg python-psutil python-pip openssl ca-certificates git'
     ;;
   debian|ubuntu)
-    bootstrap='apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq bash python3 python3-pyqt6 libqt6svg6 python3-psutil git'
+    bootstrap='apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq bash python3 python3-pyqt6 python3-pyqt6.qtsvg libqt6svg6 python3-venv python3-psutil python3-pip openssl ca-certificates git'
     ;;
   fedora)
-    bootstrap='dnf -q install -y bash python3 python3-pyqt6 qt6-qtsvg python3-psutil git'
+    bootstrap='dnf -q install -y bash python3 python3-pyqt6 qt6-qtsvg python3-psutil python3-pip openssl ca-certificates git'
     ;;
 esac
 
@@ -105,7 +105,7 @@ read -r -d '' validation <<'EOF' || true
 set -euo pipefail
 mkdir -p /tmp/bc250-home
 bash /src/scripts/qa/validate-install-source.sh /src
-QT_QPA_PLATFORM=offscreen PYTHONPATH=/src python3 -c 'from PyQt6.QtWidgets import QApplication; import psutil; import frontends.cli'
+QT_QPA_PLATFORM=offscreen PYTHONPATH=/src/src:/src python3 -c 'from PyQt6.QtWidgets import QApplication; from PyQt6.QtSvg import QSvgRenderer; import psutil; import frontends.cli'
 HOME=/tmp/bc250-home PREFIX=/opt/bc250 BC250_SKIP_PRIVILEGED_HELPER=1 bash /src/scripts/install-local.sh
 test "$(cat /opt/bc250/share/bc250-control-center/VERSION)" = "$(cat /src/VERSION)"
 /opt/bc250/bin/bc250-control-center-cli --version | grep -F "$(cat /src/VERSION)"

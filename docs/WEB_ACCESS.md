@@ -55,20 +55,36 @@ or router forwarding.
 
 ## Source-install runtime and safe restarts
 
-If the desktop's system Python lacks the web dependencies, prepare a stable,
-user-owned environment instead of modifying system Python:
+The desktop/TUI package does not require the distribution to publish a new
+Cheroot package. Native installers provide the Python tools (`pip >=22.3` and
+`venv`, split on Debian/Ubuntu) needed to create the optional web environment.
+The desktop also requires the QtSvg **Python binding**; on Debian/Ubuntu/Mint
+that is `python3-pyqt6.qtsvg`, in addition to the Qt SVG library/plugin.
 
-```sh
-python3 -m venv --system-site-packages ~/.local/share/bc250-control-center/web-runtime
-~/.local/share/bc250-control-center/web-runtime/bin/python -m pip install -r requirements-web.txt
-```
+On the first explicit start of web access, the launcher probes the current
+interpreter and then the stable user-owned `web-runtime` environment. If neither
+can load the supported server, it creates/refreshes that environment and uses
+pip's `--python` option to install `requirements-web.txt` there. This needs an
+internet connection on the first preparation, runs only as the ordinary user,
+uses HTTPS to PyPI, and never runs system pip as root or uses
+`--break-system-packages`. Reading status or opening the desktop does not
+trigger a download. CLI web startup uses the same path; `--help` needs no web
+runtime or network.
 
-The launcher probes the current interpreter and then this environment. The user
-service records the working interpreter in `ExecStart`. A network-mode switch
-checks dependencies before stopping the current endpoint; if restart fails it
-restores the previous settings and tries the previous mode. Starting reports
-success only once the listener is ready. Restart an already-open desktop after
-updating launcher code so its in-memory functions use the new implementation.
+The supported server range remains **Cheroot >=11.1.2,<12**. The server checks
+this before opening a socket, including direct module launches. A distro's
+older package is left installed for its other consumers and is not exposed as
+BC250's server. The isolated environment inherits the desktop's PyQt6/psutil;
+the TUI-only source profile still needs no GUI packages.
+
+The requirements file ships in every native package and source tarball and
+participates in source-install rollback. In-place updates preserve the web
+runtime and refresh its interpreter when preparation is needed after a Python
+upgrade. The user service records the working interpreter in `ExecStart`. A
+network-mode switch checks dependencies before stopping the current endpoint;
+if restart fails it restores the previous settings and tries the previous mode.
+Starting reports success only once the listener is ready. Restart an
+already-open desktop after updating launcher code so it uses the new code.
 
 With LAN disabled the server listens on `127.0.0.1`, remains protected by the
 access key, and can be opened only from the board itself. A phone's localhost

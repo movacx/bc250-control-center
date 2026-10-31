@@ -170,7 +170,18 @@ def _command() -> list[str]:
                 return [str(interpreter), "-m", "frontends.web"]
         except (OSError, subprocess.SubprocessError):
             continue
-    raise ActionNeeded("The web server dependencies are unavailable. Install requirements-web.txt in the web runtime or install the distribution's python3-cheroot package.")
+    from bc250cc.infrastructure.web_runtime import prepare
+
+    interpreter = prepare(APP_ROOT, app_data_dir() / "web-runtime")
+    try:
+        probe = subprocess.run([str(interpreter), "-c", "import frontends.web.server"],
+                               cwd=APP_ROOT, env={**os.environ, **_environment()},
+                               capture_output=True, timeout=10, check=False)
+        if probe.returncode == 0:
+            return [str(interpreter), "-m", "frontends.web"]
+    except (OSError, subprocess.SubprocessError):
+        pass
+    raise ActionNeeded("The web server dependencies are unavailable after runtime preparation. Reinstall BC250 Control Center.")
 
 
 def _environment() -> dict[str, str]:

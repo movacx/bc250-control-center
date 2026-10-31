@@ -133,6 +133,29 @@ fi
 # is incomplete. The full Python/vendor check runs after dependency recovery.
 bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR" --structure-only
 
+require_supported_python() {
+  if command -v python3 >/dev/null 2>&1 && \
+     ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' >/dev/null 2>&1; then
+    echo "Error: BC250 Control Center needs Python 3.11 or newer; this system has $(python3 -V 2>&1)." >&2
+    echo "Ubuntu 22.04 and Linux Mint 21 ship Python 3.10. Use Ubuntu 24.04 / Linux Mint 22 or newer, or a newer Python." >&2
+    exit 2
+  fi
+}
+require_supported_python
+
+check_python_gui_runtime() {
+  python3 - <<'PY' >/dev/null 2>&1
+from PyQt6.QtGui import QImageReader
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtSvg import QSvgRenderer
+import psutil, pip, venv, ssl
+assert ssl.create_default_context().cert_store_stats()["x509_ca"] > 0, "CA certificates are missing"
+assert tuple(map(int, pip.__version__.split(".")[:2])) >= (22, 3), "pip >=22.3 is required"
+formats = {bytes(fmt).decode("ascii", "ignore").lower() for fmt in QImageReader.supportedImageFormats()}
+assert "svg" in formats, "Qt SVG image plugin is missing"
+PY
+}
+
 missing_python_deps=0
 missing_python_deps_command=()
 missing_python_deps_command_text=""
@@ -186,15 +209,13 @@ elif [[ "$INSTALL_PROFILE" == "tui" ]]; then
     echo "Warning: Python's curses module or psutil is missing; the terminal interface needs both." >&2
     python_gui_deps_missing=1
   fi
-elif ! python3 - <<'PY' >/dev/null 2>&1
-from PyQt6.QtGui import QImageReader
-from PyQt6.QtWidgets import QApplication
-import psutil, cheroot
-formats = {bytes(fmt).decode("ascii", "ignore").lower() for fmt in QImageReader.supportedImageFormats()}
-assert "svg" in formats, "Qt SVG image plugin is missing"
-PY
-then
-  echo "Warning: Python GUI dependencies are missing or Qt SVG support is unavailable. The app will install, but icons or the GUI may fail until they are installed." >&2
+elif ! check_python_gui_runtime; then
+  echo "Warning: Python GUI dependencies, QtSvg bindings or web bootstrap tools are missing." >&2
+  python_gui_deps_missing=1
+fi
+
+# In-place source updates require Git even when the GUI imports already work.
+if ! command -v git >/dev/null 2>&1 || { [[ "$INSTALL_PROFILE" == "desktop" ]] && ! command -v openssl >/dev/null 2>&1; }; then
   python_gui_deps_missing=1
 fi
 
@@ -207,34 +228,34 @@ if command -v apt-get >/dev/null 2>&1 && {
   ! command -v pkexec >/dev/null 2>&1
 }; then
   debian_polkit_package="pkexec"
-  if command -v apt-cache >/dev/null 2>&1 && ! apt-cache show pkexec >/dev/null 2>&1; then
+  if command -v apt-cache >/dev/null 2>&1 && ! apt-cache show pkexec >/dev/null 2>&1 && apt-cache show policykit-1 >/dev/null 2>&1; then
     debian_polkit_package="policykit-1"
   fi
-  missing_python_deps_command=(apt-get install -y python3 python3-psutil python3-cheroot "$debian_polkit_package" jq)
-  [[ "$INSTALL_PROFILE" == "tui" ]] || missing_python_deps_command+=(python3-pyqt6 libqt6svg6)
+  missing_python_deps_command=(apt-get install -y python3 python3-psutil git "$debian_polkit_package" jq)
+  [[ "$INSTALL_PROFILE" == "tui" ]] || missing_python_deps_command+=(python3-pyqt6 python3-pyqt6.qtsvg libqt6svg6 python3-pip python3-venv openssl ca-certificates)
   missing_python_deps=1
 elif [[ "$python_gui_deps_missing" -eq 1 ]]; then
   # The GUI packages; the terminal profile drops them below. curses ships with
   # Python everywhere except openSUSE, which splits it out.
   gui_packages=()
   if [[ -e /run/ostree-booted ]] && command -v rpm-ostree >/dev/null 2>&1; then
-    missing_python_deps_command=(rpm-ostree install --idempotent python3-psutil python3-cheroot)
-    gui_packages=(python3-pyqt6 qt6-qtsvg)
+    missing_python_deps_command=(rpm-ostree install --idempotent python3-psutil git)
+    gui_packages=(python3-pyqt6 qt6-qtsvg python3-pip openssl ca-certificates)
     missing_python_deps_reboot_notice=1
   elif command -v dnf >/dev/null 2>&1; then
-    missing_python_deps_command=(dnf install -y python3-psutil python3-cheroot)
-    gui_packages=(python3-pyqt6 qt6-qtsvg)
+    missing_python_deps_command=(dnf install -y python3-psutil git)
+    gui_packages=(python3-pyqt6 qt6-qtsvg python3-pip openssl ca-certificates)
   elif command -v pacman >/dev/null 2>&1; then
-    missing_python_deps_command=(pacman -S --needed python-psutil python-cheroot)
-    gui_packages=(python-pyqt6 qt6-svg)
+    missing_python_deps_command=(pacman -S --needed python-psutil git)
+    gui_packages=(python-pyqt6 qt6-svg python-pip openssl ca-certificates)
   elif command -v zypper >/dev/null 2>&1; then
-    missing_python_deps_command=(zypper --non-interactive install python3-psutil python3-cheroot python3-curses)
-    gui_packages=(python3-PyQt6)
+    missing_python_deps_command=(zypper --non-interactive install python3-psutil python3-curses git)
+    gui_packages=(python3-PyQt6 python3-pip openssl ca-certificates)
   elif command -v apk >/dev/null 2>&1; then
     # The same packages the Alpine dependency preparation installs
     # (packaging/common/os-scripts/alpine/prepare-dependencies.sh).
-    missing_python_deps_command=(apk add --no-progress bash python3 py3-psutil py3-cheroot jq polkit)
-    gui_packages=(py3-qt6 qt6-qtbase qt6-qtsvg)
+    missing_python_deps_command=(apk add --no-progress bash python3 py3-psutil git jq polkit)
+    gui_packages=(py3-qt6 qt6-qtbase qt6-qtsvg py3-pip openssl ca-certificates)
   fi
   if [[ "$INSTALL_PROFILE" == "desktop" && ${#missing_python_deps_command[@]} -gt 0 ]]; then
     missing_python_deps_command+=("${gui_packages[@]}")
@@ -250,10 +271,12 @@ fi
 
 if [[ ${#missing_python_deps_command[@]} -gt 0 && "${BC250_SKIP_DEPENDENCY_INSTALL:-0}" != "1" ]]; then
   prepare_steamos_pacman_install_local
-  echo "Installing missing Python dependencies..."
+  echo "Installing missing runtime dependencies..."
   if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    [[ "${missing_python_deps_command[0]}" != "apt-get" ]] || apt-get update
     "${missing_python_deps_command[@]}"
   elif command -v sudo >/dev/null 2>&1; then
+    [[ "${missing_python_deps_command[0]}" != "apt-get" ]] || sudo apt-get update
     sudo "${missing_python_deps_command[@]}"
   else
     echo "Warning: sudo is not available. Install manually: ${missing_python_deps_command_text% }" >&2
@@ -265,13 +288,22 @@ elif [[ ${#missing_python_deps_command[@]} -gt 0 ]]; then
   echo "Skipping host dependency installation because BC250_SKIP_DEPENDENCY_INSTALL=1."
 fi
 
-bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
-if command -v python3 >/dev/null 2>&1 && \
-   ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' >/dev/null 2>&1; then
-  echo "Error: BC250 Control Center needs Python 3.11 or newer; this system has $(python3 -V 2>&1)." >&2
-  echo "Ubuntu 22.04 and Linux Mint 21 ship Python 3.10. Use Ubuntu 24.04 / Linux Mint 22 or newer, or a newer Python." >&2
-  exit 2
+if [[ "${BC250_SKIP_DEPENDENCY_INSTALL:-0}" != "1" && "$missing_python_deps_reboot_notice" -eq 0 ]]; then
+  if [[ "$INSTALL_PROFILE" == "desktop" ]]; then
+    if ! check_python_gui_runtime; then
+      echo "Error: the GUI runtime is still incomplete after dependency installation (PyQt6 QtSvg, SVG plugin, psutil, pip or venv)." >&2
+      echo "No installed application code was replaced. Repair the native packages and retry." >&2
+      exit 2
+    fi
+  elif ! python3 -c 'import curses, psutil' >/dev/null 2>&1; then
+    echo "Error: the terminal runtime is still incomplete after dependency installation (curses or psutil)." >&2
+    exit 2
+  fi
+  missing_python_deps=0
 fi
+
+bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
+require_supported_python
 
 install -dm755 "$APP_DIR" "$BIN_DIR" "$SYSTEMD_USER_DIR" "$DOC_DIR"
 
@@ -284,7 +316,7 @@ APP_BACKUP="${APP_DIR}.tree.previous.$$"
 VERSION_BACKUP="${APP_DIR}.VERSION.previous.$$"
 APP_SWAP_COMPLETE=0
 APP_HAD_VERSION=0
-APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations)
+APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations requirements-web.txt)
 LEGACY_COMPONENTS=(mvc)
 cleanup_application_swap() {
   local status=$?
@@ -293,7 +325,7 @@ cleanup_application_swap() {
     echo "Installation failed; rolling back the application code." >&2
     for component in "${APP_COMPONENTS[@]}" "${LEGACY_COMPONENTS[@]}"; do
       rm -rf -- "${APP_DIR:?}/$component"
-      if [[ -d "$APP_BACKUP/$component" ]]; then
+      if [[ -e "$APP_BACKUP/$component" ]]; then
         mv -- "$APP_BACKUP/$component" "$APP_DIR/$component"
       fi
     done
@@ -362,6 +394,7 @@ for decky_runtime in plugin.json package.json main.py dist/index.js \
     "$APP_STAGE/integrations/decky/bc250-quick-access/$decky_runtime"
 done
 install -m644 "$ROOT_DIR/VERSION" "$APP_STAGE/VERSION"
+install -m644 "$ROOT_DIR/requirements-web.txt" "$APP_STAGE/requirements-web.txt"
 PYTHONPYCACHEPREFIX="$APP_STAGE/pycache" python3 -m compileall -q \
   "$APP_STAGE/src" "$APP_STAGE/frontends" "$APP_STAGE/privileged"
 rm -rf -- "$APP_STAGE/pycache"
