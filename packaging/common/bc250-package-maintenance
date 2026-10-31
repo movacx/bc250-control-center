@@ -1,8 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+repair_permissions() {
+    # Legacy builds could carry 0775 intermediate directories. Tighten only
+    # that exact root:root mode; never relax helper checks or recursively
+    # change system ownership, special permissions or user-managed trees.
+    local path
+    for path in / /usr /usr/libexec /etc /var /var/lib; do
+        if [[ "$(stat -Lc '%u:%g:%a' -- "$path" 2>/dev/null || true)" == 0:0:775 ]]; then
+            echo "Repairing unsafe group-writable helper ancestor: $path"
+            chmod 0755 -- "$path"
+        fi
+    done
+}
+
 case "${1:-}" in
   post-install)
+    repair_permissions
     # Package-manager upgrades normally remove files no longer owned by the
     # new package. This explicit cleanup also covers hand-built 1.18 packages
     # whose legacy mvc/ tree was not tracked consistently.
@@ -16,6 +30,9 @@ case "${1:-}" in
     if command -v gtk-update-icon-cache >/dev/null 2>&1; then
       gtk-update-icon-cache -q -t /usr/share/icons/hicolor >/dev/null 2>&1 || true
     fi
+    ;;
+  repair-permissions)
+    repair_permissions
     ;;
   pre-remove)
     helper=/usr/libexec/bc250-control-center/bc250-system-setup-helper
@@ -48,7 +65,7 @@ case "${1:-}" in
     done
     ;;
   *)
-    echo "Usage: $0 {post-install|pre-remove}" >&2
+    echo "Usage: $0 {post-install|pre-remove|repair-permissions}" >&2
     exit 64
     ;;
 esac

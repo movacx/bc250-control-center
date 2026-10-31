@@ -314,6 +314,16 @@ bc250_pacman_conf=''
 trap 'rm -f -- "$bc250_repo_file" "$bc250_pacman_conf"' EXIT
 bc250_pacman_conf="$(mktemp)"
 awk '$0 != "Include = {include}"' /etc/pacman.conf > "$bc250_pacman_conf"
+if [ "$bc250_anchor" = cachyos-v3 ] && ! grep -Eq '^[[:space:]]*\\[cachyos-v3\\][[:space:]]*$' "$bc250_pacman_conf"; then
+  # CachyOS installations can use generic or v4 repository layouts. Use the
+  # first explicitly configured official repository, preserving its priority.
+  bc250_fallback_anchor="$(awk '
+    {{ line=$0; sub(/^[[:space:]]*/, "", line); sub(/[[:space:]]*$/, "", line) }}
+    line ~ /^\\[cachyos(-((extra|core)-)?v[34]|-(extra|core))?\\]$/ || line == "[core]" {{
+      gsub(/[][]/, "", line); print line; exit
+    }}' "$bc250_pacman_conf")"
+  if [ -n "$bc250_fallback_anchor" ]; then bc250_anchor="$bc250_fallback_anchor"; fi
+fi
 grep -Eq "^[[:space:]]*\\[$bc250_anchor\\][[:space:]]*$" "$bc250_pacman_conf" || {{ echo "ERROR: [$bc250_anchor] was not found; refusing to guess repository priority."; exit 65; }}
 bc250_manage_repo=1
 if pacman-conf --repo-list | grep -Fxq '{repository}' && ! grep -Fqx 'Include = {include}' /etc/pacman.conf; then

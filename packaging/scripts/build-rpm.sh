@@ -8,7 +8,7 @@ VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
 # RPM permits a tilde for pre-release ordering, but an unescaped tilde in
 # Bash's parameter-expansion replacement is expanded to $HOME. Keep it literal.
 RPM_VERSION="${VERSION/-/\~}"
-RPM_RELEASE="${BC250_RPM_RELEASE:-1}"
+RPM_RELEASE="${BC250_RPM_RELEASE:-2}"
 if [[ -n "${BC250_VERSION:-}" && "$BC250_VERSION" != "$VERSION" ]]; then
   echo "BC250_VERSION must match the release VERSION file ($VERSION)." >&2
   exit 64

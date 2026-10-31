@@ -117,3 +117,23 @@ def test_the_local_installer_leaves_packages_alone_when_asked(tmp_path):
     result = _run_local_installer(tmp_path, path, BC250_SKIP_DEPENDENCY_INSTALL="1")
     assert not log.exists()
     assert result.returncode == 2 and "diffutils" in result.stderr
+
+
+def test_gentoo_runtime_plan_is_not_misplaced_in_diffutils_bootstrap(tmp_path):
+    path, log = _fake_package_manager(tmp_path, installs=True)
+    # cmp already works, but Python/Git preparation must still use Portage.
+    # The fake manager stops before any application files are installed.
+    bin_dir = Path(path)
+    (bin_dir / "cmp").symlink_to(shutil.which("cmp"))
+    manager = bin_dir / "pacman"
+    manager.rename(bin_dir / "emerge")
+    emerge = bin_dir / "emerge"
+    emerge.write_text(emerge.read_text().replace('echo "pacman ', 'echo "emerge '))
+    result = _run_local_installer(
+        tmp_path, path, BC250_INSTALL_PROFILE="tui",
+        BC250_SKIP_PRIVILEGED_HELPER="1", PREFIX=str(tmp_path / "install"),
+    )
+    assert result.returncode == 42, result.stdout + result.stderr
+    assert log.read_text().splitlines() == [
+        "emerge --ask=n --getbinpkg dev-lang/python dev-python/psutil dev-vcs/git"
+    ]

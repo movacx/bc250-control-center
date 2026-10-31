@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ROOT_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd -P)"
 OUTPUT_DIR="${1:-$ROOT_DIR/dist}"
 VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
-DEB_RELEASE="${BC250_DEB_RELEASE:-1}"
+DEB_RELEASE="${BC250_DEB_RELEASE:-2}"
 RELEASE_SOURCE_EXCLUDES=(--exclude 'archive' --exclude 'tests')
 : "${RELEASE_SOURCE_EXCLUDES[*]}"
 if [[ -n "${BC250_VERSION:-}" && "$BC250_VERSION" != "$VERSION" ]]; then

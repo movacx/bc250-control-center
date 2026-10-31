@@ -38,6 +38,18 @@ set -Eeuo pipefail
 # a module built correctly as "does not match kernel".
 export PATH="${PATH:-/usr/bin:/bin}:/usr/sbin:/sbin"
 
+prepare_meson() {
+    local work="$1" current
+    current=$(meson --version 2>/dev/null || true)
+    if python3 -c 'import sys; v=sys.argv[1].split("."); sys.exit(0 if len(v)>=2 and tuple(map(int,v[:2])) >= (1,4) else 1)' "$current" 2>/dev/null; then
+        return
+    fi
+    say "Mesa needs Meson >= 1.4; preparing isolated build tools"
+    python3 -m venv --system-site-packages "$work/build-tools"
+    "$work/build-tools/bin/python" -m pip install 'meson>=1.4,<2'
+    export PATH="$work/build-tools/bin:$PATH"
+}
+
 MESA_VERSION=26.2.0-rc3
 MESA_SHA256=f733c005660d342a51c6727d1ad481f43d05b4c601ac72247fa641e1d73a8ad1
 MESA_URL="https://archive.mesa3d.org/mesa-${MESA_VERSION}.tar.xz"
@@ -147,7 +159,7 @@ deps() {
         debian)
             sudo apt-get update
             sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential bc cpio \
-                xz-utils curl patch meson ninja-build python3-mako python3-yaml python3-packaging \
+                xz-utils curl patch meson ninja-build python3-venv python3-pip python3-mako python3-yaml python3-packaging \
                 glslang-tools libdrm-dev libwayland-dev wayland-protocols libxcb-dri3-dev \
                 libxcb-present-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-sync-dev \
                 libx11-xcb-dev libx11-dev libxrandr-dev libxshmfence-dev libexpat1-dev \
@@ -221,6 +233,7 @@ build() {
     # meson checks every build dependency in seconds, so a missing or too old
     # library stops the run here instead of after minutes of compiling.
     if [[ $kernel_only -eq 0 ]]; then
+        prepare_meson "$work"
         say "Mesa half: RADV $MESA_VERSION with the compute-queue patch"
         local mesa_tar="$work/mesa-$MESA_VERSION.tar.xz"
         fetch "$MESA_URL" "$mesa_tar"

@@ -83,7 +83,8 @@ _CODES: tuple[ErrorCode, ...] = (
         "A helper, device node, configuration file, or immutable system path has ownership or permission settings that do not allow this operation.",
         "Reinstall this version so its helpers are in place. On Bazzite or SteamOS, finish any pending deployment and restart before retrying.",
         exit_statuses=(11, 13, 14, 15, 16, 17, 71, 77),
-        markers=("QUICK_ACCESS_PRIVILEGE",),
+        markers=("QUICK_ACCESS_PRIVILEGE", "Untrusted helper dependency:",
+                 "is not protected by root:", "CU executor is missing or untrusted"),
     ),
     ErrorCode(
         "BC250-SERVICE-003",

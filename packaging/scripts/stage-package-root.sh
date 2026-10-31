@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 022
 
 if [[ $# -ne 1 ]]; then
   echo "Usage: $0 DESTDIR" >&2
@@ -16,6 +17,7 @@ if [[ "$DESTDIR" == / || -z "$DESTDIR" ]]; then
 fi
 
 bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
+install -d -m755 "$DESTDIR"
 install -d -m755 \
   "$DESTDIR/usr/share/bc250-control-center" \
   "$DESTDIR/usr/share/bc250-control-center/scripts" \
@@ -45,6 +47,8 @@ cp -a -- "$ROOT_DIR/integrations/decky/bc250-quick-access" \
 # access while preserving executability of scripts that were already marked
 # executable.
 chmod -R a+rX "$DESTDIR/usr/share/bc250-control-center"
+find "$DESTDIR/usr/share/bc250-control-center" -type d -exec chmod 0755 {} +
+find "$DESTDIR/usr/share/bc250-control-center" -type f -exec chmod go-w {} +
 rm -rf -- "$DESTDIR/usr/share/bc250-control-center/frontends/web/app/node_modules"
 rm -rf -- "$DESTDIR/usr/share/bc250-control-center/integrations/decky/bc250-quick-access/node_modules"
 find "$DESTDIR/usr/share/bc250-control-center/integrations/decky/bc250-quick-access" \
@@ -160,4 +164,7 @@ find "$DESTDIR/usr/share/bc250-control-center/src" "$DESTDIR/usr/share/bc250-con
 find "$DESTDIR/usr/share/bc250-control-center/src" "$DESTDIR/usr/share/bc250-control-center/frontends" \
   "$DESTDIR/usr/share/bc250-control-center/privileged" -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
 
+# Include the archive root and intermediate system directories. A build under
+# umask 0002 must never ship group-writable ancestors of protected helpers.
+find "$DESTDIR" -type d -exec chmod 0755 {} +
 echo "Package root staged at $DESTDIR"

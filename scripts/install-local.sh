@@ -179,8 +179,7 @@ if [[ "${BC250_SKIP_PRIVILEGED_HELPER:-0}" != "1" ]] && ! command -v cmp >/dev/n
   elif command -v zypper >/dev/null 2>&1; then
     diffutils_command=(zypper --non-interactive install diffutils)
   elif command -v emerge >/dev/null 2>&1; then
-    missing_python_deps_command=(emerge --ask=n --getbinpkg dev-lang/python dev-python/psutil dev-vcs/git)
-    gui_packages=(dev-python/pyqt6 dev-qt/qtsvg dev-python/pip dev-libs/openssl app-misc/ca-certificates)
+    diffutils_command=(emerge --ask=n --getbinpkg sys-apps/diffutils)
   elif command -v apk >/dev/null 2>&1; then
     diffutils_command=(apk add --no-progress diffutils)
   fi
@@ -254,6 +253,9 @@ elif [[ "$python_gui_deps_missing" -eq 1 ]]; then
   elif command -v zypper >/dev/null 2>&1; then
     missing_python_deps_command=(zypper --non-interactive install python3-psutil python3-curses git)
     gui_packages=(python3-PyQt6 python3-pip openssl ca-certificates)
+  elif command -v emerge >/dev/null 2>&1; then
+    missing_python_deps_command=(emerge --ask=n --getbinpkg dev-lang/python dev-python/psutil dev-vcs/git)
+    gui_packages=(dev-python/pyqt6 dev-qt/qtsvg dev-python/pip dev-libs/openssl app-misc/ca-certificates)
   elif command -v apk >/dev/null 2>&1; then
     # The same packages the Alpine dependency preparation installs
     # (packaging/common/os-scripts/alpine/prepare-dependencies.sh).
@@ -445,6 +447,8 @@ install_privileged_pwm_components() {
   local openrc_service_helper_source="$ROOT_DIR/privileged/helpers/bc250-openrc-service-helper"
   local service_helper_source="$ROOT_DIR/privileged/helpers/bc250-service-helper"
   local maintenance_helper_source="$ROOT_DIR/privileged/helpers/bc250-maintenance-helper"
+  local package_maintenance_source="$ROOT_DIR/packaging/common/bc250-package-maintenance"
+  local package_maintenance_target="/usr/libexec/bc250-control-center/bc250-package-maintenance"
   local quick_access_helper_source="$ROOT_DIR/privileged/helpers/bc250-quick-access-helper"
   local cu_helper_source="$ROOT_DIR/privileged/helpers/bc250-cu-helper"
   local cu_helper_target="/usr/libexec/bc250-control-center/bc250-cu-helper"
@@ -484,6 +488,8 @@ install_privileged_pwm_components() {
     elevate=(sudo)
   fi
 
+  "${elevate[@]}" bash "$ROOT_DIR/packaging/common/bc250-package-maintenance" repair-permissions
+
   echo "Installing root-owned privileged helpers and Polkit action..."
   local privileged_backup_dir privileged_status rollback_failed target index
   local -a managed_targets=(
@@ -509,6 +515,7 @@ install_privileged_pwm_components() {
     "$SYSTEM_OPENRC_SERVICE_HELPER"
     "$SYSTEM_SERVICE_HELPER"
     "$SYSTEM_MAINTENANCE_HELPER"
+    "$package_maintenance_target"
     "$SYSTEM_GPU_LAB_SCRIPT"
     "$SYSTEM_STEAMOS_AMDGPU_OVERLAY"
     "$SYSTEM_CYAN_OVERLAY_PREFLIGHT"
@@ -562,6 +569,7 @@ install_privileged_pwm_components() {
     "${elevate[@]}" install -Dm755 "$openrc_service_helper_source" "$SYSTEM_OPENRC_SERVICE_HELPER"
     "${elevate[@]}" install -Dm755 "$service_helper_source" "$SYSTEM_SERVICE_HELPER"
     "${elevate[@]}" install -Dm755 "$maintenance_helper_source" "$SYSTEM_MAINTENANCE_HELPER"
+    "${elevate[@]}" install -Dm755 "$package_maintenance_source" "$package_maintenance_target"
     "${elevate[@]}" install -Dm755 "$gpu_lab_source" "$SYSTEM_GPU_LAB_SCRIPT"
     "${elevate[@]}" install -Dm755 "$steamos_amdgpu_overlay_source" "$SYSTEM_STEAMOS_AMDGPU_OVERLAY"
     "${elevate[@]}" install -Dm755 "$cyan_overlay_preflight_source" "$SYSTEM_CYAN_OVERLAY_PREFLIGHT"
@@ -599,6 +607,7 @@ install_privileged_pwm_components() {
       "$openrc_service_helper_source:$SYSTEM_OPENRC_SERVICE_HELPER" \
       "$service_helper_source:$SYSTEM_SERVICE_HELPER" \
       "$maintenance_helper_source:$SYSTEM_MAINTENANCE_HELPER" \
+      "$package_maintenance_source:$package_maintenance_target" \
       "$gpu_lab_source:$SYSTEM_GPU_LAB_SCRIPT" \
       "$steamos_amdgpu_overlay_source:$SYSTEM_STEAMOS_AMDGPU_OVERLAY" \
       "$cyan_overlay_preflight_source:$SYSTEM_CYAN_OVERLAY_PREFLIGHT"; do

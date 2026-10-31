@@ -73,7 +73,13 @@ def test_package_removal_clears_bytecode_caches_root_left_behind():
 def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_path):
     stage = tmp_path / "root"
 
-    _run("bash", ROOT / "packaging/scripts/stage-package-root.sh", stage)
+    stage.mkdir(mode=0o775)
+    (stage / "usr").mkdir(mode=0o775)
+    stage.chmod(0o775)
+    (stage / "usr").chmod(0o775)
+    _run("bash", "-c", 'umask 0002; exec bash "$1" "$2"', "stage",
+         ROOT / "packaging/scripts/stage-package-root.sh", stage)
+    assert all(directory.stat().st_mode & 0o022 == 0 for directory in [stage, *stage.rglob("*")] if directory.is_dir())
 
     assert (stage / "usr/bin/bc250-control-center-cli").stat().st_mode & 0o111
     assert (stage / "usr/bin/bc250-control-center-tui").stat().st_mode & 0o111
@@ -184,7 +190,7 @@ def test_arch_package_has_canonical_metadata_and_is_accepted_by_pacman(tmp_path)
         env={**os.environ, "LANG": "C", "LC_ALL": "C"},
     ).stdout
     assert "Name            : bc250-control-center" in query
-    assert f"Version         : {VERSION}-1" in query
+    assert f"Version         : {VERSION}-2" in query
 
     archive_names = _run("bsdtar", "-tf", package).stdout.splitlines()
     assert ".PKGINFO" in archive_names

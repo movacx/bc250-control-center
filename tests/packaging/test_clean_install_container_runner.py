@@ -40,7 +40,8 @@ def test_clean_install_runner_never_implicitly_pulls_or_mounts_host_writable():
     assert 'if [[ "$allow_pull" -ne 1 ]]' in source
     assert "--pull=never" in source
     assert '$ROOT_DIR:/src:ro' in source
-    assert "BC250_SKIP_PRIVILEGED_HELPER=1" in source
+    assert "BC250_SKIP_PRIVILEGED_HELPER=1" not in source
+    assert "BC250_QA_CONTAINER=1 bash /src/scripts/qa/check-installed-helpers.sh /src" in source
     assert "bc250-control-center-cli --version" in source
     assert "qualification template --section compute_units" in source
     assert 'data[\"qualification_evidence_can_self_certify\"] is False' in source

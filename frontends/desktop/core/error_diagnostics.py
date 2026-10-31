@@ -314,7 +314,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-PKG-002",
-        (r"invalid or corrupted package", r"signature.*(?:invalid|unknown|trust)", r"keyring", r"gpg.*(?:error|failed)", r"public key.*unknown", r"gpg check failed", r"unknown trust", r"integrity validation", r"could not fingerprint", r"origin, revision"),
+        (r"invalid or corrupted package", r"signature.*(?:invalid|unknown|trust)", r"keyring", r"gpg.*(?:error|failed)", r"public key.*unknown", r"gpg check failed", r"signatures:\s+not ok", r"cannot be verified and repo.*GPG enabled", r"unknown trust", r"integrity validation", r"could not fingerprint", r"origin, revision"),
         "The package signature or repository key could not be verified.",
         "The keyring may be outdated, the download may be incomplete, or an external repository has a trust configuration that differs from the selected workflow.",
         "Update the distribution keyring and retry. If this is an external repository, review its configured signature policy before changing pacman, DNF, or APT settings.",
@@ -624,11 +624,12 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"persisted nct6687 source is missing", r"\bfan\b.*does not exist",
     ),
     "BC250-HELPER-001": (
-        r"protected bc250 openrc service helper is missing", r"protected gddr6 patch helper is not installed",
+        r"protected bc250 openrc service helper is missing",
+        r"needs the installed, root-owned bc250 fan helper", r"protected gddr6 patch helper is not installed",
         r"reviewed root-owned steamos graphics backend is unavailable or changed",
     ),
     "BC250-PLATFORM-001": (
-        r"unsupported accessory", r"openlinkhub.*x86_64", r"trcc.*(?:no package|not installed)",
+        r"gddr6_firmware_unsupported", r"unsupported accessory", r"openlinkhub.*x86_64", r"trcc.*(?:no package|not installed)",
         r"debian release.*backports kernel", r"kernel boot options.*managed differently",
         r"only mitigations=off", r"optiscaler client.*x86_64",
     ),
@@ -790,7 +791,9 @@ def diagnose_error(message: object, *, context: object = "") -> ErrorDiagnosis:
     # fault exactly; the shared catalog maps it the same way the terminal does,
     # so a broad desktop word ("gpu", "range") cannot outrank it.
     marked = error_catalog.for_marker(detail)
-    if marked is not None and _PREFIX_MARKER.search(detail):
+    if marked is not None and (
+        _PREFIX_MARKER.search(detail) or marked.code == "BC250-PERM-001"
+    ):
         return ErrorDiagnosis(marked.code, marked.summary, marked.cause, marked.action)
     for rule in _RULES:
         if rule.matches(message_only):

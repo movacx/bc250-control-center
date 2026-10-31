@@ -416,6 +416,7 @@ remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-gddr6-temp-rea
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-openrc-service-helper" "$SYSTEM_OPENRC_SERVICE_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-service-helper" "$SYSTEM_SERVICE_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-maintenance-helper" "$SYSTEM_MAINTENANCE_HELPER"
+remove_managed_privileged_file "$APP_DIR/packaging/common/bc250-package-maintenance" "/usr/libexec/bc250-control-center/bc250-package-maintenance"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-quick-access-helper" "$SYSTEM_QUICK_ACCESS_HELPER"
 remove_decky_profile_exports
 gpu_lab_source="$APP_DIR/scripts/system/bc250-gpu-voltage-lab.sh"

@@ -106,7 +106,8 @@ set -euo pipefail
 mkdir -p /tmp/bc250-home
 bash /src/scripts/qa/validate-install-source.sh /src
 QT_QPA_PLATFORM=offscreen PYTHONPATH=/src/src:/src python3 -c 'from PyQt6.QtWidgets import QApplication; from PyQt6.QtSvg import QSvgRenderer; import psutil; import frontends.cli'
-HOME=/tmp/bc250-home PREFIX=/opt/bc250 BC250_SKIP_PRIVILEGED_HELPER=1 bash /src/scripts/install-local.sh
+HOME=/tmp/bc250-home PREFIX=/opt/bc250 bash /src/scripts/install-local.sh
+BC250_QA_CONTAINER=1 bash /src/scripts/qa/check-installed-helpers.sh /src
 test "$(cat /opt/bc250/share/bc250-control-center/VERSION)" = "$(cat /src/VERSION)"
 /opt/bc250/bin/bc250-control-center-cli --version | grep -F "$(cat /src/VERSION)"
 HOME=/tmp/bc250-home /opt/bc250/bin/bc250-control-center-cli --json system > /tmp/system.json

@@ -250,7 +250,10 @@ var codes = [
 	{
 		code: "BC250-PERM-001",
 		markers: [
-			"QUICK_ACCESS_PRIVILEGE"
+			"QUICK_ACCESS_PRIVILEGE",
+			"Untrusted helper dependency:",
+			"is not protected by root:",
+			"CU executor is missing or untrusted"
 		],
 		exit_statuses: [
 			11,
@@ -714,6 +717,7 @@ var markers_longest_first = [
 	"The GPU driver (amdgpu) did not start",
 	"invalid ip discovery binary signature",
 	"matching kernel-devel is unavailable",
+	"CU executor is missing or untrusted",
 	"umr is installed but does not start",
 	"persisted nct6687 source is missing",
 	"failed to synchronize all databases",
@@ -738,6 +742,7 @@ var markers_longest_first = [
 	"QUICK_ACCESS_CU_SERVICE_VERIFY",
 	"a release is already installed",
 	"QUICK_ACCESS_CPU_SCALE_VERIFY",
+	"Untrusted helper dependency:",
 	"unable to satisfy dependency",
 	"QUICK_ACCESS_GPU_HIGH_POINTS",
 	"nct6687d PWM driver workflow",
@@ -751,6 +756,7 @@ var markers_longest_first = [
 	"replaced the running kernel",
 	"nct6687.ko was not produced",
 	"headers for another kernel",
+	"is not protected by root:",
 	"QUICK_ACCESS_GPU_CONFLICT",
 	"does not accept arguments",
 	"QUICK_ACCESS_CPU_SERVICE:",

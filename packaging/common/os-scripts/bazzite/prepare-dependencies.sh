@@ -92,7 +92,7 @@ layer_packages() {
 runtime_packages=(
   python3-pip openssl ca-certificates
   python3 python3-pyqt6 qt6-qtsvg python3-psutil git pciutils libdrm
-  vulkan-tools polkit kmod make gcc elfutils-libelf-devel kernel-devel dkms
+  vulkan-tools polkit kmod make gcc elfutils-libelf-devel kernel-devel
   jq
 )
 
