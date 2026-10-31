@@ -22,7 +22,7 @@ def test_manifest_has_a_standalone_same_origin_entry_and_real_icons():
         assert icon["sizes"] == f"{width}x{height}"
         assert width == height and width >= 192
         sizes.append(width)
-    assert 512 in sizes
+    assert {192, 512} <= set(sizes)
     html = (DIST / "index.html").read_text()
     assert 'rel="manifest" href="/manifest.webmanifest"' in html
     assert 'rel="apple-touch-icon"' in html

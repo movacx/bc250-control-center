@@ -512,3 +512,12 @@ def test_browser_cannot_extend_its_own_session(client):
     assert client.action("device.expiry", {"seconds": 604800}, confirm=True) == 400
     assert web_devices.session(token)["expires"] == before["expires"]
     assert web_devices.session(token)["duration_seconds"] is None
+
+
+def test_installation_worker_is_served_with_same_origin_policy(client):
+    assert "worker-src 'self'" in server.CSP
+    response, body = client.call("GET", "/sw.js")
+    assert response.status == 200
+    assert "javascript" in response.getheader("Content-Type")
+    assert body == (server.DIST / "sw.js").read_bytes()
+    assert response.getheader("Cache-Control") == "no-cache"

@@ -16,6 +16,11 @@ export function PwaProvider({ children }) {
     addEventListener("beforeinstallprompt", ready);
     addEventListener("appinstalled", done);
     display.addEventListener("change", changed);
+    // Never cache hardware state or API responses. The worker only provides
+    // installation compatibility and an honest navigation failure screen.
+    if (window.isSecureContext && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(() => {});
+    }
     return () => { removeEventListener("beforeinstallprompt", ready); removeEventListener("appinstalled", done); display.removeEventListener("change", changed); };
   }, []);
   const install = async () => {
@@ -37,6 +42,6 @@ export function InstallApp() {
       try { await install(); } catch { setHelp(true); }
     }} aria-expanded={available ? undefined : help}>{t("Install app")}</Btn></div>
     <p className="note">{t("Open the installed app to use BC250 without the browser address bar.")}</p>
-    {help && <p className="note" role="status">{apple ? t("In Safari, open Share, then Add to Home Screen and Open as Web App.") : t("Open your browser menu and choose Install app or Add to Home screen. If it is unavailable, trust this board's HTTPS certificate first.")}</p>}
+    {help && <p className="note" role="status">{!window.isSecureContext ? t("HTTPS required") : apple ? t("In Safari, open Share, then Add to Home Screen and Open as Web App.") : t("Open your browser menu and choose Install app or Add to Home screen. If it is unavailable, trust this board's HTTPS certificate first.")}</p>}
   </div>;
 }

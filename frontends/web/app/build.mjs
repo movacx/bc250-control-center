@@ -35,11 +35,12 @@ await build({
 for (const [from, to] of [[join(icons, "bc250_board_light.png"), "board-light.png"], [join(icons, "bc250_board_dark.png"), "board-dark.png"],
   [join(root, "assets", "icons", "bc250-control-center-64.png"), "logo.png"]]) copyFileSync(from, join(dist, to));
 // Installation metadata never includes a pairing key, device code or session.
-const appIcons = [256, 512].map((size) => {
+const appIcons = [192, 256, 512].map((size) => {
   const name = `app-icon-${size}.png`;
   copyFileSync(join(root, "assets", "icons", `bc250-control-center-${size}.png`), join(dist, name));
   return { src: name, sizes: `${size}x${size}`, type: "image/png", purpose: "any" };
 });
+copyFileSync(join(here, "sw.js"), join(dist, "sw.js"));
 writeFileSync(join(dist, "manifest.webmanifest"), JSON.stringify({
   id: "/", name: "BC250 Control Center", short_name: "BC250", scope: "/", start_url: "/#/dashboard",
   display: "standalone", background_color: "#111111", theme_color: "#171717",
@@ -47,7 +48,7 @@ writeFileSync(join(dist, "manifest.webmanifest"), JSON.stringify({
   prefer_related_applications: false, icons: appIcons, categories: ["utilities"],
 }, null, 2) + "\n");
 // Content identity: an open tab can detect a new build without interrupting a job.
-const version = createHash("sha256").update(readFileSync(join(dist, "app.js"))).update(readFileSync(join(dist, "app.css"))).update(readFileSync(import.meta.filename)).digest("hex").slice(0, 16);
+const version = createHash("sha256").update(readFileSync(join(dist, "app.js"))).update(readFileSync(join(dist, "app.css"))).update(readFileSync(join(dist, "sw.js"))).update(readFileSync(import.meta.filename)).digest("hex").slice(0, 16);
 writeFileSync(join(dist, "version.json"), JSON.stringify({ version }) + "\n");
 writeFileSync(join(dist, "index.html"), `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">

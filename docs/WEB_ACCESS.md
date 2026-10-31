@@ -201,7 +201,7 @@ still reject an expired session regardless of cookie lifetime.
 
 ## Install on the home screen
 
-The web includes a same-origin web app manifest with BC250 icons, a standalone
+The web includes a same-origin web app manifest with 192/256/512-pixel BC250 icons, a standalone
 window and a stable Dashboard entry point. **Install app** appears on the login
 screen and in web Settings. Supporting Chromium browsers use the native install
 prompt; other browsers receive inline menu instructions. Safari on iPhone/iPad
@@ -215,9 +215,18 @@ origin; use a stable board address or replace the shortcut.
 
 The manifest/start URL contains no pairing key or session token. Installation
 does not grant control, store the Linux password, or extend session expiry.
-Normal key login and desktop device approval remain in force. No service worker
-or offline hardware cache is installed: hardware reads and commands need the
-live server. Existing build notices continue to avoid forced reloads during jobs.
+Normal key login and desktop device approval remain in force. A same-origin
+service worker supports installation compatibility and handles document
+navigation only. If the network fails, it displays a static disconnected page
+with a retry link. It never intercepts API requests or writes to Cache Storage;
+there is no offline telemetry, password storage, command queue or hardware
+control. Hardware reads and commands need the live server. Worker updates do
+not reload tabs or interrupt jobs; existing build notices remain in place.
+
+Passing the manifest checks is not a guarantee that a particular mobile browser
+will offer installation immediately. Browser version, installation policy and
+trusted HTTPS still apply. **Download this page** saves a document; **Install
+app** / **Add to Home screen** is the option that launches BC250 as an app.
 
 References: [MDN installation criteria](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable),
 [Apple home-screen web apps](https://support.apple.com/guide/iphone/iphea86e5236/ios).
