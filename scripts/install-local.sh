@@ -178,6 +178,9 @@ if [[ "${BC250_SKIP_PRIVILEGED_HELPER:-0}" != "1" ]] && ! command -v cmp >/dev/n
     diffutils_command=(dnf install -y diffutils)
   elif command -v zypper >/dev/null 2>&1; then
     diffutils_command=(zypper --non-interactive install diffutils)
+  elif command -v emerge >/dev/null 2>&1; then
+    missing_python_deps_command=(emerge --ask=n --getbinpkg dev-lang/python dev-python/psutil dev-vcs/git)
+    gui_packages=(dev-python/pyqt6 dev-qt/qtsvg dev-python/pip dev-libs/openssl app-misc/ca-certificates)
   elif command -v apk >/dev/null 2>&1; then
     diffutils_command=(apk add --no-progress diffutils)
   fi

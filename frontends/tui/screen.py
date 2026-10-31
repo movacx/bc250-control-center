@@ -1,4 +1,4 @@
-"""The curses application: sidebar, content, console, dialogs and the key loop."""
+"""Keyboard-first curses interface for a physical TTY or SSH terminal."""
 
 from __future__ import annotations
 
@@ -22,16 +22,11 @@ from .runtime import Context, Poller, describe_error
 from .support import available_version, report
 
 MIN_WIDTH, MIN_HEIGHT = 60, 14
-TOUCH_WIDTH = 110  # narrower than this, and no choice saved: the phone / tablet layout
-#: The on-screen keys a phone keyboard lacks: (label, key name), one slim row.
-#: The keys a phone keyboard lacks, in order of need. No arrows: a swipe scrolls, a tap selects,
-#: and Termux / Termius put their own arrows above the keyboard.
-KEYBAR = (("Menu", "menu"), ("Esc", "esc"), ("Enter", "enter"), ("Tab", "tab"), ("Search", "/"), ("Quit", "q"))
 TOAST_SECONDS = 6.0
 TONE_PAIRS = {"ok": 1, "warn": 2, "bad": 3, "accent": 4}
 #: The desktop sidebar: its groups, in its order.
 SIDEBAR = (("", ("dashboard",)), ("Hardware", ("cpu", "cu", "gpu", "extras")),
-           ("Monitoring", ("performance", "fans", "processes", "black_box")), ("", ("firmware", "settings")))
+           ("Monitoring", ("performance", "fans", "processes", "black_box")), ("System", ("firmware", "remote", "settings")))
 SIDEBAR_ORDER = tuple(key for _group, keys in SIDEBAR for key in keys)
 #: Keys a running command receives as a terminal would send them.
 PTY_KEYS = {"enter": b"\r", "backspace": b"\x7f", "tab": b"\t", "esc": b"\x1b", "space": b" ", "up": b"\x1b[A",
@@ -76,7 +71,6 @@ class Screen:
         self.order = tuple(key for key in order if key in pages)
         self.focus = "sidebar"
         self.section = 0
-        self.visited: list[int] = []  # sections opened before, for Esc in the touch layout
         self.tab: dict[str, str] = {}
         self.cursor: dict[tuple[str, str], int] = {}
         self.scroll: dict[tuple[str, str], int] = {}
@@ -94,8 +88,8 @@ class Screen:
         self._choice_at: dict[int, list[tuple[int, int, int]]] = {}  # y -> (x0, x1, choice index)
         self._cells_at: dict[int, list[tuple[int, int, int, int]]] = {}  # y -> Pad cells (x0, x1, row, column)
         self._tab_at: list[tuple[int, int, str]] = []
-        self._hits: list[tuple[int, int, int, str]] = []  # (y, x from, x to, key): taps on keys and strips
-        self._row_at: dict[int, tuple[int, str]] = {}  # y -> (x, text) of a drawn item, for "<" / ">" taps
+        self._hits: list[tuple[int, int, int, str]] = []  # (y, x from, x to, key): legacy row geometry
+        self._row_at: dict[int, tuple[int, str]] = {}  # y -> (x, text) of a drawn item, for terminal row inspection
         self.apply_theme(theme)
         if self.poller:
             self.poller.show(self.order[self.section], self._tab_key())
@@ -196,18 +190,9 @@ class Screen:
         if self.poller:
             self.poller.refresh()
 
-    @property
-    def touch(self) -> bool:
-        """The phone / tablet layout: the saved choice, else on for a narrow terminal."""
-        chosen = self.ctx.state("ui").get("touch")
-        return bool(chosen) if chosen is not None else self.size()[1] < TOUCH_WIDTH
-
-    @property
-    def keybar(self) -> bool:
-        return self.touch and self.ctx.state("ui").get("keybar", True) is not False
 
     def _bottom(self) -> int:
-        return 2 if self.keybar else 1
+        return 1
 
     def sidebar_width(self, width: int) -> int:
         longest = max(cell_width(tr(self.pages[key].title)) for key in self.order) + 5
@@ -216,7 +201,7 @@ class Screen:
     def _content_box(self) -> tuple[int, int]:
         """(x, width) of the content text: after the sidebar, its rule and the cursor column."""
         width = self.size()[1]
-        x = 2 if self.touch else self.sidebar_width(width) + 4
+        x = self.sidebar_width(width) + 4
         return x, max(20, width - x - 1)
 
     # -------------------------------------------------------------- draw
@@ -227,7 +212,7 @@ class Screen:
         with self.ctx.lock:
             data = self.ctx.page_data.get(self.page_key)
             state = self.ctx.page_state.get(self.page_key)
-            key = (self.page_key, tab, content_width, self.touch, id(data), len(self.ctx.history.get("gpu_clock", ())),
+            key = (self.page_key, tab, content_width, id(data), len(self.ctx.history.get("gpu_clock", ())),
                    self.ctx.metrics_error, self.ctx.page_error.get(self.page_key), id(self.ctx.metrics),
                    hash(repr(sorted(state.items()))) if state else 0)
             if key == self._layout_key and self._layout is not None:
@@ -238,7 +223,7 @@ class Screen:
                 from .content import Note
 
                 blocks = [Note(describe_error(error), "bad")]
-        self._layout = build_layout(blocks, content_width, self.glyphs, touch=self.touch)
+        self._layout = build_layout(blocks, content_width, self.glyphs)
         self._layout_key = key
         return self._layout
 
@@ -254,51 +239,15 @@ class Screen:
             return
         self._hits, self._row_at = [], {}
         self._draw_title(width)
-        if self.touch:
-            self.focus = "content"  # no sidebar: the strip and the menu choose the section
-            self._draw_strip(width)
-        else:
-            self._draw_sidebar(height, self.sidebar_width(width))
+        self._draw_sidebar(height, self.sidebar_width(width))
         console = self.active_console
-        if console is not None and (console.has_output or time.monotonic() - console.started > 0.4):
+        if console is not None:
             self._draw_console(console, height, width)
         else:
             self._draw_content(height, width)
             self._draw_footer(height, width)
-        if self.keybar and not (self.toast and self.toast[2] > time.monotonic()):
-            self._draw_keybar(height, width)
         self.stdscr.noutrefresh()
 
-    def _draw_strip(self, width: int) -> None:
-        """Touch layout, row 1: Menu and the sections, scrolled so the open one shows."""
-        items = [("menu", f" {tr('Menu')} ")] + [(f"go:{index}", f" {tr(self.pages[key].title)} ")
-                                                   for index, key in enumerate(self.order)]
-        first = 1
-        while sum(cell_width(text) + 1 for _key, text in items[:1] + items[first:self.section + 2]) > width and \
-                first <= self.section:
-            first += 1
-        column = 0
-        for key, text in items[:1] + items[first:]:
-            selected = key == f"go:{self.section}"
-            attr = self.attrs["sel"] if selected else self.attrs["accent"] if key == "menu" else self.attrs["dim"]
-            self.put(1, column, text, attr)
-            self._hits.append((1, column, column + cell_width(text), key))
-            column += cell_width(text) + 1
-            if column >= width:
-                break
-
-    def _draw_keybar(self, height: int, width: int) -> None:
-        """The on-screen keys: two rows tall and spread over the full width, a gap between keys."""
-        labels = [(tr(label) if label in ("Menu", "Search", "Quit") else label, key) for label, key in KEYBAR]
-        for index, (text, key) in enumerate(labels):  # exact edges: the keys reach both sides, one column apart
-            column = index * (width - 1) // len(labels)
-            cell = (index + 1) * (width - 1) // len(labels) - column
-            fill = self.attrs.get("btn:accent" if key == "menu" else "btn:dim")
-            attr = (fill if fill is not None else (self.attrs["accent"] if key == "menu" else 0) | curses.A_REVERSE) \
-                | curses.A_BOLD
-            for y in (height - 2, height - 1):
-                self.put(y, column, clip(text, cell - 1).center(cell - 1) if y == height - 2 else " " * (cell - 1), attr)
-                self._hits.append((y, column, column + cell, key))
 
     def _draw_title(self, width: int) -> None:
         metrics = self.ctx.metrics or {}
@@ -314,29 +263,25 @@ class Screen:
 
     def _draw_sidebar(self, height: int, side: int) -> None:
         self._sidebar_at = {}
-        y = 2
+        entries = []
         for group, keys in SIDEBAR:
-            keys = [key for key in keys if key in self.order]
-            if group and keys and y < height - 2:
-                self.put(y, 1, tr(group).upper(), self.attrs["dim"])
-                y += 1
-            elif not group and y > 2 and keys and height - 2 - y > len(keys):
-                y += 1  # breathing room before the last group, as on the desktop
-            for key in keys:
-                if y >= height - 1:
-                    break
-                index = self.order.index(key)
-                hotkey = str((index + 1) % 10) if index < 10 else ","
-                label = f"{hotkey} {tr(self.pages[key].title)}"
-                if index != self.section:
-                    self.put(y, 1, hotkey, self.attrs["dim"])
-                    self.put(y, 3, tr(self.pages[key].title), 0, side - 4)
-                elif self.focus == "sidebar" and self.active_console is None:
-                    self.put(y, 0, pad(f" {label}", side), self.attrs["sel"])
-                else:
-                    self.put(y, 0, pad(f"{self.glyphs.cursor}{label}", side), self.attrs["accent"])
-                self._sidebar_at[y] = index
-                y += 1
+            available = [key for key in keys if key in self.order]
+            if group and available and height >= 25:
+                entries.append((None, tr(group).upper()))
+            entries.extend((self.order.index(key), tr(self.pages[key].title)) for key in available)
+        view = max(1, height - 3)
+        selected = next((i for i, (index, _) in enumerate(entries) if index == self.section), 0)
+        offset = max(0, min(selected - view // 2, len(entries) - view))
+        for y, (index, label) in enumerate(entries[offset:offset + view], 2):
+            if index is None:
+                self.put(y, 1, label, self.attrs["dim"], side - 2)
+                continue
+            hotkey = str((index + 1) % 10) if index < 10 else "." if self.order[index] == "remote" else ","
+            text = pad(f" {hotkey} {label}", side)
+            attr = self.attrs["sel"] if index == self.section and self.focus == "sidebar" else \
+                self.attrs["accent"] if index == self.section else 0
+            self.put(y, 0, text, attr)
+            self._sidebar_at[y] = index
         for row in range(1, height - 1):
             self.put(row, side, self.glyphs.v, self.attrs["dim"])
 
@@ -344,7 +289,7 @@ class Screen:
         """The tab strip; returns the first row below it."""
         self._tab_at = []
         tabs = self._tabs()
-        row = 2 if self.touch else 1  # below the touch layout's section strip
+        row = 1
         if not tabs:
             return row
         column, current = x, self._tab_key()
@@ -365,7 +310,7 @@ class Screen:
 
     def _view(self) -> int:
         """Rows the content has between the tab strip and the foot."""
-        return self.size()[0] - (1 + self.touch + 2 * bool(self._tabs())) - self._bottom()
+        return self.size()[0] - (1 + 2 * bool(self._tabs())) - self._bottom()
 
     def _draw_content(self, height: int, width: int) -> None:
         x, _content_width = self._content_box()
@@ -399,7 +344,7 @@ class Screen:
                     own = self.attrs.get(tone)
                     attr = (own if own is not None else self.attrs.get(tone[4:], 0) | curses.A_REVERSE) | curses.A_BOLD
                     attr ^= curses.A_REVERSE if selected else 0
-                elif tone.startswith("edge:"):  # the half blocks above and below a phone's button
+                elif tone.startswith("edge:"):  # legacy edge emphasis
                     attr = self.attrs.get(tone, self.attrs.get(tone[5:], 0))
                 else:
                     attr = self.attrs.get(tone, 0) | (curses.A_BOLD if bold else 0) | (curses.A_REVERSE if selected else 0)
@@ -417,7 +362,7 @@ class Screen:
 
     def _hints(self) -> list[tuple[str, str]]:
         if self.focus == "sidebar":
-            return [("↑↓", "Move"), ("Enter", "Open"), ("1-9", "Go to section"), ("/", "Search"), ("?", "Help"),
+            return [("↑↓", "Move"), ("Enter", "Open"), ("F2", "Go to section"), ("/", "Search"), ("?", "Help"),
                     ("q", "Quit")]
         choice = self.current_choice()
         hints = [("↑↓", "Move")]
@@ -426,19 +371,19 @@ class Screen:
         if choice is not None and (choice.handler or choice.pad):
             hints.append(("Enter", "Select" if choice.pad else "Open"))
         if self._tabs():
-            hints.append(("[ ]", "Previous / next tab"))
+            hints.append(("[ ] F3", "Views"))
         return hints + [("Esc", "Back"), ("?", "Help")]
 
     def _draw_footer(self, height: int, width: int) -> None:
         if self.toast and self.toast[2] > time.monotonic():  # over the keys for its few seconds
             self.put(height - 1, 1, pad(self.toast[0], width - 2), self.attrs.get(self.toast[1], 0) | curses.A_BOLD)
-        elif not self.keybar:
+        else:
             self._draw_hints(self._hints())
 
     def _draw_hints(self, hints: list[tuple[str, str]], tail: str = "", tail_attr: int = 0, *, y: int = -1) -> None:
         """A row of keys in the accent colour with what they do dimmed (the bottom row by default).
 
-        A one-letter key is also a tap target, so ``r`` (report) works without a keyboard.
+        Hints remain plain keyboard instructions; no pointer targets are enabled.
         """
         height, width = self.size()
         y = height - 1 if y < 0 else y
@@ -455,7 +400,7 @@ class Screen:
         self.put(y, column, tail, tail_attr)
 
     def _console_size(self) -> tuple[int, int]:
-        rows = self.size()[0] - 3 - self.touch - self._bottom() - (1 if self.keybar else 0)
+        rows = self.size()[0] - 3 - self._bottom()
         return max(1, rows), self._content_box()[1] + 2
 
     def _draw_console(self, console: Console, height: int, width: int) -> None:
@@ -470,7 +415,7 @@ class Screen:
         clock = f"{elapsed // 60:02d}:{elapsed % 60:02d}"
         status = (tr("Completed") if console.succeeded else tr("The workflow did not finish successfully.")) if done else ""
         # Top: what ran, how it ended and how long it took; below it, where the full log is.
-        top = 1 + self.touch
+        top = 1
         self.put(top, x, f"{mark} {console.label}" + (f"  ·  {status}" if status else ""), self.attrs[tone] | curses.A_BOLD,
                  content_width - 8)
         self.put(top, width - 1 - len(clock), clock, self.attrs["dim"])
@@ -490,7 +435,7 @@ class Screen:
         hints = [("Enter Esc", "Close")] if done else [("Esc Ctrl+C", "Cancel")]
         if done and not console.succeeded:
             hints.append(("r", "Report this problem"))
-        self._draw_hints(hints + [("PgUp PgDn", "Scroll")], y=height - self._bottom() - (1 if self.keybar else 0))
+        self._draw_hints(hints + [("PgUp PgDn", "Scroll")], y=height - self._bottom())
 
     # ------------------------------------------------------------- input
 
@@ -500,16 +445,27 @@ class Screen:
         index = self.cursor.get(slot, 0)
         return layout.choices[index] if self._shown(layout, slot, index) else None
 
+    def _getch(self) -> int:
+        reader = getattr(self.stdscr, "get_wch", None)
+        if reader is None:
+            return self.stdscr.getch()
+        try:
+            value = reader()
+        except curses.error:
+            return -1
+        return ord(value) if isinstance(value, str) else value
+
     def handle(self, code: int) -> None:
+        if code == 12:
+            self._repaint()
+            return
         if code == 3:
             raise Quit
         self.handle_key(ALIASES.get(name_of(code), name_of(code)))
 
     def handle_key(self, key: str) -> None:
-        """One key by name, from the keyboard or from a tap on an on-screen key."""
-        if self.touch:
-            self.focus = "content"  # no sidebar to be on
-        if key == "menu":
+        """One normalized keyboard event."""
+        if key in ("menu", "f2"):
             self.section_menu()
         elif key.startswith("go:"):
             self._go(int(key[3:]))
@@ -518,7 +474,7 @@ class Screen:
         elif key == "resize":
             self._layout_key = None
         elif key == "mouse":
-            self._mouse()
+            return
         elif key == "q":
             raise Quit
         elif key == "?":
@@ -528,14 +484,18 @@ class Screen:
             self.notify(tr("Refreshing…"))
         elif key == "/":
             self.search()
-        elif key == "tab":
+        elif key == "f3":
+            self.tab_menu()
+        elif key == "f6":
             self._focus("content" if self.focus == "sidebar" else "sidebar")
+        elif key == "tab":
+            self._focus("content") if self.focus == "sidebar" else self._next_choice(1)
         elif key == "btab":
-            self._focus("sidebar")
+            self._next_choice(-1) if self.focus == "content" else self._focus("content")
         elif key in ("[", "]"):
             self._switch_tab(-1 if key == "[" else 1)
-        elif (key.isdigit() and len(key) == 1) or key == ",":
-            index = len(self.order) - 1 if key == "," else (int(key) - 1) % 10
+        elif (key.isdigit() and len(key) == 1) or key in (",", "."):
+            index = len(self.order) - 1 if key == "," else self.order.index("remote") if key == "." and "remote" in self.order else (int(key) - 1) % 10
             if index < len(self.order):
                 self._go(index)
         else:
@@ -582,15 +542,9 @@ class Screen:
         if not self._shown(layout, slot, self.cursor.get(slot, -1)):
             self.cursor[slot] = self._first_shown(layout, slot, step)
 
-    def _back(self) -> None:
-        """Esc on a phone: the section seen before this one (the menu has its own key)."""
-        if self.visited:
-            self._go(self.visited.pop(), remember=False)
 
     def _go(self, index: int, *, remember: bool = True) -> None:
         index = max(0, min(len(self.order) - 1, index))
-        if remember and index != self.section:
-            self.visited = (self.visited + [self.section])[-20:]
         self.section = index
         self._layout_key = None
         self._repaint()
@@ -616,7 +570,7 @@ class Screen:
         keys = [name for name, _label in self._tabs()]
         if not keys:
             return
-        self.tab[self.page_key] = to or keys[(keys.index(self._tab_key()) + step) % len(keys)]
+        self.tab[self.page_key] = to if to in keys else keys[(keys.index(self._tab_key()) + step) % len(keys)]
         self._layout_key = None
         if self.poller:
             self.poller.show(self.page_key, self.tab[self.page_key])
@@ -654,69 +608,40 @@ class Screen:
             self.cursor[slot] = sibling  # buttons side by side: the arrows go along the row
         elif key in ("left", "right") and current is not None and current.adjust:
             current.adjust(self, 1 if key == "right" else -1)
-        elif key in ("left", "right") and self._tabs():
-            self._switch_tab(1 if key == "right" else -1)
         elif key in ("esc", "left"):
-            self._back() if self.touch else self._focus("sidebar")
+            self._focus("sidebar")
         elif key in ("up", "down", "pgup", "pgdn", "home", "end"):
             self._step(layout, slot, {"up": -1, "down": 1, "pgup": -view, "pgdn": view, "home": -10**6, "end": 10**6}[key])
         elif key in ("enter", "space") and current is not None:
             self._activate(current)
 
-    def _tap(self) -> tuple[int, int, str] | None:
-        """(x, y, what): what is "up"/"down" for the wheel (a swipe on a phone), the key a tap hit, or ""."""
-        try:
-            _id, x, y, _z, state = curses.getmouse()
-        except curses.error:
-            return None
-        for button, key in ((getattr(curses, "BUTTON4_PRESSED", 0), "up"), (getattr(curses, "BUTTON5_PRESSED", 0), "down")):
-            if button and state & button:
-                return x, y, key
-        return x, y, next((key for row, start, end, key in self._hits if row == y and start <= x < end), "")
 
-    def _mouse(self) -> None:
-        """A click or tap on a key, section, tab or item; the wheel (a swipe) scrolls.
+    def _present(self) -> None:
+        """Commit page and dialog changes in the same frame, including idle jobs."""
+        self.stdscr.noutrefresh()
+        with contextlib.suppress(curses.error):
+            curses.doupdate()
 
-        With a mouse, a click selects an item and a second click opens it; a
-        tap opens it at once, and a tap on the "<" or ">" of a value steps it.
-        """
-        tap = self._tap()
-        if tap is None:
+    def _next_choice(self, direction: int) -> None:
+        layout, slot = self.build(), self._slot()
+        indexes = [i for i, choice in enumerate(layout.choices) if choice.enabled]
+        if not indexes:
             return
-        x, y, key = tap
-        if key in ("up", "down") and self.active_console is not None:
-            self.console_scroll += 3 if key == "up" else -3
-        elif key in ("up", "down"):  # the wheel, or a swipe on a phone: the page moves, three rows at a time
-            self.focus = "content"
-            self._step(self.build(), self._slot(), 3 if key == "down" else -3)
-        elif key:
-            self.handle_key(key)
-        elif self.active_console is not None:
-            return
-        elif not self.touch and x < self.sidebar_width(self.size()[1]) and y in self._sidebar_at:
-            self.focus = "sidebar"
-            self._go(self._sidebar_at[y])
-        elif (index := next((i for a, b, i in self._choice_at.get(y, ()) if a <= x < b), None)) is not None:
-            slot = self._slot()
-            again = self.focus == "content" and self.cursor.get(slot) == index
-            self.focus, self.cursor[slot] = "content", index
-            choice = self.build().choices[index]
-            cell = next(((r, c) for a, b, r, c in self._cells_at.get(y, ()) if a <= x < b), None)
-            if choice.pad is not None and choice.pad.place is not None:
-                if cell is None:
-                    return
-                choice.pad.place(*cell)  # the tapped cell, then toggle it
-                again = True
-            left, text = self._row_at.get(y, (0, ""))
-            step = {"<": -1, ">": 1}.get(text[x - left:x - left + 1]) if choice.adjust else None
-            if step:
-                choice.adjust(self, step)
-                self._layout_key = None
-            elif again or self.touch:
-                self._activate(choice)
+        current = self.cursor.get(slot, -1)
+        if current in indexes:
+            target = indexes[(indexes.index(current) + direction) % len(indexes)]
+        else:
+            target = indexes[0 if direction > 0 else -1]
+        self.cursor[slot] = target
+        self._reveal(slot, layout.choice_rows[target])
+
+    def tab_menu(self) -> None:
+        picked = self.choose(tr("Views"), self._tabs())
+        if picked is not None:
+            self._switch_tab(0, picked)
 
     def section_menu(self) -> None:
-        """Menu: every section, as a list to tap or move through."""
+        """F2: every section in a keyboard selection list."""
         index = self.choose(tr("Menu"), [(index, tr(self.pages[key].title)) for index, key in enumerate(self.order)])
         if index is not None:
             self._go(index)
@@ -743,7 +668,8 @@ class Screen:
     def help_text(self) -> str:
         rows = [
             ("↑ ↓  j k", tr("Move")), ("→ Enter l", tr("Open")), ("← Esc h", tr("Back")),
-            ("Tab", tr("Switch pane")), ("[ ]", tr("Previous / next tab")), ("1-9 0 ,", tr("Go to section")),
+            ("Tab / S-Tab", tr("Move")), ("F6", tr("Switch pane")),
+            ("F2", tr("Go to section")), ("F3", tr("Views")), ("[ ]", tr("Previous / next tab")), ("1-9 0 ,", tr("Go to section")),
             ("/", tr("Search")), ("PgUp PgDn", tr("Scroll")), ("r", tr("Refresh")), ("?", tr("Help")), ("q", tr("Quit")),
         ]
         return "\n".join(f"{pad(key, 12)} {label}" for key, label in rows)
@@ -751,9 +677,6 @@ class Screen:
     def _box(self, title: str, lines: list[str], *, width: int = 0, footer: str = "", selected: int | None = None,
              offset: int = 0) -> tuple[int, int, int, int]:
         height, total = self.size()
-        if self.touch:  # on a small screen the page behind would read as part of the dialog
-            for y in range(1 + self.touch, height - self._bottom()):
-                self.put(y, 0, " " * total)
         inner = max([cell_width(line) for line in lines] + [cell_width(title), cell_width(footer)]) + 2
         box_w = min(total - 2, max(width, inner + 2, 30))
         box_h = min(height - 2, len(lines) + 2)
@@ -773,19 +696,22 @@ class Screen:
         return top, left, box_h, box_w
 
     def _modal_key(self) -> str:
-        """Block for one key (idle wake-ups are skipped). A tap on an on-screen key or target is that key."""
+        """Wait for one keyboard event; ignore idle wakeups and pointer events."""
         while True:
-            code = self.stdscr.getch()
+            code = self._getch()
             if code == -1:
+                visible = self.ctx.state("remote").get("visible_until", 0)
+                if self.page_key == "remote" and 0 < visible <= time.monotonic():
+                    self.ctx.state("remote")["visible_until"] = 0
+                    self.draw()
+                    self._present()
+                    return "esc"  # do not leave credentials behind an idle dialog
                 continue
             if code == 3:  # Ctrl+C leaves any dialog, whatever it was asking
                 return "esc"
             key = name_of(code)
             if key != "mouse":
                 return key
-            tap = self._tap()
-            if tap is not None and tap[2]:
-                return tap[2]
 
     def _read(self) -> str:
         """One key for a dialog, with the vim aliases applied."""
@@ -793,19 +719,9 @@ class Screen:
         return ALIASES.get(key, key)
 
     def _answers(self, y: int, left: int, box_w: int, answers: list[tuple[str, str, str]]) -> None:
-        """A dialog's answers as buttons sharing its bottom row: (label, key, tone); the first one filled."""
-        each = (box_w - 4 - 2 * (len(answers) - 1)) // len(answers)
-        for index, (label, key, tone) in enumerate(answers):
-            x = left + 2 + index * (each + 2)
-            text = clip(label, each - 2).center(each)
-            fill = self.attrs.get(f"btn:{tone}") if index == 0 else None
-            attr = (fill if fill is not None else self.attrs.get(tone, 0) | (curses.A_REVERSE if index == 0 else 0)) \
-                | curses.A_BOLD
-            self.put(y, x, text, attr)
-            if index:
-                self.put(y, x, "[", attr)
-                self.put(y, x + each - 1, "]", attr)
-            self._hits += [(row, x, x + each, key) for row in (y - 1, y, y + 1)]
+        keys = {"enter": "Enter", "esc": "Esc"}
+        text = "   ".join(f"[{keys.get(key, key.upper())}] {label}" for label, key, _tone in answers)
+        self.put(y, left + 2, clip(text, box_w - 4), self.attrs["accent"])
 
     def confirm(self, message: str, *, danger: bool = False) -> bool:
         """The action as the title, what it will do underneath, then Yes / No."""
@@ -819,9 +735,9 @@ class Screen:
             top, left, box_h, box_w = self._box(title, lines, width=width)
             self._answers(top + box_h - 2, left, box_w, [(tr("Yes"), "y", "bad" if danger else "accent"),
                                                          (tr("No"), "n", "dim")])
-            self.stdscr.refresh()
+            self._present()
             key = self._modal_key()
-            # A dangerous action needs an explicit "y" (or the tap on Yes): Enter alone is not consent.
+            # A dangerous action needs an explicit "y": Enter alone is not consent.
             if key in ("y", "Y") or (key == "enter" and not danger):
                 return True
             if key in ("n", "N", "esc", "q"):
@@ -834,13 +750,12 @@ class Screen:
         while True:
             labels = [label for _value, label in options]
             self.draw()
-            if self.touch:
-                self._draw_choices_full(title, labels, index)
-            else:
-                height = self.size()[0]
-                offset = max(0, min(index - (height - 8) // 2, max(0, len(labels) - (height - 6))))
-                self._box(title, labels, selected=index, offset=offset)
-            self.stdscr.refresh()
+            height = self.size()[0]
+            visible = max(1, height - 6)
+            offset = max(0, min(index - visible // 2, max(0, len(labels) - visible)))
+            self._box(title, labels, selected=index, offset=offset,
+                      footer="↑↓ / PgUp PgDn · Enter · Esc")
+            self._present()
             key = self._read()
             moves = {"up": index - 1, "down": index + 1, "pgup": 0, "home": 0, "pgdn": len(options) - 1,
                      "end": len(options) - 1}
@@ -853,19 +768,6 @@ class Screen:
             elif key in ("esc", "left", "q", "menu"):
                 return None
 
-    def _draw_choices_full(self, title: str, labels: list[str], index: int) -> None:
-        """A choice over the whole content area: one option every two rows, each row a tap target."""
-        height, width = self.size()
-        top, bottom = 1 + self.touch, height - self._bottom()
-        for y in range(top, bottom):
-            self.put(y, 0, " " * width)
-        self.put(top, 1, clip(title, width - 2), self.attrs["accent"] | curses.A_BOLD)
-        rows = max(1, (bottom - top - 2) // 2)
-        offset = max(0, min(index - rows // 2, len(labels) - rows))
-        for line, item in enumerate(range(offset, min(len(labels), offset + rows))):
-            y = top + 2 + line * 2
-            self.put(y, 1, pad(f" {labels[item]}", width - 2), self.attrs["sel"] if item == index else 0)
-            self._hits += [(y, 0, width, f"pick:{item}"), (y + 1, 0, width, f"pick:{item}")]
 
     def ask_text(self, label: str, default: str = "", *, numeric: bool = False) -> str | None:
         value, cursor = default, len(default)
@@ -875,7 +777,7 @@ class Screen:
             lines = [value[:cursor] + caret + value[cursor:], "", ""]
             top, left, box_h, box_w = self._box(label, lines, width=min(self.size()[1] - 4, 50))
             self._answers(top + box_h - 2, left, box_w, [(tr("Apply"), "enter", "accent"), (tr("Cancel"), "esc", "dim")])
-            self.stdscr.refresh()
+            self._present()
             key = self._modal_key()
             if key == "enter":
                 return value
@@ -930,7 +832,7 @@ class Screen:
                     self.put(1 + index, 1, line)
                 self.put(height - 1, 1, pad(f"{offset + 1}-{min(len(lines), offset + view)}/{len(lines)}  "
                                             f"↑↓ {tr('Scroll')}  PgUp PgDn  Esc", width - 2), self.attrs["dim"])
-            self.stdscr.refresh()
+            self._present()
             key = self._read()
             if key in ("esc", "q", "left", "enter"):
                 return
@@ -952,9 +854,9 @@ class Screen:
 
         def job() -> None:
             try:
-                with console.password_agent(), contextlib.redirect_stdout(console):
+                with console.password_agent(), contextlib.redirect_stdout(console), contextlib.redirect_stderr(console):
                     result = work()
-                if isinstance(result, str) and result.strip() and console.has_output:
+                if isinstance(result, str) and result.strip():
                     console.write(f"\n{result.strip()}\n")
                 console.finish(True, result)
             except Exception as error:  # said in the console even when nothing else was: never an empty failure
@@ -964,10 +866,10 @@ class Screen:
         threading.Thread(target=job, name="bc250-tui-job", daemon=True).start()
         closed_with = ""
         try:
-            while not (console.done.is_set() and console.ok and not console.has_output):
+            while not (console.done.is_set() and console.succeeded and not console.has_output):
                 self.draw()
-                self.stdscr.refresh()
-                code = self.stdscr.getch()
+                self._present()
+                code = self._getch()
                 closed_with = self._console_key(console, code) if code != -1 else ""
                 if closed_with:
                     break
@@ -983,15 +885,6 @@ class Screen:
     def _console_key(self, console: Console, code: int) -> str:
         """Keys while the console is up; "close" or "report" closes it (only once the job is done)."""
         key = name_of(code)
-        if key == "mouse":  # a tap on an on-screen key is that key, for the console (not the page behind)
-            tap = self._tap()
-            if tap is None or not tap[2]:
-                return ""
-            key = tap[2]
-            if key in ("up", "down"):  # the wheel: scroll the output
-                self.console_scroll += 3 if key == "up" else -3
-                return ""
-            code = {"esc": 27, "enter": 10, "tab": 9}.get(key, ord(key) if len(key) == 1 else 0)
         if key in ("pgup", "pgdn"):
             self.console_scroll += (1 if key == "pgup" else -1) * max(1, self.size()[0] - 6)
         elif console.done.is_set():
@@ -1001,7 +894,7 @@ class Screen:
                 return "report"
             if key in ("up", "down", "home", "end"):
                 self.console_scroll += {"up": 1, "down": -1, "home": 10**6, "end": -10**6}[key]
-        elif code == 3 or key == "esc":  # Esc cancels too: a phone has no Ctrl key to hand
+        elif code == 3 or key == "esc":  # Esc and Ctrl+C both request cancellation
             console.interrupt()
         elif key in PTY_KEYS:
             console.send(PTY_KEYS[key])
@@ -1044,9 +937,7 @@ class Screen:
         with contextlib.suppress(AttributeError, curses.error):
             curses.set_escdelay(25)
         with contextlib.suppress(curses.error):
-            curses.mouseinterval(0)  # a press is the click: no wait to tell it from a double click
-            curses.mousemask(curses.BUTTON1_PRESSED | curses.BUTTON1_CLICKED | getattr(curses, "BUTTON4_PRESSED", 0)
-                             | getattr(curses, "BUTTON5_PRESSED", 0))
+            curses.mousemask(0)  # TTY navigation never captures pointer input.
         dirty = True
         while True:
             if self.poller is not None and self.poller.dirty.is_set():
@@ -1058,7 +949,7 @@ class Screen:
                 self.draw()
                 curses.doupdate()
                 dirty = False
-            code = self.stdscr.getch()
+            code = self._getch()
             if code == -1:
                 continue
             try:

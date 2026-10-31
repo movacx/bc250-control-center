@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Quét bằng điện thoại trên cùng mạng Wi-Fi. QR chứa khóa truy cập; không chia sẻ.",
   "HTTPS required": "Cần có HTTPS",
   "Terminal input": "Đầu vào thiết bị đầu cuối",
-  "Open the installed app to use BC250 without the browser address bar.": "Mở ứng dụng đã cài đặt để dùng BC250 mà không có thanh địa chỉ của trình duyệt."
+  "Open the installed app to use BC250 without the browser address bar.": "Mở ứng dụng đã cài đặt để dùng BC250 mà không có thanh địa chỉ của trình duyệt.",
+  "Access keys, codes and devices are hidden.": "Khóa, mã và thiết bị đã bị ẩn.",
+  "Allow hardware control": "Cho phép điều khiển phần cứng",
+  "Connected devices": "Thiết bị đã kết nối",
+  "Custom session duration in minutes": "Thời lượng phiên tùy chỉnh tính bằng phút",
+  "Device code": "Mã thiết bị",
+  "Hardware control": "Điều khiển phần cứng",
+  "Information protected": "Thông tin được bảo vệ",
+  "Lock view": "Khóa chế độ xem",
+  "No connected browsers.": "Không có trình duyệt kết nối.",
+  "Permissions": "Quyền",
+  "Show information": "Hiện thông tin",
+  "Start web access": "Bắt đầu truy cập web",
+  "Stop web access": "Dừng truy cập web"
 }

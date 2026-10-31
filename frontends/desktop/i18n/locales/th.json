@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "สแกนด้วยโทรศัพท์บน Wi-Fi เดียวกัน QR มีคีย์การเข้าถึง ห้ามแชร์",
   "HTTPS required": "ต้องใช้ HTTPS",
   "Terminal input": "อินพุตเทอร์มินัล",
-  "Open the installed app to use BC250 without the browser address bar.": "เปิดแอปที่ติดตั้งไว้เพื่อใช้ BC250 โดยไม่แสดงแถบที่อยู่ของเบราว์เซอร์"
+  "Open the installed app to use BC250 without the browser address bar.": "เปิดแอปที่ติดตั้งไว้เพื่อใช้ BC250 โดยไม่แสดงแถบที่อยู่ของเบราว์เซอร์",
+  "Access keys, codes and devices are hidden.": "คีย์ รหัส และอุปกรณ์ถูกซ่อนอยู่",
+  "Allow hardware control": "อนุญาตการควบคุมฮาร์ดแวร์",
+  "Connected devices": "อุปกรณ์ที่เชื่อมต่อ",
+  "Custom session duration in minutes": "ระยะเวลาเซสชันที่กำหนดเองเป็นนาที",
+  "Device code": "รหัสอุปกรณ์",
+  "Hardware control": "การควบคุมฮาร์ดแวร์",
+  "Information protected": "ข้อมูลที่ได้รับการป้องกัน",
+  "Lock view": "ล็อกมุมมอง",
+  "No connected browsers.": "ไม่มีเบราว์เซอร์ที่เชื่อมต่อ",
+  "Permissions": "สิทธิ์",
+  "Show information": "แสดงข้อมูล",
+  "Start web access": "เริ่มการเข้าถึงเว็บ",
+  "Stop web access": "หยุดการเข้าถึงเว็บ"
 }

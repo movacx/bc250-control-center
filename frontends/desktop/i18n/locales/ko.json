@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "같은 Wi-Fi에 연결된 휴대전화로 스캔하세요. QR에는 접근 키가 포함되므로 공유하지 마세요.",
   "HTTPS required": "HTTPS 필요",
   "Terminal input": "터미널 입력",
-  "Open the installed app to use BC250 without the browser address bar.": "설치된 앱을 열면 브라우저 주소 표시줄 없이 BC250을 사용할 수 있습니다."
+  "Open the installed app to use BC250 without the browser address bar.": "설치된 앱을 열면 브라우저 주소 표시줄 없이 BC250을 사용할 수 있습니다.",
+  "Access keys, codes and devices are hidden.": "키, 코드 및 장치가 숨겨져 있습니다.",
+  "Allow hardware control": "하드웨어 제어 허용",
+  "Connected devices": "연결된 장치",
+  "Custom session duration in minutes": "사용자 지정 세션 시간(분)",
+  "Device code": "장치 코드",
+  "Hardware control": "하드웨어 제어",
+  "Information protected": "보호된 정보",
+  "Lock view": "보기 잠금",
+  "No connected browsers.": "연결된 브라우저가 없습니다.",
+  "Permissions": "권한",
+  "Show information": "정보 표시",
+  "Start web access": "웹 액세스 시작",
+  "Stop web access": "웹 액세스 중지"
 }

@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Olvassa be a telefonjával ugyanazon a Wi-Fi-hálózaton. A QR a hozzáférési kulcsot tartalmazza; ne ossza meg.",
   "HTTPS required": "HTTPS szükséges",
   "Terminal input": "Terminálbevitel",
-  "Open the installed app to use BC250 without the browser address bar.": "Nyisd meg a telepített alkalmazást a BC250 használatához a böngésző címsora nélkül."
+  "Open the installed app to use BC250 without the browser address bar.": "Nyisd meg a telepített alkalmazást a BC250 használatához a böngésző címsora nélkül.",
+  "Access keys, codes and devices are hidden.": "A kulcsok, kódok és eszközök el vannak rejtve.",
+  "Allow hardware control": "Hardvervezérlés engedélyezése",
+  "Connected devices": "Csatlakoztatott eszközök",
+  "Custom session duration in minutes": "Egyéni munkamenethossz percben",
+  "Device code": "Eszközkód",
+  "Hardware control": "Hardvervezérlés",
+  "Information protected": "Védett információk",
+  "Lock view": "Nézet zárolása",
+  "No connected browsers.": "Nincs csatlakoztatott böngésző.",
+  "Permissions": "Engedélyek",
+  "Show information": "Információk megjelenítése",
+  "Start web access": "Webes hozzáférés indítása",
+  "Stop web access": "Webes hozzáférés leállítása"
 }

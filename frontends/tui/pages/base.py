@@ -61,7 +61,7 @@ class Page:
         raise NotImplementedError
 
 
-def guarded(ui: UI, label: str, work: Callable[[], Any], *, success: str = "") -> None:
+def guarded(ui: UI, label: str, work: Callable[[], Any], *, success: str = "") -> bool:
     """Run a mutating service call in the console pane and report its outcome."""
     ok, result = ui.run(label, work)
     if isinstance(result, BaseException):
@@ -69,6 +69,7 @@ def guarded(ui: UI, label: str, work: Callable[[], Any], *, success: str = "") -
     elif ok:
         ui.notify(describe_result(result) or success or tr("Done"), "ok")
     ui.refresh()
+    return bool(ok)
 
 
 def os_family(ctx: Context) -> tuple[str, str]:

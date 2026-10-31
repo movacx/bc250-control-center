@@ -11,6 +11,7 @@ from bc250cc.application.preparation.gpu_dependency_plan import (
     build_gpu_dependency_plan,
 )
 
+from ..compact import terminal_form
 from ..content import Buttons, Choice, Field, Note, Panel, Split, Tile, Tiles
 from ..i18n import tr, tr_format
 from .base import Page, guarded, os_family
@@ -94,9 +95,9 @@ def run(ui, label: str, method, actions=(), danger=False) -> None:
 
 def row(state: dict, key: str, title: str, scope: str, status: str, tone: str, body) -> list:
     """A desktop compatibility row: › title, its scope and a status chip; Enter folds its detail open."""
-    opened = key in state.setdefault("open", set())
-    return [Choice(f"{'▾' if opened else '›'} {tr(title)}", lambda ui_: state["open"].symmetric_difference_update({key}),
-                   scope, badge=tr(status), badge_tone=tone)] + (list(body) if opened else [])
+    from ..content import Heading
+
+    return [Heading(f"{tr(title)} · {tr(status)}"), Note(scope, "dim"), *body]
 
 
 class AdditionalSettingsPage(Page):
@@ -120,7 +121,7 @@ class AdditionalSettingsPage(Page):
         family, name = os_family(ctx)
         build = {"upscaling": self._upscaling, "memory": self._memory, "drivers": self._drivers}.get(
             tab or "compatibility", self._compatibility)
-        return [Note(tr_format("Detected system: {distribution}", distribution=name), "dim")] + build(ctx, data, family)
+        return [Note(tr_format("Detected system: {distribution}", distribution=name), "dim")] + terminal_form(build(ctx, data, family))
 
     # -- Compatibility: System, GPU governor, Kernel and graphics, Video, then the reboot options ---------
 

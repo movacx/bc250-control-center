@@ -13,13 +13,14 @@ from .firmware import FirmwarePage
 from .gpu import GpuPage
 from .performance import PerformancePage
 from .processes import ProcessesPage
+from .remote import RemoteAccessPage
 from .settings import SettingsPage
 
 
 def build_pages() -> dict[str, Page]:
     pages = [
         DashboardPage(), CpuPage(), GpuPage(), AdditionalSettingsPage(), ComputeUnitsPage(),
-        PerformancePage(), FansPage(), ProcessesPage(), BlackBoxPage(), FirmwarePage(), SettingsPage(),
+        PerformancePage(), FansPage(), ProcessesPage(), BlackBoxPage(), FirmwarePage(), RemoteAccessPage(), SettingsPage(),
     ]
     return {page.key: page for page in pages}
 

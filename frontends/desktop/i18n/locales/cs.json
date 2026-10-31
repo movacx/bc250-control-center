@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Naskenujte telefonem ve stejné síti Wi-Fi. QR obsahuje přístupový klíč; nesdílejte jej.",
   "HTTPS required": "Je vyžadováno HTTPS",
   "Terminal input": "Vstup terminálu",
-  "Open the installed app to use BC250 without the browser address bar.": "Otevřete nainstalovanou aplikaci a používejte BC250 bez adresního řádku prohlížeče."
+  "Open the installed app to use BC250 without the browser address bar.": "Otevřete nainstalovanou aplikaci a používejte BC250 bez adresního řádku prohlížeče.",
+  "Access keys, codes and devices are hidden.": "Klíče, kódy a zařízení jsou skryté.",
+  "Allow hardware control": "Povolit ovládání hardwaru",
+  "Connected devices": "Připojená zařízení",
+  "Custom session duration in minutes": "Vlastní délka relace v minutách",
+  "Device code": "Kód zařízení",
+  "Hardware control": "Ovládání hardwaru",
+  "Information protected": "Chráněné informace",
+  "Lock view": "Uzamknout zobrazení",
+  "No connected browsers.": "Žádné připojené prohlížeče.",
+  "Permissions": "Oprávnění",
+  "Show information": "Zobrazit informace",
+  "Start web access": "Spustit webový přístup",
+  "Stop web access": "Zastavit webový přístup"
 }

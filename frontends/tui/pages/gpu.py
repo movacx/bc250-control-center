@@ -16,6 +16,7 @@ from bc250cc.domain.gpu.voltage_profiles import (
 )
 from frontends.desktop.i18n import governor_fix_label
 
+from ..compact import terminal_form
 from ..content import (
     Buttons,
     Choice,
@@ -26,7 +27,6 @@ from ..content import (
     Note,
     Panel,
     Slider,
-    Split,
     Tile,
     Tiles,
     heat_tone,
@@ -36,7 +36,8 @@ from ..content import (
 from ..i18n import tr
 from .base import Page, check, guarded, metric_blocks, waiting
 
-TABS = (("governor", "GPU governor"), ("voltage", "Voltage laboratory"))
+TABS = (("governor", "Profiles"), ("service", "Governor service"),
+        ("voltage", "Voltage laboratory"), ("monitor", "Monitoring"))
 #: Level -> label. 0 restores the governor's own curve; 1..5 add 10..50 mV above 2000 MHz.
 LEVELS = ((1, "Gentle"), (2, "Moderate"), (3, "High"))
 SET_METHODS = (("smu", "SMU"), ("kernel", "Kernel"))
@@ -75,12 +76,12 @@ class GpuPage(Page):
         if not state:
             return waiting(ctx, self.key) or []
         if tab == "voltage":
-            return self._voltage(ctx, state, ui)
-        return self._governor(ctx, state, ui)
+            return terminal_form(self._voltage(ctx, state, ui))
+        return self._governor(ctx, state, ui, tab)
 
     # ------------------------------------------------------------------ governor
 
-    def _governor(self, ctx, state, ui):
+    def _governor(self, ctx, state, ui, tab="governor"):
         gpu = metric_blocks(ctx)["gpu"]
         service = ctx.service
         mine = ctx.state(self.key)
@@ -136,8 +137,8 @@ class GpuPage(Page):
 
         def apply_range(ui_):
             if ui_.confirm(f"{tr('Apply range')}: {want_min}–{want_max} MHz", danger=want_max > SAFE_CEILING):
-                guarded(ui_, tr("Apply range"), lambda: service.aplicar_rango_bc250(want_min, want_max))
-                mine.pop("min", None), mine.pop("max", None)
+                if guarded(ui_, tr("Apply range"), lambda: service.aplicar_rango_bc250(want_min, want_max)):
+                    mine.pop("min", None), mine.pop("max", None)
 
         def save_boot(ui_):
             if ui_.confirm(tr("Save active range for startup")):
@@ -171,9 +172,9 @@ class GpuPage(Page):
                 summary = " · ".join([dict(SET_METHODS)[opts["set_method"]], opts["usage_method"],
                                       dict(TEMP_READS)[opts["temp_read"]]])
                 if ui_.confirm(f"{tr('Apply compatibility')}: {summary}", danger=opts["set_method"] == "kernel"):
-                    guarded(ui_, tr("Cyan kernel compatibility"), lambda: service.configurar_compatibilidad_gpu_cyan(
-                        opts["set_method"], opts["usage_method"], opts["metrics"], opts["frequencies"], opts["temp_read"]))
-                    mine.pop("compat", None)
+                    if guarded(ui_, tr("Cyan kernel compatibility"), lambda: service.configurar_compatibilidad_gpu_cyan(
+                            opts["set_method"], opts["usage_method"], opts["metrics"], opts["frequencies"], opts["temp_read"])):
+                        mine.pop("compat", None)
 
             left.append(Panel(tr("Cyan kernel compatibility"), [
                 picker("set_method", SET_METHODS, tr("Governor method")),
@@ -245,7 +246,12 @@ class GpuPage(Page):
                    Field("pp_dpm_sclk", " · ".join(str(state.get("pp_dpm_sclk") or "--").split()))]
         advanced = Panel(tr("Advanced GPU diagnostics"), details,
                          action=Choice(tr("Show" if folded else "Hide") + " ›", lambda ui_: mine.update(advanced=folded)))
-        return [Split(left, right, ratio=0.55), advanced]
+        if tab == "service":
+            return terminal_form([service_panel, *[item for item in left if isinstance(item, Panel)
+                                  and item.title == tr("Cyan kernel compatibility")]])
+        if tab == "monitor":
+            return terminal_form([tiles, advanced, lab, *right[3:]])
+        return terminal_form([profiles, rail, left[-1]])
 
     # ------------------------------------------------------------ voltage laboratory
 
@@ -320,10 +326,11 @@ class GpuPage(Page):
             if not ui_.confirm(f"{tr('Apply voltage curve')}: {summary}", danger=True):
                 return
             if plan.custom_mode:
-                guarded(ui_, tr("Voltage curve"), lambda: service.aplicar_laboratorio_voltaje_gpu_personalizado(dict(plan.custom_values)))
+                ok = guarded(ui_, tr("Voltage curve"), lambda: service.aplicar_laboratorio_voltaje_gpu_personalizado(dict(plan.custom_values)))
             else:
-                guarded(ui_, tr("Voltage curve"), lambda: service.aplicar_laboratorio_voltaje_gpu(chosen))
-            custom.clear()
+                ok = guarded(ui_, tr("Voltage curve"), lambda: service.aplicar_laboratorio_voltaje_gpu(chosen))
+            if ok:
+                custom.clear()
 
         out += [Gap(),
                 Choice(tr("Restore governor defaults"), lambda ui_: review(ui_, True), tone="warn"),

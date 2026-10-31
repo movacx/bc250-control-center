@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "请使用连接同一 Wi-Fi 的手机扫描。QR 包含访问密钥，请勿分享。",
   "HTTPS required": "需要 HTTPS",
   "Terminal input": "终端输入",
-  "Open the installed app to use BC250 without the browser address bar.": "打开已安装的应用，即可使用 BC250 而不显示浏览器地址栏。"
+  "Open the installed app to use BC250 without the browser address bar.": "打开已安装的应用，即可使用 BC250 而不显示浏览器地址栏。",
+  "Access keys, codes and devices are hidden.": "密钥、代码和设备已隐藏。",
+  "Allow hardware control": "允许硬件控制",
+  "Connected devices": "已连接的设备",
+  "Custom session duration in minutes": "自定义会话时长（分钟）",
+  "Device code": "设备代码",
+  "Hardware control": "硬件控制",
+  "Information protected": "受保护的信息",
+  "Lock view": "锁定视图",
+  "No connected browsers.": "没有已连接的浏览器。",
+  "Permissions": "权限",
+  "Show information": "显示信息",
+  "Start web access": "启动网页访问",
+  "Stop web access": "停止网页访问"
 }

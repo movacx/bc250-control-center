@@ -95,14 +95,14 @@ def test_cards_side_by_side_keep_every_button_and_each_row_knows_whose_span_is_w
     assert all(cell_width("".join(t for t, _ in r.spans)) == 100 for r in layout.rows)  # nothing spills past the edge
 
 
-def test_buttons_share_the_row_on_a_wide_screen_and_stack_full_width_on_a_phone():
+def test_buttons_share_space_and_remain_compact_on_a_narrow_terminal():
     from frontends.tui.content import Buttons
 
-    block = Buttons([Choice("Save", lambda ui: None), Choice("Remove", lambda ui: None, tone="bad")])
+    block = Buttons([Choice("Save", lambda ui: None), Choice("Remove permanently", lambda ui: None, tone="bad")])
     wide = build_layout([block], 60, UNICODE)
     assert len(wide.rows) == 1 and wide.choice_rows == [0, 0]
-    phone = build_layout([block], 40, UNICODE, touch=True)
-    assert phone.choice_rows == [0, 3] and cell_width("".join(t for t, _ in phone.rows[0].spans)) == 40
+    phone = build_layout([block], 20, UNICODE)
+    assert phone.choice_rows == [0, 1] and cell_width("".join(t for t, _ in phone.rows[0].spans)) == 20
 
 
 def test_the_range_rail_marks_the_chosen_span_and_turns_red_past_the_danger_stop():

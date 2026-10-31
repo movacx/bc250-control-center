@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Скануйте телефоном у тій самій мережі Wi-Fi. QR містить ключ доступу; не діліться ним.",
   "HTTPS required": "Потрібен HTTPS",
   "Terminal input": "Ввід термінала",
-  "Open the installed app to use BC250 without the browser address bar.": "Відкрийте встановлений застосунок, щоб користуватися BC250 без адресного рядка браузера."
+  "Open the installed app to use BC250 without the browser address bar.": "Відкрийте встановлений застосунок, щоб користуватися BC250 без адресного рядка браузера.",
+  "Access keys, codes and devices are hidden.": "Ключі, коди та пристрої приховано.",
+  "Allow hardware control": "Дозволити керування обладнанням",
+  "Connected devices": "Підключені пристрої",
+  "Custom session duration in minutes": "Власна тривалість сеансу у хвилинах",
+  "Device code": "Код пристрою",
+  "Hardware control": "Керування обладнанням",
+  "Information protected": "Інформацію захищено",
+  "Lock view": "Заблокувати перегляд",
+  "No connected browsers.": "Немає підключених браузерів.",
+  "Permissions": "Дозволи",
+  "Show information": "Показати інформацію",
+  "Start web access": "Увімкнути вебдоступ",
+  "Stop web access": "Вимкнути вебдоступ"
 }

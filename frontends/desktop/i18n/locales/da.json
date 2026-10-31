@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Scan med telefonen på samme Wi-Fi. QR indeholder adgangsnøglen; del den ikke.",
   "HTTPS required": "HTTPS påkrævet",
   "Terminal input": "Terminalinput",
-  "Open the installed app to use BC250 without the browser address bar.": "Åbn den installerede app for at bruge BC250 uden browserens adresselinje."
+  "Open the installed app to use BC250 without the browser address bar.": "Åbn den installerede app for at bruge BC250 uden browserens adresselinje.",
+  "Access keys, codes and devices are hidden.": "Nøgler, koder og enheder er skjult.",
+  "Allow hardware control": "Tillad hardwarestyring",
+  "Connected devices": "Tilsluttede enheder",
+  "Custom session duration in minutes": "Tilpasset sessionsvarighed i minutter",
+  "Device code": "Enhedskode",
+  "Hardware control": "Hardwarestyring",
+  "Information protected": "Beskyttede oplysninger",
+  "Lock view": "Lås visning",
+  "No connected browsers.": "Ingen tilsluttede browsere.",
+  "Permissions": "Tilladelser",
+  "Show information": "Vis oplysninger",
+  "Start web access": "Start webadgang",
+  "Stop web access": "Stop webadgang"
 }

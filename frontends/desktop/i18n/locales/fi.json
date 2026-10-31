@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Skannaa puhelimella samassa Wi-Fi-verkossa. QR sisältää pääsyavaimen; älä jaa sitä.",
   "HTTPS required": "HTTPS vaaditaan",
   "Terminal input": "Päätteen syöte",
-  "Open the installed app to use BC250 without the browser address bar.": "Avaa asennettu sovellus, jotta voit käyttää BC250:tä ilman selaimen osoiteriviä."
+  "Open the installed app to use BC250 without the browser address bar.": "Avaa asennettu sovellus, jotta voit käyttää BC250:tä ilman selaimen osoiteriviä.",
+  "Access keys, codes and devices are hidden.": "Avaimet, koodit ja laitteet on piilotettu.",
+  "Allow hardware control": "Salli laitteiston hallinta",
+  "Connected devices": "Yhdistetyt laitteet",
+  "Custom session duration in minutes": "Istunnon mukautettu kesto minuutteina",
+  "Device code": "Laitteen koodi",
+  "Hardware control": "Laitteiston hallinta",
+  "Information protected": "Suojatut tiedot",
+  "Lock view": "Lukitse näkymä",
+  "No connected browsers.": "Ei yhdistettyjä selaimia.",
+  "Permissions": "Käyttöoikeudet",
+  "Show information": "Näytä tiedot",
+  "Start web access": "Käynnistä verkkokäyttö",
+  "Stop web access": "Pysäytä verkkokäyttö"
 }

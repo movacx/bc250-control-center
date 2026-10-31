@@ -5,6 +5,7 @@ from __future__ import annotations
 import curses
 
 NAMES = {
+    curses.KEY_F2: "f2", curses.KEY_F3: "f3", curses.KEY_F6: "f6",
     curses.KEY_UP: "up", curses.KEY_DOWN: "down", curses.KEY_LEFT: "left", curses.KEY_RIGHT: "right",
     curses.KEY_ENTER: "enter", 10: "enter", 13: "enter", 27: "esc", 9: "tab", curses.KEY_BTAB: "btab",
     curses.KEY_PPAGE: "pgup", curses.KEY_NPAGE: "pgdn", curses.KEY_HOME: "home", curses.KEY_END: "end",

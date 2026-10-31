@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Scanne mit deinem Telefon im selben Wi-Fi. Der QR enthält den Zugangsschlüssel; teile ihn nicht.",
   "HTTPS required": "HTTPS erforderlich",
   "Terminal input": "Terminaleingabe",
-  "Open the installed app to use BC250 without the browser address bar.": "Öffne die installierte App, um BC250 ohne die Adressleiste des Browsers zu verwenden."
+  "Open the installed app to use BC250 without the browser address bar.": "Öffne die installierte App, um BC250 ohne die Adressleiste des Browsers zu verwenden.",
+  "Access keys, codes and devices are hidden.": "Schlüssel, Codes und Geräte sind ausgeblendet.",
+  "Allow hardware control": "Hardwaresteuerung erlauben",
+  "Connected devices": "Verbundene Geräte",
+  "Custom session duration in minutes": "Benutzerdefinierte Sitzungsdauer in Minuten",
+  "Device code": "Gerätecode",
+  "Hardware control": "Hardwaresteuerung",
+  "Information protected": "Geschützte Informationen",
+  "Lock view": "Ansicht sperren",
+  "No connected browsers.": "Keine Browser verbunden.",
+  "Permissions": "Berechtigungen",
+  "Show information": "Informationen anzeigen",
+  "Start web access": "Webzugriff starten",
+  "Stop web access": "Webzugriff beenden"
 }

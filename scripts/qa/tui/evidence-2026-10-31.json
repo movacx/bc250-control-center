@@ -1,0 +1,189 @@
+{
+  "date": "2026-10-31",
+  "scope": "rootless container userspace; no hardware mutations or boot certification",
+  "host_dedicated_tests": 155,
+  "host_regression_passed": 571,
+  "host_regression_skipped": 2,
+  "simulated_action_paths": 4133,
+  "profiles": [
+    {
+      "profile": "arch",
+      "image": "docker.io/library/archlinux:base",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.14.8",
+      "source_image": "docker.io/library/archlinux:base",
+      "image_id": "bf2533a05fd2eeef8f3d1f60fe73649d4ee099b1594868af7b588f268763cbb9",
+      "repo_digests": [
+        "docker.io/library/archlinux@sha256:dfc5be7be44cf1acf3d9b3b902e3e9c8a29f97ed41e35631823cdc9c97e5d4f0",
+        "docker.io/library/archlinux@sha256:e82623936fa1a69700b48e98b058df6eaab18b737c27473a7234a40fdecb9413"
+      ]
+    },
+    {
+      "profile": "cachyos",
+      "image": "docker.io/cachyos/cachyos:latest",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.14.8",
+      "source_image": "docker.io/cachyos/cachyos:latest",
+      "image_id": "87b51ed00529e7c0357fa9eb3fafd26a64b97e0840dc935c2fb744a18b4cdce4",
+      "repo_digests": [
+        "docker.io/cachyos/cachyos@sha256:0d1060aa6478351b485727695c2958f30c5fb77f6b5925f40f6161638a5a0457",
+        "docker.io/cachyos/cachyos@sha256:2fec61c269aae0323d67903e2699d173cf34d0735b3decd7a73c4f40c34ec1fc"
+      ]
+    },
+    {
+      "profile": "manjaro",
+      "image": "docker.io/manjarolinux/base:latest",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.14.7",
+      "source_image": "docker.io/manjarolinux/base:latest",
+      "image_id": "34de3b02667e27efd9af2403ed8bc5ab35f9f60053c0f86933c61d42bba35ab4",
+      "repo_digests": [
+        "docker.io/manjarolinux/base@sha256:a411decb8d219cb4b16b39618e9aa8ce8228acad9cba5b10420f804a20ca5c84",
+        "docker.io/manjarolinux/base@sha256:bbf1f1d746f28e138eea610e140d2f28cbb5b7c5da2fbff034b883527aa604e9"
+      ]
+    },
+    {
+      "profile": "artix",
+      "image": "docker.io/artixlinux/artixlinux:base-openrc",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.14.8",
+      "source_image": "docker.io/artixlinux/artixlinux:base-openrc",
+      "image_id": "201846d220591e13775ba2631926528d25b7daaa5d5c9cab585ff47545204462",
+      "repo_digests": [
+        "docker.io/artixlinux/artixlinux@sha256:eadc1367f815ff41835b393c0e6a7dc99b088feb96d638feefb5b3b5ea46c78a"
+      ]
+    },
+    {
+      "profile": "alpine",
+      "image": "docker.io/library/alpine:latest",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.14.10",
+      "source_image": "docker.io/library/alpine:latest",
+      "image_id": "b92841763c5c2140a20eeb2a44e94ebb0e80fd51d9d6b5895ea72fa999525d68",
+      "repo_digests": [
+        "docker.io/library/alpine@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a",
+        "docker.io/library/alpine@sha256:c26612752c78b18faacd63c7d50f4592c2e7b0f25e0e20e82bd74e465c57ab0d"
+      ]
+    },
+    {
+      "profile": "gentoo",
+      "image": "docker.io/gentoo/stage3:latest",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.14.7",
+      "source_image": "docker.io/gentoo/stage3:latest",
+      "image_id": "abefb30fb9d7ba8dac7174f8ccef00bed3143fc25ff1b27df25722154f01ca28",
+      "repo_digests": [
+        "docker.io/gentoo/stage3@sha256:1ca7647d1ce968d02c2858ee4201e2173675fd3fc0754a8acd583d9288b75478",
+        "docker.io/gentoo/stage3@sha256:5743d40989d399a2bd4427937edc534502aca531745391f5b96ba013aea6d5a8"
+      ]
+    },
+    {
+      "profile": "bazzite",
+      "image": "ghcr.io/ublue-os/bazzite:stable",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.14.8",
+      "source_image": "ghcr.io/ublue-os/bazzite:stable",
+      "image_id": "71f9702595b22805e0ef7c0de088119545d104f7f85d67bd24640d337a65c86b",
+      "repo_digests": [
+        "ghcr.io/ublue-os/bazzite@sha256:ee82a885dbb77cd4604a5ffa8278a0eef0bc84d16850045c7b9d847729da9949"
+      ]
+    },
+    {
+      "profile": "debian",
+      "image": "docker.io/library/debian:stable-slim",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.13.5",
+      "source_image": "docker.io/library/debian:stable-slim",
+      "image_id": "c2eb227737856e0203e19e792588a9539fefad27bb9363edbef8d10360a76270",
+      "repo_digests": [
+        "docker.io/library/debian@sha256:13e0a2e78aa0554ad5ff66e4e260c6dbcdff807eb1f39d43b9fb0288aae88b04",
+        "docker.io/library/debian@sha256:dd324f2b5d8d63278a0ab2831193c0b2d192bc4d7f7a1879408fc51300546cdb"
+      ]
+    },
+    {
+      "profile": "kali",
+      "image": "docker.io/kalilinux/kali-rolling:latest",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.14.8",
+      "source_image": "docker.io/kalilinux/kali-rolling:latest",
+      "image_id": "22a04a1d71d463eca4e37ee12674cddaf40903f6346d9b08ca877d948d3e3076",
+      "repo_digests": [
+        "docker.io/kalilinux/kali-rolling@sha256:cd030992fed90891eb7de0e2b1b7b1972ab46fcfaf75d969af0b94304214b6e3",
+        "docker.io/kalilinux/kali-rolling@sha256:ea20024e16833dab1a5337f5998602f3b81f8a38f3b0995dda272c83a1b0c1b9"
+      ]
+    },
+    {
+      "profile": "parrot",
+      "image": "docker.io/parrotsec/core:latest",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.13.5",
+      "source_image": "docker.io/parrotsec/core:latest",
+      "image_id": "46a0be7b797b628689442d16fa298f268127b4dff2056c9eb323a63f64f7ee56",
+      "repo_digests": [
+        "docker.io/parrotsec/core@sha256:2dcefa48d3c4ae6b1a1a1391ae2a0ae6115a3c194b3677b3f0487f0e3996c9cd",
+        "docker.io/parrotsec/core@sha256:7aec14b2bcb3ae6c8f3e11cd9c3e4f57e5adecdfcb2d5a76855455448e3862ac"
+      ]
+    },
+    {
+      "profile": "devuan",
+      "image": "docker.io/devuan/devuan:stable",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.13.5",
+      "source_image": "docker.io/devuan/devuan:stable",
+      "image_id": "f6336d13b642cca8ee8867ba757649a61321c26b86836a7da627d29ccf20d742",
+      "repo_digests": [
+        "docker.io/devuan/devuan@sha256:37518aae1f5ffb49df2deca3f6918f52e2907a65b754c0270cca9be4f69ccc24"
+      ]
+    },
+    {
+      "profile": "kubuntu",
+      "image": "docker.io/library/ubuntu:24.04",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.12.3",
+      "source_image": "docker.io/library/ubuntu:24.04",
+      "image_id": "d9b8c34d61a9b9a3c44cab883d7d2f2619d674966ab520186f799cf32e3e0377",
+      "repo_digests": [
+        "docker.io/library/ubuntu@sha256:78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d",
+        "docker.io/library/ubuntu@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852"
+      ]
+    },
+    {
+      "profile": "xubuntu",
+      "image": "docker.io/library/ubuntu:24.04",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.12.3",
+      "source_image": "docker.io/library/ubuntu:24.04",
+      "image_id": "d9b8c34d61a9b9a3c44cab883d7d2f2619d674966ab520186f799cf32e3e0377",
+      "repo_digests": [
+        "docker.io/library/ubuntu@sha256:78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d",
+        "docker.io/library/ubuntu@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852"
+      ]
+    },
+    {
+      "profile": "lubuntu",
+      "image": "docker.io/library/ubuntu:24.04",
+      "returncode": 0,
+      "tui_tests_passed": 144,
+      "python": "3.12.3",
+      "source_image": "docker.io/library/ubuntu:24.04",
+      "image_id": "d9b8c34d61a9b9a3c44cab883d7d2f2619d674966ab520186f799cf32e3e0377",
+      "repo_digests": [
+        "docker.io/library/ubuntu@sha256:78d4744ead1f5b19b04d0df558ab182a5300903900755e515b2ca4d10eb2044d",
+        "docker.io/library/ubuntu@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852"
+      ]
+    }
+  ]
+}

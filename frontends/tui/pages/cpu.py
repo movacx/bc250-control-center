@@ -1,4 +1,4 @@
-"""CPU / SMU, laid out as the desktop's: profiles and scale test on the left, live state on the right."""
+"""CPU / SMU terminal forms: tuning, monitoring, boot persistence and core recovery."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from frontends.desktop.core.cpu_refresh_presenter import (
     present_cpu_tuning,
 )
 
+from ..compact import terminal_form
 from ..content import (
     Buttons,
     Choice,
@@ -51,6 +52,10 @@ class CpuPage(Page):
     key = "cpu"
     title = "CPU / SMU"
     interval = 5.0
+
+    def tabs(self, ctx):
+        return [(key, tr(label)) for key, label in (("tuning", "Profiles"), ("monitor", "Monitoring"),
+                ("boot", "Boot persistence"), ("cores", "Unlock cores"))]
 
     def load(self, ctx):
         service = ctx.service
@@ -100,12 +105,12 @@ class CpuPage(Page):
             f, v, t, scale = chosen["frequency"], chosen["vid"], chosen["temperature"], target["scale"]
             if target["manual"]:
                 if ui_.confirm(f"{tr('Apply temporary OC + manual scale')}: {f} MHz · {t} °C · {scale}", danger=True):
-                    guarded(ui_, tr("CPU / SMU"), lambda: ui_.shell(service.comando_cpu_oc_manual_verificado_embebido(
-                        f, scale, t, confirm_manual=True)))
-                    mine["last"] = f
+                    if guarded(ui_, tr("CPU / SMU"), lambda: ui_.shell(service.comando_cpu_oc_manual_verificado_embebido(
+                            f, scale, t, confirm_manual=True))):
+                        mine["last"] = f
             elif ui_.confirm(f"{tr('Apply configuration + automatic scale')}: {f} MHz · {v} mV · {t} °C", danger=True):
-                guarded(ui_, tr("CPU / SMU"), lambda: service.ejecutar_cpu_oc_temporal(f, v, t))
-                mine["last"] = f
+                if guarded(ui_, tr("CPU / SMU"), lambda: service.ejecutar_cpu_oc_temporal(f, v, t)):
+                    mine["last"] = f
 
         scale_panel = Panel(tr("Live scale test"), [
             check(tr("Use manual scale"), target["manual"], lambda ui_: target.update(manual=not target["manual"])),
@@ -196,5 +201,7 @@ class CpuPage(Page):
             Buttons([Choice(tr("Unlock cores and restart"), unlock_cores, tone="bad",
                             enabled=not unlock.get("unlocked"))])], danger=True)
 
-        left = [profile_panel, scale_panel, apply_button, overview_panel]
-        return [Split(left, [runtime, cores_panel, persistence, danger], ratio=0.55)]
+        sections = {"tuning": [profile_panel, scale_panel, apply_button],
+                    "monitor": [runtime, cores_panel, overview_panel],
+                    "boot": [persistence], "cores": [cores_panel, danger]}
+        return terminal_form(sections.get(tab, sections["tuning"]))

@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 from bc250cc.infrastructure.polkit_session import normalize_polkit_error, pkexec_argv
+from bc250cc.platform.init.services import detect_init_manager
 
 UNITS = ("sshd.service", "ssh.service")
 #: Virtual links of containers and VMs: nobody connects to those from a phone.
@@ -69,13 +70,27 @@ def addresses() -> list[str]:
 
 def status() -> dict:
     """What the page shows: unit, installed, active, enabled at boot, port, user, addresses."""
-    unit = _unit()
+    manager = detect_init_manager()
+    if manager.kind == "openrc":
+        unit = next((name for name in ("sshd", "ssh") if Path("/etc/init.d", name).is_file()), "")
+        active = enabled = False
+        if unit:
+            active = subprocess.run(["rc-service", unit, "status"], capture_output=True, timeout=5, check=False).returncode == 0
+            enabled = Path("/etc/runlevels/default", unit).exists()
+        return {"manager": "openrc", "supported": manager.available, "systemd": False,
+                "unit": unit, "active": active, "enabled": enabled, "port": _port(),
+                "user": getpass.getuser(), "addresses": addresses(),
+                "detail": "" if unit else "Install openssh-server using your distribution package manager."}
+    unit = _unit() if manager.kind == "systemd" else ""
     states = dict(
         line.split("=", 1)
         for line in _systemctl("show", "-p", "ActiveState,UnitFileState", unit).splitlines()
         if "=" in line
     ) if unit else {}
     return {
+        "manager": manager.kind, "supported": manager.kind == "systemd" and manager.available,
+        "detail": manager.detail if manager.kind != "systemd" else
+                  "" if unit else "Install openssh-server using your distribution package manager.",
         "systemd": Path("/run/systemd/system").exists() and bool(shutil.which("systemctl")),
         "unit": unit,
         "active": states.get("ActiveState") == "active",
@@ -103,3 +118,29 @@ def set_enabled(enable: bool) -> None:
         raise RuntimeError("The privileged SSH operation timed out.") from error
     if done.returncode != 0:
         raise RuntimeError(normalize_polkit_error(command, done.stderr).strip() or "The SSH service was not changed.")
+
+
+def configure(*, active: bool | None = None, boot: bool | None = None) -> None:
+    """TUI: change current SSH state or boot policy independently, on systemd/OpenRC."""
+    if active is not None and not isinstance(active, bool) or boot is not None and not isinstance(boot, bool):
+        raise ValueError("SSH state must be a boolean")
+    current = status()
+    if not current.get("supported") or not current.get("unit"):
+        raise RuntimeError(current.get("detail") or "The SSH init service is unavailable.")
+    unit = current["unit"]
+    commands = []
+    if current["manager"] == "openrc":
+        if boot is not None:
+            commands.append([shutil.which("rc-update") or "/sbin/rc-update", "add" if boot else "del", unit, "default"])
+        if active is not None:
+            commands.append([shutil.which("rc-service") or "/sbin/rc-service", unit, "start" if active else "stop"])
+    else:
+        if boot is not None:
+            commands.append([shutil.which("systemctl") or "/usr/bin/systemctl", "enable" if boot else "disable", unit])
+        if active is not None:
+            commands.append([shutil.which("systemctl") or "/usr/bin/systemctl", "start" if active else "stop", unit])
+    for command in commands:
+        argv = pkexec_argv("pkexec", *command)
+        done = subprocess.run(argv, capture_output=True, text=True, timeout=60, check=False)
+        if done.returncode:
+            raise RuntimeError(normalize_polkit_error(argv, done.stderr) or "The SSH service was not changed.")

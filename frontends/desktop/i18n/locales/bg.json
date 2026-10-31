@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Сканирайте с телефона в същата мрежа Wi-Fi. QR съдържа ключа за достъп; не го споделяйте.",
   "HTTPS required": "Изисква се HTTPS",
   "Terminal input": "Вход на терминала",
-  "Open the installed app to use BC250 without the browser address bar.": "Отворете инсталираното приложение, за да използвате BC250 без адресната лента на браузъра."
+  "Open the installed app to use BC250 without the browser address bar.": "Отворете инсталираното приложение, за да използвате BC250 без адресната лента на браузъра.",
+  "Access keys, codes and devices are hidden.": "Ключовете, кодовете и устройствата са скрити.",
+  "Allow hardware control": "Разрешаване на управление на хардуера",
+  "Connected devices": "Свързани устройства",
+  "Custom session duration in minutes": "Персонализирана продължителност на сесията в минути",
+  "Device code": "Код на устройството",
+  "Hardware control": "Управление на хардуера",
+  "Information protected": "Защитена информация",
+  "Lock view": "Заключване на изгледа",
+  "No connected browsers.": "Няма свързани браузъри.",
+  "Permissions": "Разрешения",
+  "Show information": "Показване на информация",
+  "Start web access": "Стартиране на уеб достъпа",
+  "Stop web access": "Спиране на уеб достъпа"
 }

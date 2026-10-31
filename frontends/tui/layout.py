@@ -288,24 +288,13 @@ def _edge(glyphs: Glyphs, width: int, tone: str, left: list[tuple[str, str]], ri
         + right + [(glyphs.h + glyphs.top[2], tone)]
 
 
-def _tall(layout: Layout, spans: list[tuple[str, str]], owner: int, glyphs: Glyphs) -> None:
-    """A phone's button: its label row between a lower and an upper half block, so it is twice as tall to tap."""
-    width = sum(cell_width(text) for text, _tone in spans)
-    tone = next((tone[4:] for _text, tone in spans if tone.startswith("btn:")), "")
-    if not tone or glyphs.rule != "─":
-        layout.rows += [Row(spans, owners=[owner] * len(spans)), Row([("", "")], owners=[owner])]
-        return
-    layout.rows += [Row([("▄" * width, "edge:" + tone)], owners=[owner]), Row(spans, owners=[owner] * len(spans)),
-                    Row([("▀" * width, "edge:" + tone)], owners=[owner])]
+def button_spans(choice: Choice, glyphs: Glyphs, width: int, fill: bool = False) -> list[tuple[str, str]]:
+    """A compact terminal action: primary/danger emphasis; else ``[ label ]``.
 
-
-def button_spans(choice: Choice, glyphs: Glyphs, touch: bool, width: int, fill: bool = False) -> list[tuple[str, str]]:
-    """A button: a filled pill when it is the primary or a danger action, or on a phone; else ``[ label ]``.
-
-    ``fill`` widens the pill to ``width`` (a phone's full-width button).
+    ``fill`` aligns adjacent actions to their allocated columns.
     """
     tone = "dim" if not choice.enabled else {"primary": "accent", "": "accent"}.get(choice.tone, choice.tone)
-    if glyphs.rule == "─" and choice.enabled and (touch or choice.tone in ("primary", "bad")):
+    if glyphs.rule == "─" and choice.enabled and choice.tone in ("primary", "bad"):
         text = f" {clip(choice.label, width - 4)} "
         return [(text.center(width) if fill else text, "btn:" + tone)]
     text = clip(choice.label, width - 4)
@@ -321,7 +310,7 @@ def _columns(blocks, width: int, label_cap: int) -> tuple[int, int]:
 
 
 def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int = LABEL_MAX, *,
-                 card: bool = False, columns: tuple[int, int] | None = None, touch: bool = False) -> Layout:
+                 card: bool = False, columns: tuple[int, int] | None = None) -> Layout:
     """Rows for ``blocks``. Inside a card a Heading is a group label (THERMAL, POWER…), as on the desktop.
 
     ``columns`` fixes the label and value widths, so cards side by side (or
@@ -453,8 +442,8 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
         elif isinstance(block, Panel):
             tone = "bad" if block.danger else "dim"
             inner = build_layout(([Note(block.subtitle, "dim")] if block.subtitle else []) + list(block.blocks),
-                                 width - 4, glyphs, label_cap, touch=touch)
-            action = button_spans(block.action, glyphs, False, width // 3) if block.action else []
+                                 width - 4, glyphs, label_cap)
+            action = button_spans(block.action, glyphs, width // 3) if block.action else []
             right = ([(f" {block.badge} ", "btn:" + block.badge_tone)] if block.badge else []) \
                 + ([(" ", "")] if block.badge and action else []) + action
             head = _edge(glyphs, width, tone, [(block.title, ("bad" if block.danger else "accent") + "!")], right)
@@ -499,7 +488,7 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 _side_by_side(layout, boxes, [each] * len(boxes), " ")
         elif isinstance(block, Buttons):  # the row shared out, as the desktop's; one a row on a phone
             needs = [cell_width(choice.label) + 4 for choice in block.choices]
-            fit = 1 if touch else next(k for k in range(len(needs), 0, -1)
+            fit = next(k for k in range(len(needs), 0, -1)
                                        if k == 1 or all(sum(needs[i:i + k]) + 2 * (k - 1) <= width
                                                         for i in range(0, len(needs), k)))
             for first in range(0, len(block.choices), fit):
@@ -513,13 +502,10 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                     layout.choices.append(choice)
                     layout.choice_rows.append(len(layout.rows))
                     each = group[position] + spare // len(group) + (spare % len(group) if position == len(group) - 1 else 0)
-                    parts = button_spans(choice, glyphs, touch, min(width, each), fill=True)
+                    parts = button_spans(choice, glyphs, min(width, each), fill=True)
                     spans += parts
                     owners += [len(layout.choices) - 1] * len(parts)
-                if touch:
-                    _tall(layout, spans, owners[0], glyphs)
-                else:
-                    layout.rows.append(Row(spans, owners=owners))
+                layout.rows.append(Row(spans, owners=owners))
         elif isinstance(block, Slider):  # the rail, then the stop labels on two staggered rows
             stops = list(block.stops)
             span = max(1, len(stops) - 1)
@@ -562,12 +548,12 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
         elif isinstance(block, Split):
             if width >= block.minimum:
                 left = max(20, int((width - 2) * block.ratio))
-                parts = [build_layout(list(side), size, glyphs, label_cap, touch=touch)
+                parts = [build_layout(list(side), size, glyphs, label_cap)
                          for side, size in ((block.left, left), (block.right, width - 2 - left))]
                 _side_by_side(layout, parts, [left, width - 2 - left], "  ")
             else:
                 for side in (block.left, block.right):
-                    _side_by_side(layout, [build_layout(list(side), width, glyphs, label_cap, touch=touch)], [width])
+                    _side_by_side(layout, [build_layout(list(side), width, glyphs, label_cap)], [width])
         elif isinstance(block, Choice):
             index = len(layout.choices)
             layout.choices.append(block)
@@ -579,11 +565,8 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
             tone = block.tone if block.enabled else "dim"
             # A button does something; "( )"/"[x]" are options and "›" opens a menu of its own.
             button = not (detail or block.adjust or block.label.startswith(("(", "[")) or block.label.endswith("›"))
-            if button and touch:  # a phone: full width and twice as tall
-                _tall(layout, button_spans(block, glyphs, True, width, fill=True), index, glyphs)
-                continue
             if button:  # it does something, it is not a value
-                add(button_spans(block, glyphs, touch, width), choice=index)
+                add(button_spans(block, glyphs, width), choice=index)
             else:
                 chip = f" {block.badge} " if block.badge else ""
                 room = max(0, width - cell_width(label) - cell_width(chip) - (1 if chip else 0))
@@ -592,6 +575,4 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 if chip:
                     spans += [(" " * (room - cell_width(text) + 1), ""), (chip, "btn:" + block.badge_tone)]
                 add(spans, choice=index)
-            if touch and not block.dense:  # room between rows, and part of the same target
-                add([("", "")], choice=index)
     return layout

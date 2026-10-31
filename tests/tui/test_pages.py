@@ -35,7 +35,7 @@ def test_every_sidebar_page_builds_on_every_tab_without_a_service_error():
 def test_sidebar_covers_the_desktop_sections():
     assert set(build_pages()) == {
         "dashboard", "cpu", "gpu", "extras", "cu", "performance", "fans", "processes", "black_box",
-        "firmware", "settings",
+        "firmware", "remote", "settings",
     }
 
 
@@ -86,7 +86,7 @@ def test_cancelling_a_prompt_changes_nothing():
             return None
 
     ui = Cancelling()
-    choice(render(build_pages()["cpu"], ctx, ui), "Edit").handler(ui)  # the profile pencil: name, then a cancelled number
+    next(c for c in render(build_pages()["cpu"], ctx, ui).choices if c.label.strip().startswith("Edit:")).handler(ui)  # the profile pencil: name, then a cancelled number
     assert service.calls == []
 
 

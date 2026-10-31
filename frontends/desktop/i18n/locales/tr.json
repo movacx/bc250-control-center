@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Aynı Wi-Fi ağındaki telefonunuzla tarayın. QR erişim anahtarını içerir; paylaşmayın.",
   "HTTPS required": "HTTPS gerekli",
   "Terminal input": "Terminal girdisi",
-  "Open the installed app to use BC250 without the browser address bar.": "BC250’yi tarayıcının adres çubuğu olmadan kullanmak için yüklü uygulamayı açın."
+  "Open the installed app to use BC250 without the browser address bar.": "BC250’yi tarayıcının adres çubuğu olmadan kullanmak için yüklü uygulamayı açın.",
+  "Access keys, codes and devices are hidden.": "Anahtarlar, kodlar ve aygıtlar gizlendi.",
+  "Allow hardware control": "Donanım denetimine izin ver",
+  "Connected devices": "Bağlı aygıtlar",
+  "Custom session duration in minutes": "Dakika olarak özel oturum süresi",
+  "Device code": "Aygıt kodu",
+  "Hardware control": "Donanım denetimi",
+  "Information protected": "Korunan bilgiler",
+  "Lock view": "Görünümü kilitle",
+  "No connected browsers.": "Bağlı tarayıcı yok.",
+  "Permissions": "İzinler",
+  "Show information": "Bilgileri göster",
+  "Start web access": "Web erişimini başlat",
+  "Stop web access": "Web erişimini durdur"
 }

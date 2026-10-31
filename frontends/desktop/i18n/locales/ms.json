@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Imbas dengan telefon pada Wi-Fi yang sama. QR mengandungi kunci akses; jangan kongsikannya.",
   "HTTPS required": "HTTPS diperlukan",
   "Terminal input": "Input terminal",
-  "Open the installed app to use BC250 without the browser address bar.": "Buka aplikasi yang dipasang untuk menggunakan BC250 tanpa bar alamat pelayar."
+  "Open the installed app to use BC250 without the browser address bar.": "Buka aplikasi yang dipasang untuk menggunakan BC250 tanpa bar alamat pelayar.",
+  "Access keys, codes and devices are hidden.": "Kunci, kod dan peranti disembunyikan.",
+  "Allow hardware control": "Benarkan kawalan perkakasan",
+  "Connected devices": "Peranti tersambung",
+  "Custom session duration in minutes": "Tempoh sesi tersuai dalam minit",
+  "Device code": "Kod peranti",
+  "Hardware control": "Kawalan perkakasan",
+  "Information protected": "Maklumat dilindungi",
+  "Lock view": "Kunci paparan",
+  "No connected browsers.": "Tiada pelayar tersambung.",
+  "Permissions": "Kebenaran",
+  "Show information": "Tunjukkan maklumat",
+  "Start web access": "Mulakan akses web",
+  "Stop web access": "Hentikan akses web"
 }

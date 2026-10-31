@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "請使用連接相同 Wi-Fi 的手機掃描。QR 包含存取金鑰，請勿分享。",
   "HTTPS required": "需要 HTTPS",
   "Terminal input": "終端輸入",
-  "Open the installed app to use BC250 without the browser address bar.": "開啟已安裝的應用程式，即可使用 BC250 而不顯示瀏覽器網址列。"
+  "Open the installed app to use BC250 without the browser address bar.": "開啟已安裝的應用程式，即可使用 BC250 而不顯示瀏覽器網址列。",
+  "Access keys, codes and devices are hidden.": "金鑰、代碼和裝置已隱藏。",
+  "Allow hardware control": "允許硬體控制",
+  "Connected devices": "已連線的裝置",
+  "Custom session duration in minutes": "自訂工作階段時間（分鐘）",
+  "Device code": "裝置代碼",
+  "Hardware control": "硬體控制",
+  "Information protected": "受保護的資訊",
+  "Lock view": "鎖定檢視",
+  "No connected browsers.": "沒有已連線的瀏覽器。",
+  "Permissions": "權限",
+  "Show information": "顯示資訊",
+  "Start web access": "啟動網頁存取",
+  "Stop web access": "停止網頁存取"
 }

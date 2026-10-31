@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "Σαρώστε με το τηλέφωνο στο ίδιο Wi-Fi. Το QR περιέχει το κλειδί πρόσβασης· μην το κοινοποιείτε.",
   "HTTPS required": "Απαιτείται HTTPS",
   "Terminal input": "Είσοδος τερματικού",
-  "Open the installed app to use BC250 without the browser address bar.": "Ανοίξτε την εγκατεστημένη εφαρμογή για να χρησιμοποιήσετε το BC250 χωρίς τη γραμμή διευθύνσεων του προγράμματος περιήγησης."
+  "Open the installed app to use BC250 without the browser address bar.": "Ανοίξτε την εγκατεστημένη εφαρμογή για να χρησιμοποιήσετε το BC250 χωρίς τη γραμμή διευθύνσεων του προγράμματος περιήγησης.",
+  "Access keys, codes and devices are hidden.": "Τα κλειδιά, οι κωδικοί και οι συσκευές είναι κρυφά.",
+  "Allow hardware control": "Να επιτρέπεται ο έλεγχος υλικού",
+  "Connected devices": "Συνδεδεμένες συσκευές",
+  "Custom session duration in minutes": "Προσαρμοσμένη διάρκεια συνεδρίας σε λεπτά",
+  "Device code": "Κωδικός συσκευής",
+  "Hardware control": "Έλεγχος υλικού",
+  "Information protected": "Προστατευμένες πληροφορίες",
+  "Lock view": "Κλείδωμα προβολής",
+  "No connected browsers.": "Δεν υπάρχουν συνδεδεμένοι περιηγητές.",
+  "Permissions": "Δικαιώματα",
+  "Show information": "Εμφάνιση πληροφοριών",
+  "Start web access": "Έναρξη πρόσβασης ιστού",
+  "Stop web access": "Διακοπή πρόσβασης ιστού"
 }

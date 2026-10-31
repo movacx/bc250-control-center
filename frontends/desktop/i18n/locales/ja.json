@@ -5552,5 +5552,18 @@
   "Scan with your phone on the same Wi-Fi. The QR contains the access key; do not share it.": "同じ Wi-Fi の電話でスキャンしてください。QR にはアクセスキーが含まれるため、共有しないでください。",
   "HTTPS required": "HTTPS が必要です",
   "Terminal input": "端末入力",
-  "Open the installed app to use BC250 without the browser address bar.": "インストールしたアプリを開くと、ブラウザーのアドレスバーを表示せずに BC250 を使えます。"
+  "Open the installed app to use BC250 without the browser address bar.": "インストールしたアプリを開くと、ブラウザーのアドレスバーを表示せずに BC250 を使えます。",
+  "Access keys, codes and devices are hidden.": "キー、コード、デバイスは非表示です。",
+  "Allow hardware control": "ハードウェア操作を許可",
+  "Connected devices": "接続済みデバイス",
+  "Custom session duration in minutes": "セッションの有効時間を分で指定",
+  "Device code": "デバイスコード",
+  "Hardware control": "ハードウェア操作",
+  "Information protected": "保護された情報",
+  "Lock view": "表示をロック",
+  "No connected browsers.": "接続中のブラウザーはありません。",
+  "Permissions": "権限",
+  "Show information": "情報を表示",
+  "Start web access": "ウェブアクセスを開始",
+  "Stop web access": "ウェブアクセスを停止"
 }

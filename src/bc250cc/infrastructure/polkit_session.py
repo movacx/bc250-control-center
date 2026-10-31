@@ -15,6 +15,7 @@ import subprocess
 import threading
 import time
 from collections.abc import Mapping, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,6 +27,7 @@ AUTH_AGENT_MESSAGE = (
 #: Set by the terminal interface: authenticate on its console, never in a window.
 TERMINAL_AUTH_ENV = "BC250_TERMINAL_AUTH"
 WEB_SUDO_AUTH_ENV = "BC250_WEB_SUDO_AUTH"
+TERMINAL_AGENT_READY: ContextVar[bool] = ContextVar("bc250_terminal_agent_ready", default=False)
 
 _AGENT_MARKERS = (
     "hyprpolkitagent",
@@ -252,6 +254,11 @@ def pkexec_prefix(executor: str, *, prepare_agent: bool = True) -> list[str]:
         if not sudo:
             raise RuntimeError("sudo is required for web hardware authorization.")
         return [sudo, "-p", "BC250 Linux password: ", "--"]
+    if os.environ.get(TERMINAL_AUTH_ENV) == "1" and not TERMINAL_AGENT_READY.get():
+        from bc250cc.shared.errors import ActionNeeded
+
+        raise ActionNeeded("Terminal authorization is unavailable. Run this action from the TUI console with "
+                           "polkit/pkttyagent installed and a working system D-Bus session.")
     if prepare_agent:
         ensure_graphical_polkit_agent()
     return [value, "--disable-internal-agent"]

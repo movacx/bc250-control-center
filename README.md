@@ -150,7 +150,7 @@ The normal installation already includes it. For a server, a TTY or an SSH-only 
 scripts/install-tui.sh
 ```
 
-It needs Python 3.11 or newer with `curses` and `psutil`, and installs whichever of those is missing with the system package manager (`dnf`, `rpm-ostree`, `apt-get`, `pacman`, `zypper` or `apk`). As a normal user it installs to `~/.local`, so it works on Bazzite and SteamOS, where `/` is read-only. It asks for `sudo` only for those packages and for the privileged helpers that hardware actions use. Running it again updates the installation in place. To remove it:
+It needs Python 3.11 or newer with `curses` and `psutil`, and installs whichever of those is missing with the system package manager (`dnf`, `rpm-ostree`, `apt-get`, `pacman`, `zypper`, `emerge` or `apk`). As a normal user it installs to `~/.local`, so it works on Bazzite and SteamOS, where `/` is read-only. It asks for `sudo` only for those packages and for the privileged helpers that hardware actions use. Running it again updates the installation in place. To remove it:
 
 ```bash
 scripts/install-tui.sh --uninstall
@@ -158,7 +158,7 @@ scripts/install-tui.sh --uninstall
 
 From a source checkout, without installing, run `scripts/entrypoints/bc250-control-center-tui`.
 
-It has the desktop's sidebar, grouped and ordered the same way: Dashboard; Hardware (CPU / SMU, Compute Units, GPU Governor, Additional settings); Monitoring (Performance, Fans, Processes, Black box); Firmware (BIOS) and Settings. The title bar keeps the GPU and CPU clock and temperature in view on every page.
+It has the desktop's sidebar, grouped and ordered the same way: Dashboard; Hardware (CPU / SMU, Compute Units, GPU Governor, Additional settings); Monitoring (Performance, Fans, Processes, Black box); Firmware (BIOS), Remote access and Settings. The title bar keeps the GPU and CPU clock and temperature in view on every page.
 
 It does not reimplement anything: every reading and every action goes through the same service layer, privileged helpers and error catalog as the desktop application. Anything that changes the system asks for confirmation first (dangerous ones need an explicit `y`). Workflows the desktop runs in its console panel run in a console pane inside the interface: the output and progress appear live, a `sudo` or Polkit password is typed right there, `Ctrl+C` stops the command, and the result and the path of the full log stay on screen until you close the pane. No other terminal is opened and the interface is never suspended.
 
@@ -168,12 +168,15 @@ The title bar names a newer release when there is one (the same check as the des
 | --- | --- |
 | `↑` `↓` or `j` `k` | Move |
 | `Enter`, `→` or `l` | Open a section / run an action |
-| `Esc`, `←` or `h`, `Tab` | Back to the sidebar |
-| `[` `]` or `←` `→` | Previous / next tab of a section (`←` `→` change a value on an adjustable row) |
+| `Esc`, `←` or `h` | Back to the sidebar |
+| `[` `]` | Previous / next task (`←` `→` adjust a value or move within a grid) |
 | `1`–`9`, `0`, `,` | Jump to a section (from anywhere; `,` is Settings) |
 | `/` | Search an item on the page, or a section |
 | `PgUp` `PgDn` | Scroll a page or the console pane |
-| Mouse | Click a section or tab; click an item to select it, again to open it; the wheel scrolls |
+| `F2` / `F3` | Select any section / task, including tabs outside the visible strip |
+| `Tab` / `Shift+Tab` | Next / previous enabled action |
+| `F6` | Switch between the navigation pane and content |
+| `Ctrl+L` | Redraw the terminal |
 | `r` | Refresh |
 | `?` | Help |
 | `q` | Quit |
@@ -186,7 +189,12 @@ From Termux (Android) or Termius (Android, iOS), connect with a terminal and sta
 ssh -t user@board-ip bc250-control-center-tui
 ```
 
-Below 110 columns the interface switches to its touch layout by itself; `--touch` or `BC250_TUI_TOUCH=1` forces it, and **Settings › General › Touch mode (phone / tablet)**, the first entry there, saves the choice. In touch mode there is no sidebar: a strip at the top lists the sections and **Menu** opens them as a full-screen list. Buttons are three rows tall, a tap opens an item at once, a tap on `<` or `>` steps a value, and a swipe scrolls. Two rows of on-screen keys (Menu, Esc, Tab, PgUp, PgDn, Enter, arrows, Search, Quit) stand in for what a phone keyboard lacks; **On-screen keys** hides them. Dialogs answer to taps too, and the phone keyboard types into text fields as usual.
+The TUI uses the same keyboard navigation on a physical TTY and over SSH.
+It does not capture touch or mouse input, and no narrow-terminal touch mode is
+automatically enabled. For a phone interface, use the local web application.
+CPU, GPU and Compute Units use compact task tabs. Remote access includes web
+ownership controls and independent SSH start/stop and boot controls; its
+sensitive information starts hidden and is hidden again after five minutes.
 
 Actions that need the administrator password ask for it inside the interface's console, over SSH as at the board; Esc or Ctrl+C cancels. Compute Unit routing and the Game Mode helper stay limited to the local session.
 

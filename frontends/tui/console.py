@@ -17,11 +17,15 @@ import shutil
 import signal
 import struct
 import subprocess  # nosec B404 - the argv is the repository's reviewed workflow
+import sys
 import termios
 import threading
 import time
 
-from bc250cc.application.system.workflow_console import TranscriptLog
+from bc250cc.application.system.workflow_console import (
+    TERMINAL_AGENT_READY,
+    TranscriptLog,
+)
 from frontends.desktop.console.terminal_screen import TerminalScreen
 
 SCROLLBACK = 5000
@@ -132,7 +136,11 @@ class Console:
                 return
             self.term.resize(columns, rows)
         if self.master is not None:
-            fcntl.ioctl(self.master, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
+            try:
+                fcntl.ioctl(self.master, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
+            except OSError as error:
+                if error.errno not in (errno.EBADF, errno.EIO):
+                    raise
 
     # -- commands -------------------------------------------------------------
 
@@ -141,17 +149,22 @@ class Console:
         master, slave = os.openpty()
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", self.term.rows, self.term.columns, 0, 0))
 
-        def become_session_leader() -> None:
-            os.setsid()
-            fcntl.ioctl(0, termios.TIOCSCTTY, 0)
-
         # No pager: "systemctl status" would open less inside the pane and never end; the pane scrolls itself.
         env = dict(os.environ, TERM="xterm-256color", COLUMNS=str(self.term.columns), LINES=str(self.term.rows),
                    PAGER="cat", SYSTEMD_PAGER="cat", GIT_PAGER="cat", SYSTEMD_LESS="")
-        process = subprocess.Popen(  # nosec B603
-            argv, stdin=slave, stdout=slave, stderr=slave, env=env, pass_fds=pass_fds,
-            preexec_fn=become_session_leader, close_fds=True)  # noqa: PLW1509
-        os.close(slave)
+        for name in ("DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY", "SSH_ASKPASS", "SUDO_ASKPASS"):
+            env.pop(name, None)
+        env["SSH_ASKPASS_REQUIRE"] = "never"
+        try:
+            process = subprocess.Popen(  # nosec B603
+                [sys.executable, "-m", "frontends.tui.pty_exec", *argv],
+                stdin=slave, stdout=slave, stderr=slave, env=env, pass_fds=pass_fds,
+                start_new_session=True, close_fds=True)
+        except BaseException:
+            os.close(master)
+            raise
+        finally:
+            os.close(slave)
         return process, master
 
     def _pump(self, process: subprocess.Popen, master: int, log: TranscriptLog | None = None) -> int:
@@ -209,10 +222,14 @@ class Console:
         os.close(notify)
         pump = threading.Thread(target=self._pump, args=(process, master), name="bc250-tui-polkit", daemon=True)
         pump.start()
-        select.select([ready], [], [], 5)  # the agent closes its end once it is registered
+        readable, _, _ = select.select([ready], [], [], 5)
         os.close(ready)
+        registered = bool(readable) and process.poll() is None
+        token = TERMINAL_AGENT_READY.set(registered)
         try:
             yield
         finally:
-            process.terminate()
+            TERMINAL_AGENT_READY.reset(token)
+            if process.poll() is None:
+                process.terminate()
             pump.join(2)

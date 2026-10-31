@@ -4,7 +4,11 @@ The repositories hand every workflow to the registered embedded launcher before
 they try a terminal emulator, so a frontend that registers one keeps them all.
 """
 
-from bc250cc.infrastructure.polkit_session import TERMINAL_AUTH_ENV, WEB_SUDO_AUTH_ENV
+from bc250cc.infrastructure.polkit_session import (
+    TERMINAL_AGENT_READY,
+    TERMINAL_AUTH_ENV,
+    WEB_SUDO_AUTH_ENV,
+)
 from bc250cc.infrastructure.terminal_plan import set_translator
 from bc250cc.infrastructure.terminal_repository import (
     EmbeddedTerminalRequest,
@@ -13,5 +17,5 @@ from bc250cc.infrastructure.terminal_repository import (
 )
 from bc250cc.infrastructure.terminal_transcript import TranscriptLog
 
-__all__ = ["TERMINAL_AUTH_ENV", "WEB_SUDO_AUTH_ENV", "EmbeddedTerminalRequest", "TerminalLaunchResult", "TranscriptLog",
+__all__ = ["TERMINAL_AGENT_READY", "TERMINAL_AUTH_ENV", "WEB_SUDO_AUTH_ENV", "EmbeddedTerminalRequest", "TerminalLaunchResult", "TranscriptLog",
            "set_embedded_terminal_launcher", "set_translator"]
