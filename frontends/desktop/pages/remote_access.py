@@ -22,6 +22,7 @@ from PyQt6.QtGui import (
     QColor,
     QDesktopServices,
     QGuiApplication,
+    QLinearGradient,
     QPainter,
     QPainterPath,
     QPixmap,
@@ -129,7 +130,7 @@ class _RemotePrivacyCover(QWidget):
                     silhouette = 255 - luminance if light else luminance
                     value = 37 + round(silhouette * .23)
                     image.setPixelColor(x, y, QColor(value, value + 2, value + 4))
-                    value = 237 - round(silhouette * .16)
+                    value = 230 - round(silhouette * .20)
                     light_image.setPixelColor(x, y, QColor(value, value + 1, value + 3))
             self._context = QPixmap.fromImage(image)
             self._light_context = QPixmap.fromImage(light_image)
@@ -154,10 +155,12 @@ class _RemotePrivacyCover(QWidget):
         c = COLORS
         light = QColor(c["panel"]).lightness() > 127
         title, description = ("#252A32", "#4F5865") if light else ("#F2F3F5", "#CBD0D6")
+        title_size = 21 if light else 18
+        description_size = 13 if light else 12
         ink = readable_text_on(QColor(c["blue"])).name()
         self.setStyleSheet(scale_stylesheet(
-            f"QLabel#remotePrivacyTitle {{ color: {title}; font-size: 18px; font-weight: 700; background: transparent; }}"
-            f"QLabel#remotePrivacyDescription {{ color: {description}; font-size: 12px; background: transparent; }}"
+            f"QLabel#remotePrivacyTitle {{ color: {title}; font-size: {title_size}px; font-weight: 700; background: transparent; }}"
+            f"QLabel#remotePrivacyDescription {{ color: {description}; font-size: {description_size}px; background: transparent; }}"
             f"QPushButton#remotePrivacyReveal {{ background: {c['blue']}; color: {ink}; border: 1px solid {c['blue']};"
             " border-radius: 8px; padding: 9px 18px; font-size: 12px; font-weight: 650; }"
             f"QPushButton#remotePrivacyReveal:hover {{ border-color: {c['blue_border']}; }}"))
@@ -179,7 +182,7 @@ class _RemotePrivacyCover(QWidget):
         boundary.addRoundedRect(QRectF(self.rect()), 14, 14)
         painter.setClipPath(boundary)
         light = QColor(COLORS["panel"]).lightness() > 127
-        base = QColor("#EBEDF0" if light else "#27292D")
+        base = QColor("#E2E6EB" if light else "#27292D")
         painter.fillRect(self.rect(), base)
         phase = self._phase * math.tau
         if not self._context.isNull():
@@ -202,9 +205,12 @@ class _RemotePrivacyCover(QWidget):
                   (.82, .45, .42, "#080A0D", 135, 2.1),
                   (.48, .87, .55, "#868D98", 78, 4.2))
         if light:
-            clouds = ((.18, .20, .48, "#FFFFFF", 145, 0.0),
-                      (.82, .45, .42, "#A6ADB8", 72, 2.1),
-                      (.48, .87, .55, "#FFFFFF", 120, 4.2))
+            # Silver shadows and broad pearl highlights give the light veil
+            # depth without turning it into a white sheet or a dark panel.
+            clouds = ((.12, .15, .55, "#FFFFFF", 175, 0.0),
+                      (.80, .34, .46, "#737F90", 110, 2.1),
+                      (.38, .89, .58, "#AAB9CA", 85, 4.2),
+                      (.92, .90, .36, "#FFFFFF", 170, 1.1))
         for x, y, radius, tone, opacity, offset in clouds:
             cx = width * (x + .23 * math.sin(phase + offset))
             cy = height * (y + .17 * math.cos(phase + offset))
@@ -218,13 +224,23 @@ class _RemotePrivacyCover(QWidget):
             gradient.setColorAt(.45, QColor(colour.red(), colour.green(), colour.blue(), opacity // 2))
             gradient.setColorAt(1, clear)
             painter.fillRect(self.rect(), gradient)
+        if light:
+            # A broad satin reflection passes across the moving silver layers.
+            # Its continuous cosine motion has no jump at the loop boundary.
+            reflection_x = width * (.5 + .65 * math.sin(phase - .8))
+            sheen = QLinearGradient(reflection_x - width * .45, 0,
+                                    reflection_x + width * .45, height * .4)
+            sheen.setColorAt(0, QColor(255, 255, 255, 0))
+            sheen.setColorAt(.5, QColor(255, 255, 255, 82))
+            sheen.setColorAt(1, QColor(255, 255, 255, 0))
+            painter.fillRect(self.rect(), sheen)
         # A feathered clearing behind the existing message keeps it legible
         # without introducing another rectangular panel.
-        veil = QRadialGradient(self._message.geometry().center().toPointF(), 260)
-        colour = QColor(base)
-        colour.setAlpha(235)
+        veil = QRadialGradient(self._message.geometry().center().toPointF(), 340 if light else 260)
+        colour = QColor("#F0F2F5") if light else QColor(base)
+        colour.setAlpha(185 if light else 235)
         veil.setColorAt(0, colour)
-        colour.setAlpha(200)
+        colour.setAlpha(125 if light else 200)
         veil.setColorAt(.45, colour)
         colour.setAlpha(0)
         veil.setColorAt(1, colour)
