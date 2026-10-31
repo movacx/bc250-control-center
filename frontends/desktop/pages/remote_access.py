@@ -48,6 +48,7 @@ from PyQt6.QtWidgets import (
 
 from bc250cc.application.system import web_access
 
+from .. import theme
 from ..components.async_tools import BackgroundExecutor
 from ..components.buttons import WrappingButton as QPushButton
 from ..components.full_diagnosis_dialog import ResizeGrip
@@ -82,6 +83,7 @@ class _RemotePrivacyCover(QWidget):
         self._motion_clock = QElapsedTimer()
         self._context = QPixmap()
         self._light_context = QPixmap()
+        self._night_context = QPixmap()
         self._message = QWidget(self)
         box = QVBoxLayout(self._message)
         box.setContentsMargins(0, 0, 0, 0)
@@ -117,11 +119,13 @@ class _RemotePrivacyCover(QWidget):
         self._context = (snapshot.scaledToWidth(128, Qt.TransformationMode.SmoothTransformation)
                          if not snapshot.isNull() else QPixmap())
         self._light_context = QPixmap()
+        self._night_context = QPixmap()
         if not self._context.isNull():
-            # Cache both neutral variants so changing theme while locked also
+            # Cache all variants so changing theme while locked also
             # changes the veil. The source is already redacted.
             image = self._context.toImage()
             light_image = image.copy()
+            night_image = image.copy()
             light = QColor(COLORS["panel"]).lightness() > 127
             for y in range(image.height()):
                 for x in range(image.width()):
@@ -130,10 +134,13 @@ class _RemotePrivacyCover(QWidget):
                     silhouette = 255 - luminance if light else luminance
                     value = 37 + round(silhouette * .23)
                     image.setPixelColor(x, y, QColor(value, value + 2, value + 4))
+                    shade = round(silhouette * .20)
+                    night_image.setPixelColor(x, y, QColor(22 + shade, 32 + shade, 47 + shade))
                     value = 230 - round(silhouette * .20)
                     light_image.setPixelColor(x, y, QColor(value, value + 1, value + 3))
             self._context = QPixmap.fromImage(image)
             self._light_context = QPixmap.fromImage(light_image)
+            self._night_context = QPixmap.fromImage(night_image)
         self.update()
 
     def retranslate(self):
@@ -182,7 +189,8 @@ class _RemotePrivacyCover(QWidget):
         boundary.addRoundedRect(QRectF(self.rect()), 14, 14)
         painter.setClipPath(boundary)
         light = QColor(COLORS["panel"]).lightness() > 127
-        base = QColor("#E2E6EB" if light else "#27292D")
+        night = theme.ACTIVE_THEME == "midnight"
+        base = QColor("#E2E6EB" if light else "#182231" if night else "#27292D")
         painter.fillRect(self.rect(), base)
         phase = self._phase * math.tau
         if not self._context.isNull():
@@ -192,7 +200,7 @@ class _RemotePrivacyCover(QWidget):
             # Floating-point geometry avoids the one-pixel jumps of a rounded
             # position. Motion is confined to the background, never the text.
             dx, dy = 7 * math.sin(phase), 5 * math.cos(phase)
-            context = self._light_context if light else self._context
+            context = self._light_context if light else self._night_context if night else self._context
             painter.drawPixmap(QRectF(self.rect()).adjusted(-10 + dx, -10 + dy, 10 + dx, 10 + dy),
                                context, QRectF(context.rect()))
             painter.restore()
@@ -204,6 +212,10 @@ class _RemotePrivacyCover(QWidget):
         clouds = ((.18, .20, .48, "#ADB2BA", 88, 0.0),
                   (.82, .45, .42, "#080A0D", 135, 2.1),
                   (.48, .87, .55, "#868D98", 78, 4.2))
+        if night:
+            clouds = ((.18, .20, .48, "#879EBB", 88, 0.0),
+                      (.82, .45, .42, "#070F1C", 135, 2.1),
+                      (.48, .87, .55, "#637D9D", 78, 4.2))
         if light:
             # Silver shadows and broad pearl highlights give the light veil
             # depth without turning it into a white sheet or a dark panel.
@@ -521,7 +533,7 @@ class RemoteAccessPage(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         if self._privacy_deadline is None:
-            self._start_privacy_window()
+            self._conceal_information()
         else:
             self._check_privacy()
 

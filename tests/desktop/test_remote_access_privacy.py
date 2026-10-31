@@ -18,10 +18,31 @@ def page_with_clock(qtbot, monkeypatch):
     qtbot.addWidget(page)
     page._apply_web(state())
     page.show()
+    page._privacy_cover.reveal_button.click()
     return page, now
 
 
-def test_privacy_window_begins_when_opened_and_hides_the_whole_view_at_five_minutes(qtbot, monkeypatch):
+def test_new_application_view_starts_locked_until_explicitly_revealed(qtbot, monkeypatch):
+    monkeypatch.setattr(remote, "_privacy_time", lambda: 100.0)
+    for _ in range(2):
+        page = remote.RemoteAccessPage()
+        qtbot.addWidget(page)
+        page._apply_web(state())
+        page.show()
+        assert page._privacy_hidden
+        assert page._privacy_deadline is None
+        assert not page._privacy_timer.isActive()
+        assert not page.web_pin_box.isVisible()
+        assert not page.web_qr_image.isVisible()
+        assert not page.device_table.isVisible()
+        assert page._privacy_cover.reveal_button.isVisible()
+        page._privacy_cover.reveal_button.click()
+        assert not page._privacy_hidden
+        assert page._privacy_deadline == 400.0
+        page.close()
+
+
+def test_privacy_window_begins_when_revealed_and_hides_the_whole_view_at_five_minutes(qtbot, monkeypatch):
     page, now = page_with_clock(qtbot, monkeypatch)
     assert page._privacy_timer.interval() == 300000
     assert page._privacy_deadline == 400.0

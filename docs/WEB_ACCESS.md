@@ -155,8 +155,9 @@ jobs across browsers. Logging out, key rotation and session expiry close its ter
 
 ## Desktop privacy cover
 
-The desktop's Remote access page conceals its entire contents after five minutes
-of viewing, even when the user is interacting. **Lock view** in the page header
+The desktop's Remote access page starts concealed on every application launch.
+Revealing it starts a five-minute window, after which its entire contents are
+concealed again, even when the user is interacting. **Lock view** in the page header
 conceals it immediately. An opaque cover inside the existing card shows **Show
 information**; pressing it starts another five-minute window. Navigating away,
 refreshing status or returning to the page does not reset that deadline.
@@ -164,7 +165,8 @@ refreshing status or returning to the page does not reset that deadline.
 The live controls are hidden, including the QR, key, addresses and device table;
 keyboard focus moves to the reveal button and the view's status polling pauses.
 The cover blends softly moving graphite shades over a softened thumbnail of the
-layout: pearl grey in the light theme, graphite in dark and night-blue themes.
+layout: pearl grey in the light theme, graphite in dark, and deep slate blue
+with steel-blue highlights in night-blue.
 Animation uses elapsed time and subpixel movement to avoid jumps or changes in
 speed when rendering slows; the text and reveal button stay still.
 Before creating it, the key, addresses, networks and device cells are replaced or
