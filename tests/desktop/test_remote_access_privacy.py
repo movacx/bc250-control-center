@@ -148,13 +148,50 @@ def test_cover_stays_inside_card_and_reveal_tracks_the_visible_scrolled_area(qtb
 
 
 def test_soft_animation_changes_pixels_without_capturing_private_content(qtbot, monkeypatch):
+    from types import SimpleNamespace
+
     page, now = page_with_clock(qtbot, monkeypatch)
     page._conceal_information()
     cover = page._privacy_cover
+    elapsed = [0]
+    cover._motion_clock = SimpleNamespace(elapsed=lambda: elapsed[0])
+    cover._animate()
     first = cover.grab().toImage()
-    for _ in range(12):
-        cover._animate()
+    elapsed[0] = 2400
+    cover._animate()
     second = cover.grab().toImage()
     assert first != second
     assert not hasattr(cover, "_background")
     assert not page.web_qr_image.isVisible()
+
+
+def test_layout_context_removes_private_fields_before_capture_and_discards_on_reveal(qtbot, monkeypatch):
+    page, now = page_with_clock(qtbot, monkeypatch)
+    original_qr = page.web_qr_image.pixmap().toImage()
+    original_network = page.network_label.text()
+    cells = [page.device_table.item(0, column).text() for column in range(page.device_table.columnCount())]
+    grab = page.card.grab
+    captured = []
+
+    def sanitized_grab():
+        assert page.web_pin_box.text() == "•••• ••••"
+        assert page.web_address.isHidden()
+        assert page.network_label.text() == "•••• ••••"
+        assert page.web_qr_image.pixmap().toImage() != original_qr
+        assert all(page.device_table.item(0, col).text() == "••••" for col in range(len(cells)))
+        captured.append(True)
+        return grab()
+
+    monkeypatch.setattr(page.card, "grab", sanitized_grab)
+    page._conceal_information()
+    assert captured
+    assert page.web_pin_box.text() == "TEST-PAIR"
+    assert page.network_label.text() == original_network
+    assert page.web_qr_image.pixmap().toImage() == original_qr
+    assert [page.device_table.item(0, col).text() for col in range(len(cells))] == cells
+    image = page._privacy_cover._context.toImage()
+    assert image.width() == 128
+    assert all(abs(image.pixelColor(x, y).red() - image.pixelColor(x, y).blue()) <= 4
+               for y in range(0, image.height(), 8) for x in range(0, image.width(), 8))
+    page._reveal_information()
+    assert page._privacy_cover._context.isNull()

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import (
     QByteArray,
+    QElapsedTimer,
     QEvent,
     QPoint,
     QRect,
@@ -72,11 +73,13 @@ def _privacy_time():
 
 
 class _RemotePrivacyCover(QWidget):
-    """Opaque animated redaction, clipped to the existing access card."""
+    """Animated, pre-redacted layout context inside the existing access card."""
 
     def __init__(self, parent):
         super().__init__(parent)
         self._phase = 0.0
+        self._motion_clock = QElapsedTimer()
+        self._context = QPixmap()
         self._message = QWidget(self)
         box = QVBoxLayout(self._message)
         box.setContentsMargins(0, 0, 0, 0)
@@ -96,13 +99,33 @@ class _RemotePrivacyCover(QWidget):
         self.reveal_button.setCursor(Qt.CursorShape.PointingHandCursor)
         box.addWidget(self.reveal_button, 0, Qt.AlignmentFlag.AlignHCenter)
         self._sweep = QTimer(self)
-        self._sweep.setInterval(40)
+        self._sweep.setInterval(16)
+        self._sweep.setTimerType(Qt.TimerType.PreciseTimer)
         self._sweep.timeout.connect(self._animate)
         self.retranslate()
         self.apply_appearance()
 
     def _animate(self):
-        self._phase = (self._phase + 1 / 750) % 1.0
+        self._phase = (self._motion_clock.elapsed() % 18000) / 18000
+        self.update()
+
+    def set_context(self, snapshot):
+        # This source has already had every private field removed. Retain only
+        # a small softened thumbnail, never a full-resolution screen capture.
+        self._context = (snapshot.scaledToWidth(128, Qt.TransformationMode.SmoothTransformation)
+                         if not snapshot.isNull() else QPixmap())
+        if not self._context.isNull():
+            # Keep the same graphite veil on light, dark and night-blue themes.
+            # Only layout silhouettes survive; the source is already redacted.
+            image = self._context.toImage()
+            light = QColor(COLORS["panel"]).lightness() > 127
+            for y in range(image.height()):
+                for x in range(image.width()):
+                    colour = image.pixelColor(x, y)
+                    luminance = round(.2126 * colour.red() + .7152 * colour.green() + .0722 * colour.blue())
+                    value = 37 + round((255 - luminance if light else luminance) * .23)
+                    image.setPixelColor(x, y, QColor(value, value + 2, value + 4))
+            self._context = QPixmap.fromImage(image)
         self.update()
 
     def retranslate(self):
@@ -124,8 +147,8 @@ class _RemotePrivacyCover(QWidget):
         c = COLORS
         ink = readable_text_on(QColor(c["blue"])).name()
         self.setStyleSheet(scale_stylesheet(
-            f"QLabel#remotePrivacyTitle {{ color: {c['text']}; font-size: 18px; font-weight: 700; background: transparent; }}"
-            f"QLabel#remotePrivacyDescription {{ color: {c['muted']}; font-size: 12px; background: transparent; }}"
+            "QLabel#remotePrivacyTitle { color: #F2F3F5; font-size: 18px; font-weight: 700; background: transparent; }"
+            "QLabel#remotePrivacyDescription { color: #CBD0D6; font-size: 12px; background: transparent; }"
             f"QPushButton#remotePrivacyReveal {{ background: {c['blue']}; color: {ink}; border: 1px solid {c['blue']};"
             " border-radius: 8px; padding: 9px 18px; font-size: 12px; font-weight: 650; }"
             f"QPushButton#remotePrivacyReveal:hover {{ border-color: {c['blue_border']}; }}"))
@@ -133,6 +156,7 @@ class _RemotePrivacyCover(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        self._motion_clock.start()
         self._sweep.start()
 
     def hideEvent(self, event):
@@ -145,18 +169,30 @@ class _RemotePrivacyCover(QWidget):
         boundary = QPainterPath()
         boundary.addRoundedRect(QRectF(self.rect()), 14, 14)
         painter.setClipPath(boundary)
-        painter.fillRect(self.rect(), QColor(COLORS["panel"]))
-        # Soft colour fields are generated, never sampled from access keys,
-        # QR codes or a screenshot. Motion is a slow, seamless 30-second drift.
+        painter.fillRect(self.rect(), QColor("#27292D"))
         phase = self._phase * math.tau
+        if not self._context.isNull():
+            painter.save()
+            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+            painter.setOpacity(.88)
+            # Floating-point geometry avoids the one-pixel jumps of a rounded
+            # position. Motion is confined to the background, never the text.
+            dx, dy = 7 * math.sin(phase), 5 * math.cos(phase)
+            painter.drawPixmap(QRectF(self.rect()).adjusted(-10 + dx, -10 + dy, 10 + dx, 10 + dy),
+                               self._context, QRectF(self._context.rect()))
+            painter.restore()
+            tint = QColor(39, 41, 45, 28)
+            painter.fillRect(self.rect(), tint)
+        # Broad, overlapping graphite currents glide in different directions.
         width, height = self.width(), self.height()
-        clouds = ((.14, .24, .72, "blue", 62, 0.0),
-                  (.86, .25, .67, "orange", 38, 2.1),
-                  (.61, .88, .76, "blue", 48, 4.2))
-        for x, y, radius, key, opacity, offset in clouds:
-            cx = width * (x + .035 * math.sin(phase + offset))
-            cy = height * (y + .025 * math.cos(phase + offset))
-            colour = QColor(COLORS[key])
+        clouds = ((.18, .20, .48, "#ADB2BA", 88, 0.0),
+                  (.82, .45, .42, "#080A0D", 135, 2.1),
+                  (.48, .87, .55, "#868D98", 78, 4.2))
+        for x, y, radius, tone, opacity, offset in clouds:
+            cx = width * (x + .23 * math.sin(phase + offset))
+            cy = height * (y + .17 * math.cos(phase + offset))
+            opacity = round(opacity * (.85 + .15 * math.sin(phase + offset)))
+            colour = QColor(tone)
             colour.setAlpha(opacity)
             clear = QColor(colour)
             clear.setAlpha(0)
@@ -165,6 +201,17 @@ class _RemotePrivacyCover(QWidget):
             gradient.setColorAt(.45, QColor(colour.red(), colour.green(), colour.blue(), opacity // 2))
             gradient.setColorAt(1, clear)
             painter.fillRect(self.rect(), gradient)
+        # A feathered clearing behind the existing message keeps it legible
+        # without introducing another rectangular panel.
+        veil = QRadialGradient(self._message.geometry().center().toPointF(), 260)
+        colour = QColor("#27292D")
+        colour.setAlpha(235)
+        veil.setColorAt(0, colour)
+        colour.setAlpha(200)
+        veil.setColorAt(.45, colour)
+        colour.setAlpha(0)
+        veil.setColorAt(1, colour)
+        painter.fillRect(self.rect(), veil)
 
 
 class RemoteAccessPage(QWidget):
@@ -470,6 +517,7 @@ class RemoteAccessPage(QWidget):
         self._privacy_widgets = []
         self._privacy_card_heights = (self.card.minimumHeight(), self.card.maximumHeight())
         self.card.setFixedHeight(self.card.height())
+        self._privacy_cover.set_context(self._sanitized_privacy_context())
         for widget in self.card.findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly):
             if widget is self._privacy_cover:
                 continue
@@ -497,10 +545,59 @@ class RemoteAccessPage(QWidget):
         self.card.setMaximumHeight(self._privacy_card_heights[1])
         self._render_web()
         self._privacy_cover.hide()
+        self._privacy_cover.set_context(QPixmap())
         self._start_privacy_window()
         if self._updates_active:
             self.timer.start()
             self.refresh()
+
+    def _sanitized_privacy_context(self):
+        if not self.card.isVisible():
+            return QPixmap()
+        labels = [(label, label.text()) for label in (self.web_pin_box, self.network_label)]
+        address_hidden = self.web_address.isHidden()
+        address_policy = self.web_address.sizePolicy()
+        qr = self.web_qr_image.pixmap()
+        qr_text = self.web_qr_image.text()
+        cells = [(self.device_table.item(row, column), self.device_table.item(row, column).text())
+                 for row in range(self.device_table.rowCount()) for column in range(self.device_table.columnCount())
+                 if self.device_table.item(row, column) is not None]
+        signals_blocked = self.device_table.blockSignals(True)
+        try:
+            for label, _text in labels:
+                label.setText("•••• ••••")
+            policy = self.web_address.sizePolicy()
+            policy.setRetainSizeWhenHidden(True)
+            self.web_address.setSizePolicy(policy)
+            self.web_address.hide()
+            placeholder = QPixmap(self.web_qr_image.size())
+            placeholder.fill(QColor(COLORS["panel"]))
+            painter = QPainter(placeholder)
+            colour = QColor(COLORS["text"])
+            colour.setAlpha(100)
+            # Decorative blocks suggest the QR's position, never its contents.
+            cell = min(placeholder.width(), placeholder.height()) // 8
+            for row in range(6):
+                for column in range(6):
+                    if (row * 7 + column * 11 + row * column) % 5 < 3:
+                        painter.fillRect((column + 1) * cell, (row + 1) * cell, cell, cell, colour)
+            painter.end()
+            self.web_qr_image.setPixmap(placeholder)
+            for item, _text in cells:
+                item.setText("••••")
+            return self.card.grab()
+        finally:
+            for label, text in labels:
+                label.setText(text)
+            self.web_address.setSizePolicy(address_policy)
+            self.web_address.setVisible(not address_hidden)
+            if qr is not None and not qr.isNull():
+                self.web_qr_image.setPixmap(qr)
+            else:
+                self.web_qr_image.setText(qr_text)
+            for item, text in cells:
+                item.setText(text)
+            self.device_table.blockSignals(signals_blocked)
 
     def _position_privacy_cover(self):
         if not self._privacy_hidden:

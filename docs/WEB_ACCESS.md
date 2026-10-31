@@ -163,8 +163,14 @@ refreshing status or returning to the page does not reset that deadline.
 
 The live controls are hidden, including the QR, key, addresses and device table;
 keyboard focus moves to the reveal button and the view's status polling pauses.
-The cover uses softly blended theme colours with a slow animated drift; it
-captures no text, QR pixels or screenshots. The animation pauses when the page
+The cover blends softly moving graphite shades over a softened thumbnail of the
+layout, with the same neutral palette in light, dark and night-blue themes.
+Animation uses elapsed time and subpixel movement to avoid jumps or changes in
+speed when rendering slows; the text and reveal button stay still.
+Before creating it, the key, addresses, networks and device cells are replaced or
+hidden and the QR is replaced with decorative blocks. Only this sanitized,
+128-pixel-wide thumbnail stays in memory while concealed; nothing is saved to
+disk. Revealing the page discards it. The animation pauses when the page
 is hidden. The card keeps its dimensions and the reveal action follows the
 visible portion when scrolled. In-flight background operations and the web
 service continue; the cover changes no device permissions or session expiry.
