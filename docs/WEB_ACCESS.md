@@ -217,8 +217,10 @@ The manifest/start URL contains no pairing key or session token. Installation
 does not grant control, store the Linux password, or extend session expiry.
 Normal key login and desktop device approval remain in force. A same-origin
 service worker supports installation compatibility and handles document
-navigation only. If the network fails, it displays a static disconnected page
-with a retry link. It never intercepts API requests or writes to Cache Storage;
+navigation only when the browser explicitly reports being offline, displaying a
+static disconnected page with a retry link. Online navigation passes through
+untouched so certificate and connection errors remain visible in the browser.
+It never intercepts API requests or writes to Cache Storage;
 there is no offline telemetry, password storage, command queue or hardware
 control. Hardware reads and commands need the live server. Worker updates do
 not reload tabs or interrupt jobs; existing build notices remain in place.

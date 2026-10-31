@@ -26,3 +26,40 @@ def test_manifest_has_a_standalone_same_origin_entry_and_real_icons():
     html = (DIST / "index.html").read_text()
     assert 'rel="manifest" href="/manifest.webmanifest"' in html
     assert 'rel="apple-touch-icon"' in html
+
+
+def test_worker_never_masks_online_navigation_or_handles_api_traffic():
+    import shutil
+    import subprocess
+
+    import pytest
+
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node is needed for the service-worker behaviour check")
+    script = r'''
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+const handlers = {};
+const self = { location: { origin: "https://bc250cc.local:8250" }, navigator: { onLine: true },
+  addEventListener: (name, handler) => { handlers[name] = handler; } };
+vm.runInNewContext(readFileSync(process.argv[1], "utf8"), { self, URL, Response, Promise,
+  fetch: () => { throw Error("The worker must not fetch online navigation or API requests"); } });
+function dispatch(method, mode, path) {
+  let result;
+  handlers.fetch({ request: { method, mode, url: self.location.origin + path },
+    respondWith: (response) => { result = response; } });
+  return result;
+}
+assert.equal(dispatch("GET", "navigate", "/"), undefined);
+self.navigator.onLine = false;
+assert.equal(dispatch("GET", "cors", "/api/live"), undefined);
+assert.equal(dispatch("GET", "navigate", "/api/session"), undefined);
+assert.equal(dispatch("POST", "navigate", "/api/action"), undefined);
+const response = await dispatch("GET", "navigate", "/");
+assert.equal(response.status, 503);
+assert.equal(response.headers.get("Cache-Control"), "no-store");
+assert.match(await response.text(), /BC250 · Offline/);
+'''
+    subprocess.run([node, "--input-type=module", "-e", script, str(DIST / "sw.js")], check=True, capture_output=True, text=True)
