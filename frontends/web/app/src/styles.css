@@ -720,3 +720,25 @@ button, input, select { font-variant-numeric: tabular-nums; }
 .cu-runtime-details .read > div { min-width: 0; text-align: right; }
 .cu-runtime-details .read b { font-size: 12px; }
 .cu-report-legend { font: 11px/1.7 ui-monospace, monospace; overflow-wrap: anywhere; }
+
+/* Formal appearance: the same ten accents and three surfaces as desktop. */
+.theme-choices { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+.theme-choices > button { padding: 9px; min-height: 92px; border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-panel-alt); display: grid; gap: 8px; text-align: center; font-size: 11px; }
+.theme-choices > button.on { border-color: var(--c-blue); background: var(--c-blue-soft); }
+.theme-preview { height: 40px; border: 1px solid #B5BCC7; border-radius: 4px; position: relative; overflow: hidden; background: var(--c-preview-light-window); }
+.theme-preview > i { position: absolute; inset: 5px auto 5px 4px; width: 17%; background: var(--c-preview-light-panel); border-radius: 2px; }
+.theme-preview > b { position: absolute; inset: 5px 4px 5px 26%; background: var(--c-preview-light-panel); border-radius: 2px; border-top: 3px solid var(--c-blue); }
+.theme-preview.dark { background: var(--c-preview-dark-window); border-color: #5D626A; }
+.theme-preview.dark > i, .theme-preview.dark > b { background: var(--c-preview-dark-panel); }
+.theme-preview.midnight { background: var(--c-preview-midnight-window); border-color: #52617A; }
+.theme-preview.midnight > i, .theme-preview.midnight > b { background: var(--c-preview-midnight-panel); }
+.theme-preview.auto { background: linear-gradient(115deg,var(--c-preview-light-window) 50%,var(--c-preview-dark-window) 50%); }
+.theme-preview.auto > b { background: linear-gradient(115deg,var(--c-preview-light-panel) 40%,var(--c-preview-dark-panel) 40%); }
+.accent-settings { border-top: 1px solid var(--c-border-soft); padding-top: 16px; }
+.accent-settings h3 { margin: 0 0 12px; font-size: 13px; }
+.accent-choices { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 8px; }
+.accent-choices button { min-width: 0; min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 9px 4px; background: var(--c-panel-alt); border: 1px solid var(--c-border); border-radius: 7px; font-size: 10px; }
+.accent-choices button > i { width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .10); }
+.accent-choices button.on { border-color: var(--c-blue); background: var(--c-blue-soft); }
+.accent-choices button.on > i { outline: 1px solid var(--c-blue); outline-offset: 3px; }
+@media (max-width: 400px) { .theme-choices { gap: 5px; } .theme-choices > button { padding: 7px 4px; font-size: 10px; } .accent-choices { gap: 6px; } }

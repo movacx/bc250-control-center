@@ -238,6 +238,16 @@ trusted HTTPS; it does not change authentication or device permissions.
 
 ## Phone layout
 
+Web Settings offers Automatic, Light, Dark and Night blue, plus the desktop's
+ten accents: blue, indigo, violet, pink, orange, amber, green, teal, cyan and
+graphite. Every combination is generated from `theme_palette(..., "formal")`;
+the standard desktop style is not used. Swatches and theme previews use the
+same palettes. Theme/accent choices stay in each browser's local storage and
+apply to login as well as control pages; they do not alter desktop preferences.
+Automatic follows the operating-system light/dark preference. The browser's
+theme-colour metadata follows the current surface too. Browsers without a saved
+choice retain the previous violet accent.
+
 The bottom bar reaches Dashboard, CPU, CU, GPU and Sensors. Settings and fans
 are in the menu. CPU/GPU profiles have separate, touch-sized edit buttons. GPU frequencies
 are changed through profiles; the manual frequency slider belongs to desktop.

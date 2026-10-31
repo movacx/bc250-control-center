@@ -26,6 +26,7 @@ import threading
 import time
 import urllib.parse
 from email.message import Message
+from functools import lru_cache
 from http import HTTPStatus
 from pathlib import Path
 
@@ -48,7 +49,7 @@ from frontends.desktop.i18n import (
     set_language,
     tr,
 )
-from frontends.desktop.theme import theme_palette
+from frontends.desktop.theme import ACCENTS, THEMES, theme_palette
 from frontends.tui.runtime import Context, describe_error
 from frontends.web.actions import ACTIONS, Invalid
 from frontends.web.data import PAGES, Live, performance
@@ -514,18 +515,34 @@ class Handler:
                                                 else ""), extra={"Cache-Control": "no-cache"})
 
 
+@lru_cache(maxsize=1)
 def theme_css() -> str:
-    """The desktop's own palette (formal style, violet accent) as CSS variables, light and dark."""
-    def block(mode: str) -> str:
-        palette = theme_palette(mode, "violet", "formal")
-        # Text on the accent: white on the light theme's deep violet, the window's own ink on the dark one's pale one.
-        ink = "#FFFFFF" if mode == "light" else palette["window"]
-        return "".join(f"--c-{name.replace('_', '-')}:{value};" for name, value in palette.items()
-                       if isinstance(value, str)) + f"--c-on-accent:{ink};"
-    return (f":root{{color-scheme:light dark;{block('light')}}}"
-            f"@media (prefers-color-scheme:dark){{:root:not([data-theme=light]){{{block('dark')}}}}}"
-            f":root[data-theme=dark]{{color-scheme:dark;{block('dark')}}}"
-            f":root[data-theme=light]{{color-scheme:light;{block('light')}}}")
+    """All desktop Formal palettes, chosen locally by theme and accent."""
+    palettes = {(theme, accent): theme_palette(theme, accent, "formal")
+                for theme in THEMES for accent in ACCENTS}
+
+    def block(theme: str, accent: str) -> str:
+        palette = palettes[theme, accent]
+        ink = "#FFFFFF" if theme == "light" else palette["window"]
+        variables = {f"--c-{name.replace('_', '-')}": value for name, value in palette.items()
+                     if isinstance(value, str)}
+        variables["--c-on-accent"] = ink
+        variables.update({f"--c-accent-{key}": palettes[theme, key]["blue"] for key in ACCENTS})
+        variables.update({f"--c-preview-{key}-{surface}": palettes[key, accent][surface]
+                          for key in THEMES for surface in ("window", "panel")})
+        return "".join(f"{key}:{value};" for key, value in variables.items())
+
+    rules = []
+    # Keep violet for browsers without a saved choice, preserving their look.
+    for accent in ("violet", *(key for key in ACCENTS if key != "violet")):
+        selector = ":root" if accent == "violet" else f":root[data-accent={accent}]"
+        rules.append(f"{selector}{{color-scheme:light;{block('light', accent)}}}")
+        rules.append(f"@media (prefers-color-scheme:dark){{{selector}:not([data-theme])"
+                     f"{{color-scheme:dark;{block('dark', accent)}}}}}")
+        for theme in THEMES:
+            scheme = "light" if theme == "light" else "dark"
+            rules.append(f"{selector}[data-theme={theme}]{{color-scheme:{scheme};{block(theme, accent)}}}")
+    return "".join(rules)
 
 
 class Server(WsgiServer):

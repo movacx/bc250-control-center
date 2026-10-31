@@ -1,6 +1,7 @@
 import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import { applyAppearance } from "./appearance.js";
 import { App, api, loadStrings, onSessionLost, setCsrf, t, usePoll } from "./lib.jsx";
 import { Btn, Card, Dialog, Icon, Modal } from "./ui.jsx";
 import Compute from "./pages/Compute.jsx";
@@ -214,12 +215,14 @@ function Root() {
   }, []);
   useEffect(() => {
     onSessionLost(() => setState((s) => ({ ...s, authenticated: false })));
-    const theme = localStorage.getItem("theme");
-    if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+    const systemTheme = matchMedia("(prefers-color-scheme:dark)");
+    const appearanceChanged = () => applyAppearance();
+    systemTheme.addEventListener("change", appearanceChanged);
+    addEventListener("storage", appearanceChanged);
     const changed = () => setState((s) => ({ ...s }));
     addEventListener("languagechanged", changed);
     loadStrings(localStorage.getItem("language") || navigator.language).then(refresh);
-    return () => removeEventListener("languagechanged", changed);
+    return () => { removeEventListener("languagechanged", changed); systemTheme.removeEventListener("change", appearanceChanged); removeEventListener("storage", appearanceChanged); };
   }, [refresh]);
   useEffect(() => {
     if (!state.authenticated) return undefined;
@@ -233,4 +236,5 @@ function Root() {
   return <Shell session={state} onLogout={async () => { await api("logout", {}); refresh(); }} />;
 }
 
+applyAppearance();
 createRoot(document.getElementById("root")).render(<StrictMode><PwaProvider><Root /></PwaProvider></StrictMode>);
