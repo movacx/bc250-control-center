@@ -80,6 +80,7 @@ class _RemotePrivacyCover(QWidget):
         self._phase = 0.0
         self._motion_clock = QElapsedTimer()
         self._context = QPixmap()
+        self._light_context = QPixmap()
         self._message = QWidget(self)
         box = QVBoxLayout(self._message)
         box.setContentsMargins(0, 0, 0, 0)
@@ -114,18 +115,24 @@ class _RemotePrivacyCover(QWidget):
         # a small softened thumbnail, never a full-resolution screen capture.
         self._context = (snapshot.scaledToWidth(128, Qt.TransformationMode.SmoothTransformation)
                          if not snapshot.isNull() else QPixmap())
+        self._light_context = QPixmap()
         if not self._context.isNull():
-            # Keep the same graphite veil on light, dark and night-blue themes.
-            # Only layout silhouettes survive; the source is already redacted.
+            # Cache both neutral variants so changing theme while locked also
+            # changes the veil. The source is already redacted.
             image = self._context.toImage()
+            light_image = image.copy()
             light = QColor(COLORS["panel"]).lightness() > 127
             for y in range(image.height()):
                 for x in range(image.width()):
                     colour = image.pixelColor(x, y)
                     luminance = round(.2126 * colour.red() + .7152 * colour.green() + .0722 * colour.blue())
-                    value = 37 + round((255 - luminance if light else luminance) * .23)
+                    silhouette = 255 - luminance if light else luminance
+                    value = 37 + round(silhouette * .23)
                     image.setPixelColor(x, y, QColor(value, value + 2, value + 4))
+                    value = 237 - round(silhouette * .16)
+                    light_image.setPixelColor(x, y, QColor(value, value + 1, value + 3))
             self._context = QPixmap.fromImage(image)
+            self._light_context = QPixmap.fromImage(light_image)
         self.update()
 
     def retranslate(self):
@@ -145,10 +152,12 @@ class _RemotePrivacyCover(QWidget):
 
     def apply_appearance(self):
         c = COLORS
+        light = QColor(c["panel"]).lightness() > 127
+        title, description = ("#252A32", "#4F5865") if light else ("#F2F3F5", "#CBD0D6")
         ink = readable_text_on(QColor(c["blue"])).name()
         self.setStyleSheet(scale_stylesheet(
-            "QLabel#remotePrivacyTitle { color: #F2F3F5; font-size: 18px; font-weight: 700; background: transparent; }"
-            "QLabel#remotePrivacyDescription { color: #CBD0D6; font-size: 12px; background: transparent; }"
+            f"QLabel#remotePrivacyTitle {{ color: {title}; font-size: 18px; font-weight: 700; background: transparent; }}"
+            f"QLabel#remotePrivacyDescription {{ color: {description}; font-size: 12px; background: transparent; }}"
             f"QPushButton#remotePrivacyReveal {{ background: {c['blue']}; color: {ink}; border: 1px solid {c['blue']};"
             " border-radius: 8px; padding: 9px 18px; font-size: 12px; font-weight: 650; }"
             f"QPushButton#remotePrivacyReveal:hover {{ border-color: {c['blue_border']}; }}"))
@@ -169,7 +178,9 @@ class _RemotePrivacyCover(QWidget):
         boundary = QPainterPath()
         boundary.addRoundedRect(QRectF(self.rect()), 14, 14)
         painter.setClipPath(boundary)
-        painter.fillRect(self.rect(), QColor("#27292D"))
+        light = QColor(COLORS["panel"]).lightness() > 127
+        base = QColor("#EBEDF0" if light else "#27292D")
+        painter.fillRect(self.rect(), base)
         phase = self._phase * math.tau
         if not self._context.isNull():
             painter.save()
@@ -178,16 +189,22 @@ class _RemotePrivacyCover(QWidget):
             # Floating-point geometry avoids the one-pixel jumps of a rounded
             # position. Motion is confined to the background, never the text.
             dx, dy = 7 * math.sin(phase), 5 * math.cos(phase)
+            context = self._light_context if light else self._context
             painter.drawPixmap(QRectF(self.rect()).adjusted(-10 + dx, -10 + dy, 10 + dx, 10 + dy),
-                               self._context, QRectF(self._context.rect()))
+                               context, QRectF(context.rect()))
             painter.restore()
-            tint = QColor(39, 41, 45, 28)
+            tint = QColor(base)
+            tint.setAlpha(28)
             painter.fillRect(self.rect(), tint)
         # Broad, overlapping graphite currents glide in different directions.
         width, height = self.width(), self.height()
         clouds = ((.18, .20, .48, "#ADB2BA", 88, 0.0),
                   (.82, .45, .42, "#080A0D", 135, 2.1),
                   (.48, .87, .55, "#868D98", 78, 4.2))
+        if light:
+            clouds = ((.18, .20, .48, "#FFFFFF", 145, 0.0),
+                      (.82, .45, .42, "#A6ADB8", 72, 2.1),
+                      (.48, .87, .55, "#FFFFFF", 120, 4.2))
         for x, y, radius, tone, opacity, offset in clouds:
             cx = width * (x + .23 * math.sin(phase + offset))
             cy = height * (y + .17 * math.cos(phase + offset))
@@ -204,7 +221,7 @@ class _RemotePrivacyCover(QWidget):
         # A feathered clearing behind the existing message keeps it legible
         # without introducing another rectangular panel.
         veil = QRadialGradient(self._message.geometry().center().toPointF(), 260)
-        colour = QColor("#27292D")
+        colour = QColor(base)
         colour.setAlpha(235)
         veil.setColorAt(0, colour)
         colour.setAlpha(200)

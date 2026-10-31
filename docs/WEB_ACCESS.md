@@ -164,7 +164,7 @@ refreshing status or returning to the page does not reset that deadline.
 The live controls are hidden, including the QR, key, addresses and device table;
 keyboard focus moves to the reveal button and the view's status polling pauses.
 The cover blends softly moving graphite shades over a softened thumbnail of the
-layout, with the same neutral palette in light, dark and night-blue themes.
+layout: pearl grey in the light theme, graphite in dark and night-blue themes.
 Animation uses elapsed time and subpixel movement to avoid jumps or changes in
 speed when rendering slows; the text and reveal button stay still.
 Before creating it, the key, addresses, networks and device cells are replaced or
