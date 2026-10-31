@@ -908,6 +908,7 @@ class PreparationPagesMixin:
         )
         self.helixsr_card.action_requested.connect(self._forward_dependency_action)
         self.helixsr_card.setEnabled(HELIXSR_UI_ENABLED)
+        self.helixsr_card.setParent(self)
         self.helixsr_card.setVisible(HELIXSR_UI_ENABLED)
 
     def _upscaling_page(self) -> QWidget:

@@ -567,7 +567,7 @@ class DashboardMemorySummary(QFrame):
         self.detail.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self._show_header = bool(show_header)
         self._compact_header: bool | None = None
-        self.live_button = QPushButton(tr("Monitor live"))
+        self.live_button = QPushButton(tr("Monitor live"), self)
         self.live_button.setProperty("dashboardCardAction", True)
         self.live_button.setCheckable(True)
         self.live_button.toggled.connect(self._on_live_toggled)
@@ -1156,13 +1156,13 @@ class PreparationInfoCard(QFrame):
         self.title.setProperty("i18nSourceText", title)
         self.title.setProperty("i18nSourceTextLanguage", "en")
         header.addWidget(self.title, 1)
-        self.scope = PillLabel(scope_text or "Compatibility", "gray")
+        self.scope = PillLabel(scope_text or "Compatibility", "gray", self)
         self.scope.setVisible(bool(scope_text))
         header.addWidget(self.scope)
         self._body: QWidget | None = None
         self._toggle: QToolButton | None = None
         self._auto_expanded_for = ""
-        self.status = PillLabel(status_text or "Not detected", self._status_tone(status_tone))
+        self.status = PillLabel(status_text or "Not detected", self._status_tone(status_tone), self)
         self.status.setVisible(bool(status_text))
         header.addWidget(self.status)
         layout.addLayout(header)
@@ -1494,7 +1494,7 @@ class _UpscalerSection(SectionCard):
         self._menu_holder = QWidget(self)
         self._menu_holder.hide()
         self._menu_buttons: list[QPushButton] = []
-        self.more_button = QPushButton(tr("More"))
+        self.more_button = QPushButton(tr("More"), self)
         self.more_button.setProperty("compactAction", True)
         self.more_button.setProperty("menuAction", True)
         self.more_button.setIcon(theme_icon("chevron_down_gray"))
