@@ -189,7 +189,6 @@ def test_soft_animation_changes_pixels_without_capturing_private_content(qtbot, 
 def test_layout_context_removes_private_fields_before_capture_and_discards_on_reveal(qtbot, monkeypatch):
     page, now = page_with_clock(qtbot, monkeypatch)
     original_qr = page.web_qr_image.pixmap().toImage()
-    original_network = page.network_label.text()
     cells = [page.device_table.item(0, column).text() for column in range(page.device_table.columnCount())]
     grab = page.card.grab
     captured = []
@@ -197,7 +196,6 @@ def test_layout_context_removes_private_fields_before_capture_and_discards_on_re
     def sanitized_grab():
         assert page.web_pin_box.text() == "•••• ••••"
         assert page.web_address.isHidden()
-        assert page.network_label.text() == "•••• ••••"
         assert page.web_qr_image.pixmap().toImage() != original_qr
         assert all(page.device_table.item(0, col).text() == "••••" for col in range(len(cells)))
         captured.append(True)
@@ -207,7 +205,6 @@ def test_layout_context_removes_private_fields_before_capture_and_discards_on_re
     page._conceal_information()
     assert captured
     assert page.web_pin_box.text() == "TEST-PAIR"
-    assert page.network_label.text() == original_network
     assert page.web_qr_image.pixmap().toImage() == original_qr
     assert [page.device_table.item(0, col).text() for col in range(len(cells))] == cells
     image = page._privacy_cover._context.toImage()

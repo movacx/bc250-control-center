@@ -169,7 +169,7 @@ layout: pearl grey in the light theme, graphite in dark, and deep slate blue
 with steel-blue highlights in night-blue.
 Animation uses elapsed time and subpixel movement to avoid jumps or changes in
 speed when rendering slows; the text and reveal button stay still.
-Before creating it, the key, addresses, networks and device cells are replaced or
+Before creating it, the key, addresses and device cells are replaced or
 hidden and the QR is replaced with decorative blocks. Only this sanitized,
 128-pixel-wide thumbnail stays in memory while concealed; nothing is saved to
 disk. Revealing the page discards it. The animation pauses when the page
@@ -249,6 +249,11 @@ to one of this board's own addresses. HTTPS includes `bc250cc.local` and verifie
 local names; renewing a leaf keeps the same local CA. No router configuration,
 public DNS or port forwarding is changed. Phones whose networks cannot resolve
 mDNS can still use the IP entry.
+
+The desktop's Open in browser, Copy address and QR all use the selected address,
+including `bc250cc.local`. In localhost-only mode they use loopback. The Remote
+access page does not display permitted subnet/CIDR values; the backend still
+enforces those network restrictions.
 
 A web page cannot replace the browser's address bar with its application title.
 Use the local-name URL, or install BC250 and open its standalone window for

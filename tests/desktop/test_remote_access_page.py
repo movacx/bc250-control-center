@@ -154,3 +154,24 @@ def test_duration_choice_targets_selected_device_and_preserves_draft(qtbot, monk
     page._apply_web({"devices": []})
     assert not page.device_expiry_choice.isEnabled()
     assert not page.device_expiry_apply.isEnabled()
+
+
+def test_open_browser_uses_the_selected_address_and_hides_subnet_details(qtbot, monkeypatch):
+    from PyQt6.QtWidgets import QLabel
+
+    from frontends.desktop.pages import remote_access
+    page = remote_access.RemoteAccessPage()
+    qtbot.addWidget(page)
+    urls = ["https://bc250cc.local:8250", "https://192.168.0.15:8250"]
+    page._apply_web({"running": True, "lan": True, "urls": urls,
+                     "local_url": "https://127.0.0.1:8250", "networks": ["192.168.0.0/24"]})
+    opened = []
+    monkeypatch.setattr(remote_access.QDesktopServices, "openUrl", lambda url: opened.append(url.toString()))
+    page.web_open_button.click()
+    page.web_address.setCurrentIndex(1)
+    page.web_open_button.click()
+    assert opened == urls
+    assert not any("192.168.0.0/24" in label.text() for label in page.findChildren(QLabel))
+    page._apply_web({"running": True, "lan": False, "urls": [], "local_url": "https://127.0.0.1:8250"})
+    page.web_open_button.click()
+    assert opened[-1] == "https://127.0.0.1:8250"

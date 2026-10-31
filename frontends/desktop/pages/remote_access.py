@@ -432,8 +432,6 @@ class RemoteAccessPage(QWidget):
             row.addWidget(switch)
             row.addWidget(self._label(text), 1)
             body.addLayout(row)
-        self.network_label = self._label("")
-        body.addWidget(self.network_label)
         body.addWidget(self._label("HTTPS is required for home-network access. No router ports or public tunnels are configured by this application."))
         body.addWidget(self._label("Verify HTTPS on your phone", strong=True))
         body.addWidget(self._label("Save this board's public CA certificate and transfer it privately to your phone. Check its SHA-256 fingerprint before trusting it. Android: install it as a CA certificate. iPhone/iPad: install the profile, then enable full trust in Certificate Trust Settings. Trust it only on devices you own."))
@@ -599,7 +597,7 @@ class RemoteAccessPage(QWidget):
     def _sanitized_privacy_context(self):
         if not self.card.isVisible():
             return QPixmap()
-        labels = [(label, label.text()) for label in (self.web_pin_box, self.network_label)]
+        labels = [(self.web_pin_box, self.web_pin_box.text())]
         address_hidden = self.web_address.isHidden()
         address_policy = self.web_address.sizePolicy()
         qr = self.web_qr_image.pixmap()
@@ -720,8 +718,6 @@ class RemoteAccessPage(QWidget):
             self.web_autostart_switch.setEnabled(bool(autostart.get("supported")) and not autostart.get("foreign"))
         finally:
             self._syncing_web = False
-        networks = ", ".join(state.get("networks") or [])
-        self.network_label.setText(tr_format("Allowed home networks: {networks}", networks=networks) if networks else tr("Access from this computer only; no home network is currently available."))
         fingerprint = state.get("trust_fingerprint") or ""
         self.web_fingerprint_box.setText("SHA-256\n" + fingerprint if fingerprint else tr("Start web access to prepare the certificate."))
         self.web_certificate_button.setEnabled(bool(fingerprint))
@@ -894,7 +890,7 @@ class RemoteAccessPage(QWidget):
         self._check_privacy()
         if self._privacy_hidden:
             return
-        url = self._web_state.get("local_url")
+        url = self.web_address.currentText()
         if url:
             QDesktopServices.openUrl(QUrl(url))
 
