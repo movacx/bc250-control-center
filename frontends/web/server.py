@@ -34,13 +34,14 @@ from cheroot.ssl.builtin import BuiltinSSLAdapter
 from cheroot.wsgi import Server as WsgiServer
 
 from bc250cc.application import ApplicationContainer
-from bc250cc.application.system import web_access
+from bc250cc.application.system import web_access, web_network
+from bc250cc.application.system import web_announcement as web_mdns
+from bc250cc.application.system import web_sessions as web_devices
 from bc250cc.application.system.privacy import redact_machine
 from bc250cc.application.system.workflow_console import (
     TERMINAL_AUTH_ENV,
     set_translator,
 )
-from bc250cc.infrastructure import web_devices, web_mdns, web_network
 from bc250cc.shared.errors import BoundaryError
 from frontends.desktop.i18n import (
     LANGUAGE_OPTIONS,

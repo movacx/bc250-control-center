@@ -246,7 +246,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-HELPER-001",
-        (r"helper.*(?:missing|not found|unavailable)", r"protected helper", r"unsafe ownership", r"unsafe.*permissions", r"traceback \(most recent call last\)", r"helper is not installed"),
+        (r"helper.*(?:missing|not found|unavailable)", r"protected helper", r"system setup helper must be root-owned", r"protected backend guard", r"unsafe ownership", r"unsafe.*permissions", r"traceback \(most recent call last\)", r"helper is not installed"),
         "A protected BC250 helper is missing or failed its safety check.",
         "The application and its root-owned helper are from different installs, or another toolkit changed the helper's owner, mode, or path.",
         "Reinstall BC250 Control Center. Do not copy a helper manually into /usr/libexec.",
@@ -254,7 +254,7 @@ _RULES = (
     _Rule(
         "BC250-PROTOCOL-001",
         (r"protocol.*incompat", r"version mismatch", r"expected protocol", r"stale.*helper",
-         r"helper is older than this application"),
+         r"helper is older than this application", r"unsupported system setup protocol"),
         "The interface and protected helper are different versions.",
         "An older Desktop or Decky component is still running after an update, or only part of the application was replaced.",
         "Reinstall the current build and restart the application. Restart Decky Loader too when the Quick Access panel is affected.",
@@ -380,7 +380,8 @@ _RULES = (
     ),
     _Rule(
         "BC250-CMD-001",
-        (r"command not found", r"no such file or directory", r"executable.*not found", r"returned an empty command", r": command not found", r"needs one boolean", r"does not accept additional arguments", r"not prepared", r"is not installed", r"was not found", r"does not exist at", r"is missing from", r"unavailable in this build", r"terminal integration is required", r"qualification", r"bundle error", r"refusing .*without --", r"evidence error", r"expects a .*path", r"command is required", r"no custom values", r"integration script", r"requires --", r"runner is unavailable", r"executor is invalid", r"path is invalid", r"cargo.*(?:command not found|failed)", r"rustc.*(?:not found|error)", r"make: \*\*\*", r"cmake.*(?:error|failed)", r"fatal error: .*\.(?:h|hpp):", r"(?:gcc|g\+\+|cc): command not found"),
+        (r"web server dependencies are unavailable", r"no installer is known for this system", r"no configuration program for",
+         r"command not found", r"no such file or directory", r"executable.*not found", r"returned an empty command", r": command not found", r"needs one boolean", r"does not accept additional arguments", r"not prepared", r"is not installed", r"was not found", r"does not exist at", r"is missing from", r"unavailable in this build", r"terminal integration is required", r"qualification", r"bundle error", r"refusing .*without --", r"evidence error", r"expects a .*path", r"command is required", r"no custom values", r"integration script", r"requires --", r"runner is unavailable", r"executor is invalid", r"path is invalid", r"cargo.*(?:command not found|failed)", r"rustc.*(?:not found|error)", r"make: \*\*\*", r"cmake.*(?:error|failed)", r"fatal error: .*\.(?:h|hpp):", r"(?:gcc|g\+\+|cc): command not found"),
         "A required program or generated command is missing.",
         "Dependencies were not prepared, a toolkit was removed, or the active distribution provides the program under a different package or path.",
         "Return to the Dashboard and prepare the affected module.",
@@ -545,7 +546,9 @@ _RULES = (
     ),
     _Rule(
         "BC250-INTERNAL-001",
-        (r"cannot be empty", r"must be (?:integers|strings|numbers|a mapping|a sequence)",
+        (r"invalid privileged command", r"unsupported focus direction", r"unknown process task",
+         r"result must contain exactly one of value or error",
+         r"cannot be empty", r"must be (?:integers|strings|numbers|a mapping|a sequence)",
          r"non-finite", r"unsupported .*action\b", r"unknown .*(?:integration|action|backend)\b",
          r"invalid .*identifier", r"requires platformcapabilities", r"unexpectedly large",
          r"must be a valid", r"contains an invalid", r"invalid .*count", r"unsupported .*component", r"must not end with", r"unknown .*component"),
@@ -638,7 +641,8 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"no earlier helixsr version kept", r"helixsr scaler is not recorded",
     ),
     "BC250-CONFIG-001": (
-        r"cyan configuration is not usable",
+        r"cyan configuration is not usable", r"invalid web network option", r"invalid browser session registry",
+        r"choose a session duration between one minute and one year",
         # Both governors' own files, read, checked and rewritten by the helper.
         r"oberon yaml", r"(?:governor|oberon) configuration (?:is unavailable|could not be (?:read|updated)|changed to a symlink)",
         r"oberon minimum (?:frequency|voltage) cannot exceed",
@@ -653,7 +657,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"no custom voltage values", r"duplicate voltage frequency", r"voltage outside (?:the )?editor range",
     ),
     "BC250-CMD-001": (r"(?:preview-voltage-level|apply-voltage-level|status) expects one",),
-    "BC250-SERVICE-003": (r"systemctl is not available", r"service management is not supported", r"openrc is not the active", r"rc-service is not available"),
+    "BC250-SERVICE-003": (r"starting with the session needs systemd", r"the web server (?:did not start|could not restart)", r"systemctl is not available", r"service management is not supported", r"openrc is not the active", r"rc-service is not available"),
     "BC250-GPU-001": (r"no recorded metrics", r"current metrics sample could not be recorded", r"temp-read"),
     "BC250-AUTH-003": (r"pkexec is not available",),
     "BC250-TERMINAL-001": (r"requested terminal workflow is empty",),

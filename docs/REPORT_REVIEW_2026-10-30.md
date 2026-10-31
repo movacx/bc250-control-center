@@ -44,3 +44,28 @@ the actual distributions; passing simulated tests does not certify those paths.
 Upstream references: [pinned SteamOS build](https://github.com/keyboardspecialist/bc250-steamos/blob/e1563f2051727702a000b6ff6f6c524e2792aa21/bc250-audio-fix/build.sh),
 [pacman options](https://man.archlinux.org/man/pacman.8.en),
 [Vulkan driver overrides](https://github.com/KhronosGroup/Vulkan-Loader/blob/main/docs/LoaderDriverInterface.md#overriding-the-default-driver-discovery).
+
+## Validation completed on 31 October 2026
+
+- Report/distribution regression: **572 passed, 14 skipped**. The skipped cases
+  require Debian's real `dpkg`, which is unavailable on this Bazzite host.
+- Install-source structure, shell/Python syntax and vendor checks passed.
+- The full suite initially returned **6542 passed, 150 skipped, 5 failed**.
+  Four failures have been addressed: the web adapter now imports host operations
+  through application facades; diagnostic coverage again meets the unchanged
+  87% minimum; the Debian installer assertion includes the required Cheroot
+  package; the lock test retains a complete real `stat_result` instead of
+  breaking pytest's own output capture.
+- Follow-up checks: **53 passed** for architecture, installer, lock and diagnostic
+  coverage; **255 passed** for web, diagnostic behavior and error-catalog
+  contracts. Lint passed for the changed Python files.
+- One pre-existing full-suite failure remains: 74 Remote access keys are absent
+  from the non-Spanish/non-English locale catalogs. English, Spanish and Latin
+  American Spanish have the complete key set. This is recorded as unfinished
+  localization work, not hidden by adding English placeholders or relaxing the
+  completeness test. The entire full suite has not been rerun after the
+  follow-up changes; only the affected suites were rerun.
+
+These checks used isolated configuration/state directories and fake hardware
+where required. No OC, voltage, CU routing, package installation or SteamOS boot
+change was applied to the developer's board by the validation.

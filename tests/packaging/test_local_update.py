@@ -43,7 +43,7 @@ def test_local_installer_matches_modern_debian_ubuntu_runtime_dependencies():
     installer = (ROOT / "scripts" / "install-local.sh").read_text(encoding="utf-8")
 
     # The terminal profile installs the first list; the desktop adds the Qt packages.
-    assert 'apt-get install -y python3 python3-psutil "$debian_polkit_package" jq)' in installer
+    assert 'apt-get install -y python3 python3-psutil python3-cheroot "$debian_polkit_package" jq)' in installer
     assert 'missing_python_deps_command+=(python3-pyqt6 libqt6svg6)' in installer
     assert 'debian_polkit_package="pkexec"' in installer
     assert 'debian_polkit_package="policykit-1"' in installer

@@ -12,11 +12,12 @@ import sys
 
 from bc250cc.application import ApplicationContainer
 from bc250cc.application.system.workflow_console import (
+    TERMINAL_AUTH_ENV,
+    WEB_SUDO_AUTH_ENV,
     TerminalLaunchResult,
     set_embedded_terminal_launcher,
     set_translator,
 )
-from bc250cc.infrastructure.polkit_session import TERMINAL_AUTH_ENV, WEB_SUDO_AUTH_ENV
 from frontends.desktop.i18n import set_language, tr
 from frontends.tui.runtime import Context, describe_error, describe_result
 from frontends.web.actions import ACTIONS, Invalid
