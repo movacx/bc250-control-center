@@ -82,6 +82,7 @@ DRIVER = RUNTIME / "bc250_drv_video.so"
 ALIAS = RUNTIME / "radeonsi_drv_video.so"
 MANIFEST = RUNTIME / "VERSION"
 ENV_FILE = Path("/etc/environment.d/90-bc250-control-center-vaapi.conf")
+XSESSION_FILE = Path("/etc/X11/Xsession.d/95bc250-vaapi")
 PROFILE_FILE = Path("/etc/profile.d/zz-bc250-control-center-vaapi.sh")
 KEEP_FILE = Path("/etc/atomic-update.conf.d/bc250-control-center-vaapi.conf")
 MARKER = "# Managed by BC250 Control Center: VA-API video driver"
@@ -362,7 +363,13 @@ def _environment_lines(steamos: bool, include32: bool | None = None) -> list[str
         f"export LIBVA_DRIVER_NAME=bc250\nexport LIBVA_DRIVERS_PATH={path}\n"
     )
     lines = []
-    for target, text in ((ENV_FILE, env_text), (PROFILE_FILE, profile_text)):
+    targets = [(ENV_FILE, env_text), (PROFILE_FILE, profile_text)]
+    # Debian X11 sessions do not necessarily source /etc/profile.d or inherit
+    # the systemd user manager environment. Xsession.d runs before the desktop.
+    if not steamos:
+        targets.append((XSESSION_FILE, profile_text))
+    for target, text in targets:
+        lines.append(_owned_guard(target))
         lines += [
             f"sudo install -d -m 0755 {shlex.quote(str(target.parent))}",
             f"printf '%s' {shlex.quote(text)} | sudo tee {shlex.quote(str(target))} >/dev/null",
@@ -655,7 +662,7 @@ def _flatpak_workflow(action: str) -> str:
 
 def _uninstall(family: str) -> str:
     steamos = family == "steamos"
-    files = [ENV_FILE, PROFILE_FILE, *((KEEP_FILE,) if steamos else ())]
+    files = [ENV_FILE, PROFILE_FILE, XSESSION_FILE, *((KEEP_FILE,) if steamos else ())]
     return "\n".join((
         *_header("remove"),
         *(_owned_guard(path) for path in files),

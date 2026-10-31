@@ -47,9 +47,19 @@ import sys
 from pathlib import Path
 
 headers, tree = map(Path, sys.argv[1:])
-header = headers / "include/drm/drm_exec.h"
-if not header.is_file():
-    raise SystemExit(f"ERROR: Missing DRM API header: {header}")
+# Debian splits generated architecture headers (build) from common DRM
+# headers (source). Inspect the matching kernel's source link or the common
+# Makefile included by its build wrapper, never a different installed kernel.
+roots = [headers, headers.parent / "source"]
+makefile = headers / "Makefile"
+if makefile.is_file():
+    for include in re.findall(r"^include\s+(/[^\s$]+/Makefile)\s*$", makefile.read_text(), re.M):
+        roots.append(Path(include).parent)
+candidates = [root / "include/drm/drm_exec.h" for root in roots]
+header = next((path for path in candidates if path.is_file()), None)
+if header is None:
+    raise SystemExit("ERROR: Missing DRM API header; checked: " + ", ".join(map(str, candidates)))
+print(f"== DRM compatibility: target header: {header}")
 text = header.read_text()
 for name in ("drm_exec_for_each_locked_object", "drm_exec_for_each_locked_object_reverse"):
     definition = re.search(r"^\s*#define\s+" + name + r"\(([^)]*)\)", text, re.M)

@@ -71,6 +71,7 @@ CMDLINE = "/proc/cmdline"
 SMT_CONTROL = "/sys/devices/system/cpu/smt/control"
 BOOT_ID = "/proc/sys/kernel/random/boot_id"
 LIMINE_CONFIG = "/etc/default/limine"
+REFIND_CONFIG = "/boot/refind_linux.conf"
 GRUB_CONFIG = "/etc/default/grub"
 GRUB_DROPIN = "/etc/default/grub.d/91-bc250-kernel-options.cfg"
 GRUB_OUTPUTS = ("/boot/grub/grub.cfg", "/boot/grub2/grub.cfg")
@@ -125,6 +126,27 @@ def _steamos_menu_present(host: Host) -> bool:
         return True
 
 
+def _refind_direct(host: Host) -> bool:
+    """EFI firmware selected rEFInd and Linux received EFI-stub initrd syntax.
+
+    BOOT_IMAGE identifies the GRUB path even when rEFInd chainloads GRUB.
+    Do not infer the active loader merely from installed configuration files.
+    """
+    cmdline = host.read(CMDLINE).split()
+    if any(word.startswith("BOOT_IMAGE=") for word in cmdline):
+        return False
+    if not any(word.startswith("initrd=") and "\\" in word for word in cmdline):
+        return False
+    directory = host.path("/sys/firmware/efi/efivars")
+    try:
+        current = next(directory.glob("BootCurrent-*")).read_bytes()
+        number = int.from_bytes(current[4:6], "little")
+        entry = next(directory.glob(f"Boot{number:04X}-*")).read_bytes()
+    except (OSError, StopIteration):
+        return False
+    return "refind" in entry[4:].decode("utf-16-le", errors="ignore").lower()
+
+
 def _backend(host: Host) -> str:
     if host.steamos():
         # Only a GRUB that reads the drop-in directory: SteamOS's own
@@ -138,6 +160,8 @@ def _backend(host: Host) -> str:
     if host.immutable_image():
         # Bazzite keeps its own reviewed card.
         return "unsupported"
+    if _refind_direct(host):
+        return "refind"
     if host.path(LIMINE_CONFIG).is_file() and host.command("limine-mkinitcpio"):
         return "limine"
     if host.distro_family() == "fedora" and host.command("grubby"):
@@ -169,7 +193,9 @@ def grub_reads_dropins(host: Host) -> bool:
 
 def _configured_tokens(host: Host, backend: str) -> set[str]:
     """Every word the boot configuration puts on the command line."""
-    if backend == "limine":
+    if backend == "refind":
+        text = host.read(REFIND_CONFIG)
+    elif backend == "limine":
         text = host.read(LIMINE_CONFIG)
     elif backend == "grub":
         text = host.read(GRUB_CONFIG)
@@ -226,7 +252,7 @@ def _stale(host: Host, backend: str, saved: dict, configured_tokens: set[str] | 
     that an earlier release put where this GRUB never reads it, or a block the
     owner deleted by hand, would otherwise count as set and never be redone.
     """
-    if backend not in ("limine", "grub", "steamos-grub"):
+    if backend not in ("limine", "grub", "steamos-grub", "refind"):
         return set()
     managed = set(_managed_tokens(saved.get("arguments"), _values(saved)))
     if not managed:
@@ -364,7 +390,29 @@ def _with_block(text: str, pattern, tokens: list[str], line: str) -> str:
 
 def _write(host: Host, backend: str, tokens: list[str], previous: list[str]) -> None:
     """Put exactly ``tokens`` in the managed place, or put everything back."""
-    if backend == "limine":
+    if backend == "refind":
+        # Own only the file we create. Existing user menus need explicit review.
+        existing = host.read(REFIND_CONFIG)
+        if existing and not existing.startswith("# Managed by BC250 Control Center"):
+            raise SetupError("Existing /boot/refind_linux.conf belongs to another tool; review it before changing boot options")
+        if not tokens:
+            host.remove_managed(REFIND_CONFIG)
+            return
+        if existing:
+            match = re.search(r'^"Boot with BC250 options" "([^"\n]*)"$', existing, re.M)
+            if not match:
+                raise SetupError("Invalid managed rEFInd configuration")
+            base = match[1].split()
+        else:
+            base = host.read(CMDLINE).split()
+            # rEFInd discovers the initrd matching the selected kernel version.
+            base = [word for word in base if not word.startswith("initrd=")]
+        base = [word for word in base if word not in previous]
+        if not any(word.startswith("root=") for word in base) or any('"' in word for word in base):
+            raise SetupError("Cannot safely derive rEFInd root options from this boot")
+        options = " ".join(base + tokens)
+        host.managed(REFIND_CONFIG, f'"Boot with BC250 options" "{options}"\n')
+    elif backend == "limine":
         original = _read_exact(host, LIMINE_CONFIG)
         updated = _with_block(
             original, _LIMINE_BLOCK, tokens, f'KERNEL_CMDLINE[default]+=" {" ".join(tokens)}"'
@@ -520,7 +568,8 @@ def _prepare(host: Host) -> tuple[dict, str, dict]:
     if backend == "unsupported":
         raise SetupError("No supported Limine, GRUB or grubby boot configuration was detected")
     saved = host.state(_STATE_KEY)
-    if (saved.get("arguments") or _values(saved)) and saved.get("backend") != backend:
+    if (saved.get("arguments") or _values(saved)) and saved.get("backend") != backend and not (
+            saved.get("backend") == "grub" and backend == "refind"):
         raise SetupError("The boot loader changed since these options were set; restore them first")
     return current, backend, saved
 

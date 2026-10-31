@@ -10,10 +10,20 @@ FUNCTION = 'adapt_drm_exec() {' + FUNCTION
 
 
 class DrmCompatibilityTest(unittest.TestCase):
-    def run_adaptation(self, arity):
+    def run_adaptation(self, arity, layout="flat"):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            header = root / 'include/drm/drm_exec.h'
+            build = root
+            common = root
+            if layout != "flat":
+                build = root / 'modules/kernel/build'
+                common = root / 'linux-headers-common'
+                build.mkdir(parents=True)
+                if layout == "source-link":
+                    (build.parent / 'source').symlink_to(common)
+                else:
+                    (build / 'Makefile').write_text(f'include {common}/Makefile\n')
+            header = common / 'include/drm/drm_exec.h'
             header.parent.mkdir(parents=True)
             args = {2: 'exec, obj', 3: 'exec, index, obj', 4: 'a, b, c, d'}[arity]
             header.write_text(''.join(
@@ -27,7 +37,7 @@ class DrmCompatibilityTest(unittest.TestCase):
                         'drm_exec_for_each_locked_object_reverse(exec, i, bo) { use(bo); }\n')
             source.write_text(original)
             result = subprocess.run(
-                ['bash', '-c', FUNCTION + '\nadapt_drm_exec "$1" "$1"', 'test', str(root)],
+                ['bash', '-c', FUNCTION + '\nadapt_drm_exec "$1" "$2"', 'test', str(build), str(root)],
                 capture_output=True, text=True, check=False,
             )
             return result, source.read_text(), original
@@ -42,6 +52,16 @@ class DrmCompatibilityTest(unittest.TestCase):
         result, changed, original = self.run_adaptation(3)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(changed, original)
+
+    def test_debian_split_headers_via_source_link(self):
+        result, changed, _ = self.run_adaptation(2, "source-link")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('(&p->exec, obj) { use(obj); }', changed)
+
+    def test_debian_split_headers_via_build_makefile(self):
+        result, changed, _ = self.run_adaptation(2, "makefile")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('(&p->exec, obj) { use(obj); }', changed)
 
     def test_unknown_signature_is_rejected(self):
         result, changed, original = self.run_adaptation(4)
