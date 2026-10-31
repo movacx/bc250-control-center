@@ -1,17 +1,55 @@
 #!/usr/bin/env bash
 set -euo pipefail
+BC250_PERMISSION_REPAIR_PROTOCOL=1
 
+# This prefix is also embedded in application workflows. Keep it standalone:
+# recovery must not import installed helper modules through an unsafe ancestor.
 repair_permissions() {
-    # Legacy builds could carry 0775 intermediate directories. Tighten only
-    # that exact root:root mode; never relax helper checks or recursively
-    # change system ownership, special permissions or user-managed trees.
-    local path
-    for path in / /usr /usr/libexec /etc /var /var/lib; do
-        if [[ "$(stat -Lc '%u:%g:%a' -- "$path" 2>/dev/null || true)" == 0:0:775 ]]; then
-            echo "Repairing unsafe group-writable helper ancestor: $path"
-            chmod 0755 -- "$path"
-        fi
-    done
+    /usr/bin/python3 -I - "${1:-apply}" <<'PY'
+import os
+import stat
+import sys
+
+check = sys.argv[1] == "check"
+if not check and os.geteuid() != 0:
+    raise SystemExit("Administrator authorization is required")
+needed = False
+def open_directory(path):
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    fd = os.open("/", flags)
+    try:
+        for component in path.strip("/").split("/") if path != "/" else ():
+            child = os.open(component, flags, dir_fd=fd)
+            os.close(fd)
+            fd = child
+        return fd
+    except OSError:
+        os.close(fd)
+        raise
+
+for path in ("/", "/usr", "/usr/libexec", "/etc", "/var", "/var/lib"):
+    try:
+        # Bind the metadata check and chmod to the same directory, and refuse
+        # symlinks. Never chown, recurse, or remove special permission bits.
+        fd = open_directory(path)
+    except OSError:
+        continue
+    try:
+        info = os.fstat(fd)
+        mode = stat.S_IMODE(info.st_mode)
+        if (info.st_uid, info.st_gid) != (0, 0) or mode not in (0o775, 0o777):
+            continue
+        needed = True
+        if not check:
+            os.fchmod(fd, 0o755)
+            if stat.S_IMODE(os.fstat(fd).st_mode) != 0o755:
+                raise RuntimeError(f"Permission repair did not verify: {path}")
+            print(f"BC250 permission repair: {path} uid=0 gid=0 mode={mode:04o} -> 0755", flush=True)
+    finally:
+        os.close(fd)
+if check:
+    raise SystemExit(0 if needed else 1)
+PY
 }
 
 case "${1:-}" in

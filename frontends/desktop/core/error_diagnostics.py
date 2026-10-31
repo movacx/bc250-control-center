@@ -792,7 +792,7 @@ def diagnose_error(message: object, *, context: object = "") -> ErrorDiagnosis:
     # so a broad desktop word ("gpu", "range") cannot outrank it.
     marked = error_catalog.for_marker(detail)
     if marked is not None and (
-        _PREFIX_MARKER.search(detail) or marked.code == "BC250-PERM-001"
+        _PREFIX_MARKER.search(detail) or marked.code in {"BC250-PERM-001", "BC250-PERM-002"}
     ):
         return ErrorDiagnosis(marked.code, marked.summary, marked.cause, marked.action)
     for rule in _RULES:

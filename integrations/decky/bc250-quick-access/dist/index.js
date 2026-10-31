@@ -250,10 +250,7 @@ var codes = [
 	{
 		code: "BC250-PERM-001",
 		markers: [
-			"QUICK_ACCESS_PRIVILEGE",
-			"Untrusted helper dependency:",
-			"is not protected by root:",
-			"CU executor is missing or untrusted"
+			"QUICK_ACCESS_PRIVILEGE"
 		],
 		exit_statuses: [
 			11,
@@ -415,6 +412,18 @@ var codes = [
 		],
 		exit_statuses: [
 			66
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-PERM-002",
+		markers: [
+			"Untrusted helper dependency:",
+			"is not protected by root:",
+			"CU executor is missing or untrusted",
+			"HELPER_UNTRUSTED:"
+		],
+		exit_statuses: [
 		],
 		retryable: false
 	},
@@ -829,6 +838,7 @@ var markers_longest_first = [
 	"Unmet dependencies",
 	"Unable to download",
 	"QUICK_ACCESS_GDDR6",
+	"HELPER_UNTRUSTED:",
 	"QUICK_ACCESS_VRAM",
 	"Cyan D-Bus policy",
 	"QUICK_ACCESS_AUTH",

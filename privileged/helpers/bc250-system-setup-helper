@@ -34,9 +34,14 @@ def main():
     lib = here / "lib" if (here / "lib").is_dir() else here.parent / "lib"
     if os.geteuid() == 0:
         for path in [lib, *lib.parents, *lib.glob("system_setup_*.py"), lib / "acpi_payload.py"]:
-            info = path.stat()
+            info = path.stat(follow_symlinks=False)
             if path.is_symlink() or info.st_uid != 0 or info.st_mode & 0o022:
-                parser.error(f"Untrusted helper dependency: {path}")
+                parser.error(
+                    f"Untrusted helper dependency: {path} "
+                    f"(uid={info.st_uid}, gid={info.st_gid}, mode={info.st_mode & 0o7777:04o}, "
+                    f"symlink={path.is_symlink()}). "
+                    "Protected helpers require root-owned paths without group/other write permission."
+                )
     sys.path.insert(0, str(lib))
     import system_setup_acpi as acpi
     import system_setup_kernel_args as kernel_args

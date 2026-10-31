@@ -9,6 +9,9 @@ outcome cannot be inferred from the report title. No reports were modified or
 deleted. Private contacts, machine identifiers and raw attachments stay outside
 this repository.
 
+Follow-up: report R-ab4baf4e exposed a root:root **0777** case not covered by
+revision 2. See [application-owned Mint recovery](MINT_PERMISSION_RECOVERY_2026-10-31.md).
+
 ## Corrections
 
 - Package staging normalizes every directory to 0755 even under umask 0002 or

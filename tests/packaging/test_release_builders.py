@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 from pathlib import Path
 
@@ -95,6 +96,14 @@ def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_p
     assert (stage / "usr/share/bc250-control-center/requirements-web.txt").is_file()
     assert (stage / "usr/share/bc250-control-center/VERSION").read_text(encoding="utf-8").strip() == VERSION
     assert (stage / "usr/share/bc250-control-center/src/bc250cc/__init__.py").is_file()
+    app = stage / "usr/share/bc250-control-center"
+    assert (app / "packaging/common/bc250-package-maintenance").read_bytes() == (
+        ROOT / "packaging/common/bc250-package-maintenance"
+    ).read_bytes()
+    _run(sys.executable, "-I", "-B", "-c",
+         f"import sys; sys.path.insert(0, {str(app / 'src')!r}); "
+         "from bc250cc.infrastructure.helper_permissions import recovery_preflight; "
+         "assert 'BC250_PERMISSION_REPAIR_PROTOCOL=1' in recovery_preflight()")
     assert (stage / "usr/share/bc250-control-center/frontends/desktop/features/gpu/presenter.py").is_file()
     assert (stage / "usr/share/bc250-control-center/privileged/helpers/README.md").is_file()
     assert not (stage / "usr/share/bc250-control-center/src/src").exists()
@@ -190,7 +199,7 @@ def test_arch_package_has_canonical_metadata_and_is_accepted_by_pacman(tmp_path)
         env={**os.environ, "LANG": "C", "LC_ALL": "C"},
     ).stdout
     assert "Name            : bc250-control-center" in query
-    assert f"Version         : {VERSION}-2" in query
+    assert f"Version         : {VERSION}-3" in query
 
     archive_names = _run("bsdtar", "-tf", package).stdout.splitlines()
     assert ".PKGINFO" in archive_names

@@ -58,4 +58,5 @@ if "$qa_helpers/bc250-system-setup-helper" status >/tmp/helper-tampered.log 2>&1
   exit 1
 fi
 chmod 0644 "$qa_helpers/lib/system_setup_common.py"
+python3 "$qa_repo/scripts/qa/check-application-permission-recovery.py" "$qa_repo"
 echo 'INSTALLED_HELPER_PAYLOAD_AND_TRUST_PASS'

@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ROOT_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd -P)"
 OUTPUT_DIR="${1:-$ROOT_DIR/dist}"
 VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
-PKG_RELEASE="${BC250_PKG_RELEASE:-2}"
+PKG_RELEASE="${BC250_PKG_RELEASE:-3}"
 if [[ -n "${BC250_VERSION:-}" && "$BC250_VERSION" != "$VERSION" ]]; then
   echo "BC250_VERSION must match the release VERSION file ($VERSION)." >&2
   exit 64

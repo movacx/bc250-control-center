@@ -39,6 +39,8 @@ cp -a -- "$ROOT_DIR/assets" "$DESTDIR/usr/share/bc250-control-center/assets"
 cp -a -- "$ROOT_DIR/scripts/system" "$DESTDIR/usr/share/bc250-control-center/scripts/system"
 cp -a -- "$ROOT_DIR/packaging/common/os-scripts" \
   "$DESTDIR/usr/share/bc250-control-center/packaging/common/os-scripts"
+install -m644 "$ROOT_DIR/packaging/common/bc250-package-maintenance" \
+  "$DESTDIR/usr/share/bc250-control-center/packaging/common/bc250-package-maintenance"
 cp -a -- "$ROOT_DIR/integrations/decky/bc250-quick-access" \
   "$DESTDIR/usr/share/bc250-control-center/integrations/decky/bc250-quick-access"
 # The source tree may contain private working-copy permissions (for example
