@@ -71,3 +71,46 @@ def test_command_uses_the_isolated_runtime_when_system_dependencies_are_missing(
     monkeypatch.setattr(web_control.subprocess, "run", probe)
     assert web_control._command() == [str(runtime), "-m", "frontends.web"]
     assert calls == [web_control.sys.executable, str(runtime)]
+
+
+@pytest.mark.parametrize("listening", [True, False])
+def test_enabling_session_start_does_not_spawn_a_second_running_server(tmp_path, monkeypatch, listening):
+    monkeypatch.setattr(web_control, "systemd_available", lambda: True)
+    monkeypatch.setattr(web_control, "_unit_path", lambda: tmp_path / "bc250-web.service")
+    monkeypatch.setattr(web_control, "_command", lambda: ["python", "-m", "frontends.web"])
+    monkeypatch.setattr(web_control, "_listening", lambda _port: listening)
+    calls = []
+    monkeypatch.setattr(web_control, "_systemctl", lambda *args: calls.append(args) or SimpleNamespace(returncode=0))
+    state = web_control.set_autostart(True)
+    assert state["enabled"]
+    expected = ("enable", web_control.UNIT_FILE_NAME) if listening else ("enable", "--now", web_control.UNIT_FILE_NAME)
+    assert expected in calls
+    if listening:
+        assert not any("--now" in args or "restart" in args or "start" in args for args in calls)
+
+
+def test_disabling_session_start_keeps_the_current_web_session_running(tmp_path, monkeypatch):
+    path = tmp_path / "bc250-web.service"
+    path.write_text(web_control.UNIT_MARKER + "\n")
+    monkeypatch.setattr(web_control, "systemd_available", lambda: True)
+    monkeypatch.setattr(web_control, "_unit_path", lambda: path)
+    calls = []
+    monkeypatch.setattr(web_control, "_systemctl", lambda *args: calls.append(args) or SimpleNamespace(returncode=0))
+    assert not web_control.set_autostart(False)["enabled"]
+    assert ("disable", web_control.UNIT_FILE_NAME) in calls
+    assert not any("--now" in args or "stop" in args for args in calls)
+
+
+@pytest.mark.parametrize("resolved", ["bazzite.local", "bc250cc.local", ""])
+def test_pairing_offers_only_the_verified_app_alias_and_numeric_fallback(monkeypatch, resolved):
+    from bc250cc.infrastructure import web_network
+
+    web_control.save_settings(lan=True)
+    monkeypatch.setattr(web_control, "addresses", lambda: ["192.168.0.15"])
+    monkeypatch.setattr(web_control, "autostart_state", lambda: {})
+    monkeypatch.setattr(web_control, "_listening", lambda _: True)
+    monkeypatch.setattr(web_network, "local_hostname", lambda: resolved)
+    urls = web_control.status()["urls"]
+    assert urls[-1] == "https://192.168.0.15:8250"
+    assert all("bazzite" not in url for url in urls)
+    assert (urls[0] == "https://bc250cc.local:8250") == (resolved == "bc250cc.local")

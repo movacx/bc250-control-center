@@ -109,7 +109,6 @@ class Web:
         self.local_sessions: dict[str, SSHSession] = {}
         self.language = normalize_language(self.ctx.config.get("idioma", "auto"))
         self.sessions: dict[str, tuple[str, float]] = {}
-        web_devices.revoke_all()  # Cookies from an earlier server process cannot be resumed.
         self.ssh_sessions: dict[str, SSHSession] = {}
         self.job_owner = ""
         self.job_backend = None
@@ -571,6 +570,10 @@ class Server(WsgiServer):
             self.ssl_adapter = adapter
         self.prepare()
         self.server_address = self.bind_addr
+        # Only the process that successfully acquired the listening socket may
+        # invalidate an earlier process's cookies. A duplicate startup must not
+        # log everybody out of the already-running server.
+        web_devices.revoke_all()
 
     def error_log(self, msg="", level=logging.INFO, traceback=False):
         # Cheroot messages may contain request bytes or addresses. Keep the
@@ -620,18 +623,20 @@ def main(argv: list[str] | None = None) -> int:
     if not encrypted and not is_loopback(host):
         parser.error("Home-network access requires HTTPS. HTTP is available only on loopback.")
     networks = web_network.home_networks() if not is_loopback(host) else []
-    with web_mdns.LanAlias(enabled=bool(networks)):
-        server = Server((host, port), web, certificate=web_access.tls_certificate() if encrypted else None, networks=networks)
-        web_access.write_pid(port)
-        print(f"BC250 Control Center web: {'https' if server.secure else 'http'}://{host}:{port}", flush=True)
-        if sys.stdout.isatty():  # never into a journal: the key opens hardware controls
-            print(f"Access key: {key}", flush=True)
-        for name in (signal.SIGINT, signal.SIGTERM):
-            signal.signal(name, lambda *_: threading.Thread(target=server.shutdown, daemon=True).start())
-        try:
+    server = Server((host, port), web, certificate=web_access.tls_certificate() if encrypted else None, networks=networks)
+    try:
+        # Advertise the alias only after acquiring the port. Failed duplicate
+        # startups must neither publish a competing alias nor clear sessions.
+        with web_mdns.LanAlias(enabled=bool(networks)):
+            web_access.write_pid(port)
+            print(f"BC250 Control Center web: {'https' if server.secure else 'http'}://{host}:{port}", flush=True)
+            if sys.stdout.isatty():  # never into a journal: the key opens hardware controls
+                print(f"Access key: {key}", flush=True)
+            for name in (signal.SIGINT, signal.SIGTERM):
+                signal.signal(name, lambda *_: threading.Thread(target=server.shutdown, daemon=True).start())
             server.serve_forever()
-        finally:
-            server.server_close()
+    finally:
+        server.server_close()
     return 0
 
 

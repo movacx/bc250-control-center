@@ -202,6 +202,11 @@ def status() -> dict:
     scheme = "https" if opts["tls"] else "http"
     from bc250cc.infrastructure import web_devices, web_network, web_tls
     local_name = web_network.local_hostname() if opts["lan"] else ""
+    # Pairing offers the application's alias and the numeric fallback. The OS
+    # hostname can still be valid for TLS, but must not replace this alias while
+    # its publisher is stopped or is still starting.
+    if local_name != web_network.LOCAL_ALIAS:
+        local_name = ""
     urls = [f"{scheme}://{ip}:{opts['port']}" for ip in host] if opts["lan"] else []
     if local_name:
         urls.insert(0, f"{scheme}://{local_name}:{opts['port']}")
@@ -291,12 +296,17 @@ def set_autostart(enabled: bool) -> dict:
             f"[Service]\nWorkingDirectory={APP_ROOT}\nExecStart={' '.join(map(shlex.quote, _command()))}\n"
             f"{environment}Restart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=default.target\n",
             encoding="utf-8")
-        for args in (("daemon-reload",), ("enable", "--now", UNIT_FILE_NAME)):
+        # Enabling boot persistence must not start a second instance beside a
+        # manually launched server or interrupt its authenticated browsers.
+        enable_args = ("enable", UNIT_FILE_NAME) if _listening(options()["port"]) else \
+            ("enable", "--now", UNIT_FILE_NAME)
+        for args in (("daemon-reload",), enable_args):
             result = _systemctl(*args)
             if result.returncode != 0:
                 raise RuntimeError(f"systemctl --user {' '.join(args)} failed: {(result.stderr or '').strip()}")
     elif path.is_file():
-        _systemctl("disable", "--now", UNIT_FILE_NAME)
+        # This switch controls future sessions; Stop web access owns shutdown.
+        _systemctl("disable", UNIT_FILE_NAME)
         path.unlink()
         _systemctl("daemon-reload")
     return autostart_state()

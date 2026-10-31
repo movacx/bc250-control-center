@@ -76,6 +76,20 @@ def web(monkeypatch, tmp_path):
     httpd.server_close()
 
 
+def test_duplicate_startup_cannot_revoke_the_active_servers_browsers(web):
+    client = Client(web)
+    assert client.login()[0].status == 200
+    token = client.cookie.split("=", 1)[1]
+    container = SimpleNamespace(system_service=web.service, settings_service=Settings(), activity_service=None, platform=None)
+    for _attempt in range(3):
+        candidate = server.Web(container)
+        assert web_devices.session(token)
+        with pytest.raises(OSError):
+            server.Server(web.server_address, candidate)
+        assert client.call("GET", "/api/session")[1]["authenticated"]
+        assert web_devices.session(token)["control"]
+
+
 class Client:
     def __init__(self, httpd):
         self.port, self.cookie, self.csrf, self.httpd = httpd.server_address[1], "", "", httpd

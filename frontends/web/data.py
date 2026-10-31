@@ -243,22 +243,26 @@ def _resource(recorder: PerformanceRecorder, key: str, query: dict) -> dict:
     if key not in RESOURCE_BY_KEY:
         return {}
     definition = RESOURCE_BY_KEY[key]
-    view = VIEW_BY_KEY.get(query.get("view") or key) or VIEW_BY_KEY[key]
-    if view.resource != key:
-        view = VIEW_BY_KEY[key]
+    view = VIEW_BY_KEY.get(query.get("view") or key)
+    if view is not None and view.resource != key:
+        view = None
+    view = view or VIEW_BY_KEY.get(key)
     plan = recorder.plans.get(key)
-    if view.is_summary:
+    summary = view is None or view.is_summary
+    if summary:
         history, chart_def = recorder.histories[key], definition
-        primary, context, stats = plan.primary, plan.context, plan.stats
+        primary, context, stats = (plan.primary, plan.context, plan.stats) if plan else \
+            ("--", tr("Waiting for first sample"), ("--",) * 4)
     else:
         history = recorder.history(view.key)
         chart_def = history.definition if history else definition
         primary, context, stats = view_summary(view, history, recorder.available) if history \
             else ("--", tr(view.unavailable_hint or "Waiting for sample"), ("--",) * 4)
-    unit, rate = chart_def.unit, bool(definition.rate_scale and view.is_summary)
+    rate = bool(definition.rate_scale and summary)
+    unit = "B/s" if rate else chart_def.unit
     show = _shower(unit, rate)
     out = {"title": tr(definition.title), "primary": primary, "context": context,
-           "hint": tr(definition.subtitle if view.is_summary else view.hint), "view": view.key,
+           "hint": tr(definition.subtitle if summary else view.hint), "view": view.key if view else key,
            "views": [{"key": item.key, "title": tr(item.title), "hint": tr(item.hint),
                       "available": item.key in recorder.available} for item in views_for(key)],
            "percent": unit == "%", "legend": [], "cards": []}
