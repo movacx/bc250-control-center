@@ -227,18 +227,28 @@ Passing the manifest checks is not a guarantee that a particular mobile browser
 will offer installation immediately. Browser version, installation policy and
 trusted HTTPS still apply. **Download this page** saves a document; **Install
 app** / **Add to Home screen** is the option that launches BC250 as an app.
+Android Go disables launcher shortcuts by default, so installation can remain
+unavailable across unrelated sites on those phones. This is a platform
+restriction the web page cannot enable. See [Android Go differences](https://developer.android.com/guide/topics/androidgo).
 
 References: [MDN installation criteria](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable),
 [Apple home-screen web apps](https://support.apple.com/guide/iphone/iphea86e5236/ios).
 
 ## Local name instead of an IP
 
-When Avahi resolves this machine's own `<hostname>.local` name to one of its
-network addresses, Remote access offers that HTTPS address before the IP
-alternatives. The server certificate includes the verified local name and
-renews when names or addresses change, keeping the same local CA. No hostname,
-router configuration, public DNS or port forwarding is changed. Devices whose
-networks cannot resolve mDNS can still use the IP entry.
+With LAN access enabled, the web server optionally publishes **bc250cc.local**
+through the existing Avahi daemon as an ordinary user. This alias is independent
+of distribution and does not change the machine's hostname. Publishing follows
+attached home-network addresses and stops with the web server. Localhost-only
+mode does not advertise it. Avahi handles name collisions; if another device
+owns the name, the application falls back to this machine's `<hostname>.local`
+or its IP entries. Without Avahi tools/daemon, the web remains accessible by IP.
+
+Remote access and the web Settings link prefer a name only after resolving it
+to one of this board's own addresses. HTTPS includes `bc250cc.local` and verified
+local names; renewing a leaf keeps the same local CA. No router configuration,
+public DNS or port forwarding is changed. Phones whose networks cannot resolve
+mDNS can still use the IP entry.
 
 A web page cannot replace the browser's address bar with its application title.
 Use the local-name URL, or install BC250 and open its standalone window for

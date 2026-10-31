@@ -40,7 +40,7 @@ from bc250cc.application.system.workflow_console import (
     TERMINAL_AUTH_ENV,
     set_translator,
 )
-from bc250cc.infrastructure import web_devices, web_network
+from bc250cc.infrastructure import web_devices, web_mdns, web_network
 from bc250cc.shared.errors import BoundaryError
 from frontends.desktop.i18n import (
     LANGUAGE_OPTIONS,
@@ -84,7 +84,7 @@ def is_loopback(address: str) -> bool:
 def host_allowed(header: str) -> bool:
     """Only an address, localhost or this machine's own name: a rebinding page names neither."""
     name = urllib.parse.urlsplit(f"//{header}").hostname or ""
-    if name in ("localhost", socket.gethostname().lower(), f"{socket.gethostname().lower()}.local"):
+    if name in ("localhost", web_network.LOCAL_ALIAS, socket.gethostname().lower(), f"{socket.gethostname().lower()}.local"):
         return True
     try:
         ipaddress.ip_address(name)
@@ -319,10 +319,13 @@ class Handler:
             return self.json({"version": version})
         csrf = self.web.session(self.token())
         if path == "/api/session":
+            local_name = web_network.local_hostname() if csrf and web_access.options()["lan"] else ""
+            scheme = "https" if getattr(self.server, "secure", False) else "http"
             return self.json({"authenticated": csrf is not None, "csrf": csrf,
                               "password": self.can_type_password(), "encrypted": bool(getattr(self.server, "secure", False)),
                               "control": bool(csrf and web_devices.session(self.token()).get("control")),
-                              "device_code": web_devices.identity(self.token())[:8] if csrf else None})
+                              "device_code": web_devices.identity(self.token())[:8] if csrf else None,
+                              "named_url": f"{scheme}://{local_name}:{self.server.server_address[1]}" if local_name else None})
         if csrf is None:
             return self.fail("Authentication required", 401, authenticated=False)
         if method == "POST" and not hmac.compare_digest(self.headers.get("X-CSRF-Token", ""), csrf):
@@ -619,17 +622,18 @@ def main(argv: list[str] | None = None) -> int:
     if not encrypted and not is_loopback(host):
         parser.error("Home-network access requires HTTPS. HTTP is available only on loopback.")
     networks = web_network.home_networks() if not is_loopback(host) else []
-    server = Server((host, port), web, certificate=web_access.tls_certificate() if encrypted else None, networks=networks)
-    web_access.write_pid(port)
-    print(f"BC250 Control Center web: {'https' if server.secure else 'http'}://{host}:{port}", flush=True)
-    if sys.stdout.isatty():  # never into a journal: the key opens hardware controls
-        print(f"Access key: {key}", flush=True)
-    for name in (signal.SIGINT, signal.SIGTERM):
-        signal.signal(name, lambda *_: threading.Thread(target=server.shutdown, daemon=True).start())
-    try:
-        server.serve_forever()
-    finally:
-        server.server_close()
+    with web_mdns.LanAlias(enabled=bool(networks)):
+        server = Server((host, port), web, certificate=web_access.tls_certificate() if encrypted else None, networks=networks)
+        web_access.write_pid(port)
+        print(f"BC250 Control Center web: {'https' if server.secure else 'http'}://{host}:{port}", flush=True)
+        if sys.stdout.isatty():  # never into a journal: the key opens hardware controls
+            print(f"Access key: {key}", flush=True)
+        for name in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(name, lambda *_: threading.Thread(target=server.shutdown, daemon=True).start())
+        try:
+            server.serve_forever()
+        finally:
+            server.server_close()
     return 0
 
 

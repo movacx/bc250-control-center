@@ -222,6 +222,7 @@ def test_host_and_address_helpers():
     assert server.is_loopback("127.0.0.1") and server.is_loopback("::1") and not server.is_loopback("192.168.1.20")
     assert server.host_allowed("192.168.1.20:8250") and server.host_allowed("localhost:8250")
     assert not server.host_allowed("evil.example")
+    assert server.host_allowed("bc250cc.local:8250")
     assert server.same_key("abcd efgh", KEY) and not server.same_key("", KEY)
 
 
@@ -521,3 +522,14 @@ def test_installation_worker_is_served_with_same_origin_policy(client):
     assert "javascript" in response.getheader("Content-Type")
     assert body == (server.DIST / "sw.js").read_bytes()
     assert response.getheader("Cache-Control") == "no-cache"
+
+
+def test_local_name_link_is_shown_only_to_authenticated_lan_sessions(client, monkeypatch):
+    monkeypatch.setattr(server.web_network, "local_hostname", lambda: "bc250.local")
+    options = web_access.options()
+    monkeypatch.setattr(web_access, "options", lambda: {**options, "lan": True})
+    assert client.call("GET", "/api/session")[1]["named_url"] is None
+    client.login()
+    assert client.call("GET", "/api/session")[1]["named_url"] == f"http://bc250.local:{client.port}"
+    monkeypatch.setattr(web_access, "options", lambda: {**options, "lan": False})
+    assert client.call("GET", "/api/session")[1]["named_url"] is None

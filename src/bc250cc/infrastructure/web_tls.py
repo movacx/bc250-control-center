@@ -13,7 +13,7 @@ from pathlib import Path
 
 from bc250cc.infrastructure.persistence.config_paths import app_config_dir
 from bc250cc.infrastructure.remote_access import addresses
-from bc250cc.infrastructure.web_network import local_hostname
+from bc250cc.infrastructure.web_network import LOCAL_ALIAS, local_hostname
 from bc250cc.shared.errors import ActionNeeded
 
 
@@ -63,7 +63,7 @@ def certificate() -> tuple[Path, Path]:
                 os.replace(stage / "authority.key", authority_key)
                 os.replace(stage / "authority.crt", authority)
             ips = {"127.0.0.1", *(str(ipaddress.ip_address(value)) for value in addresses())}
-            names = {"localhost"}
+            names = {"localhost", LOCAL_ALIAS}
             if name := local_hostname():
                 names.add(name)
             valid = not new_ca and cert.is_file() and key.is_file() and current(cert)

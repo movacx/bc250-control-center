@@ -742,3 +742,4 @@ button, input, select { font-variant-numeric: tabular-nums; }
 .accent-choices button.on { border-color: var(--c-blue); background: var(--c-blue-soft); }
 .accent-choices button.on > i { outline: 1px solid var(--c-blue); outline-offset: 3px; }
 @media (max-width: 400px) { .theme-choices { gap: 5px; } .theme-choices > button { padding: 7px 4px; font-size: 10px; } .accent-choices { gap: 6px; } }
+.local-address { display: flex; justify-content: center; text-decoration: none; color: var(--c-blue); min-height: 44px; overflow-wrap: anywhere; }

@@ -2511,6 +2511,14 @@
    "revoke": "CORE-0212",
    "revoke_all": "CORE-0213"
   },
+  "bc250cc/infrastructure/web_mdns.py": {
+   "LanAlias.__init__": "CORE-0224",
+   "LanAlias.__enter__": "CORE-0225",
+   "LanAlias._watch": "CORE-0226",
+   "LanAlias._refresh": "CORE-0227",
+   "LanAlias._end": "CORE-0228",
+   "LanAlias.__exit__": "CORE-0229"
+  },
   "bc250cc/infrastructure/web_network.py": {
    "local_hostname": "CORE-0223",
    "home_networks": "CORE-0214",
