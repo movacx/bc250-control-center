@@ -5882,6 +5882,7 @@
    "RemoteAccessPage._check_privacy": "UI-0691",
    "RemoteAccessPage._conceal_information": "UI-0692",
    "RemoteAccessPage._reveal_information": "UI-0693",
+   "RemoteAccessPage._refresh_privacy_context": "UI-0705",
    "RemoteAccessPage._sanitized_privacy_context": "UI-0702",
    "RemoteAccessPage._position_privacy_cover": "UI-0699",
    "RemoteAccessPage.eventFilter": "UI-0700",

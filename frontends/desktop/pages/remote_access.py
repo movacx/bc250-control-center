@@ -456,6 +456,10 @@ class RemoteAccessPage(QWidget):
         self._privacy_cover.reveal_button.clicked.connect(self._reveal_information)
         self._privacy_cover.hide()
         self._privacy_widgets = []
+        self._capturing_privacy_context = False
+        self._privacy_context_timer = QTimer(self)
+        self._privacy_context_timer.setSingleShot(True)
+        self._privacy_context_timer.timeout.connect(self._refresh_privacy_context)
         self.card.installEventFilter(self)
         self._scroll.viewport().installEventFilter(self)
         self._scroll.verticalScrollBar().valueChanged.connect(self._position_privacy_cover)
@@ -494,6 +498,8 @@ class RemoteAccessPage(QWidget):
     def apply_appearance(self):
         self.setStyleSheet(process_stylesheet())
         self._privacy_cover.apply_appearance()
+        if self._privacy_hidden:
+            self._privacy_context_timer.start(0)
         c = COLORS
         # Match the light game tables: white rows, a soft grey header and thin
         # separators. Dark mode retains alternating surfaces for distinction.
@@ -544,6 +550,9 @@ class RemoteAccessPage(QWidget):
             self._conceal_information()
         else:
             self._check_privacy()
+        if self._privacy_hidden:
+            # showEvent can precede the final stacked-page layout and style.
+            self._privacy_context_timer.start(0)
 
     def _start_privacy_window(self):
         self._privacy_deadline = _privacy_time() + PRIVACY_SECONDS
@@ -604,6 +613,32 @@ class RemoteAccessPage(QWidget):
             self.timer.start()
             self.refresh()
 
+    def _refresh_privacy_context(self):
+        if not self._privacy_hidden or not self.isVisible() or self._capturing_privacy_context:
+            return
+        # Render synchronously without processing screen updates or input.
+        # The snapshot redacts private fields before QWidget.grab paints them.
+        self._capturing_privacy_context = True
+        try:
+            self._privacy_cover.hide()
+            for widget, hidden, _policy in self._privacy_widgets:
+                widget.setVisible(not hidden)
+            self.card.setMinimumHeight(self._privacy_card_heights[0])
+            self.card.setMaximumHeight(self._privacy_card_heights[1])
+            content_layout = self._scroll.widget().layout()
+            content_layout.invalidate()
+            content_layout.activate()
+            self.card.layout().activate()
+            self.card.setFixedHeight(self.card.height())
+            self._privacy_cover.set_context(self._sanitized_privacy_context())
+        finally:
+            for widget, _hidden, _policy in self._privacy_widgets:
+                widget.hide()
+            self._position_privacy_cover()
+            self._privacy_cover.show()
+            self._privacy_cover.raise_()
+            self._capturing_privacy_context = False
+
     def _sanitized_privacy_context(self):
         if not self.card.isVisible():
             return QPixmap()
@@ -663,6 +698,8 @@ class RemoteAccessPage(QWidget):
     def eventFilter(self, watched, event):
         if event.type() in (QEvent.Type.Resize, QEvent.Type.Move) and self._privacy_hidden:
             QTimer.singleShot(0, self._position_privacy_cover)
+            if event.type() == QEvent.Type.Resize and not self._capturing_privacy_context:
+                self._privacy_context_timer.start(0)
         return super().eventFilter(watched, event)
 
     def _application_state_changed(self, state):

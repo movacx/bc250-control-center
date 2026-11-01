@@ -33,9 +33,39 @@ class RemoteRenderingTests(unittest.TestCase):
         self.assertFalse(self.page.web_pin_box.isVisible())
         self.assertFalse(self.page.web_qr_image.isVisible())
 
+    def test_lock_before_first_show_recovers_context(self):
+        self.page._conceal_information()
+        self.assertTrue(self.page._privacy_cover._context.isNull())
+        self.page.show()
+        self.events()
+        self.assert_silhouettes()
 
+    def test_hidden_navigation_and_resize_keep_context(self):
+        self.page.show()
+        self.events()
+        self.page.hide()
+        self.page.resize(1050, 750)
+        self.page.show()
+        self.events()
+        self.assert_silhouettes()
 
+    def test_changing_theme_while_locked_rebuilds_context(self):
+        previous = theme.ACTIVE_THEME
+        self.addCleanup(theme.configure_theme, previous)
+        self.page.show()
+        self.events()
+        for mode in ('midnight', 'dark', 'light'):
+            theme.configure_theme(mode)
+            self.page.apply_appearance()
+            self.events()
+            self.assert_silhouettes()
 
+    def test_reveal_cancels_pending_context_capture(self):
+        self.page.show()
+        self.page._reveal_information()
+        self.events()
+        self.assertTrue(self.page._privacy_cover._context.isNull())
+        self.assertFalse(self.page._privacy_hidden)
 
     def test_failed_alias_selects_ip_even_after_explicit_alias_selection(self):
         self.page._apply_web({'running': True, 'lan': True, 'urls': [
