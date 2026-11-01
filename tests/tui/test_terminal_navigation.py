@@ -3,7 +3,7 @@ import curses
 
 import pytest
 
-from frontends.tui.app import _parser
+from frontends.tui.app import _parser, resolve_theme
 from frontends.tui.content import Choice, Field
 from frontends.tui.layout import Glyphs, build_layout
 from frontends.tui.pages import build_pages
@@ -124,3 +124,21 @@ def test_keyboard_focus_skips_a_disabled_action():
     screen.cursor[screen._slot()] = 0
     screen.handle_key('tab')
     assert screen.current_choice().label == 'enabled'
+
+
+@pytest.mark.parametrize("override,saved,expected", [
+    (None, "mono", "mono"),
+    ("dark", "mono", "dark"),
+    ("auto", "mono", "auto"),
+    (None, "invalid", "auto"),
+    (None, None, "auto"),
+])
+def test_theme_uses_saved_preference_unless_explicitly_overridden(override, saved, expected):
+    assert resolve_theme(override, {"tui_theme": saved}) == expected
+
+
+def test_theme_option_is_unset_by_default_in_both_entry_points():
+    from frontends.cli import _parser as cli_parser
+
+    assert _parser().parse_args([]).theme is None
+    assert cli_parser().parse_args(["tui"]).theme is None

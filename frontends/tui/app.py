@@ -28,11 +28,16 @@ def _parser() -> argparse.ArgumentParser:
         description="BC250 Control Center in the terminal (works over SSH and on a plain TTY)",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    parser.add_argument("--theme", choices=("auto", "light", "dark", "mono"), default="auto",
-                        help="auto follows the terminal; mono draws without colour")
+    parser.add_argument("--theme", choices=("auto", "light", "dark", "mono"), default=None,
+                        help="default: saved TUI theme; auto follows the terminal; mono draws without colour")
     parser.add_argument("--lang", default="", help="Interface language code (default: the saved setting)")
     parser.add_argument("--page", default="", help="Open this section first (dashboard, cpu, gpu, ...)")
     return parser
+
+
+def resolve_theme(override: str | None, config: dict) -> str:
+    theme = override if override is not None else config.get("tui_theme", "auto")
+    return theme if theme in ("auto", "light", "dark", "mono") else "auto"
 
 
 def _quiet_logging() -> None:
@@ -99,15 +104,16 @@ def main(argv: list[str] | None = None) -> int:
         service=container.system_service, settings=container.settings_service,
         activity=container.activity_service, platform=container.platform, config=config,
     )
+    theme = resolve_theme(args.theme, config)
     pages = build_pages()
     poller = Poller(ctx, pages)
 
     def start(stdscr) -> None:
-        screen = Screen(stdscr, ctx, pages, poller, theme=args.theme)
+        screen = Screen(stdscr, ctx, pages, poller, theme=theme)
         # Every repository offers its workflows here before any terminal emulator.
         set_embedded_terminal_launcher(screen.launch_workflow)
         check_in_background(ctx)  # the title bar names a newer version when there is one
-        ctx.state("ui")["theme"] = args.theme
+        ctx.state("ui")["theme"] = theme
         if args.page in SIDEBAR_ORDER:
             screen.focus = "content"
             screen._go(screen.order.index(args.page))

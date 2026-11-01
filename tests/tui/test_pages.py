@@ -287,10 +287,13 @@ def test_settings_language_change_is_saved_and_applied():
     set_language("en")
 
 
-def test_settings_theme_is_applied_to_the_screen():
+def test_settings_theme_is_saved_and_applied_to_the_screen():
     ctx, ui = make_context(), FakeUI(choices=["mono"])
+    saved = []
+    ctx.settings.save_local_config = saved.append
     choice(render(build_pages()["settings"], ctx, ui, "general"), "Theme").handler(ui)
     assert ui.theme == "mono"
+    assert saved[-1]["tui_theme"] == "mono"
 
 
 def test_black_box_diagnosis_tabs_follow_the_desktop_grouping():

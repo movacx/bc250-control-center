@@ -22,6 +22,11 @@ ALERT_FIELDS = (
 )
 
 
+def theme_label(code: str) -> str:
+    label = tr(dict(THEMES).get(code, "System"))
+    return f"{label} (mono)" if code == "mono" else label
+
+
 class SettingsPage(Page):
     key = "settings"
     title = "Settings"
@@ -33,7 +38,7 @@ class SettingsPage(Page):
     def load(self, ctx):
         return {"config": ctx.settings.read_local_config()}
 
-    def _save(self, ctx, ui, updates: dict) -> None:
+    def _save(self, ctx, ui, updates: dict) -> bool:
         def write():
             config = ctx.settings.read_local_config()
             config.update(updates)
@@ -41,7 +46,7 @@ class SettingsPage(Page):
             ctx.page_data.setdefault(self.key, {})["config"] = config
             return tr("Saved")
 
-        guarded(ui, tr("Settings"), write)
+        return guarded(ui, tr("Settings"), write)
 
     def build(self, ctx, data, tab, ui):
         config = (data or {}).get("config") or {}
@@ -57,14 +62,13 @@ class SettingsPage(Page):
                 self._save(ctx, ui_, {"idioma": chosen})
 
             def theme(ui_):
-                chosen = ui_.choose(tr("Theme"), [(code, tr(name)) for code, name in THEMES])
-                if chosen is not None:
+                chosen = ui_.choose(tr("Theme"), [(code, theme_label(code)) for code, _name in THEMES])
+                if chosen is not None and self._save(ctx, ui_, {"tui_theme": chosen}):
                     ctx.state("ui")["theme"] = chosen
                     ui_.apply_theme(chosen)
-                    ui_.notify(tr("Saved"), "ok")
 
             out += [Choice(tr("Language"), language, f"{config.get('idioma', 'auto')} ({current_language()})"),
-                    Choice(tr("Theme"), theme, str(ctx.state("ui").get("theme", "auto")))]
+                    Choice(tr("Theme"), theme, theme_label(ctx.state("ui").get("theme", "auto")))]
         elif tab == "notifications":
             out.append(Field(tr("Alerts"), tr("Yes") if config.get("alertas_activas") else tr("No")))
 

@@ -81,7 +81,7 @@ def _parser() -> argparse.ArgumentParser:
     tui = commands.add_parser(
         "tui", help="Open the interactive terminal interface (sidebar, live telemetry, every setting)"
     )
-    tui.add_argument("--theme", choices=("auto", "light", "dark", "mono"), default="auto")
+    tui.add_argument("--theme", choices=("auto", "light", "dark", "mono"), default=None)
     tui.add_argument("--lang", default="")
     tui.add_argument("--page", default="")
     commands.add_parser("system", help="Show detected Linux strategy")
@@ -210,7 +210,10 @@ def main(argv: list[str] | None = None, *, host=None, runner=subprocess.run) -> 
     if args.command == "tui":
         from frontends.tui.app import main as tui_main
 
-        return tui_main(["--theme", args.theme, "--lang", args.lang, "--page", args.page])
+        tui_argv = ["--lang", args.lang, "--page", args.page]
+        if args.theme is not None:
+            tui_argv.extend(["--theme", args.theme])
+        return tui_main(tui_argv)
     if args.command == "black-box":
         from bc250cc.infrastructure.blackbox import record
 
