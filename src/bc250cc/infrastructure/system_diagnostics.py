@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import ContextVar, copy_context
 from pathlib import Path
 
 from bc250cc.shared.error_origins import redact
@@ -158,7 +159,7 @@ def _hwmon() -> str:
     return "\n".join(lines) or "(no hwmon devices)"
 
 
-def _kernel_text(boot: str = "0") -> tuple[str, str]:
+def _kernel_text(boot: str = "0", *, allow_privileged: bool = True) -> tuple[str, str]:
     """The whole kernel log of one boot, and where it came from.
 
     The journal first (readable by wheel and systemd-journal members), then
@@ -171,6 +172,8 @@ def _kernel_text(boot: str = "0") -> tuple[str, str]:
     text = _run(["dmesg"])
     if text:
         return text, "dmesg"
+    if not allow_privileged:
+        return "", "unavailable without administrator authorization"
     dmesg = shutil.which("dmesg") or "/usr/bin/dmesg"
     text = _run(["pkexec", dmesg], timeout=POLKIT_TIMEOUT_S)
     return text, "dmesg via polkit"
@@ -191,9 +194,13 @@ def kernel_log_needs_password() -> bool:
 
 
 _KERNEL_CACHE: dict[str, tuple[str, str]] = {}
+_READONLY_KERNEL_LOGS: ContextVar[dict | None] = ContextVar("readonly_kernel_logs", default=None)
 
 
 def _kernel_cached(boot: str = "0") -> tuple[str, str]:
+    readonly = _READONLY_KERNEL_LOGS.get()
+    if readonly is not None:
+        return readonly.get(boot, ("", "unavailable without administrator authorization"))
     if boot not in _KERNEL_CACHE:
         _KERNEL_CACHE[boot] = _kernel_text(boot)
     return _KERNEL_CACHE[boot]
@@ -207,7 +214,7 @@ _NOISE = re.compile(r"Modules linked in:|ommand line:|kernel: CPU: \d+ UID:|kern
 def _filtered(pattern: re.Pattern, boot: str = "0", keep: int = 60) -> str:
     text, source = _kernel_cached(boot)
     if not text:
-        return "(the kernel log could not be read, not even through polkit)"
+        return "(kernel log is not readable without administrator authorization)" if _READONLY_KERNEL_LOGS.get() is not None else "(the kernel log could not be read, not even through polkit)"
     matches = _group_similar(
         line for line in text.splitlines() if pattern.search(line) and not _NOISE.search(line)
     )
@@ -581,13 +588,14 @@ def collect_diagnostics(
     # polkit for the kernel log asks for the password a single time.
     # ``fresh=False`` reuses the log the report just read: on a system that
     # needs polkit for it, the full diagnosis must not ask a second time.
-    if fresh:
+    if fresh and _READONLY_KERNEL_LOGS.get() is None:
         _KERNEL_CACHE.clear()
     if any(read in _KERNEL_READERS for _title, read in sections):
         _kernel_cached("0")
         _kernel_cached("-1")
     with ThreadPoolExecutor(max_workers=6) as pool:
-        parts = list(pool.map(one, sections))
+        futures = [pool.submit(copy_context().run, one, item) for item in sections]
+        parts = [future.result() for future in futures]
     # Home folders, and also the machine's name, addresses and ids: this text is pasted in public.
     from bc250cc.infrastructure.privacy import redact_machine
 

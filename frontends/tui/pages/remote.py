@@ -18,7 +18,7 @@ class RemoteAccessPage(Page):
     interval = 3.0
 
     def tabs(self, ctx):
-        return [("web", tr("Remote access")), ("devices", tr("Connected devices")), ("ssh", "SSH")]
+        return [("web", tr("Remote access")), ("devices", tr("Connected devices")), ("ssh", "SSH"), ("network", tr("Network diagnostics"))]
 
     def load(self, ctx):
         return {"web": web_access.status(), "ssh": remote_access.status()}
@@ -36,6 +36,8 @@ class RemoteAccessPage(Page):
         web = data.get("web") or {}
         if tab == "devices":
             return out + self._devices(web)
+        if tab == "network":
+            return out + self._network(ctx, web)
 
         def run(label, work, danger=False):
             def handler(ui_):
@@ -57,13 +59,81 @@ class RemoteAccessPage(Page):
                 Choice(tr("New access key"), run("New access key", lambda: (web_access.access_key(renew=True), None)[1], True)),
                 Choice(f"[{'x' if web.get('lan') else ' '}] {tr('Reachable from the local network')}",
                        run("Reachable from the local network", lambda: web_access.configure(lan=not web.get("lan")))),
-                Choice("TCP", port, str(web.get("port") or web_access.DEFAULT_PORT))]
+                Choice("TCP", port, str(web.get("port") or web_access.DEFAULT_PORT)),
+                Note(tr("Changing the TCP port does not open it in the firewall. Use Network diagnostics to configure LAN access."), "dim"),
+                Choice(tr("Network diagnostics"), lambda ui_: ui_.show_tab("network"), tr("Firewall and local address"))]
         startup = web.get("autostart") or {}
         out += [Choice(f"[{'x' if startup.get('enabled') else ' '}] {tr('Start with the session')}",
                        run("Start with the session", lambda: web_access.set_autostart(not startup.get("enabled"))),
                        enabled=bool(startup.get("supported"))),
                 Field("SHA-256", str(web.get("trust_fingerprint") or "--"))]
         return out
+
+    def _network(self, ctx, web):
+        out = [Heading(tr("Network diagnostics"))]
+        if not web.get("lan"):
+            return out + [Note(tr("Enable access from the local network before configuring its firewall."), "warn")]
+        port = str(web.get("port") or web_access.DEFAULT_PORT)
+        firewall = web.get("firewall") or {}
+        health = web.get("name_health") or {}
+        backend = {"ufw": "UFW", "firewalld": "firewalld"}.get(firewall.get("backend"), firewall.get("backend") or "—")
+        messages = {
+            "blocked": "The firewall may block access from other devices. Configure LAN access below.",
+            "needs_check": "The firewall needs an administrator check before LAN access can be configured.",
+            "ready": "Firewall rules allow this port on the detected LAN networks. Connect your phone to the same network.",
+            "inactive": "UFW is inactive. If connection fails, check Wi-Fi isolation and other network filters.",
+            "unknown": "The firewall could not be checked. LAN connectivity is not verified.",
+            "unsupported": "Custom or multiple firewall managers detected. Automatic changes are unavailable.",
+            "no_network": "No connected private IPv4 network was detected.",
+            "update_helper": "Update or reinstall Control Center to install the LAN firewall helper.",
+        }
+        networks = ", ".join(firewall.get("networks") or []) or "—"
+        out += [Heading(tr("Firewall")), Field(tr("Manager"), backend), Field("TCP", port),
+                Field(tr("Local networks"), networks),
+                Note(tr(messages.get(firewall.get("state"), messages["unknown"])),
+                     "ok" if firewall.get("state") == "ready" else "warn")]
+        if firewall.get("backend") == "ufw" and not firewall.get("verified"):
+            out.append(Note(tr("This check uses saved UFW configuration. Administrator authorization is required to verify the active rules."), "dim"))
+        if firewall.get("repairable"):
+            message = tr("Allow this web port only from the connected private networks? Existing firewall rules are preserved. Administrator authorization is required.")
+            message += f"\nTCP {port} · {networks}"
+            out.append(Choice(tr("Configure LAN firewall"), self._network_repair(
+                ctx, "Configure LAN firewall", message, web_access.repair_firewall,
+                messages["ready"])))
+        name_messages = {
+            "resolver_failed": "The local address is advertised, but this computer cannot resolve it. Use the numeric address or repair name resolution.",
+            "publication_failed": "The local address is not advertised yet. Use the numeric address or repair local name discovery.",
+            "conflict": "The local address points to another device. Use the numeric address.",
+            "unavailable": "Local name resolution could not be checked. Use the numeric address.",
+            "ready": "The local address works on this computer. Other devices must support local network name resolution.",
+            "disabled": "Start web access to check the local address.",
+        }
+        out += [Gap(), Heading(tr("Local address")),
+                Note(tr(name_messages.get(health.get("status"), name_messages["unavailable"])),
+                     "ok" if health.get("status") == "ready" else "warn")]
+        if health.get("repairable"):
+            message = tr("Repair local name discovery and lookup? This may install Avahi and its resolver module, enable the Avahi service and update the system resolver configuration. A configuration backup is saved and failed resolver changes are reverted. Administrator authorization is required.")
+            out.append(Choice(tr("Repair local address"), self._network_repair(
+                ctx, "Repair local address", message, web_access.repair_local_name, name_messages["ready"])))
+        out += [Choice(tr("Refresh diagnostics"), lambda ui_: ui_.refresh())]
+        return out
+
+    def _network_repair(self, ctx, label, message, operation, success):
+        def handler(ui_):
+            def unlocked():
+                return time.monotonic() < ctx.state(self.key).get("visible_until", 0)
+            if not unlocked():
+                ui_.notify(tr("Information protected"), "warn")
+                ui_.refresh()
+                return
+            if not ui_.confirm(f"{tr(label)}: {message}", danger=True):
+                return
+            if not unlocked():
+                ui_.notify(tr("Information protected"), "warn")
+                ui_.refresh()
+                return
+            guarded(ui_, tr(label), operation, success=tr(success))
+        return handler
 
     @staticmethod
     def _devices(web):

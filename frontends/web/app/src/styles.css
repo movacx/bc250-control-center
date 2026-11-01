@@ -745,3 +745,14 @@ button, input, select { font-variant-numeric: tabular-nums; }
 .accent-choices button.on > i { outline: 1px solid var(--c-blue); outline-offset: 3px; }
 @media (max-width: 400px) { .theme-choices { gap: 5px; } .theme-choices > button { padding: 7px 4px; font-size: 10px; } .accent-choices { gap: 6px; } }
 .local-address { display: flex; justify-content: center; text-decoration: none; color: var(--c-blue); min-height: 44px; overflow-wrap: anywhere; }
+
+/* Project links sit above Settings, with the same touch targets as navigation. */
+.project-links { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; padding-top: 8px; flex-shrink: 0; }
+.project-links a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 56px; padding: 8px 2px; border: 1px solid var(--c-border-soft); border-radius: 8px; color: var(--c-muted); background: transparent; text-decoration: none; font-size: 10px; }
+.project-links a:hover { color: var(--c-text); background: var(--c-panel-alt); border-color: var(--c-border); }
+.project-links img { width: 22px; height: 22px; object-fit: contain; }
+@media (min-width: 821px) {
+  .side.slim .project-links { grid-template-columns: minmax(0,1fr); width: 42px; }
+  .side.slim .project-links a { min-height: 42px; }
+  .side.slim .project-links span { display: none; }
+}

@@ -7,7 +7,7 @@ export const setCsrf = (value) => { csrf = value || ""; };
 export const onSessionLost = (fn) => { onLost = fn; };
 
 export async function api(path, body) {
-  const options = body === undefined ? { credentials: "same-origin" }
+  const options = body === undefined ? { credentials: "same-origin", cache: "no-store" }
     : { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf }, body: JSON.stringify(body) };
   options.headers = { ...options.headers, "X-BC250-Language": document.documentElement.lang || navigator.language };
   try {

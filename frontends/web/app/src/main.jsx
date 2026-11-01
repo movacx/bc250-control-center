@@ -1,14 +1,20 @@
-import DesktopActivity from "./DesktopActivity.jsx";
+import ProjectLinks from "./ProjectLinks.jsx";
+import Activity from "./DesktopActivity.jsx";
 import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import "./desktop.css";
+import "./mobile.css";
+import "./blackbox.css";
+import { jobState } from "./jobs.js";
+import { hasWebUpdate, refreshUrl } from "./updates.js";
 import { applyAppearance } from "./appearance.js";
 import { App, api, loadStrings, onSessionLost, setCsrf, t, usePoll } from "./lib.jsx";
 import { Btn, Card, Dialog, Icon, Modal, useMobile } from "./ui.jsx";
+import BlackBox from "./pages/BlackBox.jsx";
 import Compute from "./pages/Compute.jsx";
 import Cpu from "./pages/Cpu.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
+import Dashboard, { DashboardHeaderSummary } from "./pages/Dashboard.jsx";
 import Fans from "./pages/Fans.jsx";
 import Gpu from "./pages/Gpu.jsx";
 import Performance from "./pages/Performance.jsx";
@@ -25,6 +31,8 @@ const NAV = [
   { cap: () => t("Monitoring") },
   { key: "performance", title: () => t("Performance"), icon: "nav_performance", page: Performance },
   { key: "fans", title: () => t("Fans"), icon: "nav_fans", page: Fans },
+  { cap: () => t("System") },
+  { key: "blackbox", title: () => t("Black box"), icon: "nav_blackbox", page: BlackBox },
 ];
 const SETTINGS = { key: "settings", title: () => t("Settings"), icon: "nav_settings", page: Settings };
 const ALL = [...NAV.filter((item) => item.key), SETTINGS];
@@ -61,33 +69,6 @@ function Login({ onDone, error }) {
   );
 }
 
-/** The job that runs hardware changes: its output, and the password prompt sudo or Polkit shows. */
-function Activity({ job, onClose, canType, inlineConsole }) {
-  const mobile = useMobile();
-  const [text, setText] = useState("");
-  const out = useRef(null);
-  const [expanded, setExpanded] = useState(() => !matchMedia("(max-width: 820px)").matches);
-  useEffect(() => { setExpanded(!matchMedia("(max-width: 820px)").matches); }, [job?.id]);
-  useEffect(() => { if (job?.waiting || job?.done && !job?.ok) setExpanded(true); }, [job?.waiting, job?.done, job?.ok]);
-  useEffect(() => setText(""), [job?.id, job?.waiting]);
-  useEffect(() => { if (out.current) out.current.scrollTop = out.current.scrollHeight; }, [job?.text]);
-  if (!job) return null;
-  if (!mobile) return <DesktopActivity job={job} inlineConsole={inlineConsole} canType={canType} onClose={onClose} />;
-  const send = async (e) => { e.preventDefault(); const value = text; setText(""); await api("job/input", { text: value }); };
-  const status = job.done ? (job.ok ? t("Done") : t("Failed")) : job.waiting ? t("Administrator password") : t("Running…");
-  const tone = job.done ? (job.ok ? "green" : "red") : "blue";
-  if (!expanded) return <div className="operation-minimized"><button className="operation-open" onClick={() => setExpanded(true)} aria-expanded={false}><span className={`pill ${tone}`}>{status}</span><span>{job.label}</span><Icon name="expand_gray" /></button>{!job.done && job.kind === "gddr6.monitor" && <button className="ghost" aria-label={t("Stop monitoring")} onClick={() => api("job/interrupt", {})}><Icon name="stop_red" /></button>}{job.done && <button className="ghost" aria-label={t("Close")} onClick={onClose}><Icon name="close_gray" /></button>}</div>;
-  return <Modal onClose={() => setExpanded(false)}><section className={`dialog operation-dialog ${job.kind === "gddr6.monitor" ? "desktop-terminal-only" : ""}`} role="dialog" aria-modal="true" aria-label={job.label}>
-    <header><div className="dialog-heading"><span className={`dialog-symbol ${tone}`}><Icon name={job.done ? (job.ok ? "check_green" : "warning_orange") : "nav_performance"} /></span><div><span className="dialog-caption">{t("Hardware")}</span><h3>{job.label}</h3></div></div>
-      <div className="operation-status"><span className={`pill ${tone}`} role="status">{status}</span></div></header>
-    <section><pre className="console operation-output" ref={out} tabIndex={0} aria-label={t("Terminal output")}>{job.text || t("Waiting for data…")}</pre>
-      {!job.done && (job.interactive || job.waiting) && (canType
-        ? <form className="terminal-auth" onSubmit={send}><label className="field"><span>{job.waiting ? t("Linux password") : t("Terminal input")}</span><input className="input" type={job.waiting ? "password" : "text"} autoComplete="off" value={text} onChange={(e) => setText(e.target.value)} /></label><Btn type="submit" kind="primary" disabled={job.waiting && !text}>{t("Send")}</Btn></form>
-        : <p className="notice">{t("Use HTTPS before entering your Linux password.")}</p>)}
-    </section><footer>{!job.done && <Btn kind="danger" onClick={() => api("job/interrupt", {})}>{t("Stop")}</Btn>}<Btn onClick={() => setExpanded(false)}>{t("Hide")}</Btn>{job.done && <Btn kind="primary" onClick={onClose}>{t("Close")}</Btn>}</footer>
-  </section></Modal>;
-}
-
 function SSH({ onClose, canType }) {
   const status = usePoll("ssh", 800, 0);
   const [password, setPassword] = useState("");
@@ -97,7 +78,7 @@ function SSH({ onClose, canType }) {
   return <Dialog title={t("SSH authorization")} onClose={onClose} footer={<Btn kind="primary" onClick={onClose}>{t("Close")}</Btn>}>
     <p className="note">{t("Connect to this board with your Linux account. Hardware permissions are requested here when needed.")}</p>
     <div className="connection-state"><i className={status?.ready ? "connected" : ""} />{status?.ready ? t("Connected") : t("Not connected")}</div>
-    {status?.text && !status.ready && <pre className="console">{status.text}</pre>}
+    {status?.text && !status.ready && !status.prompt && <pre className="console">{status.text}</pre>}
     {message && <p className="err" role="alert">{message}</p>}
     {!canType && <p className="notice">{t("Use HTTPS before entering your Linux password.")}</p>}
     {status?.closed ? <Btn disabled={!canType} onClick={start}>{t("Connect SSH")}</Btn>
@@ -119,8 +100,7 @@ function Confirm({ spec, onCancel, onGo }) {
     if (!result.ok) { setError(t(result.error || "Not detected")); setBusy(false); }
   };
   const content = <div ref={review} tabIndex={-1} className={inline ? "inline-review" : "dialog"} role={inline ? "region" : "alertdialog"} aria-label={spec.title} aria-modal={inline ? undefined : true}>
-      {mobile && <header><div className="dialog-heading"><span className={`dialog-symbol ${spec.level === 2 ? "orange" : "blue"}`}><Icon name="warning_orange" /></span><div><span className="dialog-caption">{t("Confirm")}</span><h3>{spec.title}</h3></div></div></header>}
-      <section>{!mobile && <p className="desktop-dialog-label">{spec.title}</p>}{spec.body && <p style={{ margin: 0 }}>{spec.body}</p>}
+      <section><p className="desktop-dialog-label">{spec.title}</p>{spec.body && <p style={{ margin: 0 }}>{spec.body}</p>}
         {spec.summary?.length > 0 && <dl className="dialog-summary">{spec.summary.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
         {(spec.warning || spec.level === 2) && <div className="notice">{spec.warning || t("Stop every game, benchmark, and 3D workload before continuing.")}</div>}
         {error && <p className="err" role="alert">{error}</p>}</section>
@@ -131,6 +111,7 @@ function Confirm({ spec, onCancel, onGo }) {
 }
 
 function Shell({ session, onLogout }) {
+  const mobile = useMobile();
   const [page, setPage] = useState(route());
   const [slim, setSlim] = useState(() => localStorage.getItem("slim") === "1");
   const [menu, setMenu] = useState(false);
@@ -142,31 +123,48 @@ function Shell({ session, onLogout }) {
   const [again, setAgain] = useState(0);
   const [sshOpen, setSshOpen] = useState(false);
   useEffect(() => { document.querySelector("main")?.scrollTo(0, 0); }, [page]);
-  useEffect(() => { api("job").then((current) => { if (current.id && !current.done) { setJob(current); setJobId((n) => n + 1); } }); }, []);
+  useEffect(() => {
+    let active = true;
+    api("job").then(current => {
+      if (active && jobState(current) === "job" && !current.done) {
+        setJob(current); setJobId(n => n + 1);
+      }
+    });
+    return () => { active = false; };
+  }, []);
   const ssh = usePoll("ssh", 3000, 0);
   const live = usePoll("live", 1000, 0);
   const release = usePoll("version", 15000, 0);
   const loadedBuild = document.querySelector('meta[name="bc250-build"]')?.content;
-  const updateAvailable = loadedBuild && release?.version && loadedBuild !== release.version;
-  const refreshBuild = () => { const url = new URL(location.href); url.searchParams.set("v", release.version); location.replace(url); };
+  const updateAvailable = hasWebUpdate(loadedBuild, release);
+  const refreshBuild = () => location.replace(refreshUrl(location.href, release.version));
 
   useEffect(() => { const on = () => { setPage(route()); setMenu(false); setConfirm(null); }; addEventListener("hashchange", on); return () => removeEventListener("hashchange", on); }, []);
   useEffect(() => { localStorage.setItem("slim", slim ? "1" : "0"); }, [slim]);
   useEffect(() => { if (!toast) return undefined; const id = setTimeout(() => setToast(null), 5000); return () => clearTimeout(id); }, [toast]);
   useEffect(() => {
     if (!jobId) return undefined;
-    let stop = false;
+    let stop = false, timer;
     const tick = async () => {
       const next = await api("job");
       if (stop) return;
+      const state = jobState(next);
+      if (state === "unavailable") {
+        timer = setTimeout(tick, 1500);
+        return;
+      }
+      if (state === "idle") {
+        setJob(null); setJobId(0);
+        return;
+      }
       setJob(next);
       if (next.done) {
         setAgain((n) => n + 1);
         setToast(next.ok ? { tone: "ok", text: next.message || t("Done") } : { tone: "bad", text: t("The workflow did not finish successfully.") });
-      } else setTimeout(tick, 600);
+      } else timer = setTimeout(tick, 600);
     };
     tick();
-    return () => { stop = true; };
+    return () => { stop = true; clearTimeout(timer); };
   }, [jobId]);
 
   /** Every hardware change goes through here: the spec names the closed action, the dialog asks. */
@@ -182,6 +180,7 @@ function Shell({ session, onLogout }) {
     else go(spec).then((r) => { if (!r.ok) setToast({ tone: "bad", text: t(r.error) }); });
   };
   const running = job && !job.done && job.kind !== "gddr6.monitor";
+  const monitorInDashboard = page === "dashboard" && job?.kind === "gddr6.monitor";
   const current = ALL.find((item) => item.key === page);
   const Page = current.page;
   const link = (item) => <a key={item.key} className={`nav ${page === item.key ? "on" : ""}`} href={`#/${item.key}`} aria-current={page === item.key ? "page" : undefined}><Icon name={item.icon} /><span>{item.title()}</span></a>;
@@ -189,23 +188,23 @@ function Shell({ session, onLogout }) {
   return (
     <App.Provider value={{ live: live?.metrics ? live : null, history: live?.history || {}, act, again, running, job, registerConsole, cancelReview: () => setConfirm(null), stopJob: () => api("job/interrupt", {}), toast: setToast, session, ssh, openSsh: () => session.control ? setSshOpen(true) : setToast({ tone: "bad", text: t("This device has monitoring access. Enable hardware control in Remote access on the desktop.") }) }}>
       <div className="shell">
-        <header className="topbar"><a className="mobile-brand" aria-label={`BC250 · ${t("Dashboard")}`} href="#/dashboard"><img src="logo.png" alt="" /><strong>BC250</strong></a><span className="topbar-title">{current.title()}</span><button className="ghost" aria-label={t("Menu")} aria-expanded={menu} onClick={() => setMenu(!menu)}><Icon name="nav_settings" /></button></header>
+        <header className="topbar"><a className="mobile-brand" aria-label={`BC250 · ${t("Dashboard")}`} href="#/dashboard"><img src="logo.png" alt="" /><strong>BC250</strong></a><span className="topbar-title"><span>{current.title()}</span>{mobile && page === "dashboard" && <DashboardHeaderSummary />}</span><button className="ghost" aria-label={t("Menu")} aria-expanded={menu} onClick={() => setMenu(!menu)}><Icon name="nav_settings" /></button></header>
         {menu && <div className="scrim menu-scrim" style={{ zIndex: 24 }} onClick={() => setMenu(false)} />}
         <nav className={`side ${slim ? "slim" : ""} ${menu ? "open" : ""}`} aria-label="BC250">
           <div className="brand"><img src="logo.png" alt="" /><div className="grow"><b>BC250</b><small>{name[0]?.toUpperCase() + name.slice(1)}</small></div>
             <button className="ghost collapse" aria-label={slim ? t("Expand sidebar") : t("Collapse sidebar")} onClick={() => setSlim(!slim)}><Icon name={slim ? "expand_gray" : "collapse_gray"} /></button></div>
           {NAV.map((item) => (item.cap ? <div className="cap" key={item.cap()}>{item.cap()}</div> : link(item)))}
-          <div className="spring" /><div className="rule" />
+          <div className="spring" /><ProjectLinks/><div className="rule" />
           {link(SETTINGS)}
         </nav>
-        <main className={`main page-${page} ${job && (jobId || running) ? "with-operation" : ""}`}><h1 className="sr-only">{current.title()}</h1>{(confirm?.level === 1 || confirm?.inline) && <Confirm spec={confirm} onCancel={() => setConfirm(null)} onGo={() => go(confirm)} />}{updateAvailable && <div className="update-notice" role="status"><span>{t("Update available")}</span><Btn small disabled={!!job && !job.done} onClick={refreshBuild}>{t("Refresh")}</Btn></div>}{live?._disconnected && <p className="notice" role="status">{t("Not connected")}</p>}{!session.control && <p className="notice" role="status">{t("Monitoring only. Enable hardware control for this device in Remote access on the desktop.")} <strong>{t("Device code: {code}", { code: session.device_code })}</strong></p>}<Page onLogout={onLogout} /></main>
+        <main className={`main page-${page} ${job && (jobId || running) && !monitorInDashboard ? "with-operation" : ""}`}><h1 className="sr-only">{current.title()}</h1>{(confirm?.level === 1 || confirm?.inline) && <Confirm spec={confirm} onCancel={() => setConfirm(null)} onGo={() => go(confirm)} />}{updateAvailable && <div className="update-notice" role="status"><span>{t("Update available")}</span><Btn small onClick={refreshBuild}>{t("Refresh")}</Btn></div>}{live?._disconnected && <p className="notice" role="status">{t("Not connected")}</p>}{!session.control && <p className="notice" role="status">{t("Monitoring only. Enable hardware control for this device in Remote access on the desktop.")} <strong>{t("Device code: {code}", { code: session.device_code })}</strong></p>}<Page onLogout={onLogout} /></main>
         <nav className="bottom-nav" aria-label={t("Hardware")}>{["dashboard", "cpu", "cu", "gpu", "performance"].map((key, i) => {
           const item = ALL.find((v) => v.key === key);
           return <a href={`#/${key}`} key={key} className={page === key ? "on" : ""} aria-current={page === key ? "page" : undefined}><Icon name={item.icon} /><span>{[t("Dashboard"), "CPU", "CU", "GPU", t("Sensors")][i]}</span></a>;
         })}</nav>
       </div>
       {confirm && confirm.level !== 1 && !confirm.inline && <Confirm spec={confirm} onCancel={() => { setConfirm(null); confirm.onCancel?.(); }} onGo={() => go(confirm)} />}
-      {(job && (jobId || running)) && <Activity job={job} inlineConsole={inlineConsole} canType={session.password} onClose={() => { setJob(null); setJobId(0); }} />}
+      {(job && (jobId || running)) && <Activity job={job} monitorVisible={monitorInDashboard} inlineConsole={inlineConsole} canType={session.password} onClose={() => { setJob(null); setJobId(0); }} />}
       {sshOpen && <SSH onClose={() => setSshOpen(false)} canType={session.password} />}
       {toast && <div className={`toast ${toast.tone}`} role="status"><Icon name={toast.tone === "ok" ? "check_green" : "warning_orange"} /><span>{toast.text}</span><button className="ghost" aria-label={t("Close")} onClick={() => setToast(null)}><Icon name="close_gray" /></button></div>}
     </App.Provider>

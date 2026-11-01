@@ -268,6 +268,7 @@ class RemoteAccessPage(QWidget):
         self.setProperty("processPage", True)
         self._background = BackgroundExecutor(self)
         self._web_state = {}
+        self._firewall_repair_pending = False
         self._name_health_display = None
         self._name_ready_samples = 0
         self._name_repair_pending = False
@@ -337,6 +338,10 @@ class RemoteAccessPage(QWidget):
         connection.addWidget(self.web_name_status)
         self.web_name_repair = self._button("Repair local address", self._repair_local_name)
         connection.addWidget(self.web_name_repair)
+        self.web_firewall_status = self._label("")
+        connection.addWidget(self.web_firewall_status)
+        self.web_firewall_repair = self._button("Configure LAN firewall", self._repair_firewall)
+        connection.addWidget(self.web_firewall_repair)
         connection.addSpacing(6)
         connection.addWidget(self._label("Access key", strong=True))
         self.web_pin_box = self._code("")
@@ -761,6 +766,24 @@ class RemoteAccessPage(QWidget):
         self.web_name_status.setVisible(bool(state.get("lan")))
         self.web_name_repair.setVisible(bool(health.get("repairable")))
         self.web_name_repair.setEnabled(not self._name_repair_pending and not self._background.is_running("name_repair"))
+        firewall = state.get("firewall") or {}
+        firewall_messages = {
+            "blocked": "The firewall may block access from other devices. Configure LAN access below.",
+            "needs_check": "The firewall needs an administrator check before LAN access can be configured.",
+            "ready": "Firewall rules allow this port on the detected LAN networks. Connect your phone to the same network.",
+            "inactive": "UFW is inactive. If connection fails, check Wi-Fi isolation and other network filters.",
+            "unknown": "The firewall could not be checked. LAN connectivity is not verified.",
+            "unsupported": "Custom or multiple firewall managers detected. Automatic changes are unavailable.",
+            "no_network": "No connected private IPv4 network was detected.",
+            "update_helper": "Update or reinstall Control Center to install the LAN firewall helper.",
+        }
+        text = tr(firewall_messages.get(firewall.get("state"), ""))
+        if firewall.get("networks"):
+            text += "\nTCP " + str(state.get("port", 8250)) + " · " + ", ".join(firewall["networks"])
+        self.web_firewall_status.setText(text)
+        self.web_firewall_status.setVisible(bool(state.get("lan")))
+        self.web_firewall_repair.setVisible(bool(state.get("lan")) and (bool(firewall.get("repairable")) or self._firewall_repair_pending))
+        self.web_firewall_repair.setEnabled(not self._firewall_repair_pending)
         running = bool(state.get("running"))
         urls = state.get("urls") or []
         available = urls or ([state["local_url"]] if state.get("local_url") else [])
@@ -949,6 +972,31 @@ class RemoteAccessPage(QWidget):
 
     def _revoke_all(self):
         self._run("revoke_all", web_access.revoke_all)
+
+    def _repair_firewall(self):
+        self._check_privacy()
+        if self._privacy_hidden or self._firewall_repair_pending:
+            return
+        self._firewall_repair_pending = True
+        self._render_web()
+        networks = ", ".join((self._web_state.get("firewall") or {}).get("networks", []))
+        message = tr("Allow this web port only from the connected private networks? Existing firewall rules are preserved. Administrator authorization is required.")
+        message += "\n\nTCP " + str(self._web_state.get("port", 8250)) + " · " + networks
+        def finished():
+            self._firewall_repair_pending = False
+            self._render_web()
+            self.refresh()
+        if QMessageBox.question(self, tr("Configure LAN firewall"), message,
+                               QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                               QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
+            finished()
+            return
+        if not self._background.start(
+            "firewall_repair", web_access.repair_firewall,
+            on_error=lambda message: show_toast(self, tr("Remote access"), tr(message), tone="red"),
+            on_finished=finished,
+        ):
+            finished()
 
     def _repair_local_name(self):
         self._check_privacy()

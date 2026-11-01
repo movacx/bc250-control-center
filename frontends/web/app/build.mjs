@@ -33,7 +33,9 @@ await build({
   outdir: dist, entryNames: "app", define: { "process.env.NODE_ENV": '"production"' }, legalComments: "none",
 });
 for (const [from, to] of [[join(icons, "bc250_board_light.png"), "board-light.png"], [join(icons, "bc250_board_dark.png"), "board-dark.png"],
-  [join(root, "assets", "icons", "bc250-control-center-64.png"), "logo.png"]]) copyFileSync(from, join(dist, to));
+  [join(root, "assets", "icons", "bc250-control-center-64.png"), "logo.png"],
+  [join(icons, "kofi_cup.png"), "project-kofi.png"], [join(icons, "telegram.svg"), "project-telegram.svg"],
+  [join(icons, "github.svg"), "project-github.svg"]]) copyFileSync(from, join(dist, to));
 // Installation metadata never includes a pairing key, device code or session.
 const appIcons = [192, 256, 512].map((size) => {
   const name = `app-icon-${size}.png`;

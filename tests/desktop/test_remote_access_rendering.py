@@ -33,6 +33,21 @@ class RemoteRenderingTests(unittest.TestCase):
         self.assertFalse(self.page.web_pin_box.isVisible())
         self.assertFalse(self.page.web_qr_image.isVisible())
 
+    def test_firewall_offer_and_pending_state(self):
+        self.page._privacy_hidden = False
+        self.page._apply_web({"running": True, "lan": True, "port": 8250,
+                              "firewall": {"state": "blocked", "repairable": True,
+                                           "networks": ["192.168.0.0/24"]}})
+        self.assertFalse(self.page.web_firewall_repair.isHidden())
+        self.assertIn("192.168.0.0/24", self.page.web_firewall_status.text())
+        self.page._firewall_repair_pending = True
+        self.page._apply_web({"running": True, "lan": True, "firewall": {"state": "ready"}})
+        self.assertFalse(self.page.web_firewall_repair.isHidden())
+        self.assertFalse(self.page.web_firewall_repair.isEnabled())
+        self.page._firewall_repair_pending = False
+        self.page._render_web()
+        self.assertTrue(self.page.web_firewall_repair.isHidden())
+
     def test_lock_before_first_show_recovers_context(self):
         self.page._conceal_information()
         self.assertTrue(self.page._privacy_cover._context.isNull())

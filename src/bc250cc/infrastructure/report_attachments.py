@@ -22,6 +22,7 @@ import re
 import shutil
 import socket
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from pathlib import Path
 
 from bc250cc.infrastructure import system_diagnostics as diag
@@ -76,6 +77,8 @@ def _gpu_device() -> str:
 def _kernel_log_full() -> str:
     current, _source = diag._kernel_cached("0")
     previous, _ = diag._kernel_cached("-1")
+    if not current and diag._READONLY_KERNEL_LOGS.get() is not None:
+        current = "(kernel log is not readable without administrator authorization)"
     current_lines = current.splitlines()
     return "\n".join((
         f"[this boot, last {min(250, len(current_lines))} of {len(current_lines)} lines]",
@@ -262,7 +265,8 @@ def collect_system_state(sections=STATE_SECTIONS) -> str:
         return f"== {title} ==\n{body}"
 
     with ThreadPoolExecutor(max_workers=4) as pool:
-        parts = list(pool.map(one, sections))
+        futures = [pool.submit(copy_context().run, one, item) for item in sections]
+        parts = [future.result() for future in futures]
     return redact_machine("\n\n".join(parts))
 
 
@@ -308,3 +312,17 @@ def collect_attachments() -> list[tuple[str, str]]:
         seen.add(title.lower())
         unique.append((title, body))
     return unique
+
+
+def collect_readonly_attachments() -> list[tuple[str, str]]:
+    """The desktop diagnosis without any interactive privilege escalation.
+
+    The cache is local to this collection and propagated to its reader threads;
+    it cannot change a simultaneous desktop collection's permission policy.
+    """
+    logs = {boot: diag._kernel_text(boot, allow_privileged=False) for boot in ("0", "-1")}
+    token = diag._READONLY_KERNEL_LOGS.set(logs)
+    try:
+        return collect_attachments()
+    finally:
+        diag._READONLY_KERNEL_LOGS.reset(token)

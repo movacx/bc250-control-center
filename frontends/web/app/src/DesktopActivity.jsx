@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, t } from "./lib.jsx";
-import { Btn, Icon, Modal } from "./ui.jsx";
+import { Btn, Icon, Modal, useMobile } from "./ui.jsx";
 
 /** Non-password prompts keep using the existing, session-owned job channel. */
 export function TerminalInput({ job, canType }) {
@@ -30,8 +30,9 @@ export function TerminalInput({ job, canType }) {
 }
 
 /** One output surface per task; authentication is a separate, compact prompt. */
-export default function DesktopActivity({ job, inlineConsole, canType, onClose }) {
-  const [expanded, setExpanded] = useState(() => job.kind !== "gddr6.monitor");
+export default function Activity({ job, inlineConsole, canType, onClose, monitorVisible = false }) {
+  const mobile = useMobile();
+  const [expanded, setExpanded] = useState(() => !mobile && job.kind !== "gddr6.monitor");
   const [password, setPassword] = useState("");
   const [sending, setSending] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -46,7 +47,7 @@ export default function DesktopActivity({ job, inlineConsole, canType, onClose }
   const wasWaiting = useRef(!!job.waiting);
   const hasInline = !!inlineConsole && job.kind?.startsWith(inlineConsole);
   useEffect(() => {
-    setExpanded(job.kind !== "gddr6.monitor"); setPassword(""); setSending(false); setCancelling(false); setSubmitted(false); setDismissed(false); setError("");
+    setExpanded(!mobile && job.kind !== "gddr6.monitor"); setPassword(""); setSending(false); setCancelling(false); setSubmitted(false); setDismissed(false); setError("");
     sentPrompt.current = null;
   }, [job.id]);
   useEffect(() => {
@@ -103,6 +104,10 @@ export default function DesktopActivity({ job, inlineConsole, canType, onClose }
       <footer><Btn disabled={sending || cancelling} onClick={cancel}>{t("Cancel")}</Btn><Btn type="submit" kind="primary" disabled={!canType || !password || sending || submitted || cancelling}>{sending || submitted ? t("Authenticating…") : t("Authenticate")}</Btn></footer>
     </form>
   </Modal>;
+
+  // The dashboard owns this monitor's readings and stop control. Keep the
+  // shared password prompt and failure details, without a second status bar.
+  if (mobile && monitorVisible && job.kind === "gddr6.monitor" && !job.waiting && !error && (!job.done || job.ok)) return null;
 
   const status = job.done ? (job.ok ? t("Done") : t("Failed")) : job.waiting ? t("Administrator password") : t("Running…");
   const tone = job.done ? (job.ok ? "green" : "red") : "blue";

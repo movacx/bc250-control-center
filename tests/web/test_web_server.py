@@ -490,7 +490,8 @@ def test_build_identity_is_public_and_asset_urls_change_with_it(client):
 def test_build_updates_are_detected_without_restarting_the_server(client, tmp_path, monkeypatch):
     old_version = client.call("GET", "/api/version")[1]["version"]
     monkeypatch.setattr(server, "DIST", tmp_path)
-    (tmp_path / "version.json").write_text(json.dumps({"version": "e" * 16}))
+    (tmp_path / "index.html").write_text('<meta name="bc250-build" content="' + "e" * 16 + '">')
+    (tmp_path / "version.json").write_text(json.dumps({"version": "f" * 16}))
     assert old_version != client.call("GET", "/api/version")[1]["version"] == "e" * 16
     (tmp_path / "strings.json").write_text(json.dumps(["Custom"]))
     assert client.call("GET", "/api/i18n?lang=es")[1]["strings"] == {"Custom": "Personalizado"}
@@ -610,7 +611,7 @@ def test_installation_worker_is_served_with_same_origin_policy(client):
     assert response.status == 200
     assert "javascript" in response.getheader("Content-Type")
     assert body == (server.DIST / "sw.js").read_bytes()
-    assert response.getheader("Cache-Control") == "no-cache"
+    assert response.getheader("Cache-Control") == "no-store"
 
 
 def test_local_name_link_is_shown_only_to_authenticated_lan_sessions(client, monkeypatch):

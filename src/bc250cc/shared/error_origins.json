@@ -1949,7 +1949,8 @@
    "_helper_logs": "DIAG-0175",
    "collect_system_state": "CORE-0098",
    "split_sections": "DIAG-0171",
-   "collect_attachments": "CORE-0099"
+   "collect_attachments": "CORE-0099",
+   "collect_readonly_attachments": "DIAG-0177"
   },
   "bc250cc/infrastructure/script_presentation.py": {
    "banner": "SYS-0079",
@@ -2512,7 +2513,8 @@
    "configure": "CORE-0220",
    "stop": "CORE-0154",
    "set_autostart": "CORE-0155",
-   "repair_local_name": "CORE-0234"
+   "repair_local_name": "CORE-0234",
+   "repair_firewall": "CORE-0239"
   },
   "bc250cc/infrastructure/web_devices.py": {
    "identity": "CORE-0206",
@@ -2525,6 +2527,10 @@
    "set_control": "CORE-0211",
    "revoke": "CORE-0212",
    "revoke_all": "CORE-0213"
+  },
+  "bc250cc/infrastructure/web_firewall.py": {
+   "inspect": "CORE-0240",
+   "repair": "CORE-0241"
   },
   "bc250cc/infrastructure/web_mdns.py": {
    "LanAlias.__init__": "CORE-0224",
@@ -5905,6 +5911,7 @@
    "RemoteAccessPage._run": "UI-0670",
    "RemoteAccessPage._device_control": "UI-0671",
    "RemoteAccessPage._revoke_all": "UI-0672",
+   "RemoteAccessPage._repair_firewall": "UI-0706",
    "RemoteAccessPage._repair_local_name": "UI-0704",
    "RemoteAccessPage._toggle_web": "UI-0658",
    "RemoteAccessPage._open_web": "UI-0659",

@@ -211,9 +211,8 @@ export function HeatChart({ chart }) {
 }
 
 export function Dialog({ title, onClose, children, footer }) {
-  const mobile = useMobile();
   return <Modal onClose={onClose}><div className="dialog" role="dialog" aria-label={title} aria-modal="true">
-    {mobile && <header><h3>{title}</h3></header>}<section>{!mobile && <p className="desktop-dialog-label">{title}</p>}{children}</section><footer>{footer}</footer></div></Modal>;
+    <section><p className="desktop-dialog-label">{title}</p>{children}</section><footer>{footer}</footer></div></Modal>;
 }
 
 /** The pencil of a profile card: name and numbers, kept in this browser. */

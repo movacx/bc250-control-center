@@ -16,6 +16,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 import secrets
 import signal
 import socket
@@ -28,6 +29,8 @@ from email.message import Message
 from functools import lru_cache
 from http import HTTPStatus
 from pathlib import Path
+
+from frontends.web.blackbox import BlackBox
 
 from cheroot.ssl.builtin import BuiltinSSLAdapter
 from cheroot.wsgi import Server as WsgiServer
@@ -106,6 +109,7 @@ class Web:
                            activity=container.activity_service, platform=container.platform,
                            config=container.settings_service.read_local_config())
         self.live = Live(self.ctx)
+        self.blackbox = BlackBox(container.system_service)
         self.terminal_factory = terminal_factory
         self.local_sessions: dict[str, SSHSession] = {}
         self.language = normalize_language(self.ctx.config.get("idioma", "auto"))
@@ -329,9 +333,13 @@ class Handler:
             return self.json({"language": lang, "languages": [{"key": key, "title": title} for key, title in LANGUAGE_OPTIONS if key != "auto"],
                               "strings": {s: tr(s, lang) for s in self.web._strings()}})
         if method == "GET" and path == "/api/version":
+            # index.html is the document actually served on navigation. A stale
+            # sidecar during an upgrade must not trigger an endless update offer.
             try:
-                version = json.loads((DIST / "version.json").read_text(encoding="utf-8")).get("version", "")
-            except (OSError, ValueError):
+                html = (DIST / "index.html").read_text(encoding="utf-8")
+                match = re.search(r'<meta name="bc250-build" content="([a-f0-9]{16})">', html)
+                version = match[1] if match else ""
+            except OSError:
                 version = ""
             return self.json({"version": version})
         csrf = self.web.session(self.token())
@@ -364,11 +372,11 @@ class Handler:
     @property
     def GET(self) -> dict:
         return {"/api/live": self.live, "/api/page": self.page, "/api/performance": self.performance,
-                "/api/job": self.job, "/api/ssh": self.ssh_status}
+                "/api/job": self.job, "/api/ssh": self.ssh_status, "/api/blackbox": self.blackbox_read}
 
     @property
     def POST(self) -> dict:
-        return {"/api/logout": self.logout, "/api/performance/reset": self.reset_statistics, "/api/action": self.action, "/api/job/input": self.job_input,
+        return {"/api/blackbox/control": self.blackbox_control, "/api/logout": self.logout, "/api/performance/reset": self.reset_statistics, "/api/action": self.action, "/api/job/input": self.job_input,
                 "/api/job/interrupt": self.job_interrupt, "/api/ssh/start": self.ssh_start,
                 "/api/ssh/input": self.ssh_input, "/api/ssh/close": self.ssh_close}
 
@@ -414,6 +422,22 @@ class Handler:
     def performance(self, query: dict) -> None:
         self.web.live.touch()
         self.json(performance(self.web.live, query))
+
+    def blackbox_control(self, body: dict) -> None:
+        if not self.can_type_password():
+            return self.fail("HTTPS required", 403)
+        try:
+            result = self.web.blackbox.control(body)
+        except ValueError as error:
+            return self.fail(f"Invalid parameter: {error}", 400)
+        self.json(result)
+
+    def blackbox_read(self, query: dict) -> None:
+        view = query.get("view", "recording")
+        if view not in {"recording", "diagnosis"}:
+            return self.fail("Not found", 404)
+        data = self.web.blackbox.diagnosis(refresh=query.get("refresh") == "1") if view == "diagnosis" else self.web.blackbox.recording()
+        self.json(data)
 
     def reset_statistics(self, _body: dict) -> None:
         self.web.live.recorder.log.reset_statistics()
@@ -532,7 +556,7 @@ class Handler:
             target = DIST / "index.html"
         kind = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
         self.reply(target.read_bytes(), kind + ("; charset=utf-8" if kind.startswith("text") or "javascript" in kind
-                                                else ""), extra={"Cache-Control": "no-cache"})
+                                                else ""), extra={"Cache-Control": "no-store" if target.name in {"index.html", "sw.js"} else "no-cache"})
 
 
 @lru_cache(maxsize=1)

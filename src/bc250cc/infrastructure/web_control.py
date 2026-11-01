@@ -216,7 +216,7 @@ def status() -> dict:
     opts = options()
     host = sorted(addresses())
     scheme = "https" if opts["tls"] else "http"
-    from bc250cc.infrastructure import web_devices, web_network, web_tls
+    from bc250cc.infrastructure import web_devices, web_network, web_tls, web_firewall
     running = _listening(opts["port"])
     local_name = web_network.local_hostname() if opts["lan"] and running else ""
     # Pairing offers the application's alias and the numeric fallback. The OS
@@ -232,6 +232,7 @@ def status() -> dict:
             "trust_fingerprint": web_tls.fingerprint(web_tls.folder() / "authority.crt"),
             **opts, "running": running, "key": access_key(), "addresses": host,
             "urls": urls, "name_health": name_health,
+            "firewall": web_firewall.inspect(opts["port"]) if opts["lan"] else {"state": "disabled"},
             "local_url": f"{scheme}://127.0.0.1:{opts['port']}", "autostart": autostart_state(),
             "tls_fingerprint": certificate_fingerprint() if opts["tls"] else ""}
 
@@ -360,3 +361,9 @@ def repair_local_name() -> dict:
     if health["status"] != "ready":
         raise ActionNeeded("Local name resolution is still unavailable. Use the numeric address.")
     return health
+
+
+def repair_firewall() -> dict:
+    from bc250cc.infrastructure.web_firewall import repair
+
+    return repair(options()["port"])

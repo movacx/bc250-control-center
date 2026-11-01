@@ -27,6 +27,7 @@ required=(
   privileged/helpers/README.md
   privileged/helpers/bc250-system-setup-helper
   privileged/lib/system_setup_common.py
+  privileged/lib/system_setup_web_firewall.py
   privileged/lib/system_setup_mdns.py
   privileged/lib/system_setup_memory.py
   privileged/lib/system_setup_acpi.py
