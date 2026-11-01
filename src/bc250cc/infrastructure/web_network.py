@@ -62,3 +62,21 @@ def allows(address: str, networks: list[str]) -> bool:
         return peer.is_loopback or any(peer in ipaddress.ip_network(network) for network in networks)
     except ValueError:
         return False
+
+
+def alias_health(*, published: bool | None = None) -> dict:
+    """Check the same host lookup path browsers use, separately from Avahi."""
+    own = set(addresses())
+    try:
+        result = subprocess.run(["getent", "ahostsv4", LOCAL_ALIAS], capture_output=True,
+                                text=True, timeout=3, check=False)
+        resolved = {line.split()[0] for line in result.stdout.splitlines() if line.split()}
+    except (OSError, subprocess.SubprocessError):
+        return {"status": "unavailable", "repairable": False}
+    if resolved and resolved <= own:
+        return {"status": "ready", "repairable": False}
+    if resolved:
+        return {"status": "conflict", "repairable": False}
+    if published is None:
+        published = local_hostname() == LOCAL_ALIAS
+    return {"status": "resolver_failed" if published else "publication_failed", "repairable": True}

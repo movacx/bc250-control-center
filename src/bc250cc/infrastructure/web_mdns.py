@@ -22,7 +22,7 @@ class LanAlias:
 
     def __enter__(self):
         self._publisher = (shutil.which("avahi-publish-address") or shutil.which("avahi-publish")) if self.enabled else None
-        if self._publisher:
+        if self.enabled:
             self._refresh()
             self._thread = threading.Thread(target=self._watch, daemon=True)
             self._thread.start()
@@ -33,6 +33,10 @@ class LanAlias:
             self._refresh()
 
     def _refresh(self):
+        if not self._publisher:
+            self._publisher = shutil.which("avahi-publish-address") or shutil.which("avahi-publish")
+        if not self._publisher:
+            return
         networks = web_network.home_networks()
         wanted = {ip for ip in addresses() if networks and web_network.allows(ip, networks)
                   and not ipaddress.ip_address(ip).is_loopback}

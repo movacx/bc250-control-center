@@ -36,6 +36,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QMessageBox,
     QScrollArea,
     QSizePolicy,
     QSpinBox,
@@ -267,6 +268,9 @@ class RemoteAccessPage(QWidget):
         self.setProperty("processPage", True)
         self._background = BackgroundExecutor(self)
         self._web_state = {}
+        self._name_health_display = None
+        self._name_ready_samples = 0
+        self._name_repair_pending = False
         self._syncing_web = False
         self._code_boxes = []
         self._qr_signature = None
@@ -329,6 +333,10 @@ class RemoteAccessPage(QWidget):
         connection.addWidget(self.web_address)
         self.web_copy_url_button = self._button("Copy address", self._copy_web_url)
         connection.addWidget(self.web_copy_url_button)
+        self.web_name_status = self._label("")
+        connection.addWidget(self.web_name_status)
+        self.web_name_repair = self._button("Repair local address", self._repair_local_name)
+        connection.addWidget(self.web_name_repair)
         connection.addSpacing(6)
         connection.addWidget(self._label("Access key", strong=True))
         self.web_pin_box = self._code("")
@@ -684,12 +692,38 @@ class RemoteAccessPage(QWidget):
 
     def _apply_web(self, state):
         self._web_state = dict(state or {})
+        health = self._web_state.get("name_health") or {}
+        previous = self._name_health_display or {}
+        if not self._name_repair_pending:
+            # A single successful/uncertain sample must not withdraw a repair
+            # action the owner is about to press. Two successful reads settle it.
+            if health.get("status") == "ready" and previous.get("repairable"):
+                self._name_ready_samples += 1
+                if self._name_ready_samples >= 2:
+                    self._name_health_display = health
+            elif health.get("status") == "unavailable" and previous.get("repairable"):
+                self._name_ready_samples = 0
+            else:
+                self._name_ready_samples = 0
+                self._name_health_display = health
         self._render_web()
 
     def _render_web(self):
         if self._privacy_hidden:
             return
         state = self._web_state
+        health = self._name_health_display if self._name_health_display is not None else state.get("name_health") or {}
+        messages = {
+            "resolver_failed": "The local address is advertised, but this computer cannot resolve it. Use the numeric address or repair name resolution.",
+            "publication_failed": "The local address is not advertised yet. Use the numeric address or repair local name discovery.",
+            "conflict": "The local address points to another device. Use the numeric address.",
+            "unavailable": "Local name resolution could not be checked. Use the numeric address.",
+            "ready": "The local address works on this computer. Other devices must support local network name resolution.",
+        }
+        self.web_name_status.setText(tr(messages.get(health.get("status"), "")))
+        self.web_name_status.setVisible(bool(state.get("lan")))
+        self.web_name_repair.setVisible(bool(health.get("repairable")))
+        self.web_name_repair.setEnabled(not self._name_repair_pending and not self._background.is_running("name_repair"))
         running = bool(state.get("running"))
         urls = state.get("urls") or []
         available = urls or ([state["local_url"]] if state.get("local_url") else [])
@@ -878,6 +912,34 @@ class RemoteAccessPage(QWidget):
 
     def _revoke_all(self):
         self._run("revoke_all", web_access.revoke_all)
+
+    def _repair_local_name(self):
+        self._check_privacy()
+        if self._privacy_hidden or self._name_repair_pending:
+            return
+        self._name_repair_pending = True
+        self._render_web()
+        if QMessageBox.question(
+            self, tr("Repair local address"),
+            tr("Repair local name discovery and lookup? This may install Avahi and its resolver module, enable the Avahi service and update the system resolver configuration. A configuration backup is saved and failed resolver changes are reverted. Administrator authorization is required."),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        ) == QMessageBox.StandardButton.Yes:
+            def finished():
+                self._name_repair_pending = False
+                self._name_ready_samples = 0
+                self._render_web()
+                self.refresh()
+
+            if not self._background.start(
+                "name_repair", web_access.repair_local_name,
+                on_error=lambda message: show_toast(self, tr("Remote access"), tr(message), tone="red"),
+                on_finished=finished,
+            ):
+                finished()
+        else:
+            self._name_repair_pending = False
+            self._render_web()
 
     def _toggle_web(self):
         running = bool(self._web_state.get("running"))

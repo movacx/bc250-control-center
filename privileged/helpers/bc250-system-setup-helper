@@ -14,7 +14,7 @@ def main():
                                            "acpi-install", "acpi-update", "acpi-uninstall", "acpi-check",
                                            "telemetry-fix", "telemetry-restore", "kernel-options-set",
                                            "vram-read", "vram-apply", "ttm-status", "ttm-apply",
-                                           "smt-live", "uninstall-check"))
+                                           "smt-live", "mdns-repair", "uninstall-check"))
     parser.add_argument("--policy", choices=("preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"), default="preserve")
     parser.add_argument("--ttm", type=int, choices=(-1, 0, 8, 10, 12), default=0)
     parser.add_argument("--uma-size", type=int, default=0)
@@ -45,6 +45,7 @@ def main():
     sys.path.insert(0, str(lib))
     import system_setup_acpi as acpi
     import system_setup_kernel_args as kernel_args
+    import system_setup_mdns as mdns
     import system_setup_memory as memory
     import system_setup_telemetry as telemetry
     import system_setup_ttm as ttm
@@ -108,7 +109,9 @@ def main():
             except BlockingIOError:
                 # The desktop and the Decky panel share this helper.
                 raise SetupError("Another BC250 system setup change is running; try again when it finishes") from None
-            if args.action == "memory-apply":
+            if args.action == "mdns-repair":
+                result = mdns.repair(host)
+            elif args.action == "memory-apply":
                 result = memory.apply(host, args.policy, args.ttm,
                                        takeover_zram=args.takeover_zram, target_mount=args.target_mount)
             elif args.action == "memory-boot":
@@ -148,7 +151,9 @@ def main():
         if result.get("restore_pending"):
             print("Restore deferred: the BC250 swapfile is still active and was preserved. Reboot, then check status.")
         print("BC250_RESULT status=ok component=system_setup code=0")
-        if args.action == "acpi-check":
+        if args.action == "mdns-repair":
+            print("Local name resolution verified. No reboot is required.")
+        elif args.action == "acpi-check":
             print(f"Inspection only: no setting was changed. {acpi.installation_summary(result)[1]}")
         elif args.action == "vram-read":
             print("Inspection only: no setting was changed.")

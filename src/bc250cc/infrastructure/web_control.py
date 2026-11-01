@@ -217,19 +217,21 @@ def status() -> dict:
     host = sorted(addresses())
     scheme = "https" if opts["tls"] else "http"
     from bc250cc.infrastructure import web_devices, web_network, web_tls
-    local_name = web_network.local_hostname() if opts["lan"] else ""
+    running = _listening(opts["port"])
+    local_name = web_network.local_hostname() if opts["lan"] and running else ""
     # Pairing offers the application's alias and the numeric fallback. The OS
     # hostname can still be valid for TLS, but must not replace this alias while
     # its publisher is stopped or is still starting.
     if local_name != web_network.LOCAL_ALIAS:
         local_name = ""
     urls = [f"{scheme}://{ip}:{opts['port']}" for ip in host] if opts["lan"] else []
-    if local_name:
+    name_health = web_network.alias_health(published=local_name == web_network.LOCAL_ALIAS) if opts["lan"] and running else {"status": "disabled", "repairable": False}
+    if local_name and name_health["status"] == "ready":
         urls.insert(0, f"{scheme}://{local_name}:{opts['port']}")
     return {"devices": web_devices.devices(), "networks": web_network.home_networks() if opts["lan"] else [],
             "trust_fingerprint": web_tls.fingerprint(web_tls.folder() / "authority.crt"),
-            **opts, "running": _listening(opts["port"]), "key": access_key(), "addresses": host,
-            "urls": urls,
+            **opts, "running": running, "key": access_key(), "addresses": host,
+            "urls": urls, "name_health": name_health,
             "local_url": f"{scheme}://127.0.0.1:{opts['port']}", "autostart": autostart_state(),
             "tls_fingerprint": certificate_fingerprint() if opts["tls"] else ""}
 
@@ -340,3 +342,21 @@ def set_autostart(enabled: bool) -> dict:
         path.unlink()
         _systemctl("daemon-reload")
     return autostart_state()
+
+
+def repair_local_name() -> dict:
+    """Only the installed, protected helper may change resolver configuration."""
+    from bc250cc.infrastructure.system_setup import HELPER
+
+    if not HELPER.is_file() or '"mdns-repair"' not in HELPER.read_text(encoding="utf-8"):
+        raise ActionNeeded("Update or reinstall Control Center to install the local name repair helper.")
+    result = subprocess.run(["pkexec", str(HELPER), "mdns-repair"], capture_output=True,
+                            text=True, timeout=240, check=False)
+    if result.returncode:
+        raise ActionNeeded(result.stderr.strip() or "Local name repair was cancelled or failed.")
+    from bc250cc.infrastructure.web_network import alias_health
+
+    health = alias_health()
+    if health["status"] != "ready":
+        raise ActionNeeded("Local name resolution is still unavailable. Use the numeric address.")
+    return health

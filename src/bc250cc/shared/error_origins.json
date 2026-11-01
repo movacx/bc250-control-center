@@ -477,9 +477,14 @@
    "automation_state": "DRV-0072",
    "_config_lines": "DRV-0073",
    "_fetch_lines": "DRV-0074",
+   "_container_storage_lines": "DRV-0142",
    "_container_lines": "DRV-0075",
    "_rust_check": "DRV-0076",
    "_build_lines": "DRV-0077",
+   "_openrc_active": "DRV-0143",
+   "openrc_service_path": "DRV-0144",
+   "openrc_service_text": "DRV-0145",
+   "_openrc_guard": "DRV-0146",
    "install_command": "DRV-0078",
    "remove_command": "DRV-0079",
    "wake_helper_text": "DRV-0080",
@@ -490,7 +495,10 @@
    "wake_install_command": "DRV-0085",
    "wake_remove_command": "DRV-0086",
    "poweroff_install_command": "DRV-0087",
-   "poweroff_remove_command": "DRV-0088"
+   "poweroff_remove_command": "DRV-0088",
+   "openrc_wake_helper_text": "DRV-0147",
+   "_openrc_wake_command": "DRV-0148",
+   "_openrc_poweroff_command": "DRV-0149"
   },
   "bc250cc/infrastructure/accessories/hdmi_cec_control.py": {
    "_run": "DRV-0089",
@@ -1566,6 +1574,9 @@
    "_helixsr_python": "UPS-0204",
    "build_helixsr_fg_command": "UPS-0205"
   },
+  "bc250cc/infrastructure/helper_permissions.py": {
+   "recovery_preflight": "CORE-0230"
+  },
   "bc250cc/infrastructure/historial_repository.py": {
    "HistorialRepository.__init__": "SYS-0042",
    "HistorialRepository._path": "SYS-0043",
@@ -1918,7 +1929,8 @@
    "_port": "CORE-0133",
    "addresses": "CORE-0134",
    "status": "CORE-0135",
-   "set_enabled": "CORE-0136"
+   "set_enabled": "CORE-0136",
+   "configure": "CORE-0231"
   },
   "bc250cc/infrastructure/report_attachments.py": {
    "_boot": "CORE-0087",
@@ -2490,6 +2502,8 @@
    "_listening": "CORE-0146",
    "_systemctl": "CORE-0147",
    "_unit_path": "CORE-0148",
+   "_desktop_path": "CORE-0232",
+   "_desktop_quote": "CORE-0233",
    "_command": "CORE-0149",
    "_environment": "CORE-0150",
    "autostart_state": "CORE-0151",
@@ -2497,7 +2511,8 @@
    "start": "CORE-0153",
    "configure": "CORE-0220",
    "stop": "CORE-0154",
-   "set_autostart": "CORE-0155"
+   "set_autostart": "CORE-0155",
+   "repair_local_name": "CORE-0234"
   },
   "bc250cc/infrastructure/web_devices.py": {
    "identity": "CORE-0206",
@@ -2522,7 +2537,13 @@
   "bc250cc/infrastructure/web_network.py": {
    "local_hostname": "CORE-0223",
    "home_networks": "CORE-0214",
-   "allows": "CORE-0215"
+   "allows": "CORE-0215",
+   "alias_health": "CORE-0235"
+  },
+  "bc250cc/infrastructure/web_runtime.py": {
+   "require_supported_version": "CORE-0236",
+   "prepare": "CORE-0237",
+   "_run": "CORE-0238"
   },
   "bc250cc/infrastructure/web_tls.py": {
    "folder": "CORE-0216",
@@ -2765,6 +2786,7 @@
    "_alive": "UI-0089",
    "_release_after_delivery": "UI-0090",
    "_FunctionTask.__init__": "UI-0091",
+   "_FunctionTask._emit_if_alive": "UI-0703",
    "_FunctionTask.run": "UI-0092",
    "AsyncRefresh.__init__": "UI-0093",
    "AsyncRefresh.running": "UI-0094",
@@ -5882,6 +5904,7 @@
    "RemoteAccessPage._run": "UI-0670",
    "RemoteAccessPage._device_control": "UI-0671",
    "RemoteAccessPage._revoke_all": "UI-0672",
+   "RemoteAccessPage._repair_local_name": "UI-0704",
    "RemoteAccessPage._toggle_web": "UI-0658",
    "RemoteAccessPage._open_web": "UI-0659",
    "RemoteAccessPage._autostart_web_toggled": "UI-0660",

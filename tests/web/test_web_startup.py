@@ -110,6 +110,7 @@ def test_pairing_offers_only_the_verified_app_alias_and_numeric_fallback(monkeyp
     monkeypatch.setattr(web_control, "autostart_state", lambda: {})
     monkeypatch.setattr(web_control, "_listening", lambda _: True)
     monkeypatch.setattr(web_network, "local_hostname", lambda: resolved)
+    monkeypatch.setattr(web_network, "alias_health", lambda **_kwargs: {"status": "ready"})
     urls = web_control.status()["urls"]
     assert urls[-1] == "https://192.168.0.15:8250"
     assert all("bazzite" not in url for url in urls)
