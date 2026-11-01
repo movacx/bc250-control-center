@@ -105,7 +105,14 @@ class RemoteRenderingTests(unittest.TestCase):
         self.assertFalse(self.page.web_name_repair.isHidden())
         apply('ready')
         apply('ready')
-        self.assertTrue(self.page.web_name_repair.isHidden())
+        self.assertFalse(self.page.web_name_repair.isHidden())
+
+    def test_working_host_alias_keeps_repair_available_for_flatpak_browser(self):
+        self.page._privacy_hidden = False
+        self.page._apply_web({'running': True, 'lan': True,
+                              'name_health': {'status': 'ready', 'repairable': False}})
+        self.assertFalse(self.page.web_name_repair.isHidden())
+        self.assertTrue(self.page.web_name_repair.isEnabled())
 
     def test_repair_dialog_and_operation_keep_action_disabled_and_visible(self):
         self.page._apply_web({'lan': True, 'name_health': {'status': 'resolver_failed', 'repairable': True}})

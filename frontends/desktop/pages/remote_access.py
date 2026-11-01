@@ -764,7 +764,12 @@ class RemoteAccessPage(QWidget):
         }
         self.web_name_status.setText(tr(messages.get(health.get("status"), "")))
         self.web_name_status.setVisible(bool(state.get("lan")))
-        self.web_name_repair.setVisible(bool(health.get("repairable")))
+        # A successful host NSS lookup does not prove a Flatpak browser can
+        # resolve the alias. Keep explicit repair reachable for that case.
+        self.web_name_repair.setVisible(
+            bool(health.get("repairable")) or self._name_repair_pending
+            or bool(state.get("lan") and state.get("running") and health.get("status") == "ready")
+        )
         self.web_name_repair.setEnabled(not self._name_repair_pending and not self._background.is_running("name_repair"))
         firewall = state.get("firewall") or {}
         firewall_messages = {
@@ -1006,7 +1011,7 @@ class RemoteAccessPage(QWidget):
         self._render_web()
         if QMessageBox.question(
             self, tr("Repair local address"),
-            tr("Repair local name discovery and lookup? This may install Avahi and its resolver module, enable the Avahi service and update the system resolver configuration. A configuration backup is saved and failed resolver changes are reverted. Administrator authorization is required.") + "\n\n" + tr("On SteamOS, local name publishing will also be enabled."),
+            tr("Repair local name discovery and lookup? This may install Avahi and its resolver module, enable the Avahi service and update the system resolver configuration. A configuration backup is saved and failed resolver changes are reverted. Administrator authorization is required.") + "\n\n" + tr("On SteamOS, local name publishing will also be enabled.") + "\n" + tr("A local address entry lets this computer reach bc250cc.local even when its browser cannot use mDNS."),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         ) == QMessageBox.StandardButton.Yes:

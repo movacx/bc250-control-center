@@ -29,6 +29,10 @@ class AliasHealthTests(unittest.TestCase):
     def test_working_resolver(self):
         self.assertEqual(self.health('192.168.0.8 STREAM bc250cc.local'), {'status': 'ready', 'repairable': False})
 
+    def test_local_browser_loopback_alias_is_valid(self):
+        self.assertEqual(self.health('127.0.0.1 STREAM bc250cc.local'),
+                         {'status': 'ready', 'repairable': False})
+
     def test_name_collision_is_not_repaired(self):
         self.assertEqual(self.health('192.168.0.99 STREAM bc250cc.local')['status'], 'conflict')
 
@@ -287,6 +291,46 @@ class SteamOSPublicationRepairTests(unittest.TestCase):
             repair(self.host)
         self.assertEqual(self.config.read_text(), self.avahi_original)
         self.assertEqual(self.file.read_text(), self.original)
+
+
+
+    def test_flatpak_local_alias_preserves_hosts_and_verifies_loopback(self):
+        hosts = self.host.path('/etc/hosts')
+        original = '127.0.0.1 localhost\n192.168.0.44 printer # keep\n'
+        hosts.write_text(original)
+        runner = self.host.runner
+        def loopback(*args, **kwargs):
+            if args[0] == 'getent':
+                return '127.0.0.1 STREAM bc250cc.local'
+            return runner(*args, **kwargs)
+        self.host.runner = loopback
+        result = repair(self.host)
+        self.assertTrue(result['verified'])
+        self.assertEqual(hosts.read_text().count('bc250cc.local'), 1)
+        self.assertTrue(hosts.read_text().startswith(original))
+        self.assertEqual(self.host.path(result['hosts_backup']).read_text(), original)
+        self.assertIn('/etc/hosts', self.host.read('/etc/atomic-update.conf.d/bc250-control-center-web-host.conf'))
+        self.assertFalse(repair(self.host)['changed'])
+
+    def test_hosts_is_restored_if_verification_fails(self):
+        hosts = self.host.path('/etc/hosts')
+        original = '127.0.0.1 localhost\n'
+        hosts.write_text(original)
+        self.fail = True
+        with self.assertRaises(SetupError):
+            repair(self.host)
+        self.assertEqual(hosts.read_text(), original)
+        self.assertEqual(self.config.read_text(), self.avahi_original)
+        self.assertFalse(self.host.path('/etc/atomic-update.conf.d/bc250-control-center-web-host.conf').exists())
+
+    def test_foreign_hosts_alias_is_never_replaced(self):
+        hosts = self.host.path('/etc/hosts')
+        original = '192.168.0.99 bc250cc.local\n'
+        hosts.write_text(original)
+        with self.assertRaisesRegex(SetupError, 'existing hosts entry'):
+            repair(self.host)
+        self.assertEqual(hosts.read_text(), original)
+        self.assertEqual(self.config.read_text(), self.avahi_original)
 
 
 

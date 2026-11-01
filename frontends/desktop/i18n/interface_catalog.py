@@ -2607,3 +2607,7 @@ INTERFACE_TRANSLATIONS.update(dict([
 INTERFACE_TRANSLATIONS.update(dict([
     _e('On SteamOS, local name publishing will also be enabled.', 'En SteamOS también se habilitará la publicación del nombre local.', 'No SteamOS, a publicação do nome local também será habilitada.', 'В SteamOS также будет включена публикация локального имени.', 'У SteamOS також буде ввімкнено публікацію локального імені.', 'Unter SteamOS wird außerdem die Veröffentlichung des lokalen Namens aktiviert.'),
 ]))
+
+INTERFACE_TRANSLATIONS.update(dict([
+    _e('A local address entry lets this computer reach bc250cc.local even when its browser cannot use mDNS.', 'Una entrada de dirección local permite a este equipo acceder a bc250cc.local aunque su navegador no pueda usar mDNS.', 'Uma entrada de endereço local permite acessar bc250cc.local mesmo quando o navegador não pode usar mDNS.', 'Локальная запись адреса позволяет этому компьютеру открывать bc250cc.local, даже если браузер не поддерживает mDNS.', 'Локальний запис адреси дозволяє цьому комп’ютеру відкривати bc250cc.local, навіть якщо браузер не підтримує mDNS.', 'Ein lokaler Adresseintrag ermöglicht diesem Computer den Zugriff auf bc250cc.local, auch wenn der Browser kein mDNS verwenden kann.'),
+]))

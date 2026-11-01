@@ -75,7 +75,7 @@ def alias_health(*, published: bool | None = None) -> dict:
         # NSS/Avahi can stall when SteamOS disables publication. Keep the
         # explicit repair reachable even when lookup cannot finish.
         return {"status": "unavailable", "repairable": bool(own)}
-    if resolved and resolved <= own:
+    if resolved and resolved <= own | {"127.0.0.1", "::1"}:
         return {"status": "ready", "repairable": False}
     if resolved:
         return {"status": "conflict", "repairable": False}

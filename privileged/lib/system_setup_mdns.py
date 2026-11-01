@@ -116,6 +116,53 @@ def _publication_transaction(host):
         raise
 
 
+HOSTS = "/etc/hosts"
+HOSTS_KEEP = "/etc/atomic-update.conf.d/bc250-control-center-web-host.conf"
+HOSTS_ALIAS = "127.0.0.1 bc250cc.local # BC250 Control Center local web address"
+
+
+@contextmanager
+def _local_hosts_transaction(host, own):
+    """Let Flatpak/browser resolvers reach this host without an NSS mDNS module."""
+    change = {"changed": False, "backup": ""}
+    if not host.steamos():
+        yield change
+        return
+    path = host.safe(HOSTS)
+    original = path.read_text(encoding="utf-8") if path.exists() else None
+    for line in (original or "").splitlines():
+        fields = line.partition("#")[0].split()
+        if len(fields) > 1 and "bc250cc.local" in [name.lower() for name in fields[1:]]:
+            if fields[0] not in own | {"127.0.0.1", "::1"}:
+                raise SetupError("An existing hosts entry sends bc250cc.local to another device; it was preserved.")
+            yield change
+            return
+    mode = path.stat().st_mode & 0o777 if path.exists() else 0o644
+    backup = f"{STATE}/hosts.before-mdns"
+    if original is not None and not host.safe(backup).exists():
+        host.write(backup, original, mode=0o600)
+    keep = host.safe(HOSTS_KEEP)
+    keep_before = keep.read_text(encoding="utf-8") if keep.exists() else None
+    if keep_before is not None and not host.owns(HOSTS_KEEP):
+        raise SetupError("The local web address keep list belongs to another tool; it was preserved.")
+    try:
+        text = original or ""
+        host.write(HOSTS, text + ("" if not text or text.endswith("\n") else "\n") + HOSTS_ALIAS + "\n", mode=mode)
+        host.managed(HOSTS_KEEP, HOSTS + "\n")
+        change.update(changed=True, backup=backup if original is not None else "")
+        yield change
+    except Exception:
+        if original is None:
+            path.unlink(missing_ok=True)
+        else:
+            host.write(HOSTS, original, mode=mode)
+        if keep_before is None:
+            keep.unlink(missing_ok=True)
+        else:
+            host.write(HOSTS_KEEP, keep_before)
+        raise
+
+
 def repair(host):
     # Validate the file before installing packages or changing service policy.
     path = host.safe("/etc/nsswitch.conf")
@@ -141,21 +188,22 @@ def repair(host):
         own = {item.get("local") for link in interfaces for item in link.get("addr_info", [])}
         if len(advertised) != 2 or advertised[0] != "bc250cc.local" or advertised[1] not in own:
             raise SetupError("The local name belongs to another device or is not advertised. Resolver settings were preserved.")
-        updated = original[:match.start()] + body + ((" #" + comment) if separator else "") + original[match.end():]
-        backup = f"{STATE}/nsswitch.conf.before-mdns"
-        if updated != original:
-            if not host.safe(backup).exists():
-                host.write(backup, original, mode=0o600)
-            host.write("/etc/nsswitch.conf", updated, mode=path.stat().st_mode & 0o777)
-        try:
-            resolved = host.run("getent", "ahostsv4", "bc250cc.local", timeout=8).splitlines()
-            resolved_addresses = {row.split()[0] for row in resolved if row.split()}
-            if advertised[1] not in resolved_addresses or not resolved_addresses <= own:
-                raise SetupError("The local name still does not resolve to the advertised address.")
-        except (SetupError, OSError):
+        with _local_hosts_transaction(host, own) as local_hosts:
+            updated = original[:match.start()] + body + ((" #" + comment) if separator else "") + original[match.end():]
+            backup = f"{STATE}/nsswitch.conf.before-mdns"
             if updated != original:
-                host.write("/etc/nsswitch.conf", original, mode=path.stat().st_mode & 0o777)
-            raise
-        return {"verified": True, "changed": updated != original or publication["changed"],
-                "backup": backup if updated != original else "",
-                "publication_backup": publication["backup"]}
+                if not host.safe(backup).exists():
+                    host.write(backup, original, mode=0o600)
+                host.write("/etc/nsswitch.conf", updated, mode=path.stat().st_mode & 0o777)
+            try:
+                resolved = host.run("getent", "ahostsv4", "bc250cc.local", timeout=8).splitlines()
+                resolved_addresses = {row.split()[0] for row in resolved if row.split()}
+                if not resolved_addresses or not resolved_addresses <= own | {"127.0.0.1", "::1"}:
+                    raise SetupError("The local name still does not resolve to the advertised address.")
+            except (SetupError, OSError):
+                if updated != original:
+                    host.write("/etc/nsswitch.conf", original, mode=path.stat().st_mode & 0o777)
+                raise
+            return {"verified": True, "changed": updated != original or publication["changed"] or local_hosts["changed"],
+                    "backup": backup if updated != original else "",
+                    "publication_backup": publication["backup"], "hosts_backup": local_hosts["backup"]}
