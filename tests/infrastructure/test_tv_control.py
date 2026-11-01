@@ -204,3 +204,46 @@ def test_the_accessory_entry_point_offers_the_automation_actions_for_tv_control_
         accessories.accessory_command("hdmi_cec", action, family="steamos", tool_dir="/tmp/x")
         with pytest.raises(ValueError):
             accessories.accessory_command("corsair", action, family="steamos", tool_dir="/tmp/x")
+
+
+@pytest.mark.parametrize("installed,installer_status,provides_tool,expected", [
+    (False, 0, True, 0),
+    (True, 0, True, 0),
+    (False, 42, False, 42),
+    (False, 0, False, 69),
+])
+def test_fedora_shutdown_prepares_missing_cec_tool_before_installing_service(
+    tmp_path, installed, installer_status, provides_tool, expected,
+):
+    import os
+
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    tool = bindir / "cec-ctl"
+    if installed:
+        tool.write_text("#!/bin/sh\nexit 0\n")
+        tool.chmod(0o755)
+    sudo = bindir / "sudo"
+    sudo.write_text(
+        '#!/bin/bash\n'
+        '[ "$*" = "dnf install -y v4l-utils" ] || exit 99\n'
+        'printf "%s\\n" "$*" >> "$INSTALL_LOG"\n'
+        'if [ "$INSTALL_STATUS" != 0 ]; then exit "$INSTALL_STATUS"; fi\n'
+        'if [ "$PROVIDES_TOOL" = 1 ]; then\n'
+        '  printf "#!/bin/sh\\nexit 0\\n" > "$PATH/cec-ctl"\n'
+        '  /bin/chmod 755 "$PATH/cec-ctl"\n'
+        'fi\n'
+    )
+    sudo.chmod(0o755)
+    log = tmp_path / "install.log"
+    script = "set -e\n" + "\n".join(hdmi_cec._cec_ctl_preflight("fedora")) + "\necho SERVICE_READY\n"
+    result = subprocess.run(
+        ["/bin/bash", "-c", script], capture_output=True, text=True,
+        env={**os.environ, "PATH": str(bindir), "INSTALL_LOG": str(log),
+             "INSTALL_STATUS": str(installer_status), "PROVIDES_TOOL": str(int(provides_tool))},
+    )
+    assert result.returncode == expected, result.stderr
+    assert ("SERVICE_READY" in result.stdout) == (expected == 0)
+    assert log.exists() == (not installed)
+    workflow = hdmi_cec.poweroff_install_command("fedora")
+    assert workflow.index("sudo dnf install -y v4l-utils") < workflow.index("sudo install -d")

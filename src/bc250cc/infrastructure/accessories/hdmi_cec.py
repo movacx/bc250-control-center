@@ -692,6 +692,21 @@ def wake_remove_command() -> str:
     return "\n".join(commands)
 
 
+def _cec_ctl_preflight(family: str) -> list[str]:
+    commands = []
+    if family == "fedora":
+        commands += [
+            "if ! command -v cec-ctl >/dev/null 2>&1; then",
+            "  echo '== Installing HDMI-CEC shutdown tools (v4l-utils) =='",
+            "  sudo dnf install -y v4l-utils",
+            "fi",
+        ]
+    commands.append(
+        "command -v cec-ctl >/dev/null 2>&1 || { echo 'ERROR: cec-ctl (v4l-utils) is needed to talk to the TV at shutdown.'; exit 69; }"
+    )
+    return commands
+
+
 def poweroff_install_command(family: str) -> str:
     if _openrc_active():
         return _openrc_poweroff_command()
@@ -707,7 +722,7 @@ def poweroff_install_command(family: str) -> str:
         f"if [ -e {unit} ] && ! grep -qxF {shlex.quote(MARKER)} {unit}; then",
         f"  echo 'ERROR: {POWEROFF_UNIT} belongs to another tool; it was left untouched.'; exit 65",
         "fi",
-        "command -v cec-ctl >/dev/null 2>&1 || { echo 'ERROR: cec-ctl (v4l-utils) is needed to talk to the TV at shutdown.'; exit 69; }",
+        *_cec_ctl_preflight(family),
         *((STEAMOS_PASSWORD_GUARD, "bc250_require_password") if steamos else ()),
         "sudo -v",
         f"sudo install -d -m 0755 {shlex.quote(str(POWEROFF_HELPER.parent))}",
