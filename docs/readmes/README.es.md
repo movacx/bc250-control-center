@@ -162,13 +162,10 @@ bc250-control-center-tui
 Clona el repositorio y ejecuta el instalador con tu usuario habitual:
 
 ```bash
-git clone --branch desarrollo/bc250-control-center https://github.com/movacx/bc250-control-center.git
+git clone https://github.com/movacx/bc250-control-center.git
 cd bc250-control-center
 bash scripts/install-tui.sh
 ```
-
-Este comando instala la rama de desarrollo, que incluye TUI y web. Para una
-versión publicada, utiliza el archivo de código fuente de esa versión.
 
 El instalador guarda la aplicación en `~/.local`, comprueba las dependencias y
 solicita autorización de administrador para instalar paquetes y helpers

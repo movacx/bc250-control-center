@@ -168,13 +168,10 @@ bc250-control-center-tui
 Clone the repository and run the installer as your normal user:
 
 ```bash
-git clone --branch desarrollo/bc250-control-center https://github.com/movacx/bc250-control-center.git
+git clone https://github.com/movacx/bc250-control-center.git
 cd bc250-control-center
 bash scripts/install-tui.sh
 ```
-
-This command installs the development branch, which includes TUI and web.
-For a published version, use the source archive from the corresponding release.
 
 The installer places the application in `~/.local` and checks its Python
 dependencies. It requests administrator authorization to install missing
