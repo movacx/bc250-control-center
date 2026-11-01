@@ -1,9 +1,11 @@
+import DesktopActivity from "./DesktopActivity.jsx";
 import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
+import "./desktop.css";
 import { applyAppearance } from "./appearance.js";
 import { App, api, loadStrings, onSessionLost, setCsrf, t, usePoll } from "./lib.jsx";
-import { Btn, Card, Dialog, Icon, Modal } from "./ui.jsx";
+import { Btn, Card, Dialog, Icon, Modal, useMobile } from "./ui.jsx";
 import Compute from "./pages/Compute.jsx";
 import Cpu from "./pages/Cpu.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
@@ -60,7 +62,8 @@ function Login({ onDone, error }) {
 }
 
 /** The job that runs hardware changes: its output, and the password prompt sudo or Polkit shows. */
-function Activity({ job, onClose, canType }) {
+function Activity({ job, onClose, canType, inlineConsole }) {
+  const mobile = useMobile();
   const [text, setText] = useState("");
   const out = useRef(null);
   const [expanded, setExpanded] = useState(() => !matchMedia("(max-width: 820px)").matches);
@@ -69,11 +72,12 @@ function Activity({ job, onClose, canType }) {
   useEffect(() => setText(""), [job?.id, job?.waiting]);
   useEffect(() => { if (out.current) out.current.scrollTop = out.current.scrollHeight; }, [job?.text]);
   if (!job) return null;
+  if (!mobile) return <DesktopActivity job={job} inlineConsole={inlineConsole} canType={canType} onClose={onClose} />;
   const send = async (e) => { e.preventDefault(); const value = text; setText(""); await api("job/input", { text: value }); };
   const status = job.done ? (job.ok ? t("Done") : t("Failed")) : job.waiting ? t("Administrator password") : t("Running…");
   const tone = job.done ? (job.ok ? "green" : "red") : "blue";
   if (!expanded) return <div className="operation-minimized"><button className="operation-open" onClick={() => setExpanded(true)} aria-expanded={false}><span className={`pill ${tone}`}>{status}</span><span>{job.label}</span><Icon name="expand_gray" /></button>{!job.done && job.kind === "gddr6.monitor" && <button className="ghost" aria-label={t("Stop monitoring")} onClick={() => api("job/interrupt", {})}><Icon name="stop_red" /></button>}{job.done && <button className="ghost" aria-label={t("Close")} onClick={onClose}><Icon name="close_gray" /></button>}</div>;
-  return <Modal onClose={() => setExpanded(false)}><section className="dialog operation-dialog" role="dialog" aria-modal="true" aria-label={job.label}>
+  return <Modal onClose={() => setExpanded(false)}><section className={`dialog operation-dialog ${job.kind === "gddr6.monitor" ? "desktop-terminal-only" : ""}`} role="dialog" aria-modal="true" aria-label={job.label}>
     <header><div className="dialog-heading"><span className={`dialog-symbol ${tone}`}><Icon name={job.done ? (job.ok ? "check_green" : "warning_orange") : "nav_performance"} /></span><div><span className="dialog-caption">{t("Hardware")}</span><h3>{job.label}</h3></div></div>
       <div className="operation-status"><span className={`pill ${tone}`} role="status">{status}</span></div></header>
     <section><pre className="console operation-output" ref={out} tabIndex={0} aria-label={t("Terminal output")}>{job.text || t("Waiting for data…")}</pre>
@@ -103,6 +107,7 @@ function SSH({ onClose, canType }) {
 }
 
 function Confirm({ spec, onCancel, onGo }) {
+  const mobile = useMobile();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const review = useRef(null);
@@ -114,8 +119,8 @@ function Confirm({ spec, onCancel, onGo }) {
     if (!result.ok) { setError(t(result.error || "Not detected")); setBusy(false); }
   };
   const content = <div ref={review} tabIndex={-1} className={inline ? "inline-review" : "dialog"} role={inline ? "region" : "alertdialog"} aria-label={spec.title} aria-modal={inline ? undefined : true}>
-      <header><div className="dialog-heading"><span className={`dialog-symbol ${spec.level === 2 ? "orange" : "blue"}`}><Icon name="warning_orange" /></span><div><span className="dialog-caption">{t("Confirm")}</span><h3>{spec.title}</h3></div></div></header>
-      <section>{spec.body && <p style={{ margin: 0 }}>{spec.body}</p>}
+      {mobile && <header><div className="dialog-heading"><span className={`dialog-symbol ${spec.level === 2 ? "orange" : "blue"}`}><Icon name="warning_orange" /></span><div><span className="dialog-caption">{t("Confirm")}</span><h3>{spec.title}</h3></div></div></header>}
+      <section>{!mobile && <p className="desktop-dialog-label">{spec.title}</p>}{spec.body && <p style={{ margin: 0 }}>{spec.body}</p>}
         {spec.summary?.length > 0 && <dl className="dialog-summary">{spec.summary.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
         {(spec.warning || spec.level === 2) && <div className="notice">{spec.warning || t("Stop every game, benchmark, and 3D workload before continuing.")}</div>}
         {error && <p className="err" role="alert">{error}</p>}</section>
@@ -132,6 +137,7 @@ function Shell({ session, onLogout }) {
   const [confirm, setConfirm] = useState(null);
   const [jobId, setJobId] = useState(0);
   const [job, setJob] = useState(null);
+  const [inlineConsole, registerConsole] = useState(null);
   const [toast, setToast] = useState(null);
   const [again, setAgain] = useState(0);
   const [sshOpen, setSshOpen] = useState(false);
@@ -181,7 +187,7 @@ function Shell({ session, onLogout }) {
   const link = (item) => <a key={item.key} className={`nav ${page === item.key ? "on" : ""}`} href={`#/${item.key}`} aria-current={page === item.key ? "page" : undefined}><Icon name={item.icon} /><span>{item.title()}</span></a>;
   const name = t("BC250 Control Center").replace("BC250", "").trim();
   return (
-    <App.Provider value={{ live: live?.metrics ? live : null, history: live?.history || {}, act, again, running, job, cancelReview: () => setConfirm(null), stopJob: () => api("job/interrupt", {}), toast: setToast, session, ssh, openSsh: () => session.control ? setSshOpen(true) : setToast({ tone: "bad", text: t("This device has monitoring access. Enable hardware control in Remote access on the desktop.") }) }}>
+    <App.Provider value={{ live: live?.metrics ? live : null, history: live?.history || {}, act, again, running, job, registerConsole, cancelReview: () => setConfirm(null), stopJob: () => api("job/interrupt", {}), toast: setToast, session, ssh, openSsh: () => session.control ? setSshOpen(true) : setToast({ tone: "bad", text: t("This device has monitoring access. Enable hardware control in Remote access on the desktop.") }) }}>
       <div className="shell">
         <header className="topbar"><a className="mobile-brand" aria-label={`BC250 · ${t("Dashboard")}`} href="#/dashboard"><img src="logo.png" alt="" /><strong>BC250</strong></a><span className="topbar-title">{current.title()}</span><button className="ghost" aria-label={t("Menu")} aria-expanded={menu} onClick={() => setMenu(!menu)}><Icon name="nav_settings" /></button></header>
         {menu && <div className="scrim menu-scrim" style={{ zIndex: 24 }} onClick={() => setMenu(false)} />}
@@ -199,7 +205,7 @@ function Shell({ session, onLogout }) {
         })}</nav>
       </div>
       {confirm && confirm.level !== 1 && !confirm.inline && <Confirm spec={confirm} onCancel={() => { setConfirm(null); confirm.onCancel?.(); }} onGo={() => go(confirm)} />}
-      {(job && (jobId || running)) && <Activity job={job} canType={session.password} onClose={() => { setJob(null); setJobId(0); }} />}
+      {(job && (jobId || running)) && <Activity job={job} inlineConsole={inlineConsole} canType={session.password} onClose={() => { setJob(null); setJobId(0); }} />}
       {sshOpen && <SSH onClose={() => setSshOpen(false)} canType={session.password} />}
       {toast && <div className={`toast ${toast.tone}`} role="status"><Icon name={toast.tone === "ok" ? "check_green" : "warning_orange"} /><span>{toast.text}</span><button className="ghost" aria-label={t("Close")} onClick={() => setToast(null)}><Icon name="close_gray" /></button></div>}
     </App.Provider>

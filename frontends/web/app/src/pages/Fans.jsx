@@ -1,3 +1,5 @@
+import DesktopFans from "./DesktopFans.jsx";
+import { useMobile } from "../ui.jsx";
 import { useEffect, useState } from "react";
 import { keep, num, t, useApp, usePage } from "../lib.jsx";
 import { Btn, Card, Check, Number_, Read, Segments, Tile } from "../ui.jsx";
@@ -23,6 +25,7 @@ function CurvePlot({ points, temp }) {
 }
 
 export default function Fans() {
+  const mobile = useMobile();
   const { act, live } = useApp();
   const data = usePage("fans");
   const [tab, setTab] = useState("manual");
@@ -42,6 +45,7 @@ export default function Fans() {
   const service = data.service || {};
   const bootOperation = service.enabled ? "disable" : "enable", bootTitle = t(BOOT_LABELS[bootOperation]);
   const serviceAction = (operation, title) => act({ action: "fan.service", level: 1, params: { operation }, title });
+  if (!mobile) return <DesktopFans {...{ data, rows, row, pwm, setPwm, writable, ready, duty, tab, setTab, percent, setPercent, presets, sorted, edit, setPoints, auto, setAuto, service, serviceAction, bootOperation, bootTitle }} plot={sorted.length > 1 ? <CurvePlot points={sorted} temp={gpu.temperature_c} /> : null} names={NAMES} curves={CURVES} serviceStates={SERVICE_STATES} lowDuty={LOW_DUTY} />;
   return (
     <div className="cols fan-split">
       <Card title={t("Fan")} sub={`${t("Fan controlled by")}: ${data.owner}`}>

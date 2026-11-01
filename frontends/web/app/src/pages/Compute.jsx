@@ -1,3 +1,5 @@
+import { DesktopCompute } from "./DesktopHardware.jsx";
+import { useMobile } from "../ui.jsx";
 import { useEffect, useState } from "react";
 import { keep, num, pick, t, useApp, usePage } from "../lib.jsx";
 import { Btn, Card, ControlTabs, Fold, Read } from "../ui.jsx";
@@ -6,6 +8,7 @@ const cls = { "D+": "D", "S+": "S", "D!": "X" };
 const pop = (mask) => (mask.toString(2).match(/1/g) || []).length;
 
 export default function Compute() {
+  const mobile = useMobile();
   const { act, live, running, session } = useApp();
   const page = usePage("cu");
   const [pending, setPending] = useState(null), [tab, setTab] = useState("routing");
@@ -27,6 +30,7 @@ export default function Compute() {
   const bootSync = { pending: t("Pending changes"), saved: t("Current table saved"), not_saved: t("No saved table"), unknown: t("Unknown") }[cu.boot_sync_key] || (cu.boot_sync ? t(cu.boot_sync) : "—");
   const toggle = (r, c) => { const next = [...masks]; next[r] ^= 1 << c; setPending(next); };
   const run = (name, title, level = 1) => act({ action: "cu.action", level, params: { name }, title });
+  if (!mobile) return <DesktopCompute {...{ cu, current, masks, changed, active, applied, se0, se1, ready, editable, canControl, toggle, setPending, sync, run, bootSync }} />;
   return <div className="control-workspace cu-workspace">
     <ControlTabs items={[["routing", t("Live routing"), "nav_compute"], ["monitor", t("Monitoring"), "nav_performance"], ["boot", t("Boot persistence"), "nav_settings"]]} value={tab} onChange={setTab} />
     {tab === "routing" && <Card className="cu-routing">

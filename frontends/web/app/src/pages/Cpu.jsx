@@ -1,3 +1,5 @@
+import { DesktopCpu } from "./DesktopHardware.jsx";
+import { useMobile } from "../ui.jsx";
 import { useState } from "react";
 import { keep, num, t, useApp, usePage } from "../lib.jsx";
 import { Btn, Card, Check, ControlTabs, CpuCores, Fold, Number_, ProfileDeck, ProfileEditor, Read, useStored } from "../ui.jsx";
@@ -10,6 +12,7 @@ const PROFILES = [
 const fields = () => [["frequency", t("Frequency"), 3100, 4200, "MHz"], ["vid", "VID", 950, 1325, "mV"], ["temperature", t("Temperature cap"), 70, 90, "°C"]];
 
 export default function Cpu() {
+  const mobile = useMobile();
   const { act, live, running } = useApp();
   const data = usePage("cpu");
   const [profiles, setProfiles] = useStored("cpu-profiles", PROFILES);
@@ -22,6 +25,7 @@ export default function Cpu() {
   const apply = () => act({ action: "cpu.apply", level: 1, title: manual ? t("Apply temporary OC + manual scale") : t("Apply configuration + automatic scale"),
     body: `${profile.frequency} MHz · ${manual ? `${t("Scale")} ${scale}` : `${profile.vid} mV`} · ${profile.temperature} °C`,
     params: { frequency: profile.frequency, vid: profile.vid, temperature: profile.temperature, manual, scale } });
+  if (!mobile) return <DesktopCpu {...{ data, profiles, profile, chosen, setChosen, editing, setEditing, setProfiles, fields, manual, setManual, scale, setScale, force, setForce, apply }} />;
   return <div className="control-workspace cpu-workspace">
     <ControlTabs items={[["profiles", t("Profiles"), "nav_cpu"], ["monitor", t("Monitoring"), "nav_performance"], ["boot", t("Boot persistence"), "nav_settings"]]} value={tab} onChange={setTab} />
     {tab === "profiles" && <Card className="control-primary">

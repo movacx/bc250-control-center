@@ -1,3 +1,5 @@
+import { DesktopGpu } from "./DesktopHardware.jsx";
+import { useMobile } from "../ui.jsx";
 import { useState } from "react";
 import { num, pick, t, useApp, usePage } from "../lib.jsx";
 import { Btn, Card, Check, ControlTabs, Fold, ProfileDeck, Read, useStored } from "../ui.jsx";
@@ -12,6 +14,7 @@ const Select = ({ label, value, options, onChange }) => (
 );
 
 export default function Gpu() {
+  const mobile = useMobile();
   const { act, live, running: actionBusy } = useApp();
   const raw = usePage("gpu");
   const [tab, setTab] = useState("profiles"), [chosen, setChosen] = useState(null);
@@ -32,6 +35,7 @@ export default function Gpu() {
   const control = (action, title, level = 1) => act({ action: "gpu.service", level, params: { action }, title });
   const selected = profiles.find((p) => p.key === chosen) || profiles.find((p) => p.min === cur[0] && p.max === cur[1]) || profiles[0];
   const pending = selected.min !== cur[0] || selected.max !== cur[1];
+  if (!mobile) return <DesktopGpu {...{ raw, gpu, profiles, selected, cur, volts, lowest, highest, editing, setEditing, setEdited, edited, setChosen, pending, opts, setCompat, backend, actionBusy, running, control, high, unlocked, stops }} />;
   return <div className="control-workspace gpu-workspace">
     <ControlTabs items={[["profiles", t("Profiles"), "nav_gpu"], ["monitor", t("Monitoring"), "nav_performance"], ["voltage", t("Voltage laboratory"), "nav_settings"]]} value={tab} onChange={setTab} />
     {tab === "profiles" && <>
