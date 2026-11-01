@@ -36,8 +36,7 @@ from ..content import (
 from ..i18n import tr
 from .base import Page, check, guarded, metric_blocks, waiting
 
-TABS = (("governor", "Profiles"), ("service", "Governor service"),
-        ("voltage", "Voltage laboratory"), ("monitor", "Monitoring"))
+TABS = (("governor", "Hardware control"), ("voltage", "Voltage laboratory"), ("monitor", "Sensors"))
 #: Level -> label. 0 restores the governor's own curve; 1..5 add 10..50 mV above 2000 MHz.
 LEVELS = ((1, "Gentle"), (2, "Moderate"), (3, "High"))
 SET_METHODS = (("smu", "SMU"), ("kernel", "Kernel"))
@@ -99,8 +98,7 @@ class GpuPage(Page):
 
         # -- operating profile: one press sets the range
         def apply_profile(ui_, profile):
-            if ui_.confirm(f"{tr(profile.label)}: {profile.minimum_mhz}–{profile.maximum_mhz} MHz"):
-                guarded(ui_, tr(profile.label), lambda: service.aplicar_perfil_gpu(profile.minimum_mhz, profile.maximum_mhz))
+            mine.update(min=profile.minimum_mhz, max=profile.maximum_mhz, profile_key=profile.key)
 
         edited = mine.setdefault("profiles", {})
         shown = [edited.get(item.key, item) for item in profiles_for_allowed_range(low, high, governor=governor)]
@@ -120,13 +118,13 @@ class GpuPage(Page):
         profiles = Panel(tr("Operating profile"), [Tiles([
             Tile(tr(item.label), f"{item.minimum_mhz} – {item.maximum_mhz} MHz",
                  f"{voltages.get(item.maximum_mhz) or '--'} mV", handler=lambda ui_, item=item: apply_profile(ui_, item),
-                 active=(item.minimum_mhz, item.maximum_mhz) == (current_min, current_max),
-                 edit=lambda ui_, item=item: edit(ui_, item), edit_label=tr("Edit")) for item in shown], minimum=20)],
-            action=Choice(tr("Export to Decky"), export))
+                 active=(item.minimum_mhz, item.maximum_mhz) == (want_min, want_max),
+                 edit=lambda ui_, item=item: edit(ui_, item), edit_label=tr("Edit")) for item in shown], minimum=20)])
 
         # -- range: the rail over the TOML points, red past 2000 MHz
         def step(which):
             def adjust(ui_, direction):
+                mine.pop("profile_key", None)
                 index = stops.index(min(stops, key=lambda t: abs(t - (want_min if which == "min" else want_max))))
                 new = stops[max(0, min(len(stops) - 1, index + direction))]
                 if which == "min":
@@ -137,8 +135,9 @@ class GpuPage(Page):
 
         def apply_range(ui_):
             if ui_.confirm(f"{tr('Apply range')}: {want_min}–{want_max} MHz", danger=want_max > SAFE_CEILING):
-                if guarded(ui_, tr("Apply range"), lambda: service.aplicar_rango_bc250(want_min, want_max)):
-                    mine.pop("min", None), mine.pop("max", None)
+                method = service.aplicar_perfil_gpu if mine.get("profile_key") else service.aplicar_rango_bc250
+                if guarded(ui_, tr("Apply range"), lambda: method(want_min, want_max)):
+                    mine.pop("min", None), mine.pop("max", None), mine.pop("profile_key", None)
 
         def save_boot(ui_):
             if ui_.confirm(tr("Save active range for startup")):
@@ -185,9 +184,6 @@ class GpuPage(Page):
                       lambda ui_: opts.update(frequencies=not opts["frequencies"])),
                 Buttons([Choice(tr("Apply compatibility"), apply_compat)])],
                 badge=tr("Extended range") if unlocked else "", badge_tone="bad"))
-        left.append(Buttons([Choice(tr("Save for boot"), save_boot),
-                             Choice(tr("Review and apply range"), apply_range, tone="primary",
-                                    enabled=(want_min, want_max) != (current_min, current_max))]))
 
         # -- right: telemetry, service, laboratory, risk
         busy = gpu.get("usage_percent") if gpu.get("usage_percent") is not None else gpu.get("compute_busy_percent")
@@ -251,7 +247,14 @@ class GpuPage(Page):
                                   and item.title == tr("Cyan kernel compatibility")]])
         if tab == "monitor":
             return terminal_form([tiles, advanced, lab, *right[3:]])
-        return terminal_form([profiles, rail, left[-1]])
+        persistence = Panel(tr("Boot persistence"), [
+            Field(tr("Active range"), f"{current_min}–{current_max} MHz"),
+            Note(tr("Apply the selected range before saving it for startup."), "dim"),
+            Buttons([Choice(tr("Save for boot"), save_boot, enabled=(want_min, want_max) == (current_min, current_max))])])
+        compatibility = [item for item in left if isinstance(item, Panel) and item.title == tr("Cyan kernel compatibility")]
+        return terminal_form([profiles, rail,
+            Buttons([Choice(tr("Review and apply range"), apply_range, tone="primary", enabled=(want_min, want_max) != (current_min, current_max))]),
+            persistence, service_panel, *compatibility, Buttons([Choice(tr("Export to Decky"), export)])])
 
     # ------------------------------------------------------------ voltage laboratory
 

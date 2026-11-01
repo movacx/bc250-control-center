@@ -60,12 +60,14 @@ def test_gpu_range_sliders_step_through_the_safe_points_and_apply_after_confirma
     assert ui.confirmations
 
 
-def test_gpu_profile_applies_its_range_after_confirmation():
+def test_gpu_profile_is_staged_then_applied_after_confirmation():
     service = FakeService()
     ctx, ui = make_context(service), FakeUI()
     layout = render(build_pages()["gpu"], ctx, ui)
-    next(c for c in layout.choices if c.label.strip().endswith("Gaming") or "Gaming" in c.label).handler(ui)
-    assert ("aplicar_perfil_gpu", (1000, 1850), {}) in service.calls
+    choice(layout, "Balanced").handler(ui)
+    assert not service.calls
+    choice(render(build_pages()["gpu"], ctx, ui), "Review and apply range").handler(ui)
+    assert ("aplicar_perfil_gpu", (500, 1500), {}) in service.calls
 
 
 def test_declining_the_confirmation_changes_nothing():

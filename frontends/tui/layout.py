@@ -84,6 +84,37 @@ class Layout:
     choice_rows: list[int] = field(default_factory=list)  # row index of each choice
 
 
+def choice_column(layout: Layout, index: int) -> int:
+    """The horizontal centre of a keyboard target, including framed buttons."""
+    row = layout.rows[layout.choice_rows[index]]
+    column, first, last = 0, None, 0
+    for (text, _tone), owner in zip(row.spans, row.owned()):
+        width = cell_width(text)
+        if owner is not None and (owner if owner >= 0 else -1 - owner) == index:
+            if first is None:
+                first = column
+            last = column + width
+        column += width
+    return (first + last) // 2 if first is not None else 0
+
+
+def _reading_order(layout: Layout) -> Layout:
+    order = sorted(range(len(layout.choices)), key=lambda i: (layout.choice_rows[i], choice_column(layout, i)))
+    mapping = {old: new for new, old in enumerate(order)}
+    def remap(owner):
+        if owner is None:
+            return None
+        return mapping[owner] if owner >= 0 else -1 - mapping[-1 - owner]
+    for row in layout.rows:
+        if row.choice is not None:
+            row.choice = mapping[row.choice]
+        if row.owners is not None:
+            row.owners = [remap(owner) for owner in row.owners]
+    layout.choices = [layout.choices[i] for i in order]
+    layout.choice_rows = [layout.choice_rows[i] for i in order]
+    return layout
+
+
 def sparkline(values, width: int, glyphs: Glyphs) -> str:
     if width <= 0:
         return ""
@@ -289,16 +320,16 @@ def _edge(glyphs: Glyphs, width: int, tone: str, left: list[tuple[str, str]], ri
 
 
 def button_spans(choice: Choice, glyphs: Glyphs, width: int, fill: bool = False) -> list[tuple[str, str]]:
-    """A compact terminal action: primary/danger emphasis; else ``[ label ]``.
+    """A bracketed terminal button, with primary/danger emphasis.
 
     ``fill`` aligns adjacent actions to their allocated columns.
     """
     tone = "dim" if not choice.enabled else {"primary": "accent", "": "accent"}.get(choice.tone, choice.tone)
-    if glyphs.rule == "─" and choice.enabled and choice.tone in ("primary", "bad"):
-        text = f" {clip(choice.label, width - 4)} "
-        return [(text.center(width) if fill else text, "btn:" + tone)]
-    text = clip(choice.label, width - 4)
-    return [(f"[{f' {text} '.center(width - 2)}]" if fill else f"[ {text} ]", tone)]
+    text = clip(choice.label, max(1, width - 4))
+    button = f"[{f' {text} '.center(max(1, width - 2))}]" if fill else f"[ {text} ]"
+    if choice.enabled and choice.tone in ("primary", "bad"):
+        return [(button, "btn:" + tone)]
+    return [(button, tone)]
 
 
 def _columns(blocks, width: int, label_cap: int) -> tuple[int, int]:
@@ -467,8 +498,8 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                         box.choices.append(Choice(tile.label, tile.handler))
                         box.choice_rows.append(0)
                     if tile.edit:  # the pencil sits on the bottom edge, so the name keeps the top one
-                        box.choices.append(Choice(tile.edit_label, tile.edit))
-                    box.rows.append(Row(_edge(glyphs, each, tone, [(tile.label, "dim")], []), owners=None,
+                        box.choices.append(Choice(f"{tile.edit_label}: {tile.label}", tile.edit))
+                    box.rows.append(Row(_edge(glyphs, each, tone, [(("[x] " if tile.active else "[ ] ") + tile.label if tile.handler else tile.label, "accent!" if tile.active else "dim")], []), owners=None,
                                         choice=own))
                     lines = [(tile.value, (tile.tone or "") + "!")]
                     if any(item.hint for item in block.tiles[first:first + fit]):
@@ -575,4 +606,4 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 if chip:
                     spans += [(" " * (room - cell_width(text) + 1), ""), (chip, "btn:" + block.badge_tone)]
                 add(spans, choice=index)
-    return layout
+    return _reading_order(layout)

@@ -159,6 +159,7 @@ def test_resized_or_refreshed_hit_regions_never_activate_an_old_action(monkeypat
     event(monkeypatch, screen, x, y)
     window.width += 20
     event(monkeypatch, screen, x, y)
+    assert 'min' not in screen.ctx.state('gpu')
 
 
 def test_right_click_cancels_a_dialog_and_wheel_changes_menu_selection(monkeypatch):

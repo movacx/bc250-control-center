@@ -54,8 +54,8 @@ class CpuPage(Page):
     interval = 5.0
 
     def tabs(self, ctx):
-        return [(key, tr(label)) for key, label in (("tuning", "Profiles"), ("monitor", "Monitoring"),
-                ("boot", "Boot persistence"), ("cores", "Unlock cores"))]
+        return [(key, tr(label)) for key, label in (("tuning", "Hardware control"), ("monitor", "Sensors"),
+                ("cores", "Unlock cores"))]
 
     def load(self, ctx):
         service = ctx.service
@@ -98,7 +98,7 @@ class CpuPage(Page):
         cards = Tiles([Tile(tr(item["name"]), f"{item['frequency']} MHz", f"{item['vid']} mV · {item['temperature']} °C",
                             handler=lambda ui_, i=index: target.update(profile=i), active=index == target["profile"],
                             edit=lambda ui_, i=index: edit(ui_, i), edit_label=tr("Edit")) for index, item in enumerate(profiles)], minimum=20)
-        profile_panel = Panel(tr("Operating profile"), [cards], action=Choice(tr("Export to Decky"), export))
+        profile_panel = Panel(tr("Operating profile"), [cards])
 
         # -- live scale test, then the one apply button
         def apply(ui_):
@@ -114,7 +114,7 @@ class CpuPage(Page):
 
         scale_panel = Panel(tr("Live scale test"), [
             check(tr("Use manual scale"), target["manual"], lambda ui_: target.update(manual=not target["manual"])),
-            stepper(tr("Scale"), target, "scale", *SCALE, 1, "scale", enabled=target["manual"])])
+            *([stepper(tr("Scale"), target, "scale", *SCALE, 1, "scale")] if target["manual"] else [])])
         apply_button = Buttons([Choice(tr("Apply temporary OC + manual scale") if target["manual"]
                                        else tr("Apply configuration + automatic scale"), apply, tone="primary")])
 
@@ -174,7 +174,10 @@ class CpuPage(Page):
                 guarded(ui_, tr("Boot persistence"), lambda: ui_.shell(
                     service.comando_cpu_oc_desactivar_persistente_embebido()))
 
-        persistence = Panel(tr("Boot persistence"), [Buttons([
+        persistence = Panel(tr("Boot persistence"), [
+            Field(tr("Status"), said(stored.status_value)),
+            Field(tr("Applied tuning"), said(tuning.applied_value)),
+            Note(tr("Save the applied configuration for startup after testing it."), "dim"), Buttons([
             Choice(tr("Save for startup"), save_boot), Choice(tr("Review persistence"), review),
             Choice(tr("Remove from boot"), remove, tone="bad", enabled=enabled)])])
 
@@ -201,7 +204,7 @@ class CpuPage(Page):
             Buttons([Choice(tr("Unlock cores and restart"), unlock_cores, tone="bad",
                             enabled=not unlock.get("unlocked"))])], danger=True)
 
-        sections = {"tuning": [profile_panel, scale_panel, apply_button],
+        sections = {"tuning": [profile_panel, scale_panel, apply_button, persistence, Buttons([Choice(tr("Export to Decky"), export)])],
                     "monitor": [runtime, cores_panel, overview_panel],
                     "boot": [persistence], "cores": [cores_panel, danger]}
         return terminal_form(sections.get(tab, sections["tuning"]))

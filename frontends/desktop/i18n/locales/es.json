@@ -5691,5 +5691,9 @@
   "Start web access to check the local address.": "Inicia el acceso web para comprobar la dirección local.",
   "Project links": "Enlaces del proyecto",
   "Support on Ko-fi": "Apoyar en Ko-fi",
-  "Project on GitHub": "Proyecto en GitHub"
+  "Project on GitHub": "Proyecto en GitHub",
+  "Save the applied configuration for startup after testing it.": "Guarda para el arranque la configuración aplicada después de probarla.",
+  "Apply the selected range before saving it for startup.": "Aplica el rango seleccionado antes de guardarlo para el arranque.",
+  "Apply the selection first, then save it and enable the startup service.": "Aplica primero la selección, después guárdala y activa el servicio de arranque.",
+  "Configure": "Configurar"
 }

@@ -36,8 +36,8 @@ class ComputeUnitsPage(Page):
     interval = 4.0
 
     def tabs(self, ctx):
-        return [(key, tr(label)) for key, label in (("routing", "Live routing"),
-                ("registers", "Register diagnostics"), ("boot", "Boot persistence"))]
+        return [(key, tr(label)) for key, label in (("routing", "Hardware control"),
+                ("registers", "Register diagnostics"))]
 
     def load(self, ctx):
         # The cached state keeps this refresh off the privileged path; Unlock / Sync asks the hardware again.
@@ -135,16 +135,14 @@ class ComputeUnitsPage(Page):
         shown = state.get("registers", False)
         persistence = Panel(tr("Boot persistence"), [
             Field(tr("Target"), f"{active}/40 CUs"),
+            Field(tr("Status"), tr("Enabled" if data.get("service_enabled") else "Installed" if data.get("service_installed") else "Not installed")),
             Note(tr("Select the WGP pairs above, then use the buttons below in order — Apply now, Save selection, "
                     "Install service — to make the change survive a reboot."), "dim"),
             Buttons([Choice(tr("Save selection"), save, enabled=ready),
                      Choice(tr("Install service"), action("install_service", "Install service"), enabled=ready),
                      Choice(tr("Remove service"), action("remove_service", "Remove service", True), tone="bad",
                             enabled=bool(data.get("service_installed"))),
-                     Choice(tr("Restore factory"), action("factory", "Restore factory", True), enabled=ready),
-                     Choice(tr("Raw status"), lambda ui_: ui_.show_text(tr("Raw status"), str(data.get("raw") or "--"))),
-                     Choice(tr("Hide registers" if shown else "Show registers"),
-                            lambda ui_: state.update(registers=not shown))])])
+                     Choice(tr("Restore factory"), action("factory", "Restore factory", True), enabled=ready)])])
         left = [target, persistence, Note(tr(
             "Live routing is temporary until the current table is saved and the boot service is installed. One WGP "
             "always represents two CUs; individual CUs cannot be toggled separately."), "dim")]
@@ -159,7 +157,8 @@ class ComputeUnitsPage(Page):
             return terminal_form([left[-1], Field(tr("Source"), str(data.get("source") or "--")),
                                   Choice(tr("Raw status"), lambda ui_: ui_.show_text(
                                       tr("Raw status"), str(data.get("raw") or "--")))])
-        return terminal_form([grid, target, Note("↑↓ ←→ · Space / Enter · Tab", "dim")])
+        return terminal_form([grid, target, persistence,
+                              Note(tr("Apply the selection first, then save it and enable the startup service."), "dim")])
 
     def _read_live(self, ctx, ui):
         ok, result = ui.run(tr("Unlock / Sync"), ctx.service.obtener_estado_cu)

@@ -1,37 +1,24 @@
-"""Linear terminal forms for hardware pages; dashboard and sensors keep their layout."""
+"""Responsive hardware workspaces with visible groups, profiles and actions."""
 from __future__ import annotations
 
-from .content import Buttons, Choice, Field, Gap, Heading, Panel, Split, Tiles
-from .i18n import tr
+from dataclasses import replace
+
+from .content import Gap, Panel, Split
 
 
 def terminal_form(blocks):
-    """Flatten desktop cards into predictable, vertically ordered keyboard rows."""
+    """Keep the interaction hierarchy; the layout engine stacks narrow cards.
+
+    Flattening profiles and button groups made actions indistinguishable from
+    readings. Panels now retain their borders, badges and keyboard targets.
+    """
     out = []
     for block in blocks:
         if isinstance(block, Panel):
-            out.append(Heading(block.title + (f" · {block.badge}" if block.badge else "")))
-            if block.subtitle:
-                from .content import Note
-
-                out.append(Note(block.subtitle, "dim"))
-            out.extend(terminal_form(block.blocks))
-            if block.action:
-                out.append(block.action)
-            out.append(Gap())
+            block = replace(block, blocks=terminal_form(block.blocks))
         elif isinstance(block, Split):
-            out.extend(terminal_form([*block.left, *block.right]))
-        elif isinstance(block, Buttons):
-            out.extend(block.choices)
-        elif isinstance(block, Tiles):
-            for tile in block.tiles:
-                detail = " · ".join(value for value in (tile.value, tile.hint) if value)
-                if tile.handler:
-                    out.append(Choice(f"({'x' if tile.active else ' '}) {tile.label}", tile.handler, detail))
-                    if tile.edit:
-                        out.append(Choice(f"  {tr('Edit')}: {tile.label}", tile.edit))
-                else:
-                    out.append(Field(tile.label, detail, tile.tone))
-        else:
-            out.append(block)
+            block = replace(block, left=terminal_form(block.left), right=terminal_form(block.right))
+        if out and isinstance(block, Panel) and not isinstance(out[-1], Gap):
+            out.append(Gap())
+        out.append(block)
     return out

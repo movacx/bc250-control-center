@@ -88,10 +88,10 @@ def test_cards_side_by_side_keep_every_button_and_each_row_knows_whose_span_is_w
     left = Panel("Left", [Buttons([Choice("One", lambda ui: pressed.append(1)), Choice("Two", lambda ui: None)])])
     right = Panel("Right", [Choice("Three", lambda ui: None)], action=Choice("Export", lambda ui: None))
     layout = build_layout([Split([left], [right], minimum=60)], 100, UNICODE)
-    assert [c.label for c in layout.choices] == ["One", "Two", "Three", "Export"]
-    row = next(r for r in layout.rows if r.owners and 0 in r.owners and 1 in r.owners)  # both buttons on one row
-    texts = {owner: "".join(t for (t, _), o in zip(row.spans, row.owners) if o == owner) for owner in (0, 1)}
-    assert "One" in texts[0] and "Two" in texts[1]
+    assert [c.label for c in layout.choices] == ["Export", "One", "Two", "Three"]
+    row = next(r for r in layout.rows if r.owners and 1 in r.owners and 2 in r.owners)  # both buttons on one row
+    texts = {owner: "".join(t for (t, _), o in zip(row.spans, row.owners) if o == owner) for owner in (1, 2)}
+    assert "One" in texts[1] and "Two" in texts[2]
     assert all(cell_width("".join(t for t, _ in r.spans)) == 100 for r in layout.rows)  # nothing spills past the edge
 
 

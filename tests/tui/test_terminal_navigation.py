@@ -80,14 +80,14 @@ def test_arrows_do_not_accidentally_change_a_task_and_invalid_task_is_ignored():
     _, screen = make_screen()
     screen.goto('gpu')
     screen.handle_key('tab')
-    screen.show_tab('service')
+    screen.show_tab('voltage')
     screen._switch_tab(0, 'missing')
-    assert screen._tab_key() == 'service'
+    assert screen._tab_key() == 'voltage'
     screen.handle_key('left')
-    assert screen._tab_key() == 'service'
+    assert screen._tab_key() == 'voltage'
 
 
-def test_gpu_cpu_and_cu_are_linear_forms_without_desktop_cards():
+def test_hardware_workspaces_keep_responsive_cards_and_actions():
     from frontends.tui.content import Panel, Split, Tiles
 
     ctx = make_context()
@@ -97,7 +97,7 @@ def test_gpu_cpu_and_cu_are_linear_forms_without_desktop_cards():
         data = page.load(ctx)
         for tab, _ in page.tabs(ctx):
             blocks = page.build(ctx, data, tab, object())
-            assert not any(isinstance(block, (Panel, Split, Tiles)) for block in blocks), (key, tab)
+            assert blocks, (key, tab)
             layout = build_layout(blocks, 52, Glyphs.for_terminal(unicode_ok=False))
             assert layout.rows
 

@@ -97,7 +97,13 @@ def row(state: dict, key: str, title: str, scope: str, status: str, tone: str, b
     """A desktop compatibility row: › title, its scope and a status chip; Enter folds its detail open."""
     from ..content import Heading
 
-    return [Heading(f"{tr(title)} · {tr(status)}"), Note(scope, "dim"), *body]
+    opened = bool(state.get("section:" + key))
+    def toggle(ui_):
+        state["section:" + key] = not opened
+    return [Heading(tr(title)), Field(tr("Status"), tr(status), tone),
+            *([Note(scope, "dim")] if scope else []),
+            Buttons([Choice(tr("Hide details" if opened else "Configure") + " · " + tr(title), toggle)])] + (list(body) if opened else [])
+
 
 
 class AdditionalSettingsPage(Page):

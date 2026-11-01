@@ -554,7 +554,7 @@ class Screen(PointerSupport):
     def _first_shown(self, layout: Layout, slot, direction: int) -> int:
         """The first item in view from the top (or bottom); -1 when none is."""
         indexes = range(len(layout.choices)) if direction > 0 else range(len(layout.choices) - 1, -1, -1)
-        return next((index for index in indexes if self._shown(layout, slot, index)), -1)
+        return next((index for index in indexes if layout.choices[index].enabled and self._shown(layout, slot, index)), -1)
 
     def _reveal(self, slot, row: int) -> None:
         offset, view = self.scroll.get(slot, 0), self._view()
@@ -568,7 +568,16 @@ class Screen(PointerSupport):
         item that can be seen.
         """
         cursor = self.cursor.get(slot, -1)
-        target = cursor + step if self._shown(layout, slot, cursor) else self._first_shown(layout, slot, step)
+        from .layout import choice_column
+
+        shown = self._shown(layout, slot, cursor)
+        current_row = layout.choice_rows[cursor] if shown else -1
+        candidates = [i for i, choice in enumerate(layout.choices) if choice.enabled and
+                      (layout.choice_rows[i] > current_row if step > 0 else layout.choice_rows[i] < current_row)]
+        target = min(candidates, key=lambda i: (abs(layout.choice_rows[i] - current_row),
+                     abs(choice_column(layout, i) - choice_column(layout, cursor)))) if shown and candidates else -1
+        if not shown:
+            target = self._first_shown(layout, slot, step)
         if abs(step) == 1 and 0 <= target < len(layout.choices):
             row, offset = layout.choice_rows[target], self.scroll.get(slot, 0)
             if offset - 1 <= row <= offset + self._view():  # in view, or on the line just past its edge
@@ -639,11 +648,12 @@ class Screen(PointerSupport):
             if step and current.pad.move(*step):
                 self._layout_key = None
                 return
-        sibling = self.cursor.get(slot, 0) + (1 if key == "right" else -1)
-        if key in ("left", "right") and current is not None and not current.adjust and current.pad is None \
-                and 0 <= sibling < len(layout.choices) \
-                and layout.choice_rows[sibling] == layout.choice_rows[self.cursor.get(slot, 0)]:
-            self.cursor[slot] = sibling  # buttons side by side: the arrows go along the row
+        cursor = self.cursor.get(slot, 0)
+        same_row = [i for i, choice in enumerate(layout.choices) if choice.enabled and
+                    layout.choice_rows[i] == layout.choice_rows[cursor]] if 0 <= cursor < len(layout.choices) else []
+        siblings = [i for i in same_row if i > cursor] if key == "right" else [i for i in same_row if i < cursor]
+        if key in ("left", "right") and current is not None and not current.adjust and current.pad is None and siblings:
+            self.cursor[slot] = min(siblings) if key == "right" else max(siblings)
         elif key in ("left", "right") and current is not None and current.adjust:
             current.adjust(self, 1 if key == "right" else -1)
         elif key in ("esc", "left"):
