@@ -172,7 +172,11 @@ def ensure_graphical_polkit_agent(
         return PolkitAgentState(False, "terminal", "The terminal interface asks for the password itself.")
     default_probe = environment is None and proc_root == Path("/proc")
     if default_probe and _DEFAULT_READY_STATE is not None:
-        return _DEFAULT_READY_STATE
+        # Agents can exit after application startup or a session restart.
+        # Re-probe instead of trusting a stale successful launch forever.
+        if _agent_running(proc_root):
+            return _DEFAULT_READY_STATE
+        _DEFAULT_READY_STATE = None
     if os.geteuid() == 0:
         return PolkitAgentState(False, "root", "Root does not need a Polkit agent.")
     if not _graphical_session(env):
@@ -211,14 +215,8 @@ def ensure_graphical_polkit_agent(
                                 _DEFAULT_READY_STATE = state
                             return state
                         sleep(0.05)
-                    # A different agent may already own the Polkit session.
-                    # systemctl still reports a successful activation before
-                    # the redundant process exits, and pkexec can use that
-                    # existing registered agent.
-                    state = PolkitAgentState(True, f"user-unit:{candidate.unit}")
-                    if default_probe:
-                        _DEFAULT_READY_STATE = state
-                    return state
+                    # A successful unit start does not prove that its agent
+                    # survived. Try the installed executable as a fallback.
             try:
                 spawn(
                     [str(binary)],

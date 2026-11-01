@@ -312,14 +312,16 @@ def test_host_and_address_helpers():
     assert server.same_key("abcd efgh", KEY) and not server.same_key("", KEY)
 
 
-def test_the_access_key_is_private_and_the_service_unit_needs_systemd(monkeypatch):
+def test_the_access_key_is_private_and_xdg_autostart_works_without_systemd(monkeypatch, tmp_path):
     from bc250cc.infrastructure import web_control
-    from bc250cc.shared.errors import ActionNeeded
     key = web_control.access_key(renew=True)
     assert re.fullmatch(r"[A-Z2-9]{4}-[A-Z2-9]{4}", key) and web_control.settings_path().stat().st_mode & 0o777 == 0o600
     monkeypatch.setattr(web_control, "systemd_available", lambda: False)
-    with pytest.raises(ActionNeeded):
-        web_control.set_autostart(True)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.setattr(web_control, "_command", lambda: ["/usr/bin/python", "-m", "frontends.web"])
+    assert web_control.set_autostart(True)["enabled"]
+    assert web_control._desktop_path().is_file()
+    assert not web_control.set_autostart(False)["enabled"]
 
 
 def test_plain_http_lan_never_accepts_passwords_even_with_the_old_option(client, monkeypatch):

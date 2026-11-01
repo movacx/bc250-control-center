@@ -40,6 +40,8 @@ Más capturas en la [galería](https://movacx.github.io/bc250-control-center/gal
 
 Se necesita Python 3.11 o posterior. Otras distribuciones, incluidos los sistemas con OpenRC, se detectan y se tratan en lo posible, pero no se prueban en cada versión.
 
+En Artix con OpenRC, Memoria y Swap utiliza un servicio propio para conservar el swapfile y ZSWAP al arrancar. ZRAM se prepara con `zramctl` y se activa tras reiniciar; su restauración conserva el dispositivo activo hasta el siguiente arranque. Las configuraciones de compresión de otras herramientas se conservan. El límite TTM se guarda mediante el cargador de arranque compatible (por ejemplo, GRUB) y requiere reiniciar. Acceso remoto puede iniciarse con la sesión gráfica mediante una entrada de inicio automático XDG, sin systemd. El daemon HDMI-CEC `cecd` también dispone de un servicio de usuario OpenRC para instalación, supervisión y eliminación; el control real de la TV requiere un adaptador CEC compatible. Las acciones opcionales de encendido al iniciar sesión y reposo al apagar tienen servicios OpenRC propios; el reposo omite reinicios, suspensión y paradas manuales.
+
 ## Instalación
 
 ### AUR

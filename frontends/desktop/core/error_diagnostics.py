@@ -213,12 +213,13 @@ _RULES = (
     ),
     _Rule(
         "BC250-AUTH-001",
-        (r"textual authentication agent", r"/dev/tty.*no such device", r"controlling terminal",
+        (r"no authentication agent", r"active authentication agent",
+         r"textual authentication agent", r"/dev/tty.*no such device", r"controlling terminal",
          r"a terminal is required", r"no tty present", r"must be run from a terminal",
          r"pkexec:.*terminal"),
         "The authorization window could not be opened.",
         "The application was started from a session that Polkit cannot attach its password prompt to.",
-        "Close this copy, start BC250 Control Center from the desktop application menu, and try again. If it continues, reinstall the protected helpers.",
+        "Start the installed Polkit authentication agent in your graphical session, then retry. If it exits, inspect its startup error.",
     ),
     _Rule(
         "BC250-AUTH-002",

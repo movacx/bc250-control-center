@@ -144,6 +144,10 @@ bc250_profiles() {
 bc250_usable() { bc250_profiles "$1" "$2" | awk -v want="output:$2$3" '$1 == want && $2 != "no" { print $1 }'; }
 bc250_select() {
   local want="$1" card="" active suffix target kind sink sinks name state _
+  if ! pactl info >/dev/null 2>&1; then
+    echo "ERROR: cannot connect to the session audio server. Check pipewire-pulse or PulseAudio and the user session; HDMI card detection was not attempted."
+    return 1
+  fi
   for _ in $(seq 1 15); do bc250_read_cards; card="$(bc250_card)"; [ -n "$card" ] && break; sleep 1; done
   [ -n "$card" ] || { echo "ERROR: the BC-250 HDMI/DisplayPort audio card was not found."; return 1; }
   active="$(bc250_active_profile "$card")"
@@ -342,6 +346,21 @@ def _foreign_guard() -> list[str]:
     ]
 
 
+# OpenRC user services are distinct from system services: audio must stay in
+# the logged-in user's session. A desktop-managed instance is reloaded by
+# logging in again rather than killing an unknown supervisor's process.
+_RESTART_WIREPLUMBER = """bc250_audio_session_restart=0
+if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+  systemctl --user restart wireplumber
+elif command -v rc-service >/dev/null 2>&1 && rc-service --user --exists wireplumber >/dev/null 2>&1 \
+     && rc-service --user wireplumber status >/dev/null 2>&1; then
+  rc-service --user wireplumber restart
+else
+  bc250_audio_session_restart=1
+  echo '[INFO] Audio is managed by the desktop. Log out and back in to reload the saved WirePlumber configuration.'
+fi"""
+
+
 def install_command(family: str) -> str:
     family = str(family or "").strip().lower()
     ok, reason = supported(family)
@@ -357,9 +376,12 @@ def install_command(family: str) -> str:
             "without a decoder plays it as silence; Remove brings stereo back.'"
         )
     commands += [
-        "for bc250_command in pactl systemctl sudo udevadm awk; do",
+        "for bc250_command in pactl sudo udevadm awk; do",
         '  command -v "$bc250_command" >/dev/null 2>&1 || { echo "ERROR: $bc250_command is required."; exit 69; }',
         "done",
+        "if ! pactl info >/dev/null 2>&1; then",
+        "  echo 'ERROR: cannot connect to the session audio server. Start or repair pipewire-pulse (or PulseAudio) in your desktop session, then retry. No AC-3 configuration was changed.'; exit 69",
+        "fi",
         *_foreign_guard(),
         *((STEAMOS_PASSWORD_GUARD, "bc250_require_password") if steamos else ()),
         _encoder_check(),
@@ -380,9 +402,14 @@ def install_command(family: str) -> str:
         "  echo 'OK: the encoder is in the next deployment. Restart, then press Install again to switch the output to 5.1.'",
         "  exit 0",
         "fi",
-        "systemctl --user restart wireplumber",
+        _RESTART_WIREPLUMBER,
         _SELECT,
-        "bc250_select ac3",
+        'if ! bc250_select ac3; then',
+        '  if [ "$bc250_audio_session_restart" = 1 ]; then',
+        "    echo 'OK: configuration saved; log out and back in, then run Install again to select AC-3.'; exit 0",
+        '  fi',
+        '  exit 1',
+        'fi',
         "echo 'OK: Dolby Digital 5.1 (AC-3) is the HDMI output. Stereo sources still play as 5.1 from the front speakers.'",
     ]
     return "\n".join(commands)
@@ -418,7 +445,7 @@ def remove_command(family: str) -> str:
         "fi",
         'rm -f "$bc250_wp"',
         f"sudo sh -c {shlex.quote(root)}",
-        "systemctl --user restart wireplumber",
+        _RESTART_WIREPLUMBER,
         _SELECT,
         "bc250_select stereo || echo '[INFO] Stereo is chosen the next time the display is connected.'",
         # The encoder packages stay: other programs may use them.

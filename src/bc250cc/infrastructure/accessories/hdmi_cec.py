@@ -66,6 +66,8 @@ UDEV_RULE = Path("/etc/udev/rules.d/60-bc250-control-center-cec.rules")
 CONFIG_NAME = "50-bc250-control-center.toml"
 WAKE_SERVICE = "bc250-control-center-cec-wake.service"
 WAKE_HELPER = ".local/bin/bc250-control-center-cec-wake"
+OPENRC_WAKE_NAME = "bc250-cec-wake"
+OPENRC_POWEROFF = Path("/etc/init.d/bc250-cec-poweroff")
 POWEROFF_SERVICE = "bc250-control-center-cec-poweroff.service"
 POWEROFF_UNIT = Path("/etc/systemd/system") / POWEROFF_SERVICE
 POWEROFF_WANTS = Path("/etc/systemd/system/multi-user.target.wants") / POWEROFF_SERVICE
@@ -205,7 +207,7 @@ def inventory(family: str, tool_dir: Path) -> dict:
     base = {
         "supported": ok, "reason": reason, "version": VERSION,
         "device": bool(adapters()), "adapters": adapters(),
-        "mode": "system" if family == "steamos" or system_cecd() else "bundled",
+        "mode": "system" if family == "steamos" or (system_cecd() and not _openrc_active()) else "bundled",
         "automation": automation_state(),
     }
     if not ok:
@@ -218,7 +220,11 @@ def inventory(family: str, tool_dir: Path) -> dict:
         return {**base, "state": "active" if active else "installed"}
     folder = Path(tool_dir) / FOLDER
     installed_version = _read(folder / VERSION_MARKER).strip()
-    service = user_service_state(SERVICE)
+    if _openrc_active():
+        service = ("active" if command_output(["rc-service", "--user", "bc250-cecd", "status"])
+                   and openrc_service_path().is_file() else "enabled" if openrc_service_path().is_file() else "missing")
+    else:
+        service = user_service_state(SERVICE)
     if not installed_version or not (folder / "cecd").is_file():
         state = "not-installed"
     elif installed_version != VERSION:
@@ -242,6 +248,10 @@ def automation_state() -> dict:
         poweroff = "foreign"
     elif MARKER in _read(POWEROFF_UNIT):
         poweroff = "installed"
+    if _openrc_active():
+        wake_path = _config_home() / "rc/init.d" / OPENRC_WAKE_NAME
+        wake = ("installed" if MARKER in _read(wake_path) else "foreign") if wake_path.exists() else wake
+        poweroff = ("installed" if MARKER in _read(OPENRC_POWEROFF) else "foreign") if OPENRC_POWEROFF.exists() else poweroff
     return {"wake": wake, "poweroff": poweroff}
 
 
@@ -380,13 +390,48 @@ def _build_lines(family: str) -> list[str]:
     return lines
 
 
+def _openrc_active() -> bool:
+    return Path("/run/openrc/softlevel").is_file()
+
+
+def openrc_service_path() -> Path:
+    return _config_home() / "rc/init.d/bc250-cecd"
+
+
+def openrc_service_text(folder: Path) -> str:
+    return (f"#!/sbin/openrc-run\n{MARKER}\n"
+            'description="BC250 HDMI-CEC daemon"\n'
+            f"command={shlex.quote(str(folder / 'cecd'))}\n"
+            'command_args="-e"\n'
+            'supervisor="supervise-daemon"\n'
+            'respawn_delay=5\n'
+            'export RUST_LOG=info\n')
+
+
+def _openrc_guard() -> list[str]:
+    return [
+        'bc250_cec_rc="${XDG_CONFIG_HOME:-$HOME/.config}/rc/init.d/bc250-cecd"',
+        'if [ -f /run/openrc/softlevel ]; then',
+        '  for bc250_command in rc-service rc-update; do',
+        '    command -v "$bc250_command" >/dev/null 2>&1 || { echo "ERROR: $bc250_command is required for OpenRC user services."; exit 69; }',
+        '  done',
+        '  [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ] || { echo "ERROR: run CEC setup from the graphical user session with its runtime directory and D-Bus address."; exit 69; }',
+        f'  if [ -e "$bc250_cec_rc" ] && ! grep -qxF {shlex.quote(MARKER)} "$bc250_cec_rc"; then',
+        '    echo "ERROR: the OpenRC CEC service belongs to another tool; it was preserved."; exit 65',
+        '  fi',
+        'else',
+        '  command -v systemctl >/dev/null 2>&1 || { echo "ERROR: CEC requires a supported user service manager (OpenRC or systemd)."; exit 69; }',
+        'fi',
+    ]
+
+
 def install_command(family: str, tool_dir: Path) -> str:
     family = str(family or "").strip().lower()
     ok, reason = supported(family)
     if not ok:
         raise RuntimeError(reason)
     commands = shell_header("TV control · HDMI-CEC (cecd)")
-    if family == "steamos" or system_cecd():
+    if family == "steamos" or (system_cecd() and not _openrc_active()):
         unit = SYSTEM_SERVICE
         commands += [
             *_config_lines(follow_console=family != "steamos"),
@@ -399,9 +444,10 @@ def install_command(family: str, tool_dir: Path) -> str:
     folder = Path(tool_dir) / FOLDER
     target = shlex.quote(str(folder))
     commands += [
-        "for bc250_command in sudo systemctl udevadm; do",
+        "for bc250_command in sudo udevadm; do",
         '  command -v "$bc250_command" >/dev/null 2>&1 || { echo "ERROR: $bc250_command is required."; exit 69; }',
         "done",
+        *_openrc_guard(),
         f"if [ -e {shlex.quote(str(UDEV_RULE))} ] && ! grep -qxF {shlex.quote(MARKER)} {shlex.quote(str(UDEV_RULE))}; then",
         f"  echo 'ERROR: {UDEV_RULE} belongs to another tool; it was left untouched.'; exit 65",
         "fi",
@@ -412,7 +458,7 @@ def install_command(family: str, tool_dir: Path) -> str:
         *_build_lines(family),
         'test -x "$bc250_stage/out/cecd" || { echo "ERROR: the build produced no cecd."; exit 31; }',
         'echo "== Installing =="',
-        f"systemctl --user stop {SERVICE} 2>/dev/null || true",
+        f'if [ -f /run/openrc/softlevel ]; then rc-service --user --exists bc250-cecd >/dev/null 2>&1 && rc-service --user bc250-cecd stop || true; else systemctl --user stop {SERVICE} 2>/dev/null || true; fi',
         f"mkdir -p {target}",
         f'install -m 0755 "$bc250_stage/out/cecd" "$bc250_stage/out/cectool" {target}/',
         f'install -m 0644 "$bc250_stage/out/LICENSE" "$bc250_stage/out/LICENSE.linux-cec-sys" {target}/',
@@ -428,15 +474,26 @@ def install_command(family: str, tool_dir: Path) -> str:
             )
             + f" bc250-cec {shlex.quote(UDEV_TEXT)}"
         ),
+        'if [ -f /run/openrc/softlevel ]; then',
+        '  mkdir -p "$(dirname "$bc250_cec_rc")"',
+        f"  printf '%s' {shlex.quote(openrc_service_text(folder))} > \"$bc250_cec_rc\"",
+        '  chmod 0755 "$bc250_cec_rc"',
+        'else',
         f'mkdir -p "{UNIT_DIRECTORY}"',
         f"printf '%s' {shlex.quote(unit_text(folder))} > \"{UNIT_DIRECTORY}/{SERVICE}\"",
+        "fi",
         'bc250_dbus="${XDG_DATA_HOME:-$HOME/.local/share}/dbus-1/services"',
         'mkdir -p "$bc250_dbus"',
         f"printf '%s' {shlex.quote(DBUS_SERVICE_TEXT)} > \"$bc250_dbus/{BUS_NAME}.service\"",
         *_config_lines(follow_console=True),
+        'if [ -f /run/openrc/softlevel ]; then',
+        '  rc-update --user add bc250-cecd default',
+        '  rc-service --user bc250-cecd restart',
+        'else',
         "systemctl --user daemon-reload",
         f"systemctl --user enable {SERVICE}",
-        f"systemctl --user restart {SERVICE} || true",
+        f"systemctl --user restart {SERVICE}",
+        'fi',
         f"if [ -z \"$(ls {shlex.quote(str(CEC_CLASS))} 2>/dev/null)\" ]; then",
         "  echo '[INFO] No CEC adapter is connected now; cecd picks it up when a CEC-capable DisplayPort-to-HDMI adapter is plugged in.'",
         "fi",
@@ -452,19 +509,26 @@ def remove_command(family: str, tool_dir: Path) -> str:
         'bc250_cec_conf="${XDG_CONFIG_HOME:-$HOME/.config}/cecd/config.d/' + CONFIG_NAME + '"',
         f'if [ -e "$bc250_cec_conf" ] && grep -qxF {shlex.quote(MARKER)} "$bc250_cec_conf"; then rm -f "$bc250_cec_conf"; fi',
     ]
-    if family == "steamos" or system_cecd():
+    if family == "steamos" or (system_cecd() and not _openrc_active()):
         commands += [
             f"systemctl --user reload-or-restart {SYSTEM_SERVICE} 2>/dev/null || true",
             "echo 'OK: the CEC settings Control Center added are removed.'",
         ]
         return "\n".join(commands)
+    commands += _openrc_guard()
     folder = shlex.quote(str(Path(tool_dir) / FOLDER))
     rule = shlex.quote(str(UDEV_RULE))
     commands += [
-        f"systemctl --user disable --now {SERVICE} 2>/dev/null || true",
+        'if [ -f /run/openrc/softlevel ]; then',
+        '  if [ -f "$bc250_cec_rc" ]; then',
+        '    rc-service --user bc250-cecd stop',
+        '    rc-update --user del bc250-cecd default',
+        '    rm -f "$bc250_cec_rc"',
+        '  fi',
+        f'else systemctl --user disable --now {SERVICE} 2>/dev/null || true; fi',
         f'rm -f "{UNIT_DIRECTORY}/{SERVICE}"',
         f'rm -f "${{XDG_DATA_HOME:-$HOME/.local/share}}/dbus-1/services/{BUS_NAME}.service"',
-        "systemctl --user daemon-reload",
+        "if [ ! -f /run/openrc/softlevel ]; then systemctl --user daemon-reload; fi",
         f"rm -rf -- {folder}",
         "sudo sh -c "
         + shlex.quote(
@@ -531,12 +595,15 @@ WantedBy=graphical-session.target
 """
 
 
-def poweroff_helper_text() -> str:
+def poweroff_helper_text(*, openrc: bool = False) -> str:
+    guard = ('[ "${RC_RUNLEVEL:-}" = shutdown ] || exit 0\n'
+             'case "${RC_REBOOT:-NO}" in NO|no|false|0|"") ;; *) exit 0 ;; esac'
+             if openrc else "systemctl list-jobs | grep -qE '(poweroff|halt)\\.target.*start' || exit 0")
     return f"""#!/bin/bash
 {MARKER}
 # TV standby on a real power-off. Regenerated by Control Center; do not edit.
 # Real power-off or halt only: a reboot and a suspend leave the TV alone.
-systemctl list-jobs | grep -qE '(poweroff|halt)\\.target.*start' || exit 0
+{guard}
 dev=$(ls -d /dev/cec* 2>/dev/null | head -n 1)
 [ -n "$dev" ] || exit 0
 command -v cec-ctl >/dev/null 2>&1 || exit 0
@@ -572,13 +639,15 @@ WantedBy=multi-user.target
 
 
 def _cecd_unit(family: str) -> str:
-    return SYSTEM_SERVICE if family == "steamos" or system_cecd() else SERVICE
+    return SYSTEM_SERVICE if family == "steamos" or (system_cecd() and not _openrc_active()) else SERVICE
 
 
 def wake_install_command(family: str, mode: str = "polite") -> str:
     family = str(family or "").strip().lower()
     if mode not in {"polite", "grab"}:
         raise ValueError(f"Unsupported wake mode: {mode or '--'}")
+    if _openrc_active():
+        return _openrc_wake_command(mode=mode)
     helper = f"$HOME/{WAKE_HELPER}"
     unit = f"{UNIT_DIRECTORY}/{WAKE_SERVICE}"
     commands = shell_header("TV control · wake the TV at start")
@@ -606,6 +675,8 @@ def wake_install_command(family: str, mode: str = "polite") -> str:
 
 
 def wake_remove_command() -> str:
+    if _openrc_active():
+        return _openrc_wake_command(remove=True)
     helper = f"$HOME/{WAKE_HELPER}"
     unit = f"{UNIT_DIRECTORY}/{WAKE_SERVICE}"
     commands = shell_header("TV control · stop waking the TV at start")
@@ -622,6 +693,8 @@ def wake_remove_command() -> str:
 
 
 def poweroff_install_command(family: str) -> str:
+    if _openrc_active():
+        return _openrc_poweroff_command()
     family = str(family or "").strip().lower()
     steamos = family == "steamos"
     helper = shlex.quote(str(POWEROFF_HELPER))
@@ -656,6 +729,8 @@ def poweroff_install_command(family: str) -> str:
 
 
 def poweroff_remove_command(family: str) -> str:
+    if _openrc_active():
+        return _openrc_poweroff_command(remove=True)
     steamos = str(family or "").strip().lower() == "steamos"
     helper = shlex.quote(str(POWEROFF_HELPER))
     unit = shlex.quote(str(POWEROFF_UNIT))
@@ -672,4 +747,105 @@ def poweroff_remove_command(family: str) -> str:
         "sudo systemctl daemon-reload",
         "echo 'OK: the TV is no longer put in standby at power-off.'",
     ]
+    return "\n".join(commands)
+
+
+def openrc_wake_helper_text(mode: str) -> str:
+    # Keep the existing CEC policy, adapting its D-Bus transport to GLib.
+    # gdbus is provided without systemd and talks to the desktop's session bus.
+    wrapper = f'''bc250_dbus() {{
+  local method="$1" out byte
+  shift
+  local base=(gdbus call --session --timeout 5 --dest {BUS_NAME}
+    --object-path {DEVICE_PATH_SHELL} --method {BUS_NAME}.CecDevice1."$method")
+  case "$method" in
+    SendReceiveRawMessage)
+      out=$("${{base[@]}}" "[byte $3]" "byte $4" "byte $5" "uint16 $6") || return $?
+      byte=$(printf '%s\\n' "$out" | grep -oE '0x[0-9a-fA-F]+|[0-9]+' | tail -n 1)
+      [ -n "$byte" ] || return 1
+      printf 'y %d\\n' "$((byte))"
+      ;;
+    Wake) "${{base[@]}}" ;;
+    SetActiveSource) "${{base[@]}}" -- -1 ;;
+    *) return 64 ;;
+  esac
+}}
+D=(bc250_dbus)'''
+    original = f"D=(busctl --user --timeout=5 call {BUS_NAME} {DEVICE_PATH_SHELL} {BUS_NAME}.CecDevice1)"
+    return wake_helper_text(mode).replace(original, wrapper).replace(
+        'echo "TV power probe got no reply; trying the wake anyway" | systemd-cat -t bc250-cec-wake -p warning',
+        'echo "TV power probe got no reply; trying the wake anyway" >&2')
+
+
+def _openrc_wake_command(*, mode: str = "polite", remove: bool = False) -> str:
+    helper = f"$HOME/{WAKE_HELPER}"
+    commands = shell_header("TV control · OpenRC TV wake") + _openrc_guard()
+    commands += [
+        'bc250_wake_rc="${XDG_CONFIG_HOME:-$HOME/.config}/rc/init.d/' + OPENRC_WAKE_NAME + '"',
+        f'if [ -e "$bc250_wake_rc" ] && ! grep -qxF {shlex.quote(MARKER)} "$bc250_wake_rc"; then',
+        "  echo 'ERROR: the TV wake service belongs to another tool; it was preserved.'; exit 65",
+        'fi',
+        f'if [ -e "{helper}" ] && ! grep -qxF {shlex.quote(MARKER)} "{helper}"; then',
+        "  echo 'ERROR: the TV wake helper belongs to another tool; it was preserved.'; exit 65",
+        'fi',
+    ]
+    if remove:
+        commands += [
+            f'if [ -f "$bc250_wake_rc" ]; then rc-update --user del {OPENRC_WAKE_NAME} default; fi',
+            f'rm -f "$bc250_wake_rc" "{helper}"',
+            "echo 'OK: the TV is no longer woken when the session starts.'",
+        ]
+    else:
+        service = (f"#!/sbin/openrc-run\n{MARKER}\n"
+                   'description="BC250 wake TV at session start"\n'
+                   'depend() { need bc250-cecd; }\n'
+                   f'start() {{ "$HOME/{WAKE_HELPER}"; }}\n')
+        commands += [
+            'command -v gdbus >/dev/null 2>&1 || { echo "ERROR: gdbus (GLib tools) is required for CEC session control."; exit 69; }',
+            'rc-service --user --exists bc250-cecd >/dev/null 2>&1 || { echo "ERROR: prepare the OpenRC CEC daemon first."; exit 69; }',
+            f'mkdir -p "$(dirname "{helper}")" "$(dirname "$bc250_wake_rc")"',
+            f"printf '%s' {shlex.quote(openrc_wake_helper_text(mode))} > \"{helper}\"",
+            f'chmod 0755 "{helper}"',
+            f"printf '%s' {shlex.quote(service)} > \"$bc250_wake_rc\"",
+            'chmod 0755 "$bc250_wake_rc"',
+            f'rc-update --user add {OPENRC_WAKE_NAME} default',
+            "echo 'OK: the TV wake action is enabled for the next OpenRC user session.'",
+        ]
+    return "\n".join(commands)
+
+
+def _openrc_poweroff_command(*, remove: bool = False) -> str:
+    unit = shlex.quote(str(OPENRC_POWEROFF))
+    helper = shlex.quote(str(POWEROFF_HELPER))
+    commands = shell_header("TV control · OpenRC TV standby at power-off")
+    for path in (OPENRC_POWEROFF, POWEROFF_HELPER, FOREIGN_POWEROFF):
+        quoted = shlex.quote(str(path))
+        condition = f"[ -e {quoted} ]" if path == FOREIGN_POWEROFF else f"[ -e {quoted} ] && ! grep -qxF {shlex.quote(MARKER)} {quoted}"
+        commands += [f"if {condition}; then", "  echo 'ERROR: an existing CEC shutdown file belongs to another tool; it was preserved.'; exit 65", "fi"]
+    commands += ['command -v rc-update >/dev/null 2>&1 || { echo "ERROR: OpenRC rc-update is required."; exit 69; }']
+    if remove:
+        commands += [
+            'sudo -v',
+            f'if [ -f {unit} ]; then sudo rc-update del bc250-cec-poweroff default; sudo rc-service bc250-cec-poweroff stop; fi',
+            f'sudo rm -f {unit} {helper}',
+            "echo 'OK: the TV is no longer put in standby at power-off.'",
+        ]
+    else:
+        service = (f"#!/sbin/openrc-run\n{MARKER}\n"
+                   'description="BC250 TV standby at power-off"\n'
+                   'depend() { need localmount; }\n'
+                   'start() { return 0; }\n'
+                   f'stop() {{ RC_RUNLEVEL="$RC_RUNLEVEL" RC_REBOOT="${{RC_REBOOT:-NO}}" {helper}; }}\n')
+        commands += [
+            'command -v cec-ctl >/dev/null 2>&1 || { echo "ERROR: cec-ctl (v4l-utils) is required."; exit 69; }',
+            'sudo -v',
+            f'sudo install -d -m 0755 {shlex.quote(str(OPENRC_POWEROFF.parent))} {shlex.quote(str(POWEROFF_HELPER.parent))}',
+            f"printf '%s' {shlex.quote(poweroff_helper_text(openrc=True))} | sudo tee {helper} >/dev/null",
+            f'sudo chmod 0755 {helper}',
+            f"printf '%s' {shlex.quote(service)} | sudo tee {unit} >/dev/null",
+            f'sudo chmod 0755 {unit}',
+            'sudo rc-update add bc250-cec-poweroff default',
+            'sudo rc-service bc250-cec-poweroff start',
+            "echo 'OK: TV standby is enabled for power-off; reboot, suspend and manual service stops leave it alone.'",
+        ]
     return "\n".join(commands)

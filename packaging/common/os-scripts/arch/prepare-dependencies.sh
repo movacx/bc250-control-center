@@ -69,16 +69,59 @@ install_governor() {
   verify_command cyan-skillfish-governor-smu
 }
 
+# Build a normal pacman package when a derivative (notably Artix) does not
+# expose stress in its enabled repositories. Keep stress-ng separate: the CPU
+# detector requires the original stress command-line interface.
+install_stress_from_source() (
+  require_user_build
+  ensure_arch_build_toolchain
+  export_parallel_build_env
+  local build_dir
+  build_dir="$(mktemp -d "${TMPDIR:-/tmp}/bc250-stress.XXXXXX")"
+  trap 'rm -rf -- "$build_dir"' EXIT
+  cat >"$build_dir/PKGBUILD" <<'PKGBUILD'
+pkgname=stress
+pkgver=1.0.7
+pkgrel=1
+pkgdesc='Tool for imposing load on computer systems'
+arch=('x86_64' 'aarch64')
+url='https://github.com/resurrecting-open-source-projects/stress'
+license=('GPL-2.0-or-later')
+depends=('glibc')
+source=("$url/releases/download/$pkgver/$pkgname-$pkgver.tar.gz")
+sha256sums=('80d966622c4e8d0981f64f56c06a191ef7c9a32c2660b3b957ef7f014dfd78cd')
+build() {
+  cd "$srcdir/$pkgname-$pkgver"
+  ./configure --prefix=/usr
+  make
+}
+check() {
+  cd "$srcdir/$pkgname-$pkgver"
+  make check
+}
+package() {
+  cd "$srcdir/$pkgname-$pkgver"
+  make DESTDIR="$pkgdir" install
+}
+PKGBUILD
+  cd "$build_dir"
+  run makepkg --cleanbuild --clean --syncdeps --install --needed --noconfirm
+)
+
 install_stress() {
-  if ! as_root pacman -S --needed --noconfirm stress; then
-    # Artix mirrors only its own repositories and ships stress-ng, whose
-    # interface bc250_smu_oc cannot use; stress itself is in Arch's [extra].
-    if ! pacman -Si stress >/dev/null 2>&1; then
-      error "The stress package is not in any enabled pacman repository."
-      error "On Artix, install artix-archlinux-support, enable Arch's [extra] in /etc/pacman.conf, then retry."
-    fi
-    return 1
+  if have stress; then
+    verify_command stress
+    return 0
   fi
+  if pacman -Si stress >/dev/null 2>&1; then
+    # A failed repository install (network, signature, etc.) must remain an
+    # error rather than silently switching to a source build.
+    as_root pacman -S --needed --noconfirm stress
+  else
+    warn "stress is absent from enabled repositories; building upstream 1.0.7 as a pacman package."
+    install_stress_from_source
+  fi
+  hash -r
   verify_command stress
 }
 
@@ -142,7 +185,13 @@ check_umr() {
 }
 plan_runtime() { plan_packages runtime pacman "${runtime_packages[@]}"; }
 plan_governor() { plan_packages governor aur cyan-skillfish-governor-smu; }
-plan_stress() { plan_packages stress pacman stress; }
+plan_stress() {
+  if have stress || pacman -Si stress >/dev/null 2>&1; then
+    plan_packages stress pacman stress
+  else
+    plan_packages stress makepkg "stress 1.0.7 (checksummed upstream source)"
+  fi
+}
 plan_sensors() { plan_packages sensors pacman lm_sensors; }
 plan_umr() { plan_packages umr pacman/aur umr; }
 

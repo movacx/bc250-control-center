@@ -493,9 +493,9 @@ def _install32(family: str) -> str:
         ]
     else:
         libs = [
-            "if ! pacman-conf --repo-list 2>/dev/null | grep -qx multilib; then",
-            "  echo 'ERROR: the [multilib] repository is off. Uncomment [multilib] and its Include line in /etc/pacman.conf,'",
-            "  echo '       run sudo pacman -Sy, and try again.'; exit 65",
+            "if ! pacman-conf --repo-list 2>/dev/null | grep -Eq '^(multilib|lib32)$'; then",
+            "  echo 'ERROR: no 32-bit repository is enabled: [lib32] on Artix or [multilib] on Arch.'",
+            "  echo '       Enable the repository for your distribution in /etc/pacman.conf, complete a full system update, then retry.'; exit 65",
             "fi",
             f"sudo pacman -S --needed --noconfirm {packages}",
         ]

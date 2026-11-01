@@ -332,3 +332,18 @@ def test_32_bit_probe_does_not_inherit_a_forced_64_bit_vulkan_driver(tmp_path):
     assert 'VK_DRIVER_FILES=' not in observed
     assert 'VK_LOADER_LAYERS_DISABLE=~implicit~' in observed
     assert vaapi.PROBE32_ENV in vaapi.build_vaapi_command('install32', family='cachyos')
+
+
+@pytest.mark.parametrize('repository, expected', [
+    ('lib32', 0), ('multilib', 0), ('world', 65), ('lib32-testing', 65),
+])
+def test_32bit_repository_guard_accepts_artix_and_arch(repository, expected):
+    command = vaapi._install32('arch')
+    start = command.index('if ! pacman-conf --repo-list')
+    end = command.index('\nfi', start) + 3
+    result = subprocess.run(
+        ['bash', '-c', f'pacman-conf() {{ echo {repository}; }}\n' + command[start:end]],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == expected, result.stderr
+    assert 'run sudo pacman -Sy,' not in command

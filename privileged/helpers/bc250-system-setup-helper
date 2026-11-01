@@ -182,7 +182,7 @@ def uninstall_blockers(host, memory, state_dir):
     blockers, steps, commands = [], [], []
     state = host.state("memory")
     _, swap_file, _, unit_path = memory.swap_paths(host, state)
-    memory_files = (memory.SERVICE_PATH, swap_file, memory.ZRAM, unit_path, memory.SYSCTL)
+    memory_files = (memory.service_path(host), swap_file, memory.ZRAM, unit_path, memory.SYSCTL)
     if any(host.path(path).exists() for path in memory_files):
         policy = str(state.get("policy") or "preserve")
         if host.path(swap_file).exists():
@@ -197,8 +197,8 @@ def uninstall_blockers(host, memory, state_dir):
         if state.get("ttm_pages") is not None:
             ttm_gib = round(int(state["ttm_pages"]) * os.sysconf("SC_PAGE_SIZE") / GIB)
             blockers.append(f"GPU memory limit (TTM) set to {ttm_gib} GiB")
-        if host.path(memory.SERVICE_PATH).exists():
-            blockers.append(f"Boot service {Path(memory.SERVICE_PATH).name}, which runs this helper")
+        if host.path(memory.service_path(host)).exists():
+            blockers.append(f"Boot service {Path(memory.service_path(host)).name}, which runs this helper")
         ttm = "-1" if "ttm_original" in state else "0"
         steps.append("Dashboard > Prepare BC250 system > Memory & Swap > Restore > Apply")
         commands.append(f"sudo {HELPER} memory-apply --policy restore --ttm {ttm}")

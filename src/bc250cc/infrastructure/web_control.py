@@ -2,8 +2,8 @@
 
 The server itself is ``frontends/web``. This module is what the desktop page
 and the server share: ``web.json`` (0600, owner only) holds the access key and
-the options, and an optional systemd user service starts the server with the
-session. A user service lives in the user manager, which Bazzite's Game Mode
+the options, and an optional systemd user service or XDG desktop autostart
+entry starts the server with the session. A user service lives in the user manager, which Bazzite's Game Mode
 leaves running, so the page stays reachable after switching modes.
 Nothing here needs root.
 """
@@ -155,6 +155,19 @@ def _unit_path() -> Path:
     return (Path(base) if base else Path.home() / ".config") / "systemd" / "user" / UNIT_FILE_NAME
 
 
+def _desktop_path() -> Path:
+    base = os.environ.get("XDG_CONFIG_HOME", "").strip()
+    return (Path(base) if base else Path.home() / ".config") / "autostart" / "bc250-web.desktop"
+
+
+def _desktop_quote(value: str) -> str:
+    # Desktop Exec syntax is not shell syntax. Escape reserved characters and
+    # literal percent signs (field codes), including paths containing spaces.
+    if any(c in value for c in "\n\r\x00"):
+        raise ValueError("Invalid desktop autostart argument")
+    return '"' + value.replace('\\', '\\\\').replace('"', '\\"').replace('`', '\\`').replace('$', '\\$').replace('%', '%%') + '"'
+
+
 def _command() -> list[str]:
     # Packaged installs use the system runtime. Source installs can keep web
     # dependencies in their own stable environment, without altering system Python.
@@ -189,10 +202,13 @@ def _environment() -> dict[str, str]:
 
 
 def autostart_state() -> dict:
-    path = _unit_path()
+    systemd = systemd_available()
+    path = _unit_path() if systemd else _desktop_path()
     ours = path.is_file() and path.read_text(encoding="utf-8").startswith(UNIT_MARKER)
-    enabled = systemd_available() and ours and _systemctl("is-enabled", "--quiet", UNIT_FILE_NAME).returncode == 0
-    return {"supported": systemd_available(), "enabled": enabled, "foreign": path.is_file() and not ours}
+    enabled = ours and (_systemctl("is-enabled", "--quiet", UNIT_FILE_NAME).returncode == 0
+                        if systemd else "Hidden=true" not in path.read_text(encoding="utf-8"))
+    return {"supported": True, "enabled": enabled, "foreign": path.is_file() and not ours,
+            "backend": "systemd" if systemd else "xdg"}
 
 
 def status() -> dict:
@@ -223,7 +239,7 @@ def start() -> dict:
         return {"started": False}
     command = _command()  # Preflight before touching a running service or its unit.
     access_key()
-    if autostart_state()["enabled"]:
+    if systemd_available() and autostart_state()["enabled"]:
         set_autostart(True)  # Refresh ExecStart if the interpreter changed.
         process = None
     else:
@@ -268,7 +284,7 @@ def configure(**changes) -> dict:
 
 
 def stop() -> dict:
-    if autostart_state()["enabled"]:
+    if systemd_available() and autostart_state()["enabled"]:
         _systemctl("stop", UNIT_FILE_NAME)
     try:
         os.kill(int(_pid_path().read_text(encoding="utf-8")), signal.SIGTERM)
@@ -283,7 +299,21 @@ def stop() -> dict:
 
 def set_autostart(enabled: bool) -> dict:
     if not systemd_available():
-        raise ActionNeeded("Starting with the session needs systemd; this system uses another init.")
+        path = _desktop_path()
+        if path.exists() and not path.read_text(encoding="utf-8").startswith(UNIT_MARKER):
+            raise ActionNeeded(f"{path} already exists and is not managed by Control Center; it was left as it is.")
+        if enabled:
+            command = ["/usr/bin/env", *(f"{key}={value}" for key, value in _environment().items()), *_command()]
+            entry = (f"{UNIT_MARKER}\n[Desktop Entry]\nType=Application\n"
+                     "Name=BC250 web access\nTerminal=false\n"
+                     f"Exec={' '.join(_desktop_quote(arg) for arg in command)}\n"
+                     f"Path={APP_ROOT}\n")
+            access_key()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(entry, encoding="utf-8")
+        elif path.is_file():
+            path.unlink()
+        return autostart_state()
     path = _unit_path()
     if path.is_file() and not path.read_text(encoding="utf-8").startswith(UNIT_MARKER):
         raise ActionNeeded(f"{path} already exists and is not managed by Control Center; it was left as it is.")

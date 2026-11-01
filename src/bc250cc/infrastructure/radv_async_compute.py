@@ -108,7 +108,8 @@ def radv_async_state(
     icd = PREFIX_ROOT / version / "share/vulkan/icd.d/radeon_icd.x86_64.json" if version else None
     driver_present = bool(icd and icd.is_file() and (PREFIX_ROOT / version / "lib/libvulkan_radeon.so").is_file())
     enabled = (CONF_DIR / "enabled").exists()
-    session_files = str((environ if environ is not None else os.environ).get("VK_DRIVER_FILES") or "")
+    session_files = str((environ if environ is not None else os.environ).get("VK_DRIVER_FILES")
+                        or (environ if environ is not None else os.environ).get("VK_ICD_FILENAMES") or "")
     session_active = bool(icd) and str(icd) in session_files.split(":")
     # The generator's own deferrals: the source build's patched module, or a
     # boot of DryhoppedIPA's patched Fedora entry, brings its own RADV.
