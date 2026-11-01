@@ -1,10 +1,10 @@
 import importlib.util
 import json
+import os
 import subprocess
 from contextlib import nullcontext
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -57,11 +57,15 @@ def test_operation_lock_rejects_a_concurrent_hardware_action(
     helper_module, tmp_path, monkeypatch
 ):
     lock_path = tmp_path / "hardware.lock"
-    monkeypatch.setattr(
-        helper_module.os,
-        "fstat",
-        lambda _descriptor: SimpleNamespace(st_mode=0o100600, st_uid=0),
-    )
+    real_fstat = helper_module.os.fstat
+
+    def owned_lock_stat(descriptor):
+        metadata = real_fstat(descriptor)
+        # Keep a real stat_result: pytest's capture also calls os.fstat and
+        # needs st_size. Only ownership is fictional in this rootless test.
+        return os.stat_result((*metadata[:4], 0, *metadata[5:]))
+
+    monkeypatch.setattr(helper_module.os, "fstat", owned_lock_stat)
     monkeypatch.setattr(helper_module, "OPERATION_LOCK_TIMEOUT_SECONDS", 0.0)
 
     with helper_module.operation_lock(lock_path, "test"):

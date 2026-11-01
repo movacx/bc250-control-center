@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import logging
 import time
-from collections import deque
 from dataclasses import dataclass
 from html import escape
-from math import log10
 from typing import Callable, Iterable
 
 from PyQt6 import sip
@@ -63,9 +61,25 @@ from ..components.widgets import (
     readable_text_on,
 )
 from ..core.gddr6_monitor import gddr6_monitor_for
+from ..core.performance_model import (
+    MINIMUM_SPAN as _MINIMUM_SPAN,
+)
+from ..core.performance_model import (
+    RESOURCE_BY_KEY,
+    RESOURCE_DEFINITIONS,
+    SENSOR_VIEWS,
+    SENSORS_TAB,
+    MetricHistory,
+    ResourceDefinition,
+    series_statistics,
+    view_definition,
+    view_summary,
+)
+from ..core.performance_model import (
+    _number as _number,
+)
 from ..core.performance_sample_presenter import present_performance_sample
 from ..core.performance_views import (
-    MAX_LINES,
     VIEW_BY_KEY,
     MetricView,
     available_views,
@@ -254,15 +268,6 @@ QWidget[performancePage='true'] QWidget#sensorPlotsBody {{
 
 
 
-def _number(value, default: float = 0.0) -> float:
-    try:
-        if value is None:
-            return default
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
-
 def _integer(value, default: int = 0) -> int:
     try:
         if value is None:
@@ -286,180 +291,6 @@ def _format_bytes(value: float, *, decimals: int = 1) -> str:
 
 def _format_rate(value: float) -> str:
     return f"{_format_bytes(value)}/s"
-
-
-def _nice_ceiling(value: float) -> float:
-    value = max(1.0, float(value))
-    exponent = 10 ** max(0, int(log10(value)))
-    normalized = value / exponent
-    if normalized <= 1:
-        step = 1
-    elif normalized <= 2:
-        step = 2
-    elif normalized <= 5:
-        step = 5
-    else:
-        step = 10
-    return float(step * exponent)
-
-
-@dataclass(frozen=True)
-class ResourceDefinition:
-    key: str
-    title: str
-    subtitle: str
-    icon_name: str
-    icon_background: str
-    series: tuple[tuple[str, str], ...]
-    stat_labels: tuple[str, str, str, str]
-    fixed_maximum: float | None = None
-    rate_scale: bool = False
-    #: What the values are measured in: "%" (the summaries), or the unit of a
-    #: view (MHz, °C, W, V), which frames its own range instead of 0–100.
-    unit: str = "%"
-    #: "lines", or "heatmap" for a view with one row per thread.
-    form: str = "lines"
-
-
-RESOURCE_DEFINITIONS = (
-    ResourceDefinition(
-        "cpu",
-        "CPU",
-        "Scheduler load and package frequency.",
-        "cpu_blue",
-        "blue_soft",
-        (("Usage", "blue"),),
-        ("Frequency", "Temperature", "Load average", "Peak"),
-        fixed_maximum=100,
-    ),
-    ResourceDefinition(
-        "gpu",
-        "GPU",
-        "Graphics engine load, clock, thermals, and power.",
-        "gpu_purple",
-        "purple_soft",
-        (("Usage", "purple"),),
-        ("SCLK", "Temperature", "SoC power", "Peak"),
-        fixed_maximum=100,
-    ),
-    ResourceDefinition(
-        "vram",
-        "VRAM",
-        "Dedicated graphics memory pressure.",
-        "vram_gray",
-        "purple_soft",
-        (("Used", "purple"),),
-        ("Used", "Available", "Total", "Peak"),
-        fixed_maximum=100,
-    ),
-    ResourceDefinition(
-        "memory",
-        "RAM",
-        "Memory pressure, availability, and swap usage.",
-        "memory_green",
-        "green_soft",
-        (("Used", "green"),),
-        ("Used", "Available", "Swap", "Peak"),
-        fixed_maximum=100,
-    ),
-    ResourceDefinition(
-        "disk",
-        "Disk",
-        "Root filesystem usage, throughput, and active I/O time.",
-        "disk_orange",
-        "orange_soft",
-        (("Read", "blue"), ("Write", "orange")),
-        ("Used", "Available", "Active time", "Peak I/O"),
-        rate_scale=True,
-    ),
-    ResourceDefinition(
-        "network",
-        "Network",
-        "Traffic on the active default interface.",
-        "network_cyan",
-        "cyan_soft",
-        (("Download", "cyan"), ("Upload", "purple")),
-        ("Interface", "Download", "Upload", "Peak"),
-        rate_scale=True,
-    ),
-)
-RESOURCE_BY_KEY = {definition.key: definition for definition in RESOURCE_DEFINITIONS}
-#: The sensor list's tab, before the resources'. It has no chart of its own.
-SENSORS_TAB = ResourceDefinition("sensors", "Sensors", "", "", "", (), ("", "", "", ""))
-#: The sensor list's layouts, offered in its tab's menu like a part's views.
-SENSOR_VIEWS = (
-    MetricView("list", "sensors", "List", "Every sensor with its minimum, average and maximum."),
-    MetricView("split", "sensors", "List + graphs", "The list, with the sensors you tick drawn beside it."),
-    MetricView("graphs", "sensors", "Graphs", "Only the graphs of the sensors you tick, larger."),
-)
-
-#: The smallest range a view's axis spans, so an idle reading is not blown up
-#: into a jagged line filling the plot.
-_MINIMUM_SPAN = {"MHz": 200.0, "°C": 10.0, "W": 10.0, "V": 0.1}
-
-
-def view_definition(view: MetricView, names: Iterable[str]) -> ResourceDefinition:
-    """The chart definition of a view, once its series are known."""
-    names = tuple(names)
-    resource = RESOURCE_BY_KEY[view.resource]
-    single = len(names) == 1
-    return ResourceDefinition(
-        view.key,
-        view.title,
-        view.hint,
-        resource.icon_name,
-        resource.icon_background,
-        # A series keeps its slot (core 3 is always the fourth colour), and
-        # past eight there are no more slots: those views are heat maps.
-        tuple((name, f"series_{index + 1}" if index < MAX_LINES else "blue") for index, name in enumerate(names)),
-        ("Now", "Minimum", "Average", "Maximum") if single else ("Highest", "Lowest", "Mean", "Window peak"),
-        fixed_maximum=100 if view.unit == "%" else None,
-        unit=view.unit,
-        form=view.form,
-    )
-
-
-class MetricHistory:
-    """The last two minutes of one resource, with when each sample arrived.
-
-    Timestamps place every point where it belongs on the time axis, so a
-    stalled or late sample shows as a gap instead of silently compressing the
-    rest of the line.
-    """
-
-    WINDOW_SECONDS = 120
-
-    def __init__(self, definition: ResourceDefinition):
-        self.definition = definition
-        self.values = {name: deque(maxlen=120) for name, _color in definition.series}
-        self.times: deque[float] = deque(maxlen=120)
-        #: Bumped by every sample, so a chart knows its cached drawing is stale.
-        self.revision = 0
-
-    def append(self, values: dict[str, float], *, moment: float | None = None) -> None:
-        self.times.append(time.monotonic() if moment is None else float(moment))
-        for name, _color in self.definition.series:
-            self.values[name].append(max(0.0, _number(values.get(name))))
-        self.revision += 1
-
-    def peak(self, name: str | None = None) -> float:
-        if name is not None:
-            return max(self.values.get(name, ()), default=0.0)
-        return max((max(values, default=0.0) for values in self.values.values()), default=0.0)
-
-    def average(self, name: str) -> float | None:
-        values = self.values.get(name) or ()
-        return sum(values) / len(values) if values else None
-
-    def low(self) -> float:
-        """The lowest value of any series in the window."""
-        return min((min(values) for values in self.values.values() if values), default=0.0)
-
-    def maximum(self) -> float:
-        if self.definition.fixed_maximum is not None:
-            return max(1.0, self.definition.fixed_maximum)
-        peak = self.peak()
-        return _nice_ceiling(peak * 1.15) if peak > 0 else 1024.0
 
 
 _RATE_UNITS = (("B/s", 1.0), ("KiB/s", 1024.0), ("MiB/s", 1024.0 ** 2), ("GiB/s", 1024.0 ** 3))
@@ -1251,14 +1082,6 @@ class DetailGraph(QWidget):
             )
 
 
-def series_statistics(history: MetricHistory, name: str) -> tuple[float, float, float] | None:
-    """Minimum, average and maximum of one series over the window."""
-    values = list(history.values.get(name, ()))
-    if not values:
-        return None
-    return min(values), sum(values) / len(values), max(values)
-
-
 class DetailPanel(QFrame):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -1989,37 +1812,4 @@ class PerformancePage(QWidget):
         self.detail.set_values(primary, context, stats, sampled_at=sampled_at)
 
     def _view_summary(self, view: MetricView, history: MetricHistory) -> tuple[str, str, tuple[str, str, str, str]]:
-        """The header reading and the four boxes of a view."""
-        unit = history.definition.unit
-
-        def show(value: float | None) -> str:
-            if value is None:
-                return "--"
-            return f"{value:.1f}%" if unit == "%" else format_sensor_value(value, unit)
-
-        latest = [
-            (values[-1], name)
-            for name, _tone in history.definition.series
-            if (values := history.values.get(name))
-        ]
-        if not latest:
-            unavailable = view.unavailable_hint if view.key not in self._available_views else ""
-            return "--", tr(unavailable or "Waiting for sample"), ("--", "--", "--", "--")
-        if len(latest) == 1:
-            value, name = latest[0]
-            statistics = series_statistics(history, name)
-            low, average, high = statistics if statistics else (None, None, None)
-            return show(value), name, (show(value), show(low), show(average), show(high))
-        high_value, high_name = max(latest)
-        low_value, low_name = min(latest)
-        mean = sum(value for value, _name in latest) / len(latest)
-        return (
-            show(high_value),
-            tr_format("highest: {name} · {count} series", name=high_name, count=len(latest)),
-            (
-                f"{high_name} · {show(high_value)}",
-                f"{low_name} · {show(low_value)}",
-                show(mean),
-                show(history.peak()),
-            ),
-        )
+        return view_summary(view, history, self._available_views)

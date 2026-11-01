@@ -21,6 +21,7 @@ PREFIX="$SMOKE_PREFIX" BC250_SKIP_PRIVILEGED_HELPER=1 BC250_SKIP_DEPENDENCY_INST
 required=(
   bin/bc250-control-center
   bin/bc250-control-center-cli
+  bin/bc250-control-center-tui
   bin/bc250-control-centerd
   share/bc250-control-center/frontends/desktop/main.py
   share/bc250-control-center/frontends/cli.py

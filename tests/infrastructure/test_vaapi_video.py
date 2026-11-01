@@ -314,3 +314,36 @@ def test_the_test_workflow_checks_the_driver_the_way_gpu_screen_recorder_asks_fo
     command = vaapi.build_vaapi_command("test", family="arch")
     assert f"env -u LIBVA_DRIVER_NAME LIBVA_DRIVERS_PATH={vaapi.RUNTIME}" in command
     assert "cannot find the driver yet" in command
+
+
+def test_32_bit_probe_does_not_inherit_a_forced_64_bit_vulkan_driver(tmp_path):
+    import os
+    import shlex
+
+    output = tmp_path / "probe-environment"
+    command = vaapi.PROBE32_ENV + " sh -c " + shlex.quote('env > "$BC250_TEST_OUTPUT"')
+    result = subprocess.run(['bash', '-c', command], capture_output=True, text=True,
+                            env={**os.environ, 'VK_ICD_FILENAMES': '/opt/private/radeon_icd.x86_64.json',
+                                 'VK_DRIVER_FILES': '/opt/private/radeon_icd.x86_64.json',
+                                 'BC250_TEST_OUTPUT': str(output)})
+    assert result.returncode == 0, result.stderr
+    observed = output.read_text()
+    assert 'VK_ICD_FILENAMES=' not in observed
+    assert 'VK_DRIVER_FILES=' not in observed
+    assert 'VK_LOADER_LAYERS_DISABLE=~implicit~' in observed
+    assert vaapi.PROBE32_ENV in vaapi.build_vaapi_command('install32', family='cachyos')
+
+
+@pytest.mark.parametrize('repository, expected', [
+    ('lib32', 0), ('multilib', 0), ('world', 65), ('lib32-testing', 65),
+])
+def test_32bit_repository_guard_accepts_artix_and_arch(repository, expected):
+    command = vaapi._install32('arch')
+    start = command.index('if ! pacman-conf --repo-list')
+    end = command.index('\nfi', start) + 3
+    result = subprocess.run(
+        ['bash', '-c', f'pacman-conf() {{ echo {repository}; }}\n' + command[start:end]],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == expected, result.stderr
+    assert 'run sudo pacman -Sy,' not in command

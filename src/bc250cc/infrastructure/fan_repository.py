@@ -64,6 +64,7 @@ class FanRepository:
             'echo "This enables temperatures, voltages and fan RPM monitoring only."',
             comando_instalar,
             'echo "== Configuring read-only module =="',
+            'sudo install -d -m 0755 /etc/modprobe.d /etc/modules-load.d',
             'sudo modprobe -r nct6687 2>/dev/null || true',
             'sudo modprobe nct6683 force=true || true',
             "echo nct6683 | sudo tee /etc/modules-load.d/nct6683.conf >/dev/null",
@@ -175,6 +176,7 @@ class FanRepository:
 
         comandos.extend([
             'echo "== Configuring module preference =="',
+            'sudo install -d -m 0755 /etc/modprobe.d /etc/modules-load.d',
             'echo "Please wait and do not close this terminal. Configuring the boot loader can take up to one minute."',
             "echo 'blacklist nct6683' | sudo tee /etc/modprobe.d/nct6683.conf >/dev/null",
             "echo 'options nct6687 force=true' | sudo tee /etc/modprobe.d/nct6687.conf >/dev/null",
@@ -255,6 +257,7 @@ class FanRepository:
             'echo "== BC250 fan control: disable nct6687 PWM setup =="',
             'echo "This disables the automatic nct6687 preference and returns to read-only nct6683 monitoring."',
             'echo "The nct6687d package is not removed; only boot/module preference files are changed."',
+            'sudo install -d -m 0755 /etc/modprobe.d /etc/modules-load.d',
             servicios['remove'],
             remove_restore,
             'sudo rm -f /var/lib/bc250-control-center/fan-last-applied.json',

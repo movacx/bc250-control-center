@@ -136,7 +136,8 @@ def _run(tmp_path, *, fingerprint=PPA_FINGERPRINT, release_published=True, insta
             'if [ "$1" = install ] && [ "$2" = -s ]; then [ "$INSTALLABLE" = 1 ]; exit $?; fi\n'
             'echo "apt-get $*" >> "$LOG"'
         ),
-        "apt-cache": 'echo "  Candidate: $CANDIDATE"',
+        # A translated apt prints "후보:", so the script has to ask for the C locale.
+        "apt-cache": 'if [ "${LC_ALL:-}" = C ]; then echo "  Candidate: $CANDIDATE"; else echo "  후보: $CANDIDATE"; fi',
         "dpkg-query": '[ "$HAS32" = 1 ]',
     }
     for name, body in stubs.items():
@@ -214,6 +215,12 @@ def test_mesa_the_system_cannot_take_changes_nothing(tmp_path):
     assert result.returncode == 29
     assert "Nothing was changed" in result.stdout
     assert "apt-get install -y " + " ".join(MESA_PACKAGES) not in calls
+
+
+def test_the_candidate_is_read_even_when_apt_speaks_another_language(tmp_path):
+    result, calls, *_ = _run(tmp_path, candidate="26.2.4~kisak1~n")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Installing Mesa 26.2.4~kisak1~n" in result.stdout
 
 
 def test_a_candidate_older_than_26_1_is_not_installed(tmp_path):

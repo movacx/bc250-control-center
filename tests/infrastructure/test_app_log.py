@@ -55,3 +55,15 @@ def test_a_generic_account_name_leaves_the_apps_own_words_alone(monkeypatch):
     monkeypatch.setattr(report_attachments.getpass, "getuser", lambda: "bc250")
     text = "/tmp/bc250-helixsr.Ivb5BY/x.zip ~/.local/state/bc250-control-center/terminal"
     assert report_attachments.redact_machine(text) == text
+
+
+def test_a_workflow_log_heading_does_not_start_a_section_of_the_diagnosis():
+    state = (
+        "== Storage ==\n/dev/nvme0n1p1 50%\n\n"
+        "== Last workflow logs ==\n[workflow-1.log]\n== Staging protected SteamOS AMDGPU backend ==\n"
+        "[OK] staged\nERROR: unsupported kernel\n"
+    )
+    sections = dict(report_attachments.split_sections(state, ("Storage", "Last workflow logs")))
+    assert list(sections) == ["Storage", "Last workflow logs"]
+    assert "== Staging protected SteamOS AMDGPU backend ==" in sections["Last workflow logs"]
+    assert sections["Last workflow logs"].endswith("ERROR: unsupported kernel")

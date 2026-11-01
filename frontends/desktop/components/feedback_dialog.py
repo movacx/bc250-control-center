@@ -33,9 +33,16 @@ from PyQt6.QtWidgets import (
 from bc250cc.application.system.feedback import reports as form
 from bc250cc.shared.version import application_version
 
-from ..core.diagnostic_history import history_entries, record_diagnosis
+from ..core.diagnostic_history import record_diagnosis
 from ..core.error_diagnostics import diagnose_error, explain_code
-from ..i18n import current_language, localize_widget_tree, tr, tr_format
+from ..core.report_facts import read_report_facts as _read_report
+from ..i18n import (
+    canonical_source,
+    current_language,
+    localize_widget_tree,
+    tr,
+    tr_format,
+)
 from ..theme import COLORS, application_stylesheet
 from .async_tools import BackgroundExecutor
 from .buttons import WrappingButton as QPushButton
@@ -45,66 +52,6 @@ from .widgets import IconBadge, dialog_card, dialog_header
 
 #: Shown in a choice box before anything is picked; never sent.
 UNANSWERED = "Choose…"
-
-
-def _read_report() -> dict[str, object]:
-    """Everything the app knows about this system, read off the UI thread.
-
-    Every read fails to a blank rather than raising: a system without one of
-    the files still sends the rest.
-    """
-    from bc250cc.application.system.feedback import (
-        collect_attachments,
-        os_release,
-        read_board_firmware,
-        read_installed_bios,
-        system_snapshot,
-    )
-
-    rows = system_snapshot()
-    facts = dict(rows)
-    cores = 0
-    try:
-        with open("/proc/cpuinfo", encoding="utf-8", errors="replace") as handle:
-            cores = len({
-                line.split(":", 1)[1].strip()
-                for line in handle if line.startswith("core id")
-            })
-    except OSError:
-        pass
-    release = os_release()
-    firmware: dict[str, str] = {}
-    try:
-        board = read_board_firmware()
-        installed = read_installed_bios()
-        firmware = {
-            "board": board.board, "vendor": board.vendor, "version": board.version, "date": board.date,
-            "variant": installed.variant, "evidence": installed.evidence,
-        }
-    except Exception:  # noqa: BLE001 - the report goes without it
-        firmware = {}
-    return {
-        # The version is the report's own, and the BIOS is in ``firmware``.
-        "system": {str(label): str(value) for label, value in rows if label not in ("Control Center", "BIOS")},
-        "os_release": form.os_release_subset(release),
-        "firmware": firmware,
-        "history": history_entries(),
-        # The diagnosis, one entry per section: the unfiltered kernel log,
-        # service journals, configuration, storage, the last workflow logs.
-        "attachments": _attachments_or_none(collect_attachments),
-        "version": str(facts.get("Control Center", "")),
-        "install": form.suggested_install(str(facts.get("Installation", ""))),
-        "distribution": form.suggested_distribution(release),
-        "bios": form.suggested_bios(firmware.get("variant", "")),
-        "cores": form.suggested_cores(cores),
-    }
-
-
-def _attachments_or_none(collect) -> list[tuple[str, str]]:
-    try:
-        return list(collect())
-    except Exception:  # noqa: BLE001 - the report goes without them
-        return []
 
 
 def _needs_password() -> bool:
@@ -691,9 +638,13 @@ class FeedbackDialog(QDialog):
             "system": dict(self._facts.get("system") or {}),
             "os_release": dict(self._facts.get("os_release") or {}),
             "firmware": dict(self._facts.get("firmware") or {}),
-            "history": form.history_items(
-                self._facts.get("history") or (), exclude_raw=self._raw, exclude_title=self._title,
-            ),
+            "history": [
+                # Recorded in the interface language; the report is English.
+                {**item, "title": canonical_source(item["title"])}
+                for item in form.history_items(
+                    self._facts.get("history") or (), exclude_raw=self._raw, exclude_title=self._title,
+                )
+            ],
             "attachments": [(str(name), str(text)) for name, text in self._facts.get("attachments") or ()],
         }
 

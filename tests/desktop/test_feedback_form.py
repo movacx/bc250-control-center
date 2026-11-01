@@ -225,7 +225,7 @@ def test_the_diagnosis_is_one_attachment_per_section_and_none_twice(monkeypatch)
     )
     monkeypatch.setattr(
         report_attachments, "collect_system_state",
-        lambda: "== Storage ==\nstate storage\n\n== Kernel ==\nduplicate\n\n== Packages ==\nstate packages",
+        lambda: "== Storage ==\nstate storage\n\n== Packages ==\nstate packages",
     )
     titles = [title for title, _text in report_attachments.collect_attachments()]
     assert len(titles) == len({title.lower() for title in titles})

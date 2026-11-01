@@ -185,7 +185,8 @@ def test_exact_arch_and_cachyos_layouts_reach_privilege_only_after_repo_validati
     """Simulate both documented layouts without touching pacman or /etc."""
     import subprocess
 
-    for distro_id, anchor in (("arch", "core"), ("cachyos", "cachyos-v3")):
+    for distro_id, anchor in (("arch", "core"), ("cachyos", "cachyos-v3"),
+                             ("cachyos", "cachyos-v4"), ("cachyos", "cachyos"), ("cachyos", "core")):
         release = tmp_path / f"{distro_id}-os-release"
         pacman_conf = tmp_path / f"{distro_id}-pacman.conf"
         include = tmp_path / f"{distro_id}-bc250.conf"

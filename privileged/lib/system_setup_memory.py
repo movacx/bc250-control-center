@@ -1,6 +1,7 @@
 """Opt-in mutable-distribution memory setup, with independent swap/TTM restore.
 
 Never edits fstab, boot arguments, partitions, existing ZRAM devices or user swap.
+OpenRC uses a dedicated boot service; systemd uses swap units/zram-generator.
 Unsupported kernel/filesystem capabilities fail before writes.
 
 Every policy is a complete, reversible profile rather than a single switch:
@@ -53,6 +54,7 @@ SERVICE_PATH = "/etc/systemd/system/" + SERVICE
 ZRAM = "/etc/systemd/zram-generator.conf.d/90-bc250.conf"
 TTM = "/sys/module/ttm/parameters/pages_limit"
 ZSWAP = "/sys/module/zswap/parameters/enabled"
+OPENRC_SERVICE = "/etc/init.d/bc250-memory-setup"
 POLICIES = {"preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"}
 
 ZSWAP_PARAMETERS = "/sys/module/zswap/parameters"
@@ -121,6 +123,60 @@ STEAMOS_KEEP_PATHS = (
     FOREIGN_ZRAM_MARKER,
     STEAMOS_ZSWAP_TMPFILES,
 )
+
+
+def service_path(host: Host) -> str:
+    return OPENRC_SERVICE if host.openrc() else SERVICE_PATH
+
+
+def reload_manager(host: Host) -> None:
+    if not host.openrc():
+        host.run("systemctl", "daemon-reload")
+
+
+def require_memory_host(host: Host) -> None:
+    host.require_host(steamos=True, openrc=True)
+
+
+def start_openrc_memory(host: Host, state: dict) -> None:
+    """Reapply only our recorded swap/compression, without touching fstab."""
+    if state.get("restore_pending") or state.get("policy") in {"restore", "preserve"}:
+        return
+    if state.get("owns_swap"):
+        _, swapfile, _, _ = swap_paths(host, state)
+        path = host.safe(swapfile)
+        if not path.is_file() or path.stat().st_mode & 0o077:
+            raise SetupError("Managed swapfile is missing or has unsafe permissions")
+        if swapfile not in swaps(host):
+            host.run("swapon", "--priority", "-2", swapfile)
+    if state.get("owns_zram") and state.get("policy") == "zram":
+        # A repeated start must not allocate another device. Never reset or
+        # take over devices belonging to another service.
+        if host.read(ZSWAP).lower() in {"y", "1"}:
+            raise SetupError("Disable ZSWAP before selecting ZRAM")
+        boot_id = host.read("/proc/sys/kernel/random/boot_id")
+        device = state.get("openrc_zram_device", "")
+        if state.get("openrc_zram_boot") == boot_id and device in swaps(host):
+            return
+        if zram_present(host) or zram_foreign_config(host):
+            raise SetupError("An existing ZRAM configuration or device is preserved")
+        total = re.search(r"^MemTotal:\s+(\d+)", host.read("/proc/meminfo"), re.M)
+        if not total:
+            raise SetupError("Cannot determine RAM size for ZRAM")
+        size = min(int(total[1]) * 1024 // 2, 4 * GIB)
+        host.run("modprobe", "zram")
+        args = ["zramctl", "--find", "--size", str(size)]
+        algorithm = zram_algorithm(host)
+        if algorithm:
+            args += ["--algorithm", algorithm]
+        device = host.run(*args).strip()
+        if not re.fullmatch(r"/dev/zram[0-9]+", device):
+            raise SetupError("zramctl did not return a valid ZRAM device")
+        state.update(openrc_zram_device=device, openrc_zram_boot=boot_id)
+        host.save("memory", state)
+        host.run("mkswap", device)
+        host.run("swapon", "--priority", "100", device)
+        state["zram_pending"] = False
 
 
 def steamos_host(host: Host) -> bool:
@@ -427,7 +483,7 @@ def zram_takeover_available(host: Host, state: dict) -> bool:
     generator = any(host.path(p).is_file() for p in (
         "/usr/lib/systemd/system-generators/zram-generator",
         "/lib/systemd/system-generators/zram-generator"))
-    return bool(generator and host.writable_parameter(ZSWAP) and not state.get("owns_zram")
+    return bool(not host.openrc() and generator and host.writable_parameter(ZSWAP) and not state.get("owns_zram")
                 and not legacy_zram_manager_present(host)
                 and (zram_present(host) or zram_foreign_config(host)))
 
@@ -467,7 +523,7 @@ def disable_foreign_zram(host: Host, state: dict) -> None:
                 host.run("swapoff", f"/dev/{name}")
             except SetupError:
                 pass
-    host.run("systemctl", "daemon-reload")
+    reload_manager(host)
     state["foreign_zram_units"] = units
     state["foreign_zram_disabled"] = True
     host.save("memory", state)
@@ -482,7 +538,7 @@ def restore_foreign_zram(host: Host, state: dict) -> None:
         )
         host.remove_managed(_zram_swap_dropin(name))
     host.remove_managed(FOREIGN_ZRAM_MARKER)
-    host.run("systemctl", "daemon-reload")
+    reload_manager(host)
     state.pop("foreign_zram_disabled", None)
     state.pop("foreign_zram_units", None)
     host.save("memory", state)
@@ -501,7 +557,7 @@ def legacy_zram_manager_present(host: Host) -> bool:
         "/etc/init.d/zramswap", "/etc/init.d/zram-config",
         "/lib/systemd/system/zramswap.service", "/usr/lib/systemd/system/zramswap.service",
         # Common Arch/community and local service configurations.
-        "/etc/conf.d/zram-init", "/etc/systemd/system/zramswap.service",
+        "/etc/conf.d/zram-init", "/etc/init.d/zram", "/etc/init.d/zram-init", "/etc/systemd/system/zramswap.service",
         "/etc/systemd/system/zram.service", "/usr/lib/systemd/system/zram.service",
     )
     if any(host.path(path).exists() for path in managers):
@@ -520,13 +576,16 @@ def zram_foreign_config(host: Host) -> bool:
 
 
 def status(host: Host) -> dict:
-    supported = (host.mutable_systemd() or steamos_host(host)) and host.bc250()
+    openrc = host.openrc()
+    mutable_openrc = openrc and host.distro_family() != "unsupported" and not host.immutable_image()
+    supported = (host.mutable_systemd() or steamos_host(host) or mutable_openrc) and host.bc250()
     state = host.state("memory")
     active = swaps(host)
     generator = any(host.path(p).is_file() for p in (
         "/usr/lib/systemd/system-generators/zram-generator",
         "/lib/systemd/system-generators/zram-generator"))
-    zram_available = supported and generator and not zram_foreign_config(host) and not zram_present(host)
+    zram_backend = generator if not host.openrc() else all(host.command(c) for c in ("zramctl", "modprobe", "mkswap", "swapon"))
+    zram_available = supported and zram_backend and not zram_foreign_config(host) and not zram_present(host)
     zswap_available = (supported and host.writable_parameter(ZSWAP)
                        and not zram_present(host) and not zram_foreign_config(host))
     restore_available = bool(state.get("owns_swap") or state.get("owns_zram")
@@ -535,7 +594,8 @@ def status(host: Host) -> dict:
     policies = ["preserve"] if supported else []
     if supported and restore_available:
         policies.append("restore")
-    swap_commands = all(host.command(c) for c in ("findmnt", "mkswap", "swapon", "swapoff", "systemctl"))
+    manager_command = "rc-update" if openrc else "systemctl"
+    swap_commands = all(host.command(c) for c in ("findmnt", "mkswap", "swapon", "swapoff", manager_command))
     if supported and swap_commands:
         policies += ["swap-16", "swap-32"]
         if zswap_available:
@@ -550,8 +610,8 @@ def status(host: Host) -> dict:
     if supported and "zram" not in policies:
         policy_reasons["zram"] = ("An existing ZRAM configuration or device is preserved"
                                    if zram_foreign_config(host) or zram_present(host)
-                                   else "systemd-zram-generator is not installed"
-                                   if not generator else "Disable ZSWAP before selecting ZRAM")
+                                   else "ZRAM setup tools are not installed"
+                                   if not zram_backend else "Disable ZSWAP before selecting ZRAM")
     takeover_available = supported and swap_commands and zram_takeover_available(host, state)
     if supported and "zswap-16" not in policies and swap_commands:
         reason = ("Apply to disable the existing ZRAM and switch to ZSWAP (takes effect after reboot)"
@@ -570,8 +630,8 @@ def status(host: Host) -> dict:
         reason = "Immutable/image-based systems require their dedicated adapter"
     elif family == "unsupported":
         reason = "Distribution is outside the supported Arch, Debian/Ubuntu and Fedora families"
-    elif not host.path("/run/systemd/system").is_dir():
-        reason = "This adapter requires systemd as the running service manager"
+    elif not host.path("/run/systemd/system").is_dir() and not host.openrc():
+        reason = "This adapter requires systemd or OpenRC as the running service manager"
     elif not host.bc250():
         reason = "BC250 PCI hardware was not detected"
     else:
@@ -618,11 +678,19 @@ def direct_switches(current: str) -> set[str]:
 
 
 def install_service(host: Host) -> None:
+    if host.openrc():
+        path = service_path(host)
+        host.managed(path, 'description="BC250 memory settings"\n'
+                     'depend() { need localmount; after modules swap; before display-manager; }\n'
+                     f'start() {{ "{HELPER}" memory-boot; }}\n', openrc_script=True)
+        host.path(path).chmod(0o755)
+        host.run("rc-update", "add", "bc250-memory-setup", "default")
+        return
     host.managed(SERVICE_PATH, "[Unit]\nDescription=BC250 memory settings\n"
                  "After=systemd-modules-load.service swap.target\nBefore=display-manager.service\n"
                  "[Service]\nType=oneshot\n" + f"ExecStart={HELPER} memory-boot\n"
                  "[Install]\nWantedBy=multi-user.target\n")
-    host.run("systemctl", "daemon-reload")
+    reload_manager(host)
     host.run("systemctl", "enable", SERVICE)
 
 
@@ -797,9 +865,11 @@ def create_swap(host: Host, size: int, state: dict, target_mount: str | None = N
             _discard_new_swapfile(host, state, swap_file, directory, created_directory)
         raise
     _, _, unit, unit_path = swap_paths(host, state)
+    if host.openrc():
+        return  # The memory boot service activates the recorded swapfile.
     host.managed(unit_path, "[Unit]\nDescription=BC250 disk swap fallback\n"
                  f"[Swap]\nWhat={swap_file}\nOptions=pri=-2\n[Install]\nWantedBy=swap.target\n")
-    host.run("systemctl", "daemon-reload")
+    reload_manager(host)
     host.run("systemctl", "enable", unit)
 
 
@@ -818,8 +888,9 @@ def restore_swap(host: Host, state: dict) -> None:
     restore_foreign_zram(host, state)
     restore_zswap(host, state)
     if state.get("owns_zram"):
-        host.remove_managed(ZRAM)
-        host.run("systemctl", "daemon-reload")
+        if not host.openrc():
+            host.remove_managed(ZRAM)
+        reload_manager(host)
         # Do not swapoff a live ZRAM device; generator removes it on reboot.
         state["zram_restore_pending"] = zram_present(host)
         state.pop("owns_zram")
@@ -865,12 +936,15 @@ def settle_service(host: Host, state: dict) -> None:
     """Do not leave an enabled worker once every BC250 setting is restored."""
     needed = (state.get("policy", "preserve") != "preserve" or "ttm_pages" in state
               or state.get("restore_pending") or state.get("zram_restore_pending"))
-    if not needed and host.path(SERVICE_PATH).exists():
-        if not host.read(SERVICE_PATH).startswith("# Managed by BC250 Control Center"):
+    if not needed and host.path(service_path(host)).exists():
+        if not host.owns(service_path(host)):
             raise SetupError("Foreign memory service preserved")
-        host.run("systemctl", "disable", SERVICE)
-        host.remove_managed(SERVICE_PATH)
-        host.run("systemctl", "daemon-reload")
+        if host.openrc():
+            host.run("rc-update", "del", "bc250-memory-setup", "default")
+        else:
+            host.run("systemctl", "disable", SERVICE)
+        host.remove_managed(service_path(host))
+        reload_manager(host)
 
 
 def apply(host: Host, policy: str = "preserve", ttm_gib: int = 0,
@@ -888,7 +962,7 @@ def apply(host: Host, policy: str = "preserve", ttm_gib: int = 0,
 
 
 def _apply_policy(host: Host, policy: str, takeover_zram: bool, target_mount: str | None) -> dict:
-    host.require_host(steamos=True)
+    require_memory_host(host)
     host.safe(STATE)
     available = status(host)
     state = host.state("memory")
@@ -905,9 +979,9 @@ def _apply_policy(host: Host, policy: str, takeover_zram: bool, target_mount: st
         raise SetupError("Restore the current BC250 memory policy before choosing another")
     # Preflight managed files before any hardware write.
     _, _, _, current_unit_path = swap_paths(host, state)
-    for name in (SERVICE_PATH, current_unit_path, ZRAM, SYSCTL,
+    for name in (service_path(host), current_unit_path, ZRAM, SYSCTL,
                  *((STEAMOS_KEEP, STEAMOS_ZSWAP_TMPFILES) if host.steamos() else ())):
-        if host.safe(name).exists() and not host.read(name).startswith("# Managed by BC250 Control Center"):
+        if host.safe(name).exists() and not host.owns(name):
             raise SetupError(f"Foreign file preserved: {name}")
     state["phase"] = "preparing"
     host.save("memory", state)
@@ -943,13 +1017,14 @@ def _apply_policy(host: Host, policy: str, takeover_zram: bool, target_mount: st
         elif policy == "zram":
             state["owns_zram"] = True
             host.save("memory", state)
-            host.managed(ZRAM, zram_config(host))
+            if not host.openrc():
+                host.managed(ZRAM, zram_config(host))
             apply_sysctl_profile(host, state, "zram")
             state["policy"] = policy
             state["zram_pending"] = True
         state["phase"] = "configured"
         host.save("memory", state)
-        host.run("systemctl", "daemon-reload")
+        reload_manager(host)
         settle_service(host, state)
         sync_steamos_files(host, state)
     except Exception:
@@ -960,7 +1035,7 @@ def _apply_policy(host: Host, policy: str, takeover_zram: bool, target_mount: st
 
 
 def boot(host: Host) -> dict:
-    host.require_host(steamos=True)
+    require_memory_host(host)
     host.safe(STATE)
     state = host.state("memory")
     if state.get("phase") != "configured":
@@ -973,6 +1048,8 @@ def boot(host: Host) -> dict:
     if state.get("owns_swap_dir") and state.get("swap_dir"):
         # Repairs swap directories created before they were relabeled.
         _relabel_swap_dir(host, state["swap_dir"])
+    if host.openrc():
+        start_openrc_memory(host, state)
     if state.get("policy", "").startswith("zswap-"):
         _, swap_file, _, _ = swap_paths(host, state)
         if swap_file not in swaps(host) or zram_present(host):

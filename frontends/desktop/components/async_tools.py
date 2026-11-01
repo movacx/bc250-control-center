@@ -105,6 +105,17 @@ class _FunctionTask(QRunnable):
         self.signals = _TaskSignals()
         self.setAutoDelete(True)
 
+    def _emit_if_alive(self, name: str, *arguments: Any) -> None:
+        # QApplication can destroy the signal object while a backend read is
+        # finishing. No exception may escape a QRunnable during shutdown.
+        if not _alive(self.signals):
+            return
+        try:
+            getattr(self.signals, name).emit(*arguments)
+        except RuntimeError:
+            if _alive(self.signals):
+                logger.exception("Could not deliver background task %s", self.name)
+
     @pyqtSlot()
     def run(self) -> None:
         started = time.perf_counter()
@@ -112,15 +123,15 @@ class _FunctionTask(QRunnable):
             result = self.operation()
         except Exception as error:  # backend failures are reported to the UI thread
             remember(error)
-            self.signals.failed.emit(str(error))
+            self._emit_if_alive("failed", str(error))
         else:
-            self.signals.succeeded.emit(result)
+            self._emit_if_alive("succeeded", result)
         finally:
             _submission_finished()
             elapsed_ms = (time.perf_counter() - started) * 1000.0
             if _PERF_TRACE:
                 logger.info("UI task %s completed in %.1f ms", self.name, elapsed_ms)
-            self.signals.finished.emit()
+            self._emit_if_alive("finished")
 
 
 class AsyncRefresh(QObject):

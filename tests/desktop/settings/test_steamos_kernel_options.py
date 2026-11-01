@@ -22,10 +22,17 @@ def test_steamos_opens_the_helper_for_mitigations(tmp_path):
     assert "kernel-options-set --kernel-options mitigations=off,nosmt" in command
 
 
+def test_steamos_opens_the_helper_for_hiding_the_boot_messages():
+    repository = _repository("steamos")
+    repository.gestionar_opciones_kernel(["loglevel=0"])
+    command, _title = repository.opened[0]
+    assert "kernel-options-set --kernel-options loglevel=0" in command
+
+
 @pytest.mark.parametrize("option", ["amdgpu.bc250_cc_write_mode=3"])
 def test_steamos_refuses_the_cu_unlock(option):
     repository = _repository("steamos")
-    with pytest.raises(RuntimeError, match="Only mitigations=off and nosmt"):
+    with pytest.raises(RuntimeError, match="Only mitigations=off, nosmt and loglevel=0"):
         repository.gestionar_opciones_kernel(["mitigations=off", option])
     assert repository.opened == []
 

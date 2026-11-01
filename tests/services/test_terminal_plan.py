@@ -182,3 +182,19 @@ def test_a_locked_package_database_is_explained_as_busy(tmp_path):
 def test_a_system_out_of_processes_is_explained_as_one(tmp_path):
     result = _run_wrapper(tmp_path, "echo 'bash: fork: retry: Resource temporarily unavailable'; exit 254")
     assert "Diagnostic code: BC250-RESOURCE-001" in result.stdout
+
+
+def test_web_workflow_logs_and_keeps_the_parent_authorization_tty(tmp_path):
+    """A workflow must not create a second tty and lose sudo's session cache."""
+    import shlex
+
+    from frontends.tui.console import Console
+    command = "python3 -c 'import os; print(\"same tty:\", os.ttyname(0) == os.environ[\"BC250_EXPECTED_TTY\"]); raise SystemExit(7)'"
+    log, status = tmp_path / "workflow.log", tmp_path / "status"
+    wrapped = workflow_wrapper(command, status, log, hold=False, inherit_tty=True)
+    script = 'export BC250_EXPECTED_TTY="$(tty)"; exec bash -c ' + shlex.quote(wrapped)
+    console = Console("harmless tty check")
+    assert console.run(["bash", "-c", script]) == 7
+    assert "same tty: True" in log.read_text()
+    assert status.read_text().strip() == "7"
+    assert "Diagnostic code:" in log.read_text()

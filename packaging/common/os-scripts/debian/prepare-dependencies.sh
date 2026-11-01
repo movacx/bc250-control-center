@@ -4,7 +4,8 @@ source "$SCRIPT_DIR/../common/common.sh"
 parse_component "$@"
 
 runtime_core_packages=(
-  python3 python3-pyqt6 libqt6svg6 python3-psutil git pciutils
+  python3-pip python3-venv openssl
+  python3 python3-pyqt6 python3-pyqt6.qtsvg libqt6svg6 python3-psutil git pciutils
   libdrm2 libdrm-amdgpu1 curl ca-certificates dbus dbus-user-session kmod jq
 )
 runtime_optional_diagnostics=(mesa-utils vulkan-tools)
@@ -122,7 +123,7 @@ install_umr() {
   verify_command umr
 }
 
-check_runtime() { verify_command python3; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'import PyQt6, psutil'; }
+check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'from PyQt6.QtSvg import QSvgRenderer; from PyQt6.QtWidgets import QApplication; import psutil, pip, venv, ssl'; }
 check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }

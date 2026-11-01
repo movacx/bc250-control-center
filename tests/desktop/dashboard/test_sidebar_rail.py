@@ -37,18 +37,22 @@ def test_the_modules_keep_their_order_under_two_captions(qtbot):
     # LB/RB cycle through this order; the captions only label it.
     assert list(sidebar.buttons) == [
         "dashboard", "cpu", "cu", "gpu", "extras", "performance", "fans", "processes",
-        "firmware", "settings",
+        "black_box", "remote", "firmware", "settings",
     ]
-    hardware, monitoring = sidebar.sections
+    hardware, monitoring, system = sidebar.sections
     assert hardware.label.text() == tr("Hardware").upper()
     assert monitoring.label.text() == tr("Monitoring").upper()
+    assert system.label.text() == tr("System").upper()
     buttons = sidebar.buttons
     assert buttons["dashboard"].y() < hardware.y() < buttons["cpu"].y()
     assert buttons["gpu"].y() < monitoring.y() < buttons["performance"].y()
+    assert buttons["processes"].y() < system.y() < buttons["black_box"].y()
     assert sidebar.footer_rule.y() < buttons["settings"].y()
     # Firmware waits at the bottom, just above the rule: it is used once in a
     # board's life, not every day.
     assert buttons["processes"].y() + buttons["processes"].height() < buttons["firmware"].y()
+    # The black box sits right above it: a diagnostic, used when something froze.
+    assert buttons["processes"].y() < buttons["black_box"].y() < buttons["remote"].y() < buttons["firmware"].y()
     assert buttons["firmware"].y() < sidebar.footer_rule.y()
 
 

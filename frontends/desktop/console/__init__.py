@@ -9,11 +9,21 @@ workflows this console exists to show, so the session below allocates a genuine
 pseudo-terminal and this package interprets what comes back from it.
 """
 
-from .beacon import ConsoleBeacon, ConsoleCounter
-from .console_host import ConsoleHost
-from .console_panel import ConsolePanel
-from .terminal_screen import Cell, CellStyle, TerminalScreen
-from .terminal_view import TerminalView
+import importlib
+
+# Loaded on first use: the terminal interface imports ``terminal_screen`` from
+# here and must not pull in Qt with it.
+_LAZY = {
+    "ConsoleBeacon": "beacon", "ConsoleCounter": "beacon", "ConsoleHost": "console_host",
+    "ConsolePanel": "console_panel", "Cell": "terminal_screen", "CellStyle": "terminal_screen",
+    "TerminalScreen": "terminal_screen", "TerminalView": "terminal_view",
+}
+
+
+def __getattr__(name):
+    if name in _LAZY:
+        return getattr(importlib.import_module(f".{_LAZY[name]}", __name__), name)
+    raise AttributeError(name)
 
 
 def console_for(widget):

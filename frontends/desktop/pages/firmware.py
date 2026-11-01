@@ -402,7 +402,7 @@ class FirmwareCard(_SelectableCard):
 
         # What the image offers beyond the four facts. Two columns once the
         # facts fit on one row; the second starts where the third fact does.
-        self.highlights = QWidget()
+        self.highlights = QWidget(self)
         self.highlights_grid = QGridLayout(self.highlights)
         self.highlights_grid.setContentsMargins(0, 2, 0, 0)
         self.highlights_grid.setHorizontalSpacing(18)

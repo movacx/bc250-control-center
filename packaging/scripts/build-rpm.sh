@@ -8,7 +8,7 @@ VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
 # RPM permits a tilde for pre-release ordering, but an unescaped tilde in
 # Bash's parameter-expansion replacement is expanded to $HOME. Keep it literal.
 RPM_VERSION="${VERSION/-/\~}"
-RPM_RELEASE="${BC250_RPM_RELEASE:-1}"
+RPM_RELEASE="${BC250_RPM_RELEASE:-3}"
 if [[ -n "${BC250_VERSION:-}" && "$BC250_VERSION" != "$VERSION" ]]; then
   echo "BC250_VERSION must match the release VERSION file ($VERSION)." >&2
   exit 64
@@ -66,7 +66,7 @@ License:        MIT
 URL:            https://github.com/movacx/bc250-control-center
 Source0:        bc250-control-center-root.tar.gz
 BuildArch:      noarch
-Requires:       python3 >= 3.11, python3-psutil, python3-pyqt6, qt6-qtsvg, polkit, jq, diffutils
+Requires:       python3 >= 3.11, python3-psutil, python3-pip >= 22.3, python3-pyqt6, qt6-qtsvg, openssl, ca-certificates, polkit, jq, diffutils
 Suggests:       git, lm_sensors, pciutils, stress, vulkan-tools
 
 %description

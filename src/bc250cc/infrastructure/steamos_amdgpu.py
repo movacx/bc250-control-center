@@ -27,7 +27,10 @@ INSTALLED_MARKER = "[bc250-amdgpu] state: installed"
 ABSENT_MODULE_SUMMARY_STATES = frozenset({"missing", "not-installed"})
 POLICY_ACTIVE_MARKER = "scheduler policy: configured and active (amdgpu.sched_policy=2)"
 POLICY_REBOOT_MARKER = "scheduler policy: configured; reboot needed (amdgpu.sched_policy=2)"
-SUPPORTED_KERNEL_BASES = ("6.16", "6.18")
+#: Kernel bases the reviewed upstream backend has a patch variant for
+#: (bc250-audio-fix/build.sh). SteamOS 3.9.5 moved to 7.2; its reports were
+#: refused here although the pinned backend already builds for it.
+SUPPORTED_KERNEL_BASES = ("6.16", "6.18", "7.2")
 OC_TELEMETRY_MARKER_NAME = ".bc250-control-center-telemetry-oc-2400"
 
 
@@ -372,12 +375,13 @@ def build_steamos_compatibility_command(
         )
     else:
         kernel_patterns = "|".join(f"{base}.*" for base in SUPPORTED_KERNEL_BASES)
+        kernel_bases = ", ".join(SUPPORTED_KERNEL_BASES)
         commands.extend(
             [
                 'echo "== SteamOS compatibility: privileged preflight =="',
                 'running_release="$(uname -r)"',
                 'printf "Kernel: %s\\n" "$running_release"',
-                f'case "$running_release" in {kernel_patterns}) ;; *) echo "ERROR: the reviewed SteamOS kernel backend supports SteamOS 3.8/3.9 kernel bases 6.16 or 6.18; running: $running_release"; exit 38 ;; esac',
+                f'case "$running_release" in {kernel_patterns}) ;; *) echo "ERROR: the reviewed SteamOS kernel backend supports kernel bases {kernel_bases}; running: $running_release"; exit 38 ;; esac',
                 'lspci -Dnnd 1002:13fe 2>/dev/null | grep -q . || { echo "ERROR: AMD BC-250 PCI device 1002:13fe was not detected"; exit 38; }',
                 'echo "Hardware: AMD BC-250 [1002:13fe] detected"',
                 (

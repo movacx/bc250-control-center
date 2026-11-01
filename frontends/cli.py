@@ -73,6 +73,17 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     commands = parser.add_subparsers(dest="command", required=True)
+    web = commands.add_parser(
+        "web", help="Start the local web interface (dashboard, telemetry, hardware controls)"
+    )
+    web.add_argument("--host", default="", help="Host interface to bind (default: 127.0.0.1 or LAN)")
+    web.add_argument("--port", type=int, default=0, help="Port to listen on (default: 8250)")
+    tui = commands.add_parser(
+        "tui", help="Open the interactive terminal interface (sidebar, live telemetry, every setting)"
+    )
+    tui.add_argument("--theme", choices=("auto", "light", "dark", "mono"), default=None)
+    tui.add_argument("--lang", default="")
+    tui.add_argument("--page", default="")
     commands.add_parser("system", help="Show detected Linux strategy")
     commands.add_parser("telemetry", help="Read APU sensor validity, clocks and firmware diagnostics")
     commands.add_parser("components", help="Show preparation component capabilities")
@@ -141,7 +152,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Record GPU clock, load, temperatures, voltage and fans 4 times a second until Ctrl+C; "
              "the next problem report attaches the last seconds before a freeze",
     )
-    commands.add_parser("diagnose", help="Print the hardware diagnosis a problem report attaches")
+    diagnose = commands.add_parser("diagnose", help="Print the hardware diagnosis a problem report attaches")
+    diagnose.add_argument(
+        "--full", action="store_true",
+        help="Print every section a report attaches, the way the Black box page shows them",
+    )
     metrics = commands.add_parser("metrics", help="Read or export recorded runtime metrics")
     metrics.add_argument("action", choices=("list", "export"))
     metrics.add_argument("--path")
@@ -183,11 +198,32 @@ def _run_dependencies(args, host, runner) -> int:
 
 def main(argv: list[str] | None = None, *, host=None, runner=subprocess.run) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "web":
+        from frontends.web.__main__ import main as web_main
+
+        web_argv = []
+        if args.host:
+            web_argv.extend(["--host", args.host])
+        if args.port:
+            web_argv.extend(["--port", str(args.port)])
+        return web_main(web_argv)
+    if args.command == "tui":
+        from frontends.tui.app import main as tui_main
+
+        tui_argv = ["--lang", args.lang, "--page", args.page]
+        if args.theme is not None:
+            tui_argv.extend(["--theme", args.theme])
+        return tui_main(tui_argv)
     if args.command == "black-box":
         from bc250cc.infrastructure.blackbox import record
 
         return record()
     if args.command == "diagnose":
+        if args.full:
+            from bc250cc.infrastructure.report_attachments import collect_attachments
+
+            print("\n\n".join(f"== {title} ==\n{body}" for title, body in collect_attachments()))
+            return 0
         from bc250cc.infrastructure.system_diagnostics import collect_diagnostics
 
         print(collect_diagnostics())

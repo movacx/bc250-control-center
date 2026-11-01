@@ -19,7 +19,7 @@
     <description>Control BC250 fan PWM channels</description>
     <message>Authentication is required to change BC250 fan PWM values</message>
     <defaults>
-      <allow_any>no</allow_any>
+      <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
@@ -41,7 +41,7 @@
     <description>Edit the BC250 GPU governor configuration</description>
     <message>Authentication is required to update the BC250 GPU governor configuration</message>
     <defaults>
-      <allow_any>no</allow_any>
+      <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
@@ -52,7 +52,7 @@
     <description>Apply validated BC250 CPU and SMU settings</description>
     <message>Authentication is required to change BC250 CPU and SMU settings</message>
     <defaults>
-      <allow_any>no</allow_any>
+      <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
@@ -63,7 +63,7 @@
     <description>Apply validated BC250 memory, VRAM and ACPI settings</description>
     <message>Authentication is required to change BC250 memory, VRAM or ACPI settings</message>
     <defaults>
-      <allow_any>no</allow_any>
+      <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
@@ -74,7 +74,7 @@
     <description>Install validated BC250 OpenRC services</description>
     <message>Authentication is required to manage BC250 OpenRC services</message>
     <defaults>
-      <allow_any>no</allow_any>
+      <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
@@ -85,7 +85,7 @@
     <description>Restart an approved BC250 governor service</description>
     <message>Authentication is required to restart the selected BC250 governor</message>
     <defaults>
-      <allow_any>no</allow_any>
+      <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
@@ -96,7 +96,7 @@
     <description>Run a bounded BC250 system maintenance action</description>
     <message>Authentication is required to release filesystem caches</message>
     <defaults>
-      <allow_any>no</allow_any>
+      <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
@@ -107,7 +107,7 @@
     <description>Unlock the two additional BC250 CPU cores</description>
     <message>Authentication is required to unlock CPU cores and reboot the BC250</message>
     <defaults>
-      <allow_any>no</allow_any>
+      <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin</allow_active>
     </defaults>
@@ -118,7 +118,7 @@
     <description>Read the BC250 GDDR6 per-chip memory temperature</description>
     <message>Authentication is required to read the BC250 GDDR6 memory temperature</message>
     <defaults>
-      <allow_any>no</allow_any>
+      <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
@@ -129,7 +129,7 @@
     <description>Apply the reviewed runtime SMU patch for BC250 GDDR6 memory temperature</description>
     <message>Authentication is required to apply the reviewed GDDR6 memory-temperature SMU patch</message>
     <defaults>
-      <allow_any>no</allow_any>
+      <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin</allow_active>
     </defaults>

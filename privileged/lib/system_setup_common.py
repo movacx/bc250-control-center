@@ -89,16 +89,21 @@ class Host:
             if os.path.exists(temp):
                 os.unlink(temp)
 
-    def managed(self, name: str, data: str) -> None:
+    def owns(self, name: str) -> bool:
+        text = self.read(name)
+        return text.startswith(MARKER.strip()) or text.startswith("#!/sbin/openrc-run\n" + MARKER.strip())
+
+    def managed(self, name: str, data: str, *, openrc_script: bool = False) -> None:
         path = self.safe(name)
-        if path.exists() and not self.read(name).startswith(MARKER.strip()):
+        if path.exists() and not self.owns(name):
             raise SetupError(f"Existing configuration belongs to another tool: {name}")
-        self.write(name, MARKER + data)
+        self.write(name, ("#!/sbin/openrc-run\n" if openrc_script else "") + MARKER + data,
+                   mode=0o755 if openrc_script else 0o644)
 
     def remove_managed(self, name: str) -> None:
         path = self.safe(name)
         if path.exists():
-            if not self.read(name).startswith(MARKER.strip()):
+            if not self.owns(name):
                 raise SetupError(f"Foreign configuration preserved: {name}")
             path.unlink()
 
@@ -145,7 +150,7 @@ class Host:
         """Identify a supported mutable family through ID and ID_LIKE."""
         values = self.os_release()
         identifiers = {values.get("ID", ""), *values.get("ID_LIKE", "").split()}
-        if identifiers & {"arch", "archlinux", "cachyos", "manjaro", "endeavouros", "garuda"}:
+        if identifiers & {"arch", "archlinux", "artix", "cachyos", "manjaro", "endeavouros", "garuda"}:
             return "arch"
         if identifiers & {"debian", "ubuntu", "linuxmint", "pop"}:
             return "debian"
@@ -159,6 +164,10 @@ class Host:
         values = self.os_release()
         identifiers = {values.get("ID", ""), *values.get("ID_LIKE", "").split(), values.get("VARIANT_ID", "")}
         return bool(identifiers & {"steamos", "holo"})
+
+    def openrc(self) -> bool:
+        return (self.path("/run/openrc/softlevel").is_file()
+                and self.command("rc-service") and self.command("rc-update"))
 
     def mutable_systemd(self) -> bool:
         return (self.distro_family() != "unsupported"
@@ -182,7 +191,7 @@ class Host:
                  *re.split(r"[^a-z0-9]+", values.get("IMAGE_ID", ""))}
         return "bazzite" in names and self.path("/run/ostree-booted").exists()
 
-    def require_host(self, *, steamos: bool = False, bazzite: bool = False) -> None:
+    def require_host(self, *, steamos: bool = False, bazzite: bool = False, openrc: bool = False) -> None:
         """Refuse with the reason, not with the list of requirements.
 
         Four different situations produced one sentence naming all four, which
@@ -202,7 +211,7 @@ class Host:
                 "This operation writes to /etc and /usr, which are read-only on an "
                 "image-based system. Layer the change with rpm-ostree instead."
             )
-        if not self.path("/run/systemd/system").is_dir():
+        if not self.path("/run/systemd/system").is_dir() and not (openrc and self.openrc()):
             raise SetupError(
                 "Swap, zram, TTM and ACPI persistence are installed as systemd units, "
                 "and this host does not run systemd. Live tuning is unaffected; only "

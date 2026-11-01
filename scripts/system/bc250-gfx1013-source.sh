@@ -38,6 +38,64 @@ set -Eeuo pipefail
 # a module built correctly as "does not match kernel".
 export PATH="${PATH:-/usr/bin:/bin}:/usr/sbin:/sbin"
 
+# Distribution kernels may backport the DRM iterator that owns its index.
+# Detect the header API rather than guessing from uname's major/minor version.
+adapt_drm_exec() {
+    python3 - "$1" "$2" <<'PYCOMPAT'
+import re
+import sys
+from pathlib import Path
+
+headers, tree = map(Path, sys.argv[1:])
+# Debian splits generated architecture headers (build) from common DRM
+# headers (source). Inspect the matching kernel's source link or the common
+# Makefile included by its build wrapper, never a different installed kernel.
+roots = [headers, headers.parent / "source"]
+makefile = headers / "Makefile"
+if makefile.is_file():
+    for include in re.findall(r"^include\s+(/[^\s$]+/Makefile)\s*$", makefile.read_text(), re.M):
+        roots.append(Path(include).parent)
+candidates = [root / "include/drm/drm_exec.h" for root in roots]
+header = next((path for path in candidates if path.is_file()), None)
+if header is None:
+    raise SystemExit("ERROR: Missing DRM API header; checked: " + ", ".join(map(str, candidates)))
+print(f"== DRM compatibility: target header: {header}")
+text = header.read_text()
+for name in ("drm_exec_for_each_locked_object", "drm_exec_for_each_locked_object_reverse"):
+    definition = re.search(r"^\s*#define\s+" + name + r"\(([^)]*)\)", text, re.M)
+    if definition is None:
+        raise SystemExit(f"ERROR: Unsupported DRM iterator API: {name} in {header}")
+    arity = len(definition[1].split(","))
+    if arity == 3:
+        continue
+    if arity != 2:
+        raise SystemExit(f"ERROR: Unsupported DRM iterator signature: {definition[0]}")
+    # Only ordinary three-argument iterator calls are adapted. The index is
+    # private to the iterator in the new API; loop bodies keep their objects.
+    call = re.compile(r"\b" + name + r"\(\s*([^(),]+),\s*([A-Za-z_]\w*),\s*([^(),]+)\)")
+    count = 0
+    for source in sorted(tree.rglob("*.c")):
+        original = source.read_text()
+        updated, changed = call.subn(lambda m: f"{name}({m[1].strip()}, {m[3].strip()})", original)
+        if changed:
+            source.write_text(updated)
+            count += changed
+    print(f"== DRM compatibility: {name}: {count} calls adapted to the target headers' two-argument API")
+PYCOMPAT
+}
+
+prepare_meson() {
+    local work="$1" current
+    current=$(meson --version 2>/dev/null || true)
+    if python3 -c 'import sys; v=sys.argv[1].split("."); sys.exit(0 if len(v)>=2 and tuple(map(int,v[:2])) >= (1,4) else 1)' "$current" 2>/dev/null; then
+        return
+    fi
+    say "Mesa needs Meson >= 1.4; preparing isolated build tools"
+    python3 -m venv --system-site-packages "$work/build-tools"
+    "$work/build-tools/bin/python" -m pip install 'meson>=1.4,<2'
+    export PATH="$work/build-tools/bin:$PATH"
+}
+
 MESA_VERSION=26.2.0-rc3
 MESA_SHA256=f733c005660d342a51c6727d1ad481f43d05b4c601ac72247fa641e1d73a8ad1
 MESA_URL="https://archive.mesa3d.org/mesa-${MESA_VERSION}.tar.xz"
@@ -147,7 +205,7 @@ deps() {
         debian)
             sudo apt-get update
             sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential bc cpio \
-                xz-utils curl patch meson ninja-build python3-mako python3-yaml python3-packaging \
+                xz-utils curl patch meson ninja-build python3-venv python3-pip python3-mako python3-yaml python3-packaging \
                 glslang-tools libdrm-dev libwayland-dev wayland-protocols libxcb-dri3-dev \
                 libxcb-present-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-sync-dev \
                 libx11-xcb-dev libx11-dev libxrandr-dev libxshmfence-dev libexpat1-dev \
@@ -221,6 +279,7 @@ build() {
     # meson checks every build dependency in seconds, so a missing or too old
     # library stops the run here instead of after minutes of compiling.
     if [[ $kernel_only -eq 0 ]]; then
+        prepare_meson "$work"
         say "Mesa half: RADV $MESA_VERSION with the compute-queue patch"
         local mesa_tar="$work/mesa-$MESA_VERSION.tar.xz"
         fetch "$MESA_URL" "$mesa_tar"
@@ -275,6 +334,7 @@ build() {
         patch -p1 -s -d "$tree" < "$patch_file"
         printf '   applied %s\n' "$(basename "$patch_file")"
     done
+    adapt_drm_exec "$headers" "$tree/drivers/gpu/drm/amd"
     # amdgpu_trace.h names its directory relative to the kernel tree, which an
     # out-of-tree build does not have. "." resolves through the module's own
     # include path. (An absolute path does not work: the directory name

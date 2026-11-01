@@ -27,6 +27,11 @@ from bc250cc.infrastructure.bazzite_deployment import probe_bazzite_reboot_pendi
 from bc250cc.infrastructure.bazzite_memory_tuning import (
     build_bazzite_memory_tuning_command,
 )
+from bc250cc.infrastructure.bazzite_boot_messages import (
+    build_bazzite_boot_messages_command,
+    probe_bazzite_boot_messages,
+)
+from bc250cc.infrastructure.bazzite_smt import build_bazzite_smt_command, probe_bazzite_smt
 from bc250cc.infrastructure.bazzite_mitigations import (
     build_bazzite_mitigations_command,
     probe_bazzite_mitigations,
@@ -293,6 +298,22 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'Configure CPU mitigations on Bazzite',
         )
 
+    def gestionar_mensajes_arranque_bazzite(self, action: str):
+        if self._os_repository().family != 'bazzite':
+            raise RuntimeError('Kernel boot messages are managed here only on Bazzite.')
+        return self._abrir_terminal(
+            build_bazzite_boot_messages_command(action),
+            'Configure kernel boot messages on Bazzite',
+        )
+
+    def gestionar_smt_bazzite(self, action: str):
+        if self._os_repository().family != 'bazzite':
+            raise RuntimeError('The SMT boot option is managed here only on Bazzite.')
+        return self._abrir_terminal(
+            build_bazzite_smt_command(action),
+            'Configure SMT on Bazzite',
+        )
+
     def gestionar_solo_lectura_steamos(self, action: str):
         if self._os_repository().family != 'steamos':
             raise RuntimeError('The read-only switch is available only on SteamOS.')
@@ -306,9 +327,9 @@ class DependenciasRepository(SteamosDependenciesMixin):
         family = self._os_repository().family
         if family == 'bazzite':
             raise RuntimeError('Kernel boot options are managed differently on this system.')
-        if family == 'steamos' and set(options) - {'mitigations=off', 'nosmt'}:
+        if family == 'steamos' and set(options) - {'mitigations=off', 'nosmt', 'loglevel=0'}:
             # SteamOS's boot menu takes everything here except the CU unlock.
-            raise RuntimeError('Only mitigations=off and nosmt can be managed on SteamOS.')
+            raise RuntimeError('Only mitigations=off, nosmt and loglevel=0 can be managed on SteamOS.')
         return self._abrir_terminal(
             system_setup_command('kernel-options-set', kernel_options=tuple(options)),
             'BC250 kernel boot options',
@@ -484,6 +505,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             )
         else:
             command = build_plugin_install_command(installer)
+        command = wrap_steamos_writable_command(command, family=family)
         self.estado_herramientas_cache = None
         return self._abrir_terminal(command, 'Game Mode Quick Access (Beta)')
 
@@ -1106,6 +1128,26 @@ class DependenciasRepository(SteamosDependenciesMixin):
             else {'available': False, 'active': False, 'configured': False,
                   'managed': False, 'reboot_required': False, 'state': 'unsupported'}
         )
+        bazzite_boot_messages = (
+            self._optional_inventory_probe(
+                probe_bazzite_boot_messages,
+                {'available': False, 'active': False, 'configured': False,
+                 'managed': False, 'reboot_required': False, 'state': 'unavailable'},
+            )
+            if os_info.family == 'bazzite'
+            else {'available': False, 'active': False, 'configured': False,
+                  'managed': False, 'reboot_required': False, 'state': 'unsupported'}
+        )
+        bazzite_smt = (
+            self._optional_inventory_probe(
+                probe_bazzite_smt,
+                {'available': False, 'active': False, 'configured': False,
+                 'managed': False, 'reboot_required': False, 'state': 'unavailable'},
+            )
+            if os_info.family == 'bazzite'
+            else {'available': False, 'active': False, 'configured': False,
+                  'managed': False, 'reboot_required': False, 'state': 'unsupported'}
+        )
         # Packages Prepare dependencies layered that wait for the next boot.
         bazzite_reboot_pending = (
             self._optional_inventory_probe(
@@ -1274,6 +1316,8 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'quick_access': quick_access,
             'memory_runtime': memory_runtime,
             'bazzite_mitigations': bazzite_mitigations,
+            'bazzite_boot_messages': bazzite_boot_messages,
+            'bazzite_smt': bazzite_smt,
             'bazzite_reboot_pending': bazzite_reboot_pending,
             'gpu_driver': self._optional_inventory_probe(
                 gpu_driver_state, {'present': False, 'bound': False, 'driver': ''},
@@ -1766,6 +1810,14 @@ class DependenciasRepository(SteamosDependenciesMixin):
             commands.append(
                 f'if pacman -Q {package} >/dev/null 2>&1; then '
                 f'sudo pacman -Rns --noconfirm {package}; fi'
+            )
+            # A package of another name (an AUR build, a distribution's own) can own the
+            # executable that is left: remove it too, or the check below fails for nothing.
+            commands.append(
+                f'bc250_leftover="$(command -v {shlex.quote(binary_name)} 2>/dev/null || true)"; '
+                'if [ -n "$bc250_leftover" ]; then '
+                'bc250_owner="$(pacman -Qqo "$bc250_leftover" 2>/dev/null || true)"; '
+                f'case "$bc250_owner" in *{shlex.quote(binary_name)}*) sudo pacman -Rns --noconfirm "$bc250_owner";; esac; fi'
             )
         elif family in {'fedora'}:
             commands.append(

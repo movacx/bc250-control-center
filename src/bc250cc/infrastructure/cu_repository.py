@@ -19,6 +19,7 @@ from bc250cc.platform.init.services import (
     parse_openrc_runlevel,
 )
 from bc250cc.shared import contract
+from bc250cc.shared.errors import ActionNeeded
 from bc250cc.shared.failure_text import describe_failure
 
 logger = logging.getLogger(__name__)
@@ -754,6 +755,12 @@ class CURepository:
         estado = self.parsear_dashboard_cu(texto, source='live')
         estado['source_kind'] = 'live'
         if not estado.get('available'):
+            if 'umr was not found' in str(texto or '').lower():
+                raise ActionNeeded(
+                    'The CU backend cannot find the UMR executable. Prepare the UMR component '
+                    'from the Dashboard; on Bazzite, reboot if its installation is queued '
+                    'for the next deployment, then retry. No CU routing was changed.'
+                )
             reason = (
                 estado.get('parse_error')
                 or 'The 40CU live-manager output did not contain a validated topology table.'

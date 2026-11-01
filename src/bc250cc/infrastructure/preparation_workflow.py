@@ -446,13 +446,13 @@ def build_preparation_command(context: PreparationContext) -> str:
             pwm_builder(), family=os_repo.info.family
         )
         if os_repo.info.family == 'bazzite':
-            # dkms and its compiler toolchain are layered into the deployment
+            # Kernel headers and the compiler toolchain are layered into the deployment
             # above.  They do not exist in the currently booted deployment, so
             # a clean Bazzite installation must not try to build a module until
             # the required one-time reboot has activated them.
             commands.append(
                 'if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then '
-                'echo "PENDING: fan PWM preparation will run after the Bazzite reboot activates dkms."; '
+                'echo "PENDING: fan PWM preparation will run after the Bazzite reboot activates the build dependencies."; '
                 'else echo "== Automatic setup: preparing CPU sensors and fan PWM =="; '
                 + pwm_command
                 + '; fi'

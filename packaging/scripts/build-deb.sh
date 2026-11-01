@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 ROOT_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd -P)"
 OUTPUT_DIR="${1:-$ROOT_DIR/dist}"
 VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
-DEB_RELEASE="${BC250_DEB_RELEASE:-1}"
+DEB_RELEASE="${BC250_DEB_RELEASE:-3}"
 RELEASE_SOURCE_EXCLUDES=(--exclude 'archive' --exclude 'tests')
 : "${RELEASE_SOURCE_EXCLUDES[*]}"
 if [[ -n "${BC250_VERSION:-}" && "$BC250_VERSION" != "$VERSION" ]]; then
@@ -35,7 +35,7 @@ Section: utils
 Priority: optional
 Architecture: all
 Maintainer: BC250 Control Center contributors <noreply@example.invalid>
-Depends: python3 (>= 3.11), python3-pyqt6, python3-psutil, libqt6svg6, pkexec | policykit-1, jq
+Depends: python3 (>= 3.11), python3-pyqt6, python3-pyqt6.qtsvg, python3-psutil, python3-pip (>= 22.3), python3-venv, libqt6svg6, openssl, ca-certificates, pkexec | policykit-1, jq
 Suggests: git, lm-sensors, pciutils, stress, vulkan-tools
 Description: BC-250 monitoring, tuning and recovery control center
  Desktop and headless management for AMD BC-250 systems.

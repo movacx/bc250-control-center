@@ -82,6 +82,7 @@ DRIVER = RUNTIME / "bc250_drv_video.so"
 ALIAS = RUNTIME / "radeonsi_drv_video.so"
 MANIFEST = RUNTIME / "VERSION"
 ENV_FILE = Path("/etc/environment.d/90-bc250-control-center-vaapi.conf")
+XSESSION_FILE = Path("/etc/X11/Xsession.d/95bc250-vaapi")
 PROFILE_FILE = Path("/etc/profile.d/zz-bc250-control-center-vaapi.sh")
 KEEP_FILE = Path("/etc/atomic-update.conf.d/bc250-control-center-vaapi.conf")
 MARKER = "# Managed by BC250 Control Center: VA-API video driver"
@@ -95,6 +96,14 @@ MULTILIB_FAMILIES = frozenset({"steamos", "arch", "manjaro", "cachyos"})
 LIB32_PACKAGES = (
     "lib32-glibc", "lib32-gcc-libs", "lib32-libva", "lib32-libdrm",
     "lib32-vulkan-icd-loader", "lib32-vulkan-radeon",
+)
+# A desktop session may force a private 64-bit RADV manifest. That cannot be
+# loaded by this 32-bit probe (R-60c1e16a). Discover the distro's matching ICD
+# and keep session overrides unchanged outside this one diagnostic process.
+PROBE32_ENV = (
+    "env -u VK_ICD_FILENAMES -u VK_DRIVER_FILES -u VK_ADD_DRIVER_FILES "
+    "-u VK_INSTANCE_LAYERS -u VK_LAYER_PATH -u LD_LIBRARY_PATH -u LD_PRELOAD "
+    "VK_LOADER_LAYERS_DISABLE=~implicit~"
 )
 #: What the 32-bit driver loads at run time; a SteamOS update removes them with the rest of /usr.
 LIB32_FILES = tuple(Path("/usr/lib32") / name for name in (
@@ -354,7 +363,13 @@ def _environment_lines(steamos: bool, include32: bool | None = None) -> list[str
         f"export LIBVA_DRIVER_NAME=bc250\nexport LIBVA_DRIVERS_PATH={path}\n"
     )
     lines = []
-    for target, text in ((ENV_FILE, env_text), (PROFILE_FILE, profile_text)):
+    targets = [(ENV_FILE, env_text), (PROFILE_FILE, profile_text)]
+    # Debian X11 sessions do not necessarily source /etc/profile.d or inherit
+    # the systemd user manager environment. Xsession.d runs before the desktop.
+    if not steamos:
+        targets.append((XSESSION_FILE, profile_text))
+    for target, text in targets:
+        lines.append(_owned_guard(target))
         lines += [
             f"sudo install -d -m 0755 {shlex.quote(str(target.parent))}",
             f"printf '%s' {shlex.quote(text)} | sudo tee {shlex.quote(str(target))} >/dev/null",
@@ -478,9 +493,9 @@ def _install32(family: str) -> str:
         ]
     else:
         libs = [
-            "if ! pacman-conf --repo-list 2>/dev/null | grep -qx multilib; then",
-            "  echo 'ERROR: the [multilib] repository is off. Uncomment [multilib] and its Include line in /etc/pacman.conf,'",
-            "  echo '       run sudo pacman -Sy, and try again.'; exit 65",
+            "if ! pacman-conf --repo-list 2>/dev/null | grep -Eq '^(multilib|lib32)$'; then",
+            "  echo 'ERROR: no 32-bit repository is enabled: [lib32] on Artix or [multilib] on Arch.'",
+            "  echo '       Enable the repository for your distribution in /etc/pacman.conf, complete a full system update, then retry.'; exit 65",
             "fi",
             f"sudo pacman -S --needed --noconfirm {packages}",
         ]
@@ -540,7 +555,7 @@ def _install32(family: str) -> str:
         f'bc250_probe="$({_probe(runtime)})" || {{ echo "$bc250_probe"; echo "ERROR: the 64-bit driver does not start; fix it first."; exit 32; }}',
         'bc250_node="$(python3 -I -c \'import json,sys; print(json.loads(sys.argv[1])["node"])\' "$bc250_probe")"',
         f'cp {runtime}/*.spv "$bc250_stage/out/"',
-        'if ! bc250_probe32="$(LIBVA_DRIVER_NAME=bc250 LIBVA_DRIVERS_PATH="$bc250_stage/out" "$bc250_stage/out/bc250-vaapi-probe32" "$bc250_node" 2>&1)"; then',
+        f'if ! bc250_probe32="$({PROBE32_ENV} LIBVA_DRIVER_NAME=bc250 LIBVA_DRIVERS_PATH="$bc250_stage/out" "$bc250_stage/out/bc250-vaapi-probe32" "$bc250_node" 2>&1)"; then',
         '  echo "$bc250_probe32"',
         "  echo 'ERROR: the 32-bit driver did not start or lacks H.264/HEVC. Nothing was installed.'",
         "  exit 32",
@@ -647,7 +662,7 @@ def _flatpak_workflow(action: str) -> str:
 
 def _uninstall(family: str) -> str:
     steamos = family == "steamos"
-    files = [ENV_FILE, PROFILE_FILE, *((KEEP_FILE,) if steamos else ())]
+    files = [ENV_FILE, PROFILE_FILE, XSESSION_FILE, *((KEEP_FILE,) if steamos else ())]
     return "\n".join((
         *_header("remove"),
         *(_owned_guard(path) for path in files),

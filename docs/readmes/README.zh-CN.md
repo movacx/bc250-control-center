@@ -4,7 +4,7 @@
 
 <a href="https://ko-fi.com/movacx"><img src="https://img.shields.io/badge/Ko--fi-%E8%B5%9E%E5%8A%A9-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white" alt="赞助 · Ko-fi"></a>
 
-一款用于在 Linux 上设置、调校和监控 AMD BC-250 的桌面应用。
+通过桌面、终端或网页浏览器，在 Linux 上设置、调校和监控 AMD BC-250。
 
 它涵盖 GPU 调速器（governor）、CPU 调校、计算单元（CU）、风扇、内存、BIOS 更新、升频（upscaling）以及受支持发行版的系统准备。每一项硬件更改都会先经过范围检查，并在应用前确认。可选的 Decky 插件可将日常控制带入 Steam 的游戏模式。
 
@@ -14,13 +14,21 @@
 
 更多截图请见[图库](https://movacx.github.io/bc250-control-center/gallery/)。
 
+## 选择界面
+
+- **桌面 · PyQt6：** 使用 `bc250-control-center` 进行完整设置和本地管理。
+- **终端 · curses：** 使用 `bc250-control-center-tui` 在 TTY、终端模拟器或 SSH 会话中操作。
+- **网页 · React：** 通过家庭网络中的手机、平板或其他电脑监控和控制硬件。
+
+三个界面共用应用服务和特权辅助程序。常规安装包包含 TUI 和已编译的网页资源。只有重新构建网页界面时才需要 Node.js。
+
 ## 功能
 
 - 仪表盘：显示 CPU、GPU、散热、每核负载、每颗芯片的 GDDR6 温度、已安装的 BIOS 以及供电轨（供电轨需要 I2C 硬件改装；应用内附带带照片的指南）
 - CPU、GPU、VRAM、RAM、磁盘和网络的性能图表，附带传感器视图和 CSV 导出
 - GPU 调速器管理（Cyan，备选 Oberon）、安全的频率范围和电压实验室
 - 通过 SMU 调校 CPU、稳定性测试以及可选的核心解锁
-- 计算单元：24 至 40 CU，实时状态与启动状态分开显示
+- 计算单元：路由和寄存器诊断，分别显示实时与启动状态；可用单元取决于板卡配置
 - 风扇控制：手动 PWM、温度曲线、持久化配置，或交由 CoolerControl、fancontrol 或 fan2go 接管
 - 内存：VRAM 大小、ZRAM、ZSWAP 和交换分区
 - 制作 BIOS 更新 U 盘（P3.00 Chipset Menu、MeiMeiDXE v3、P5.00、P3.00、P2.00），每个文件都经过校验
@@ -129,6 +137,43 @@ bash scripts/uninstall-local.sh
 3. 在仪表盘中运行 **Prepare BC250 system**。它会显示你的发行版将安装哪些内容，并在内置终端中执行。
 4. 应用更改前请阅读模块的状态行，它会说明哪些已就绪、哪些缺失。
 
+## 终端界面
+
+TUI 需要 Python 3.11 或更新版本、`curses` 和 `psutil`，不需要图形桌面或 PyQt6。常规安装包已包含 TUI，可直接运行 `bc250-control-center-tui`。若只安装 TUI，请克隆仓库并以普通用户运行安装脚本：
+
+```bash
+git clone https://github.com/movacx/bc250-control-center.git
+cd bc250-control-center
+bash scripts/install-tui.sh
+```
+
+脚本将应用安装到 `~/.local`，检查依赖，并在安装缺失的软件包和受保护的辅助程序时请求管理员授权。在 Bazzite/Fedora Atomic 上，辅助程序需要通过 `rpm-ostree` 安装 RPM 包；单独运行 TUI 脚本不会在这些系统上安装辅助程序。
+
+```bash
+~/.local/bin/bc250-control-center-tui
+bc250-control-center-tui --page gpu --theme mono
+```
+
+如果 `~/.local/bin` 不在 `PATH` 中，请使用完整路径。方向键用于选择，`Enter` 打开项目，`Esc` 或 `Tab` 返回侧栏，`?` 显示帮助。支持鼠标和滚轮。操作输出和密码提示显示在内置控制台中，可用 `Ctrl+C` 中断命令。所选主题会在下次启动时保留。
+
+更新时，在同一仓库运行 `git pull --ff-only`，然后重新运行安装脚本。卸载命令：
+
+```bash
+bash scripts/install-tui.sh --uninstall
+```
+
+配置好 SSH 服务器后，可使用 `ssh -t user@board-ip bc250-control-center-tui` 远程启动。请替换为实际的用户名和设备地址。
+
+## 网页界面
+
+在桌面或 TUI 的 **Remote access** 中启动网页服务，并允许局域网访问。打开显示的地址或扫描二维码，然后输入访问密钥。可以使用 `bc250cc.local` 或数字 IP 地址；名称解析是否可用取决于网络和客户端。
+
+新浏览器默认只能监控。请先核对 **Connected devices** 中的设备代码，再授权硬件控制。权限和到期时间可按设备设置；特权操作仍需通过 Linux 管理员授权。
+
+网页包括仪表板、CPU、GPU、CU、电压实验室、风扇、性能图表、黑匣子和设置。布局适配手机，语言和主题保存在浏览器中。正常使用不需要 SSH，但板卡上的网页服务器必须保持运行。
+
+家庭网络访问使用本地证书颁发机构提供的 HTTPS。导入公有证书前，请核对其指纹。应用不会开放路由器端口，也不会建立公共隧道。
+
 ## Decky 插件
 
 BC250 Quick Access 是 Steam 游戏模式快速访问菜单中的可选面板。它提供 GPU、计算单元、CPU、风扇和 VRAM 控制，按游戏设置的 GPU 和风扇配置文件，以及实时的 async compute 读数。高级配置仍保留在桌面应用中。
@@ -143,20 +188,7 @@ BC250 Quick Access 是 Steam 游戏模式快速访问菜单中的可选面板。
 
 报告还会附带一份硬件诊断，无需 root 即可在所有发行版上收集：内核和头文件、已加载的传感器模块及其内核消息（NCT6687、amdgpu）、hwmon 和 `sensors` 读数、内核日志中的 GPU 和崩溃行、上一次启动的结束方式（正常关机或突然重置）、服务、软件包，以及上一个工作流日志的结尾。当你的用户无法读取内核日志时，桌面会通过 polkit 询问一次密码。过大而无法放入表单的报告会自动裁剪，先删除最次要的部分；**在浏览器中打开** 仍会复制完整文本。
 
-### 黑匣子（冻结与重置）
-
-硬冻结不会在内核日志中留下任何记录。黑匣子每秒记录四次 GPU 频率和负载、温度、GFX 电压、功率、风扇转速、CPU 频率和可用内存，并将每一行立即写入磁盘。因此，下一份报告会显示主板在冻结或重置前的最后几秒。它无需 root，文件大小有限（512 KB，之后轮转）。
-
-```bash
-# 桌面模式：游戏时保持终端打开，使用 Ctrl+C 停止
-bc250-control-center-cli black-box
-
-# 游戏模式（SteamOS）：切换前在后台启动
-systemd-run --user --unit=bc250-black-box bc250-control-center-cli black-box
-systemctl --user stop bc250-black-box
-```
-
-日志保存在 `~/.local/state/bc250-control-center/black-box/`。`bc250-control-center-cli diagnose` 会输出报告所发送的同一份硬件诊断。
+要在发送前阅读报告附带的全部内容，请打开**设置 › 诊断 › 查看完整诊断**：每个部分（内核、上次启动、黑匣子、传感器、GPU、服务、配置、软件包、日志）都可展开，按标签页分类，可搜索，并可复制或另存为文件。终端中用 `bc250-control-center-cli diagnose --full` 输出相同内容。
 
 也欢迎在 GitHub 上提交 issue。请附上你的发行版、内核版本和终端输出。
 
@@ -221,6 +253,10 @@ bc250-control-center/
 │   │   ├── console/          内置终端
 │   │   ├── theme/            主题、样式、颜色和图标
 │   │   └── i18n/             30 种语言的翻译
+│   ├── tui/                  终端界面、导航和操作控制台
+│   ├── web/                  HTTPS 服务器、会话和操作工作进程
+│   │   ├── app/              React 源码和构建工具
+│   │   └── dist/             随应用分发的已编译网页资源
 │   └── cli.py                命令行模式
 ├── integrations/decky/       用于游戏模式的 Decky Quick Access 插件
 ├── privileged/               以 root 运行的部分，隔离且经过审查
@@ -231,7 +267,7 @@ bc250-control-center/
 ├── scripts/                  启动器、本地安装程序和系统工具
 ├── assets/                   图标、截图和网页图库
 ├── docs/                     文档、第三方声明以及本 README 的翻译
-└── tests/                    超过 5000 个自动化测试，包含 37 个真实发行版的 os-release 文件
+└── tests/                    单元、服务、桌面、TUI、网页和软件包测试
 ```
 
 ## 参与贡献

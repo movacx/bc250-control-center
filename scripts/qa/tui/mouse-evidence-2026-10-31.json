@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-31",
+  "scope": "rootless container userspace; no hardware mutations or boot certification",
+  "host_regression_passed": 969,
+  "profiles": [
+    {
+      "profile": "arch",
+      "image": "docker.io/library/archlinux:base",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "cachyos",
+      "image": "docker.io/cachyos/cachyos:latest",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "manjaro",
+      "image": "docker.io/manjarolinux/base:latest",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "artix",
+      "image": "docker.io/artixlinux/artixlinux:base-openrc",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "alpine",
+      "image": "docker.io/library/alpine:latest",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "gentoo",
+      "image": "docker.io/gentoo/stage3:latest",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "bazzite",
+      "image": "ghcr.io/ublue-os/bazzite:stable",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "debian",
+      "image": "docker.io/library/debian:stable-slim",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "kali",
+      "image": "docker.io/kalilinux/kali-rolling:latest",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "parrot",
+      "image": "docker.io/parrotsec/core:latest",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "devuan",
+      "image": "docker.io/devuan/devuan:stable",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "kubuntu",
+      "image": "docker.io/library/ubuntu:24.04",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "xubuntu",
+      "image": "docker.io/library/ubuntu:24.04",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    },
+    {
+      "profile": "lubuntu",
+      "image": "docker.io/library/ubuntu:24.04",
+      "returncode": 0,
+      "tui_tests_passed": 161
+    }
+  ]
+}

@@ -23,8 +23,8 @@ from typing import Callable
 PREPARED_PACKAGES = frozenset({
     "python3", "python3-pyqt6", "qt6-qtsvg", "python3-psutil", "git",
     "pciutils", "libdrm", "vulkan-tools", "polkit", "kmod", "make", "gcc",
-    "elfutils-libelf-devel", "kernel-devel", "dkms", "jq", "lm_sensors",
-    "stress", "umr", "cyan-skillfish-governor-smu",
+    "elfutils-libelf-devel", "kernel-devel", "jq", "lm_sensors",
+    "stress", "umr", "cyan-skillfish-governor-smu", "python3-pip", "openssl", "ca-certificates",
 })
 
 

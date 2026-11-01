@@ -101,3 +101,16 @@ def test_passwordless_game_helper_does_not_start_a_desktop_agent(monkeypatch):
         "/protected/game-helper",
         "status",
     ]
+
+
+def test_cached_agent_is_rechecked_after_exit(monkeypatch):
+    monkeypatch.setattr(polkit_session.os, 'geteuid', lambda: 1000)
+    monkeypatch.setattr(polkit_session, '_DEFAULT_READY_STATE',
+                        polkit_session.PolkitAgentState(True, 'existing'))
+    monkeypatch.setattr(polkit_session, '_agent_running', lambda *_args: False)
+    monkeypatch.setattr(polkit_session, '_CANDIDATES', ())
+    state = polkit_session.ensure_graphical_polkit_agent(
+        environment=None, which=lambda _name: None,
+    )
+    assert state.ready is False
+    assert polkit_session._DEFAULT_READY_STATE is None

@@ -1,8 +1,8 @@
 # BC250 Control Center
 
-Desktop application for setting up, tuning and monitoring the AMD BC-250 on Linux.
+Set up, tune and monitor the AMD BC-250 on Linux from the desktop, a terminal or a web browser.
 
-It covers the GPU governor, CPU tuning, Compute Units, fans, memory, BIOS update media, upscaling and system preparation for the supported distributions. Every change to the hardware is range-checked and confirmed before it is applied. An optional Decky plugin brings the everyday controls to Steam's Game Mode.
+It covers the GPU governor, CPU tuning, Compute Units, fans, memory, BIOS update media, upscaling and system preparation for the supported distributions. The interfaces share application services, hardware limits and privileged helpers. An optional Decky plugin brings the everyday controls to Steam's Game Mode.
 
 <p align="center">
   <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard" width="100%"></a>
@@ -27,13 +27,26 @@ It covers the GPU governor, CPU tuning, Compute Units, fans, memory, BIOS update
 
 More screenshots are in the [gallery](https://movacx.github.io/bc250-control-center/gallery/).
 
+## Choose your interface
+
+| Interface | Best suited for | Launch |
+| --- | --- | --- |
+| **Desktop · PyQt6** | Full setup, tuning, diagnostics and local administration | `bc250-control-center` |
+| **Terminal · curses** | A local TTY, terminal emulator or SSH session | `bc250-control-center-tui` |
+| **Web · React** | Monitoring and hardware controls from a phone, tablet or another computer on the home network | Start **Remote access** in the desktop app, then open its address or scan the QR |
+
+The normal installation includes the terminal interface and the compiled web
+assets. A [terminal-only installer](#terminal-mode) is available for machines
+without a desktop. The browser interface needs the board's web server running;
+it does not need SSH or Node.js for normal use.
+
 ## Features
 
 - Dashboard with CPU, GPU, cooling, per-core load, GDDR6 temperature per chip, installed BIOS and power rails (the rails need the I2C hardware modification; the app includes a photo guide)
 - Performance charts for CPU, GPU, VRAM, RAM, disk and network, with a sensor view and CSV export
 - GPU governor management (Cyan, with Oberon as an alternative), safe frequency ranges and a voltage laboratory
 - CPU tuning through the SMU, stability test and optional core unlock
-- Compute Units: 24 to 40 CU, with live and boot state reported separately
+- Compute Units: routing and register diagnostics, with live and boot state reported separately; available units depend on the board
 - Fan control: manual PWM, temperature curves, persistent profiles, or hand-off to CoolerControl, fancontrol or fan2go
 - Memory: VRAM size, ZRAM, ZSWAP and swap
 - BIOS update USB creation (P3.00 Chipset Menu, MeiMeiDXE v3, P5.00, P3.00, P2.00) with every file verified
@@ -42,6 +55,8 @@ More screenshots are in the [gallery](https://movacx.github.io/bc250-control-cen
 - Compatibility fixes for GFX1013, async compute, ACPI and Mesa; Dolby Digital 5.1 over HDMI; TV control over HDMI-CEC
 - In-app problem reports with error codes, origin codes and the raw error attached
 - 30 languages, light and dark themes, UI scaling and controller navigation
+- Terminal interface with keyboard navigation, mouse support, live telemetry and an embedded operation console
+- Local-network HTTPS web interface with mobile layouts, pairing QR and per-device hardware permissions
 
 ## Supported distributions
 
@@ -134,6 +149,107 @@ bash scripts/uninstall-local.sh
 3. On the Dashboard, run **Prepare BC250 system**. It shows what will be installed for your distribution and runs it in the built-in terminal.
 4. Read the status line of a module before applying changes; it reports what is ready and what is missing.
 
+## Terminal mode
+
+The TUI runs in a terminal emulator, a Linux TTY or an SSH session. It shares
+the desktop application's hardware controls and monitoring services. Python
+3.11 or newer, `curses` and `psutil` are required; PyQt6 is not.
+
+### With the desktop application installed
+
+The regular package includes the TUI. Start it with:
+
+```bash
+bc250-control-center-tui
+```
+
+### Terminal-only installation
+
+Clone the repository and run the installer as your normal user:
+
+```bash
+git clone https://github.com/movacx/bc250-control-center.git
+cd bc250-control-center
+bash scripts/install-tui.sh
+```
+
+The installer places the application in `~/.local` and checks its Python
+dependencies. It requests administrator authorization to install missing
+packages and protected hardware helpers. It does not install PyQt6 or a desktop
+launcher. On Bazzite/Fedora Atomic, this script skips system helper installation;
+the helpers must be installed through the RPM with `rpm-ostree`, followed by a reboot.
+
+Start the interface:
+
+```bash
+~/.local/bin/bc250-control-center-tui
+```
+
+If `~/.local/bin` is already in your `PATH`, use `bc250-control-center-tui`.
+To update a source installation, run `git pull --ff-only` in the same checkout
+and rerun the installer. To remove it:
+
+```bash
+bash scripts/install-tui.sh --uninstall
+```
+
+### Navigation
+
+| Input | Action |
+| --- | --- |
+| `↑` / `↓` or `j` / `k` | Select an item |
+| `Enter` | Open a section or run an action |
+| `Esc` or `Tab` | Return to the sidebar |
+| `[` / `]` | Switch section tabs |
+| `/` | Search |
+| `PgUp` / `PgDn` | Scroll the page or operation output |
+| Mouse | Select sections and controls; scroll with the wheel |
+| `?` | Show help |
+| `q` | Quit |
+
+Operations display their output in the integrated console. Administrator
+passwords are entered there when requested; `Ctrl+C` interrupts the running
+command. The console retains the result and log location after completion.
+
+To open a specific page or use monochrome output:
+
+```bash
+bc250-control-center-tui --page gpu --theme mono
+```
+
+For SSH, the board must have an SSH server enabled and reachable:
+
+```bash
+ssh -t user@board-ip bc250-control-center-tui
+```
+
+Replace `user` and `board-ip` with the board's Linux account and address.
+
+## Web interface
+
+Open **Remote access** in the desktop application or TUI, start web access and enable
+**Reachable from the local network** to connect from another device. Choose the
+address shown there or scan its visible QR. Keep both the local name and numeric
+IP available: name resolution depends on the client and network.
+
+Sign in with the access key shown on the board. New browser sessions can only
+monitor. In **Connected devices**, verify the browser's device code before
+granting hardware control. That permission is separate from the Linux
+administrator password required by privileged operations. The owner can revoke
+access and choose an expiry for each session.
+
+The web provides Dashboard, CPU, Compute Units, GPU, Voltage laboratory, Fans,
+Performance, Black box and Settings. Performance includes CPU, GPU, memory, disk, network
+and individual sensor histories. Themes and language are saved per browser.
+
+LAN access uses HTTPS. Each installation creates a local certificate authority;
+browsers may warn until its public certificate is trusted on that device.
+Compare the displayed fingerprint before trusting it. With LAN access disabled,
+only the board itself can connect through loopback. The application does not
+open router ports or configure a public tunnel.
+
+Users do not need Node.js: packages ship the built web assets.
+
 ## Decky plugin
 
 BC250 Quick Access is an optional panel for the Quick Access menu in Steam's Game Mode. It provides GPU, Compute Unit, CPU, fan and VRAM controls, per-game GPU and fan profiles, and live async compute readings. Advanced configuration stays in the desktop application.
@@ -148,20 +264,7 @@ Use **Report this problem** in the error window, or **Settings › Diagnostics �
 
 The report also attaches a hardware diagnosis, collected without root on every distribution: kernel and headers, loaded sensor modules and their kernel messages (NCT6687, amdgpu), hwmon and `sensors` readings, GPU and crash lines from the kernel log, how the previous boot ended (clean shutdown or abrupt reset), services, packages and the end of the last workflow log. When the kernel log is closed to your user, the desktop asks once for the password through polkit. Reports too large for the form are trimmed automatically, least important parts first; **Open in browser** still copies the full text.
 
-### Black box (freezes and resets)
-
-A hard freeze leaves nothing in the kernel log. The black box records the GPU clock, load, temperatures, GFX voltage, power, fan speed, CPU clock and free memory four times a second, flushing every line to disk, so the next report shows the board's last seconds before a freeze or reset. It needs no root and its file is bounded (512 KB, then rotated).
-
-```bash
-# Desktop Mode: leave the terminal open while playing, stop with Ctrl+C
-bc250-control-center-cli black-box
-
-# Game Mode (SteamOS): start it in the background before switching
-systemd-run --user --unit=bc250-black-box bc250-control-center-cli black-box
-systemctl --user stop bc250-black-box
-```
-
-The log is kept in `~/.local/state/bc250-control-center/black-box/`. `bc250-control-center-cli diagnose` prints the same hardware diagnosis the report sends.
+To read everything a report attaches before sending it, open **Settings › Diagnostics › View full diagnosis**: every section (kernel, previous boot, black box, sensors, GPU, services, configuration, packages, logs) is expandable, sorted into tabs, searchable, and can be copied or saved as a file. The terminal prints the same with `bc250-control-center-cli diagnose --full`.
 
 Issues on GitHub are welcome as well. Please include your distribution, kernel version and the terminal output.
 
@@ -226,17 +329,28 @@ bc250-control-center/
 │   │   ├── console/          Built-in terminal
 │   │   ├── theme/            Themes, styles, colors and icons
 │   │   └── i18n/             Translations into 30 languages
+│   ├── tui/                  Terminal interface: curses screen, pages and operation console
+│   ├── web/                  HTTPS backend, validated action workers and browser interface
+│   │   ├── app/              React source and build tools (Node.js for development only)
+│   │   └── dist/             Compiled assets served by Python and shipped in packages
 │   └── cli.py                Command-line mode
-├── integrations/decky/       Decky Quick Access plugin for Game Mode
+├── integrations/
+│   ├── decky/                Decky Quick Access plugin for Game Mode
+│   └── report-endpoint/      Cloudflare endpoint for user-submitted reports
 ├── privileged/               What runs as root, isolated and reviewed
 │   ├── helpers/              One helper per privileged task
 │   ├── lib/                  Code shared by those helpers
 │   └── policies/             Polkit permissions
 ├── packaging/                .pkg.tar.zst, .rpm and .deb packages, and the AUR PKGBUILD
-├── scripts/                  Launchers, local installer and system utilities
+├── scripts/
+│   ├── entrypoints/          Desktop, CLI, daemon and TUI launchers
+│   ├── development/          Web build and development utilities
+│   ├── system/               Distribution and system preparation workflows
+│   └── qa/                   Packaging, integration and distribution checks
 ├── assets/                   Icons, screenshots and the web gallery
 ├── docs/                     Documentation, third-party notices and README translations
-└── tests/                    More than 5000 automated tests, with os-release files from 37 real distributions
+└── tests/                    Unit, service, desktop, TUI, web and packaging checks
 ```
 
-
+See [Architecture](docs/ARQUITECTURA_MVC.md) for layer boundaries and
+[Frontends](frontends/README.md) for interface entry points and development commands.

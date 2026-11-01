@@ -458,7 +458,7 @@ def test_bazzite_preparation_layers_umr_when_umr_is_selected(tmp_path, monkeypat
     assert _bash_syntax(command).returncode == 0
 
 
-def test_bazzite_defers_pwm_module_build_until_the_layered_dkms_deployment_is_booted(
+def test_bazzite_defers_pwm_module_build_until_the_layered_build_deployment_is_booted(
     tmp_path, monkeypatch
 ):
     command = _build_prepare_command(
@@ -472,7 +472,7 @@ def test_bazzite_defers_pwm_module_build_until_the_layered_dkms_deployment_is_bo
         monkeypatch,
     )
 
-    assert "fan PWM preparation will run after the Bazzite reboot activates dkms" in command
+    assert "fan PWM preparation will run after the Bazzite reboot activates the build dependencies" in command
     assert 'if [ "$BC250_REBOOT_REQUIRED" = "1" ]' in command
     assert "REBOOT REQUIRED / REINICIO REQUERIDO / ТРЕБУЕТСЯ ПЕРЕЗАГРУЗКА" in command
     assert "run ONLY" in command

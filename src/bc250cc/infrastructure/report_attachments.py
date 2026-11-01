@@ -22,6 +22,7 @@ import re
 import shutil
 import socket
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from pathlib import Path
 
 from bc250cc.infrastructure import system_diagnostics as diag
@@ -34,45 +35,9 @@ FULL_SECTION_LIMIT = 8000
 FULL_LOG_LIMIT = 16000
 FULL_TOTAL_LIMIT = 90000
 
-#: Default host names: replacing them would also erase the distribution's
-#: name everywhere it is written ("Bazzite", "steamdeck"), and they say
-#: nothing about the person.
-_GENERIC_HOSTS = frozenset({
-    "localhost", "bazzite", "steamdeck", "fedora", "cachyos", "cachyos-x8664",
-    "archlinux", "ubuntu", "debian", "manjaro", "bc250", "bc-250", "linux",
-})
-_OCTET = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
-#: Not glued to a hyphen, letter, colon or dot: a package version such as
-#: "2.4.11.1-1" or "1:2.0.0.1" is four numbers too, and was sent as "<ip>-1".
-_IPV4 = re.compile(rf"(?<![\w.:-])(?!127\.0\.0\.1\b)(?:{_OCTET}\.){{3}}{_OCTET}(?![\w.-])")
-#: Account names that say nothing about the person and are also words of
-#: this app's own paths: with the account "bc250", every "bc250" of a report
-#: (bc250-control-center, /tmp/bc250-helixsr) became "<user>".
-_GENERIC_USERS = frozenset({
-    "root", "deck", "bazzite", "bc250", "bc-250", "steam", "user", "gamer", "admin", "linux",
-    "guest", "player", "ubuntu", "fedora", "arch", "cachyos", "manjaro", "debian",
-})
-_MAC = re.compile(r"\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\b", re.I)
-
-
-def redact_machine(text: object) -> str:
-    """``redact`` plus the machine's name and its network addresses."""
-    text = redact(text)
-    host = socket.gethostname().strip()
-    names = {host, host.split(".", 1)[0]}
-    for name in sorted(names, key=len, reverse=True):
-        if len(name) >= 3 and name.lower() not in _GENERIC_HOSTS:
-            text = re.sub(rf"(?<![\w.-]){re.escape(name)}(?![\w-])", "<host>", text)
-    # The account name also shows outside the home folder (/var/tmp/pamac-
-    # build-<name>, "[sudo] password for <name>").
-    try:
-        user = getpass.getuser().strip()
-    except Exception:  # noqa: BLE001 - no name to remove
-        user = ""
-    if len(user) >= 3 and user.lower() not in _GENERIC_USERS:
-        text = re.sub(rf"(?<![\w]){re.escape(user)}(?![\w])", "<user>", text)
-    text = _IPV4.sub("<ip>", text)
-    return _MAC.sub("<mac>", text)
+# The rules that take the person out of a text live in privacy.py; these names
+# stay importable from here, where reports have always found them.
+from bc250cc.infrastructure.privacy import _GENERIC_HOSTS, _GENERIC_USERS, redact_machine  # noqa: E402,F401
 
 
 # --- Sections ---------------------------------------------------------------
@@ -112,6 +77,8 @@ def _gpu_device() -> str:
 def _kernel_log_full() -> str:
     current, _source = diag._kernel_cached("0")
     previous, _ = diag._kernel_cached("-1")
+    if not current and diag._READONLY_KERNEL_LOGS.get() is not None:
+        current = "(kernel log is not readable without administrator authorization)"
     current_lines = current.splitlines()
     return "\n".join((
         f"[this boot, last {min(250, len(current_lines))} of {len(current_lines)} lines]",
@@ -298,22 +265,33 @@ def collect_system_state(sections=STATE_SECTIONS) -> str:
         return f"== {title} ==\n{body}"
 
     with ThreadPoolExecutor(max_workers=4) as pool:
-        parts = list(pool.map(one, sections))
+        futures = [pool.submit(copy_context().run, one, item) for item in sections]
+        parts = [future.result() for future in futures]
     return redact_machine("\n\n".join(parts))
 
 
 #: Hardware sections the system state reads more fully.
 _COVERED_BY_STATE = {"Last workflow log", "Packages", "Storage", "Control Center files"}
-_HEADING = re.compile(r"^== (.+?) ==$", re.M)
+_HEADING = re.compile(r"== (.+?) ==")
 
 
-def split_sections(text: str) -> list[tuple[str, str]]:
-    """(title, body) of every ``== title ==`` section of a diagnosis."""
-    parts = _HEADING.split(text)
-    return [
-        (parts[index].strip(), parts[index + 1].strip() or "—")
-        for index in range(1, len(parts) - 1, 2)
-    ]
+def split_sections(text: str, titles) -> list[tuple[str, str]]:
+    """(title, body) of every ``== title ==`` section of a diagnosis.
+
+    Only the diagnosis's own titles start a section: a workflow log inside
+    one prints ``== Staging protected SteamOS AMDGPU backend ==`` too, and
+    was cut into sections of its own (a SteamOS report kept 34 characters of
+    "Last workflow logs").
+    """
+    known = {str(title) for title in titles}
+    sections: list[tuple[str, list[str]]] = []
+    for line in text.splitlines():
+        match = _HEADING.fullmatch(line)
+        if match and match.group(1).strip() in known:
+            sections.append((match.group(1).strip(), []))
+        elif sections:
+            sections[-1][1].append(line)
+    return [(title, "\n".join(body).strip() or "—") for title, body in sections]
 
 
 def collect_attachments() -> list[tuple[str, str]]:
@@ -322,7 +300,10 @@ def collect_attachments() -> list[tuple[str, str]]:
     full = diag.collect_diagnostics(
         hardware, section_limit=FULL_SECTION_LIMIT, log_limit=FULL_LOG_LIMIT, total_limit=FULL_TOTAL_LIMIT,
     )
-    sections = split_sections(redact_machine(full)) + split_sections(collect_system_state())
+    sections = (
+        split_sections(redact_machine(full), (title for title, _read in hardware))
+        + split_sections(collect_system_state(), (title for title, _read in STATE_SECTIONS))
+    )
     seen: set[str] = set()
     unique = []
     for title, body in sections:
@@ -331,3 +312,17 @@ def collect_attachments() -> list[tuple[str, str]]:
         seen.add(title.lower())
         unique.append((title, body))
     return unique
+
+
+def collect_readonly_attachments() -> list[tuple[str, str]]:
+    """The desktop diagnosis without any interactive privilege escalation.
+
+    The cache is local to this collection and propagated to its reader threads;
+    it cannot change a simultaneous desktop collection's permission policy.
+    """
+    logs = {boot: diag._kernel_text(boot, allow_privileged=False) for boot in ("0", "-1")}
+    token = diag._READONLY_KERNEL_LOGS.set(logs)
+    try:
+        return collect_attachments()
+    finally:
+        diag._READONLY_KERNEL_LOGS.reset(token)

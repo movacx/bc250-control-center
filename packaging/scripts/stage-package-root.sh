@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 022
 
 if [[ $# -ne 1 ]]; then
   echo "Usage: $0 DESTDIR" >&2
@@ -16,6 +17,7 @@ if [[ "$DESTDIR" == / || -z "$DESTDIR" ]]; then
 fi
 
 bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
+install -d -m755 "$DESTDIR"
 install -d -m755 \
   "$DESTDIR/usr/share/bc250-control-center" \
   "$DESTDIR/usr/share/bc250-control-center/scripts" \
@@ -37,6 +39,8 @@ cp -a -- "$ROOT_DIR/assets" "$DESTDIR/usr/share/bc250-control-center/assets"
 cp -a -- "$ROOT_DIR/scripts/system" "$DESTDIR/usr/share/bc250-control-center/scripts/system"
 cp -a -- "$ROOT_DIR/packaging/common/os-scripts" \
   "$DESTDIR/usr/share/bc250-control-center/packaging/common/os-scripts"
+install -m644 "$ROOT_DIR/packaging/common/bc250-package-maintenance" \
+  "$DESTDIR/usr/share/bc250-control-center/packaging/common/bc250-package-maintenance"
 cp -a -- "$ROOT_DIR/integrations/decky/bc250-quick-access" \
   "$DESTDIR/usr/share/bc250-control-center/integrations/decky/bc250-quick-access"
 # The source tree may contain private working-copy permissions (for example
@@ -45,6 +49,9 @@ cp -a -- "$ROOT_DIR/integrations/decky/bc250-quick-access" \
 # access while preserving executability of scripts that were already marked
 # executable.
 chmod -R a+rX "$DESTDIR/usr/share/bc250-control-center"
+find "$DESTDIR/usr/share/bc250-control-center" -type d -exec chmod 0755 {} +
+find "$DESTDIR/usr/share/bc250-control-center" -type f -exec chmod go-w {} +
+rm -rf -- "$DESTDIR/usr/share/bc250-control-center/frontends/web/app/node_modules"
 rm -rf -- "$DESTDIR/usr/share/bc250-control-center/integrations/decky/bc250-quick-access/node_modules"
 find "$DESTDIR/usr/share/bc250-control-center/integrations/decky/bc250-quick-access" \
   -type d -name __pycache__ -prune -exec rm -rf -- {} +
@@ -67,7 +74,8 @@ install -m644 "$ROOT_DIR/docs/THIRD_PARTY_NOTICES.md" "$DESTDIR/usr/share/doc/bc
 install -D -m644 "$ROOT_DIR/packaging/common/50-bc250-system-setup-uninstall.hook" \
   "$DESTDIR/usr/share/libalpm/hooks/50-bc250-system-setup-uninstall.hook"
 install -m644 "$ROOT_DIR/VERSION" "$DESTDIR/usr/share/bc250-control-center/VERSION"
-for launcher in bc250-control-center bc250-control-center-cli bc250-control-centerd; do
+install -m644 "$ROOT_DIR/requirements-web.txt" "$DESTDIR/usr/share/bc250-control-center/requirements-web.txt"
+for launcher in bc250-control-center bc250-control-center-cli bc250-control-center-tui bc250-control-centerd; do
   install -m755 "$ROOT_DIR/scripts/entrypoints/$launcher" "$DESTDIR/usr/bin/$launcher"
 done
 install -m755 "$ROOT_DIR/scripts/install-decky-quick-access.sh" \
@@ -123,7 +131,7 @@ install -Dm644 \
   "$ROOT_DIR/packaging/common/91-bc250-control-center-overlay-preflight.conf" \
   "$DESTDIR/usr/lib/systemd/system/cyan-skillfish-governor-smu.service.d/91-bc250-control-center-overlay-preflight.conf"
 
-for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py bc250_contract.py; do
+for setup_module in system_setup_web_firewall.py system_setup_mdns.py system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py bc250_contract.py; do
   install -m644 "$ROOT_DIR/privileged/lib/$setup_module" "$DESTDIR/usr/libexec/bc250-control-center/lib/$setup_module"
 done
 install -m644 \
@@ -158,4 +166,7 @@ find "$DESTDIR/usr/share/bc250-control-center/src" "$DESTDIR/usr/share/bc250-con
 find "$DESTDIR/usr/share/bc250-control-center/src" "$DESTDIR/usr/share/bc250-control-center/frontends" \
   "$DESTDIR/usr/share/bc250-control-center/privileged" -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
 
+# Include the archive root and intermediate system directories. A build under
+# umask 0002 must never ship group-writable ancestors of protected helpers.
+find "$DESTDIR" -type d -exec chmod 0755 {} +
 echo "Package root staged at $DESTDIR"

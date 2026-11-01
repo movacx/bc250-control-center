@@ -14,7 +14,7 @@ def main():
                                            "acpi-install", "acpi-update", "acpi-uninstall", "acpi-check",
                                            "telemetry-fix", "telemetry-restore", "kernel-options-set",
                                            "vram-read", "vram-apply", "ttm-status", "ttm-apply",
-                                           "smt-live", "uninstall-check"))
+                                           "smt-live", "mdns-repair", "web-firewall-status", "web-firewall-repair", "uninstall-check"))
     parser.add_argument("--policy", choices=("preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"), default="preserve")
     parser.add_argument("--ttm", type=int, choices=(-1, 0, 8, 10, 12), default=0)
     parser.add_argument("--uma-size", type=int, default=0)
@@ -26,24 +26,32 @@ def main():
                          help="Confirm disabling an existing, foreign ZRAM to switch to ZSWAP")
     parser.add_argument("--target-mount", default=None,
                          help="Mount point for the swapfile; one of memory-plan's reported swap_targets")
+    parser.add_argument("--web-port", type=int, default=8250)
     args = parser.parse_args()
-    readonly = args.action in {"status", "memory-plan", "uninstall-check"}
+    readonly = args.action in {"status", "memory-plan", "web-firewall-status", "uninstall-check"}
     if not readonly and os.geteuid() != 0:
         parser.error("Administrator authorization is required")
     here = Path(__file__).resolve().parent
     lib = here / "lib" if (here / "lib").is_dir() else here.parent / "lib"
     if os.geteuid() == 0:
         for path in [lib, *lib.parents, *lib.glob("system_setup_*.py"), lib / "acpi_payload.py"]:
-            info = path.stat()
+            info = path.stat(follow_symlinks=False)
             if path.is_symlink() or info.st_uid != 0 or info.st_mode & 0o022:
-                parser.error(f"Untrusted helper dependency: {path}")
+                parser.error(
+                    f"Untrusted helper dependency: {path} "
+                    f"(uid={info.st_uid}, gid={info.st_gid}, mode={info.st_mode & 0o7777:04o}, "
+                    f"symlink={path.is_symlink()}). "
+                    "Protected helpers require root-owned paths without group/other write permission."
+                )
     sys.path.insert(0, str(lib))
     import system_setup_acpi as acpi
     import system_setup_kernel_args as kernel_args
+    import system_setup_mdns as mdns
     import system_setup_memory as memory
     import system_setup_telemetry as telemetry
     import system_setup_ttm as ttm
     import system_setup_vram as vram
+    import system_setup_web_firewall as firewall
     from system_setup_common import STATE, Host, SetupError
 
     host = Host()
@@ -56,6 +64,9 @@ def main():
             return None
         return ttm.next_boot_ram(host, planned)
     try:
+        if args.action == "web-firewall-status":
+            print(json.dumps(firewall.status(host, args.web_port)))
+            return 0
         if args.action == "uninstall-check":
             blockers, steps, commands = uninstall_blockers(host, memory, STATE)
             if blockers:
@@ -103,7 +114,11 @@ def main():
             except BlockingIOError:
                 # The desktop and the Decky panel share this helper.
                 raise SetupError("Another BC250 system setup change is running; try again when it finishes") from None
-            if args.action == "memory-apply":
+            if args.action == "web-firewall-repair":
+                result = firewall.repair(host, args.web_port)
+            elif args.action == "mdns-repair":
+                result = mdns.repair(host)
+            elif args.action == "memory-apply":
                 result = memory.apply(host, args.policy, args.ttm,
                                        takeover_zram=args.takeover_zram, target_mount=args.target_mount)
             elif args.action == "memory-boot":
@@ -143,7 +158,11 @@ def main():
         if result.get("restore_pending"):
             print("Restore deferred: the BC250 swapfile is still active and was preserved. Reboot, then check status.")
         print("BC250_RESULT status=ok component=system_setup code=0")
-        if args.action == "acpi-check":
+        if args.action == "web-firewall-repair":
+            print("LAN firewall access verified. No reboot is required.")
+        elif args.action == "mdns-repair":
+            print("Local name resolution verified. No reboot is required.")
+        elif args.action == "acpi-check":
             print(f"Inspection only: no setting was changed. {acpi.installation_summary(result)[1]}")
         elif args.action == "vram-read":
             print("Inspection only: no setting was changed.")
@@ -177,7 +196,7 @@ def uninstall_blockers(host, memory, state_dir):
     blockers, steps, commands = [], [], []
     state = host.state("memory")
     _, swap_file, _, unit_path = memory.swap_paths(host, state)
-    memory_files = (memory.SERVICE_PATH, swap_file, memory.ZRAM, unit_path, memory.SYSCTL)
+    memory_files = (memory.service_path(host), swap_file, memory.ZRAM, unit_path, memory.SYSCTL)
     if any(host.path(path).exists() for path in memory_files):
         policy = str(state.get("policy") or "preserve")
         if host.path(swap_file).exists():
@@ -192,8 +211,8 @@ def uninstall_blockers(host, memory, state_dir):
         if state.get("ttm_pages") is not None:
             ttm_gib = round(int(state["ttm_pages"]) * os.sysconf("SC_PAGE_SIZE") / GIB)
             blockers.append(f"GPU memory limit (TTM) set to {ttm_gib} GiB")
-        if host.path(memory.SERVICE_PATH).exists():
-            blockers.append(f"Boot service {Path(memory.SERVICE_PATH).name}, which runs this helper")
+        if host.path(memory.service_path(host)).exists():
+            blockers.append(f"Boot service {Path(memory.service_path(host)).name}, which runs this helper")
         ttm = "-1" if "ttm_original" in state else "0"
         steps.append("Dashboard > Prepare BC250 system > Memory & Swap > Restore > Apply")
         commands.append(f"sudo {HELPER} memory-apply --policy restore --ttm {ttm}")

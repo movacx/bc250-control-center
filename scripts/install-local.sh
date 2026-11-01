@@ -42,6 +42,15 @@ if [[ -z "${PREFIX:-}" ]]; then
   fi
 fi
 
+# BC250_INSTALL_PROFILE=tui (scripts/install-tui.sh) installs the same tree,
+# launchers and helpers without PyQt6 or a desktop entry: the terminal
+# interface needs only Python's curses and psutil.
+INSTALL_PROFILE="${BC250_INSTALL_PROFILE:-desktop}"
+if [[ "$INSTALL_PROFILE" != "desktop" && "$INSTALL_PROFILE" != "tui" ]]; then
+  echo "Error: BC250_INSTALL_PROFILE must be desktop or tui, not '$INSTALL_PROFILE'." >&2
+  exit 64
+fi
+
 APP_DIR="$PREFIX/share/bc250-control-center"
 BIN_DIR="$PREFIX/bin"
 DESKTOP_DIR="$PREFIX/share/applications"
@@ -124,6 +133,29 @@ fi
 # is incomplete. The full Python/vendor check runs after dependency recovery.
 bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR" --structure-only
 
+require_supported_python() {
+  if command -v python3 >/dev/null 2>&1 && \
+     ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' >/dev/null 2>&1; then
+    echo "Error: BC250 Control Center needs Python 3.11 or newer; this system has $(python3 -V 2>&1)." >&2
+    echo "Ubuntu 22.04 and Linux Mint 21 ship Python 3.10. Use Ubuntu 24.04 / Linux Mint 22 or newer, or a newer Python." >&2
+    exit 2
+  fi
+}
+require_supported_python
+
+check_python_gui_runtime() {
+  python3 - <<'PY' >/dev/null 2>&1
+from PyQt6.QtGui import QImageReader
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtSvg import QSvgRenderer
+import psutil, pip, venv, ssl
+assert ssl.create_default_context().cert_store_stats()["x509_ca"] > 0, "CA certificates are missing"
+assert tuple(map(int, pip.__version__.split(".")[:2])) >= (22, 3), "pip >=22.3 is required"
+formats = {bytes(fmt).decode("ascii", "ignore").lower() for fmt in QImageReader.supportedImageFormats()}
+assert "svg" in formats, "Qt SVG image plugin is missing"
+PY
+}
+
 missing_python_deps=0
 missing_python_deps_command=()
 missing_python_deps_command_text=""
@@ -146,6 +178,8 @@ if [[ "${BC250_SKIP_PRIVILEGED_HELPER:-0}" != "1" ]] && ! command -v cmp >/dev/n
     diffutils_command=(dnf install -y diffutils)
   elif command -v zypper >/dev/null 2>&1; then
     diffutils_command=(zypper --non-interactive install diffutils)
+  elif command -v emerge >/dev/null 2>&1; then
+    diffutils_command=(emerge --ask=n --getbinpkg sys-apps/diffutils)
   elif command -v apk >/dev/null 2>&1; then
     diffutils_command=(apk add --no-progress diffutils)
   fi
@@ -172,15 +206,18 @@ fi
 if ! command -v python3 >/dev/null 2>&1; then
   echo "Warning: python3 is not installed or is not in PATH." >&2
   python_gui_deps_missing=1
-elif ! python3 - <<'PY' >/dev/null 2>&1
-from PyQt6.QtGui import QImageReader
-from PyQt6.QtWidgets import QApplication
-import psutil
-formats = {bytes(fmt).decode("ascii", "ignore").lower() for fmt in QImageReader.supportedImageFormats()}
-assert "svg" in formats, "Qt SVG image plugin is missing"
-PY
-then
-  echo "Warning: Python GUI dependencies are missing or Qt SVG support is unavailable. The app will install, but icons or the GUI may fail until they are installed." >&2
+elif [[ "$INSTALL_PROFILE" == "tui" ]]; then
+  if ! python3 -c 'import curses, psutil' >/dev/null 2>&1; then
+    echo "Warning: Python's curses module or psutil is missing; the terminal interface needs both." >&2
+    python_gui_deps_missing=1
+  fi
+elif ! check_python_gui_runtime; then
+  echo "Warning: Python GUI dependencies, QtSvg bindings or web bootstrap tools are missing." >&2
+  python_gui_deps_missing=1
+fi
+
+# In-place source updates require Git even when the GUI imports already work.
+if ! command -v git >/dev/null 2>&1 || { [[ "$INSTALL_PROFILE" == "desktop" ]] && ! command -v openssl >/dev/null 2>&1; }; then
   python_gui_deps_missing=1
 fi
 
@@ -193,26 +230,40 @@ if command -v apt-get >/dev/null 2>&1 && {
   ! command -v pkexec >/dev/null 2>&1
 }; then
   debian_polkit_package="pkexec"
-  if command -v apt-cache >/dev/null 2>&1 && ! apt-cache show pkexec >/dev/null 2>&1; then
+  if command -v apt-cache >/dev/null 2>&1 && ! apt-cache show pkexec >/dev/null 2>&1 && apt-cache show policykit-1 >/dev/null 2>&1; then
     debian_polkit_package="policykit-1"
   fi
-  missing_python_deps_command=(
-    apt-get install -y python3 python3-pyqt6 libqt6svg6 python3-psutil
-    "$debian_polkit_package" jq
-  )
+  missing_python_deps_command=(apt-get install -y python3 python3-psutil git "$debian_polkit_package" jq)
+  [[ "$INSTALL_PROFILE" == "tui" ]] || missing_python_deps_command+=(python3-pyqt6 python3-pyqt6.qtsvg libqt6svg6 python3-pip python3-venv openssl ca-certificates)
   missing_python_deps=1
 elif [[ "$python_gui_deps_missing" -eq 1 ]]; then
+  # The GUI packages; the terminal profile drops them below. curses ships with
+  # Python everywhere except openSUSE, which splits it out.
+  gui_packages=()
   if [[ -e /run/ostree-booted ]] && command -v rpm-ostree >/dev/null 2>&1; then
-    missing_python_deps_command=(rpm-ostree install --idempotent python3-pyqt6 qt6-qtsvg python3-psutil)
+    missing_python_deps_command=(rpm-ostree install --idempotent python3-psutil git)
+    gui_packages=(python3-pyqt6 qt6-qtsvg python3-pip openssl ca-certificates)
     missing_python_deps_reboot_notice=1
   elif command -v dnf >/dev/null 2>&1; then
-    missing_python_deps_command=(dnf install -y python3-pyqt6 qt6-qtsvg python3-psutil)
+    missing_python_deps_command=(dnf install -y python3-psutil git)
+    gui_packages=(python3-pyqt6 qt6-qtsvg python3-pip openssl ca-certificates)
   elif command -v pacman >/dev/null 2>&1; then
-    missing_python_deps_command=(pacman -S --needed python-pyqt6 qt6-svg python-psutil)
+    missing_python_deps_command=(pacman -S --needed python-psutil git)
+    gui_packages=(python-pyqt6 qt6-svg python-pip openssl ca-certificates)
+  elif command -v zypper >/dev/null 2>&1; then
+    missing_python_deps_command=(zypper --non-interactive install python3-psutil python3-curses git)
+    gui_packages=(python3-PyQt6 python3-pip openssl ca-certificates)
+  elif command -v emerge >/dev/null 2>&1; then
+    missing_python_deps_command=(emerge --ask=n --getbinpkg dev-lang/python dev-python/psutil dev-vcs/git)
+    gui_packages=(dev-python/pyqt6 dev-qt/qtsvg dev-python/pip dev-libs/openssl app-misc/ca-certificates)
   elif command -v apk >/dev/null 2>&1; then
     # The same packages the Alpine dependency preparation installs
     # (packaging/common/os-scripts/alpine/prepare-dependencies.sh).
-    missing_python_deps_command=(apk add --no-progress bash python3 py3-qt6 py3-psutil qt6-qtbase qt6-qtsvg jq polkit)
+    missing_python_deps_command=(apk add --no-progress bash python3 py3-psutil git jq polkit)
+    gui_packages=(py3-qt6 qt6-qtbase qt6-qtsvg py3-pip openssl ca-certificates)
+  fi
+  if [[ "$INSTALL_PROFILE" == "desktop" && ${#missing_python_deps_command[@]} -gt 0 ]]; then
+    missing_python_deps_command+=("${gui_packages[@]}")
   fi
   missing_python_deps=1
 fi
@@ -225,10 +276,12 @@ fi
 
 if [[ ${#missing_python_deps_command[@]} -gt 0 && "${BC250_SKIP_DEPENDENCY_INSTALL:-0}" != "1" ]]; then
   prepare_steamos_pacman_install_local
-  echo "Installing missing Python GUI dependencies..."
+  echo "Installing missing runtime dependencies..."
   if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    [[ "${missing_python_deps_command[0]}" != "apt-get" ]] || apt-get update
     "${missing_python_deps_command[@]}"
   elif command -v sudo >/dev/null 2>&1; then
+    [[ "${missing_python_deps_command[0]}" != "apt-get" ]] || sudo apt-get update
     sudo "${missing_python_deps_command[@]}"
   else
     echo "Warning: sudo is not available. Install manually: ${missing_python_deps_command_text% }" >&2
@@ -240,15 +293,24 @@ elif [[ ${#missing_python_deps_command[@]} -gt 0 ]]; then
   echo "Skipping host dependency installation because BC250_SKIP_DEPENDENCY_INSTALL=1."
 fi
 
-bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
-if command -v python3 >/dev/null 2>&1 && \
-   ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' >/dev/null 2>&1; then
-  echo "Error: BC250 Control Center needs Python 3.11 or newer; this system has $(python3 -V 2>&1)." >&2
-  echo "Ubuntu 22.04 and Linux Mint 21 ship Python 3.10. Use Ubuntu 24.04 / Linux Mint 22 or newer, or a newer Python." >&2
-  exit 2
+if [[ "${BC250_SKIP_DEPENDENCY_INSTALL:-0}" != "1" && "$missing_python_deps_reboot_notice" -eq 0 ]]; then
+  if [[ "$INSTALL_PROFILE" == "desktop" ]]; then
+    if ! check_python_gui_runtime; then
+      echo "Error: the GUI runtime is still incomplete after dependency installation (PyQt6 QtSvg, SVG plugin, psutil, pip or venv)." >&2
+      echo "No installed application code was replaced. Repair the native packages and retry." >&2
+      exit 2
+    fi
+  elif ! python3 -c 'import curses, psutil' >/dev/null 2>&1; then
+    echo "Error: the terminal runtime is still incomplete after dependency installation (curses or psutil)." >&2
+    exit 2
+  fi
+  missing_python_deps=0
 fi
 
-install -dm755 "$APP_DIR" "$BIN_DIR" "$DESKTOP_DIR" "$ICON_DIR" "$METAINFO_DIR" "$SYSTEMD_USER_DIR" "$DOC_DIR"
+bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
+require_supported_python
+
+install -dm755 "$APP_DIR" "$BIN_DIR" "$SYSTEMD_USER_DIR" "$DOC_DIR"
 
 # Validate a complete staging copy before replacing the installed Python tree.
 # Configuration, profiles and ResourceTools are never component names in this
@@ -259,7 +321,7 @@ APP_BACKUP="${APP_DIR}.tree.previous.$$"
 VERSION_BACKUP="${APP_DIR}.VERSION.previous.$$"
 APP_SWAP_COMPLETE=0
 APP_HAD_VERSION=0
-APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations)
+APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations requirements-web.txt)
 LEGACY_COMPONENTS=(mvc)
 cleanup_application_swap() {
   local status=$?
@@ -268,7 +330,7 @@ cleanup_application_swap() {
     echo "Installation failed; rolling back the application code." >&2
     for component in "${APP_COMPONENTS[@]}" "${LEGACY_COMPONENTS[@]}"; do
       rm -rf -- "${APP_DIR:?}/$component"
-      if [[ -d "$APP_BACKUP/$component" ]]; then
+      if [[ -e "$APP_BACKUP/$component" ]]; then
         mv -- "$APP_BACKUP/$component" "$APP_DIR/$component"
       fi
     done
@@ -292,6 +354,8 @@ trap cleanup_application_swap EXIT
 for component in src frontends privileged packaging assets; do
   cp -a "$ROOT_DIR/$component" "$APP_STAGE/"
 done
+# The web interface ships built (frontends/web/dist); its Node sources are development only.
+rm -rf -- "$APP_STAGE/frontends/web/app/node_modules"
 # Version 1.18 installed its complete Python application in mvc/. Keep it in
 # the same rollback transaction, then discard it only after 1.19 is fully
 # installed. This prevents a failed privileged-helper update from leaving a
@@ -335,6 +399,7 @@ for decky_runtime in plugin.json package.json main.py dist/index.js \
     "$APP_STAGE/integrations/decky/bc250-quick-access/$decky_runtime"
 done
 install -m644 "$ROOT_DIR/VERSION" "$APP_STAGE/VERSION"
+install -m644 "$ROOT_DIR/requirements-web.txt" "$APP_STAGE/requirements-web.txt"
 PYTHONPYCACHEPREFIX="$APP_STAGE/pycache" python3 -m compileall -q \
   "$APP_STAGE/src" "$APP_STAGE/frontends" "$APP_STAGE/privileged"
 rm -rf -- "$APP_STAGE/pycache"
@@ -382,6 +447,8 @@ install_privileged_pwm_components() {
   local openrc_service_helper_source="$ROOT_DIR/privileged/helpers/bc250-openrc-service-helper"
   local service_helper_source="$ROOT_DIR/privileged/helpers/bc250-service-helper"
   local maintenance_helper_source="$ROOT_DIR/privileged/helpers/bc250-maintenance-helper"
+  local package_maintenance_source="$ROOT_DIR/packaging/common/bc250-package-maintenance"
+  local package_maintenance_target="/usr/libexec/bc250-control-center/bc250-package-maintenance"
   local quick_access_helper_source="$ROOT_DIR/privileged/helpers/bc250-quick-access-helper"
   local cu_helper_source="$ROOT_DIR/privileged/helpers/bc250-cu-helper"
   local cu_helper_target="/usr/libexec/bc250-control-center/bc250-cu-helper"
@@ -421,10 +488,14 @@ install_privileged_pwm_components() {
     elevate=(sudo)
   fi
 
+  "${elevate[@]}" bash "$ROOT_DIR/packaging/common/bc250-package-maintenance" repair-permissions
+
   echo "Installing root-owned privileged helpers and Polkit action..."
   local privileged_backup_dir privileged_status rollback_failed target index
   local -a managed_targets=(
     "/usr/libexec/bc250-control-center/bc250-system-setup-helper"
+    "/usr/libexec/bc250-control-center/lib/system_setup_web_firewall.py"
+    "/usr/libexec/bc250-control-center/lib/system_setup_mdns.py"
     "/usr/libexec/bc250-control-center/lib/system_setup_common.py"
     "/usr/libexec/bc250-control-center/lib/system_setup_memory.py"
     "/usr/libexec/bc250-control-center/lib/system_setup_acpi.py"
@@ -446,6 +517,7 @@ install_privileged_pwm_components() {
     "$SYSTEM_OPENRC_SERVICE_HELPER"
     "$SYSTEM_SERVICE_HELPER"
     "$SYSTEM_MAINTENANCE_HELPER"
+    "$package_maintenance_target"
     "$SYSTEM_GPU_LAB_SCRIPT"
     "$SYSTEM_STEAMOS_AMDGPU_OVERLAY"
     "$SYSTEM_CYAN_OVERLAY_PREFLIGHT"
@@ -484,7 +556,7 @@ install_privileged_pwm_components() {
     # by the group, causing every hardened helper to reject its own imports.
     "${elevate[@]}" install -d -m0755 /usr/libexec/bc250-control-center /usr/libexec/bc250-control-center/lib
     "${elevate[@]}" install -Dm755 "$system_setup_helper_source" /usr/libexec/bc250-control-center/bc250-system-setup-helper
-    for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py bc250_contract.py; do
+    for setup_module in system_setup_web_firewall.py system_setup_mdns.py system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py bc250_contract.py; do
       "${elevate[@]}" install -Dm644 "$ROOT_DIR/privileged/lib/$setup_module" "/usr/libexec/bc250-control-center/lib/$setup_module"
     done
     "${elevate[@]}" install -Dm755 "$helper_source" "$SYSTEM_PRIV_HELPER"
@@ -499,6 +571,7 @@ install_privileged_pwm_components() {
     "${elevate[@]}" install -Dm755 "$openrc_service_helper_source" "$SYSTEM_OPENRC_SERVICE_HELPER"
     "${elevate[@]}" install -Dm755 "$service_helper_source" "$SYSTEM_SERVICE_HELPER"
     "${elevate[@]}" install -Dm755 "$maintenance_helper_source" "$SYSTEM_MAINTENANCE_HELPER"
+    "${elevate[@]}" install -Dm755 "$package_maintenance_source" "$package_maintenance_target"
     "${elevate[@]}" install -Dm755 "$gpu_lab_source" "$SYSTEM_GPU_LAB_SCRIPT"
     "${elevate[@]}" install -Dm755 "$steamos_amdgpu_overlay_source" "$SYSTEM_STEAMOS_AMDGPU_OVERLAY"
     "${elevate[@]}" install -Dm755 "$cyan_overlay_preflight_source" "$SYSTEM_CYAN_OVERLAY_PREFLIGHT"
@@ -536,6 +609,7 @@ install_privileged_pwm_components() {
       "$openrc_service_helper_source:$SYSTEM_OPENRC_SERVICE_HELPER" \
       "$service_helper_source:$SYSTEM_SERVICE_HELPER" \
       "$maintenance_helper_source:$SYSTEM_MAINTENANCE_HELPER" \
+      "$package_maintenance_source:$package_maintenance_target" \
       "$gpu_lab_source:$SYSTEM_GPU_LAB_SCRIPT" \
       "$steamos_amdgpu_overlay_source:$SYSTEM_STEAMOS_AMDGPU_OVERLAY" \
       "$cyan_overlay_preflight_source:$SYSTEM_CYAN_OVERLAY_PREFLIGHT"; do
@@ -639,7 +713,9 @@ fi
 # transactions succeeded. Old 1.18 launchers remain usable during rollback.
 install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center" "$BIN_DIR/bc250-control-center"
 install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center-cli" "$BIN_DIR/bc250-control-center-cli"
+install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center-tui" "$BIN_DIR/bc250-control-center-tui"
 install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-centerd" "$BIN_DIR/bc250-control-centerd"
+if [[ "$INSTALL_PROFILE" == "desktop" ]]; then
 rm -f "$ICON_DIR/scalable/apps/bc250-control-center.svg"
 # 16 and 24 matter: the window manager and the task switcher ask for them,
 # and without an exact match they downscale 32 and lose the outline.
@@ -650,6 +726,7 @@ desktop_file="$DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop"
 install -Dm644 "$ROOT_DIR/packaging/common/io.github.movacx.bc250-control-center.desktop" "$desktop_file"
 sed -i "s|^Exec=.*|Exec=$BIN_DIR/bc250-control-center|" "$desktop_file"
 install -Dm644 "$ROOT_DIR/packaging/common/io.github.movacx.bc250-control-center.metainfo.xml" "$METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml"
+fi
 
 # Tell the desktop that the icon changed.
 #
@@ -668,7 +745,7 @@ install -Dm644 "$ROOT_DIR/packaging/common/io.github.movacx.bc250-control-center
 # an icon cache into a staging root would leave a file behind that nothing
 # created on purpose and nothing removes.
 install_runtime_prefix=0
-case "$PREFIX" in
+[[ "$INSTALL_PROFILE" == "desktop" ]] && case "$PREFIX" in
   /usr|/usr/local|"$HOME/.local") install_runtime_prefix=1 ;;
 esac
 if [[ "$install_runtime_prefix" -eq 1 ]]; then
@@ -708,8 +785,9 @@ if [[ -d /run/systemd/system ]]; then
 fi
 
 echo "Installed in $PREFIX"
-echo "GUI: $BIN_DIR/bc250-control-center"
+[[ "$INSTALL_PROFILE" == "tui" ]] || echo "GUI: $BIN_DIR/bc250-control-center"
 echo "CLI: $BIN_DIR/bc250-control-center-cli"
+echo "Terminal interface: $BIN_DIR/bc250-control-center-tui"
 if [[ ! -d /run/systemd/system ]]; then
   echo "Background daemon: not installed without an active systemd user manager; Desktop Mode refresh remains available."
 else
@@ -747,12 +825,12 @@ if [[ -d /run/systemd/system ]]; then
 fi
 echo "Uninstall: PREFIX=\"$PREFIX\" $APP_DIR/scripts/uninstall-local.sh"
 if [[ "$missing_python_deps" -eq 1 ]]; then
-  echo "Important: install the Python GUI dependencies above before opening the app."
+  echo "Important: install the Python dependencies above before opening the app."
   if [[ "$missing_python_deps_reboot_notice" -eq 1 ]]; then
     echo "Bazzite/Fedora Atomic note: reboot after rpm-ostree installs new packages, then open the app again."
   fi
 fi
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
-  *) echo "Note: $BIN_DIR is not in PATH. Use the full GUI command above or add it to your shell PATH." ;;
+  *) echo "Note: $BIN_DIR is not in PATH. Use the full commands above or add it to your shell PATH." ;;
 esac

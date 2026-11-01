@@ -42,7 +42,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
 
-from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION
+from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 from .. import theme
@@ -567,7 +567,7 @@ class DashboardMemorySummary(QFrame):
         self.detail.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self._show_header = bool(show_header)
         self._compact_header: bool | None = None
-        self.live_button = QPushButton(tr("Monitor live"))
+        self.live_button = QPushButton(tr("Monitor live"), self)
         self.live_button.setProperty("dashboardCardAction", True)
         self.live_button.setCheckable(True)
         self.live_button.toggled.connect(self._on_live_toggled)
@@ -1156,13 +1156,13 @@ class PreparationInfoCard(QFrame):
         self.title.setProperty("i18nSourceText", title)
         self.title.setProperty("i18nSourceTextLanguage", "en")
         header.addWidget(self.title, 1)
-        self.scope = PillLabel(scope_text or "Compatibility", "gray")
+        self.scope = PillLabel(scope_text or "Compatibility", "gray", self)
         self.scope.setVisible(bool(scope_text))
         header.addWidget(self.scope)
         self._body: QWidget | None = None
         self._toggle: QToolButton | None = None
         self._auto_expanded_for = ""
-        self.status = PillLabel(status_text or "Not detected", self._status_tone(status_tone))
+        self.status = PillLabel(status_text or "Not detected", self._status_tone(status_tone), self)
         self.status.setVisible(bool(status_text))
         header.addWidget(self.status)
         layout.addLayout(header)
@@ -1494,7 +1494,7 @@ class _UpscalerSection(SectionCard):
         self._menu_holder = QWidget(self)
         self._menu_holder.hide()
         self._menu_buttons: list[QPushButton] = []
-        self.more_button = QPushButton(tr("More"))
+        self.more_button = QPushButton(tr("More"), self)
         self.more_button.setProperty("compactAction", True)
         self.more_button.setProperty("menuAction", True)
         self.more_button.setIcon(theme_icon("chevron_down_gray"))
@@ -2739,6 +2739,88 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         panel.hide()
         return panel
 
+    def _bazzite_smt_panel(self) -> QFrame:
+        """``nosmt`` on Bazzite, where the kernel options go through rpm-ostree."""
+        panel = QFrame()
+        self.smt_panel = panel
+        panel.setProperty("dashboardMemoryPanel", True)
+        panel.setProperty("dashboardBootPanel", True)
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        root = QBoxLayout(QBoxLayout.Direction.LeftToRight, panel)
+        self.smt_layout = root
+        root.setContentsMargins(12, 10, 12, 10)
+        root.setSpacing(10)
+
+        copy = QVBoxLayout()
+        copy.setSpacing(4)
+        header = QHBoxLayout()
+        header.setSpacing(8)
+        header.addWidget(_label("Simultaneous multithreading (SMT)", "dashboardComponentTitle"))
+        self.smt_status = PillLabel("Not detected", "gray")
+        header.addWidget(self.smt_status)
+        header.addStretch(1)
+        copy.addLayout(header)
+        self.smt_detail = _label(
+            "The CPU runs one thread per core: 6 or 8 threads instead of 12 or 16. Some games run smoother, others slower; measure yours. The change applies after reboot and can be restored from Control Center.",
+            "dashboardMemoryDetail",
+        )
+        self.smt_detail.setWordWrap(True)
+        copy.addWidget(self.smt_detail)
+        root.addLayout(copy, 1)
+
+        self.smt_apply_button = QPushButton(tr("Disable SMT"))
+        self.smt_apply_button.setProperty("dashboardCardAction", True)
+        self.smt_apply_button.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
+        )
+        self.smt_apply_button.clicked.connect(self._request_smt_boot)
+        self._smt_boot_action = "disable"
+        root.addWidget(self.smt_apply_button)
+        panel.hide()
+        return panel
+
+    def _bazzite_boot_messages_panel(self) -> QFrame:
+        """Hide the kernel's boot messages (the RDSEED warning) on Bazzite."""
+        panel = QFrame()
+        self.boot_messages_panel = panel
+        panel.setProperty("dashboardMemoryPanel", True)
+        panel.setProperty("dashboardBootPanel", True)
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        root = QBoxLayout(QBoxLayout.Direction.LeftToRight, panel)
+        self.boot_messages_layout = root
+        root.setContentsMargins(12, 10, 12, 10)
+        root.setSpacing(10)
+
+        copy = QVBoxLayout()
+        copy.setSpacing(4)
+        header = QHBoxLayout()
+        header.setSpacing(8)
+        header.addWidget(_label("Boot messages (hides the RDSEED warning)", "dashboardComponentTitle"))
+        self.boot_messages_status = PillLabel("Not detected", "gray")
+        header.addWidget(self.boot_messages_status)
+        header.addStretch(1)
+        copy.addLayout(header)
+        self.boot_messages_detail = _label(
+            "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.",
+            "dashboardMemoryDetail",
+        )
+        self.boot_messages_detail.setWordWrap(True)
+        copy.addWidget(self.boot_messages_detail)
+        root.addLayout(copy, 1)
+
+        self.boot_messages_apply_button = QPushButton(tr("Hide boot messages"))
+        self.boot_messages_apply_button.setProperty("dashboardCardAction", True)
+        self.boot_messages_apply_button.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
+        )
+        self.boot_messages_apply_button.clicked.connect(self._request_boot_messages)
+        self._boot_messages_action = "hide"
+        root.addWidget(self.boot_messages_apply_button)
+        panel.hide()
+        return panel
+
     def _steamos_readonly_panel(self) -> QFrame:
         """SteamOS' read-only root, beside Bazzite's mitigations switch."""
         panel = QFrame()
@@ -2784,10 +2866,13 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         ("mitigations=off", "CPU security mitigations", "Disable mitigations", "Restore mitigations"),
         ("nosmt", "Simultaneous multithreading (SMT)", "Disable SMT", "Restore SMT"),
         (CU_UNLOCK_OPTION, "Compute Units unlock (kernel)", "Unlock all 40 CUs", "Restore CU lock"),
+        (HIDE_BOOT_MESSAGES_OPTION, "Boot messages (hides the RDSEED warning)", "Hide boot messages", "Show boot messages"),
     )
     #: Options that give something up, and so are drawn as a warning. Unlocking
     #: compute units gives nothing up: it is the BC-250 kernel's own method.
-    KERNEL_OPTION_NEUTRAL = frozenset({CU_UNLOCK_OPTION})
+    #: Hiding boot messages risks nothing for the board; it is explained in its
+    #: confirmation, not painted red.
+    KERNEL_OPTION_NEUTRAL = frozenset({CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION})
 
 
     def _request_smt_live(self) -> None:
@@ -2880,6 +2965,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
             self._smt_live_target = "off" if is_on else "on"
             self.smt_live_pill.setText(tr("Enabled" if is_on else "Disabled"))
             self.smt_live_pill.set_tone("green" if is_on else "orange")
+            # The button says it ("Turn SMT off now" means it is on).
+            self.smt_live_pill.setVisible(False)
             self.smt_live_button.setText(tr("Turn SMT off now" if is_on else "Turn SMT on now"))
 
     def _request_steamos_readonly(self) -> None:
@@ -2904,6 +2991,9 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         }.get(mode, ("Unknown", "gray"))
         self.readonly_status.setText(tr(status))
         self.readonly_status.set_tone(tone)
+        # Protected / Writable is what the button says ("Disable read-only
+        # mode" means it is protected); only an unknown state is worth a pill.
+        self.readonly_status.setVisible(mode not in {"enabled", "disabled"})
         self._readonly_action = "enable" if mode == "disabled" else "disable"
         self.readonly_button.setText(
             tr("Turn read-only back on" if self._readonly_action == "enable" else "Disable read-only mode")
@@ -3175,6 +3265,97 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
             }
         )
 
+    def _request_smt_boot(self) -> None:
+        self.dependency_action_requested.emit(
+            {
+                "action": f"bazzite_smt_{self._smt_boot_action}",
+                "governor": "",
+                "selected_components": self.selected_components,
+            }
+        )
+
+    def _update_smt_boot_control(
+        self, tools: Mapping[str, object], *, actionable: bool
+    ) -> None:
+        state = _mapping(tools.get("bazzite_smt"))
+        configured = bool(state.get("configured"))
+        managed = bool(state.get("managed"))
+        available = bool(state.get("available"))
+        self.smt_panel.setVisible(actionable)
+        # Only a pending reboot is worth a pill: the button says the rest.
+        self.smt_status.setVisible(actionable and bool(state.get("reboot_required")))
+        if not actionable:
+            return
+        self.smt_status.setText(tr("Reboot required"))
+        self.smt_status.set_tone("orange")
+        self._smt_boot_action = "restore" if managed else "disable"
+        self.smt_apply_button.setText(
+            tr(
+                "Managed externally"
+                if configured and not managed
+                else "Restore SMT"
+                if self._smt_boot_action == "restore"
+                else "Disable SMT"
+            )
+        )
+        self.smt_apply_button.setProperty("dangerAction", False)
+        self.smt_apply_button.setEnabled(available and (not configured or managed))
+        self.smt_apply_button.setToolTip(
+            tr("Set outside Control Center") if configured and not managed else ""
+        )
+
+    def _request_boot_messages(self) -> None:
+        self.dependency_action_requested.emit(
+            {
+                "action": f"bazzite_boot_messages_{self._boot_messages_action}",
+                "governor": "",
+                "selected_components": self.selected_components,
+            }
+        )
+
+    def _update_boot_messages_control(
+        self, tools: Mapping[str, object], *, actionable: bool
+    ) -> None:
+        state = _mapping(tools.get("bazzite_boot_messages"))
+        configured = bool(state.get("configured"))
+        managed = bool(state.get("managed"))
+        available = bool(state.get("available"))
+        self.boot_messages_panel.setVisible(actionable)
+        # Same rule as the other boot options: only a pending reboot is shown.
+        self.boot_messages_status.setVisible(actionable and bool(state.get("reboot_required")))
+        if not actionable:
+            return
+        if state.get("reboot_required"):
+            status, tone = tr("Reboot required"), "orange"
+        elif configured:
+            status, tone = tr("Hidden"), "orange"
+        else:
+            status = tr("Shown") if available else tr("Not detected")
+            tone = "green" if available else "gray"
+        self.boot_messages_status.setText(status)
+        self.boot_messages_status.set_tone(tone)
+
+        self._boot_messages_action = "restore" if managed else "hide"
+        self.boot_messages_apply_button.setText(
+            tr(
+                "Managed externally"
+                if configured and not managed
+                else "Show boot messages"
+                if self._boot_messages_action == "restore"
+                else "Hide boot messages"
+            )
+        )
+        self.boot_messages_apply_button.setEnabled(
+            available and (not configured or managed)
+        )
+        self.boot_messages_apply_button.setToolTip(
+            tr("loglevel=0 was configured outside Control Center and is preserved.")
+            if configured and not managed
+            else tr(
+                "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg."
+            )
+        )
+
     def _update_mitigation_control(
         self, tools: Mapping[str, object], *, actionable: bool
     ) -> None:
@@ -3184,7 +3365,10 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         available = bool(state.get("available"))
         preview = not actionable and bazzite_ui_preview_enabled()
         self.mitigations_panel.setVisible(actionable or preview)
-        self.mitigations_status.setVisible(actionable)
+        # Enabled / Disabled is what the button already says ("Disable
+        # mitigations" means they are on). The pill stays only for what the
+        # button cannot say: a reboot that is still pending.
+        self.mitigations_status.setVisible(actionable and bool(state.get("reboot_required")))
         if not actionable:
             status = tr("Unavailable")
             tone = "gray"
@@ -3235,6 +3419,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         self._update_vram_control()
         actionable = is_bazzite_host(tools)
         self._update_mitigation_control(tools, actionable=actionable)
+        self._update_boot_messages_control(tools, actionable=actionable)
+        self._update_smt_boot_control(tools, actionable=actionable)
         self._update_steamos_readonly_control(tools)
         self._update_kernel_options_control(tools)
         runtime = _mapping(tools.get("memory_runtime"))

@@ -29,6 +29,7 @@ def test_launchers_prefer_their_sibling_payload_before_stale_xdg_fallback():
     for name in (
         "bc250-control-center",
         "bc250-control-center-cli",
+        "bc250-control-center-tui",
         "bc250-control-centerd",
     ):
         source = (ROOT / "scripts" / "entrypoints" / name).read_text(encoding="utf-8")

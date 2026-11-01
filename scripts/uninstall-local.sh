@@ -351,6 +351,7 @@ Files installed by install-local.sh will be removed from:
 - $APP_DIR
 - $BIN_DIR/bc250-control-center
 - $BIN_DIR/bc250-control-center-cli
+- $BIN_DIR/bc250-control-center-tui
 - $BIN_DIR/bc250-control-centerd
 - $DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop
 - $METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml
@@ -387,17 +388,20 @@ fi
 
 remove_path "$BIN_DIR/bc250-control-center"
 remove_path "$BIN_DIR/bc250-control-center-cli"
+remove_path "$BIN_DIR/bc250-control-center-tui"
 remove_path "$BIN_DIR/bc250-control-centerd"
 remove_path "$DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop"
 remove_path "$METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml"
 remove_path "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
+systemctl --user disable --now bc250-web.service >/dev/null 2>&1 || true
+remove_path "$SYSTEMD_USER_DIR/bc250-web.service"
 if [[ "$KEEP_PRIVILEGED" -eq 0 ]]; then
 if [[ -e /var/lib/bc250-control-center/system-setup/acpi.json || -e /var/lib/bc250-control-center/system-setup/telemetry.json || -e /etc/bc250-control-center/ttm-kargs.original || -e /etc/systemd/system/bc250-memory-setup.service || -e /var/lib/bc250-control-center-swap/swapfile || -e /etc/systemd/zram-generator.conf.d/90-bc250.conf || -e /etc/sysctl.d/90-bc250-memory.conf ]] \
    || grep -Eqs '"(arguments|values)": [[{]$' /var/lib/bc250-control-center/system-setup/kernel-options.json; then
   echo "Keeping the optional memory/ACPI helper for restoration. Restore these settings in Control Center before removing that helper."
 else
   remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-system-setup-helper" "/usr/libexec/bc250-control-center/bc250-system-setup-helper"
-  for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py; do
+  for setup_module in system_setup_web_firewall.py system_setup_mdns.py system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py; do
     remove_managed_privileged_file "$APP_DIR/privileged/lib/$setup_module" "/usr/libexec/bc250-control-center/lib/$setup_module"
   done
 fi
@@ -412,6 +416,7 @@ remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-gddr6-temp-rea
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-openrc-service-helper" "$SYSTEM_OPENRC_SERVICE_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-service-helper" "$SYSTEM_SERVICE_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-maintenance-helper" "$SYSTEM_MAINTENANCE_HELPER"
+remove_managed_privileged_file "$APP_DIR/packaging/common/bc250-package-maintenance" "/usr/libexec/bc250-control-center/bc250-package-maintenance"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-quick-access-helper" "$SYSTEM_QUICK_ACCESS_HELPER"
 remove_decky_profile_exports
 gpu_lab_source="$APP_DIR/scripts/system/bc250-gpu-voltage-lab.sh"
@@ -458,7 +463,7 @@ remove_path "$DOC_DIR"
 # same path. Remove installed program components individually so a normal
 # uninstall preserves Data/, ResourceTools/ and other user-created state.
 if [[ "$APP_DIR" == "$BC250_USER_DATA_DIR" && "$PURGE_USER_DATA" -eq 0 ]]; then
-  for component in src frontends privileged packaging assets integrations scripts mvc VERSION; do
+  for component in src frontends privileged packaging assets integrations scripts mvc VERSION requirements-web.txt; do
     remove_path "$APP_DIR/$component"
   done
   remove_empty_dir "$APP_DIR"

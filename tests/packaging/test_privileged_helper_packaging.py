@@ -895,7 +895,7 @@ def test_cpu_smu_helper_uses_root_owned_audited_vendor_payload():
     helper = _text(helper_path)
     assert "bc250_smu_oc_vendor.zip" in helper
     assert "EXPECTED_VENDOR_COMMIT = '327014d6515d7108b1144adfa7203b4cc2eefd0b'" in helper
-    assert "EXPECTED_VENDOR_SHA256 = '74d80d6bf713b8f62f1ce7d325c5eb17c8a7d9dd2f7ccf5c4c7637f3a1de83ef'" in helper
+    assert "EXPECTED_VENDOR_SHA256 = '96bfc2a27587cf9aa261a447670814c0b249eaab1631f747e18e99684bfe6840'" in helper
     assert "hashlib.sha256(VENDOR_ZIP.read_bytes()).hexdigest()" in helper
     assert "apply-live" in helper
     assert "install-boot" in helper

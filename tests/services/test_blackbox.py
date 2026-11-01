@@ -41,6 +41,8 @@ def test_without_a_recording_it_says_how_to_get_one(tmp_path):
 def test_recording_rotates_instead_of_growing(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
     monkeypatch.setattr(blackbox, "ROTATE_BYTES", 300)
+    # A recorder running on the machine of the tests is not this test's business.
+    monkeypatch.setattr(blackbox, "recorder_pids", lambda **kw: [])
 
     class FakeSensors:
         device = "/sys/fake"

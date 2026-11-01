@@ -17,10 +17,10 @@ def _status(*deployments: dict) -> dict:
 
 def test_a_prepared_package_queued_for_next_boot_is_pending():
     status = _status(
-        {"booted": False, "requested-packages": ["dkms", "umr", "htop"]},
+        {"booted": False, "requested-packages": ["kernel-devel", "umr", "htop"]},
         {"booted": True, "requested-packages": []},
     )
-    assert pending_prepared_packages(status) == ("dkms", "umr")
+    assert pending_prepared_packages(status) == ("kernel-devel", "umr")
 
 
 def test_an_automatic_update_carrying_the_same_packages_is_not_pending():
@@ -83,3 +83,30 @@ def test_the_package_list_follows_the_bazzite_preparation_script():
     runtime = re.search(r"runtime_packages=\(\s*(.*?)\)", script, re.S).group(1).split()
     extra = re.search(r'layer_packages "\$\{runtime_packages\[@\]\}" (.*)', script).group(1).split()
     assert PREPARED_PACKAGES == frozenset(runtime + extra)
+
+def test_runtime_layers_packages_without_triggering_unrelated_dkms_dependencies(tmp_path):
+    """Bazzite 45's Logitech package conflicts if the runtime adds DKMS."""
+    import os
+    from pathlib import Path
+
+    commands = tmp_path / "commands"
+    commands.mkdir()
+    calls = tmp_path / "calls"
+    scripts = {
+        "rpm": '#!/bin/sh\n[ "$2" != git ] && [ "$2" != dkms ]\n',
+        "rpm-ostree": '#!/bin/sh\nif [ "$1" = status ]; then echo \'{"deployments": []}\'; exit 0; fi\nprintf "%s\\n" "$*" >> "$QA_CALLS"\ncase " $* " in *" dkms "*) exit 42;; esac\n',
+        "sudo": '#!/bin/sh\nexec "$@"\n',
+    }
+    for name, source in scripts.items():
+        executable = commands / name
+        executable.write_text(source)
+        executable.chmod(0o755)
+    script = Path(__file__).parents[2] / "packaging/common/os-scripts/bazzite/prepare-dependencies.sh"
+    result = subprocess.run(
+        ["bash", str(script), "--component", "runtime"],
+        env={**os.environ, "PATH": f"{commands}:{os.environ['PATH']}",
+             "QA_CALLS": str(calls), "BC250_CREDITS_MARK": str(tmp_path / "credits")},
+        text=True, capture_output=True, timeout=15,
+    )
+    assert result.returncode == 20, result.stdout + result.stderr
+    assert calls.read_text().splitlines() == ["install --idempotent git"]

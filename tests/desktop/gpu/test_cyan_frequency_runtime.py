@@ -239,6 +239,61 @@ def test_cyan_upstream_installer_preserves_switches_across_core_unlock():
     assert 'release_tag="$REVIEWED_RELEASE_TAG"' in script
 
 
+def _installer_python(function):
+    script = Path(
+        "packaging/common/os-scripts/common/install-cyan-upstream-release.sh"
+    ).read_text(encoding="utf-8")
+    body = script.split(f"{function}() {{", 1)[1]
+    return body.split("<<'PY'\n", 1)[1].split("\nPY\n", 1)[0]
+
+
+def test_cyan_installer_completes_an_old_config_without_any_switch_section(tmp_path):
+    # A Bazzite owner's config from an older package: no [gpu-usage], [gpu]
+    # or [dbus]. Adding two keys to [gpu-usage] declared it twice.
+    config = tmp_path / "config.toml"
+    config.write_text(
+        "# us\n[timing.intervals]\nsample = 500\nadjust = 200_000\n\n"
+        "[timing]\nburst-samples = 20\ndown-events = 5\n\n"
+        "[[safe-points]]\nfrequency = 1000\nvoltage = 800\n",
+        encoding="utf-8",
+    )
+    completed = tmp_path / "completed.toml"
+
+    added = subprocess.run(
+        ["python3", "-", str(config), str(completed)],
+        input=_installer_python("complete_missing_switches"), text=True, capture_output=True,
+    )
+    assert added.returncode == 0, added.stderr
+    checked = subprocess.run(
+        ["python3", "-", str(completed)],
+        input=_installer_python("validate_compatibility_switches"), text=True, capture_output=True,
+    )
+
+    assert checked.returncode == 0, checked.stderr
+    text = completed.read_text(encoding="utf-8")
+    assert text.count("[gpu-usage]") == 1
+    assert "fix-metrics = true" in text and "fix-freq = false" in text
+    assert 'set-method = "smu"' in text and "enabled = true" in text
+    assert "voltage = 800" in text
+
+
+def test_cyan_installer_names_an_unusable_config_as_an_error_line(tmp_path):
+    """R-df49405e: the bare message was no [ERROR] line, so a D-Bus rule was guessed from the log."""
+    script = Path("packaging/common/os-scripts/common/install-cyan-upstream-release.sh").read_text(encoding="utf-8")
+    functions = "validate_compatibility_switches() {" + script.split("validate_compatibility_switches() {", 1)[1].split(
+        "require_source_checkout() {", 1
+    )[0]
+    config = tmp_path / "config.toml"
+    config.write_text("[timing]\nburst-samples = 20\n", encoding="utf-8")
+    result = subprocess.run(
+        ["bash", "-c", "error() { printf '[ERROR] %s\\n' \"$*\" >&2; }\n" + functions + "\nvalidate_compatibility_switches"],
+        env={"PATH": "/usr/bin:/bin", "CONFIG": str(config)}, text=True, capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert result.stderr.startswith("[ERROR] Cyan configuration is not usable: Cyan config requires [gpu-usage]")
+
+
 def test_cyan_runtime_verification_is_core_count_independent_and_validates_switches():
     command = DependenciasRepository._cyan_runtime_verification_command()
 
@@ -431,3 +486,38 @@ def test_the_snapshot_flag_reads_only_the_files_prepare_leaves(tmp_path):
     (state / "release").write_text("v0.4.14\n", encoding="utf-8")
     (state / "runtime-revision").write_text("bc250cc.2\n", encoding="utf-8")
     assert managed_runtime_update_available(state, binary) is True
+
+
+def test_installer_recovers_tables_left_by_old_missing_switch_completion(tmp_path):
+    import tomllib
+
+    original = ('[[safe-points]]\nfrequency = 1850\nvoltage = 930\n'
+                '\n[gpu-usage]\nfix-metrics = false\n'
+                '\n[gpu-usage]\nfix-freq = false\n'
+                '\n[gpu]\nset-method = "kernel"\n')
+    config = tmp_path / "config.toml"
+    target = tmp_path / "completed.toml"
+    config.write_text(original)
+    result = subprocess.run(["python3", "-", str(config), str(target)],
+                            input=_installer_python("complete_missing_switches"),
+                            text=True, capture_output=True)
+    assert result.returncode == 0, result.stderr
+    parsed = tomllib.loads(target.read_text())
+    assert parsed["gpu-usage"] == {"fix-metrics": False, "fix-freq": False}
+    assert parsed["gpu"]["set-method"] == "kernel"
+    assert parsed["safe-points"] == [{"frequency": 1850, "voltage": 930}]
+    assert config.read_text() == original
+
+
+def test_installer_refuses_conflicting_legacy_tables_without_writing(tmp_path):
+    original = '[gpu-usage]\nfix-metrics = false\n[gpu-usage]\nfix-metrics = true\n'
+    config = tmp_path / "config.toml"
+    target = tmp_path / "completed.toml"
+    config.write_text(original)
+    result = subprocess.run(["python3", "-", str(config), str(target)],
+                            input=_installer_python("complete_missing_switches"),
+                            text=True, capture_output=True)
+    assert result.returncode != 0
+    assert "Conflicting [gpu-usage] fix-metrics" in result.stderr
+    assert not target.exists()
+    assert config.read_text() == original

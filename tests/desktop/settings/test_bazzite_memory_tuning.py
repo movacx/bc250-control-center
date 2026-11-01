@@ -16,7 +16,8 @@ def test_zswap_policy_builds_a_btrfs_backed_reboot_transaction():
     assert 'enable --now "$swap_unit"' in command
     assert "Options=pri=-2" in command
     assert "if sudo test -e \"$swap_path\"; then" in command
-    assert "must remain free after creating swap" in command
+    assert "not enough free space on /var" in command
+    assert "GiB in all, and /var has" in command
     assert "reserve_bytes=$((filesystem_bytes / 20))" in command
     # The pool is tuned the same way the mutable adapter tunes it.
     assert "--append-if-missing=zswap.compressor=lz4" in command
@@ -31,6 +32,30 @@ def test_zswap_policy_builds_a_btrfs_backed_reboot_transaction():
     assert "zswap-kargs.original" in command
     assert "zram remains active for this session" in command
     assert subprocess.run(["bash", "-n", "-c", command]).returncode == 0
+
+
+@pytest.mark.parametrize("policy", ["zswap-16", "zram-swap-16"])
+def test_swap_policies_accept_btrfs_and_ext4_but_name_any_other_filesystem(policy):
+    """R-10c45cc3: Bazzite installed on Ext4 was refused with "supports only Btrfs"."""
+    command = build_bazzite_memory_tuning_command(policy, 8)
+
+    assert "case \"$bc250_var_fs\" in btrfs|ext4)" in command
+    assert "supports only Btrfs" not in command
+    assert "fallocate -l" in command
+    assert "mkswap" in command
+    assert subprocess.run(["bash", "-n", "-c", command]).returncode == 0
+
+
+def test_the_creation_branch_uses_fallocate_on_ext4_and_mkswapfile_on_btrfs():
+    command = build_bazzite_memory_tuning_command("zram-swap-16", 0)
+    lines = command.splitlines()
+    start = next(i for i, line in enumerate(lines) if "backing swapfile on $bc250_var_fs" in line)
+    block = "\n".join(lines[start:start + 9])
+
+    assert block.index("btrfs filesystem mkswapfile") < block.index("fallocate -l")
+    assert 'sudo install -m 0600 /dev/null "$swap_path"' in block
+    # A half-made file is removed, so the next run does not see an "unclaimed swapfile".
+    assert 'sudo rm -f "$swap_path"; echo \'ERROR: the swapfile could not be allocated' in block
 
 
 def test_preserve_policy_does_not_change_zswap_when_only_ttm_is_requested():

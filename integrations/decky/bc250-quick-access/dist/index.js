@@ -239,6 +239,7 @@ var codes = [
 		code: "BC250-CONFIG-001",
 		markers: [
 			"QUICK_ACCESS_GPU_CONFIG",
+			"Cyan configuration is not usable",
 			"QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling"
 		],
 		exit_statuses: [
@@ -278,7 +279,9 @@ var codes = [
 		code: "BC250-STORAGE-001",
 		markers: [
 			"MB free and this needs",
-			"SteamOS keeps /var small"
+			"SteamOS keeps /var small",
+			"not enough free space on",
+			"Insufficient disk space"
 		],
 		exit_statuses: [
 			73,
@@ -409,6 +412,18 @@ var codes = [
 		],
 		exit_statuses: [
 			66
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-PERM-002",
+		markers: [
+			"Untrusted helper dependency:",
+			"is not protected by root:",
+			"CU executor is missing or untrusted",
+			"HELPER_UNTRUSTED:"
+		],
+		exit_statuses: [
 		],
 		retryable: false
 	},
@@ -626,10 +641,12 @@ var codes = [
 		code: "BC250-BUSY-001",
 		markers: [
 			"Transaction in progress",
+			"another BC250 system preparation is already running",
 			"index.lock': File exists",
 			"Another git process seems to be running",
 			"smu returned status 0x00",
 			"smu returned status 0xFC",
+			"smu timed out after",
 			"SMU_IN_USE"
 		],
 		exit_statuses: [
@@ -687,6 +704,7 @@ var markers_longest_first = [
 	"reviewed root-owned SteamOS graphics backend is unavailable or changed",
 	"per-game install unexpectedly enabled the driver system-wide",
 	"Error executing command as another user: Not authorized",
+	"another BC250 system preparation is already running",
 	"shared contract is not a protected root-owned file",
 	"Manual scale must reuse the detected thermal limit",
 	"bc250-detect returned values outside the requested",
@@ -708,6 +726,7 @@ var markers_longest_first = [
 	"The GPU driver (amdgpu) did not start",
 	"invalid ip discovery binary signature",
 	"matching kernel-devel is unavailable",
+	"CU executor is missing or untrusted",
 	"umr is installed but does not start",
 	"persisted nct6687 source is missing",
 	"failed to synchronize all databases",
@@ -715,6 +734,7 @@ var markers_longest_first = [
 	"stress is required by bc250-detect",
 	"shared contract could not be read",
 	"match the active immutable kernel",
+	"Cyan configuration is not usable",
 	"disagrees with this system about",
 	"shared contract is not installed",
 	"sudo: timed out reading password",
@@ -731,6 +751,7 @@ var markers_longest_first = [
 	"QUICK_ACCESS_CU_SERVICE_VERIFY",
 	"a release is already installed",
 	"QUICK_ACCESS_CPU_SCALE_VERIFY",
+	"Untrusted helper dependency:",
 	"unable to satisfy dependency",
 	"QUICK_ACCESS_GPU_HIGH_POINTS",
 	"nct6687d PWM driver workflow",
@@ -744,6 +765,7 @@ var markers_longest_first = [
 	"replaced the running kernel",
 	"nct6687.ko was not produced",
 	"headers for another kernel",
+	"is not protected by root:",
 	"QUICK_ACCESS_GPU_CONFLICT",
 	"does not accept arguments",
 	"QUICK_ACCESS_CPU_SERVICE:",
@@ -753,6 +775,7 @@ var markers_longest_first = [
 	"QUICK_ACCESS_FAN_EXTERNAL",
 	"QUICK_ACCESS_GPU_SERVICE",
 	"SteamOS keeps /var small",
+	"not enough free space on",
 	"index.lock': File exists",
 	"smu returned status 0x00",
 	"smu returned status 0xFC",
@@ -766,6 +789,7 @@ var markers_longest_first = [
 	"unable to lock database",
 	"could not lock database",
 	"error: target not found",
+	"Insufficient disk space",
 	"Transaction in progress",
 	"QUICK_ACCESS_GPU_CONFIG",
 	"are different versions.",
@@ -801,6 +825,7 @@ var markers_longest_first = [
 	"QUICK_ACCESS_CONTEXT",
 	"CU_BACKEND_UNTRUSTED",
 	"read-only protection",
+	"smu timed out after",
 	"patched_gpu_metrics",
 	"VID must be between",
 	"QAM CPU VID must be",
@@ -813,6 +838,7 @@ var markers_longest_first = [
 	"Unmet dependencies",
 	"Unable to download",
 	"QUICK_ACCESS_GDDR6",
+	"HELPER_UNTRUSTED:",
 	"QUICK_ACCESS_VRAM",
 	"Cyan D-Bus policy",
 	"QUICK_ACCESS_AUTH",

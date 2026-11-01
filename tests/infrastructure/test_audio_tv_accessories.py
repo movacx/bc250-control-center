@@ -355,3 +355,30 @@ def test_a_package_owned_a52_definition_is_never_replaced():
     script = hdmi_ac3._root_script(False)
     assert "ln -sfn" not in script and "ln -s " in script
     assert f"[ ! -e {hdmi_ac3.A52_LINK} ] && [ ! -L {hdmi_ac3.A52_LINK} ]" in script
+
+
+@pytest.mark.parametrize('manager, expected', [('systemd', 'systemd'), ('openrc', 'openrc'), ('desktop', 'pending')])
+def test_ac3_restarts_only_the_user_audio_service(manager, expected, tmp_path):
+    run_dir = tmp_path / 'systemd'
+    if manager == 'systemd':
+        run_dir.mkdir()
+    script = hdmi_ac3._RESTART_WIREPLUMBER.replace('/run/systemd/system', str(run_dir))
+    mocks = f'''
+systemctl() {{ echo systemd; }}
+rc-service() {{
+  if [ "$2" = --exists ]; then [ "{manager}" = openrc ]; else echo openrc; fi
+}}
+'''
+    result = subprocess.run(['bash', '-c', 'set -e\n' + mocks + script + '\n[ "$bc250_audio_session_restart" = 0 ] || echo pending'],
+                            capture_output=True, text=True)
+    assert expected in result.stdout
+
+
+def test_ac3_disconnected_audio_server_is_not_reported_as_missing_hardware():
+    result = subprocess.run(
+        ['bash', '-c', 'pactl() { return 1; }\n' + hdmi_ac3._SELECT + '\nbc250_select ac3'],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 1
+    assert 'cannot connect to the session audio server' in result.stdout
+    assert 'card was not found' not in result.stdout

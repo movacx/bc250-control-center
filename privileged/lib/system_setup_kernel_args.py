@@ -1,5 +1,5 @@
-"""Three reviewed kernel boot options: ``mitigations=off``, ``nosmt`` and
-``amdgpu.bc250_cc_write_mode=3``.
+"""Four reviewed kernel boot options: ``mitigations=off``, ``nosmt``,
+``amdgpu.bc250_cc_write_mode=3`` and ``loglevel=0``.
 
 Bazzite has its own reversible ``mitigations=off`` card through rpm-ostree;
 this is the same choice for mutable distributions, plus ``nosmt``, which
@@ -8,6 +8,10 @@ BC-250 amdgpu kernel driver unlock all 40 compute units itself, which replaces
 umr and the live CU manager; only a kernel that has that module parameter
 (linux-cachyos-bc250) is offered it. Only these arguments exist here: the
 caller names the set it wants managed, and anything else is refused.
+
+``loglevel=0`` hides the kernel's boot messages, among them the warning the
+BC-250's unreliable RDRAND/RDSEED makes it print (``pr_emerg``, level 0: no
+other level hides it). It fixes nothing; the messages stay in ``dmesg``.
 
 Each boot loader is changed the way the eight-core telemetry repair already
 does it:
@@ -48,6 +52,7 @@ from __future__ import annotations
 
 import os
 import re
+import stat
 
 from system_setup_common import Host, SetupError
 
@@ -56,15 +61,18 @@ CU_UNLOCK = "amdgpu.bc250_cc_write_mode=3"
 #: on any other kernel the argument would be ignored and never take effect.
 CU_UNLOCK_PARAMETER = "/sys/module/amdgpu/parameters/bc250_cc_write_mode"
 CU_UNLOCK_PREFIX = "amdgpu.bc250_cc_write_mode="
-ARGUMENTS = ("mitigations=off", "nosmt", CU_UNLOCK)
+#: Hides the kernel's boot messages, the RDSEED warning included.
+HIDE_BOOT_MESSAGES = "loglevel=0"
+ARGUMENTS = ("mitigations=off", "nosmt", CU_UNLOCK, HIDE_BOOT_MESSAGES)
 #: What SteamOS's boot menu takes among the switches.
-STEAMOS_ARGUMENTS = ("mitigations=off", "nosmt")
+STEAMOS_ARGUMENTS = ("mitigations=off", "nosmt", HIDE_BOOT_MESSAGES)
 #: Arguments that carry a value, and the only values each may have.
 VALUE_ARGUMENTS = {"ttm.pages_limit": re.compile(r"[1-9][0-9]{0,9}")}
 CMDLINE = "/proc/cmdline"
 SMT_CONTROL = "/sys/devices/system/cpu/smt/control"
 BOOT_ID = "/proc/sys/kernel/random/boot_id"
 LIMINE_CONFIG = "/etc/default/limine"
+REFIND_CONFIG = "/boot/refind_linux.conf"
 GRUB_CONFIG = "/etc/default/grub"
 GRUB_DROPIN = "/etc/default/grub.d/91-bc250-kernel-options.cfg"
 GRUB_OUTPUTS = ("/boot/grub/grub.cfg", "/boot/grub2/grub.cfg")
@@ -114,9 +122,35 @@ def _steamos_menu_present(host: Host) -> bool:
     checks it again before writing anything.
     """
     try:
-        return host.path(STEAMOS_GRUB_OUTPUT).is_file()
+        # Python 3.14's is_file() suppresses PermissionError and returns False.
+        # Use stat explicitly so an unreadable EFI partition does not hide
+        # all boot controls from the unprivileged desktop inventory.
+        return stat.S_ISREG(host.path(STEAMOS_GRUB_OUTPUT).stat().st_mode)
     except PermissionError:
         return True
+    except OSError:
+        return False
+
+
+def _refind_direct(host: Host) -> bool:
+    """EFI firmware selected rEFInd and Linux received EFI-stub initrd syntax.
+
+    BOOT_IMAGE identifies the GRUB path even when rEFInd chainloads GRUB.
+    Do not infer the active loader merely from installed configuration files.
+    """
+    cmdline = host.read(CMDLINE).split()
+    if any(word.startswith("BOOT_IMAGE=") for word in cmdline):
+        return False
+    if not any(word.startswith("initrd=") and "\\" in word for word in cmdline):
+        return False
+    directory = host.path("/sys/firmware/efi/efivars")
+    try:
+        current = next(directory.glob("BootCurrent-*")).read_bytes()
+        number = int.from_bytes(current[4:6], "little")
+        entry = next(directory.glob(f"Boot{number:04X}-*")).read_bytes()
+    except (OSError, StopIteration):
+        return False
+    return "refind" in entry[4:].decode("utf-16-le", errors="ignore").lower()
 
 
 def _backend(host: Host) -> str:
@@ -132,6 +166,8 @@ def _backend(host: Host) -> str:
     if host.immutable_image():
         # Bazzite keeps its own reviewed card.
         return "unsupported"
+    if _refind_direct(host):
+        return "refind"
     if host.path(LIMINE_CONFIG).is_file() and host.command("limine-mkinitcpio"):
         return "limine"
     if host.distro_family() == "fedora" and host.command("grubby"):
@@ -163,7 +199,9 @@ def grub_reads_dropins(host: Host) -> bool:
 
 def _configured_tokens(host: Host, backend: str) -> set[str]:
     """Every word the boot configuration puts on the command line."""
-    if backend == "limine":
+    if backend == "refind":
+        text = host.read(REFIND_CONFIG)
+    elif backend == "limine":
         text = host.read(LIMINE_CONFIG)
     elif backend == "grub":
         text = host.read(GRUB_CONFIG)
@@ -220,7 +258,7 @@ def _stale(host: Host, backend: str, saved: dict, configured_tokens: set[str] | 
     that an earlier release put where this GRUB never reads it, or a block the
     owner deleted by hand, would otherwise count as set and never be redone.
     """
-    if backend not in ("limine", "grub", "steamos-grub"):
+    if backend not in ("limine", "grub", "steamos-grub", "refind"):
         return set()
     managed = set(_managed_tokens(saved.get("arguments"), _values(saved)))
     if not managed:
@@ -358,7 +396,29 @@ def _with_block(text: str, pattern, tokens: list[str], line: str) -> str:
 
 def _write(host: Host, backend: str, tokens: list[str], previous: list[str]) -> None:
     """Put exactly ``tokens`` in the managed place, or put everything back."""
-    if backend == "limine":
+    if backend == "refind":
+        # Own only the file we create. Existing user menus need explicit review.
+        existing = host.read(REFIND_CONFIG)
+        if existing and not existing.startswith("# Managed by BC250 Control Center"):
+            raise SetupError("Existing /boot/refind_linux.conf belongs to another tool; review it before changing boot options")
+        if not tokens:
+            host.remove_managed(REFIND_CONFIG)
+            return
+        if existing:
+            match = re.search(r'^"Boot with BC250 options" "([^"\n]*)"$', existing, re.M)
+            if not match:
+                raise SetupError("Invalid managed rEFInd configuration")
+            base = match[1].split()
+        else:
+            base = host.read(CMDLINE).split()
+            # rEFInd discovers the initrd matching the selected kernel version.
+            base = [word for word in base if not word.startswith("initrd=")]
+        base = [word for word in base if word not in previous]
+        if not any(word.startswith("root=") for word in base) or any('"' in word for word in base):
+            raise SetupError("Cannot safely derive rEFInd root options from this boot")
+        options = " ".join(base + tokens)
+        host.managed(REFIND_CONFIG, f'"Boot with BC250 options" "{options}"\n')
+    elif backend == "limine":
         original = _read_exact(host, LIMINE_CONFIG)
         updated = _with_block(
             original, _LIMINE_BLOCK, tokens, f'KERNEL_CMDLINE[default]+=" {" ".join(tokens)}"'
@@ -514,7 +574,8 @@ def _prepare(host: Host) -> tuple[dict, str, dict]:
     if backend == "unsupported":
         raise SetupError("No supported Limine, GRUB or grubby boot configuration was detected")
     saved = host.state(_STATE_KEY)
-    if (saved.get("arguments") or _values(saved)) and saved.get("backend") != backend:
+    if (saved.get("arguments") or _values(saved)) and saved.get("backend") != backend and not (
+            saved.get("backend") == "grub" and backend == "refind"):
         raise SetupError("The boot loader changed since these options were set; restore them first")
     return current, backend, saved
 
@@ -546,10 +607,10 @@ def apply(host: Host, wanted: list[str] | tuple[str, ...]) -> dict:
     """Make exactly ``wanted`` the set of switches this module manages."""
     wanted_set = set(wanted)
     if wanted_set - set(ARGUMENTS):
-        raise SetupError("Only mitigations=off, nosmt and amdgpu.bc250_cc_write_mode=3 can be managed here")
+        raise SetupError("Only mitigations=off, nosmt, loglevel=0 and amdgpu.bc250_cc_write_mode=3 can be managed here")
     current, backend, saved = _prepare(host)
     if backend == "steamos-grub" and wanted_set - set(STEAMOS_ARGUMENTS):
-        raise SetupError("On SteamOS only mitigations=off, nosmt and the GPU memory limit are set here")
+        raise SetupError("On SteamOS only mitigations=off, nosmt, loglevel=0 and the GPU memory limit are set here")
     for argument in wanted_set:
         if current["arguments"][argument]["external"]:
             raise SetupError(f"{argument} is already set outside Control Center and is left as it is")

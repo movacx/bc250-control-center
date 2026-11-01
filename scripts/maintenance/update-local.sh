@@ -150,6 +150,7 @@ validate_source() {
 }
 
 refuse_package_managed_update
+command -v git >/dev/null 2>&1 || { echo "ERROR: git is required for in-place updates" >&2; exit 3; }
 
 if [[ -n "$SOURCE_OVERRIDE" ]]; then
   UPDATE_SOURCE="$(readlink -f "$SOURCE_OVERRIDE")"

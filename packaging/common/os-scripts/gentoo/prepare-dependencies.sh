@@ -6,6 +6,7 @@ source "$SCRIPT_DIR/../common/common.sh"
 parse_component "$@"
 
 runtime_packages=(
+  dev-python/pip dev-libs/openssl
   dev-lang/python dev-python/pyqt6 dev-python/psutil dev-qt/qtbase dev-qt/qtsvg
   dev-vcs/git sys-apps/pciutils media-libs/libdrm media-libs/mesa
   dev-util/vulkan-tools sys-auth/polkit sys-apps/kmod net-misc/curl
@@ -45,7 +46,7 @@ install_umr() {
   verify_command umr
 }
 
-check_runtime() { verify_command python3; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'import PyQt6, psutil'; }
+check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'from PyQt6.QtSvg import QSvgRenderer; from PyQt6.QtWidgets import QApplication; import psutil, pip, venv, ssl'; }
 check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }

@@ -161,7 +161,7 @@ def supported_driver_components(family: str) -> tuple[str, ...]:
 #: an early grep exit would turn a SIGPIPE into a false "not available".
 _APT_RESOLVE = (
     'bc250_resolve() { resolved=(); unavailable=(); local package policy; '
-    'for package in "$@"; do policy="$(apt-cache policy "$package" 2>/dev/null || true)"; '
+    'for package in "$@"; do policy="$(LC_ALL=C apt-cache policy "$package" 2>/dev/null || true)"; '
     'case "$policy" in *"Candidate: (none)"*|"") unavailable+=("$package") ;; '
     '*Candidate:*) resolved+=("$package") ;; *) unavailable+=("$package") ;; esac; done; }'
 )

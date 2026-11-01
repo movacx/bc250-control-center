@@ -79,6 +79,8 @@ class PreparationPagesMixin:
         # inside a holder that is never shown.
         self._boot_panels = (
             self._bazzite_mitigations_panel(),
+            self._bazzite_smt_panel(),
+            self._bazzite_boot_messages_panel(),
             self._steamos_readonly_panel(),
             self._kernel_options_panel(),
         )
@@ -906,6 +908,7 @@ class PreparationPagesMixin:
         )
         self.helixsr_card.action_requested.connect(self._forward_dependency_action)
         self.helixsr_card.setEnabled(HELIXSR_UI_ENABLED)
+        self.helixsr_card.setParent(self)
         self.helixsr_card.setVisible(HELIXSR_UI_ENABLED)
 
     def _upscaling_page(self) -> QWidget:

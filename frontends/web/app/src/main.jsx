@@ -1,0 +1,249 @@
+import ProjectLinks from "./ProjectLinks.jsx";
+import Activity from "./DesktopActivity.jsx";
+import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
+import "./styles.css";
+import "./desktop.css";
+import "./mobile.css";
+import "./blackbox.css";
+import { jobState } from "./jobs.js";
+import { hasWebUpdate, refreshUrl } from "./updates.js";
+import { applyAppearance } from "./appearance.js";
+import { App, api, loadStrings, onSessionLost, setCsrf, t, usePoll } from "./lib.jsx";
+import { Btn, Card, Dialog, Icon, Modal, useMobile } from "./ui.jsx";
+import BlackBox from "./pages/BlackBox.jsx";
+import Compute from "./pages/Compute.jsx";
+import Cpu from "./pages/Cpu.jsx";
+import Dashboard, { DashboardHeaderSummary } from "./pages/Dashboard.jsx";
+import Fans from "./pages/Fans.jsx";
+import Gpu from "./pages/Gpu.jsx";
+import Performance from "./pages/Performance.jsx";
+import Settings from "./pages/Settings.jsx";
+import { PwaProvider } from "./Pwa.jsx";
+
+// The desktop's sidebar: same order, same icons, same captions.
+const NAV = [
+  { key: "dashboard", title: () => t("Dashboard"), icon: "nav_dashboard", page: Dashboard },
+  { cap: () => t("Hardware") },
+  { key: "cpu", title: () => t("CPU / SMU"), icon: "nav_cpu", page: Cpu },
+  { key: "cu", title: () => t("Compute Units"), icon: "nav_compute", page: Compute },
+  { key: "gpu", title: () => t("GPU Governor"), icon: "nav_gpu", page: Gpu },
+  { cap: () => t("Monitoring") },
+  { key: "performance", title: () => t("Performance"), icon: "nav_performance", page: Performance },
+  { key: "fans", title: () => t("Fans"), icon: "nav_fans", page: Fans },
+  { cap: () => t("System") },
+  { key: "blackbox", title: () => t("Black box"), icon: "nav_blackbox", page: BlackBox },
+];
+const SETTINGS = { key: "settings", title: () => t("Settings"), icon: "nav_settings", page: Settings };
+const ALL = [...NAV.filter((item) => item.key), SETTINGS];
+const route = () => (ALL.find((item) => `#/${item.key}` === location.hash) || ALL[0]).key;
+
+function Login({ onDone, error }) {
+  const [key, setKey] = useState("");
+  const [message, setMessage] = useState(error || "");
+  const [busy, setBusy] = useState(false);
+  const privateConnection = location.protocol === "https:" || ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
+  const signIn = async (value) => {
+    if (!privateConnection) { setMessage(t("HTTPS required")); return; }
+    setBusy(true);
+    const result = await api("login", { key: value });
+    if (result.ok) { setCsrf(result.csrf); onDone(); }
+    else { setMessage(t(result.error || "That key is not right.")); setBusy(false); }
+  };
+  useEffect(() => {
+    const pair = new URLSearchParams(location.hash.slice(1)).get("pair");
+    if (pair) { history.replaceState(null, "", location.pathname); setKey(pair); signIn(pair); }
+  }, []);
+  const submit = async (e) => {
+    e.preventDefault();
+    await signIn(key);
+  };
+  return (
+    <div className="login"><form onSubmit={submit}><div className="login-brand"><img src="logo.png" alt="" /><span>BC250<small>{t("Control Center")}</small></span></div><Card title={t("Remote access")} sub={t("Enter the access key shown in Remote access on the desktop application.")}>
+      <input className="input" autoFocus autoComplete="off" autoCapitalize="characters" spellCheck="false" aria-label={t("Access key")}
+        placeholder="XXXX-XXXX" value={key} onChange={(e) => setKey(e.target.value)} />
+      {message && <p className="err" role="alert">{message}</p>}
+      {!privateConnection && <p className="notice">{t("HTTPS required")}</p>}
+      <Btn kind="primary" type="submit" disabled={!privateConnection || busy || !key.trim()}>{busy ? t("Connecting…") : t("Sign in")}</Btn>
+    </Card></form></div>
+  );
+}
+
+function SSH({ onClose, canType }) {
+  const status = usePoll("ssh", 800, 0);
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const start = async () => { const r = await api("ssh/start", {}); if (r.error) setMessage(t(r.error)); };
+  const send = async (e) => { e.preventDefault(); const value = password; setPassword(""); const r = await api("ssh/input", { text: value }); if (r.error) setMessage(t(r.error)); };
+  return <Dialog title={t("SSH authorization")} onClose={onClose} footer={<Btn kind="primary" onClick={onClose}>{t("Close")}</Btn>}>
+    <p className="note">{t("Connect to this board with your Linux account. Hardware permissions are requested here when needed.")}</p>
+    <div className="connection-state"><i className={status?.ready ? "connected" : ""} />{status?.ready ? t("Connected") : t("Not connected")}</div>
+    {status?.text && !status.ready && !status.prompt && <pre className="console">{status.text}</pre>}
+    {message && <p className="err" role="alert">{message}</p>}
+    {!canType && <p className="notice">{t("Use HTTPS before entering your Linux password.")}</p>}
+    {status?.closed ? <Btn disabled={!canType} onClick={start}>{t("Connect SSH")}</Btn>
+      : status?.ready ? <Btn kind="danger" onClick={() => api("ssh/close", {})}>{t("Disconnect")}</Btn>
+      : status?.prompt ? <form className="stack" onSubmit={send}><label className="field"><span>{t("Linux password")}</span><input className="input" type="password" autoComplete="off" value={password} disabled={!canType} onChange={(e) => setPassword(e.target.value)} /></label><Btn type="submit" disabled={!canType || !password}>{t("Send")}</Btn></form> : <p className="note" role="status">{t("Connecting…")}</p>}
+  </Dialog>;
+}
+
+function Confirm({ spec, onCancel, onGo }) {
+  const mobile = useMobile();
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const review = useRef(null);
+  const inline = spec.level === 1 || spec.inline === true;
+  useEffect(() => { if (inline) { review.current?.scrollIntoView({ block: "start" }); review.current?.focus({ preventScroll: true }); } }, [spec, inline]);
+  const go = async () => {
+    setBusy(true);
+    const result = await onGo();
+    if (!result.ok) { setError(t(result.error || "Not detected")); setBusy(false); }
+  };
+  const content = <div ref={review} tabIndex={-1} className={inline ? "inline-review" : "dialog"} role={inline ? "region" : "alertdialog"} aria-label={spec.title} aria-modal={inline ? undefined : true}>
+      <section><p className="desktop-dialog-label">{spec.title}</p>{spec.body && <p style={{ margin: 0 }}>{spec.body}</p>}
+        {spec.summary?.length > 0 && <dl className="dialog-summary">{spec.summary.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
+        {(spec.warning || spec.level === 2) && <div className="notice">{spec.warning || t("Stop every game, benchmark, and 3D workload before continuing.")}</div>}
+        {error && <p className="err" role="alert">{error}</p>}</section>
+      <footer><Btn disabled={busy} onClick={onCancel}>{t("Cancel")}</Btn>
+        <Btn kind={spec.level === 2 ? "danger" : "primary"} disabled={busy} onClick={go}>{spec.go || t("Apply")}</Btn></footer>
+    </div>;
+  return inline ? content : <Modal onClose={() => { if (!busy) onCancel(); }}>{content}</Modal>;
+}
+
+function Shell({ session, onLogout }) {
+  const mobile = useMobile();
+  const [page, setPage] = useState(route());
+  const [slim, setSlim] = useState(() => localStorage.getItem("slim") === "1");
+  const [menu, setMenu] = useState(false);
+  const [confirm, setConfirm] = useState(null);
+  const [jobId, setJobId] = useState(0);
+  const [job, setJob] = useState(null);
+  const [inlineConsole, registerConsole] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [again, setAgain] = useState(0);
+  const [sshOpen, setSshOpen] = useState(false);
+  useEffect(() => { document.querySelector("main")?.scrollTo(0, 0); }, [page]);
+  useEffect(() => {
+    let active = true;
+    api("job").then(current => {
+      if (active && jobState(current) === "job" && !current.done) {
+        setJob(current); setJobId(n => n + 1);
+      }
+    });
+    return () => { active = false; };
+  }, []);
+  const ssh = usePoll("ssh", 3000, 0);
+  const live = usePoll("live", 1000, 0);
+  const release = usePoll("version", 15000, 0);
+  const loadedBuild = document.querySelector('meta[name="bc250-build"]')?.content;
+  const updateAvailable = hasWebUpdate(loadedBuild, release);
+  const refreshBuild = () => location.replace(refreshUrl(location.href, release.version));
+
+  useEffect(() => { const on = () => { setPage(route()); setMenu(false); setConfirm(null); }; addEventListener("hashchange", on); return () => removeEventListener("hashchange", on); }, []);
+  useEffect(() => { localStorage.setItem("slim", slim ? "1" : "0"); }, [slim]);
+  useEffect(() => { if (!toast) return undefined; const id = setTimeout(() => setToast(null), 5000); return () => clearTimeout(id); }, [toast]);
+  useEffect(() => {
+    if (!jobId) return undefined;
+    let stop = false, timer;
+    const tick = async () => {
+      const next = await api("job");
+      if (stop) return;
+      const state = jobState(next);
+      if (state === "unavailable") {
+        timer = setTimeout(tick, 1500);
+        return;
+      }
+      if (state === "idle") {
+        setJob(null); setJobId(0);
+        return;
+      }
+      setJob(next);
+      if (next.done) {
+        setAgain((n) => n + 1);
+        setToast(next.ok ? { tone: "ok", text: next.message || t("Done") } : { tone: "bad", text: t("The workflow did not finish successfully.") });
+      } else timer = setTimeout(tick, 600);
+    };
+    tick();
+    return () => { stop = true; clearTimeout(timer); };
+  }, [jobId]);
+
+  /** Every hardware change goes through here: the spec names the closed action, the dialog asks. */
+  const go = async (spec) => {
+    const result = await api("action", { action: spec.action, title: spec.title, params: spec.params || {}, confirm: spec.level ? true : undefined });
+    if (result.ok) { setConfirm(null); setJob({ label: spec.title, kind: spec.action, text: "", done: false }); setJobId((n) => n + 1); }
+    return result;
+  };
+  const act = (spec) => {
+    if (!session.control) { setToast({ tone: "bad", text: t("This device has monitoring access. Enable hardware control in Remote access on the desktop.") }); return; }
+    if (job && !job.done && job.kind !== "gddr6.monitor") { setToast({ tone: "bad", text: t("Another hardware action is still running.") }); return; }
+    if (spec.level) setConfirm(spec);
+    else go(spec).then((r) => { if (!r.ok) setToast({ tone: "bad", text: t(r.error) }); });
+  };
+  const running = job && !job.done && job.kind !== "gddr6.monitor";
+  const monitorInDashboard = page === "dashboard" && job?.kind === "gddr6.monitor";
+  const current = ALL.find((item) => item.key === page);
+  const Page = current.page;
+  const link = (item) => <a key={item.key} className={`nav ${page === item.key ? "on" : ""}`} href={`#/${item.key}`} aria-current={page === item.key ? "page" : undefined}><Icon name={item.icon} /><span>{item.title()}</span></a>;
+  const name = t("BC250 Control Center").replace("BC250", "").trim();
+  return (
+    <App.Provider value={{ live: live?.metrics ? live : null, history: live?.history || {}, act, again, running, job, registerConsole, cancelReview: () => setConfirm(null), stopJob: () => api("job/interrupt", {}), toast: setToast, session, ssh, openSsh: () => session.control ? setSshOpen(true) : setToast({ tone: "bad", text: t("This device has monitoring access. Enable hardware control in Remote access on the desktop.") }) }}>
+      <div className="shell">
+        <header className="topbar"><a className="mobile-brand" aria-label={`BC250 · ${t("Dashboard")}`} href="#/dashboard"><img src="logo.png" alt="" /><strong>BC250</strong></a><span className="topbar-title"><span>{current.title()}</span>{mobile && page === "dashboard" && <DashboardHeaderSummary />}</span><button className="ghost" aria-label={t("Menu")} aria-expanded={menu} onClick={() => setMenu(!menu)}><Icon name="nav_settings" /></button></header>
+        {menu && <div className="scrim menu-scrim" style={{ zIndex: 24 }} onClick={() => setMenu(false)} />}
+        <nav className={`side ${slim ? "slim" : ""} ${menu ? "open" : ""}`} aria-label="BC250">
+          <div className="brand"><img src="logo.png" alt="" /><div className="grow"><b>BC250</b><small>{name[0]?.toUpperCase() + name.slice(1)}</small></div>
+            <button className="ghost collapse" aria-label={slim ? t("Expand sidebar") : t("Collapse sidebar")} onClick={() => setSlim(!slim)}><Icon name={slim ? "expand_gray" : "collapse_gray"} /></button></div>
+          {NAV.map((item) => (item.cap ? <div className="cap" key={item.cap()}>{item.cap()}</div> : link(item)))}
+          <div className="spring" /><ProjectLinks/><div className="rule" />
+          {link(SETTINGS)}
+        </nav>
+        <main className={`main page-${page} ${job && (jobId || running) && !monitorInDashboard ? "with-operation" : ""}`}><h1 className="sr-only">{current.title()}</h1>{(confirm?.level === 1 || confirm?.inline) && <Confirm spec={confirm} onCancel={() => setConfirm(null)} onGo={() => go(confirm)} />}{updateAvailable && <div className="update-notice" role="status"><span>{t("Update available")}</span><Btn small onClick={refreshBuild}>{t("Refresh")}</Btn></div>}{live?._disconnected && <p className="notice" role="status">{t("Not connected")}</p>}{!session.control && <p className="notice" role="status">{t("Monitoring only. Enable hardware control for this device in Remote access on the desktop.")} <strong>{t("Device code: {code}", { code: session.device_code })}</strong></p>}<Page onLogout={onLogout} /></main>
+        <nav className="bottom-nav" aria-label={t("Hardware")}>{["dashboard", "cpu", "cu", "gpu", "performance"].map((key, i) => {
+          const item = ALL.find((v) => v.key === key);
+          return <a href={`#/${key}`} key={key} className={page === key ? "on" : ""} aria-current={page === key ? "page" : undefined}><Icon name={item.icon} /><span>{[t("Dashboard"), "CPU", "CU", "GPU", t("Sensors")][i]}</span></a>;
+        })}</nav>
+      </div>
+      {confirm && confirm.level !== 1 && !confirm.inline && <Confirm spec={confirm} onCancel={() => { setConfirm(null); confirm.onCancel?.(); }} onGo={() => go(confirm)} />}
+      {(job && (jobId || running)) && <Activity job={job} monitorVisible={monitorInDashboard} inlineConsole={inlineConsole} canType={session.password} onClose={() => { setJob(null); setJobId(0); }} />}
+      {sshOpen && <SSH onClose={() => setSshOpen(false)} canType={session.password} />}
+      {toast && <div className={`toast ${toast.tone}`} role="status"><Icon name={toast.tone === "ok" ? "check_green" : "warning_orange"} /><span>{toast.text}</span><button className="ghost" aria-label={t("Close")} onClick={() => setToast(null)}><Icon name="close_gray" /></button></div>}
+    </App.Provider>
+  );
+}
+
+function Root() {
+  const [state, setState] = useState({ loading: true });
+  const refresh = useCallback(async () => {
+    const data = await api("session");
+    if (data.status === 0 || data.status >= 500) {
+      setState((previous) => previous.authenticated ? previous : { ...previous, loading: false, error: data.error });
+      return;
+    }
+    setCsrf(data.csrf);
+    setState({ loading: false, ...data });
+  }, []);
+  useEffect(() => {
+    onSessionLost(() => setState((s) => ({ ...s, authenticated: false })));
+    const systemTheme = matchMedia("(prefers-color-scheme:dark)");
+    const appearanceChanged = () => applyAppearance();
+    systemTheme.addEventListener("change", appearanceChanged);
+    addEventListener("storage", appearanceChanged);
+    const changed = () => setState((s) => ({ ...s }));
+    addEventListener("languagechanged", changed);
+    loadStrings(localStorage.getItem("language") || navigator.language).then(refresh);
+    return () => { removeEventListener("languagechanged", changed); systemTheme.removeEventListener("change", appearanceChanged); removeEventListener("storage", appearanceChanged); };
+  }, [refresh]);
+  useEffect(() => {
+    if (!state.authenticated) return undefined;
+    const visibleRefresh = () => { if (!document.hidden) refresh(); };
+    const timer = setInterval(visibleRefresh, 5000);
+    document.addEventListener("visibilitychange", visibleRefresh);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", visibleRefresh); };
+  }, [state.authenticated, refresh]);
+  if (state.loading) return null;
+  if (!state.authenticated) return <Login onDone={refresh} error={state.error} />;
+  return <Shell session={state} onLogout={async () => { await api("logout", {}); refresh(); }} />;
+}
+
+applyAppearance();
+createRoot(document.getElementById("root")).render(<StrictMode><PwaProvider><Root /></PwaProvider></StrictMode>);

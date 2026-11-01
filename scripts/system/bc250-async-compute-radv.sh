@@ -47,6 +47,8 @@ LIB_DIR=/usr/lib/bc250cc-radv
 CONF_DIR=/etc/bc250cc-radv
 HELPER=/usr/local/bin/bc250cc-async-compute
 GENERATOR=/usr/lib/systemd/user-environment-generators/61-bc250cc-radv
+SESSION_GENERATOR=/usr/lib/bc250cc-radv/session-environment
+SESSION_PROFILE=/etc/profile.d/bc250cc-radv.sh
 MIN_MAJOR=7
 MIN_MINOR=2
 KVER="$(uname -r)"
@@ -254,6 +256,28 @@ write_managed() {
     install -D -m "$mode" /dev/stdin "$target"
 }
 
+# KDE/SDDM login shells read /etc/profile on OpenRC. Reuse the exact same
+# guarded generator as systemd, including its kernel and recovery checks.
+install_session_hook() {
+    [[ -f /run/openrc/softlevel ]] || return 0
+    [[ -x $GENERATOR ]] || die "the RADV session generator is missing; repair the driver installation"
+    write_managed "$SESSION_GENERATOR" 0755 < "$GENERATOR"
+    write_managed "$SESSION_PROFILE" 0644 <<'PROFILE'
+# Managed by BC250 Control Center: RADV async compute
+if [ -f /run/openrc/softlevel ] && [ -x /usr/lib/bc250cc-radv/session-environment ]; then
+    bc250_radv_environment="$(/usr/lib/bc250cc-radv/session-environment)"
+    while IFS= read -r bc250_radv_entry; do
+        case "$bc250_radv_entry" in
+            VK_DRIVER_FILES=*|VK_ICD_FILENAMES=*) export "$bc250_radv_entry" ;;
+        esac
+    done <<BC250_RADV_ENV
+$bc250_radv_environment
+BC250_RADV_ENV
+    unset bc250_radv_environment bc250_radv_entry
+fi
+PROFILE
+}
+
 install_release() {
     require_root
     local stage=""
@@ -342,7 +366,7 @@ case "${1:-status}" in
         echo "    system driver : $(ace_families "$(system_files)")"
         echo "    this driver   : $(ace_families "$(driver_files)")"
         if [ -f "$CONF/enabled" ]; then echo "  system-wide  : on (every new session uses it)"; else echo "  system-wide  : off (use: bc250cc-async-compute run %command%)"; fi
-        case ":${VK_DRIVER_FILES:-}:" in *":$ICD64:"*) echo "  this session : uses the patched RADV" ;; *) echo "  this session : system driver (log out and back in after switching on)" ;; esac
+        case ":${VK_DRIVER_FILES:-${VK_ICD_FILENAMES:-}}:" in *":$ICD64:"*) echo "  this session : uses the patched RADV" ;; *) echo "  this session : patched RADV is not selected in this process environment (log out and back in after switching on)" ;; esac
         ;;
     env) printf 'VK_DRIVER_FILES=%s\n' "$(driver_files)" ;;
     steam) echo "bc250cc-async-compute run %command%" ;;
@@ -394,6 +418,7 @@ GEN
     install -d -m 0755 "$CONF_DIR"
     printf '%s\nVERSION=%s\nUPSTREAM=%s\n' "$MARKER" "$version" "${upstream:-unknown}" > "$CONF_DIR/active.env"
     : > "$CONF_DIR/enabled"
+    install_session_hook
     # SELinux (Fedora): cp -a carried the build cache's type (cache_home_t)
     # into the prefix. Give every installed path the type policy expects.
     if command -v restorecon >/dev/null 2>&1; then
@@ -408,6 +433,7 @@ GEN
 enable_driver() {
     require_root
     [[ -f $CONF_DIR/active.env ]] || die "async compute is not installed"
+    install_session_hook
     : > "$CONF_DIR/enabled"
     say "switched on; log out and back in to use it"
     echo "BC250_RELOGIN_REQUIRED=1"
@@ -429,6 +455,8 @@ remove_managed() {
 
 uninstall_release() {
     require_root
+    remove_managed "$SESSION_PROFILE"
+    remove_managed "$SESSION_GENERATOR"
     remove_managed "$GENERATOR"
     remove_managed "$HELPER"
     rm -rf -- "$LIB_DIR" "$PREFIX_ROOT" "$CONF_DIR"
@@ -445,7 +473,7 @@ status() {
     echo "installed=$([[ -n $version ]] && echo yes || echo no)"
     echo "version=$version"
     echo "enabled=$([[ -f $CONF_DIR/enabled ]] && echo yes || echo no)"
-    case ":${VK_DRIVER_FILES:-}:" in
+    case ":${VK_DRIVER_FILES:-${VK_ICD_FILENAMES:-}}:" in
         *":$PREFIX_ROOT/"*) echo "session=patched" ;;
         *) echo "session=system" ;;
     esac

@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 from pathlib import Path
 
@@ -73,9 +74,16 @@ def test_package_removal_clears_bytecode_caches_root_left_behind():
 def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_path):
     stage = tmp_path / "root"
 
-    _run("bash", ROOT / "packaging/scripts/stage-package-root.sh", stage)
+    stage.mkdir(mode=0o775)
+    (stage / "usr").mkdir(mode=0o775)
+    stage.chmod(0o775)
+    (stage / "usr").chmod(0o775)
+    _run("bash", "-c", 'umask 0002; exec bash "$1" "$2"', "stage",
+         ROOT / "packaging/scripts/stage-package-root.sh", stage)
+    assert all(directory.stat().st_mode & 0o022 == 0 for directory in [stage, *stage.rglob("*")] if directory.is_dir())
 
     assert (stage / "usr/bin/bc250-control-center-cli").stat().st_mode & 0o111
+    assert (stage / "usr/bin/bc250-control-center-tui").stat().st_mode & 0o111
     assert (stage / "usr/libexec/bc250-control-center/bc250-cpu-smu-helper").stat().st_mode & 0o111
     assert (stage / "usr/libexec/bc250-control-center/bc250-service-helper").stat().st_mode & 0o111
     assert (stage / "usr/libexec/bc250-control-center/bc250-maintenance-helper").stat().st_mode & 0o111
@@ -85,8 +93,17 @@ def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_p
     assert privileged_root.stat().st_mode & 0o022 == 0
     assert privileged_lib.stat().st_mode & 0o022 == 0
     assert (stage / "usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy").is_file()
+    assert (stage / "usr/share/bc250-control-center/requirements-web.txt").is_file()
     assert (stage / "usr/share/bc250-control-center/VERSION").read_text(encoding="utf-8").strip() == VERSION
     assert (stage / "usr/share/bc250-control-center/src/bc250cc/__init__.py").is_file()
+    app = stage / "usr/share/bc250-control-center"
+    assert (app / "packaging/common/bc250-package-maintenance").read_bytes() == (
+        ROOT / "packaging/common/bc250-package-maintenance"
+    ).read_bytes()
+    _run(sys.executable, "-I", "-B", "-c",
+         f"import sys; sys.path.insert(0, {str(app / 'src')!r}); "
+         "from bc250cc.infrastructure.helper_permissions import recovery_preflight; "
+         "assert 'BC250_PERMISSION_REPAIR_PROTOCOL=1' in recovery_preflight()")
     assert (stage / "usr/share/bc250-control-center/frontends/desktop/features/gpu/presenter.py").is_file()
     assert (stage / "usr/share/bc250-control-center/privileged/helpers/README.md").is_file()
     assert not (stage / "usr/share/bc250-control-center/src/src").exists()
@@ -105,6 +122,9 @@ def test_deb_dependencies_support_split_and_legacy_polkit_packages(tmp_path):
     depends = _run("dpkg-deb", "--field", package, "Depends").stdout.strip()
 
     assert "python3-pyqt6" in depends
+    assert "python3-pyqt6.qtsvg" in depends
+    assert "python3-pip" in depends and "python3-venv" in depends
+    assert "python3-cheroot" not in depends
     assert "libqt6svg6" in depends
     assert "pkexec | policykit-1" in depends
 
@@ -123,6 +143,7 @@ def test_source_tarball_is_reproducible_and_excludes_qa_payload(tmp_path):
         names = bundle.getnames()
     assert any(name.endswith("/scripts/install-local.sh") for name in names)
     assert any(name.endswith("/VERSION") for name in names)
+    assert any(name.endswith("/requirements-web.txt") for name in names)
     assert any(name.endswith("/packaging/scripts/build-rpm.sh") for name in names)
     assert any(name.endswith("/packaging/scripts/build-deb.sh") for name in names)
     assert any(name.endswith("/src/bc250cc/__init__.py") for name in names)
@@ -178,7 +199,7 @@ def test_arch_package_has_canonical_metadata_and_is_accepted_by_pacman(tmp_path)
         env={**os.environ, "LANG": "C", "LC_ALL": "C"},
     ).stdout
     assert "Name            : bc250-control-center" in query
-    assert f"Version         : {VERSION}-1" in query
+    assert f"Version         : {VERSION}-3" in query
 
     archive_names = _run("bsdtar", "-tf", package).stdout.splitlines()
     assert ".PKGINFO" in archive_names

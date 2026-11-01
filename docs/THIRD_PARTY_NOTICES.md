@@ -25,13 +25,14 @@ AMD, Radeon, NVIDIA, DLSS, Steam, SteamOS and the other names used here are trad
 
 | Component | Version | License | Location in this repository |
 |---|---|---|---|
-| [bc250_smu_oc](https://github.com/bc250-collective/bc250_smu_oc) | Commit `327014d`, with one audited local patch (see below) | MIT | `privileged/lib/bc250_smu_oc_vendor.zip` (contains `LICENSE`, `UPSTREAM_COMMIT` and `BC250CC_PATCHES`) |
+| [bc250_smu_oc](https://github.com/bc250-collective/bc250_smu_oc) | Commit `327014d`, with two audited local patches (see below) | MIT | `privileged/lib/bc250_smu_oc_vendor.zip` (contains `LICENSE`, `UPSTREAM_COMMIT` and `BC250CC_PATCHES`) |
 | [bc250-acpi-fix](https://github.com/e-tho/bc250-acpi-fix) | Release `v1.1.1` early CPIO, SHA-256 checked | MIT | `privileged/lib/acpi_payload.py` (license in the file header) |
 | [BC250-Telemetry](https://github.com/onlinermm/BC250-Telemetry) photos | The four photos of `hardware.md`, resized and without camera metadata | MIT | `assets/telemetry-i2c/` (license in `LICENSE`) |
 | [@decky/api](https://github.com/SteamDeckHomebrew/loader-api) | 1.1.3 | LGPL-2.1 | Bundled in `integrations/decky/bc250-quick-access/dist/index.js` |
 | [react-icons](https://github.com/react-icons/react-icons) | 5.7.0 | MIT; Font Awesome Free icons under CC BY 4.0, Lucide icons under ISC | Bundled in `integrations/decky/bc250-quick-access/dist/index.js` |
+| [Nayuki QR Code generator](https://github.com/nayuki/QR-Code-generator) | Commit `bcfe1b0` | MIT | `src/bc250cc/_vendor/qrcodegen.py`, including its original license notice |
 
-**bc250_smu_oc local patch.** The payload holds the PCI configuration lock across each complete `0xB8`/`0xBC` indirect SMU transaction, so that another SMU client such as the Cyan governor cannot move the shared address register between the address and data accesses. The patch follows [keyboardspecialist/bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos/blob/master/smu-oc-patches/0001-transaction-level-flock.patch). The root helper refuses the payload unless its SHA-256 and upstream commit match the reviewed build.
+**bc250_smu_oc local patches.** (1)  The payload holds the PCI configuration lock across each complete `0xB8`/`0xBC` indirect SMU transaction, so that another SMU client such as the Cyan governor cannot move the shared address register between the address and data accesses. The patch follows [keyboardspecialist/bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos/blob/master/smu-oc-patches/0001-transaction-level-flock.patch). The root helper refuses the payload unless its SHA-256 and upstream commit match the reviewed build. (2) The mailbox waits for the SMU's answer for up to five seconds, 1 ms apart, instead of reading the response register 100 times with no pause, which reported a valid command the firmware had not answered yet as status `0x00`; it raises a timeout error when nothing answers. It follows [keyboardspecialist/bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos/blob/master/smu-oc-patches/0004-time-based-mailbox-timeout.patch) (Unlicense).
 
 **Reimplemented, not copied.** The CMOS offsets used for the VRAM size come from the layout published by [bc250_memcfg](https://github.com/fanoush/bc250_memcfg) (MIT) and are reimplemented in Python; memory timing straps are read back unmodified and never exposed. The SteamOS ACPI and boot-option routes, the HDMI AC-3 profile selection and the two HDMI-CEC automations (wake the TV at session start, standby on power-off) follow or are ported from [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos), which is in the public domain (Unlicense).
 
@@ -96,6 +97,15 @@ All BIOS files are downloaded from one pinned commit per source, verified agains
 
 ## 3. External installs
 
+**Web server runtime:** [Cheroot](https://github.com/cherrypy/cheroot) (BSD-3-Clause;
+minimum 11.1.2, below 12), with its upstream dependencies
+[jaraco.functools](https://github.com/jaraco/jaraco.functools) (MIT) and
+[more-itertools](https://github.com/more-itertools/more-itertools) (MIT).
+Installed in a user-owned environment from `requirements-web.txt` when web
+access is first enabled (or reused from a supported system runtime); their code
+is not vendored or embedded in the frontend assets. Cheroot provides the bounded
+WSGI HTTP/TLS server. Upstream packages retain their own license notices.
+
 **[bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix)**. GFX1013 compute queue, kernel and Mesa/RADV stack. External install; Control Center updates official `main`, applies only the reviewed Fedora 44 RPM 6 source-path compatibility repair when its exact upstream line is present, and runs the complete upstream lifecycle after local safety checks.
 
 **[linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250)** (GPL-2.0). Matched Arch and CachyOS kernel and Mesa/RADV with GFX1013 async-compute fixes, plus the Proton BC-250 builds (proton-cachyos-native-bc250, protonge-latest-bc250, proton-cachyos-slr-bc250), added as an opt-in unsigned package repository. The BC-250 toolkit by redbeard1083 (https://github.com/redbeard1083/bc250-toolkit) was the reference for the Proton packages. Not enabled on Manjaro.
@@ -132,3 +142,12 @@ Listed for provenance or compatibility research. None of these is downloaded, bu
 - **Projects without a license grant** (bc250-cu-live-manager and its SteamOS port, and the reviewed revision of bc250-fsr4) are only fetched from their upstream repositories at the user's request and never redistributed.
 - **HelixSR** is used under the HelixSR Freeware License, which allows running the release unmodified. The network files that its setup derives from NVIDIA's DLSS DLL are created on, and stay on, the user's computer.
 - **BIOS images and flashing tools** remain the property of their authors and of ASRock and AMI. Control Center only downloads them from the pinned sources above and writes them to a USB drive the user selects.
+
+### QR pairing
+
+[Nayuki QR Code generator](https://github.com/nayuki/QR-Code-generator) (MIT),
+commit `bcfe1b018cec5f1f91b5705eca5bb4cdd34e9f8d`, is distributed in
+`src/bc250cc/_vendor/qrcodegen.py`. Its original copyright and permission notice
+are preserved; a file-level Ruff exemption was added and trailing whitespace removed. It generates the
+Remote access pairing QR locally, with no network service or additional Python
+package. The pinned source URL is in `QRCODEGEN_UPSTREAM` beside it.

@@ -95,7 +95,8 @@ bc250_steamos_require_var_space() {
   if (( free < need )); then
     printf '[ERROR] %s has only %s MB free and this needs about %s MB.\n' "$directory" "$free" "$need" >&2
     printf '[ERROR] SteamOS keeps /var small, and a full /var breaks package installs half way. What takes the room:\n' >&2
-    du -xh --max-depth=2 "$directory" 2>/dev/null | sort -rh | head -6 >&2 || true
+    # Prefixed so the whole explanation stays one [ERROR] block for the terminal.
+    du -xh --max-depth=2 "$directory" 2>/dev/null | sort -rh | head -6 | sed 's/^/[ERROR]   /' >&2 || true
     printf '[ERROR] Free some space (journalctl --vacuum-size=50M, pacman -Sc) and try again.\n' >&2
     return 75
   fi
@@ -141,3 +142,26 @@ bc250_steamos_restore_root() {
   fi
   return "$restore_status"
 }
+
+# SteamOS mirrors can pause while serving a large repository database. Keep
+# signature verification enabled; retry only transport failures, never locks,
+# bad signatures or dependency conflicts.
+bc250_steamos_sync_databases() (
+  set -o pipefail
+  local diagnostic status attempt
+  diagnostic="$(mktemp "${TMPDIR:-/tmp}/bc250-steamos-sync.XXXXXX")" || return 1
+  for attempt in 1 2 3; do
+    if bc250_steamos_root_command env LC_ALL=C pacman -Syy --noconfirm --disable-download-timeout 2>&1 | tee "$diagnostic"; then
+      rm -f -- "$diagnostic"
+      return 0
+    else
+      status=${PIPESTATUS[0]}
+    fi
+    if [[ "$attempt" -eq 3 ]] || ! grep -Eqi 'failed retrieving file|could not resolve host|connection timed out|download library error' "$diagnostic"; then
+      rm -f -- "$diagnostic"
+      return "$status"
+    fi
+    printf '[INFO] SteamOS mirror download failed; retrying database refresh (%s/3).\n' "$((attempt + 1))"
+    sleep 2
+  done
+)

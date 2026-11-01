@@ -95,6 +95,26 @@ def test_a_valid_file_is_never_rewritten(editor_module, tmp_path):
     assert path.stat().st_mtime_ns == before
 
 
+def test_repeated_identical_table_after_safe_points_is_repaired(editor_module, tmp_path):
+    path = tmp_path / "config.toml"
+    original = ISSUE_ONE.replace(" fix-freq = false\n", "") + '\n[gpu-usage]\nfix-metrics = true\nmethod = "busy-flag"\n'
+    path.write_text(original)
+    assert editor_module.GovernorTomlEditor(path).repair_identical_duplicate_keys().changed
+    parsed = tomllib.loads(path.read_text())
+    assert len(parsed["safe-points"]) == 2
+    assert parsed["gpu-usage"]["method"] == "busy-flag"
+    assert "method" not in parsed["safe-points"][-1]
+
+
+def test_repeated_table_with_new_values_is_not_silently_moved(editor_module, tmp_path):
+    path = tmp_path / "config.toml"
+    original = ISSUE_ONE.replace(" fix-freq = false\n", "") + '\n[gpu-usage]\ntemp-read = "drm"\n'
+    path.write_text(original)
+    with pytest.raises(editor_module.GovernorTomlError):
+        editor_module.GovernorTomlEditor(path).repair_identical_duplicate_keys()
+    assert path.read_text() == original
+
+
 def test_the_installer_no_longer_rolls_back_over_this_step():
     installer = (ROOT / "scripts/install-local.sh").read_text(encoding="utf-8")
     assert 'if ! "${elevate[@]}" "$SYSTEM_GOVERNOR_CONFIG_HELPER" migrate-legacy-frequency-range; then' in installer

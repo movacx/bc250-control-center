@@ -235,6 +235,8 @@ _AUDITED = {
     "QUICK_ACCESS_CU_MODE: target must be an even value from 24 through 40.": "BC250-RANGE-001",
     "QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling.": "BC250-CONFIG-001",
     "SMU_IN_USE: another tool holds the SMU": "BC250-BUSY-001",
+    "smu returned status 0x00 for queue 3 msg 0x01": "BC250-BUSY-001",
+    "smu timed out after 5s for msg 0x3B (last status 0x00)": "BC250-BUSY-001",
     "QUICK_ACCESS_VRAM: unsupported size": "BC250-VRAM-001",
     "QUICK_ACCESS_GDDR6: the GDDR6 patch did not finish in time.": "BC250-TIMEOUT-001",
     "[ERROR] kernel-devel mismatch: a belongs to b but the running kernel is c": "BC250-KERNEL-001",
@@ -243,6 +245,9 @@ _AUDITED = {
     "[ERROR] rebuilt nct6687 has vermagic 6.1, expected 6.2; refusing to install it": "BC250-KERNEL-001",
     "[ERROR] nct6687 could not be loaded for 6.12.0": "BC250-FAN-001",
     "[ERROR] /var has only 120 MB free and this needs 900 MB": "BC250-STORAGE-001",
+    "ERROR: not enough free space on /var: the 16 GiB swapfile needs 11 GiB kept free after it, 27 GiB in all, and /var has 9 GiB": "BC250-STORAGE-001",
+    "Insufficient disk space: a 16 GiB swapfile must still leave 2 GiB free on /var": "BC250-STORAGE-001",
+    "ERROR: another BC250 system preparation is already running": "BC250-BUSY-001",
     "Unable to download https://example.invalid/cyan.tar.gz": "BC250-NET-001",
     "[ERROR] SteamOS reports a writable root": "BC250-IMMUTABLE-001",
     "[ERROR] protected BC250 OpenRC service helper is missing; reinstall Control Center.": "BC250-HELPER-001",
@@ -267,6 +272,52 @@ def test_a_wrapped_helper_error_is_explained_by_its_inner_cause(outer):
     message = f"{outer}: SMU_IN_USE: another tool holds the SMU"
     assert error_catalog.for_marker(message).code == "BC250-BUSY-001"
     assert diagnose_error(message).code == "BC250-BUSY-001"
+
+
+def test_an_unusable_cyan_config_is_not_blamed_on_dbus_by_an_earlier_log_line(tmp_path: Path) -> None:
+    """R-df49405e: "Installing the missing official Cyan D-Bus policy" is an INFO line, not the cause."""
+    output = _run_workflow(tmp_path, (
+        "echo '[INFO] Installing the missing official Cyan D-Bus policy'; "
+        "echo '[INFO] Reloading the system D-Bus policy for Cyan'; "
+        "echo '[ERROR] Cyan configuration is not usable: Cyan config requires [gpu-usage] and [gpu] sections'; exit 1"
+    ))
+    assert "BC250-CONFIG-001" in output
+    assert "BC250-DBUS-001" not in output
+
+
+def test_the_generic_failure_line_does_not_replace_the_scripts_own_explanation(tmp_path: Path) -> None:
+    """R-bc2d99b9: common.sh closes every failure with "Operation failed at line N".
+
+    As the last [ERROR] line it was taken for the failure, the real cause was
+    dropped and the storage rule never matched.
+    """
+    output = _run_workflow(tmp_path, (
+        "echo '[ERROR] /var has only 78 MB free and this needs about 100 MB.'; "
+        "echo '[ERROR] SteamOS keeps /var small, and a full /var breaks package installs half way.'; "
+        "echo '[ERROR]   136M /var'; "
+        "echo '[ERROR] Free some space (journalctl --vacuum-size=50M, pacman -Sc) and try again.'; "
+        "echo 'BC250_RESULT status=error component=stress code=75 message=apply\\ failed'; "
+        "echo '[ERROR] Operation failed at line 26 with exit code 75'; exit 75"
+    ))
+    assert "BC250-STORAGE-001" in output
+    assert "What happened: /var has only 78 MB free" in output
+    assert "What happened: Operation failed at line" not in output
+
+
+def test_a_failure_with_only_the_generic_line_keeps_the_neutral_code(tmp_path: Path) -> None:
+    output = _run_workflow(tmp_path, "echo '[ERROR] Operation failed at line 9 with exit code 1'; exit 1")
+    assert "BC250-STORAGE-001" not in output
+
+
+def test_the_var_space_report_is_one_error_block(tmp_path: Path) -> None:
+    script = Path(__file__).resolve().parents[2] / "packaging/common/os-scripts/common/steamos-root.sh"
+    result = subprocess.run(
+        ["bash", "-c", f'source "{script}"; BC250_STEAMOS_MIN_VAR_MB=999999999 bc250_steamos_require_var_space'],
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 75
+    lines = [line for line in result.stderr.splitlines() if line.strip()]
+    assert lines and all(line.startswith("[ERROR]") for line in lines), result.stderr
 
 
 def test_diagnostics_printed_after_the_error_do_not_hide_it(tmp_path: Path) -> None:

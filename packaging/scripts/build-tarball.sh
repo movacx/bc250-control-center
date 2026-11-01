@@ -30,7 +30,7 @@ tar --create --file - --format=gnu \
   --exclude '*.pyc' --exclude '*.pyo' --exclude './dist' --exclude 'node_modules' \
   --transform "s,^,bc250-control-center-$VERSION/," \
   -C "$ROOT_DIR" \
-  VERSION README.md LICENSE SECURITY.md pyproject.toml run.sh docs/THIRD_PARTY_NOTICES.md \
+  VERSION README.md LICENSE SECURITY.md pyproject.toml requirements-web.txt run.sh docs/THIRD_PARTY_NOTICES.md \
   assets integrations src frontends privileged scripts packaging \
   | gzip -n -9 > "$temporary"
 mv -- "$temporary" "$target"

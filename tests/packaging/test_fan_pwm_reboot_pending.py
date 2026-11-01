@@ -62,3 +62,18 @@ def test_a_successful_installer_continues_with_the_module_setup(tmp_path):
     result = _run(_Repo("true"), tmp_path)
     assert "Configuring module preference" in result.stdout
     assert "PWM_DEFERRED=0" in result.stdout or "PWM_DEFERRED" not in result.stdout
+
+
+def test_pwm_creates_missing_module_configuration_directories(tmp_path):
+    command = _Repo('true')._comando_preparar_nct6687_control_pwm()
+    start = command.index('sudo install -d -m 0755 /etc/modprobe.d /etc/modules-load.d')
+    end = command.index('sudo modprobe -r nct6683', start)
+    # Exercise only file setup in a fresh fake /etc, with no hardware commands.
+    fragment = command[start:end].replace('/etc/', f'{tmp_path}/etc/')
+    result = subprocess.run(
+        ['bash', '-c', 'set -euo pipefail\nsudo() { "$@"; }\n' + fragment],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / 'etc/modules-load.d/nct6687.conf').read_text() == 'nct6687\n'
+    assert (tmp_path / 'etc/modprobe.d/nct6687.conf').read_text() == 'options nct6687 force=true\n'

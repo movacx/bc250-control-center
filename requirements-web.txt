@@ -1,0 +1,2 @@
+# Runtime for the optional local HTTPS interface.
+cheroot>=11.1.2,<12

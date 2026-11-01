@@ -19,8 +19,10 @@ CU_UNLOCK_THERMAL_NOTE = (
     "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached "
     "96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor."
 )
+#: Hides the kernel's boot messages, among them the RDSEED warning of the BC-250's CPU.
+HIDE_BOOT_MESSAGES_OPTION = "loglevel=0"
 #: The only kernel boot options the helper manages.
-KERNEL_OPTIONS = ("mitigations=off", "nosmt", CU_UNLOCK_OPTION)
+KERNEL_OPTIONS = ("mitigations=off", "nosmt", CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION)
 
 
 def inventory() -> dict:

@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from bc250cc.shared.errors import ActionNeeded
+
 import bc250cc.infrastructure.dependencias_repository as dependencies_module
 from bc250cc.infrastructure.dependencias_repository import (
     STEAMOS_CORE_UNLOCK_REVIEWED_COMMIT,
@@ -307,7 +309,8 @@ def test_the_kernel_module_waits_until_gpu_points_above_its_limit_are_off(tmp_pa
     repository = _repository(tmp_path, monkeypatch)
     repository._steamos_module_frequency_blocker = lambda: "turn the points off first"
 
-    with pytest.raises(RuntimeError, match="turn the points off first"):
+    # An instruction for the user, not an error window with a code (R-dce0d0a0).
+    with pytest.raises(ActionNeeded, match="turn the points off first"):
         repository.preparar_compatibilidad_steamos()
 
 
@@ -324,6 +327,8 @@ def test_the_toolkit_is_built_unmodified_and_an_old_tree_is_cleaned_once(tmp_pat
     first = command.index(f"/usr/bin/bash {audio}/build.sh || bc250_build_rc=$?")
     retry = command.index('if [ "$bc250_build_rc" = 75 ]; then', first)
     clean = command.index(f"/usr/bin/bash {audio}/clean.sh;", retry)
+    recovery = command.index('repair-steamos-kernel-index.py', retry)
+    assert retry < recovery < clean
     rebuild = command.index(f"/usr/bin/bash {audio}/build.sh;", clean)
     assert first < retry < clean < rebuild
     assert 'elif [ "$bc250_build_rc" != 0 ]; then exit "$bc250_build_rc"; fi' in command

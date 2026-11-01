@@ -396,3 +396,26 @@ def test_full_install_requires_the_attested_module_to_match_final_status(
     else:
         assert result.returncode == 0, result.stderr
         assert "Module and boot policy verified" in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("release", "accepted"),
+    (
+        # SteamOS 3.9.5 (build 20261023): refused until the gate knew 7.2.
+        ("7.2.7-valve2-2-neptune-72-g31504582a073", True),
+        ("6.18.3-valve1-1-neptune-618-gabcdef012345", True),
+        ("6.16.12-valve24.5-1-neptune-616-gb2f7cfe85e45", True),
+        ("6.11.11-valve1-1-neptune-611-g0123456789ab", False),
+    ),
+)
+def test_the_preflight_accepts_every_kernel_base_the_backend_builds_for(tmp_path, release, accepted):
+    command = build_steamos_compatibility_command(
+        script=tmp_path / "status.sh", boot_config=tmp_path / "boot-config.sh",
+        checkout_command="true", install=True,
+    )
+    start = command.index('case "$running_release"')
+    gate = command[start:command.index("esac", start) + len("esac")]
+    result = subprocess.run(["bash", "-c", f"running_release={release!r}; {gate}"], capture_output=True, text=True)
+    assert (result.returncode == 0) is accepted
+    if not accepted:
+        assert "kernel bases 6.16, 6.18, 7.2" in result.stdout

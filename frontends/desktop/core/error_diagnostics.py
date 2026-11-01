@@ -213,12 +213,13 @@ _RULES = (
     ),
     _Rule(
         "BC250-AUTH-001",
-        (r"textual authentication agent", r"/dev/tty.*no such device", r"controlling terminal",
+        (r"no authentication agent", r"active authentication agent",
+         r"textual authentication agent", r"/dev/tty.*no such device", r"controlling terminal",
          r"a terminal is required", r"no tty present", r"must be run from a terminal",
          r"pkexec:.*terminal"),
         "The authorization window could not be opened.",
         "The application was started from a session that Polkit cannot attach its password prompt to.",
-        "Close this copy, start BC250 Control Center from the desktop application menu, and try again. If it continues, reinstall the protected helpers.",
+        "Start the installed Polkit authentication agent in your graphical session, then retry. If it exits, inspect its startup error.",
     ),
     _Rule(
         "BC250-AUTH-002",
@@ -246,7 +247,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-HELPER-001",
-        (r"helper.*(?:missing|not found|unavailable)", r"protected helper", r"unsafe ownership", r"unsafe.*permissions", r"traceback \(most recent call last\)", r"helper is not installed"),
+        (r"helper.*(?:missing|not found|unavailable)", r"protected helper", r"system setup helper must be root-owned", r"protected backend guard", r"unsafe ownership", r"unsafe.*permissions", r"traceback \(most recent call last\)", r"helper is not installed"),
         "A protected BC250 helper is missing or failed its safety check.",
         "The application and its root-owned helper are from different installs, or another toolkit changed the helper's owner, mode, or path.",
         "Reinstall BC250 Control Center. Do not copy a helper manually into /usr/libexec.",
@@ -254,7 +255,7 @@ _RULES = (
     _Rule(
         "BC250-PROTOCOL-001",
         (r"protocol.*incompat", r"version mismatch", r"expected protocol", r"stale.*helper",
-         r"helper is older than this application"),
+         r"helper is older than this application", r"unsupported system setup protocol"),
         "The interface and protected helper are different versions.",
         "An older Desktop or Decky component is still running after an update, or only part of the application was replaced.",
         "Reinstall the current build and restart the application. Restart Decky Loader too when the Quick Access panel is affected.",
@@ -262,7 +263,7 @@ _RULES = (
     _Rule(
         "BC250-BUSY-001",
         (r"\A(?!.*(?:pacman|apt(?:-get)?|dnf|zypper|rpmdb|rpm-ostree|apk|emerge|xbps)).*\balready (?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy",
-         r"smu returned status 0x(?:00|fc)\b"),
+         r"smu returned status 0x(?:00|fc)\b", r"smu timed out after"),
         "Another operation is still using this component.",
         "A previous BC250 action, package manager, service restart, or external toolkit still holds the required lock.",
         "Wait for the current terminal or progress indicator to finish, refresh the page, and retry once. Close other BC250 toolkits if the lock remains.",
@@ -314,7 +315,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-PKG-002",
-        (r"invalid or corrupted package", r"signature.*(?:invalid|unknown|trust)", r"keyring", r"gpg.*(?:error|failed)", r"public key.*unknown", r"gpg check failed", r"unknown trust", r"integrity validation", r"could not fingerprint", r"origin, revision"),
+        (r"invalid or corrupted package", r"signature.*(?:invalid|unknown|trust)", r"keyring", r"gpg.*(?:error|failed)", r"public key.*unknown", r"gpg check failed", r"signatures:\s+not ok", r"cannot be verified and repo.*GPG enabled", r"unknown trust", r"integrity validation", r"could not fingerprint", r"origin, revision"),
         "The package signature or repository key could not be verified.",
         "The keyring may be outdated, the download may be incomplete, or an external repository has a trust configuration that differs from the selected workflow.",
         "Update the distribution keyring and retry. If this is an external repository, review its configured signature policy before changing pacman, DNF, or APT settings.",
@@ -380,7 +381,8 @@ _RULES = (
     ),
     _Rule(
         "BC250-CMD-001",
-        (r"command not found", r"no such file or directory", r"executable.*not found", r"returned an empty command", r": command not found", r"needs one boolean", r"does not accept additional arguments", r"not prepared", r"is not installed", r"was not found", r"does not exist at", r"is missing from", r"unavailable in this build", r"terminal integration is required", r"qualification", r"bundle error", r"refusing .*without --", r"evidence error", r"expects a .*path", r"command is required", r"no custom values", r"integration script", r"requires --", r"runner is unavailable", r"executor is invalid", r"path is invalid", r"cargo.*(?:command not found|failed)", r"rustc.*(?:not found|error)", r"make: \*\*\*", r"cmake.*(?:error|failed)", r"fatal error: .*\.(?:h|hpp):", r"(?:gcc|g\+\+|cc): command not found"),
+        (r"web server dependencies are unavailable", r"no installer is known for this system", r"no configuration program for",
+         r"command not found", r"no such file or directory", r"executable.*not found", r"returned an empty command", r": command not found", r"needs one boolean", r"does not accept additional arguments", r"not prepared", r"is not installed", r"was not found", r"does not exist at", r"is missing from", r"unavailable in this build", r"terminal integration is required", r"qualification", r"bundle error", r"refusing .*without --", r"evidence error", r"expects a .*path", r"command is required", r"no custom values", r"integration script", r"requires --", r"runner is unavailable", r"executor is invalid", r"path is invalid", r"cargo.*(?:command not found|failed)", r"rustc.*(?:not found|error)", r"make: \*\*\*", r"cmake.*(?:error|failed)", r"fatal error: .*\.(?:h|hpp):", r"(?:gcc|g\+\+|cc): command not found"),
         "A required program or generated command is missing.",
         "Dependencies were not prepared, a toolkit was removed, or the active distribution provides the program under a different package or path.",
         "Return to the Dashboard and prepare the affected module.",
@@ -545,7 +547,9 @@ _RULES = (
     ),
     _Rule(
         "BC250-INTERNAL-001",
-        (r"cannot be empty", r"must be (?:integers|strings|numbers|a mapping|a sequence)",
+        (r"invalid privileged command", r"unsupported focus direction", r"unknown process task",
+         r"result must contain exactly one of value or error",
+         r"cannot be empty", r"must be (?:integers|strings|numbers|a mapping|a sequence)",
          r"non-finite", r"unsupported .*action\b", r"unknown .*(?:integration|action|backend)\b",
          r"invalid .*identifier", r"requires platformcapabilities", r"unexpectedly large",
          r"must be a valid", r"contains an invalid", r"invalid .*count", r"unsupported .*component", r"must not end with", r"unknown .*component"),
@@ -607,7 +611,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"was not installed for the active kernel", r"dkms installation did not produce a module",
         r"kernel-devel mismatch", r"matching kernel-devel is unavailable", r"rebuilt nct6687 has vermagic",
     ),
-    "BC250-STORAGE-001": (r"mb free and this needs", r"steamos keeps /var small"),
+    "BC250-STORAGE-001": (r"mb free and this needs", r"steamos keeps /var small", r"not enough free space on", r"insufficient disk space", r"no space left on device"),
     "BC250-IMMUTABLE-001": (
         r"steamos reports a writable root", r"steamos read-only state", r"read-only protection",
         r"systemd-sysext or another immutable layer",
@@ -621,11 +625,12 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"persisted nct6687 source is missing", r"\bfan\b.*does not exist",
     ),
     "BC250-HELPER-001": (
-        r"protected bc250 openrc service helper is missing", r"protected gddr6 patch helper is not installed",
+        r"protected bc250 openrc service helper is missing",
+        r"needs the installed, root-owned bc250 fan helper", r"protected gddr6 patch helper is not installed",
         r"reviewed root-owned steamos graphics backend is unavailable or changed",
     ),
     "BC250-PLATFORM-001": (
-        r"unsupported accessory", r"openlinkhub.*x86_64", r"trcc.*(?:no package|not installed)",
+        r"gddr6_firmware_unsupported", r"unsupported accessory", r"openlinkhub.*x86_64", r"trcc.*(?:no package|not installed)",
         r"debian release.*backports kernel", r"kernel boot options.*managed differently",
         r"only mitigations=off", r"optiscaler client.*x86_64",
     ),
@@ -638,6 +643,8 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"no earlier helixsr version kept", r"helixsr scaler is not recorded",
     ),
     "BC250-CONFIG-001": (
+        r"cyan configuration is not usable", r"invalid web network option", r"invalid browser session registry",
+        r"choose a session duration between one minute and one year",
         # Both governors' own files, read, checked and rewritten by the helper.
         r"oberon yaml", r"(?:governor|oberon) configuration (?:is unavailable|could not be (?:read|updated)|changed to a symlink)",
         r"oberon minimum (?:frequency|voltage) cannot exceed",
@@ -652,7 +659,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"no custom voltage values", r"duplicate voltage frequency", r"voltage outside (?:the )?editor range",
     ),
     "BC250-CMD-001": (r"(?:preview-voltage-level|apply-voltage-level|status) expects one",),
-    "BC250-SERVICE-003": (r"systemctl is not available", r"service management is not supported", r"openrc is not the active", r"rc-service is not available"),
+    "BC250-SERVICE-003": (r"starting with the session needs systemd", r"the web server (?:did not start|could not restart)", r"systemctl is not available", r"service management is not supported", r"openrc is not the active", r"rc-service is not available"),
     "BC250-GPU-001": (r"no recorded metrics", r"current metrics sample could not be recorded", r"temp-read"),
     "BC250-AUTH-003": (r"pkexec is not available",),
     "BC250-TERMINAL-001": (r"requested terminal workflow is empty",),
@@ -785,7 +792,9 @@ def diagnose_error(message: object, *, context: object = "") -> ErrorDiagnosis:
     # fault exactly; the shared catalog maps it the same way the terminal does,
     # so a broad desktop word ("gpu", "range") cannot outrank it.
     marked = error_catalog.for_marker(detail)
-    if marked is not None and _PREFIX_MARKER.search(detail):
+    if marked is not None and (
+        _PREFIX_MARKER.search(detail) or marked.code in {"BC250-PERM-001", "BC250-PERM-002"}
+    ):
         return ErrorDiagnosis(marked.code, marked.summary, marked.cause, marked.action)
     for rule in _RULES:
         if rule.matches(message_only):

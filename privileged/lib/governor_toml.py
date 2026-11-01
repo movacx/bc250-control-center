@@ -1332,6 +1332,21 @@ class GovernorTomlEditor:
             failure = error
         lines = original.splitlines(keepends=True)
         drop = set(identical_duplicate_lines(lines))
+        # An older preparation script appended a second [gpu-usage] table.
+        # Remove its header only when every effective entry repeats an earlier
+        # identical value. Never move new entries across array-table boundaries.
+        headers = [(index, match.group(1).strip()) for index, line in enumerate(lines)
+                   if (match := _TABLE_RE.match(line.rstrip("\r\n")))]
+        seen = set()
+        for index, table in headers:
+            if table in seen:
+                end = next((n for n in range(index + 1, len(lines))
+                            if _TABLE_RE.match(lines[n]) or _ANY_ARRAY_TABLE_RE.match(lines[n])), len(lines))
+                effective = [n for n in range(index + 1, end)
+                             if lines[n].strip() and not lines[n].lstrip().startswith("#")]
+                if all(n in drop for n in effective):
+                    drop.add(index)
+            seen.add(table)
         if not drop:
             raise GovernorTomlError(f"Governor TOML validation failed: {failure}")
         repaired = "".join(line for index, line in enumerate(lines) if index not in drop)

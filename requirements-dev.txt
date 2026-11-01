@@ -7,3 +7,4 @@ radon>=6.0
 ruff>=0.16.0
 bandit>=1.9.0
 opencc-python-reimplemented>=0.1.7
+cheroot>=11.1.2,<12

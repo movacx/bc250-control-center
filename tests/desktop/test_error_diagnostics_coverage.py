@@ -46,6 +46,7 @@ EVIDENCE: dict[str, tuple[str, ...]] = {
     # -- authorization (upstream: polkit) ------------------------------------
     "BC250-AUTH-001": (
         "polkit-agent-helper-1: no textual authentication agent available",
+        "Error executing command as another user: No authentication agent found.",
     ),
     "BC250-AUTH-002": (
         "Error executing command as another user: Not authorized",

@@ -15,6 +15,7 @@ import subprocess
 import threading
 import time
 from collections.abc import Mapping, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -22,6 +23,11 @@ AUTH_AGENT_MESSAGE = (
     "The live dashboard needs administrator permissions. If the Polkit window "
     "does not appear, check that your desktop has an active authentication agent."
 )
+
+#: Set by the terminal interface: authenticate on its console, never in a window.
+TERMINAL_AUTH_ENV = "BC250_TERMINAL_AUTH"
+WEB_SUDO_AUTH_ENV = "BC250_WEB_SUDO_AUTH"
+TERMINAL_AGENT_READY: ContextVar[bool] = ContextVar("bc250_terminal_agent_ready", default=False)
 
 _AGENT_MARKERS = (
     "hyprpolkitagent",
@@ -158,10 +164,19 @@ def ensure_graphical_polkit_agent(
     compositors can reuse any supported agent that is present on the host.
     """
     global _DEFAULT_READY_STATE
+    env = dict(os.environ if environment is None else environment)
+    if env.get(TERMINAL_AUTH_ENV) == "1":
+        # The terminal interface registers its own textual agent (pkttyagent)
+        # for its process: a desktop window would be the wrong place to ask,
+        # and on a bare TTY there is none to show.
+        return PolkitAgentState(False, "terminal", "The terminal interface asks for the password itself.")
     default_probe = environment is None and proc_root == Path("/proc")
     if default_probe and _DEFAULT_READY_STATE is not None:
-        return _DEFAULT_READY_STATE
-    env = dict(os.environ if environment is None else environment)
+        # Agents can exit after application startup or a session restart.
+        # Re-probe instead of trusting a stale successful launch forever.
+        if _agent_running(proc_root):
+            return _DEFAULT_READY_STATE
+        _DEFAULT_READY_STATE = None
     if os.geteuid() == 0:
         return PolkitAgentState(False, "root", "Root does not need a Polkit agent.")
     if not _graphical_session(env):
@@ -200,14 +215,8 @@ def ensure_graphical_polkit_agent(
                                 _DEFAULT_READY_STATE = state
                             return state
                         sleep(0.05)
-                    # A different agent may already own the Polkit session.
-                    # systemctl still reports a successful activation before
-                    # the redundant process exits, and pkexec can use that
-                    # existing registered agent.
-                    state = PolkitAgentState(True, f"user-unit:{candidate.unit}")
-                    if default_probe:
-                        _DEFAULT_READY_STATE = state
-                    return state
+                    # A successful unit start does not prove that its agent
+                    # survived. Try the installed executable as a fallback.
             try:
                 spawn(
                     [str(binary)],
@@ -231,10 +240,23 @@ def ensure_graphical_polkit_agent(
 
 
 def pkexec_prefix(executor: str, *, prepare_agent: bool = True) -> list[str]:
-    """Return the graphical-only pkexec prefix used by desktop actions."""
+    """Use graphical Polkit by default, or native sudo in the web action child."""
     value = str(executor or "")
     if not value or "\x00" in value:
         raise ValueError("Invalid privileged command")
+    if os.environ.get(WEB_SUDO_AUTH_ENV) == "1":
+        # Only the unprivileged web action child sets this. The caller still
+        # supplies the same installed, validated helper and typed arguments.
+        # Native sudo owns /dev/tty, its password handling and authorization.
+        sudo = shutil.which("sudo")
+        if not sudo:
+            raise RuntimeError("sudo is required for web hardware authorization.")
+        return [sudo, "-p", "BC250 Linux password: ", "--"]
+    if os.environ.get(TERMINAL_AUTH_ENV) == "1" and not TERMINAL_AGENT_READY.get():
+        from bc250cc.shared.errors import ActionNeeded
+
+        raise ActionNeeded("Terminal authorization is unavailable. Run this action from the TUI console with "
+                           "polkit/pkttyagent installed and a working system D-Bus session.")
     if prepare_agent:
         ensure_graphical_polkit_agent()
     return [value, "--disable-internal-agent"]
@@ -250,7 +272,17 @@ def pkexec_argv(
     values = [str(program or ""), *(str(item) for item in arguments)]
     if not values[0] or any("\x00" in value for value in values):
         raise ValueError("Invalid privileged command")
-    return [*pkexec_prefix(executor, prepare_agent=prepare_agent), *values]
+    prefix = pkexec_prefix(executor, prepare_agent=prepare_agent)
+    if os.environ.get(WEB_SUDO_AUTH_ENV) == "1" and Path(values[0]).name in {
+        "bc250-gddr6-temp-helper", "bc250-gddr6-temp-reader",
+    }:
+        # Installed GDDR6 helpers predate SUDO_UID support. Supply their expected
+        # identity through sudo's checked environment-assignment syntax. The
+        # current UID is fixed by the OS, never provided by a browser request.
+        # sudo stops parsing assignments at --. After it, NAME=value is
+        # interpreted as the executable rather than an environment variable.
+        prefix.insert(-1, f"PKEXEC_UID={os.getuid()}")
+    return [*prefix, *values]
 
 
 def normalize_polkit_error(command: Sequence[object], detail: object) -> str:

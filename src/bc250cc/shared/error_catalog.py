@@ -86,6 +86,14 @@ _CODES: tuple[ErrorCode, ...] = (
         markers=("QUICK_ACCESS_PRIVILEGE",),
     ),
     ErrorCode(
+        "BC250-PERM-002",
+        "Linux refused access to a required file or device.",
+        "A helper, device node, configuration file, or immutable system path has ownership or permission settings that do not allow this operation.",
+        "Return to the Dashboard and prepare the affected module.",
+        markers=("Untrusted helper dependency:", "is not protected by root:",
+                 "CU executor is missing or untrusted", "HELPER_UNTRUSTED:"),
+    ),
+    ErrorCode(
         "BC250-SERVICE-003",
         "The service manager could not complete the requested change.",
         "The service configuration is invalid, its executable is missing, or the selected init system does not match the installed service files.",
@@ -144,7 +152,10 @@ _CODES: tuple[ErrorCode, ...] = (
         "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.",
         exit_statuses=(73, 74),
         # steamos-root.sh: /var or the root filesystem is too full to install.
-        markers=('MB free and this needs', 'SteamOS keeps /var small'),
+        markers=('MB free and this needs', 'SteamOS keeps /var small',
+                 # bazzite_memory_tuning.py and the mutable adapter's swapfile check.
+                 'not enough free space on', 'Insufficient disk space',
+                 'no space left on device', 'No space left on device'),
     ),
     ErrorCode(
         "BC250-BUSY-001",
@@ -155,7 +166,7 @@ _CODES: tuple[ErrorCode, ...] = (
         # The SMU mailbox gave no answer in time (0x00) or said it was busy
         # (0xFC). The CPU/SMU helper exits 70 for it, which alone reads as a
         # helper version mismatch and sent users to reinstall.
-        markers=('Transaction in progress', "index.lock': File exists", 'Another git process seems to be running', 'smu returned status 0x00', 'smu returned status 0xFC',
+        markers=('Transaction in progress', 'another BC250 system preparation is already running', "index.lock': File exists", 'Another git process seems to be running', 'smu returned status 0x00', 'smu returned status 0xFC', 'smu timed out after',
                  # The CPU helper exits 44 (a RANGE status) for it.
                  'SMU_IN_USE'),
     ),
@@ -165,7 +176,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "A manual edit, older toolkit, interrupted write, or unsupported option left syntax or values the current component cannot read.",
         "Open the named file from the application, correct the first reported line or restore the module defaults, then apply the settings again.",
         exit_statuses=(78,),
-        markers=('QUICK_ACCESS_GPU_CONFIG', 'QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling'),
+        markers=('QUICK_ACCESS_GPU_CONFIG', 'Cyan configuration is not usable', 'QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling'),
     ),
     ErrorCode(
         "BC250-PROTOCOL-001",
@@ -363,7 +374,19 @@ _CODES: tuple[ErrorCode, ...] = (
         "Wait for the upstream rebuild to finish and run the workflow again later; the currently installed kernel keeps working meanwhile. Only report the diagnostic code if it still fails after a day.",
         markers=(
             "returned error: 404",
-            "failed to synchronize all databases",
+        ),
+    ),
+    ErrorCode(
+        "BC250-PKG-002",
+        "The package signature or repository key could not be verified.",
+        "The keyring may be outdated, the download may be incomplete, or an external repository has a trust configuration that differs from the selected workflow.",
+        "Update the distribution keyring and retry. If this is an external repository, review its configured signature policy before changing pacman, DNF, or APT settings.",
+        markers=(
+            'signature from "',
+            "invalid or corrupted package",
+            "unknown public key",
+            "unknown trust",
+            "GPG check FAILED",
         ),
     ),
     # SteamOS refused to unlock, or failed to relock, its read-only root.
