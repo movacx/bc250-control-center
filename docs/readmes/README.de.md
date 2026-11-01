@@ -4,7 +4,7 @@
 
 <a href="https://ko-fi.com/movacx"><img src="https://img.shields.io/badge/Ko--fi-Spenden-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white" alt="Spenden · Ko-fi"></a>
 
-Eine Desktop-Anwendung zum Einrichten, Abstimmen und Überwachen des AMD BC-250 unter Linux.
+AMD BC-250 unter Linux einrichten, abstimmen und überwachen – auf dem Desktop, im Terminal oder im Webbrowser.
 
 Sie deckt den GPU-Governor, die CPU-Abstimmung, die Compute Units (CU), die Lüfter, den Speicher, BIOS-Updates, Upscaling und die Systemvorbereitung für die unterstützten Distributionen ab. Jede Änderung an der Hardware wird gegen ihre Grenzwerte geprüft und vor der Anwendung bestätigt. Ein optionales Decky-Plugin bringt die täglichen Einstellungen in den Spielmodus von Steam.
 
@@ -14,13 +14,21 @@ Sie deckt den GPU-Governor, die CPU-Abstimmung, die Compute Units (CU), die Lüf
 
 Weitere Screenshots gibt es in der [Galerie](https://movacx.github.io/bc250-control-center/gallery/).
 
+## Benutzeroberflächen
+
+- **Desktop · PyQt6:** vollständige Einrichtung und lokale Verwaltung mit `bc250-control-center`.
+- **Terminal · curses:** Bedienung in einer TTY, einem Terminal oder über SSH mit `bc250-control-center-tui`.
+- **Web · React:** Überwachung und Hardwaresteuerung vom Handy, Tablet oder einem anderen Rechner im Heimnetz.
+
+Alle drei Oberflächen verwenden dieselben Anwendungsdienste und geschützten Helfer. Das normale Paket enthält die TUI und die fertig kompilierten Webdateien; Node.js wird nur zum Neubauen der Weboberfläche benötigt.
+
 ## Funktionen
 
 - Dashboard mit CPU, GPU, Kühlung, Last pro Kern, GDDR6-Temperatur pro Chip, installiertem BIOS und Spannungsschienen (die Schienen benötigen die I2C-Hardwaremodifikation; die Anwendung enthält eine Anleitung mit Fotos)
 - Leistungsdiagramme für CPU, GPU, VRAM, RAM, Datenträger und Netzwerk, mit Sensoransicht und CSV-Export
 - Verwaltung des GPU-Governors (Cyan, mit Oberon als Alternative), sichere Frequenzbereiche und ein Spannungslabor
 - CPU-Abstimmung über die SMU, Stabilitätstest und optionales Freischalten von Kernen
-- Compute Units: 24 bis 40 CU, mit Live- und Startzustand getrennt angezeigt
+- Compute Units: Routing und Registerdiagnose mit getrenntem Live- und Startzustand; die verfügbaren Einheiten hängen vom Board ab
 - Lüftersteuerung: manueller PWM-Wert, Temperaturkurven, dauerhafte Profile oder Übergabe an CoolerControl, fancontrol oder fan2go
 - Speicher: VRAM-Größe, ZRAM, ZSWAP und Swap
 - Erstellung eines USB-Sticks für BIOS-Updates (P3.00 Chipset Menu, MeiMeiDXE v3, P5.00, P3.00, P2.00), wobei jede Datei geprüft wird
@@ -129,6 +137,43 @@ bash scripts/uninstall-local.sh
 3. Führe im Dashboard **Prepare BC250 system** aus. Es zeigt, was für deine Distribution installiert wird, und führt es im integrierten Terminal aus.
 4. Lies vor dem Anwenden von Änderungen die Statuszeile eines Moduls; sie zeigt, was bereit ist und was fehlt.
 
+## Terminaloberfläche
+
+Die TUI benötigt Python ab 3.11, `curses` und `psutil`, aber keinen grafischen Desktop und kein PyQt6. Bei installiertem Desktop-Paket genügt `bc250-control-center-tui`. Für eine reine Terminalinstallation das Repository klonen und das Skript als normaler Benutzer ausführen:
+
+```bash
+git clone https://github.com/movacx/bc250-control-center.git
+cd bc250-control-center
+bash scripts/install-tui.sh
+```
+
+Das Skript installiert unter `~/.local`, prüft die Abhängigkeiten und fordert Administratorrechte für fehlende Pakete und geschützte Helfer an. Auf Bazzite/Fedora Atomic muss der Helfer über das RPM mit `rpm-ostree` installiert werden; das TUI-Skript allein übernimmt diesen Schritt dort nicht.
+
+```bash
+~/.local/bin/bc250-control-center-tui
+bc250-control-center-tui --page gpu --theme mono
+```
+
+Ist `~/.local/bin` nicht im `PATH`, den vollständigen Pfad verwenden. Mit Pfeiltasten auswählen, mit `Enter` öffnen, mit `Esc` oder `Tab` zur Seitenleiste zurückkehren und mit `?` die Hilfe anzeigen. Maus und Mausrad werden unterstützt. Laufende Aufgaben zeigen ihre Ausgabe und Passwortabfragen in der integrierten Konsole; `Ctrl+C` bricht sie ab. Das gewählte Thema wird gespeichert.
+
+Zum Aktualisieren im selben Repository `git pull --ff-only` ausführen und das Installationsskript erneut starten. Zum Entfernen:
+
+```bash
+bash scripts/install-tui.sh --uninstall
+```
+
+Über einen bereits eingerichteten SSH-Server lässt sich die TUI mit `ssh -t user@board-ip bc250-control-center-tui` öffnen. Benutzername und Adresse entsprechend ersetzen.
+
+## Weboberfläche
+
+Unter **Remote access** auf dem Desktop oder in der TUI den Webzugriff starten und den Zugriff aus dem lokalen Netzwerk aktivieren. Die angezeigte Adresse öffnen oder den QR-Code scannen und den Zugangsschlüssel eingeben. Der lokale Name `bc250cc.local` und die numerische IP stehen zur Verfügung; die Namensauflösung hängt vom Netzwerk und Endgerät ab.
+
+Neue Browser dürfen nur überwachen. Vor dem Freigeben der Hardwaresteuerung den Gerätecode in **Connected devices** vergleichen. Berechtigung und Ablaufzeit lassen sich pro Gerät festlegen; privilegierte Aktionen benötigen weiterhin die Linux-Administratorautorisierung.
+
+Die Weboberfläche bietet Dashboard, CPU, GPU, CU, Spannungslabor, Lüfter, Leistungsdiagramme, Blackbox und Einstellungen. Sie passt sich an mobile Bildschirme an und speichert Sprache und Thema im Browser. SSH ist für die normale Webnutzung nicht nötig; der Webserver auf dem Board muss laufen.
+
+Im Heimnetz wird HTTPS mit einer lokalen Zertifizierungsstelle verwendet. Vor dem Import des öffentlichen Zertifikats dessen Fingerabdruck prüfen. Die Anwendung öffnet keine Router-Ports und richtet keine öffentlichen Tunnel ein.
+
 ## Decky-Plugin
 
 BC250 Quick Access ist ein optionales Panel für das Schnellzugriffsmenü des Spielmodus von Steam. Es bietet Steuerungen für GPU, Compute Units, CPU, Lüfter und VRAM, GPU- und Lüfterprofile pro Spiel sowie Live-Anzeigen für Async Compute. Die erweiterte Konfiguration bleibt in der Desktop-Anwendung.
@@ -142,23 +187,6 @@ Fehlerfenster zeigen einen Diagnosecode (zum Beispiel `BC250-UPSCALE-001`), eine
 Verwende **Dieses Problem melden** im Fehlerfenster oder **Einstellungen › Diagnose › Bericht senden**. Das Berichtsformular öffnet sich in der Anwendung, mit bereits ausgefüllten Codes, dem Rohfehler, den Systemdaten und den letzten Fehlern. Du kannst alles vor dem Senden prüfen; Pfade im Home-Verzeichnis werden durch `~` ersetzt. Lässt sich das Formular nicht absenden, öffnet es sich im Browser, wobei deine Antworten erhalten bleiben. Das Formular ist außerdem [im Web](https://docs.google.com/forms/d/e/1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA/viewform) verfügbar.
 
 Der Bericht enthält außerdem eine Hardware-Diagnose, die auf jeder Distribution ohne root gesammelt wird: Kernel und Header, geladene Sensormodule und ihre Kernelmeldungen (NCT6687, amdgpu), hwmon- und `sensors`-Werte, GPU- und Absturzzeilen aus dem Kernel-Log, wie der vorherige Start endete (sauberes Herunterfahren oder abrupter Reset), Dienste, Pakete und das Ende des letzten Workflow-Logs. Ist das Kernel-Log für deinen Benutzer gesperrt, fragt der Desktop einmal über polkit nach dem Passwort. Zu große Berichte werden automatisch gekürzt, wobei zuerst die weniger wichtigen Teile entfernt werden; **Im Browser öffnen** kopiert weiterhin den vollständigen Text.
-
-### Black Box (Einfrieren und Resets)
-
-Ein harter Freeze hinterlässt nichts im Kernel-Log. Die Black Box zeichnet viermal pro Sekunde GPU-Takt und -Last, Temperaturen, GFX-Spannung, Leistung, Lüfterdrehzahl, CPU-Takt und freien Speicher auf und schreibt jede Zeile sofort auf die Festplatte. So zeigt der nächste Bericht die letzten Sekunden des Boards vor einem Freeze oder Reset. Sie benötigt kein root, und ihre Datei ist begrenzt (512 KB, danach wird rotiert).
-
-```bash
-# Desktop-Modus: Lass das Terminal beim Spielen geöffnet, beende mit Strg+C
-bc250-control-center-cli black-box
-
-# Spielmodus (SteamOS): vor dem Wechsel im Hintergrund starten
-systemd-run --user --unit=bc250-black-box bc250-control-center-cli black-box
-systemctl --user stop bc250-black-box
-```
-
-Das Protokoll wird in `~/.local/state/bc250-control-center/black-box/` gespeichert. `bc250-control-center-cli diagnose` gibt dieselbe Hardware-Diagnose aus, die der Bericht sendet.
-
-Das Terminal ist nicht nötig: Öffne **Blackbox** in der Seitenleiste (über Firmware (BIOS)), um die Aufnahme zu starten und zu beenden, die zuletzt geschriebenen Zeilen in einer Tabelle zu sehen und *Mit der Sitzung starten* zu aktivieren, damit sie bei jeder Anmeldung läuft (nur systemd). Eine durch Neustart oder Absturz abgebrochene Aufnahme wird dort markiert.
 
 Um alles zu lesen, was ein Bericht anhängt, bevor du ihn sendest, öffne **Einstellungen › Diagnose › Vollständige Diagnose anzeigen**: Jeder Abschnitt (Kernel, vorheriger Start, Blackbox, Sensoren, GPU, Dienste, Konfiguration, Pakete, Protokolle) ist aufklappbar, nach Tabs sortiert, durchsuchbar und lässt sich kopieren oder als Datei speichern. Das Terminal gibt dasselbe mit `bc250-control-center-cli diagnose --full` aus.
 
@@ -225,6 +253,10 @@ bc250-control-center/
 │   │   ├── console/          Integriertes Terminal
 │   │   ├── theme/            Designs, Stile, Farben und Symbole
 │   │   └── i18n/             Übersetzungen in 30 Sprachen
+│   ├── tui/                  Terminaloberfläche, Navigation und Aufgabenkonsole
+│   ├── web/                  HTTPS-Server, Sitzungen und Aktions-Worker
+│   │   ├── app/              React-Quellcode und Build-Werkzeuge
+│   │   └── dist/             Mitgelieferte kompilierte Webdateien
 │   └── cli.py                Kommandozeilen-Modus
 ├── integrations/decky/       Decky-Quick-Access-Plugin für den Spielmodus
 ├── privileged/               Was als root läuft, isoliert und geprüft
@@ -235,7 +267,7 @@ bc250-control-center/
 ├── scripts/                  Starter, lokaler Installer und Systemwerkzeuge
 ├── assets/                   Symbole, Screenshots und Web-Galerie
 ├── docs/                     Dokumentation, Hinweise zu Drittanbietern und Übersetzungen dieses READMEs
-└── tests/                    Über 5000 automatische Tests, mit os-release-Dateien von 37 echten Distributionen
+└── tests/                    Unit-, Dienst-, Desktop-, TUI-, Web- und Pakettests
 ```
 
 ## Mitmachen

@@ -169,8 +169,9 @@ bash scripts/install-tui.sh
 
 El instalador guarda la aplicación en `~/.local`, comprueba las dependencias y
 solicita autorización de administrador para instalar paquetes y helpers
-protegidos. No instala PyQt6 ni un lanzador de escritorio. En Bazzite, los
-cambios instalados mediante `rpm-ostree` requieren reiniciar.
+protegidos. No instala PyQt6 ni un lanzador de escritorio. En Bazzite/Fedora
+Atomic, el script omite instalar los helpers del sistema: se necesitan los del
+RPM instalado mediante `rpm-ostree` y reiniciar después.
 
 Para abrirla después de instalar:
 
@@ -219,7 +220,7 @@ requiere SSH. El servidor de la placa debe estar encendido.
 La conexión por LAN usa HTTPS con una autoridad de certificados local. El
 navegador puede advertir hasta que confíes en el certificado público; comprueba
 su huella antes de instalarlo. La aplicación no abre puertos del router ni crea
-túneles públicos. Consulta la [guía web](../WEB_ACCESS.md).
+túneles públicos.
 
 ## Plugin de Decky
 

@@ -176,7 +176,8 @@ bash scripts/install-tui.sh
 The installer places the application in `~/.local` and checks its Python
 dependencies. It requests administrator authorization to install missing
 packages and protected hardware helpers. It does not install PyQt6 or a desktop
-launcher. On Bazzite, changes installed through `rpm-ostree` require a reboot.
+launcher. On Bazzite/Fedora Atomic, this script skips system helper installation;
+the helpers must be installed through the RPM with `rpm-ostree`, followed by a reboot.
 
 Start the interface:
 
@@ -247,9 +248,7 @@ Compare the displayed fingerprint before trusting it. With LAN access disabled,
 only the board itself can connect through loopback. The application does not
 open router ports or configure a public tunnel.
 
-Users do not need Node.js: packages ship the built web assets. For connection,
-certificate, authorization and development details, see the [web guide](docs/WEB_ACCESS.md)
-and [architecture](docs/WEB_ARCHITECTURE.md).
+Users do not need Node.js: packages ship the built web assets.
 
 ## Decky plugin
 

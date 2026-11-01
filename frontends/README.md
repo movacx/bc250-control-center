@@ -45,8 +45,8 @@ scripts/development/build-web.sh
 
 The build requires Node.js and npm; running the server requires Python and
 `requirements-web.txt`, without a Node.js runtime. Commit the rebuilt assets
-alongside their source changes. See [Web access](../docs/WEB_ACCESS.md) and
-[Web architecture](../docs/WEB_ARCHITECTURE.md) for launch and security details.
+alongside their source changes. See the [root README](../README.md#web-interface)
+for connection and authorization details.
 
 ## Shared boundaries
 
