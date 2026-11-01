@@ -322,9 +322,3 @@ bc250-control-center/
 Lo más útil que puedes enviar es un informe de fallo, sobre todo con tu distribución, la versión del kernel y lo que mostró la terminal. Si usas una distribución que no aparece arriba, cuéntanos cómo te fue, bien o mal.
 
 Licencia [MIT](../../LICENSE).
-
-### Diagnóstico de la dirección local
-
-Acceso remoto comprueba que `bc250cc.local` se resuelva mediante el sistema, además de comprobar su anuncio en Avahi. Si falla, ofrece la dirección IP y el botón **Reparar dirección local**. Con autorización de administrador, la reparación puede instalar Avahi y el módulo NSS en sistemas Arch/CachyOS/Artix, Debian/Ubuntu o Fedora, activar Avahi mediante systemd u OpenRC y ajustar la resolución de nombres. Guarda una copia de `nsswitch.conf` y revierte ese archivo si la comprobación falla. Las configuraciones administradas por otras herramientas se conservan. Las imágenes inmutables que necesitan paquetes adicionales requieren preparar sus componentes y reiniciar.
-
-La comprobación verifica este equipo; otros dispositivos deben admitir mDNS y estar en una red que permita su tráfico. La dirección IP permanece disponible.
