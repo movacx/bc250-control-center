@@ -32,6 +32,13 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
+    <release version="1.22.0" date="2026-11-01">
+      <description>
+        <p>Nuevas interfaces de terminal y web: TUI para TTY o SSH, con teclado, ratón, consola integrada y temas recordados; web adaptable al móvil con controles de CPU, GPU, CU, ventiladores y gráficas.</p>
+        <p>Acceso remoto por HTTPS con QR, permisos y vencimiento por dispositivo, sesiones persistentes, diagnóstico de red y dirección local bc250cc.local. Caja negra integrada en escritorio, TUI y web.</p>
+        <p>Correcciones de dependencias, paquetes y helpers; recuperación de permisos inseguros en flujos de Mint; mejoras de SteamOS, Bazzite, Debian y OpenRC; preparación de herramientas de apagado de TV en Fedora.</p>
+      </description>
+    </release>
     <release version="1.21.4" date="2026-10-28">
       <description>
         <p>Nuevo: opción para ocultar los mensajes de arranque del kernel (loglevel=0), que esconde el aviso de RDSEED de la CPU de la BC-250; se activa y se revierte en Ajustes adicionales, en Ubuntu, Debian, Arch, CachyOS, Fedora, Bazzite y SteamOS. Correcciones: SteamOS con kernel 7.2 ya no queda bloqueado al preparar el backend de amdgpu; el config de Cyan de una versión anterior ya no falla con [gpu-usage] declarado dos veces; las instalaciones de Bazzite sobre Ext4 pueden crear el swap en disco; el aviso de poco espacio en /var dice cuánto hace falta; el candado de preparación, la falta de espacio, un config de Cyan inválido y la desinstalación de Mesa que pide reiniciar ya no salen con el código de error equivocado; instalar el Mesa más nuevo funciona con apt en cualquier idioma; el bloqueo por puntos de Cyan sobre 2230 MHz sale como aviso y no como error.</p>
