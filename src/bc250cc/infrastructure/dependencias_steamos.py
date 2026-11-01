@@ -224,11 +224,25 @@ class SteamosDependenciesMixin:
         user_audio_root = destination / STEAMOS_FIX_SUBDIRECTORY
         q_user_audio = shlex.quote(str(user_audio_root))
         q_protected_audio = shlex.quote(str(STEAMOS_AMDGPU_AUDIO_FIX_ROOT))
+        index_repair = Path(__file__).resolve().parents[3] / 'scripts' / 'system' / 'repair-steamos-kernel-index.py'
+        install_artifacts_command = '; '.join((
+            'set -Eeuo pipefail; '
+            f'for artifact in amdgpu.ko.zst amdgpu.gfx1013.attestation; do '
+            f'source_artifact={q_user_audio}/$artifact; '
+            'test -f "$source_artifact" && test ! -L "$source_artifact" && '
+            '[ "$(stat -c %u "$source_artifact")" = "$(id -u)" ] && '
+            '! find "$source_artifact" -prune -perm /022 -print -quit | grep -q . || '
+            '{ echo "ERROR: SteamOS build produced an unsafe artifact: $source_artifact"; exit 38; }; '
+            f'sudo install -o root -g root -m 0644 "$source_artifact" {q_protected_audio}/$artifact; '
+            'done',
+            f'sudo /usr/bin/bash {q_protected_audio}/install.sh',
+        ))
         build_install_command = '; '.join((
             f'sudo /usr/bin/bash {q_protected_audio}/ensure-build-prereqs.sh',
             'echo; echo "== Downloading exact Valve kernel sources and build dependencies =="; '
             'echo "[INFO] This step can remain quiet for several minutes while Git is working. Do not close this window; the process is still running."',
             f'/usr/bin/bash {q_user_audio}/fetch-sources.sh',
+            f'python3 {shlex.quote(str(index_repair))} {shlex.quote(str(user_audio_root / "valve-kernel"))}',
             'echo "[OK] Kernel sources and build dependencies are ready."; echo; '
             'echo "== Building the BC250 AMDGPU module =="; '
             'echo "[INFO] Configuration and compilation can take a while. Do not close this window; compiler output will appear as work progresses."',
@@ -239,19 +253,12 @@ class SteamosDependenciesMixin:
             f'bc250_build_rc=0; /usr/bin/bash {q_user_audio}/build.sh || bc250_build_rc=$?',
             'if [ "$bc250_build_rc" = 75 ]; then '
             'echo "[INFO] The kernel tree was prepared by an earlier toolkit revision; cleaning it and building again. Cached downloads are kept."; '
+            f'python3 {shlex.quote(str(index_repair))} {shlex.quote(str(user_audio_root / "valve-kernel"))}; '
             f'/usr/bin/bash {q_user_audio}/clean.sh; '
             f'/usr/bin/bash {q_user_audio}/fetch-sources.sh; '
             f'/usr/bin/bash {q_user_audio}/build.sh; '
             'elif [ "$bc250_build_rc" != 0 ]; then exit "$bc250_build_rc"; fi',
-            f'for artifact in amdgpu.ko.zst amdgpu.gfx1013.attestation; do '
-            f'source_artifact={q_user_audio}/$artifact; '
-            'test -f "$source_artifact" && test ! -L "$source_artifact" && '
-            '[ "$(stat -c %u "$source_artifact")" = "$(id -u)" ] && '
-            '! find "$source_artifact" -prune -perm /022 -print -quit | grep -q . || '
-            '{ echo "ERROR: SteamOS build produced an unsafe artifact: $source_artifact"; exit 38; }; '
-            f'sudo install -o root -g root -m 0644 "$source_artifact" {q_protected_audio}/$artifact; '
-            'done',
-            f'sudo /usr/bin/bash {q_protected_audio}/install.sh',
+            wrap_steamos_writable_command(install_artifacts_command, family='steamos'),
         ))
         if install:
             checkout_command = self._clone_or_update_commit_command(

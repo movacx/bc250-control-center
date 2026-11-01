@@ -268,7 +268,9 @@ def _until_reboot_is_allowed(command: str) -> str:
     marker = shlex.quote(UNINSTALL_REBOOT_MARKER)
     return (
         'bc250_uninstall_log=$(mktemp); '
-        f'{command} 2>&1 | tee "$bc250_uninstall_log"; bc250_uninstall_status=${{PIPESTATUS[0]}}; '
+        f'if {command} 2>&1 | tee "$bc250_uninstall_log"; then bc250_uninstall_status=0; '
+        'else bc250_uninstall_status=${PIPESTATUS[0]}; '
+        '[ "$bc250_uninstall_status" -ne 0 ] || bc250_uninstall_status=1; fi; '
         'if [ "$bc250_uninstall_status" -ne 0 ] && '
         f'grep -qF {marker} "$bc250_uninstall_log"; then '
         'rm -f "$bc250_uninstall_log"; '

@@ -33,10 +33,13 @@ BAZZITE_MEMORY_OPTIONS = (
 
 #: SteamOS (beta). Its own half-RAM zstd ZRAM stays the default; the emergency
 #: swapfile sits behind it, and ZSWAP replaces it after one reboot. The
-#: swapfile goes on /home, as keyboardspecialist/bc250-steamos does.
+#: swapfile goes on /home, as keyboardspecialist/bc250-steamos does. Offer the
+#: full backend policy set; capability checks preserve existing ZRAM managers.
 STEAMOS_MEMORY_OPTIONS = (
     ("Keep current configuration", "preserve"),
-    ("Recommended · ZRAM + 16 GiB emergency swap", "swap-16"),
+    ("Disk swap · 16 GiB", "swap-16"),
+    ("Disk swap · 32 GiB", "swap-32"),
+    ("ZRAM · half of RAM", "zram"),
     ("Advanced · ZSWAP + 16 GiB swapfile", "zswap-16"),
     ("Advanced heavy loads · ZSWAP + 32 GiB swapfile", "zswap-32"),
     ("Restore BC250 memory changes", "restore"),

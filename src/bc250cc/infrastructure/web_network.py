@@ -72,7 +72,9 @@ def alias_health(*, published: bool | None = None) -> dict:
                                 text=True, timeout=3, check=False)
         resolved = {line.split()[0] for line in result.stdout.splitlines() if line.split()}
     except (OSError, subprocess.SubprocessError):
-        return {"status": "unavailable", "repairable": False}
+        # NSS/Avahi can stall when SteamOS disables publication. Keep the
+        # explicit repair reachable even when lookup cannot finish.
+        return {"status": "unavailable", "repairable": bool(own)}
     if resolved and resolved <= own:
         return {"status": "ready", "repairable": False}
     if resolved:

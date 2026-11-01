@@ -374,7 +374,19 @@ _CODES: tuple[ErrorCode, ...] = (
         "Wait for the upstream rebuild to finish and run the workflow again later; the currently installed kernel keeps working meanwhile. Only report the diagnostic code if it still fails after a day.",
         markers=(
             "returned error: 404",
-            "failed to synchronize all databases",
+        ),
+    ),
+    ErrorCode(
+        "BC250-PKG-002",
+        "The package signature or repository key could not be verified.",
+        "The keyring may be outdated, the download may be incomplete, or an external repository has a trust configuration that differs from the selected workflow.",
+        "Update the distribution keyring and retry. If this is an external repository, review its configured signature policy before changing pacman, DNF, or APT settings.",
+        markers=(
+            'signature from "',
+            "invalid or corrupted package",
+            "unknown public key",
+            "unknown trust",
+            "GPG check FAILED",
         ),
     ),
     # SteamOS refused to unlock, or failed to relock, its read-only root.

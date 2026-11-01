@@ -327,6 +327,8 @@ def test_the_toolkit_is_built_unmodified_and_an_old_tree_is_cleaned_once(tmp_pat
     first = command.index(f"/usr/bin/bash {audio}/build.sh || bc250_build_rc=$?")
     retry = command.index('if [ "$bc250_build_rc" = 75 ]; then', first)
     clean = command.index(f"/usr/bin/bash {audio}/clean.sh;", retry)
+    recovery = command.index('repair-steamos-kernel-index.py', retry)
+    assert retry < recovery < clean
     rebuild = command.index(f"/usr/bin/bash {audio}/build.sh;", clean)
     assert first < retry < clean < rebuild
     assert 'elif [ "$bc250_build_rc" != 0 ]; then exit "$bc250_build_rc"; fi' in command

@@ -189,7 +189,7 @@ def _run_uninstall(tmp_path, toolkit_body, action="uninstall"):
     (bin_dir / "sudo").write_text("#!/bin/bash\nexit 1\n")
     (bin_dir / "sudo").chmod(0o755)
     return subprocess.run(
-        ["bash", "-c", command], capture_output=True, text=True, check=False, timeout=60,
+        ["bash", "-Eeuo", "pipefail", "-c", command], capture_output=True, text=True, check=False, timeout=60,
         env={"PATH": f"{bin_dir}:/usr/bin:/bin"}, stdin=subprocess.DEVNULL,
     )
 

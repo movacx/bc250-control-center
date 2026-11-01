@@ -1006,7 +1006,7 @@ class RemoteAccessPage(QWidget):
         self._render_web()
         if QMessageBox.question(
             self, tr("Repair local address"),
-            tr("Repair local name discovery and lookup? This may install Avahi and its resolver module, enable the Avahi service and update the system resolver configuration. A configuration backup is saved and failed resolver changes are reverted. Administrator authorization is required."),
+            tr("Repair local name discovery and lookup? This may install Avahi and its resolver module, enable the Avahi service and update the system resolver configuration. A configuration backup is saved and failed resolver changes are reverted. Administrator authorization is required.") + "\n\n" + tr("On SteamOS, local name publishing will also be enabled."),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         ) == QMessageBox.StandardButton.Yes:

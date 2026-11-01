@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import os
 import re
+import stat
 
 from system_setup_common import Host, SetupError
 
@@ -121,9 +122,14 @@ def _steamos_menu_present(host: Host) -> bool:
     checks it again before writing anything.
     """
     try:
-        return host.path(STEAMOS_GRUB_OUTPUT).is_file()
+        # Python 3.14's is_file() suppresses PermissionError and returns False.
+        # Use stat explicitly so an unreadable EFI partition does not hide
+        # all boot controls from the unprivileged desktop inventory.
+        return stat.S_ISREG(host.path(STEAMOS_GRUB_OUTPUT).stat().st_mode)
     except PermissionError:
         return True
+    except OSError:
+        return False
 
 
 def _refind_direct(host: Host) -> bool:

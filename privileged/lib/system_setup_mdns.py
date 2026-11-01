@@ -1,7 +1,9 @@
 """Repair the Avahi to NSS bridge without replacing the host resolver."""
 from __future__ import annotations
 
+import configparser
 import json
+from contextlib import contextmanager
 import re
 
 from system_setup_common import STATE, SetupError
@@ -43,6 +45,77 @@ def _prepare(host):
         return host.run("avahi-resolve-host-name", "-4", "bc250cc.local", timeout=8)
 
 
+AVAHI_CONFIG = "/etc/avahi/avahi-daemon.conf"
+STEAMOS_KEEP = "/etc/atomic-update.conf.d/bc250-control-center-mdns.conf"
+
+
+def _restart_avahi(host):
+    if host.path("/run/systemd/system").is_dir():
+        host.run("systemctl", "restart", "avahi-daemon.service")
+    elif host.openrc():
+        host.run("rc-service", "avahi-daemon", "restart")
+    else:
+        raise SetupError("The Avahi service manager is unsupported. The numeric address remains available.")
+
+
+@contextmanager
+def _publication_transaction(host):
+    """Enable SteamOS user publication; undo configuration on any failed check."""
+    change = {"changed": False, "backup": ""}
+    if not host.steamos() or not host.path(AVAHI_CONFIG).exists():
+        yield change
+        return
+    path = host.safe(AVAHI_CONFIG)
+    original = path.read_text(encoding="utf-8")
+    parser = configparser.ConfigParser(interpolation=None, inline_comment_prefixes=("#", ";"))
+    try:
+        parser.read_string(original)
+        disabled = {key for key in ("disable-publishing", "disable-user-service-publishing")
+                    if parser.getboolean("publish", key, fallback=False)}
+    except (configparser.Error, ValueError) as exc:
+        raise SetupError("Avahi configuration is ambiguous or invalid; it was preserved.") from exc
+    if not disabled:
+        yield change
+        return
+    mode = path.stat().st_mode & 0o777
+    section = ""
+    lines = []
+    for line in original.splitlines(keepends=True):
+        header = re.match(r"^\s*\[([^]]+)\]", line)
+        if header:
+            section = header[1].strip()
+        if section == "publish":
+            for key in disabled:
+                line = re.sub(r"^(\s*" + re.escape(key) + r"\s*=\s*)(yes|true|1)(?=\s|$)",
+                              r"\g<1>no", line, flags=re.IGNORECASE)
+        lines.append(line)
+    updated = "".join(lines)
+    if updated == original:
+        raise SetupError("Avahi publishing settings could not be updated safely; configuration was preserved.")
+    keep = host.safe(STEAMOS_KEEP)
+    keep_before = keep.read_text(encoding="utf-8") if keep.exists() else None
+    if keep_before is not None and not host.owns(STEAMOS_KEEP):
+        raise SetupError("The SteamOS mDNS keep list belongs to another tool; it was preserved.")
+    backup = f"{STATE}/avahi-daemon.conf.before-mdns"
+    if not host.safe(backup).exists():
+        host.write(backup, original, mode=0o600)
+    try:
+        host.write(AVAHI_CONFIG, updated, mode=mode)
+        _restart_avahi(host)
+        change.update(changed=True, backup=backup)
+        host.managed(STEAMOS_KEEP, AVAHI_CONFIG + "\n/etc/nsswitch.conf\n")
+        yield change
+    except Exception:
+        host.write(AVAHI_CONFIG, original, mode=mode)
+        if keep_before is None:
+            if keep.exists():
+                keep.unlink()
+        else:
+            host.write(STEAMOS_KEEP, keep_before)
+        _restart_avahi(host)
+        raise
+
+
 def repair(host):
     # Validate the file before installing packages or changing service policy.
     path = host.safe("/etc/nsswitch.conf")
@@ -62,23 +135,27 @@ def repair(host):
     body = body.replace("hosts: ", "hosts: mdns4_minimal [NOTFOUND=return] ", 1)
     if not body.startswith("hosts: mdns4_minimal "):
         raise SetupError("The hosts resolver configuration is unsupported; it was preserved.")
-    advertised = _prepare(host).split()
-    interfaces = json.loads(host.run("ip", "-j", "-4", "addr", "show"))
-    own = {item.get("local") for link in interfaces for item in link.get("addr_info", [])}
-    if len(advertised) != 2 or advertised[0] != "bc250cc.local" or advertised[1] not in own:
-        raise SetupError("The local name belongs to another device or is not advertised. Resolver settings were preserved.")
-    updated = original[:match.start()] + body + ((" #" + comment) if separator else "") + original[match.end():]
-    backup = f"{STATE}/nsswitch.conf.before-mdns"
-    if updated != original:
-        if not host.safe(backup).exists():
-            host.write(backup, original, mode=0o600)
-        host.write("/etc/nsswitch.conf", updated, mode=path.stat().st_mode & 0o777)
-    try:
-        resolved = host.run("getent", "ahostsv4", "bc250cc.local", timeout=8).splitlines()
-        if len(advertised) != 2 or not any(row.split() and row.split()[0] == advertised[1] for row in resolved):
-            raise SetupError("The local name still does not resolve to the advertised address.")
-    except (SetupError, OSError):
+    with _publication_transaction(host) as publication:
+        advertised = _prepare(host).split()
+        interfaces = json.loads(host.run("ip", "-j", "-4", "addr", "show"))
+        own = {item.get("local") for link in interfaces for item in link.get("addr_info", [])}
+        if len(advertised) != 2 or advertised[0] != "bc250cc.local" or advertised[1] not in own:
+            raise SetupError("The local name belongs to another device or is not advertised. Resolver settings were preserved.")
+        updated = original[:match.start()] + body + ((" #" + comment) if separator else "") + original[match.end():]
+        backup = f"{STATE}/nsswitch.conf.before-mdns"
         if updated != original:
-            host.write("/etc/nsswitch.conf", original, mode=path.stat().st_mode & 0o777)
-        raise
-    return {"verified": True, "changed": updated != original, "backup": backup if updated != original else ""}
+            if not host.safe(backup).exists():
+                host.write(backup, original, mode=0o600)
+            host.write("/etc/nsswitch.conf", updated, mode=path.stat().st_mode & 0o777)
+        try:
+            resolved = host.run("getent", "ahostsv4", "bc250cc.local", timeout=8).splitlines()
+            resolved_addresses = {row.split()[0] for row in resolved if row.split()}
+            if advertised[1] not in resolved_addresses or not resolved_addresses <= own:
+                raise SetupError("The local name still does not resolve to the advertised address.")
+        except (SetupError, OSError):
+            if updated != original:
+                host.write("/etc/nsswitch.conf", original, mode=path.stat().st_mode & 0o777)
+            raise
+        return {"verified": True, "changed": updated != original or publication["changed"],
+                "backup": backup if updated != original else "",
+                "publication_backup": publication["backup"]}

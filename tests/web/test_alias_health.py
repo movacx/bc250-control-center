@@ -208,3 +208,91 @@ class PairingRegressionTests(unittest.TestCase):
                 available.append('/usr/bin/avahi-publish-address')
                 alias._refresh()
                 self.assertEqual(spawn.call_args.args[0][-2:], ['bc250cc.local', '192.168.0.8'])
+
+
+class SteamOSPublicationRepairTests(unittest.TestCase):
+    def setUp(self):
+        RepairTests.setUp(self)
+        self.host.path('/etc/os-release').write_text('ID=steamos\nID_LIKE=arch\n')
+        self.host.path('/run/systemd/system').mkdir(parents=True)
+        self.config = self.host.path('/etc/avahi/avahi-daemon.conf')
+        self.config.parent.mkdir(parents=True)
+        self.avahi_original = ('# keep my settings\n[server]\nuse-ipv6=yes\n'
+                               '[publish]\ndisable-publishing=yes\n'
+                               'disable-user-service-publishing=yes\npublish-addresses=no\n')
+        self.config.write_text(self.avahi_original)
+        self.calls = []
+        original_runner = self.host.runner
+        def run(*args, **kwargs):
+            self.calls.append(args)
+            if args[0] == 'systemctl':
+                return ''
+            return original_runner(*args, **kwargs)
+        self.host.runner = run
+
+    def test_enables_only_publication_flags_and_keeps_steamos_update_files(self):
+        result = repair(self.host)
+        self.assertTrue(result['verified'])
+        updated = self.config.read_text()
+        self.assertIn('disable-publishing=no', updated)
+        self.assertIn('disable-user-service-publishing=no', updated)
+        self.assertIn('publish-addresses=no', updated)
+        self.assertIn('use-ipv6=yes', updated)
+        self.assertEqual(self.host.path(result['publication_backup']).read_text(), self.avahi_original)
+        self.assertIn(('systemctl', 'restart', 'avahi-daemon.service'), self.calls)
+        keep = self.host.read('/etc/atomic-update.conf.d/bc250-control-center-mdns.conf')
+        self.assertIn('/etc/avahi/avahi-daemon.conf', keep)
+        self.assertIn('/etc/nsswitch.conf', keep)
+
+    def test_resolver_failure_restores_avahi_and_nss(self):
+        self.fail = True
+        with self.assertRaises(SetupError):
+            repair(self.host)
+        self.assertEqual(self.config.read_text(), self.avahi_original)
+        self.assertEqual(self.file.read_text(), self.original)
+        self.assertFalse(self.host.path('/etc/atomic-update.conf.d/bc250-control-center-mdns.conf').exists())
+        self.assertEqual(self.calls.count(('systemctl', 'restart', 'avahi-daemon.service')), 2)
+
+    def test_duplicate_publication_keys_are_preserved(self):
+        self.config.write_text(self.avahi_original + 'disable-publishing=no\n')
+        with self.assertRaisesRegex(SetupError, 'ambiguous or invalid'):
+            repair(self.host)
+        self.assertTrue(self.config.read_text().endswith('disable-publishing=no\n'))
+        self.assertEqual(self.calls, [])
+
+    def test_publication_config_symlink_is_rejected(self):
+        target = self.config.with_suffix('.original')
+        self.config.rename(target)
+        self.config.symlink_to(target)
+        with self.assertRaisesRegex(SetupError, 'symbolic link'):
+            repair(self.host)
+        self.assertEqual(target.read_text(), self.avahi_original)
+
+
+    def test_repeated_repair_keeps_the_first_publication_backup(self):
+        result = repair(self.host)
+        restart_count = self.calls.count(('systemctl', 'restart', 'avahi-daemon.service'))
+        self.assertFalse(repair(self.host)['changed'])
+        self.assertEqual(self.host.path(result['publication_backup']).read_text(), self.avahi_original)
+        self.assertEqual(self.calls.count(('systemctl', 'restart', 'avahi-daemon.service')), restart_count)
+
+    def test_name_collision_restores_publication_configuration(self):
+        runner = self.host.runner
+        def foreign(*args, **kwargs):
+            if args[0] == 'getent':
+                return '192.168.0.8 STREAM bc250cc.local\n192.168.0.99 STREAM bc250cc.local'
+            return runner(*args, **kwargs)
+        self.host.runner = foreign
+        with self.assertRaisesRegex(SetupError, 'still does not resolve'):
+            repair(self.host)
+        self.assertEqual(self.config.read_text(), self.avahi_original)
+        self.assertEqual(self.file.read_text(), self.original)
+
+
+
+class AliasTimeoutRepairTests(unittest.TestCase):
+    def test_timeout_keeps_explicit_repair_available_on_a_connected_host(self):
+        import subprocess
+        with patch.object(web_network, 'addresses', return_value=['192.168.0.8']), \
+             patch.object(web_network.subprocess, 'run', side_effect=subprocess.TimeoutExpired('getent', 3)):
+            self.assertEqual(web_network.alias_health(), {'status': 'unavailable', 'repairable': True})

@@ -505,6 +505,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             )
         else:
             command = build_plugin_install_command(installer)
+        command = wrap_steamos_writable_command(command, family=family)
         self.estado_herramientas_cache = None
         return self._abrir_terminal(command, 'Game Mode Quick Access (Beta)')
 

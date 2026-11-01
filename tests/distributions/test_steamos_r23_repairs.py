@@ -118,7 +118,7 @@ def test_full_steamos_install_reapplies_boot_policy_after_protected_install(tmp_
     command = repository._steamos_compatibility_stage_command(install=True)
 
     build_call = command.rindex('/build.sh;')
-    install_call = command.rindex('/install.sh;')
+    install_call = command.rindex('/install.sh')
     boot_repair = command.rindex('boot-config.sh install')
     final_status = command.rindex('patch-driver.sh status')
     assert build_call < install_call < boot_repair < final_status

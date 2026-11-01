@@ -98,6 +98,7 @@ def test_repository_routes_missing_decky_to_explicit_bootstrap(monkeypatch, tmp_
     assert repository.preparar_quick_access_steamos(install_decky=True) == "terminal"
     command, title = repository.opened[0]
     assert title == "Game Mode Quick Access (Beta)"
+    assert "with-steamos-writable-root.sh" in command
     assert "Approval was already confirmed in BC250 Control Center" in command
     assert repository.estado_herramientas_cache is None
 
@@ -118,6 +119,7 @@ def test_repository_explicit_decky_action_updates_an_existing_loader(monkeypatch
 
     repository.preparar_quick_access_steamos(install_decky=True)
     command, _title = repository.opened[0]
+    assert "with-steamos-writable-root.sh" in command
     assert "Game Mode Quick Access Beta" in command
     assert DECKY_OFFICIAL_INSTALLER_URL in command
     assert DECKY_OFFICIAL_PRERELEASE_INSTALLER_URL in command

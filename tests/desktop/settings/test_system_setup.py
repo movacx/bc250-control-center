@@ -2359,3 +2359,33 @@ def test_a_steamos_without_its_boot_menu_is_not_offered_the_limit(sandbox):
     assert kernel_args.backend(sandbox.host) == "unsupported"
     sandbox.put(kernel_args.STEAMOS_GRUB_OUTPUT, _steamos_menu())
     assert kernel_args.backend(sandbox.host) == "steamos-grub"
+
+
+def test_steamos_full_memory_policies_keep_swap_under_home(sandbox):
+    sandbox.put('/etc/os-release', STEAMOS_RELEASE)
+    sandbox.put('/usr/lib/systemd/system-generators/zram-generator', '#!/bin/sh\n')
+    result = memory.status(sandbox.host)
+    assert {'swap-16', 'swap-32', 'zswap-16', 'zswap-32', 'zram'} <= set(result['policies'])
+    assert result['default_swap_mount'] == '/home'
+    assert 'zram-size = ram / 2' in memory.zram_config(sandbox.host)
+
+
+def test_unprivileged_steamos_boot_detection_keeps_ttm_and_options_available(sandbox, monkeypatch):
+    import system_setup_ttm as ttm
+    _steamos_grub(sandbox)
+    real_stat = Path.stat
+    menu = sandbox.host.path(kernel_args.STEAMOS_GRUB_OUTPUT)
+
+    def stat(path, *args, **kwargs):
+        if path == menu:
+            raise PermissionError(13, 'Permission denied', str(path))
+        return real_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, 'stat', stat)
+    options = kernel_args.status(sandbox.host)
+    assert options['available']
+    assert options['backend'] == 'steamos-grub'
+    assert {'mitigations=off', 'nosmt', 'loglevel=0'} == set(options['allowed'])
+    assert ttm.summary(sandbox.host)['supported']
+    # Inventory remains read-only; the privileged apply revalidates the menu.
+    assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
