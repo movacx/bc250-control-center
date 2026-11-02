@@ -201,3 +201,174 @@ def test_oberon_gcc_patch_handles_yaml_cpp_quoted_include_and_is_idempotent(tmp_
     patched_source = emitter.read_text(encoding="utf-8")
     assert patched_source.startswith("#include <cstdint>\n")
     assert patched_source.count("#include <cstdint>") == 1
+
+
+@pytest.mark.parametrize("openrc", (False, True), ids=("systemd", "openrc"))
+@pytest.mark.parametrize(
+    "scenario",
+    (
+        "normal", "disabled", "missing_max", "malformed", "inverted",
+        "delayed_ready", "restart_failure", "dbus_never_ready", "service_dies",
+        "restore_min_transient", "restore_max_transient", "restore_unreadable",
+        "set_range_transient", "set_range_rejected", "restore_mismatch", "inactive",
+    ),
+)
+def test_cyan_verifier_executes_recovery_and_checks_the_actual_range(
+    tmp_path, monkeypatch, openrc, scenario
+):
+    """Run the generated Bash under errexit, not just its string assertions.
+
+    These stand-ins exercise failure paths without writing real GPU registers.
+    The full preparation workflow is additionally validated on the BC250 host.
+    """
+    import json
+    import os
+
+    binary = tmp_path / "cyan"
+    binary.write_text("GPU frequency fix enabled\n")
+    binary.chmod(0o755)
+    config = tmp_path / "config.toml"
+    config.write_text(
+        '[gpu-usage]\nfix-freq = false\nfix-metrics = true\n'
+        '[gpu]\nset-method = "smu"\n[dbus]\nenabled = true\n'
+    )
+    init = tmp_path / "cyan-init"
+    init.write_text(f'command="{binary}"\n')
+    softlevel = tmp_path / "softlevel"
+    if openrc:
+        softlevel.touch()
+    state = tmp_path / "state.json"
+    calls = tmp_path / "calls.jsonl"
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    dispatcher = tools / "dispatch"
+    dispatcher.write_text(
+        "#!/usr/bin/env python3\n" + r'''
+import json, os, sys
+from pathlib import Path
+name = Path(sys.argv[0]).name
+args = sys.argv[1:]
+state_file = Path(os.environ["CYAN_TEST_STATE"])
+calls = Path(os.environ["CYAN_TEST_CALLS"])
+scenario = os.environ["CYAN_TEST_SCENARIO"]
+s = json.loads(state_file.read_text()) if state_file.exists() else {}
+with calls.open("a") as f:
+    f.write(json.dumps([name, *args]) + "\n")
+def finish(code=0, output=""):
+    state_file.write_text(json.dumps(s))
+    if output:
+        print(output)
+    sys.exit(code)
+if name == "sudo":
+    os.execvp(args[0], args)
+if name in ("sleep", "journalctl"):
+    finish()
+if name in ("systemctl", "rc-service"):
+    if args[0] == "show":
+        finish(output=os.environ["CYAN_TEST_BINARY"])
+    if "restart" in args:
+        s["restarted"] = True
+        finish(1 if scenario == "restart_failure" else 0)
+    if "status" in args or "is-active" in args:
+        finish(1 if scenario == "inactive" or
+               (scenario == "service_dies" and s.get("restarted")) else 0)
+    finish(2)
+if name != "busctl":
+    finish(2)
+assert "--timeout=1s" in args, "every D-Bus call needs its own deadline"
+if "call" in args:
+    s["set_calls"] = s.get("set_calls", 0) + 1
+    assert args[-2:] == ["1000", "1850"], "never invent the previous range"
+    if scenario == "set_range_rejected" or (
+        scenario == "set_range_transient" and s["set_calls"] < 3
+    ):
+        finish(1)
+    s["restored"] = True
+    finish()
+prop = args[-1]
+if not s.get("restarted"):
+    if scenario == "disabled" or (scenario == "missing_max" and prop == "Max"):
+        finish(1)
+    if scenario == "malformed":
+        finish(output="s invalid")
+    if scenario == "inverted":
+        finish(output="u " + ("1900" if prop == "Min" else "1000"))
+    finish(output="u " + ("1000" if prop == "Min" else "1850"))
+if scenario == "dbus_never_ready":
+    finish(1)
+if scenario == "delayed_ready" and not s.get("restored"):
+    s["ready_reads"] = s.get("ready_reads", 0) + 1
+    if s["ready_reads"] < 4:
+        finish(1)
+if s.get("restored"):
+    if scenario == "restore_unreadable":
+        finish(1)
+    transient_prop = {"restore_min_transient": "Min", "restore_max_transient": "Max"}.get(scenario)
+    if prop == transient_prop and not s.get("transient_consumed"):
+        s["transient_consumed"] = True
+        finish(1)
+    finish(output="u " + ("1000" if prop == "Min" else
+                          "1700" if scenario == "restore_mismatch" else "1850"))
+finish(output="u " + ("1000" if prop == "Min" else "1700"))
+'''
+    )
+    dispatcher.chmod(0o755)
+    for name in ("sudo", "systemctl", "rc-service", "busctl", "journalctl", "sleep"):
+        (tools / name).symlink_to(dispatcher)
+    monkeypatch.setenv("PATH", f"{tools}:{os.environ['PATH']}")
+    monkeypatch.setenv("CYAN_TEST_STATE", str(state))
+    monkeypatch.setenv("CYAN_TEST_CALLS", str(calls))
+    monkeypatch.setenv("CYAN_TEST_SCENARIO", scenario)
+    monkeypatch.setenv("CYAN_TEST_BINARY", str(binary))
+    command = cyan_runtime_verification_command()
+    for old, new in (
+        ("/usr/local/bin/cyan-skillfish-governor-smu", binary),
+        ("/etc/cyan-skillfish-governor-smu/config.toml", config),
+        ("/etc/init.d/cyan-skillfish-governor-smu", init),
+        ("/run/openrc/softlevel", softlevel),
+    ):
+        command = command.replace(old, str(new))
+    result = subprocess.run(
+        ["bash", "-Eeuo", "pipefail", "-c", command],
+        text=True, capture_output=True, timeout=15,
+    )
+    recorded = [json.loads(line) for line in calls.read_text().splitlines()]
+    final = json.loads(state.read_text())
+    if openrc:
+        assert not any(call[0] == "systemctl" for call in recorded)
+    failures = {
+        "restart_failure": "service restart failed",
+        "dbus_never_ready": "D-Bus name is unavailable",
+        "service_dies": "D-Bus name is unavailable",
+        "restore_unreadable": "previous runtime range could not be restored",
+        "set_range_rejected": "previous runtime range could not be restored",
+        "restore_mismatch": "previous runtime range could not be restored",
+    }
+    if scenario in failures:
+        assert result.returncode == 61, result.stdout + result.stderr
+        assert failures[scenario] in result.stdout
+        assert "OK:" not in result.stdout
+        if scenario in {"dbus_never_ready", "service_dies"}:
+            from bc250cc.shared.error_catalog import for_marker
+
+            assert for_marker(result.stdout).code == "BC250-DBUS-001"
+    else:
+        assert result.returncode == 0, result.stdout + result.stderr
+        if scenario == "inactive":
+            assert not final.get("restarted")
+            assert not any(call[0] == "busctl" for call in recorded)
+        elif scenario in {"disabled", "missing_max", "malformed", "inverted"}:
+            assert final["restarted"]
+            assert not final.get("set_calls")
+            assert "previous runtime range was unknown" in result.stdout
+            assert "runtime range was preserved" not in result.stdout
+        else:
+            assert final["restored"]
+            assert "restored Cyan runtime range 1000-1850 MHz" in result.stdout
+            if scenario in {"restore_min_transient", "restore_max_transient"}:
+                assert final["transient_consumed"]
+                assert final["set_calls"] == 2
+            elif scenario == "set_range_transient":
+                assert final["set_calls"] == 3
+    assert final.get("set_calls", 0) <= 25
+    assert len([c for c in recorded if c[0] == "busctl"]) < 85

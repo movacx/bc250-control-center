@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shlex
+import textwrap
 from pathlib import Path
 
 from . import container_network
@@ -73,33 +74,85 @@ def cyan_runtime_verification_command() -> str:
             '    echo "ERROR: Cyan gpu-usage.method is invalid in config.toml"; exit 61; fi;',
             '  grep -Eq \'^[[:space:]]*set-method[[:space:]]*=[[:space:]]*"(smu|kernel)"([[:space:]]*(#.*)?)?$\' "$bc250_cyan_config" ||',
             '    { echo "ERROR: Cyan gpu.set-method is missing or invalid in config.toml"; exit 61; };',
-            '  bc250_cyan_active=0; if [ "$bc250_cyan_openrc" -eq 1 ]; then rc-service cyan-skillfish-governor-smu status >/dev/null 2>&1 && bc250_cyan_active=1; else systemctl is-active --quiet cyan-skillfish-governor-smu.service && bc250_cyan_active=1; fi;',
-            '  if [ "$bc250_cyan_active" -eq 1 ]; then',
-            '    bc250_cyan_previous_min="$(busctl --system get-property com.cyanskillfish.Governor /com/cyanskillfish/Governor/Range/Current com.cyanskillfish.Governor.Range Min 2>/dev/null | awk \'$1 == "u" {print $2}\')";',
-            '    bc250_cyan_previous_max="$(busctl --system get-property com.cyanskillfish.Governor /com/cyanskillfish/Governor/Range/Current com.cyanskillfish.Governor.Range Max 2>/dev/null | awk \'$1 == "u" {print $2}\')";',
-            '    if [ "$bc250_cyan_openrc" -eq 1 ]; then sudo rc-service cyan-skillfish-governor-smu restart; rc-service cyan-skillfish-governor-smu status >/dev/null || { rc-service cyan-skillfish-governor-smu status || true; exit 61; }; else sudo systemctl restart cyan-skillfish-governor-smu.service; systemctl is-active --quiet cyan-skillfish-governor-smu.service || { systemctl --no-pager --full status cyan-skillfish-governor-smu.service || true; exit 61; }; fi;',
-            '    if [[ "$bc250_cyan_previous_min" =~ ^[0-9]+$ && "$bc250_cyan_previous_max" =~ ^[0-9]+$ ]] &&',
-            '       [ "$bc250_cyan_previous_min" -le "$bc250_cyan_previous_max" ]; then',
-            "      bc250_cyan_restore_ok=0;",
-            "      for bc250_cyan_attempt in {1..25}; do",
-            '        if busctl --system call com.cyanskillfish.Governor /com/cyanskillfish/Governor com.cyanskillfish.Governor.PerformanceMode SetRange uu "$bc250_cyan_previous_min" "$bc250_cyan_previous_max" >/dev/null 2>&1; then',
-            '          bc250_cyan_restored_min="$(busctl --system get-property com.cyanskillfish.Governor /com/cyanskillfish/Governor/Range/Current com.cyanskillfish.Governor.Range Min 2>/dev/null | awk \'$1 == "u" {print $2}\')";',
-            '          bc250_cyan_restored_max="$(busctl --system get-property com.cyanskillfish.Governor /com/cyanskillfish/Governor/Range/Current com.cyanskillfish.Governor.Range Max 2>/dev/null | awk \'$1 == "u" {print $2}\')";',
-            '          if [ "$bc250_cyan_restored_min" = "$bc250_cyan_previous_min" ] && [ "$bc250_cyan_restored_max" = "$bc250_cyan_previous_max" ]; then',
-            "            bc250_cyan_restore_ok=1; break;",
-            "          fi;",
-            "        fi;",
-            "        sleep 0.2;",
-            "      done;",
-            '      if [ "$bc250_cyan_restore_ok" -ne 1 ]; then',
-            '        echo "ERROR: Cyan restarted but its previous runtime range could not be restored"; exit 61;',
-            "      fi;",
-            '      echo "OK: restored Cyan runtime range ${bc250_cyan_previous_min}-${bc250_cyan_previous_max} MHz.";',
-            "    fi;",
-            '    echo "OK: Cyan restarted with the selected compatibility switches; runtime range was preserved.";',
-            "  else",
-            '    echo "OK: Cyan runtime is staged; the selected compatibility switches were preserved.";',
-            "  fi",
+            textwrap.dedent(r"""
+                bc250_cyan_active=0;
+                if [ "$bc250_cyan_openrc" -eq 1 ]; then
+                    if rc-service cyan-skillfish-governor-smu status >/dev/null 2>&1; then bc250_cyan_active=1; fi;
+                else
+                    if systemctl is-active --quiet cyan-skillfish-governor-smu.service; then bc250_cyan_active=1; fi;
+                fi;
+                if [ "$bc250_cyan_active" -eq 1 ]; then
+                    bc250_cyan_read_range() {
+                        bc250_cyan_read_min="$(busctl --timeout=1s --system get-property com.cyanskillfish.Governor /com/cyanskillfish/Governor/Range/Current com.cyanskillfish.Governor.Range Min 2>/dev/null | awk '$1 == "u" && NF == 2 {print $2}')" || return 1;
+                        bc250_cyan_read_max="$(busctl --timeout=1s --system get-property com.cyanskillfish.Governor /com/cyanskillfish/Governor/Range/Current com.cyanskillfish.Governor.Range Max 2>/dev/null | awk '$1 == "u" && NF == 2 {print $2}')" || return 1;
+                        [[ "$bc250_cyan_read_min" =~ ^[0-9]+$ && "$bc250_cyan_read_max" =~ ^[0-9]+$ ]] &&
+                            [ "$bc250_cyan_read_min" -le "$bc250_cyan_read_max" ];
+                    };
+                    bc250_cyan_previous_min=;
+                    bc250_cyan_previous_max=;
+                    if bc250_cyan_read_range; then
+                        bc250_cyan_previous_min="$bc250_cyan_read_min";
+                        bc250_cyan_previous_max="$bc250_cyan_read_max";
+                    else
+                        echo "NOTICE: Cyan's previous runtime range is unavailable; continuing with service restart.";
+                    fi;
+                    bc250_cyan_restart_ok=0;
+                    if [ "$bc250_cyan_openrc" -eq 1 ]; then
+                        if sudo rc-service cyan-skillfish-governor-smu restart; then bc250_cyan_restart_ok=1; fi;
+                    else
+                        if sudo systemctl restart cyan-skillfish-governor-smu.service; then bc250_cyan_restart_ok=1; fi;
+                    fi;
+                    if [ "$bc250_cyan_restart_ok" -ne 1 ]; then
+                        echo "ERROR: Cyan service restart failed after configuration repair.";
+                        if [ "$bc250_cyan_openrc" -eq 1 ]; then rc-service cyan-skillfish-governor-smu status || true;
+                        else systemctl --no-pager --full status cyan-skillfish-governor-smu.service || true; fi;
+                        exit 61;
+                    fi;
+                    bc250_cyan_ready=0;
+                    bc250_cyan_deadline=$((SECONDS + 8));
+                    for bc250_cyan_attempt in {1..25}; do
+                        if [ "$bc250_cyan_openrc" -eq 1 ]; then
+                            if rc-service cyan-skillfish-governor-smu status >/dev/null 2>&1; then bc250_cyan_ready=1; fi;
+                        else
+                            if systemctl is-active --quiet cyan-skillfish-governor-smu.service; then bc250_cyan_ready=1; fi;
+                        fi;
+                        if [ "$bc250_cyan_ready" -eq 1 ] && bc250_cyan_read_range; then break; fi;
+                        bc250_cyan_ready=0;
+                        [ "$SECONDS" -lt "$bc250_cyan_deadline" ] || break;
+                        sleep 0.2;
+                    done;
+                    if [ "$bc250_cyan_ready" -ne 1 ]; then
+                        echo "ERROR: Cyan D-Bus name is unavailable after restart; check [dbus] enabled = true and the service journal.";
+                        if [ "$bc250_cyan_openrc" -eq 1 ]; then rc-service cyan-skillfish-governor-smu status || true;
+                        else systemctl --no-pager --full status cyan-skillfish-governor-smu.service || true;
+                            journalctl -u cyan-skillfish-governor-smu.service -n 30 --no-pager || true; fi;
+                        exit 61;
+                    fi;
+                    if [ -n "$bc250_cyan_previous_min" ]; then
+                        bc250_cyan_restore_ok=0;
+                        bc250_cyan_deadline=$((SECONDS + 8));
+                        for bc250_cyan_attempt in {1..25}; do
+                            if busctl --timeout=1s --system call com.cyanskillfish.Governor /com/cyanskillfish/Governor com.cyanskillfish.Governor.PerformanceMode SetRange uu "$bc250_cyan_previous_min" "$bc250_cyan_previous_max" >/dev/null 2>&1 &&
+                                bc250_cyan_read_range &&
+                                [ "$bc250_cyan_read_min" = "$bc250_cyan_previous_min" ] &&
+                                [ "$bc250_cyan_read_max" = "$bc250_cyan_previous_max" ]; then
+                                bc250_cyan_restore_ok=1; break;
+                            fi;
+                            [ "$SECONDS" -lt "$bc250_cyan_deadline" ] || break;
+                            sleep 0.2;
+                        done;
+                        if [ "$bc250_cyan_restore_ok" -ne 1 ]; then
+                            echo "ERROR: Cyan restarted but its previous runtime range could not be restored and verified."; exit 61;
+                        fi;
+                        echo "OK: restored Cyan runtime range ${bc250_cyan_previous_min}-${bc250_cyan_previous_max} MHz.";
+                        echo "OK: Cyan restarted with the selected compatibility switches; runtime range was preserved.";
+                    else
+                        echo "OK: Cyan restarted with the selected compatibility switches; D-Bus is ready. Using the configured initial range; the previous runtime range was unknown.";
+                    fi;
+                else
+                    echo "OK: Cyan runtime is staged; the selected compatibility switches were preserved.";
+                fi
+            """).strip(),
         )
     )
 
