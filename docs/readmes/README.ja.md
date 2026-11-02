@@ -1,26 +1,41 @@
 # BC250 Control Center
 
-[English](../../README.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [Русский](README.ru.md) · [Українська](README.uk.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [Polski](README.pl.md) · [中文](README.zh-CN.md)
+デスクトップ、端末、または Web ブラウザから、Linux 上の AMD BC-250 をセットアップ、調整、監視します。
 
-<a href="https://ko-fi.com/movacx"><img src="https://img.shields.io/badge/Ko--fi-%E5%AF%84%E4%BB%98-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white" alt="寄付 · Ko-fi"></a>
-
-Linux 上の AMD BC-250 を、デスクトップ、ターミナル、Web ブラウザーから設定・調整・監視できます。
-
-GPU ガバナー、CPU チューニング、Compute Units（CU）、ファン、メモリ、BIOS の更新、アップスケーリング、対応ディストリビューションのシステム準備を扱います。ハードウェアへの変更はすべて範囲を確認し、適用前に確定します。オプションの Decky プラグインを使うと、日常的な操作を Steam のゲームモードで行えます。
+GPU ガバナー、CPU チューニング、コンピューティング ユニット、ファン、メモリ、BIOS アップデート メディア、サポートされるディストリビューションのアップスケーリングとシステムの準備について説明します。インターフェイスは、アプリケーション サービス、ハードウェア制限、特権ヘルパーを共有します。オプションの Decky プラグインを使用すると、Steam のゲーム モードに日常的なコントロールが追加されます。
 
 <p align="center">
-  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/dashboard-overview.png" alt="BC250 Control Center のダッシュボード" width="100%"></a>
+  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard" width="100%"></a>
 </p>
 
-その他のスクリーンショットは[ギャラリー](https://movacx.github.io/bc250-control-center/gallery/)にあります。
+<p align="center">
+  <a href="../../README.md"><img src="https://img.shields.io/badge/English-238636?style=for-the-badge" alt="Read in English"></a>
+  <a href="README.es.md"><img src="https://img.shields.io/badge/Espa%C3%B1ol-1f6feb?style=for-the-badge" alt="Leer en español"></a>
+  <a href="README.pt-BR.md"><img src="https://img.shields.io/badge/Portugu%C3%AAs-8250df?style=for-the-badge" alt="Ler em português"></a>
+  <a href="README.ru.md"><img src="https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-bb2f7b?style=for-the-badge" alt="Читать на русском"></a>
+  <a href="README.uk.md"><img src="https://img.shields.io/badge/%D0%A3%D0%BA%D1%80%D0%B0%D1%97%D0%BD%D1%81%D1%8C%D0%BA%D0%B0-0969da?style=for-the-badge" alt="Читати українською"></a>
+  <a href="README.de.md"><img src="https://img.shields.io/badge/Deutsch-57606a?style=for-the-badge" alt="Auf Deutsch lesen"></a>
+  <a href="README.fr.md"><img src="https://img.shields.io/badge/Fran%C3%A7ais-c9510c?style=for-the-badge" alt="Lire en français"></a>
+  <a href="README.pl.md"><img src="https://img.shields.io/badge/Polski-0a7d6c?style=for-the-badge" alt="Czytaj po polsku"></a>
+  <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/%E4%B8%AD%E6%96%87-9a6700?style=for-the-badge" alt="阅读中文说明"></a>
+  <a href="README.ja.md"><img src="https://img.shields.io/badge/%E6%97%A5%E6%9C%AC%E8%AA%9E-0550ae?style=for-the-badge" alt="日本語で読む"></a>
+</p>
 
-## インターフェイス
+<p align="center">
+  <a href="https://ko-fi.com/movacx"><img src="https://img.shields.io/badge/Ko--fi-Donate-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white" alt="Donate on Ko-fi"></a>
+</p>
 
-- **デスクトップ · PyQt6：** `bc250-control-center` で全体の設定とローカル管理を行います。
-- **ターミナル · curses：** `bc250-control-center-tui` で TTY、ターミナル、SSH セッションから操作できます。
-- **Web · React：** 家庭内ネットワーク上のスマートフォン、タブレット、別のパソコンから監視とハードウェア操作ができます。
+その他のスクリーンショットは、[ギャラリー](https://movacx.github.io/bc250-control-center/gallery/) にあります。
 
-3 つのインターフェイスはサービスと特権ヘルパーを共有します。通常のパッケージには TUI とビルド済みの Web ファイルが含まれます。Node.js は Web インターフェイスを再ビルドする場合にのみ必要です。
+## インターフェイスを選択してください
+
+| インターフェース | 最適な用途 | 起動 |
+| --- | --- | --- |
+| **デスクトップ · PyQt6** | 完全なセットアップ、チューニング、診断、ローカル管理 | `bc250-control-center` |
+| **ターミナル · curses** | ローカル TTY、ターミナル エミュレータ、または SSH セッション | `bc250-control-center-tui` |
+| **Web · React** | ホームネットワーク上の電話、タブレット、または別のコンピュータからの監視とハードウェア制御 | デスクトップ アプリで **リモート アクセス** を開始し、そのアドレスを開くか QR をスキャンします |
+
+通常のインストールには、ターミナル インターフェイスとコンパイルされた Web アセットが含まれます。 [ターミナル専用インストーラー](#terminal-mode) は、デスクトップのないマシンで使用できます。ブラウザ インターフェイスには、ボードの Web サーバーが実行されている必要があります。通常の使用には SSH や Node.js は必要ありません。
 
 ## 機能
 
@@ -28,7 +43,7 @@ GPU ガバナー、CPU チューニング、Compute Units（CU）、ファン、
 - CPU、GPU、VRAM、RAM、ディスク、ネットワークのパフォーマンスグラフ。センサービューと CSV エクスポートに対応
 - GPU ガバナーの管理（Cyan、代替として Oberon）、安全な周波数範囲、電圧ラボ
 - SMU を使った CPU チューニング、安定性テスト、オプションのコアアンロック
-- Compute Units：ルーティングとレジスター診断。現在の状態と起動時の状態を分けて表示し、利用可能なユニット数はボードに依存します
+- コンピューティング ユニット: ルーティングとレジスタ診断。ライブ状態とブート状態は個別に報告されます。利用可能なユニットはボードによって異なります
 - ファン制御：手動 PWM、温度カーブ、永続プロファイル、または CoolerControl、fancontrol、fan2go への引き渡し
 - メモリ：VRAM サイズ、ZRAM、ZSWAP、スワップ
 - BIOS 更新用 USB の作成（P3.00 Chipset Menu、MeiMeiDXE v3、P5.00、P3.00、P2.00）。各ファイルは検証されます
@@ -37,6 +52,8 @@ GPU ガバナー、CPU チューニング、Compute Units（CU）、ファン、
 - GFX1013、async compute、ACPI、Mesa の互換性修正。HDMI 経由の Dolby Digital 5.1。HDMI-CEC によるテレビ操作
 - エラーコード、オリジンコード、生のエラーを添付できるアプリ内の問題報告
 - 30 言語、ライト／ダークテーマ、UI のスケーリング、コントローラーでの操作
+- キーボード ナビゲーション、マウス サポート、ライブ テレメトリ、組み込み操作コンソールを備えたターミナル インターフェイス
+- モバイル レイアウトを備えたローカル ネットワーク HTTPS Web インターフェイス、ペアリング QR およびデバイスごとのハードウェア権限
 
 ## 対応ディストリビューション
 
@@ -104,14 +121,6 @@ sudo steamos-readonly enable
 
 `pacman-key` と `pacman -Syy` の行は、鍵リングとパッケージデータベースを更新します。これらは SteamOS のアップデートでリセットされます。`deck` ユーザーのパスワードをまだ設定していない場合は、先に `passwd` を実行してください。SteamOS のアップデート後は、デスクトップモードのメニューにある **Reinstall BC250 Control Center** がこれらの手順を代わりに行います。
 
-### ソースから
-
-```bash
-git clone https://github.com/movacx/bc250-control-center.git
-cd bc250-control-center
-./run.sh                          # チェックアウトからの実行
-bash scripts/install-local.sh     # 現在のユーザー向けにインストール
-```
 
 ## アップデート
 
@@ -122,11 +131,11 @@ bash scripts/install-local.sh     # 現在のユーザー向けにインスト�
 **1.19 からのアップグレード：** 1.19 のアップデーターではパッケージをインストールできません。現在のリリースを一度手動でインストールしてください。以降のバージョンは自動でアップデートされます。
 
 ```bash
-# Bazzite / Fedora Atomic：レイヤーとして入れた 1.19 パッケージを置き換える
+# Bazzite / Fedora Atomic: replace a layered 1.19 package
 sudo rpm-ostree uninstall bc250-control-center --install ./bc250-control-center-*.noarch.rpm
 systemctl reboot
 
-# install-local.sh でインストールしたコピー：削除してからパッケージをインストールする
+# A copy installed with install-local.sh: remove it, then install the package
 bash scripts/uninstall-local.sh
 ```
 
@@ -137,9 +146,23 @@ bash scripts/uninstall-local.sh
 3. ダッシュボードで **Prepare BC250 system** を実行します。お使いのディストリビューション向けに何をインストールするかを表示し、内蔵ターミナルで実行します。
 4. 変更を適用する前に、モジュールのステータス行を読んでください。準備ができている項目と不足している項目が示されます。
 
-## ターミナルインターフェイス
+<a id="terminal-mode"></a>
 
-TUI には Python 3.11 以降、`curses`、`psutil` が必要です。グラフィカルデスクトップや PyQt6 は不要です。通常のパッケージをインストール済みなら `bc250-control-center-tui` で起動できます。TUI だけをインストールするには、リポジトリを取得し、通常のユーザーで実行してください。
+## ターミナルモード
+
+TUI は、ターミナル エミュレータ、Linux TTY、または SSH セッションで実行されます。デスクトップ アプリケーションのハードウェア制御と監視サービスを共有します。 Python 3.11 以降、`curses` および `psutil` が必要です。 PyQt6 はそうではありません。
+
+### デスクトップアプリケーションがインストールされている状態
+
+通常のパッケージには TUI が含まれています。以下から始めてください:
+
+```bash
+bc250-control-center-tui
+```
+
+### 端末のみのインストール
+
+リポジトリのクローンを作成し、通常のユーザーとしてインストーラーを実行します。
 
 ```bash
 git clone https://github.com/movacx/bc250-control-center.git
@@ -147,32 +170,61 @@ cd bc250-control-center
 bash scripts/install-tui.sh
 ```
 
-スクリプトは `~/.local` にインストールし、依存関係を確認します。不足するパッケージと保護されたヘルパーのインストールには管理者権限を要求します。Bazzite/Fedora Atomic ではヘルパーを `rpm-ostree` で RPM からインストールする必要があり、TUI スクリプトだけでは導入されません。
+インストーラーはアプリケーションを `~/.local` に配置し、その Python 依存関係をチェックします。不足しているパッケージと保護されたハードウェア ヘルパーをインストールするために管理者の承認を要求します。 PyQt6 やデスクトップ ランチャーはインストールされません。 Bazzite/Fedora Atomic では、このスクリプトはシステム ヘルパーのインストールをスキップします。ヘルパーは、`rpm-ostree` を使用して RPM を介してインストールし、その後再起動する必要があります。
+
+インターフェースを開始します。
 
 ```bash
 ~/.local/bin/bc250-control-center-tui
-bc250-control-center-tui --page gpu --theme mono
 ```
 
-`~/.local/bin` が `PATH` に含まれない場合はフルパスを使ってください。矢印キーで選択、`Enter` で開く、`Esc` または `Tab` でサイドバーに戻る、`?` でヘルプを表示します。マウスとホイールにも対応しています。処理の出力とパスワード要求は内蔵コンソールに表示され、`Ctrl+C` でコマンドを中断できます。テーマの選択は次回起動時にも保持されます。
-
-更新時は同じリポジトリで `git pull --ff-only` を実行し、インストーラーを再実行してください。アンインストール：
+`~/.local/bin` が `PATH` に含まれていれば、`bc250-control-center-tui` で起動できます。ソースからのインストールを更新するには、同じリポジトリで `git pull --ff-only` を実行し、インストーラーを再実行してください。アンインストール：
 
 ```bash
 bash scripts/install-tui.sh --uninstall
 ```
 
-SSH サーバーを設定済みの場合は `ssh -t user@board-ip bc250-control-center-tui` で起動できます。ユーザー名とアドレスを置き換えてください。
+### ナビゲーション
 
-## Web インターフェイス
+| 入力 | アクション |
+| --- | --- |
+| `↑` / `↓` または `j` / `k` | 項目を選択してください |
+| `Enter` | セクションを開くかアクションを実行する |
+| `Esc` または `Tab` | サイドバーに戻る |
+| `[` / `]` | セクションのタブを切り替える |
+| `/` | 検索 |
+| `PgUp` / `PgDn` | ページまたは操作出力をスクロールする |
+| マウス | セクションとコントロールを選択します。ホイールでスクロールする |
+| `?` | ヘルプを表示する |
+| `q` | 終了 |
 
-デスクトップまたは TUI の **Remote access** で Web アクセスを起動し、ローカルネットワークからの接続を有効にします。表示されたアドレスを開くか QR を読み取り、アクセスキーを入力してください。`bc250cc.local` と数値の IP アドレスが利用できます。名前解決の可否はネットワークと接続端末によります。
+操作の出力は統合コンソールに表示されます。管理者パスワードは、要求に応じてそこに入力されます。 `Ctrl+C` は実行中のコマンドを中断します。完了後、コンソールには結果とログの場所が保持されます。
 
-新しいブラウザーには監視のみが許可されます。**Connected devices** の端末コードを照合してから、ハードウェア操作を許可してください。権限と有効期限は端末ごとに設定でき、特権操作には別途 Linux の管理者認証が必要です。
+特定のページを開くか、モノクロ出力を使用するには:
 
-ダッシュボード、CPU、GPU、CU、電圧ラボ、ファン、性能グラフ、ブラックボックス、設定を利用できます。モバイル画面に対応し、言語とテーマをブラウザーに保存します。通常の利用に SSH は不要ですが、ボード上の Web サーバーを起動しておく必要があります。
+```bash
+bc250-control-center-tui --page gpu --theme mono
+```
 
-家庭内ネットワークではローカル認証局による HTTPS を使用します。公開証明書をインポートする前にフィンガープリントを確認してください。アプリケーションはルーターのポートを開放せず、公開トンネルも作成しません。
+SSH の場合、ボードで SSH サーバーが有効になっていてアクセス可能である必要があります。
+
+```bash
+ssh -t user@board-ip bc250-control-center-tui
+```
+
+`user` と `board-ip` をボードの Linux アカウントとアドレスに置き換えます。
+
+## ウェブインターフェース
+
+デスクトップ アプリケーションまたは TUI で **リモート アクセス** を開き、Web アクセスを開始して、**ローカル ネットワークからアクセス可能** を有効にして、別のデバイスから接続します。そこに表示されているアドレスを選択するか、表示されている QR をスキャンします。ローカル名と数値 IP の両方を利用可能な状態に保ちます。名前解決はクライアントとネットワークに依存します。
+
+ボードに表示されているアクセス キーを使用してサインインします。新しいブラウザ セッションは監視のみ可能です。 **接続されたデバイス** で、ハードウェア制御を許可する前にブラウザのデバイス コードを確認します。この権限は、特権操作に必要な Linux 管理者パスワードとは別のものです。所有者はアクセスを取り消し、セッションごとに有効期限を選択できます。
+
+Web では、ダッシュボード、CPU、コンピューティング ユニット、GPU、電圧ラボ、ファン、パフォーマンス、ブラック ボックス、および設定を提供します。パフォーマンスには、CPU、GPU、メモリ、ディスク、ネットワーク、および個々のセンサーの履歴が含まれます。テーマと言語はブラウザごとに保存されます。
+
+LANアクセスはHTTPSを使用します。インストールごとにローカル認証局が作成されます。ブラウザーは、そのデバイス上でその公開証明書が信頼されるまで警告を表示する場合があります。表示された指紋を信頼する前に比較してください。 LAN アクセスを無効にすると、ボード自体のみがループバック経由で接続できます。アプリケーションはルーターのポートを開いたり、パブリック トンネルを構成したりしません。
+
+ユーザーは Node.js を必要としません。パッケージは構築された Web アセットを出荷します。
 
 ## Decky プラグイン
 
@@ -188,7 +240,7 @@ BC250 Quick Access は、Steam のゲームモードにあるクイックアク�
 
 レポートには、root 権限なしであらゆるディストリビューションから収集されるハードウェア診断も添付されます。カーネルとヘッダー、読み込まれたセンサーモジュールとそのカーネルメッセージ（NCT6687、amdgpu）、hwmon と `sensors` の値、カーネルログの GPU とクラッシュの行、前回の起動がどう終わったか（正常なシャットダウンか突然のリセットか）、サービス、パッケージ、直近のワークフローログの末尾が含まれます。カーネルログがユーザーから読めない場合、デスクトップが polkit を通じて一度パスワードを求めます。フォームに入りきらないほど大きなレポートは、重要度の低い部分から順に自動的に短くされます。**ブラウザで開く** を使えば、全文をコピーできます。
 
-報告を送る前に添付される内容をすべて読むには、**設定 › 診断 › 完全な診断を表示**を開きます。各セクション（カーネル、前回の起動、ブラックボックス、センサー、GPU、サービス、設定、パッケージ、ログ）は展開でき、タブで分類され、検索でき、コピーやファイル保存もできます。ターミナルでは `bc250-control-center-cli diagnose --full` で同じ内容が表示されます。
+レポートを送信する前にレポートに添付されているものをすべて読むには、**設定 › 診断 › 完全な診断を表示** を開きます。すべてのセクション (カーネル、以前のブート、ブラック ボックス、センサー、GPU、サービス、構成、パッケージ、ログ) は展開可能で、タブに並べ替えたり、検索したり、ファイルとしてコピーまたは保存したりできます。ターミナルは、`bc250-control-center-cli diagnose --full` を使用して同じ内容を出力します。
 
 GitHub での issue も歓迎します。ディストリビューション、カーネルのバージョン、ターミナルの出力を含めてください。
 
@@ -253,25 +305,27 @@ bc250-control-center/
 │   │   ├── console/          内蔵ターミナル
 │   │   ├── theme/            テーマ、スタイル、色、アイコン
 │   │   └── i18n/             30 言語への翻訳
-│   ├── tui/                  ターミナル UI、ナビゲーション、操作コンソール
-│   ├── web/                  HTTPS サーバー、セッション、操作ワーカー
-│   │   ├── app/              React ソースとビルドツール
-│   │   └── dist/             アプリケーションに同梱するビルド済みファイル
-│   └── cli.py                コマンドラインモード
-├── integrations/decky/       ゲームモード用の Decky Quick Access プラグイン
+│   ├── tui/                  ターミナルインターフェース：curses 画面、ページ、操作コンソール
+│   ├── web/                  HTTPS バックエンド、検証済みのアクション ワーカー、ブラウザ インターフェイス
+│   │   ├── app/              React ソースおよびビルド ツール (開発用のみ Node.js)
+│   │   └── dist/             Python によって提供され、パッケージで出荷されるコンパイルされたアセット
+│   └── cli.py                Command-line mode
+├── integrations/
+│   ├── decky/                ゲームモード用の Decky Quick Access プラグイン
+│   └── report-endpoint/      ユーザーが送信したレポート用のCloudflareエンドポイント
 ├── privileged/               root で動く部分。分離され、レビュー済み
 │   ├── helpers/              特権タスクごとのヘルパー
 │   ├── lib/                  これらのヘルパーが共有するコード
 │   └── policies/             Polkit の権限
 ├── packaging/                .pkg.tar.zst、.rpm、.deb パッケージと AUR の PKGBUILD
-├── scripts/                  起動スクリプト、ローカルインストーラー、システムユーティリティ
+├── scripts/
+│   ├── entrypoints/          デスクトップ、CLI、デーモン、TUI ランチャー
+│   ├── development/          Web 構築および開発ユーティリティ
+│   ├── system/               配布およびシステム準備のワークフロー
+│   └── qa/                   パッケージング、統合、流通のチェック
 ├── assets/                   アイコン、スクリーンショット、Web ギャラリー
 ├── docs/                     ドキュメント、サードパーティ通知、この README の翻訳
-└── tests/                    単体・サービス・デスクトップ・TUI・Web・パッケージのテスト
+└── tests/                    ユニット、サービス、デスクトップ、TUI、Web、およびパッケージングのチェック
 ```
 
-## コントリビュート
-
-最も役立つのは不具合の報告です。ディストリビューション、カーネルのバージョン、ターミナルに表示された内容を添えてください。上にないディストリビューションを使っている場合は、うまくいったかどうかを教えてください。
-
-ライセンスは [MIT](../../LICENSE) です。
+レイヤ境界については [アーキテクチャ](../ARQUITECTURA_MVC.md) を、インターフェイスのエントリ ポイントと開発コマンドについては [フロントエンド](../../frontends/README.md) を参照してください。
