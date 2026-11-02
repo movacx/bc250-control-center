@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import os
 import signal
-import sys
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 

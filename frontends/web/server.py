@@ -30,8 +30,6 @@ from functools import lru_cache
 from http import HTTPStatus
 from pathlib import Path
 
-from frontends.web.blackbox import BlackBox
-
 from cheroot.ssl.builtin import BuiltinSSLAdapter
 from cheroot.wsgi import Server as WsgiServer
 
@@ -56,6 +54,7 @@ from frontends.desktop.theme import ACCENTS, THEMES, theme_palette
 from frontends.tui.runtime import Context, describe_error
 from frontends.web.actions import ACTIONS, Invalid
 from frontends.web.arguments import argument_parser
+from frontends.web.blackbox import BlackBox
 from frontends.web.data import PAGES, Live, performance
 from frontends.web.network import LanMonitor
 from frontends.web.ssh import SSHSession

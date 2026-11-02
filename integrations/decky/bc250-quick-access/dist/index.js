@@ -281,7 +281,9 @@ var codes = [
 			"MB free and this needs",
 			"SteamOS keeps /var small",
 			"not enough free space on",
-			"Insufficient disk space"
+			"Insufficient disk space",
+			"no space left on device",
+			"No space left on device"
 		],
 		exit_statuses: [
 			73,
@@ -370,8 +372,7 @@ var codes = [
 	{
 		code: "BC250-UPSTREAM-404",
 		markers: [
-			"returned error: 404",
-			"failed to synchronize all databases"
+			"returned error: 404"
 		],
 		exit_statuses: [
 		],
@@ -562,7 +563,10 @@ var codes = [
 			"HELPER_UNTRUSTED",
 			"reviewed root-owned SteamOS graphics backend is unavailable or changed",
 			"protected BC250 OpenRC service helper is missing",
-			"protected GDDR6 patch helper is not installed"
+			"protected GDDR6 patch helper is not installed",
+			"installation permission repair is unavailable",
+			"install the local name repair helper",
+			"install the LAN firewall helper"
 		],
 		exit_statuses: [
 		],
@@ -584,6 +588,19 @@ var codes = [
 			27,
 			40,
 			46
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-PKG-002",
+		markers: [
+			"signature from \"",
+			"invalid or corrupted package",
+			"unknown public key",
+			"unknown trust",
+			"GPG check FAILED"
+		],
+		exit_statuses: [
 		],
 		retryable: false
 	},
@@ -718,6 +735,7 @@ var markers_longest_first = [
 	"System management is locked by the application",
 	"fork: retry: Resource temporarily unavailable",
 	"protected GDDR6 patch helper is not installed",
+	"installation permission repair is unavailable",
 	"the reviewed SteamOS kernel backend supports",
 	"DKMS installation did not produce a module",
 	"systemd-sysext or another immutable layer",
@@ -726,10 +744,10 @@ var markers_longest_first = [
 	"The GPU driver (amdgpu) did not start",
 	"invalid ip discovery binary signature",
 	"matching kernel-devel is unavailable",
+	"install the local name repair helper",
 	"CU executor is missing or untrusted",
 	"umr is installed but does not start",
 	"persisted nct6687 source is missing",
-	"failed to synchronize all databases",
 	"GDDR6 patch did not finish in time",
 	"stress is required by bc250-detect",
 	"shared contract could not be read",
@@ -743,6 +761,7 @@ var markers_longest_first = [
 	"kernel and headers do not match",
 	"installed for the active kernel",
 	"probe with driver amdgpu failed",
+	"install the LAN firewall helper",
 	"SteamOS reports a writable root",
 	"computed checksum did NOT match",
 	"could not satisfy dependencies",
@@ -758,6 +777,7 @@ var markers_longest_first = [
 	"nct6687 is not available for",
 	"rebuilt nct6687 has vermagic",
 	"sudo: a password is required",
+	"invalid or corrupted package",
 	"busctl is required for Cyan",
 	"QUICK_ACCESS_GPU_SAFE_POINT",
 	"Temperature must be between",
@@ -790,6 +810,8 @@ var markers_longest_first = [
 	"could not lock database",
 	"error: target not found",
 	"Insufficient disk space",
+	"no space left on device",
+	"No space left on device",
 	"Transaction in progress",
 	"QUICK_ACCESS_GPU_CONFIG",
 	"are different versions.",
@@ -836,6 +858,7 @@ var markers_longest_first = [
 	"Could not get lock",
 	"database is locked",
 	"Unmet dependencies",
+	"unknown public key",
 	"Unable to download",
 	"QUICK_ACCESS_GDDR6",
 	"HELPER_UNTRUSTED:",
@@ -851,9 +874,12 @@ var markers_longest_first = [
 	"gpu_busy_percent",
 	"HELPER_PRIVILEGE",
 	"HELPER_UNTRUSTED",
+	"signature from \"",
+	"GPG check FAILED",
 	"Missing action.",
 	"Unknown action.",
 	"fan/PWM hwmon",
+	"unknown trust",
 	"accepts only",
 	"HELPER_USAGE",
 	"mount --bind",

@@ -7,8 +7,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "privileged/lib"))
-from system_setup_common import Host, SetupError
 import system_setup_web_firewall as fw
+from system_setup_common import Host, SetupError
+
 from bc250cc.infrastructure import web_firewall
 
 

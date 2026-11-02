@@ -362,6 +362,9 @@ _CODES: tuple[ErrorCode, ...] = (
             'reviewed root-owned SteamOS graphics backend is unavailable or changed',
             'protected BC250 OpenRC service helper is missing',
             'protected GDDR6 patch helper is not installed',
+            'installation permission repair is unavailable',
+            'install the local name repair helper',
+            'install the LAN firewall helper',
         ),
     ),
     # An upstream release that hosts a pacman repository can be removed or

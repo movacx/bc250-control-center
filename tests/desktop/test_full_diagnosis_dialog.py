@@ -6,7 +6,10 @@ import pytest
 from PyQt6.QtWidgets import QApplication
 
 from frontends.desktop.components import full_diagnosis_dialog as module
-from frontends.desktop.components.full_diagnosis_dialog import FullDiagnosisView, section_group
+from frontends.desktop.components.full_diagnosis_dialog import (
+    FullDiagnosisView,
+    section_group,
+)
 
 SECTIONS = [
     ("Kernel", "6.18.7-cachyos-bc250\nBC250 kernel"),
@@ -213,7 +216,10 @@ def test_dragging_the_grip_down_makes_the_box_taller_and_up_shorter(dialog, qtbo
 
 
 def test_the_box_cannot_be_dragged_smaller_than_a_few_lines_or_absurdly_tall(dialog):
-    from frontends.desktop.components.full_diagnosis_dialog import MAX_HEIGHT, MIN_HEIGHT
+    from frontends.desktop.components.full_diagnosis_dialog import (
+        MAX_HEIGHT,
+        MIN_HEIGHT,
+    )
 
     section = _open_first(dialog)
     section.grip.pressed.emit()
@@ -245,8 +251,8 @@ def test_the_mouse_on_the_grip_really_drags_it(dialog, qtbot):
     origin = QPoint(grip.width() // 2, grip.height() // 2)
     QTest.mousePress(grip, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, origin)
     event_point = origin + QPoint(0, 90)
-    from PyQt6.QtGui import QMouseEvent
     from PyQt6.QtCore import QEvent, QPointF
+    from PyQt6.QtGui import QMouseEvent
 
     move = QMouseEvent(
         QEvent.Type.MouseMove, QPointF(event_point), QPointF(grip.mapToGlobal(event_point)),
@@ -319,7 +325,14 @@ def test_the_tooltip_says_redaction_cannot_know_everything_and_to_read_it_first(
 @pytest.fixture()
 def theme():
     """Let a test switch the theme and always put it back."""
-    from frontends.desktop.theme import ACTIVE_ACCENT, ACTIVE_DENSITY, ACTIVE_SCALE, ACTIVE_STYLE, ACTIVE_THEME, configure_theme
+    from frontends.desktop.theme import (
+        ACTIVE_ACCENT,
+        ACTIVE_DENSITY,
+        ACTIVE_SCALE,
+        ACTIVE_STYLE,
+        ACTIVE_THEME,
+        configure_theme,
+    )
 
     saved = (ACTIVE_THEME, ACTIVE_ACCENT, ACTIVE_DENSITY, ACTIVE_SCALE, ACTIVE_STYLE)
     yield configure_theme

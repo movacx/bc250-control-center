@@ -4,7 +4,7 @@ from __future__ import annotations
 import threading
 import time
 
-from bc250cc.infrastructure.privacy import redact_machine
+from bc250cc.application.system.privacy import redact_machine
 from frontends.desktop.core.diagnosis_groups import TABS, section_group
 
 COLUMNS = (("Time", "time"), ("GPU clock", "clock"), ("GPU load", "busy"),
@@ -21,7 +21,7 @@ MAX_ROWS = 500
 
 
 def collect_diagnosis():
-    from bc250cc.infrastructure.report_attachments import collect_readonly_attachments
+    from bc250cc.application.system.diagnostics import collect_readonly_attachments
 
     return collect_readonly_attachments()
 

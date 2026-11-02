@@ -216,7 +216,7 @@ def status() -> dict:
     opts = options()
     host = sorted(addresses())
     scheme = "https" if opts["tls"] else "http"
-    from bc250cc.infrastructure import web_devices, web_network, web_tls, web_firewall
+    from bc250cc.infrastructure import web_devices, web_firewall, web_network, web_tls
     running = _listening(opts["port"])
     local_name = web_network.local_hostname() if opts["lan"] and running else ""
     # Pairing offers the application's alias and the numeric fallback. The OS

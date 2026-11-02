@@ -175,7 +175,7 @@ def test_soft_animation_changes_pixels_without_capturing_private_content(qtbot, 
     page._conceal_information()
     cover = page._privacy_cover
     elapsed = [0]
-    cover._motion_clock = SimpleNamespace(elapsed=lambda: elapsed[0])
+    cover._motion_clock = SimpleNamespace(elapsed=lambda: elapsed[0], start=lambda: None)
     cover._animate()
     first = cover.grab().toImage()
     elapsed[0] = 2400

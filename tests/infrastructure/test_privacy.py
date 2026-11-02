@@ -184,7 +184,7 @@ def test_nothing_that_names_the_owner_survives_in_a_realistic_diagnosis():
         "2a02:8071:5c90:1c00", "3c:a8:2a:1b:4f:90", "7a2f5d1e-90b4-4c7a-8d6e-1f3b2a4c5d6e",
         "0123456789abcdef0123456789abcdef", "1094057967", "76561198012345678", "S3EVNX0M123456", "marta.q@example.org",
     ]
-    diagnosis = f"""
+    diagnosis = """
 == Kernel ==
 7.2.9-ogc3.1.fc44.x86_64  host kitchen-pc
 == Previous boot ==

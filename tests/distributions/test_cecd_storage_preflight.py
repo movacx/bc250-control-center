@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src'))
-from bc250cc.shared import error_catalog
+from bc250cc.shared import error_catalog  # noqa: E402 - requires the source path configured above
 
 SOURCE = ROOT / 'src/bc250cc/infrastructure/accessories/hdmi_cec.py'
 node = next(n for n in ast.parse(SOURCE.read_text()).body

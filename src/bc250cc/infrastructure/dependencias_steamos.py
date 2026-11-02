@@ -3,8 +3,6 @@
 import shlex
 from pathlib import Path
 
-from bc250cc.shared.errors import ActionNeeded
-
 from bc250cc.infrastructure.cu_privileged_backend import (
     STEAMOS_CU_BACKEND,
 )
@@ -50,6 +48,7 @@ from bc250cc.infrastructure.steamos_graphics_runtime import (
     build_steamos_graphics_command,
 )
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
+from bc250cc.shared.errors import ActionNeeded
 
 
 class SteamosDependenciesMixin:

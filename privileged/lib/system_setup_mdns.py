@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import configparser
 import json
-from contextlib import contextmanager
 import re
+from contextlib import contextmanager
 
 from system_setup_common import STATE, SetupError
 

@@ -613,7 +613,13 @@ def test_steamos_fixes_are_installed_only_when_running_kernel_is_not_ready(tmp_p
     assert 'installed, metrics and compute aware' in command
     assert "--cg" not in command
     assert "/build.sh;" in command
-    assert "/install.sh;" in command
+    from bc250cc.infrastructure.steamos_amdgpu_backend import (
+        STEAMOS_AMDGPU_AUDIO_FIX_ROOT,
+    )
+
+    assert f"sudo /usr/bin/bash {STEAMOS_AMDGPU_AUDIO_FIX_ROOT}/install.sh" in command
+    assert "for artifact in amdgpu.ko.zst amdgpu.gfx1013.attestation" in command
+    assert 'sudo install -o root -g root -m 0644 "$source_artifact"' in command
     assert f"sudo /usr/bin/bash {tmp_path}" not in command
     assert "BC250_REBOOT_REQUIRED=1" in command
     assert command.index("patch-driver.sh status") < command.index("/build.sh;")

@@ -5695,5 +5695,8 @@
   "Save the applied configuration for startup after testing it.": "Guarda para el arranque la configuración aplicada después de probarla.",
   "Apply the selected range before saving it for startup.": "Aplica el rango seleccionado antes de guardarlo para el arranque.",
   "Apply the selection first, then save it and enable the startup service.": "Aplica primero la selección, después guárdala y activa el servicio de arranque.",
-  "Configure": "Configurar"
+  "Configure": "Configurar",
+  "A local address entry lets this computer reach bc250cc.local even when its browser cannot use mDNS.": "Una entrada de dirección local permite que esta computadora acceda a bc250cc.local incluso cuando su navegador no puede usar mDNS.",
+  "On SteamOS, local name publishing will also be enabled.": "En SteamOS, también se habilitará la publicación de nombres locales.",
+  "Reference": "Referencia"
 }

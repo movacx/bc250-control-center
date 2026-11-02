@@ -13,7 +13,11 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
-from bc250cc.infrastructure.bazzite_kargs import KargSpec, build_karg_command, probe_karg
+from bc250cc.infrastructure.bazzite_kargs import (
+    KargSpec,
+    build_karg_command,
+    probe_karg,
+)
 
 SMT_ARGUMENT = "nosmt"
 SMT_STATE_FILE = Path("/etc/bc250-control-center/nosmt-kargs.original")

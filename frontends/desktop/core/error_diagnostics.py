@@ -628,6 +628,9 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"protected bc250 openrc service helper is missing",
         r"needs the installed, root-owned bc250 fan helper", r"protected gddr6 patch helper is not installed",
         r"reviewed root-owned steamos graphics backend is unavailable or changed",
+        r"installation permission repair is unavailable",
+        r"install the local name repair helper",
+        r"install the lan firewall helper",
     ),
     "BC250-PLATFORM-001": (
         r"gddr6_firmware_unsupported", r"unsupported accessory", r"openlinkhub.*x86_64", r"trcc.*(?:no package|not installed)",

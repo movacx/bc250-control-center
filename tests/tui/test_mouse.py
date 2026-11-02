@@ -52,9 +52,9 @@ def test_clicks_open_sections_and_tabs_while_keys_keep_working(monkeypatch):
     event(monkeypatch, screen, 3, y)
     assert screen.page_key == 'gpu'
     screen.draw()
-    y, left, _right, _key = next(item for item in screen._hits if item[3] == 'tab:service')
+    y, left, _right, _key = next(item for item in screen._hits if item[3] == 'tab:voltage')
     event(monkeypatch, screen, left, y)
-    assert screen._tab_key() == 'service'
+    assert screen._tab_key() == 'voltage'
     screen.handle_key('[')
     assert screen._tab_key() == 'governor'
 

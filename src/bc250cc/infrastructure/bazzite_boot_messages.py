@@ -16,7 +16,11 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
-from bc250cc.infrastructure.bazzite_kargs import KargSpec, build_karg_command, probe_karg
+from bc250cc.infrastructure.bazzite_kargs import (
+    KargSpec,
+    build_karg_command,
+    probe_karg,
+)
 
 BOOT_MESSAGES_ARGUMENT = "loglevel=0"
 BOOT_MESSAGES_STATE_FILE = Path(

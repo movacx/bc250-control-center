@@ -16,7 +16,6 @@ from datetime import datetime
 from pathlib import Path
 
 from bc250cc.infrastructure import diagnostic_journal
-from bc250cc.shared.error_origins import redact
 
 from .error_diagnostics import (
     ErrorDiagnosis,

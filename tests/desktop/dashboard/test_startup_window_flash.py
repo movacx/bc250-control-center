@@ -1,10 +1,10 @@
 """Construction must never map child controls as independent desktop windows."""
-from pathlib import Path
 import os
 import subprocess
 import sys
 import textwrap
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 

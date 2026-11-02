@@ -240,7 +240,8 @@
    "governor_warning_needed": "SYS-0017"
   },
   "bc250cc/application/system/diagnostics.py": {
-   "collect_diagnostics": "CORE-0137"
+   "collect_diagnostics": "CORE-0137",
+   "collect_readonly_attachments": "CORE-0242"
   },
   "bc250cc/application/system/process_termination_policy.py": {
    "authorize_process_termination": "PROC-0090"
@@ -494,6 +495,7 @@
    "_cecd_unit": "DRV-0084",
    "wake_install_command": "DRV-0085",
    "wake_remove_command": "DRV-0086",
+   "_cec_ctl_preflight": "DRV-0150",
    "poweroff_install_command": "DRV-0087",
    "poweroff_remove_command": "DRV-0088",
    "openrc_wake_helper_text": "DRV-0147",
