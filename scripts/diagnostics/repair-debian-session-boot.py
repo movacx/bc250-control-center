@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Apply the reviewed Debian rEFInd/X11 repair from this checkout as root."""
-from pathlib import Path
 import os
 import sys
+from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "privileged/lib"))
-from system_setup_common import Host, SetupError
-import system_setup_kernel_args as kernel
+import system_setup_kernel_args as kernel  # noqa: E402 - requires the source path configured above
+from system_setup_common import Host, SetupError  # noqa: E402 - requires the source path configured above
 
 
 def main():

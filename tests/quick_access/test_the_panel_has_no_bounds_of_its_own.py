@@ -129,7 +129,10 @@ def test_every_catalogue_code_reaches_the_bundle():
 def test_every_marker_reaches_the_bundle():
     payload = json.loads(_source(CATALOG))
     bundle = _source(BUNDLE)
-    missing = [marker for marker in payload["markers_longest_first"] if marker not in bundle]
+    # The bundle is JavaScript source: quotes and control characters in a
+    # marker appear escaped even though the runtime string is unchanged.
+    missing = [marker for marker in payload["markers_longest_first"]
+               if marker not in bundle and json.dumps(marker, ensure_ascii=False)[1:-1] not in bundle]
     assert missing == [], f"the committed bundle is stale: {missing}"
 
 

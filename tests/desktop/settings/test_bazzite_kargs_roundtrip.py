@@ -4,7 +4,6 @@ Only the machine is pretended: the checks for Bazzite and an ostree boot are
 skipped, ``rpm-ostree`` keeps its arguments in a file, and ``sudo`` runs what it
 is given. The script itself is the one the app opens in the terminal.
 """
-import os
 import subprocess
 from pathlib import Path
 

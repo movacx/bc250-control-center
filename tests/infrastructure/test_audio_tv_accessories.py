@@ -173,6 +173,7 @@ def test_the_ac3_profile_stays_on_the_port_the_sound_was_on(tmp_path, active, wa
     pactl.write_text(
         "#!/bin/sh\n"
         f'case "$1 $2" in\n'
+        '  "info ") echo "Server Name: PulseAudio (on PipeWire)" ;;\n'
         f'  "list cards") cat {tmp_path / "cards"} ;;\n'
         f'  "list sinks") echo "1 alsa_output.pci-0000_01_00.1.x module RUNNING" ;;\n'
         f'  *) echo "$*" >> {tmp_path / "calls"} ;;\n'

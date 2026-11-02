@@ -8,9 +8,9 @@ from unittest.mock import patch
 
 LIB = Path(__file__).resolve().parents[2] / 'privileged/lib'
 sys.path.insert(0, str(LIB))
-import system_setup_memory as memory
-import system_setup_ttm as ttm
-from system_setup_common import Host, SetupError
+import system_setup_memory as memory  # noqa: E402 - requires the source path configured above
+import system_setup_ttm as ttm  # noqa: E402 - requires the source path configured above
+from system_setup_common import Host, SetupError  # noqa: E402 - requires the source path configured above
 
 
 class ArtixMemoryTests(unittest.TestCase):

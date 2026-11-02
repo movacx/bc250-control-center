@@ -42,7 +42,10 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
 
-from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION
+from bc250cc.infrastructure.system_setup import (
+    CU_UNLOCK_OPTION,
+    HIDE_BOOT_MESSAGES_OPTION,
+)
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 from .. import theme

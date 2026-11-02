@@ -5,8 +5,6 @@ from pathlib import Path
 
 import pytest
 
-from bc250cc.shared.errors import ActionNeeded
-
 import bc250cc.infrastructure.dependencias_repository as dependencies_module
 from bc250cc.infrastructure.dependencias_repository import (
     STEAMOS_CORE_UNLOCK_REVIEWED_COMMIT,
@@ -16,6 +14,7 @@ from bc250cc.infrastructure.dependencias_repository import (
     DependenciasRepository,
 )
 from bc250cc.platform.packages.strategies.factory import create_os_repository
+from bc250cc.shared.errors import ActionNeeded
 
 
 class SteamHost:

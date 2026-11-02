@@ -15,18 +15,17 @@ application's own folders. Personal data stays out: home folders become ``~``
 
 from __future__ import annotations
 
-import getpass
+import getpass as getpass  # compatibility for existing report integrations
 import glob
 import os
 import re
 import shutil
-import socket
+import socket as socket  # compatibility for existing report integrations
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
 from pathlib import Path
 
 from bc250cc.infrastructure import system_diagnostics as diag
-from bc250cc.shared.error_origins import redact
 
 #: Each section of the system state, before the whole is split into parts.
 SECTION_LIMIT = 12000
@@ -37,8 +36,11 @@ FULL_TOTAL_LIMIT = 90000
 
 # The rules that take the person out of a text live in privacy.py; these names
 # stay importable from here, where reports have always found them.
-from bc250cc.infrastructure.privacy import _GENERIC_HOSTS, _GENERIC_USERS, redact_machine  # noqa: E402,F401
-
+from bc250cc.infrastructure.privacy import (  # noqa: E402,F401
+    _GENERIC_HOSTS,
+    _GENERIC_USERS,
+    redact_machine,
+)
 
 # --- Sections ---------------------------------------------------------------
 

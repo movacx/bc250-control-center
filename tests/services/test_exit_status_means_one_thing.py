@@ -220,4 +220,4 @@ def test_an_untrusted_payload_is_not_reported_as_a_missing_program():
         "HELPER_UNTRUSTED: Governor TOML editor is not a root-owned, non-writable installed payload.",
         31,
     )
-    assert entry is not None and entry.code == "BC250-HELPER-001"
+    assert entry is not None and entry.code == "BC250-PERM-002"

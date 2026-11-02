@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-
 SCRIPT = Path('packaging/common/os-scripts/arch/prepare-dependencies.sh')
 
 

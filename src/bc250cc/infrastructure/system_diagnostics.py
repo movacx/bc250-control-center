@@ -25,8 +25,6 @@ from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar, copy_context
 from pathlib import Path
 
-from bc250cc.shared.error_origins import redact
-
 COMMAND_TIMEOUT_S = 4.0
 #: One section never crowds the others out of the form's answer.
 SECTION_LIMIT = 2500

@@ -88,7 +88,6 @@ def test_arrows_do_not_accidentally_change_a_task_and_invalid_task_is_ignored():
 
 
 def test_hardware_workspaces_keep_responsive_cards_and_actions():
-    from frontends.tui.content import Panel, Split, Tiles
 
     ctx = make_context()
     pages = build_pages()

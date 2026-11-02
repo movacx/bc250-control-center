@@ -87,7 +87,9 @@ exec "$@"''',
                     self.assertNotIn('/fetch-sources.sh', transfer)
 
     def test_quick_access_generated_command_restores_root_even_after_failure(self):
-        from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
+        from bc250cc.infrastructure.dependencias_repository import (
+            DependenciasRepository,
+        )
         for initial in ('enabled', 'disabled'):
             for failure in (0, 23):
                 with self.subTest(initial=initial, failure=failure), tempfile.TemporaryDirectory() as directory:

@@ -5,7 +5,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from bc250cc.infrastructure.bazzite_smt import build_bazzite_smt_command, probe_bazzite_smt
+from bc250cc.infrastructure.bazzite_smt import (
+    build_bazzite_smt_command,
+    probe_bazzite_smt,
+)
 
 
 @pytest.mark.parametrize("action", ("disable", "restore", "status"))

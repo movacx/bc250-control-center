@@ -183,3 +183,12 @@ def test_umr_dialog_puts_its_copy_button_in_the_footer_where_the_steps_point(qtb
 )
 def test_errors_from_clean_systems_get_the_code_they_deserve(message, code):
     assert diagnose_error(message).code == code
+
+
+@pytest.mark.parametrize("message", (
+    "The installation permission repair is unavailable. Update Control Center.",
+    "Update or reinstall Control Center to install the local name repair helper.",
+    "Update or reinstall Control Center to install the LAN firewall helper.",
+))
+def test_missing_maintenance_helpers_report_the_installation_problem(message):
+    assert diagnose_error(message).code == "BC250-HELPER-001"
