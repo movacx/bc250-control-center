@@ -1,26 +1,41 @@
 # BC250 Control Center
 
-[English](../../README.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [Русский](README.ru.md) · [Українська](README.uk.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [Polski](README.pl.md) · [日本語](README.ja.md)
+从桌面、终端或网络浏览器在 Linux 上设置、调整和监控 AMD BC-250。
 
-<a href="https://ko-fi.com/movacx"><img src="https://img.shields.io/badge/Ko--fi-%E8%B5%9E%E5%8A%A9-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white" alt="赞助 · Ko-fi"></a>
-
-通过桌面、终端或网页浏览器，在 Linux 上设置、调校和监控 AMD BC-250。
-
-它涵盖 GPU 调速器（governor）、CPU 调校、计算单元（CU）、风扇、内存、BIOS 更新、升频（upscaling）以及受支持发行版的系统准备。每一项硬件更改都会先经过范围检查，并在应用前确认。可选的 Decky 插件可将日常控制带入 Steam 的游戏模式。
+它涵盖了受支持发行版的 GPU 调控器、CPU 调整、计算单元、风扇、内存、BIOS 更新介质、升级和系统准备。这些接口共享应用程序服务、硬件限制和特权助手。可选的 Decky 插件将日常控制带入 Steam 的游戏模式。
 
 <p align="center">
-  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/dashboard-overview.png" alt="BC250 Control Center 仪表盘" width="100%"></a>
+  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard" width="100%"></a>
 </p>
 
-更多截图请见[图库](https://movacx.github.io/bc250-control-center/gallery/)。
+<p align="center">
+  <a href="../../README.md"><img src="https://img.shields.io/badge/English-238636?style=for-the-badge" alt="Read in English"></a>
+  <a href="README.es.md"><img src="https://img.shields.io/badge/Espa%C3%B1ol-1f6feb?style=for-the-badge" alt="Leer en español"></a>
+  <a href="README.pt-BR.md"><img src="https://img.shields.io/badge/Portugu%C3%AAs-8250df?style=for-the-badge" alt="Ler em português"></a>
+  <a href="README.ru.md"><img src="https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-bb2f7b?style=for-the-badge" alt="Читать на русском"></a>
+  <a href="README.uk.md"><img src="https://img.shields.io/badge/%D0%A3%D0%BA%D1%80%D0%B0%D1%97%D0%BD%D1%81%D1%8C%D0%BA%D0%B0-0969da?style=for-the-badge" alt="Читати українською"></a>
+  <a href="README.de.md"><img src="https://img.shields.io/badge/Deutsch-57606a?style=for-the-badge" alt="Auf Deutsch lesen"></a>
+  <a href="README.fr.md"><img src="https://img.shields.io/badge/Fran%C3%A7ais-c9510c?style=for-the-badge" alt="Lire en français"></a>
+  <a href="README.pl.md"><img src="https://img.shields.io/badge/Polski-0a7d6c?style=for-the-badge" alt="Czytaj po polsku"></a>
+  <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/%E4%B8%AD%E6%96%87-9a6700?style=for-the-badge" alt="阅读中文说明"></a>
+  <a href="README.ja.md"><img src="https://img.shields.io/badge/%E6%97%A5%E6%9C%AC%E8%AA%9E-0550ae?style=for-the-badge" alt="日本語で読む"></a>
+</p>
 
-## 选择界面
+<p align="center">
+  <a href="https://ko-fi.com/movacx"><img src="https://img.shields.io/badge/Ko--fi-Donate-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white" alt="Donate on Ko-fi"></a>
+</p>
 
-- **桌面 · PyQt6：** 使用 `bc250-control-center` 进行完整设置和本地管理。
-- **终端 · curses：** 使用 `bc250-control-center-tui` 在 TTY、终端模拟器或 SSH 会话中操作。
-- **网页 · React：** 通过家庭网络中的手机、平板或其他电脑监控和控制硬件。
+更多屏幕截图位于[图库](https://movacx.github.io/bc250-control-center/gallery/)。
 
-三个界面共用应用服务和特权辅助程序。常规安装包包含 TUI 和已编译的网页资源。只有重新构建网页界面时才需要 Node.js。
+## 选择您的界面
+
+| 接口 | 最适合 | 启动 |
+| --- | --- | --- |
+| **桌面·PyQt6** | 完整的设置、调整、诊断和本地管理 | `bc250-control-center` |
+| **终端·curses** | 本地 TTY、终端模拟器或 SSH 会话 | `bc250-control-center-tui` |
+| **Web·React** | 通过家庭网络上的手机、平板电脑或另一台计算机进行监控和硬件控制 | 在桌面应用中启动**远程访问**，然后打开其地址或扫描二维码 |
+
+正常安装包括终端界面和编译的Web资源。 [仅限终端的安装程序](#terminal-mode)适用于没有桌面的计算机。浏览器界面需要运行开发板的Web服务器；它不需要 SSH 或 Node.js 即可正常使用。
 
 ## 功能
 
@@ -28,7 +43,7 @@
 - CPU、GPU、VRAM、RAM、磁盘和网络的性能图表，附带传感器视图和 CSV 导出
 - GPU 调速器管理（Cyan，备选 Oberon）、安全的频率范围和电压实验室
 - 通过 SMU 调校 CPU、稳定性测试以及可选的核心解锁
-- 计算单元：路由和寄存器诊断，分别显示实时与启动状态；可用单元取决于板卡配置
+- 计算单元：路由和寄存器诊断，分别报告实时和启动状态；可用单位取决于主板
 - 风扇控制：手动 PWM、温度曲线、持久化配置，或交由 CoolerControl、fancontrol 或 fan2go 接管
 - 内存：VRAM 大小、ZRAM、ZSWAP 和交换分区
 - 制作 BIOS 更新 U 盘（P3.00 Chipset Menu、MeiMeiDXE v3、P5.00、P3.00、P2.00），每个文件都经过校验
@@ -37,6 +52,8 @@
 - 针对 GFX1013、async compute、ACPI 和 Mesa 的兼容性修复；通过 HDMI 输出 Dolby Digital 5.1；通过 HDMI-CEC 控制电视
 - 应用内问题报告，附带错误代码、来源代码以及原始错误信息
 - 30 种语言，浅色和深色主题，界面缩放以及手柄导航
+- 带有键盘导航、鼠标支持、实时遥测和嵌入式操作控制台的终端界面
+- 具有移动布局、配对 QR 和每设备硬件权限的本地网络 HTTPS Web 界面
 
 ## 支持的发行版
 
@@ -104,14 +121,6 @@ sudo steamos-readonly enable
 
 `pacman-key` 和 `pacman -Syy` 两行会刷新密钥环和软件包数据库，这些内容会在 SteamOS 更新时被重置。如果你还没有为 `deck` 用户设置密码，请先运行 `passwd`。SteamOS 更新后，桌面模式菜单中的 **Reinstall BC250 Control Center** 会替你完成这些步骤。
 
-### 从源代码安装
-
-```bash
-git clone https://github.com/movacx/bc250-control-center.git
-cd bc250-control-center
-./run.sh                          # 从代码仓库运行
-bash scripts/install-local.sh     # 或为当前用户安装
-```
 
 ## 更新
 
@@ -122,11 +131,11 @@ bash scripts/install-local.sh     # 或为当前用户安装
 **从 1.19 升级：** 1.19 的更新程序无法安装软件包。请手动安装一次当前版本；之后的版本会自动更新。
 
 ```bash
-# Bazzite / Fedora Atomic：替换分层安装的 1.19 软件包
+# Bazzite / Fedora Atomic: replace a layered 1.19 package
 sudo rpm-ostree uninstall bc250-control-center --install ./bc250-control-center-*.noarch.rpm
 systemctl reboot
 
-# 通过 install-local.sh 安装的副本：先删除，再安装软件包
+# A copy installed with install-local.sh: remove it, then install the package
 bash scripts/uninstall-local.sh
 ```
 
@@ -137,9 +146,23 @@ bash scripts/uninstall-local.sh
 3. 在仪表盘中运行 **Prepare BC250 system**。它会显示你的发行版将安装哪些内容，并在内置终端中执行。
 4. 应用更改前请阅读模块的状态行，它会说明哪些已就绪、哪些缺失。
 
-## 终端界面
+<a id="terminal-mode"></a>
 
-TUI 需要 Python 3.11 或更新版本、`curses` 和 `psutil`，不需要图形桌面或 PyQt6。常规安装包已包含 TUI，可直接运行 `bc250-control-center-tui`。若只安装 TUI，请克隆仓库并以普通用户运行安装脚本：
+## 终端模式
+
+TUI 在终端仿真器、Linux TTY 或 SSH 会话中运行。它共享桌面应用程序的硬件控制和监控服务。 Python 3.11 或更高版本，需要 `curses` 和 `psutil`； PyQt6 不是。
+
+### 安装桌面应用程序后
+
+常规套餐包含 TUI。开始：
+
+```bash
+bc250-control-center-tui
+```
+
+### 仅终端安装
+
+克隆存储库并以普通用户身份运行安装程序：
 
 ```bash
 git clone https://github.com/movacx/bc250-control-center.git
@@ -147,32 +170,61 @@ cd bc250-control-center
 bash scripts/install-tui.sh
 ```
 
-脚本将应用安装到 `~/.local`，检查依赖，并在安装缺失的软件包和受保护的辅助程序时请求管理员授权。在 Bazzite/Fedora Atomic 上，辅助程序需要通过 `rpm-ostree` 安装 RPM 包；单独运行 TUI 脚本不会在这些系统上安装辅助程序。
+安装程序将应用程序放置在 `~/.local` 中并检查其 Python 依赖项。它请求管理员授权安装缺失的软件包和受保护的硬件助手。它不安装 PyQt6 或桌面启动器。在 Bazzite/Fedora Atomic 上，此脚本会跳过系统帮助程序安装；必须通过 RPM 使用 `rpm-ostree` 安装帮助程序，然后重新启动。
+
+启动界面：
 
 ```bash
 ~/.local/bin/bc250-control-center-tui
-bc250-control-center-tui --page gpu --theme mono
 ```
 
-如果 `~/.local/bin` 不在 `PATH` 中，请使用完整路径。方向键用于选择，`Enter` 打开项目，`Esc` 或 `Tab` 返回侧栏，`?` 显示帮助。支持鼠标和滚轮。操作输出和密码提示显示在内置控制台中，可用 `Ctrl+C` 中断命令。所选主题会在下次启动时保留。
-
-更新时，在同一仓库运行 `git pull --ff-only`，然后重新运行安装脚本。卸载命令：
+如果 `~/.local/bin` 已在 `PATH` 中，请使用 `bc250-control-center-tui`。更新从源码安装的版本时，请在同一仓库运行 `git pull --ff-only`，然后重新运行安装脚本。卸载命令：
 
 ```bash
 bash scripts/install-tui.sh --uninstall
 ```
 
-配置好 SSH 服务器后，可使用 `ssh -t user@board-ip bc250-control-center-tui` 远程启动。请替换为实际的用户名和设备地址。
+### 导航
+
+| 输入 | 行动 |
+| --- | --- |
+| `↑` / `↓` 或 `j` / `k` | 选择一个项目 |
+| `Enter` | 打开一个部分或运行一个操作 |
+| `Esc` 或 `Tab` | 返回侧边栏 |
+| `[` / `]` | 切换部分选项卡 |
+| `/` | 搜索 |
+| `PgUp` / `PgDn` | 滚动页面或操作输出 |
+| 鼠标 | 选择部分和控件；用滚轮滚动 |
+| `?` | 显示帮助 |
+| `q` | 退出 |
+
+操作在集成控制台中显示其输出。根据要求输入管理员密码； `Ctrl+C` 中断正在运行的命令。控制台在完成后保留结果和日志位置。
+
+要打开特定页面或使用单色输出：
+
+```bash
+bc250-control-center-tui --page gpu --theme mono
+```
+
+对于 SSH，主板必须启用并可访问 SSH 服务器：
+
+```bash
+ssh -t user@board-ip bc250-control-center-tui
+```
+
+将 `user` 和 `board-ip` 替换为董事会的 Linux 帐户和地址。
 
 ## 网页界面
 
-在桌面或 TUI 的 **Remote access** 中启动网页服务，并允许局域网访问。打开显示的地址或扫描二维码，然后输入访问密钥。可以使用 `bc250cc.local` 或数字 IP 地址；名称解析是否可用取决于网络和客户端。
+在桌面应用程序或 TUI 中打开**远程访问**，启动网络访问并启用**可从本地网络访问**以从其他设备进行连接。选择那里显示的地址或扫描其可见的二维码。保持本地名称和数字 IP 可用：名称解析取决于客户端和网络。
 
-新浏览器默认只能监控。请先核对 **Connected devices** 中的设备代码，再授权硬件控制。权限和到期时间可按设备设置；特权操作仍需通过 Linux 管理员授权。
+使用板上显示的访问密钥登录。新的浏览器会话只能监听。在**连接的设备**中，在授予硬件控制权之前验证浏览器的设备代码。该权限与特权操作所需的 Linux 管理员密码是分开的。所有者可以撤销访问权限并为每个会话选择到期时间。
 
-网页包括仪表板、CPU、GPU、CU、电压实验室、风扇、性能图表、黑匣子和设置。布局适配手机，语言和主题保存在浏览器中。正常使用不需要 SSH，但板卡上的网页服务器必须保持运行。
+网络提供仪表板、CPU、计算单元、GPU、电压实验室、风扇、性能、黑匣子和设置。性能包括CPU、GPU、内存、磁盘、网络和单个传感器历史记录。主题和语言按浏览器保存。
 
-家庭网络访问使用本地证书颁发机构提供的 HTTPS。导入公有证书前，请核对其指纹。应用不会开放路由器端口，也不会建立公共隧道。
+LAN 访问使用 HTTPS。每次安装都会创建一个本地证书颁发机构；浏览器可能会发出警告，直到其公共证书在该设备上受到信任。在信任之前先比较显示的指纹。禁用 LAN 访问后，只有板本身可以通过环回进行连接。该应用程序不会打开路由器端口或配置公共隧道。
+
+用户不需要 Node.js：包传送构建的 Web 资产。
 
 ## Decky 插件
 
@@ -188,7 +240,7 @@ BC250 Quick Access 是 Steam 游戏模式快速访问菜单中的可选面板。
 
 报告还会附带一份硬件诊断，无需 root 即可在所有发行版上收集：内核和头文件、已加载的传感器模块及其内核消息（NCT6687、amdgpu）、hwmon 和 `sensors` 读数、内核日志中的 GPU 和崩溃行、上一次启动的结束方式（正常关机或突然重置）、服务、软件包，以及上一个工作流日志的结尾。当你的用户无法读取内核日志时，桌面会通过 polkit 询问一次密码。过大而无法放入表单的报告会自动裁剪，先删除最次要的部分；**在浏览器中打开** 仍会复制完整文本。
 
-要在发送前阅读报告附带的全部内容，请打开**设置 › 诊断 › 查看完整诊断**：每个部分（内核、上次启动、黑匣子、传感器、GPU、服务、配置、软件包、日志）都可展开，按标签页分类，可搜索，并可复制或另存为文件。终端中用 `bc250-control-center-cli diagnose --full` 输出相同内容。
+要在发送前阅读报告附加的所有内容，请打开**设置 › 诊断 › 查看完整诊断**：每个部分（内核、上次启动、黑匣子、传感器、GPU、服务、配置、软件包、日志）均可展开、分类到选项卡中、可搜索，并且可以复制或另存为文件。终端使用 `bc250-control-center-cli diagnose --full` 打印相同的内容。
 
 也欢迎在 GitHub 上提交 issue。请附上你的发行版、内核版本和终端输出。
 
@@ -253,25 +305,27 @@ bc250-control-center/
 │   │   ├── console/          内置终端
 │   │   ├── theme/            主题、样式、颜色和图标
 │   │   └── i18n/             30 种语言的翻译
-│   ├── tui/                  终端界面、导航和操作控制台
-│   ├── web/                  HTTPS 服务器、会话和操作工作进程
-│   │   ├── app/              React 源码和构建工具
-│   │   └── dist/             随应用分发的已编译网页资源
-│   └── cli.py                命令行模式
-├── integrations/decky/       用于游戏模式的 Decky Quick Access 插件
+│   ├── tui/                  终端界面：curses屏幕、页面和操作控制台
+│   ├── web/                  HTTPS 后端、经过验证的操作人员和浏览器界面
+│   │   ├── app/              React 源代码和构建工具（仅用于开发的 Node.js）
+│   │   └── dist/             由 Python 提供服务并以包形式提供的编译资源
+│   └── cli.py                Command-line mode
+├── integrations/
+│   ├── decky/                用于游戏模式的 Decky Quick Access 插件
+│   └── report-endpoint/      用于用户提交报告的 Cloudflare 端点
 ├── privileged/               以 root 运行的部分，隔离且经过审查
 │   ├── helpers/              每个特权任务对应一个辅助程序
 │   ├── lib/                  这些辅助程序共享的代码
 │   └── policies/             Polkit 权限
 ├── packaging/                .pkg.tar.zst、.rpm 和 .deb 包，以及 AUR 的 PKGBUILD
-├── scripts/                  启动器、本地安装程序和系统工具
+├── scripts/
+│   ├── entrypoints/          桌面、CLI、守护程序和 TUI 启动器
+│   ├── development/          Web 构建和开发实用程序
+│   ├── system/               分发和系统准备工作流程
+│   └── qa/                   包装、集成和分发检查
 ├── assets/                   图标、截图和网页图库
 ├── docs/                     文档、第三方声明以及本 README 的翻译
-└── tests/                    单元、服务、桌面、TUI、网页和软件包测试
+└── tests/                    单位、服务、桌面、TUI、Web 和包装检查
 ```
 
-## 参与贡献
-
-最有用的贡献是错误报告，尤其是附上你的发行版、内核版本以及终端输出。如果你使用的发行版不在上面的列表中，请告诉我们它的使用情况，无论好坏。
-
-许可证为 [MIT](../../LICENSE)。
+有关层边界，请参阅 [Architecture](../ARQUITECTURA_MVC.md)，有关接口入口点和开发命令，请参阅 [Frontends](../../frontends/README.md)。

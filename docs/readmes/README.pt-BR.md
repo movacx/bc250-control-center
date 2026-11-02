@@ -1,26 +1,41 @@
 # BC250 Control Center
 
-[English](../../README.md) · [Español](README.es.md) · [Русский](README.ru.md) · [Українська](README.uk.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [Polski](README.pl.md) · [中文](README.zh-CN.md) · [日本語](README.ja.md)
+Configure, ajuste e monitore o AMD BC-250 no Linux a partir do desktop, de um terminal ou de um navegador da web.
 
-<a href="https://ko-fi.com/movacx"><img src="https://img.shields.io/badge/Ko--fi-Doar-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white" alt="Doar · Ko-fi"></a>
-
-Configure, ajuste e monitore a AMD BC-250 no Linux pelo desktop, terminal ou navegador.
-
-Cobre o governador da GPU, o ajuste da CPU, as Unidades de Computação (CU), os ventiladores, a memória, a atualização da BIOS, o upscaling e a preparação do sistema para as distribuições compatíveis. Cada mudança no hardware é verificada contra seus limites e confirmada antes de ser aplicada. Um plugin opcional do Decky leva os controles do dia a dia para o Modo Jogo da Steam.
+Ele cobre o governador de GPU, ajuste de CPU, unidades de computação, ventiladores, memória, mídia de atualização de BIOS, upscaling e preparação do sistema para as distribuições suportadas. As interfaces compartilham serviços de aplicação, limites de hardware e auxiliares privilegiados. Um plugin opcional Decky traz os controles diários para o modo de jogo do Steam.
 
 <p align="center">
-  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/dashboard-overview.png" alt="Painel do BC250 Control Center" width="100%"></a>
+  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard" width="100%"></a>
 </p>
 
-Mais capturas de tela na [galeria](https://movacx.github.io/bc250-control-center/gallery/).
+<p align="center">
+  <a href="../../README.md"><img src="https://img.shields.io/badge/English-238636?style=for-the-badge" alt="Read in English"></a>
+  <a href="README.es.md"><img src="https://img.shields.io/badge/Espa%C3%B1ol-1f6feb?style=for-the-badge" alt="Leer en español"></a>
+  <a href="README.pt-BR.md"><img src="https://img.shields.io/badge/Portugu%C3%AAs-8250df?style=for-the-badge" alt="Ler em português"></a>
+  <a href="README.ru.md"><img src="https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-bb2f7b?style=for-the-badge" alt="Читать на русском"></a>
+  <a href="README.uk.md"><img src="https://img.shields.io/badge/%D0%A3%D0%BA%D1%80%D0%B0%D1%97%D0%BD%D1%81%D1%8C%D0%BA%D0%B0-0969da?style=for-the-badge" alt="Читати українською"></a>
+  <a href="README.de.md"><img src="https://img.shields.io/badge/Deutsch-57606a?style=for-the-badge" alt="Auf Deutsch lesen"></a>
+  <a href="README.fr.md"><img src="https://img.shields.io/badge/Fran%C3%A7ais-c9510c?style=for-the-badge" alt="Lire en français"></a>
+  <a href="README.pl.md"><img src="https://img.shields.io/badge/Polski-0a7d6c?style=for-the-badge" alt="Czytaj po polsku"></a>
+  <a href="README.zh-CN.md"><img src="https://img.shields.io/badge/%E4%B8%AD%E6%96%87-9a6700?style=for-the-badge" alt="阅读中文说明"></a>
+  <a href="README.ja.md"><img src="https://img.shields.io/badge/%E6%97%A5%E6%9C%AC%E8%AA%9E-0550ae?style=for-the-badge" alt="日本語で読む"></a>
+</p>
 
-## Interfaces disponíveis
+<p align="center">
+  <a href="https://ko-fi.com/movacx"><img src="https://img.shields.io/badge/Ko--fi-Donate-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white" alt="Donate on Ko-fi"></a>
+</p>
 
-- **Desktop · PyQt6:** configuração completa e administração local com `bc250-control-center`.
-- **Terminal · curses:** uso em TTY, emulador de terminal ou SSH com `bc250-control-center-tui`.
-- **Web · React:** monitoramento e controles de hardware pelo celular, tablet ou outro computador na rede doméstica.
+Mais capturas de tela estão na [gallery](https://movacx.github.io/bc250-control-center/gallery/).
 
-As três interfaces compartilham os serviços e os helpers privilegiados. O pacote normal inclui TUI e os arquivos web compilados. Node.js só é necessário para recompilar a interface web.
+## Escolha sua interface
+
+| Interface | Mais adequado para | Como abrir |
+| --- | --- | --- |
+| **Desktop · PyQt6** | Configuração completa, ajuste, diagnóstico e administração local | `bc250-control-center` |
+| **Terminal · curses** | Um TTY local, emulador de terminal ou sessão SSH | `bc250-control-center-tui` |
+| **Web · React** | Monitoramento e controles de hardware de um telefone, tablet ou outro computador na rede doméstica | Inicie **Acesso remoto** no aplicativo para desktop e abra seu endereço ou escaneie o QR |
+
+A instalação normal inclui a interface do terminal e os ativos da web compilados. Um [instalador somente de terminal](#terminal-mode) está disponível para máquinas sem desktop. A interface do navegador precisa do servidor web da placa em execução; não precisa de SSH ou Node.js para uso normal.
 
 ## Recursos
 
@@ -28,7 +43,7 @@ As três interfaces compartilham os serviços e os helpers privilegiados. O paco
 - Gráficos de desempenho de CPU, GPU, VRAM, RAM, disco e rede, com visualização de sensores e exportação para CSV
 - Gerenciamento do governador da GPU (Cyan, com Oberon como alternativa), faixas de frequência seguras e um laboratório de tensão
 - Ajuste da CPU pela SMU, teste de estabilidade e desbloqueio opcional de núcleos
-- Unidades de Computação: roteamento e diagnóstico de registros, com estados ativo e de inicialização separados; as unidades disponíveis dependem da placa
+- Unidades de Computação: roteamento e diagnóstico de registro, com estado ativo e de inicialização relatados separadamente; unidades disponíveis dependem da placa
 - Controle dos ventiladores: PWM manual, curvas por temperatura, perfis persistentes ou entrega ao CoolerControl, fancontrol ou fan2go
 - Memória: tamanho da VRAM, ZRAM, ZSWAP e swap
 - Criação de pendrive para atualizar a BIOS (P3.00 Chipset Menu, MeiMeiDXE v3, P5.00, P3.00, P2.00), com todos os arquivos verificados
@@ -37,6 +52,8 @@ As três interfaces compartilham os serviços e os helpers privilegiados. O paco
 - Correções de compatibilidade para GFX1013, async compute, ACPI e Mesa; Dolby Digital 5.1 por HDMI; controle da TV por HDMI-CEC
 - Relatórios de problemas dentro do aplicativo, com códigos de erro, códigos de origem e o erro bruto anexado
 - 30 idiomas, temas claro e escuro, escala da interface e navegação por controle
+- Interface de terminal com navegação por teclado, suporte para mouse, telemetria ao vivo e console de operação integrado
+- Interface web HTTPS de rede local com layouts móveis, emparelhamento de QR e permissões de hardware por dispositivo
 
 ## Distribuições compatíveis
 
@@ -104,14 +121,6 @@ sudo steamos-readonly enable
 
 As linhas `pacman-key` e `pacman -Syy` atualizam o chaveiro e os bancos de dados de pacotes, que uma atualização do SteamOS redefine. Se você ainda não definiu uma senha para o usuário `deck`, execute `passwd` antes. Depois de uma atualização do SteamOS, **Reinstall BC250 Control Center** no menu do Modo Desktop faz esses passos por você.
 
-### A partir do código-fonte
-
-```bash
-git clone https://github.com/movacx/bc250-control-center.git
-cd bc250-control-center
-./run.sh                          # executa a partir do repositório
-bash scripts/install-local.sh     # ou instala para o usuário atual
-```
 
 ## Atualizações
 
@@ -122,11 +131,11 @@ O aplicativo verifica novas versões, mostra o changelog, confere a soma de veri
 **Atualizando a partir da 1.19:** o atualizador da 1.19 não consegue instalar pacotes. Instale a versão atual uma vez manualmente; as seguintes se atualizam sozinhas.
 
 ```bash
-# Bazzite / Fedora Atomic: substituir um pacote 1.19 instalado em camadas
+# Bazzite / Fedora Atomic: replace a layered 1.19 package
 sudo rpm-ostree uninstall bc250-control-center --install ./bc250-control-center-*.noarch.rpm
 systemctl reboot
 
-# Uma cópia instalada com install-local.sh: remova e depois instale o pacote
+# A copy installed with install-local.sh: remove it, then install the package
 bash scripts/uninstall-local.sh
 ```
 
@@ -137,9 +146,23 @@ bash scripts/uninstall-local.sh
 3. No Painel, execute **Prepare BC250 system**. Ele mostra o que será instalado para a sua distribuição e roda no terminal integrado.
 4. Leia a linha de status de um módulo antes de aplicar alterações; ela informa o que está pronto e o que falta.
 
-## Interface de terminal
+<a id="terminal-mode"></a>
 
-TUI requer Python 3.11 ou mais recente, `curses` e `psutil`, sem ambiente gráfico nem PyQt6. O pacote de desktop já inclui TUI: execute `bc250-control-center-tui`. Para instalar apenas TUI, clone o repositório e execute o script com seu usuário normal:
+## Modo terminal
+
+A TUI é executada em um emulador de terminal, um TTY Linux ou uma sessão SSH. Ele compartilha os controles de hardware e serviços de monitoramento do aplicativo de desktop. Python 3.11 ou mais recente, `curses` e `psutil` são obrigatórios; PyQt6 não é.
+
+### Com o aplicativo de desktop instalado
+
+O pacote regular inclui o TUI. Comece com:
+
+```bash
+bc250-control-center-tui
+```
+
+### Instalação somente terminal
+
+Clone o repositório e execute o instalador como seu usuário normal:
 
 ```bash
 git clone https://github.com/movacx/bc250-control-center.git
@@ -147,32 +170,61 @@ cd bc250-control-center
 bash scripts/install-tui.sh
 ```
 
-O script instala em `~/.local`, verifica dependências e solicita autorização de administrador para instalar pacotes e helpers protegidos. No Bazzite/Fedora Atomic, os helpers precisam do RPM instalado por `rpm-ostree`; o script de TUI sozinho não os instala nesses sistemas.
+O instalador coloca o aplicativo em `~/.local` e verifica suas dependências do Python. Ele solicita autorização do administrador para instalar pacotes ausentes e auxiliares de hardware protegidos. Ele não instala PyQt6 ou um inicializador de desktop. No Bazzite/Fedora Atomic, este script ignora a instalação do auxiliar do sistema; os helpers devem ser instalados através do RPM com `rpm-ostree`, seguido de uma reinicialização.
+
+Inicie a interface:
 
 ```bash
 ~/.local/bin/bc250-control-center-tui
-bc250-control-center-tui --page gpu --theme mono
 ```
 
-Use o caminho completo se `~/.local/bin` não estiver no `PATH`. As setas selecionam, `Enter` abre, `Esc` ou `Tab` retorna à barra lateral e `?` mostra a ajuda. Há suporte a mouse e rolagem. A saída e os pedidos de senha aparecem no console integrado; `Ctrl+C` interrompe o comando. O tema selecionado é lembrado ao reiniciar.
-
-Para atualizar, execute `git pull --ff-only` no mesmo repositório e rode o instalador novamente. Para desinstalar:
+Se `~/.local/bin` já estiver no seu `PATH`, use `bc250-control-center-tui`. Para atualizar uma instalação a partir do código-fonte, execute `git pull --ff-only` no mesmo repositório e rode o instalador novamente. Para desinstalar:
 
 ```bash
 bash scripts/install-tui.sh --uninstall
 ```
 
-Com o servidor SSH já configurado, use `ssh -t user@board-ip bc250-control-center-tui`, substituindo o usuário e o endereço.
+### Navegação
+
+| Entrada | Ação |
+| --- | --- |
+| `↑` / `↓` ou `j` / `k` | Selecione um item |
+| `Enter` | Abra uma seção ou execute uma ação |
+| `Esc` ou `Tab` | Voltar para a barra lateral |
+| `[` / `]` | Alternar guias de seção |
+| `/` | Pesquisar |
+| `PgUp` / `PgDn` | Role a página ou saída da operação |
+| Rato | Selecione seções e controles; rolar com a roda |
+| `?` | Mostrar ajuda |
+| `q` | Sair |
+
+As operações exibem seus resultados no console integrado. As senhas do administrador são inseridas lá quando solicitadas; `Ctrl+C` interrompe o comando em execução. O console retém o resultado e a localização do log após a conclusão.
+
+Para abrir uma página específica ou usar saída monocromática:
+
+```bash
+bc250-control-center-tui --page gpu --theme mono
+```
+
+Para SSH, a placa deve ter um servidor SSH habilitado e acessível:
+
+```bash
+ssh -t user@board-ip bc250-control-center-tui
+```
+
+Substitua `user` e `board-ip` pela conta e endereço Linux da placa.
 
 ## Interface web
 
-Em **Remote access**, no desktop ou em TUI, inicie o acesso web e habilite conexões pela rede local. Abra o endereço exibido ou escaneie o QR e informe a chave de acesso. O nome `bc250cc.local` e o endereço IP numérico estão disponíveis; a resolução do nome depende da rede e do dispositivo.
+Abra **Acesso remoto** no aplicativo de desktop ou TUI, inicie o acesso à Web e ative **Acessível pela rede local** para conectar-se a partir de outro dispositivo. Escolha o endereço mostrado lá ou escaneie seu QR visível. Mantenha disponíveis o nome local e o IP numérico: a resolução do nome depende do cliente e da rede.
 
-Novos navegadores podem apenas monitorar. Confira seu código em **Connected devices** antes de permitir controle de hardware. Permissões e vencimento são definidos por dispositivo; ações privilegiadas continuam exigindo autorização de administrador do Linux.
+Faça login com a chave de acesso mostrada no quadro. Novas sessões do navegador só podem monitorar. Em **Connected devices**, verifique o código do dispositivo do navegador antes de conceder o controle de hardware. Essa permissão é separada da senha do administrador Linux exigida por operações privilegiadas. O proprietário pode revogar o acesso e escolher uma expiração para cada sessão.
 
-A web inclui Dashboard, CPU, GPU, CU, laboratório de tensão, ventiladores, gráficos de desempenho, caixa-preta e ajustes. O layout se adapta ao celular e salva idioma e tema no navegador. O uso normal não requer SSH; o servidor web da placa precisa estar ativo.
+A web fornece Dashboard, CPU, Unidades de Computação, GPU, Laboratório de Tensão, Ventiladores, Desempenho, Caixa Preta e Configurações. O desempenho inclui CPU, GPU, memória, disco, rede e históricos de sensores individuais. Os temas e o idioma são salvos por navegador.
 
-O acesso pela rede doméstica usa HTTPS com uma autoridade certificadora local. Confira a impressão digital antes de importar o certificado público. O aplicativo não abre portas no roteador nem configura túneis públicos.
+O acesso à LAN usa HTTPS. Cada instalação cria uma autoridade de certificação local; os navegadores podem avisar até que seu certificado público seja confiável nesse dispositivo. Compare a impressão digital exibida antes de confiar nela. Com o acesso à LAN desabilitado, apenas a própria placa pode se conectar através de loopback. O aplicativo não abre portas do roteador nem configura um túnel público.
+
+Os usuários não precisam do Node.js: os pacotes enviam os ativos da web criados.
 
 ## Plugin Decky
 
@@ -188,7 +240,7 @@ Use **Relatar este problema** na janela de erro ou **Configurações › Diagnó
 
 O relatório também anexa um diagnóstico de hardware, coletado sem root em todas as distribuições: kernel e cabeçalhos, módulos de sensores carregados e suas mensagens do kernel (NCT6687, amdgpu), leituras de hwmon e `sensors`, linhas de GPU e de falhas do log do kernel, como terminou o boot anterior (desligamento limpo ou reset abrupto), serviços, pacotes e o final do último log de fluxo de trabalho. Quando o log do kernel está fechado para o seu usuário, o desktop pede a senha uma vez pelo polkit. Relatórios grandes demais para o formulário são reduzidos automaticamente, começando pelas partes menos importantes; **Abrir no navegador** continua copiando o texto completo.
 
-Para ler tudo o que um relatório anexa antes de enviar, abra **Configurações › Diagnóstico › Ver diagnóstico completo**: cada seção (kernel, boot anterior, caixa-preta, sensores, GPU, serviços, configuração, pacotes, logs) pode ser expandida, está separada em abas, pode ser pesquisada e copiada ou salva como arquivo. O terminal imprime o mesmo com `bc250-control-center-cli diagnose --full`.
+Para ler tudo o que um relatório anexa antes de enviá-lo, abra **Configurações › Diagnóstico › Ver diagnóstico completo**: cada seção (kernel, inicialização anterior, caixa preta, sensores, GPU, serviços, configuração, pacotes, logs) é expansível, classificada em guias, pesquisável e pode ser copiada ou salva como um arquivo. O terminal imprime o mesmo com `bc250-control-center-cli diagnose --full`.
 
 Problemas no GitHub também são bem-vindos. Inclua sua distribuição, a versão do kernel e a saída do terminal.
 
@@ -253,25 +305,27 @@ bc250-control-center/
 │   │   ├── console/          Terminal integrado
 │   │   ├── theme/            Temas, estilos, cores e ícones
 │   │   └── i18n/             Traduções para 30 idiomas
-│   ├── tui/                  Interface de terminal, navegação e console de operações
-│   ├── web/                  Servidor HTTPS, sessões e workers de ações
-│   │   ├── app/              Código React e ferramentas de compilação
-│   │   └── dist/             Arquivos compilados distribuídos com o aplicativo
-│   └── cli.py                Modo de linha de comando
-├── integrations/decky/       Plugin Decky Quick Access para o Modo Jogo
+│   ├── tui/                  Interface do terminal: tela de curses, páginas e console de operação
+│   ├── web/                  Back-end HTTPS, operadores de ação validados e interface do navegador
+│   │   ├── app/              Ferramentas de código-fonte e construção do React (Node.js apenas para desenvolvimento)
+│   │   └── dist/             Ativos compilados servidos por Python e enviados em pacotes
+│   └── cli.py                Command-line mode
+├── integrations/
+│   ├── decky/                Plugin Decky Quick Access para o Modo Jogo
+│   └── report-endpoint/      Endpoint Cloudflare para relatórios enviados por usuários
 ├── privileged/               O que roda como root, isolado e revisado
 │   ├── helpers/              Um auxiliar por tarefa privilegiada
 │   ├── lib/                  Código compartilhado por esses auxiliares
 │   └── policies/             Permissões do Polkit
 ├── packaging/                Pacotes .pkg.tar.zst, .rpm e .deb, e o PKGBUILD do AUR
-├── scripts/                  Inicializadores, instalador local e utilitários de sistema
+├── scripts/
+│   ├── entrypoints/          Iniciadores de desktop, CLI, daemon e TUI
+│   ├── development/          Utilitários de construção e desenvolvimento web
+│   ├── system/               Fluxos de trabalho de distribuição e preparação de sistema
+│   └── qa/                   Verificações de embalagem, integração e distribuição
 ├── assets/                   Ícones, capturas de tela e galeria web
 ├── docs/                     Documentação, avisos de terceiros e traduções deste README
-└── tests/                    Testes unitários, serviços, desktop, TUI, web e pacotes
+└── tests/                    Verificações de unidade, serviço, desktop, TUI, web e embalagem
 ```
 
-## Contribuindo
-
-A contribuição mais útil é um relatório de erro, principalmente com a sua distribuição, a versão do kernel e o que o terminal mostrou. Se você usa uma distribuição que não aparece acima, conte como foi, para o bem ou para o mal.
-
-Licença [MIT](../../LICENSE).
+Consulte [Architecture](../ARQUITECTURA_MVC.md) para limites de camada e [Frontends](../../frontends/README.md) para pontos de entrada de interface e comandos de desenvolvimento.
