@@ -4,7 +4,7 @@
 
 <a href="https://ko-fi.com/movacx"><img src="https://img.shields.io/badge/Ko--fi-Donar-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white" alt="Donar · Ko-fi"></a>
 
-Aplicación de escritorio para configurar, ajustar y monitorizar la AMD BC-250 en Linux.
+Configura, ajusta y monitoriza la AMD BC-250 en Linux desde el escritorio, una terminal o el navegador.
 
 Cubre el gobernador de la GPU, el ajuste de la CPU, las Unidades de Cómputo (CU), los ventiladores, la memoria, la actualización de BIOS, el escalado y la preparación del sistema para las distribuciones compatibles. Cada cambio en el hardware se comprueba contra sus límites y se confirma antes de aplicarse. Un plugin opcional de Decky lleva los controles del día a día al Modo Juego de Steam.
 
@@ -13,6 +13,18 @@ Cubre el gobernador de la GPU, el ajuste de la CPU, las Unidades de Cómputo (CU
 </p>
 
 Más capturas en la [galería](https://movacx.github.io/bc250-control-center/gallery/).
+
+## Elige tu interfaz
+
+| Interfaz | Uso | Cómo abrirla |
+| --- | --- | --- |
+| **Escritorio · PyQt6** | Configuración, ajustes y administración local | `bc250-control-center` |
+| **Terminal · curses** | TTY, emulador de terminal o sesión SSH | `bc250-control-center-tui` |
+| **Web · React** | Teléfono, tablet u otro equipo de la red doméstica | Inicia **Acceso remoto** en el escritorio y abre la dirección o escanea el QR |
+
+Las tres interfaces comparten servicios, límites y helpers privilegiados. La
+instalación normal incluye TUI y los recursos web compilados. Node.js solo es
+necesario para reconstruir la web, no para utilizarla.
 
 ## Funciones
 
@@ -131,6 +143,87 @@ bash scripts/uninstall-local.sh
 3. En el Panel, ejecuta **Prepare BC250 system**. Muestra lo que se instalará para tu distribución y lo ejecuta en la terminal integrada.
 4. Lee la línea de estado de un módulo antes de aplicar cambios; indica qué está listo y qué falta.
 
+## Interfaz de terminal
+
+TUI funciona en un emulador de terminal, una TTY de Linux o una sesión SSH.
+Comparte los controles y servicios de monitorización del escritorio. Requiere
+Python 3.11 o posterior, `curses` y `psutil`; no necesita PyQt6.
+
+### Si ya instalaste la aplicación de escritorio
+
+El paquete normal incluye TUI. Para abrirla:
+
+```bash
+bc250-control-center-tui
+```
+
+### Instalar únicamente TUI
+
+Clona el repositorio y ejecuta el instalador con tu usuario habitual:
+
+```bash
+git clone --branch desarrollo/bc250-control-center https://github.com/movacx/bc250-control-center.git
+cd bc250-control-center
+bash scripts/install-tui.sh
+```
+
+Este comando instala la rama de desarrollo, que incluye TUI y web. Para una
+versión publicada, utiliza el archivo de código fuente de esa versión.
+
+El instalador guarda la aplicación en `~/.local`, comprueba las dependencias y
+solicita autorización de administrador para instalar paquetes y helpers
+protegidos. No instala PyQt6 ni un lanzador de escritorio. En Bazzite, los
+cambios instalados mediante `rpm-ostree` requieren reiniciar.
+
+Para abrirla después de instalar:
+
+```bash
+~/.local/bin/bc250-control-center-tui
+```
+
+Si `~/.local/bin` está en tu `PATH`, basta con `bc250-control-center-tui`.
+Para actualizar, ejecuta `git pull --ff-only` en el mismo repositorio y vuelve
+a ejecutar el instalador. Para desinstalar:
+
+```bash
+bash scripts/install-tui.sh --uninstall
+```
+
+Usa las flechas para seleccionar, `Enter` para abrir, `Esc` o `Tab` para volver
+a la barra lateral y `?` para consultar los atajos. También admite ratón y
+rueda de desplazamiento. Las operaciones muestran su salida y solicitan la
+contraseña de administrador en la consola integrada; `Ctrl+C` interrumpe el
+comando.
+
+```bash
+bc250-control-center-tui --page gpu --theme mono
+ssh -t usuario@ip-de-la-placa bc250-control-center-tui
+```
+
+La conexión SSH requiere tener habilitado el servidor SSH en la placa. Consulta
+el [mapa de interfaces](../../frontends/README.md) para los detalles del código.
+
+## Interfaz web
+
+Desde **Acceso remoto** en escritorio o TUI, inicia el acceso web y habilita la conexión desde la red
+local. Abre la dirección mostrada o escanea el QR e introduce la clave de acceso.
+Conserva tanto el nombre local como la IP numérica: la resolución del nombre
+depende del dispositivo y de la red.
+
+Los navegadores nuevos solo pueden monitorizar. Verifica su código en
+**Dispositivos conectados** antes de permitir el control del hardware. Puedes
+revocar ese permiso y elegir un vencimiento por sesión; el permiso no sustituye
+la contraseña de administrador de Linux para operaciones privilegiadas.
+
+Incluye Dashboard, CPU, CU, GPU, laboratorio de voltaje, ventiladores,
+rendimiento, caja negra y ajustes, con diseño adaptable al móvil. La conexión normal no
+requiere SSH. El servidor de la placa debe estar encendido.
+
+La conexión por LAN usa HTTPS con una autoridad de certificados local. El
+navegador puede advertir hasta que confíes en el certificado público; comprueba
+su huella antes de instalarlo. La aplicación no abre puertos del router ni crea
+túneles públicos. Consulta la [guía web](../WEB_ACCESS.md).
+
 ## Plugin de Decky
 
 BC250 Quick Access es un panel opcional para el menú de acceso rápido del Modo Juego de Steam. Ofrece controles de GPU, Unidades de Cómputo, CPU, ventiladores y VRAM, perfiles de GPU y ventiladores por juego, y lecturas en vivo de async compute. La configuración avanzada se queda en la aplicación de escritorio.
@@ -144,23 +237,6 @@ Las ventanas de error muestran un código de diagnóstico (por ejemplo, `BC250-U
 Usa **Reportar este problema** en la ventana de error, o **Ajustes › Diagnóstico › Enviar un informe**. El formulario se abre dentro de la aplicación con los códigos, el error sin procesar, las especificaciones del sistema y los errores recientes ya rellenados. Puedes revisarlo todo antes de enviarlo; las rutas de tu carpeta personal se sustituyen por `~`. Si el formulario no se puede enviar, se abre en el navegador con tus respuestas. El formulario también está [en la web](https://docs.google.com/forms/d/e/1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA/viewform).
 
 El informe adjunta además un diagnóstico del hardware, recopilado sin root en todas las distribuciones: kernel y cabeceras, módulos de sensores cargados y sus mensajes del kernel (NCT6687, amdgpu), lecturas de hwmon y `sensors`, líneas de GPU y de fallos del registro del kernel, cómo terminó el arranque anterior (apagado limpio o reinicio brusco), servicios, paquetes y el final del último registro de flujo de trabajo. Si el registro del kernel no es legible para tu usuario, el escritorio pide la contraseña una vez mediante polkit. Los informes demasiado grandes para el formulario se recortan automáticamente, empezando por las partes menos importantes; **Abrir en el navegador** sigue copiando el texto completo.
-
-### Black box (bloqueos y reinicios)
-
-Un bloqueo duro no deja nada en el registro del kernel. La black box registra cuatro veces por segundo el reloj y la carga de la GPU, las temperaturas, el voltaje de GFX, la potencia, la velocidad del ventilador, el reloj de la CPU y la memoria libre, y escribe cada línea en disco. Así, el siguiente informe muestra los últimos segundos de la placa antes de un bloqueo o reinicio. No necesita root y su archivo tiene un tamaño acotado (512 KB, después rota).
-
-```bash
-# Modo Escritorio: deja el terminal abierto mientras juegas; detén con Ctrl+C
-bc250-control-center-cli black-box
-
-# Modo Juego (SteamOS): inícialo en segundo plano antes de cambiar de modo
-systemd-run --user --unit=bc250-black-box bc250-control-center-cli black-box
-systemctl --user stop bc250-black-box
-```
-
-El registro se guarda en `~/.local/state/bc250-control-center/black-box/`. `bc250-control-center-cli diagnose` muestra el mismo diagnóstico de hardware que envía el informe.
-
-No hace falta la terminal: abre **Caja negra** en la barra lateral (encima de Firmware (BIOS)) para iniciar y detener la grabación, ver en una tabla las últimas filas que escribió y activar *Iniciar con la sesión* para que corra en cada inicio de sesión (solo con systemd). Una grabación cortada por un reinicio o un cuelgue se marca ahí.
 
 Para leer todo lo que adjunta un informe antes de enviarlo, abre **Ajustes › Diagnóstico › Ver diagnóstico completo**: cada sección (kernel, arranque anterior, caja negra, sensores, GPU, servicios, configuración, paquetes, registros) se expande, está ordenada en pestañas, se puede buscar y se puede copiar o guardar como archivo. La terminal imprime lo mismo con `bc250-control-center-cli diagnose --full`.
 
@@ -227,6 +303,10 @@ bc250-control-center/
 │   │   ├── console/          Terminal integrada
 │   │   ├── theme/            Temas, estilos, colores e iconos
 │   │   └── i18n/             Traducciones a 30 idiomas
+│   ├── tui/                  Interfaz curses, navegación y consola de operaciones
+│   ├── web/                  Servidor HTTPS, sesiones y workers de acciones
+│   │   ├── app/              Fuentes React y herramientas de compilación
+│   │   └── dist/             Recursos compilados distribuidos con la aplicación
 │   └── cli.py                Modo de línea de comandos
 ├── integrations/decky/       Plugin Decky Quick Access para el modo Juego
 ├── privileged/               Lo que se ejecuta como root, aislado y revisado
