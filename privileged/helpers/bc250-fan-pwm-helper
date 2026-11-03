@@ -78,8 +78,9 @@ REGULATOR_POLL_SECONDS = 15.0
 # Nuvoton "VRM MOS" channel, as if the driver were not there.
 REGULATOR_STALE_SECONDS = 45.0
 # Held exclusively by a CPU tuning run (bc250-cpu-smu-helper). PMBus traffic
-# shares the bus with the SMU, so the regulator is not read while it is held;
-# the desktop reader (vrm_telemetry_reader) stands aside the same way.
+# shares the bus with the SMU, so every regulator read holds this shared for
+# the whole transaction and stands aside while a run holds it exclusively; the
+# desktop reader (vrm_telemetry_reader) stands aside the same way.
 SMU_RUN_LOCK = Path('/run/bc250-smu-run.lock')
 CONTROL_UNIT_NAME = 'bc250-fan-control.service'
 CONTROL_UNIT_PATH = Path('/etc/systemd/system') / CONTROL_UNIT_NAME
@@ -601,34 +602,18 @@ def read_temperatures(base: Path | None = None) -> dict:
     return readings
 
 
-def _smu_run_in_progress(lock: Path) -> bool:
-    """Whether a CPU tuning run holds the SMU right now. Never waits."""
-    try:
-        fd = os.open(lock, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
-    except OSError:
-        return False
-    try:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
-        except OSError:
-            return True
-        fcntl.flock(fd, fcntl.LOCK_UN)
-        return False
-    finally:
-        os.close(fd)
+def read_regulator_temperatures(base: Path | None = None) -> dict[str, float | None]:
+    """Every bc250_vrm rail that answers, keyed by its input file.
 
-
-def read_regulator_temperature(base: Path | None = None) -> float | None:
-    """The hotter of the two bc250_vrm rails, or None.
-
-    None when the driver has no device (not loaded, or no regulator wired) or
-    neither rail answers; the driver returns EIO for a glitched transaction.
+    A rail mapped to None is a failed transaction (the driver answers EIO on a
+    glitch); the caller keeps that rail's last good sample. An empty result
+    means the driver has no device (not loaded, or no regulator wired).
     """
     base = HWMON_BASE if base is None else base
     try:
         hwmons = sorted(base.glob('hwmon*'))
     except OSError:
-        return None
+        return {}
     for hwmon in hwmons:
         try:
             name = (hwmon / 'name').read_text(encoding='utf-8').strip()
@@ -636,37 +621,64 @@ def read_regulator_temperature(base: Path | None = None) -> float | None:
             continue
         if name != REGULATOR_CHIP:
             continue
-        values = [
-            value for value in (_read_temperature(hwmon / entry) for entry in REGULATOR_INPUTS)
-            if value is not None
-        ]
-        return max(values) if values else None
-    return None
+        return {entry: _read_temperature(hwmon / entry) for entry in REGULATOR_INPUTS}
+    return {}
+
+
+def _read_regulator_under_smu_lock(base: Path | None = None) -> dict[str, float | None] | None:
+    """Read the rails with the SMU run lock held shared for the whole read.
+
+    None means the read did not happen: a CPU tuning run owns the lock, or the
+    lock cannot be opened. The file is created when it is missing, so a run
+    can never slip in between the check and the transactions, not even on the
+    first read after boot.
+    """
+    try:
+        fd = os.open(
+            SMU_RUN_LOCK,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_CREAT,
+            0o644,
+        )
+    except OSError:
+        return None
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except OSError:
+            return None  # a CPU tuning run owns the SMU
+        return read_regulator_temperatures(base)
+    finally:
+        os.close(fd)
 
 
 class RegulatorSampler:
     """bc250_vrm on a slow clock: one read per REGULATOR_POLL_SECONDS at most.
 
-    Between reads the last good sample stands in; once it is older than
-    REGULATOR_STALE_SECONDS it is dropped and the caller falls back to the
-    Nuvoton channel. A missing driver is just "no sample", never a failsafe.
+    Each rail keeps its own last good sample and timestamp, so one failed
+    transaction only ages out that rail: the hotter rail's reading stands in
+    for REGULATOR_STALE_SECONDS while the other keeps being read. Once every
+    sample is older than that the caller falls back to the Nuvoton channel. A
+    missing driver is just "no sample", never a failsafe.
     """
 
     def __init__(self) -> None:
         self.attempted_at: float | None = None
-        self.sampled_at: float | None = None
-        self.value: float | None = None
+        self.samples: dict[str, tuple[float, float]] = {}
 
     def temperature(self, now: float) -> float | None:
         due = self.attempted_at is None or now - self.attempted_at >= REGULATOR_POLL_SECONDS
-        if due and not _smu_run_in_progress(SMU_RUN_LOCK):
-            self.attempted_at = now
-            value = read_regulator_temperature()
-            if value is not None:
-                self.value, self.sampled_at = value, now
-        if self.sampled_at is None or now - self.sampled_at > REGULATOR_STALE_SECONDS:
-            return None
-        return self.value
+        if due:
+            readings = _read_regulator_under_smu_lock()
+            if readings is not None:
+                self.attempted_at = now
+                for entry, value in readings.items():
+                    if value is not None:
+                        self.samples[entry] = (value, now)
+        values = [
+            value for value, sampled_at in self.samples.values()
+            if now - sampled_at <= REGULATOR_STALE_SECONDS
+        ]
+        return max(values) if values else None
 
 
 def override_channels() -> set[int]:

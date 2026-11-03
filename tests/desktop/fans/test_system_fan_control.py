@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import fcntl
 import json
+import os
 import random
 import runpy
 from contextlib import contextmanager
@@ -80,6 +81,7 @@ def board(tmp_path, monkeypatch):
 
     state = tmp_path / "state"
     run = tmp_path / "run"
+    run.mkdir(parents=True, exist_ok=True)
     monkeypatch.setitem(g, "HWMON_BASE", hwmon)
     monkeypatch.setitem(g, "find_sensor", lambda: nct)
     monkeypatch.setitem(g, "STATE_DIR", state)
@@ -311,6 +313,41 @@ def test_a_failing_regulator_keeps_its_last_sample_then_falls_back(board):
     assert controller.snapshot["source"] == "curve"
 
 
+@pytest.mark.parametrize(
+    ("failing_input", "cpu", "gpu"),
+    [("temp2_input", 60000, 100000), ("temp1_input", 100000, 60000)],
+)
+def test_a_failed_rail_keeps_its_reading_while_the_other_still_answers(
+    board, failing_input, cpu, gpu
+):
+    # CPU VRM 61 C and GPU VRM 100 C: losing only the GPU's transaction must
+    # not drop `vrm` to 61 at the next poll. Either rail can be the failed one.
+    module, g, _nct, _k10 = board
+    regulator = _regulator(g, cpu=cpu, gpu=gpu)
+    module["save_policy"](_policy())
+    moments = iter([0.0, 16.0, 44.0, 60.0, 76.0])
+    controller = module["FanController"](clock=lambda: next(moments))
+
+    controller.step()
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+
+    healthy_input = "temp1_input" if failing_input == "temp2_input" else "temp2_input"
+    (regulator / failing_input).unlink()  # one transaction now answers EIO
+    _write(regulator / healthy_input, 70000)  # the other rail keeps moving
+
+    controller.step()  # t=16: the failed rail's t=0 sample stands in
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+    controller.step()  # t=44: still inside its 45 s window
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+    controller.step()  # t=60: expired; the rail read all along decides
+    assert controller.snapshot["readings"]["vrm"] == 70.0
+    assert controller.snapshot["vrm_source"] == "bc250_vrm"
+
+    _write(regulator / failing_input, 100000)
+    controller.step()  # t=76: the failed rail answers again and recovers
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+
+
 def test_the_regulator_is_left_alone_during_a_cpu_tuning_run(board, monkeypatch):
     module, g, _nct, _k10 = board
     regulator = _regulator(g)
@@ -330,6 +367,44 @@ def test_the_regulator_is_left_alone_during_a_cpu_tuning_run(board, monkeypatch)
 
     controller.step()  # the run is over: read now, not 15 s later
     assert controller.snapshot["readings"]["vrm"] == 100.0
+
+
+def test_the_smu_lock_covers_the_first_regulator_read(board, monkeypatch):
+    # A run that starts once the read is already in flight must not get in:
+    # the shared lock is held for the whole I2C transaction, and the first
+    # read creates the lock file when no CPU tuning run has happened yet.
+    module, g, _nct, _k10 = board
+    regulator = _regulator(g)
+    module["save_policy"](_policy())
+    lock = g["SMU_RUN_LOCK"]
+    assert not lock.exists()
+    blocked = []
+    original = g["_read_temperature"]
+
+    def read_while_a_run_tries_to_start(path):
+        if regulator in path.parents and not blocked:
+            fd = os.open(lock, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+            try:
+                with pytest.raises(OSError):
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            finally:
+                os.close(fd)
+            blocked.append(True)
+        return original(path)
+
+    monkeypatch.setitem(g, "_read_temperature", read_while_a_run_tries_to_start)
+    controller = module["FanController"](clock=lambda: 0.0)
+    controller.step()
+
+    assert blocked == [True]  # the run could not have started during the read
+    assert lock.exists()  # created, so the first read is covered too
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+    fd = os.open(lock, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+    try:  # and released once the read is done
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
 
 
 def test_the_loop_follows_the_curve_from_firmware_mode(board):
