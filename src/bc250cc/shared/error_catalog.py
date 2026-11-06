@@ -442,6 +442,27 @@ _CODES: tuple[ErrorCode, ...] = (
         "Run Install / update again from Control Center: it now replaces the previous release itself. To use the release already installed, press Boot with the fix and restart.",
         markers=('a release is already installed',),
     ),
+    ErrorCode(
+        "BC250-BUILD-002",
+        "The SteamOS AMDGPU module could not be built.",
+        "The compiler or a build tool failed before module installation. This does not establish a helper version mismatch.",
+        "Read the first compiler or runtime error in the workflow log. The existing module remains installed; retry the compatibility repair after resolving that error.",
+        markers=("STEAMOS_AMDGPU_BUILD_FAILED",),
+    ),
+    ErrorCode(
+        "BC250-BUILD-001",
+        "The SteamOS build tools are incompatible with the installed system libraries.",
+        "A downloaded build tool requires a newer GLIBC runtime than this SteamOS provides, or its runtime preflight failed.",
+        "Run SteamOS compatibility repair with the updated Control Center build, which uses the installed SteamOS branch and a separate dependency cache. Do not replace the system GLIBC libraries.",
+        markers=("STEAMOS_BUILD_RUNTIME_INCOMPATIBLE", "GLIBC_2."),
+    ),
+    ErrorCode(
+        "BC250-PROTON-001",
+        "The SteamOS GE-Proton action did not complete.",
+        "The upstream installer stopped. Its preceding message identifies the missing RADV prerequisite, download, integrity or installation problem.",
+        "Follow the upstream message in this log, then retry Install / update. A missing tool in a status check does not require reinstalling Control Center.",
+        markers=("STEAMOS_PROTON_FAILED",),
+    ),
     # Fallback: wording reused from the desktop diagnostic rules so it is
     # already translated in all 30 locales.
     ErrorCode(

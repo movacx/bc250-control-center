@@ -87,8 +87,8 @@ def test_generated_workflow_recovers_corrupt_index_and_retries_drift(tmp_path):
     (tree / '.git').rename(parked)
     (parked / 'index').write_bytes(b'')
     (tree / 'Makefile').write_text('old toolkit patch\n')
-    (audio / 'fetch-sources.sh').write_text('exit 0\n')
-    (audio / 'build.sh').write_text(
+    (audio / 'fetch-sources-bc250cc.sh').write_text('exit 0\n')
+    (audio / 'build-bc250cc.sh').write_text(
         'cd "$(dirname "$0")"\n'
         'if ! grep -q "^VERSION = 7$" valve-kernel/Makefile; then exit 75; fi\n'
         'echo BUILD_OK\n'
@@ -99,7 +99,7 @@ def test_generated_workflow_recovers_corrupt_index_and_retries_drift(tmp_path):
         '--work-tree="$PWD/valve-kernel" checkout -qf -- .\n'
     )
     command = Repository()._steamos_compatibility_stage_command(install=True)
-    start = command.index(f'/usr/bin/bash {audio}/fetch-sources.sh')
+    start = command.index(f'/usr/bin/bash {audio}/fetch-sources-bc250cc.sh')
     from bc250cc.infrastructure.steamos_shell import steamos_writable_root_wrapper
     end = command.index(f'/usr/bin/bash {steamos_writable_root_wrapper()}', start)
     result = subprocess.run(['bash', '-Eeuo', 'pipefail', '-c', command[start:end]],

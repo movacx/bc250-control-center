@@ -815,6 +815,8 @@ class PreparationRenderMixin:
             and not (selected == actual and bool(getattr(self, "_gfx_hidden_old_kernel", False)))
         )
         self.cachyos_stack_card.setVisible(show_all or selected == "arch")
+        self.steamos_proton_card.setVisible(show_all or selected == "steamos")
+        self.steamos_proton_card.setEnabled(actual == "steamos" and not preview)
         self.fsr4_card.setVisible(FSR4_UI_ENABLED)
         self.helixsr_card.setVisible(HELIXSR_UI_ENABLED)
         self._refresh_compatibility_summary()
@@ -897,6 +899,7 @@ class PreparationRenderMixin:
             self.oberon_card,
             self.gfx_card,
             self.cachyos_stack_card,
+            self.steamos_proton_card,
         ):
             for button in card.findChildren(QPushButton):
                 action = str(getattr(button, "request_payload", {}).get("action") or "")

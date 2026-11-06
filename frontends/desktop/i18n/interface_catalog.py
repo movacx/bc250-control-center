@@ -2611,3 +2611,49 @@ INTERFACE_TRANSLATIONS.update(dict([
 INTERFACE_TRANSLATIONS.update(dict([
     _e('A local address entry lets this computer reach bc250cc.local even when its browser cannot use mDNS.', 'Una entrada de dirección local permite a este equipo acceder a bc250cc.local aunque su navegador no pueda usar mDNS.', 'Uma entrada de endereço local permite acessar bc250cc.local mesmo quando o navegador não pode usar mDNS.', 'Локальная запись адреса позволяет этому компьютеру открывать bc250cc.local, даже если браузер не поддерживает mDNS.', 'Локальний запис адреси дозволяє цьому комп’ютеру відкривати bc250cc.local, навіть якщо браузер не підтримує mDNS.', 'Ein lokaler Adresseintrag ermöglicht diesem Computer den Zugriff auf bc250cc.local, auch wenn der Browser kein mDNS verwenden kann.'),
 ]))
+
+# SteamOS upstream Proton integration; exact Spanish copy for incremental UI updates.
+INTERFACE_TRANSLATIONS.update({
+    "BC-250 GE-Proton · SteamOS": {
+        "es": "BC-250 GE-Proton · SteamOS"
+    },
+    "SteamOS · keyboardspecialist upstream": {
+        "es": "SteamOS · toolkit de keyboardspecialist"
+    },
+    "Check Proton": {
+        "es": "Comprobar Proton"
+    },
+    "Remove Proton": {
+        "es": "Quitar Proton"
+    },
+    "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": {
+        "es": "Usa el instalador del toolkit de keyboardspecialist para gestionar BC-250 GE-Proton en tu carpeta de Steam. Requiere tener activo el runtime FSR4 RADV del toolkit. Reinicia Steam después de los cambios y selecciona BC-250 GE-Proton para cada juego."
+    },
+    "Remove BC-250 GE-Proton": {
+        "es": "Quitar BC-250 GE-Proton"
+    },
+    "Install / update BC-250 GE-Proton": {
+        "es": "Instalar / actualizar BC-250 GE-Proton"
+    },
+    "The upstream toolkit removes its managed GE-Proton tool. Steam prefixes and saved games are preserved. Restart Steam afterwards.": {
+        "es": "El toolkit elimina la herramienta GE-Proton que gestiona. Conserva los prefijos de Steam y las partidas guardadas. Reinicia Steam después."
+    },
+    "Downloads and runs keyboardspecialist's current upstream Proton installer. It verifies the BC-250 GE-Proton download and installs it in your Steam folder. The toolkit checks that FSR4 RADV is active first. Restart Steam and select BC-250 GE-Proton per game. Do not use FSR4 injection in anti-cheat games.": {
+        "es": "Descarga y ejecuta el instalador actual de Proton de keyboardspecialist. Verifica la descarga de BC-250 GE-Proton y lo instala en tu carpeta de Steam. El toolkit comprueba primero que FSR4 RADV esté activo. Reinicia Steam y selecciona BC-250 GE-Proton para cada juego. No uses la inyección FSR4 en juegos con anticheat."
+    },
+    "Opened the upstream Proton workflow. Read the terminal result; restart Steam after installing, updating or removing the tool.": {
+        "es": "Se abrió el flujo de Proton del toolkit. Lee el resultado en la terminal; reinicia Steam después de instalar, actualizar o quitar la herramienta."
+    },
+    "Could not manage SteamOS GE-Proton": {
+        "es": "No se pudo gestionar GE-Proton de SteamOS"
+    },
+    "The SteamOS GE-Proton action did not complete.": {
+        "es": "La operación de GE-Proton de SteamOS no se completó."
+    },
+    "The upstream installer stopped. Its preceding message identifies the missing RADV prerequisite, download, integrity or installation problem.": {
+        "es": "El instalador del toolkit se detuvo. El mensaje anterior identifica el requisito RADV pendiente o el problema de descarga, integridad o instalación."
+    },
+    "Follow the upstream message in this log, then retry Install / update. A missing tool in a status check does not require reinstalling Control Center.": {
+        "es": "Sigue el mensaje del toolkit en este registro y vuelve a intentar Instalar / actualizar. Si la herramienta no está instalada al comprobar su estado, no necesitas reinstalar Control Center."
+    }
+})

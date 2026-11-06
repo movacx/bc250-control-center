@@ -46,7 +46,7 @@ None of these components is redistributed with BC250 Control Center. Each is fet
 
 **[Oberon Governor](https://gitlab.com/mothenjoyer69/oberon-governor)** (MIT). Alternative GPU governor, installed when the user selects it.
 
-**[bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos)** (public domain, Unlicense). SteamOS AMDGPU and RADV compatibility, run through an explicit workflow.
+**[bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos)** (public domain, Unlicense). SteamOS AMDGPU and RADV compatibility, run through an explicit workflow. Its unmodified `bc250-proton.sh` also manages BC-250 GE-Proton in the Steam user's compatibility-tool folder; that separate userspace checkout follows upstream `master`. Upstream downloads the GE-Proton package from MastaG, verifies its published SHA-256 and retains its licenses. No Proton payload is bundled with Control Center.
 
 **[bc250-async-compute-bazzite](https://github.com/tri3gubki-ops/bc250-async-compute-bazzite)** (MIT). Separate GFX1013 async-compute RADV for Bazzite 44. Release `v0.2.4` is pinned with its SHA-256; Bazzite, BC-250 and OGC-kernel checks are enforced and the system Mesa is not replaced. On Arch, CachyOS and Fedora with kernel 7.2 or newer, its two RADV patches (reviewed commit `56bf06b`) are built against Mesa 26.2.3 and installed beside the system Mesa.
 

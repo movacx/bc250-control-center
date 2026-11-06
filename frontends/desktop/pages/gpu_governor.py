@@ -2726,6 +2726,41 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             error_parent=dialog_parent,
         )
 
+    def _manage_steamos_proton(
+        self,
+        action: str,
+        *,
+        dialog_parent: QWidget | None,
+    ) -> None:
+        if action not in {"install", "update", "status", "uninstall"}:
+            raise ValueError("Unsupported SteamOS Proton action.")
+        if action != "status":
+            removing = action == "uninstall"
+            confirmation = ConfirmDialog(
+                "Remove BC-250 GE-Proton" if removing else "Install / update BC-250 GE-Proton",
+                (
+                    "The upstream toolkit removes its managed GE-Proton tool. Steam prefixes and saved games are preserved. Restart Steam afterwards."
+                    if removing else
+                    "Downloads and runs keyboardspecialist's current upstream Proton installer. It verifies the BC-250 GE-Proton download and installs it in your Steam folder. The toolkit checks that FSR4 RADV is active first. Restart Steam and select BC-250 GE-Proton per game. Do not use FSR4 injection in anti-cheat games."
+                ),
+                confirm_text="Remove Proton" if removing else "Install / update",
+                tone="red" if removing else "orange",
+                parent=dialog_parent or self,
+            )
+            if confirmation.exec() != QDialog.DialogCode.Accepted:
+                return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_proton_steamos(action),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                "BC-250 GE-Proton · SteamOS",
+                "Opened the upstream Proton workflow. Read the terminal result; restart Steam after installing, updating or removing the tool.",
+            ),
+            "Could not manage SteamOS GE-Proton",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
     def _manage_steamos_graphics(
         self,
         action: str,

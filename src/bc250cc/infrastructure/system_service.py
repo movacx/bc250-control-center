@@ -548,6 +548,9 @@ class SistemaService:
     def gestionar_graficos_steamos(self, action):
         return self.repo.gestionar_graficos_steamos(action)
 
+    def gestionar_proton_steamos(self, action: str):
+        return self.repo.gestionar_proton_steamos(action)
+
     def diagnostico_steamos(self):
         return self.repo.diagnostico_steamos()
 

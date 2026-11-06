@@ -70,6 +70,8 @@ DISTRIBUTION = (
     ("Graphics", "gestionar_graficos_steamos", INSTALL + (("install-fsr4", "install-fsr4"),
                                                           ("uninstall-fsr4", "uninstall-fsr4")), ("steamos",)),
     ("Check SteamOS compatibility", "preparar_compatibilidad_steamos", (), ("steamos",)),
+    ("BC-250 GE-Proton · SteamOS", "gestionar_proton_steamos",
+     INSTALL + (("update", "Update / repair"),), ("steamos",)),
     ("BC250 SteamOS diagnostics", "diagnostico_steamos", (), ("steamos",)),
     ("Newer kernel and Mesa for the BC-250", "gestionar_kernel_debian", (("install", "Install"),), ("debian",)),
     ("Mesa", "gestionar_mesa_desktop", (("install", "Install"),), ("ubuntu",)),
