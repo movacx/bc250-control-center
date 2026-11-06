@@ -374,7 +374,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-NET-001",
-        (r"could not resolve", r"temporary failure in name resolution", r"network is unreachable", r"connection.*(?:timed out|refused|reset)", r"ssl|certificate verify|tls", r"curl: \(\d+\)", r"git.*(?:could not resolve host|unable to access|failed to connect|connection timed out)", r"failed to fetch.*(?:mirror|repository)", r"mirror.*(?:unavailable|not found|failed)", r"could not resolve host"),
+        (r"github's (?:release information could not be read|answer was larger than a release)", r"could not resolve", r"temporary failure in name resolution", r"network is unreachable", r"connection.*(?:timed out|refused|reset)", r"ssl|certificate verify|tls", r"curl: \(\d+\)", r"git.*(?:could not resolve host|unable to access|failed to connect|connection timed out)", r"failed to fetch.*(?:mirror|repository)", r"mirror.*(?:unavailable|not found|failed)", r"could not resolve host"),
         "A required download could not be reached or verified.",
         "The network, DNS, proxy, system clock, certificate store, or upstream server interrupted the download.",
         "Confirm internet access and the system date, then retry. If a proxy or filtered network is in use, test the repository URL in a browser.",
