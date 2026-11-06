@@ -45,10 +45,10 @@ QR_SIZE = 224
 
 
 class RemoteAccessPage(QWidget):
-    """Scan the QR on this screen to pair a device: it gets hardware control for good.
+    """Scan the QR or type the key shown here: the device gets hardware control for good.
 
-    A device that only typed the access key stays read-only until the owner
-    approves it here. Approving is one click and has no expiry.
+    A session without control (one opened by an older version) is approved here
+    with one click, which also removes its expiry.
     """
 
     def __init__(self, parent: QWidget | None = None, *, settings=None):
@@ -114,7 +114,6 @@ class RemoteAccessPage(QWidget):
         key_line.addWidget(self.key_caption, 0, Qt.AlignmentFlag.AlignVCenter)
         self.web_pin_box = self._code("")
         self.web_pin_box.setWordWrap(False)
-        self.web_pin_box.setToolTip(tr("Type this key in the browser. That device stays read-only until you approve it below."))
         key_line.addWidget(self.web_pin_box, 0, Qt.AlignmentFlag.AlignVCenter)
         self.web_copy_pin_button = self._button("Copy", self._copy_web_pin)
         self.web_new_key_button = self._button("New access key", self._new_web_key)
@@ -504,10 +503,13 @@ class RemoteAccessPage(QWidget):
         devices = self._web_state.get("devices") or []
         selected = self._selected_device()
         selected_id = selected["id"] if selected else None
-        identifiers = {device["id"] for device in devices}
-        if self._known_devices is not None and identifiers - self._known_devices:
-            show_toast(self, tr("Remote access"), tr("New device paired"), tone="green")
-        self._known_devices = identifiers
+        # The page draws once before the first status arrives: only a real list can
+        # be compared, or every saved device looks new each time the app opens.
+        if "devices" in self._web_state:
+            identifiers = {device["id"] for device in devices}
+            if self._known_devices is not None and identifiers - self._known_devices:
+                show_toast(self, tr("Remote access"), tr("New device paired"), tone="green")
+            self._known_devices = identifiers
         position = self.device_table.verticalScrollBar().value()
         self.device_table.blockSignals(True)
         self.device_table.setHorizontalHeaderLabels([tr(label) for label in (

@@ -5793,7 +5793,6 @@
   "The workflow reported the failure itself.": "Quy trình công việc đã báo cáo lỗi.",
   "The workflow stopped on a condition it detected and described in its own output.": "Quy trình làm việc đã dừng theo tình trạng mà nó đã phát hiện và mô tả trong đầu ra của chính nó.",
   "Turn on local network access below so phones can connect.": "Bật truy cập mạng cục bộ bên dưới để điện thoại có thể kết nối.",
-  "Type this key in the browser. That device stays read-only until you approve it below.": "Nhập khóa này vào trình duyệt. Thiết bị đó vẫn ở chế độ chỉ đọc cho đến khi bạn phê duyệt thiết bị bên dưới.",
   "Use that program to change the fan, or press Take control back on the Fans page first.": "Sử dụng chương trình đó để thay đổi quạt hoặc nhấn Take control trở lại trang Fan trước.",
   "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "Sử dụng trình cài đặt ngược dòng của keyboardspecialist để quản lý BC-250 GE-Proton trong thư mục Steam của bạn. Yêu cầu thời gian chạy FSR4 RADV của bộ công cụ phải hoạt động. Khởi động lại Steam sau khi thay đổi và chọn BC-250 GE-Proton cho mỗi trò chơi.",
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Bằng chứng khôi phục đã được xác minh đã được lưu vào {path}. SHA-256: {sha256}",

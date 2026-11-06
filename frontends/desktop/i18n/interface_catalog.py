@@ -2666,8 +2666,6 @@ INTERFACE_TRANSLATIONS.update({
         "es": "Conecta tu teléfono a la misma red Wi-Fi y escanea el código. Se empareja al instante con control total del hardware, sin escribir ninguna clave."},
     "Scan to pair. The code works once and renews by itself.": {
         "es": "Escanea para emparejar. El código sirve una sola vez y se renueva solo."},
-    "Type this key in the browser. That device stays read-only until you approve it below.": {
-        "es": "Escribe esta clave en el navegador. Ese dispositivo seguirá en solo lectura hasta que lo apruebes abajo."},
     "Paired devices": {"es": "Dispositivos emparejados"},
     "A paired device keeps hardware control until you disconnect it or create a new access key.": {
         "es": "Un dispositivo emparejado conserva el control del hardware hasta que lo desconectes o crees una nueva clave de acceso."},
@@ -2722,7 +2720,6 @@ INTERFACE_POLISH_ADDITIONS = {
     "Remote access key": "Klucz zdalnego dostępu",
     "Connect your phone to the same Wi-Fi and scan the code. It pairs right away with full hardware control, with no key to type.": "Podłącz telefon do tej samej sieci Wi-Fi i zeskanuj kod. Można go od razu sparować z pełną kontrolą sprzętu, bez konieczności pisania za pomocą klawisza.",
     "Scan to pair. The code works once and renews by itself.": "Zeskanuj, aby sparować. Kod działa raz i odnawia się sam.",
-    "Type this key in the browser. That device stays read-only until you approve it below.": "Wpisz ten klucz w przeglądarce. To urządzenie pozostanie w trybie tylko do odczytu, dopóki nie zatwierdzisz go poniżej.",
     "Paired devices": "Sparowane urządzenia",
     "A paired device keeps hardware control until you disconnect it or create a new access key.": "Sparowane urządzenie zachowuje kontrolę nad sprzętem do czasu jego rozłączenia lub utworzenia nowego klucza dostępu.",
     "Approve device": "Zatwierdź urządzenie",

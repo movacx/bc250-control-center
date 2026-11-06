@@ -5793,7 +5793,6 @@
   "The workflow reported the failure itself.": "The workflow reported the failure itself.",
   "The workflow stopped on a condition it detected and described in its own output.": "The workflow stopped on a condition it detected and described in its own output.",
   "Turn on local network access below so phones can connect.": "Turn on local network access below so phones can connect.",
-  "Type this key in the browser. That device stays read-only until you approve it below.": "Type this key in the browser. That device stays read-only until you approve it below.",
   "Use that program to change the fan, or press Take control back on the Fans page first.": "Use that program to change the fan, or press Take control back on the Fans page first.",
   "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.",
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Verified recovery evidence was saved to {path}. SHA-256: {sha256}",

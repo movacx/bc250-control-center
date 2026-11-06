@@ -5793,7 +5793,6 @@
   "The workflow reported the failure itself.": "Przepływ pracy sam zgłosił awarię.",
   "The workflow stopped on a condition it detected and described in its own output.": "Przepływ pracy został zatrzymany w przypadku wykrycia warunku i opisanego we własnych wynikach.",
   "Turn on local network access below so phones can connect.": "Włącz poniżej dostęp do sieci lokalnej, aby telefony mogły się łączyć.",
-  "Type this key in the browser. That device stays read-only until you approve it below.": "Wpisz ten klucz w przeglądarce. To urządzenie pozostanie w trybie tylko do odczytu, dopóki nie zatwierdzisz go poniżej.",
   "Use that program to change the fan, or press Take control back on the Fans page first.": "Użyj tego programu, aby zmienić wentylator, lub najpierw naciśnij przycisk Przejmij kontrolę z powrotem na stronie Wentylatory.",
   "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "Używa instalatora starszego od KeyboardSpecialist do zarządzania BC-250 GE-Proton w folderze Steam. Wymaga aktywnego środowiska wykonawczego FSR4 RADV pakietu narzędzi. Uruchom ponownie Steam po zmianach i wybierz BC-250 GE-Proton dla każdej gry.",
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Zweryfikowane dane odzyskiwania zapisano w {path}. SHA-256: {sha256}",

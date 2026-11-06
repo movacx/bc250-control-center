@@ -5793,7 +5793,6 @@
   "The workflow reported the failure itself.": "Työnkulku ilmoitti itse epäonnistumisesta.",
   "The workflow stopped on a condition it detected and described in its own output.": "Työnkulku pysähtyi tilassa, jonka se havaitsi ja kuvasi omassa tulostuksessaan.",
   "Turn on local network access below so phones can connect.": "Ota paikallisverkko käyttöön alla, jotta puhelimet voivat muodostaa yhteyden.",
-  "Type this key in the browser. That device stays read-only until you approve it below.": "Kirjoita tämä avain selaimeen. Laite pysyy vain luku -tilassa, kunnes hyväksyt sen alla.",
   "Use that program to change the fan, or press Take control back on the Fans page first.": "Käytä kyseistä ohjelmaa tuulettimen vaihtamiseen tai paina Ota ohjaus takaisin Tuulettimet-sivulla ensin.",
   "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "Käyttää näppäimistöasiantuntijan ylävirran asennusohjelmaa Steam-kansiossasi olevan BC-250 GE-Protonin hallintaan. Edellyttää, että työkalupakin FSR4 RADV-ajoaika on aktiivinen. Käynnistä Steam uudelleen muutosten jälkeen ja valitse jokaiselle pelille BC-250 GE-Proton.",
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Vahvistettu palautustodistus tallennettiin osoitteeseen {path}. SHA-256: {sha256}",

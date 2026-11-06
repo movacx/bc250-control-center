@@ -5793,7 +5793,6 @@
   "The workflow reported the failure itself.": "Η ίδια η ροή εργασίας ανέφερε την αποτυχία.",
   "The workflow stopped on a condition it detected and described in its own output.": "Η ροή εργασίας σταμάτησε σε μια συνθήκη που εντόπισε και περιέγραψε στη δική της έξοδο.",
   "Turn on local network access below so phones can connect.": "Ενεργοποιήστε την πρόσβαση τοπικού δικτύου παρακάτω, ώστε τα τηλέφωνα να μπορούν να συνδεθούν.",
-  "Type this key in the browser. That device stays read-only until you approve it below.": "Πληκτρολογήστε αυτό το κλειδί στο πρόγραμμα περιήγησης. Αυτή η συσκευή παραμένει μόνο για ανάγνωση μέχρι να την εγκρίνετε παρακάτω.",
   "Use that program to change the fan, or press Take control back on the Fans page first.": "Χρησιμοποιήστε αυτό το πρόγραμμα για να αλλάξετε τον ανεμιστήρα ή πιέστε πρώτα την ανάκτηση ελέγχου στη σελίδα Ανεμιστήρες.",
   "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "Χρησιμοποιεί το πρόγραμμα εγκατάστασης του ειδικού πληκτρολογίου για τη διαχείριση του BC-250 GE-Proton στον φάκελο Steam. Απαιτείται ο χρόνος εκτέλεσης FSR4 RADV του κιτ εργαλείων για να είναι ενεργός. Επανεκκινήστε το Steam μετά από αλλαγές και επιλέξτε BC-250 GE-Proton για κάθε παιχνίδι.",
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Τα επαληθευμένα στοιχεία ανάκτησης αποθηκεύτηκαν στο {path}. SHA-256: {sha256}",

@@ -5793,7 +5793,6 @@
   "The workflow reported the failure itself.": "Aliran kerja melaporkan kegagalan itu sendiri.",
   "The workflow stopped on a condition it detected and described in its own output.": "Aliran kerja berhenti dengan syarat yang dikesan dan diterangkan dalam outputnya sendiri.",
   "Turn on local network access below so phones can connect.": "Hidupkan akses rangkaian tempatan di bawah supaya telefon boleh bersambung.",
-  "Type this key in the browser. That device stays read-only until you approve it below.": "Taip kunci ini dalam penyemak imbas. Peranti itu kekal baca sahaja sehingga anda meluluskannya di bawah.",
   "Use that program to change the fan, or press Take control back on the Fans page first.": "Gunakan program itu untuk menukar kipas, atau tekan Kawal semula pada halaman Peminat dahulu.",
   "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "Menggunakan pemasang huluan pakar papan kekunci untuk mengurus BC-250 GE-Proton dalam folder Steam anda. Memerlukan masa jalan FSR4 RADV kit alat untuk aktif. Mulakan semula Steam selepas perubahan dan pilih BC-250 GE-Proton untuk setiap permainan.",
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Bukti pemulihan yang disahkan telah disimpan ke {path}. SHA-256: {sha256}",

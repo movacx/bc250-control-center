@@ -168,3 +168,20 @@ def test_open_browser_uses_the_selected_address_and_hides_subnet_details(qtbot, 
     page._apply_web({"running": True, "lan": False, "urls": [], "local_url": "https://127.0.0.1:8250"})
     page.web_open_button.click()
     assert opened[-1] == "https://127.0.0.1:8250"
+
+
+def test_opening_the_page_does_not_announce_saved_devices(qtbot, monkeypatch):
+    from frontends.desktop.pages import remote_access
+    shown = []
+    monkeypatch.setattr(remote_access, "show_toast", lambda *args, **kwargs: shown.append(args))
+    page = remote_access.RemoteAccessPage()
+    qtbot.addWidget(page)
+    saved = {"id": "saved", "control": True, "permanent": True}
+    page._apply_web({"devices": [saved]})
+    page._render_web()
+    page._apply_web({"devices": [saved]})
+    assert shown == []
+    page._apply_web({"devices": [saved, {"id": "new", "control": True, "permanent": True}]})
+    assert len(shown) == 1
+    page._apply_web({"devices": [saved]})
+    assert len(shown) == 1

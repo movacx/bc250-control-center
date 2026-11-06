@@ -5793,7 +5793,6 @@
   "The workflow reported the failure itself.": "워크플로에서 실패 자체를 보고했습니다.",
   "The workflow stopped on a condition it detected and described in its own output.": "워크플로는 자체 출력에서 감지하고 설명하는 조건에서 중지되었습니다.",
   "Turn on local network access below so phones can connect.": "휴대전화를 연결할 수 있도록 아래에서 로컬 네트워크 액세스를 켜세요.",
-  "Type this key in the browser. That device stays read-only until you approve it below.": "브라우저에 이 키를 입력하세요. 해당 장치는 아래에서 승인할 때까지 읽기 전용 상태로 유지됩니다.",
   "Use that program to change the fan, or press Take control back on the Fans page first.": "해당 프로그램을 사용하여 팬을 변경하거나 먼저 팬 페이지에서 제어권 되찾기를 누르십시오.",
   "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "키보드 전문가의 업스트림 설치 프로그램을 사용하여 Steam 폴더에 있는 BC-250 GE-Proton을 관리합니다. 활성화하려면 툴킷의 FSR4 RADV 런타임이 필요합니다. 변경 후 Steam을 다시 시작하고 각 게임에 대해 BC-250 GE-Proton을 선택하세요.",
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "확인된 복구 증거가 {path}에 저장되었습니다. SHA-256: {sha256}",

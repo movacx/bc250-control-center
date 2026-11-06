@@ -5793,7 +5793,6 @@
   "The workflow reported the failure itself.": "A munkafolyamat magát a hibát jelentette.",
   "The workflow stopped on a condition it detected and described in its own output.": "A munkafolyamat olyan feltétellel állt le, amelyet észlelt és leírt a saját kimenetében.",
   "Turn on local network access below so phones can connect.": "Kapcsolja be alább a helyi hálózati hozzáférést, hogy a telefonok csatlakozhassanak.",
-  "Type this key in the browser. That device stays read-only until you approve it below.": "Írja be ezt a kulcsot a böngészőbe. Ez az eszköz csak olvasható marad, amíg alább nem hagyja jóvá.",
   "Use that program to change the fan, or press Take control back on the Fans page first.": "Használja ezt a programot a ventilátor cseréjéhez, vagy először nyomja meg a Vedd vissza az irányítást a Ventilátorok oldalon.",
   "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "A billentyűzetspecialista upstream telepítőjét használja a BC-250 GE-Proton kezelésére a Steam mappában. Az eszközkészlet FSR4 RADV futási környezetének aktívnak kell lennie. A módosítások után indítsa újra a Steamet, és válassza ki a BC-250 GE-Protont minden játékhoz.",
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Az ellenőrzött helyreállítási bizonyíték a következő helyre került: {path}. SHA-256: {sha256}",

@@ -5793,7 +5793,6 @@
   "The workflow reported the failure itself.": "Arbetsflödet rapporterade själva felet.",
   "The workflow stopped on a condition it detected and described in its own output.": "Arbetsflödet stoppade på ett tillstånd som det upptäckte och beskrev i sin egen utdata.",
   "Turn on local network access below so phones can connect.": "Aktivera lokal nätverksåtkomst nedan så att telefoner kan ansluta.",
-  "Type this key in the browser. That device stays read-only until you approve it below.": "Skriv denna nyckel i webbläsaren. Den enheten förblir skrivskyddad tills du godkänner den nedan.",
   "Use that program to change the fan, or press Take control back on the Fans page first.": "Använd det programmet för att byta fläkt, eller tryck på Ta tillbaka kontroll på sidan Fläktar först.",
   "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "Använder tangentbordsspecialistens uppströmsinstallationsprogram för att hantera BC-250 GE-Proton i din Steam-mapp. Kräver att verktygslådans FSR4 RADV körtid är aktiv. Starta om Steam efter ändringar och välj BC-250 GE-Proton för varje spel.",
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Verifierade återställningsbevis sparades till {path}. SHA-256: {sha256}",

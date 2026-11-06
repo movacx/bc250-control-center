@@ -232,14 +232,14 @@ Open **Remote access** in the desktop application or TUI, start web access and e
 address shown there or scan its visible QR. Keep both the local name and numeric
 IP available: name resolution depends on the client and network.
 
-Scan the QR shown on the board to pair a phone: it needs no key, gets hardware
-control and stays signed in. The code works once and renews by itself, so a photo
-of it is useless later. A browser that signs in by typing the access key (under
-**Use an access key instead**) can only monitor until the owner presses
-**Approve device**, which also removes any session limit. Hardware control is
-separate from the Linux administrator password required by privileged
-operations. The owner can disconnect a device at any time; creating a new access
-key signs out every device.
+Scan the QR shown on the board to pair a phone, or type the **Remote access key**
+shown next to the status in a browser on a computer. Either way the device gets
+hardware control and stays signed in. The QR works once and renews by itself; the
+key stays the same until you replace it, so keep it private: anyone who has it on
+your network gets hardware control. Hardware control is separate from the Linux
+administrator password required by privileged operations. **Disconnect** signs a
+device out, but only **New access key** stops someone who knows the key from
+signing in again, and it signs out every device.
 
 The web provides Dashboard, CPU, Compute Units, GPU, Voltage laboratory, Fans,
 Performance, Black box and Settings. Performance includes CPU, GPU, memory, disk, network

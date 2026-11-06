@@ -5793,7 +5793,6 @@
   "The workflow reported the failure itself.": "Pracovní postup ohlásil selhání sám.",
   "The workflow stopped on a condition it detected and described in its own output.": "Pracovní postup se zastavil na stavu, který detekoval a popsal ve svém vlastním výstupu.",
   "Turn on local network access below so phones can connect.": "Níže zapněte přístup k místní síti, aby se telefony mohly připojit.",
-  "Type this key in the browser. That device stays read-only until you approve it below.": "Zadejte tento klíč do prohlížeče. Toto zařízení zůstane pouze pro čtení, dokud jej níže neschválíte.",
   "Use that program to change the fan, or press Take control back on the Fans page first.": "Pomocí tohoto programu vyměňte ventilátor nebo nejprve stiskněte Převzít řízení zpět na stránce Ventilátory.",
   "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "Používá upstream instalační program specialisty na klávesnici ke správě BC-250 GE-Proton ve vaší složce Steam. Vyžaduje, aby byl aktivní runtime FSR4 RADV sady nástrojů. Po změnách restartujte Steam a pro každou hru vyberte BC-250 GE-Proton.",
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Ověřený důkaz o obnovení byl uložen do {path}. SHA-256: {sha256}",

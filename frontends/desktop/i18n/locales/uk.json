@@ -5793,7 +5793,6 @@
   "The workflow reported the failure itself.": "Робочий процес повідомив про сам збій.",
   "The workflow stopped on a condition it detected and described in its own output.": "Робочий процес зупинено за умови, яку він виявив і описав у власному виведенні.",
   "Turn on local network access below so phones can connect.": "Увімкніть доступ до локальної мережі нижче, щоб телефони могли підключатися.",
-  "Type this key in the browser. That device stays read-only until you approve it below.": "Введіть цей ключ у браузері. Цей пристрій залишається лише для читання, доки ви не схвалите його нижче.",
   "Use that program to change the fan, or press Take control back on the Fans page first.": "Скористайтеся цією програмою, щоб змінити вентилятор, або спершу натисніть «Повернути контроль» на сторінці «Шанувальники».",
   "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "Використовує вихідний інсталятор клавіатурного спеціаліста для керування BC-250 GE-Proton у вашій папці Steam. Потрібне, щоб середовище виконання FSR4 RADV набору інструментів було активним. Перезапустіть Steam після змін і виберіть BC-250 GE-Proton для кожної гри.",
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Перевірені дані відновлення збережено в {path}. SHA-256: {sha256}",
