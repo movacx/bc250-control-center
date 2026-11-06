@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "확인된 복구 증거가 {path}에 저장되었습니다. SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · RAM의 절반",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} 정상 · {warnings} 경고 · {errors} 오류 · {distribution} · 커널 {kernel}",
-  "Remote access key": "원격 액세스 키"
+  "Remote access key": "원격 액세스 키",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "이 컴퓨터의 패키지 목록에는 미러가 더 이상 포함하지 않는 버전이 표시됩니다. 이는 시스템이 한동안 업데이트되지 않았을 때 발생합니다.",
+  "This system's package list is out of date.": "이 시스템의 패키지 목록이 오래되었습니다.",
+  "Update the system with sudo pacman -Syu, then run this action again.": "sudo pacman -Syu로 시스템을 업데이트한 후 이 작업을 다시 실행하세요.",
+  "Wine could not start.": "Wine을 시작할 수 없습니다.",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "Steam에서 사용 중인 Proton 버전의 파일을 확인한 후 이 작업을 다시 실행하세요.",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine은 자체 Windows 파일을 로드할 수 없으므로 사용하는 Proton 빌드 또는 해당 Wine 접두사가 불완전합니다."
 }

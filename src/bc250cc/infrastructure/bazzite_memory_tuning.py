@@ -135,9 +135,12 @@ def build_bazzite_memory_tuning_command(policy: str, ttm_gib: int) -> str:
             # to the edge by a swapfile.
             "reserve_bytes=$((filesystem_bytes / 20)); [ \"$reserve_bytes\" -ge 2147483648 ] || reserve_bytes=2147483648",
             "required_bytes=$((swap_bytes + reserve_bytes))",
+            # The file being replaced gives its own space back.
+            "existing_bytes=$(sudo stat -c %s \"$swap_path\" 2>/dev/null || echo 0)",
+            "available_bytes=$((available_bytes + existing_bytes))",
             # Say what is needed and what there is: "11 GiB must remain free" alone
             # left a user with a full disk guessing how much to delete.
-            f"test \"$available_bytes\" -ge \"$required_bytes\" || {{ echo \"ERROR: not enough free space on /var: the {size_gib} GiB swapfile needs $(((reserve_bytes + 1073741823) / 1073741824)) GiB kept free after it, $(((required_bytes + 1073741823) / 1073741824)) GiB in all, and /var has $((available_bytes / 1073741824)) GiB\"; exit 65; }}",
+            f"test \"$available_bytes\" -ge \"$required_bytes\" || {{ echo \"ERROR: not enough free space on /var: the {size_gib} GiB swapfile needs $(((reserve_bytes + 1073741823) / 1073741824)) GiB kept free after it, $(((required_bytes + 1073741823) / 1073741824)) GiB in all, and /var has $((available_bytes / 1073741824)) GiB\"; exit 73; }}",
             "if sudo test -e /var/swap; then",
             "  sudo test ! -L /var/swap && sudo test -d /var/swap || { echo 'ERROR: /var/swap is not a safe directory'; exit 65; }",
             "  test \"$(sudo stat -c %u /var/swap)\" -eq 0 || { echo 'ERROR: /var/swap is not root-owned'; exit 65; }",
@@ -153,9 +156,19 @@ def build_bazzite_memory_tuning_command(policy: str, ttm_gib: int) -> str:
             "  test \"$(sudo stat -c %u \"$swap_path\")\" -eq 0 || { echo 'ERROR: the existing swapfile is not root-owned'; exit 66; }",
             "  test \"$(sudo stat -c %a \"$swap_path\")\" = 600 || { echo 'ERROR: the existing swapfile permissions are not 0600'; exit 66; }",
             "  sudo test -f \"$swap_unit_path\" && sudo grep -Fqx '# Managed by BC250 Control Center' \"$swap_unit_path\" || { echo 'ERROR: an unclaimed swapfile exists at the BC250 path and was preserved'; exit 66; }",
-            "  test \"$(sudo stat -c %s \"$swap_path\")\" -eq \"$swap_bytes\" || { echo 'ERROR: the existing BC250 swapfile has a different size; choose its current size or remove it manually only after recovery review'; exit 66; }",
-            f"  echo '[INFO] Reusing the existing verified {size_gib} GiB BC250 swapfile'",
-            "else",
+            # Another size only means another policy was chosen before. The file
+            # is ours (checked above) and holds nothing that must survive.
+            "  if test \"$existing_bytes\" -eq \"$swap_bytes\"; then",
+            f"    echo '[INFO] Reusing the existing verified {size_gib} GiB BC250 swapfile'",
+            "  else",
+            f"    echo '[INFO] Resizing the existing BC250 swapfile to {size_gib} GiB'",
+            "    if swapon --show --noheadings --output NAME | awk '{print $1}' | grep -Fx \"$swap_path\" >/dev/null; then",
+            "      sudo swapoff \"$swap_path\" || { echo 'ERROR: the BC250 swapfile is in use and could not be released; close memory-heavy programs and retry'; exit 66; }",
+            "    fi",
+            "    sudo rm -f \"$swap_path\"",
+            "  fi",
+            "fi",
+            "if ! sudo test -e \"$swap_path\"; then",
             f"  echo \"[INFO] Creating {size_gib} GiB backing swapfile on $bc250_var_fs\"",
             "  if [ \"$bc250_var_fs\" = btrfs ]; then",
             "    sudo btrfs filesystem mkswapfile --size \"${swap_bytes}\" \"$swap_path\"",

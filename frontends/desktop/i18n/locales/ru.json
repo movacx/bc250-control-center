@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Проверенные данные восстановления сохранены в {path}. SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · половина ОЗУ",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} работоспособен · {warnings} предупреждения · {errors} ошибки · {distribution} · ядро {kernel}",
-  "Remote access key": "Ключ удаленного доступа"
+  "Remote access key": "Ключ удаленного доступа",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "В списке пакетов на этом компьютере указаны версии, которых на зеркалах больше нет. Это происходит, когда система какое-то время не обновлялась.",
+  "This system's package list is out of date.": "Список пакетов этой системы устарел.",
+  "Update the system with sudo pacman -Syu, then run this action again.": "Обновите систему с помощью sudo pacman -Syu, затем запустите это действие еще раз.",
+  "Wine could not start.": "Wine не удалось запустить.",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "В Steam проверьте файлы используемой версии Proton, затем запустите это действие еще раз.",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine не удалось загрузить собственные файлы Windows, поэтому используемая им сборка Proton или ее префикс Wine являются неполными."
 }

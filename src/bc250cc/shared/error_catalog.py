@@ -34,6 +34,9 @@ class ErrorCode:
     # ``PREFIX:`` markers helpers already print on stderr.
     markers: tuple[str, ...] = ()
     retryable: bool = False
+    # Text that must also be present for the markers to count. pacman ends every
+    # failed download the same way, whatever made it fail.
+    requires: str = ""
 
 
 # Reserved: the terminal wrapper previously emitted BC250-TERM-<status> for any
@@ -67,7 +70,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "A service, hardware read-back, package download, or external toolkit stopped responding or needed longer than expected.",
         "Check whether the terminal or service is still active, then review its log. Retry only after the previous process has ended.",
         exit_statuses=(124, 125),
-        markers=('QUICK_ACCESS_TIMEOUT', 'GDDR6 patch did not finish in time'),
+        markers=('QUICK_ACCESS_TIMEOUT', 'GDDR6 patch did not finish in time', 'Timeout was reached'),
     ),
     ErrorCode(
         "BC250-DATA-001",
@@ -144,6 +147,16 @@ _CODES: tuple[ErrorCode, ...] = (
         "The package, or one of its dependencies, is not published for this distribution or release, or the repository that provides it is not enabled.",
         "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.",
         markers=('nothing provides', 'has unmet dependencies', 'Unmet dependencies', 'unable to satisfy dependency', 'could not satisfy dependencies', 'error: target not found',),
+    ),
+    # Wine's loader, when kernel32.dll is missing from the prefix or the build.
+    ErrorCode(
+        "BC250-WINE-001",
+        "Wine could not start.",
+        "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.",
+        "In Steam, verify the files of the Proton version in use, then run this action again.",
+        markers=(
+            "could not load kernel32.dll",
+        ),
     ),
     ErrorCode(
         "BC250-STORAGE-001",
@@ -379,6 +392,20 @@ _CODES: tuple[ErrorCode, ...] = (
             "returned error: 404",
         ),
     ),
+    # The database was read but the files it names are gone from the mirrors: it
+    # is older than they are. pacman prints this after its 404 lines, so a repo
+    # that really moved (it fails earlier, at the database) keeps the rule above.
+    ErrorCode(
+        "BC250-PKG-005",
+        "This system's package list is out of date.",
+        "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.",
+        "Update the system with sudo pacman -Syu, then run this action again.",
+        markers=(
+            # No brackets: the terminal wrapper reads markers as regular expressions.
+            "failed to retrieve some files",
+        ),
+        requires="returned error: 404",
+    ),
     ErrorCode(
         "BC250-PKG-002",
         "The package signature or repository key could not be verified.",
@@ -528,6 +555,8 @@ def for_marker(text: object) -> ErrorCode | None:
     best: tuple[int, int, ErrorCode] | None = None
     for marker, entry in _MARKERS_BY_LENGTH:
         start = detail.rfind(marker)
+        if entry.requires and entry.requires not in detail:
+            continue
         if start >= 0 and (best is None or (start, len(marker)) > best[:2]):
             best = (start, len(marker), entry)
     return best[2] if best else None

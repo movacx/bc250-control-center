@@ -499,6 +499,8 @@ def _rpm_ostree_install(path: str) -> str:
   bc250_log=$(mktemp)
   rpm-ostree "$@" 2>&1 | tee "$bc250_log"
   bc250_rc=${{PIPESTATUS[0]}}
+  bc250_busy=0
+  if grep -q 'Transaction in progress' "$bc250_log"; then bc250_busy=1; fi
   if [ "$bc250_rc" -ne 0 ] && grep -qiE 'authoriz|not allowed|polkit' "$bc250_log"; then
     rm -f "$bc250_log"
     echo "No authorization window answered; asking for the password in this terminal."
@@ -508,19 +510,32 @@ def _rpm_ostree_install(path: str) -> str:
   rm -f "$bc250_log"
   return "$bc250_rc"
 }}
-bc250_waited=0
-while rpm-ostree status --json 2>/dev/null | python3 -c {busy}; do
-  if [ "$bc250_waited" -eq 0 ]; then echo "Another rpm-ostree transaction (usually an automatic system update) is running; waiting for it to finish..."; fi
-  bc250_waited=$((bc250_waited + 1))
-  if [ "$bc250_waited" -ge 180 ]; then echo "ERROR: rpm-ostree stayed busy for 15 minutes. Try again once the system update has finished."; exit 75; fi
-  sleep 5
+bc250_attempt=0
+while :; do
+  bc250_waited=0
+  while rpm-ostree status --json 2>/dev/null | python3 -c {busy}; do
+    if [ "$bc250_waited" -eq 0 ]; then echo "Another rpm-ostree transaction (usually an automatic system update) is running; waiting for it to finish..."; fi
+    bc250_waited=$((bc250_waited + 1))
+    if [ "$bc250_waited" -ge 180 ]; then echo "ERROR: rpm-ostree stayed busy for 15 minutes. Try again once the system update has finished."; exit 75; fi
+    sleep 5
+  done
+  bc250_layered=$(rpm-ostree status --json 2>/dev/null | python3 -c {layered})
+  if [ -n "$bc250_layered" ]; then
+    bc250_rpm_ostree uninstall $bc250_layered --install {path}
+  else
+    bc250_rpm_ostree install {path}
+  fi
+  bc250_status=$?
+  bc250_attempt=$((bc250_attempt + 1))
+  # An automatic update can start between the check and the install (R-a7519f9d).
+  if [ "$bc250_busy" -eq 1 ] && [ "$bc250_attempt" -lt 3 ]; then
+    echo "A system update started at the same moment; waiting for it to finish and trying again..."
+    sleep 5
+    continue
+  fi
+  break
 done
-bc250_layered=$(rpm-ostree status --json 2>/dev/null | python3 -c {layered})
-if [ -n "$bc250_layered" ]; then
-  bc250_rpm_ostree uninstall $bc250_layered --install {path}
-else
-  bc250_rpm_ostree install {path}
-fi"""
+(exit "$bc250_status")"""
 
 
 # Runs as root with the package path as $1. The read-only protection is

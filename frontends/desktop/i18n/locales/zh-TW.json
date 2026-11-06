@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "已驗證的恢復證據已儲存到 {path}。 SHA-256：{sha256}",
   "ZRAM · half of RAM": "ZRAM · RAM 的一半",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} 健康 · {warnings} 警告 · {errors} 錯誤 · {distribution} · 核心 {kernel}",
-  "Remote access key": "遠端訪問金鑰"
+  "Remote access key": "遠端訪問金鑰",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "此計算機上的軟體包列表列出了映象不再攜帶的版本。當系統一段時間沒有更新時，就會出現這種情況。",
+  "This system's package list is out of date.": "該系統的軟體包列表已過時。",
+  "Update the system with sudo pacman -Syu, then run this action again.": "使用 sudo pacman -Syu 更新系統，然後再次執行此操作。",
+  "Wine could not start.": "Wine 無法啟動。",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "在 Steam 中，驗證正在使用的 Proton 版本的檔案，然後再次執行此操作。",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine 無法載入自己的 Windows 檔案，因此它使用的 Proton 版本或其 Wine 字首不完整。"
 }

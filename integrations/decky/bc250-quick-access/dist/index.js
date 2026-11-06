@@ -215,6 +215,33 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-PKG-005",
+		markers: [
+			"failed to retrieve some files"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-WINE-001",
+		markers: [
+			"could not load kernel32.dll"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-BUILD-002",
+		markers: [
+			"STEAMOS_AMDGPU_BUILD_FAILED"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-SERVICE-003",
 		markers: [
 			"QUICK_ACCESS_GPU_SERVICE",
@@ -292,14 +319,11 @@ var codes = [
 		retryable: false
 	},
 	{
-		code: "BC250-TIMEOUT-001",
+		code: "BC250-PROTON-001",
 		markers: [
-			"QUICK_ACCESS_TIMEOUT",
-			"GDDR6 patch did not finish in time"
+			"STEAMOS_PROTON_FAILED"
 		],
 		exit_statuses: [
-			124,
-			125
 		],
 		retryable: false
 	},
@@ -332,6 +356,19 @@ var codes = [
 			"systemd-sysext or another immutable layer"
 		],
 		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-TIMEOUT-001",
+		markers: [
+			"QUICK_ACCESS_TIMEOUT",
+			"GDDR6 patch did not finish in time",
+			"Timeout was reached"
+		],
+		exit_statuses: [
+			124,
+			125
 		],
 		retryable: false
 	},
@@ -715,6 +752,16 @@ var codes = [
 			90
 		],
 		retryable: false
+	},
+	{
+		code: "BC250-BUILD-001",
+		markers: [
+			"STEAMOS_BUILD_RUNTIME_INCOMPATIBLE",
+			"GLIBC_2."
+		],
+		exit_statuses: [
+		],
+		retryable: false
 	}
 ];
 var markers_longest_first = [
@@ -750,6 +797,7 @@ var markers_longest_first = [
 	"persisted nct6687 source is missing",
 	"GDDR6 patch did not finish in time",
 	"stress is required by bc250-detect",
+	"STEAMOS_BUILD_RUNTIME_INCOMPATIBLE",
 	"shared contract could not be read",
 	"match the active immutable kernel",
 	"Cyan configuration is not usable",
@@ -770,6 +818,7 @@ var markers_longest_first = [
 	"QUICK_ACCESS_CU_SERVICE_VERIFY",
 	"a release is already installed",
 	"QUICK_ACCESS_CPU_SCALE_VERIFY",
+	"failed to retrieve some files",
 	"Untrusted helper dependency:",
 	"unable to satisfy dependency",
 	"QUICK_ACCESS_GPU_HIGH_POINTS",
@@ -778,12 +827,14 @@ var markers_longest_first = [
 	"rebuilt nct6687 has vermagic",
 	"sudo: a password is required",
 	"invalid or corrupted package",
+	"could not load kernel32.dll",
 	"busctl is required for Cyan",
 	"QUICK_ACCESS_GPU_SAFE_POINT",
 	"Temperature must be between",
 	"nct6687 could not be loaded",
 	"replaced the running kernel",
 	"nct6687.ko was not produced",
+	"STEAMOS_AMDGPU_BUILD_FAILED",
 	"headers for another kernel",
 	"is not protected by root:",
 	"QUICK_ACCESS_GPU_CONFLICT",
@@ -840,6 +891,7 @@ var markers_longest_first = [
 	"kernel-devel mismatch",
 	"QUICK_ACCESS_GPU_BUSY",
 	"CPU_BACKEND_UNTRUSTED",
+	"STEAMOS_PROTON_FAILED",
 	"QUICK_ACCESS_TIMEOUT",
 	"patched_freq_metrics",
 	"QUICK_ACCESS_CU_MODE",
@@ -847,6 +899,7 @@ var markers_longest_first = [
 	"QUICK_ACCESS_CONTEXT",
 	"CU_BACKEND_UNTRUSTED",
 	"read-only protection",
+	"Timeout was reached",
 	"smu timed out after",
 	"patched_gpu_metrics",
 	"VID must be between",
@@ -887,7 +940,8 @@ var markers_longest_first = [
 	"FAN_EXTERNAL",
 	"SMU_IN_USE",
 	"move_mount",
-	"expects:"
+	"expects:",
+	"GLIBC_2."
 ];
 var errorCatalog = {
 	codes: codes,

@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "検証された回復証拠が {path} に保存されました。 SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · RAM の半分",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} 正常 · {warnings} 警告 · {errors} エラー · {distribution} · カーネル {kernel}",
-  "Remote access key": "リモートアクセスキー"
+  "Remote access key": "リモートアクセスキー",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "このコンピュータ上のパッケージのリストには、ミラーが提供しなくなったバージョンが示されています。これは、システムがしばらく更新されていない場合に発生します。",
+  "This system's package list is out of date.": "このシステムのパッケージ リストは最新ではありません。",
+  "Update the system with sudo pacman -Syu, then run this action again.": "sudo pacman -Syu を使用してシステムを更新し、このアクションを再度実行します。",
+  "Wine could not start.": "Wine を開始できませんでした。",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "Steam で、使用中の Proton バージョンのファイルを確認してから、このアクションを再度実行します。",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine は独自の Windows ファイルを読み込めなかったため、使用する Proton ビルドか、その Wine プレフィックスが不完全です。"
 }

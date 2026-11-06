@@ -125,6 +125,9 @@ def _slow() -> dict:
     return found
 
 
+_PRODUCT_NAMES = frozenset({"bc250", "bc250cc"})
+
+
 def _personal() -> dict:
     """What identifies this machine and its people.
 
@@ -142,7 +145,8 @@ def _personal() -> dict:
     return {
         "hosts": {name for name in hosts if len(name) >= 3 and name.lower() not in _GENERIC_HOSTS},
         "users": {name for name in users if len(name) >= 3 and name.lower() not in _GENERIC_USERS},
-        "real": slow["real"],
+        # A full name of "BC250" would rewrite every code and path in the report.
+        "real": {name for name in slow["real"] if name.lower().replace("-", "") not in _PRODUCT_NAMES},
         "wifi": slow["wifi"],
         "machine_id": _read("/etc/machine-id").lower(),
     }

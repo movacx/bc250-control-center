@@ -57,9 +57,14 @@ install_aur_package_direct() {
   require_user_build
   export_parallel_build_env
   local package_dir="${XDG_CACHE_HOME:-$HOME/.cache}/bc250-control-center/aur/$package"
-  clone_or_update "https://aur.archlinux.org/${package}.git" "$package_dir"
+  # This runs under "||" in its callers, where set -e does nothing: without these
+  # checks a failed clone went on to run makepkg in whatever folder it was in.
+  clone_or_update "https://aur.archlinux.org/${package}.git" "$package_dir" || {
+    error "Could not download ${package} from the AUR"
+    return 1
+  }
   (
-    cd "$package_dir"
+    cd "$package_dir" || exit 1
     # --needed skips a package whose version is already installed, which is
     # exactly the case of one that must be built again against new libraries.
     if [[ "$rebuild" == "rebuild" ]]; then

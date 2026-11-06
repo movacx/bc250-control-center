@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "As evidências de recuperação verificadas foram salvas em {path}. SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · metade da RAM",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} saudável · {warnings} avisos · {errors} erros · {distribution} · kernel {kernel}",
-  "Remote access key": "Chave de acesso remoto"
+  "Remote access key": "Chave de acesso remoto",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "A lista de pacotes neste computador nomeia versões que os espelhos não carregam mais. Isso acontece quando o sistema não é atualizado há algum tempo.",
+  "This system's package list is out of date.": "A lista de pacotes deste sistema está desatualizada.",
+  "Update the system with sudo pacman -Syu, then run this action again.": "Atualize o sistema com sudo pacman -Syu e execute esta ação novamente.",
+  "Wine could not start.": "Wine não pôde ser iniciado.",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "No Steam, verifique os arquivos da versão do Proton em uso e execute esta ação novamente.",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine não pôde carregar seus próprios arquivos do Windows, então a compilação Proton que ele usa ou seu prefixo Wine está incompleto."
 }

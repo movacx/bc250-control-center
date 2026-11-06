@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Τα επαληθευμένα στοιχεία ανάκτησης αποθηκεύτηκαν στο {path}. SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · η μισή μνήμη RAM",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy}υγιής ·{warnings}προειδοποιήσεις ·{errors}λάθη ·{distribution}· πυρήνας{kernel}",
-  "Remote access key": "Κλειδί απομακρυσμένης πρόσβασης"
+  "Remote access key": "Κλειδί απομακρυσμένης πρόσβασης",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "Η λίστα των πακέτων σε αυτόν τον υπολογιστή ονομάζει εκδόσεις που δεν φέρουν πλέον οι καθρέφτες. Αυτό συμβαίνει όταν το σύστημα δεν έχει ενημερωθεί για λίγο.",
+  "This system's package list is out of date.": "Η λίστα πακέτων αυτού του συστήματος δεν είναι ενημερωμένη.",
+  "Update the system with sudo pacman -Syu, then run this action again.": "Ενημερώστε το σύστημα με sudo pacman -Syu και, στη συνέχεια, εκτελέστε ξανά αυτήν την ενέργεια.",
+  "Wine could not start.": "Δεν ήταν δυνατή η έναρξη του Wine.",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "Στο Steam, επαληθεύστε τα αρχεία της έκδοσης Proton που χρησιμοποιείται και, στη συνέχεια, εκτελέστε ξανά αυτήν την ενέργεια.",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Το Wine δεν μπόρεσε να φορτώσει τα δικά του αρχεία Windows, επομένως η κατασκευή Proton που χρησιμοποιεί ή το πρόθεμά του Wine δεν είναι ολοκληρωμένο."
 }

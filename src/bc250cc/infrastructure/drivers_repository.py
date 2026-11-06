@@ -17,6 +17,8 @@ from pathlib import Path
 from bc250cc.platform.init.services import detect_init_manager
 from bc250cc.platform.packages.strategies.detector import detect_os_info
 
+from .bazzite_deployment import RPM_OSTREE_IDLE_WAIT
+
 _CONNECTIVITY_PACKAGES = {
     "arch": ("linux-firmware", "usbutils", "iw", "bluez", "bluez-utils"),
     "manjaro": ("linux-firmware", "usbutils", "iw", "bluez", "bluez-utils"),
@@ -272,6 +274,7 @@ def build_driver_support_command(component: str, family: str, init_kind: str) ->
     elif family == "bazzite":
         commands.extend(
             (
+                RPM_OSTREE_IDLE_WAIT,
                 f"packages=({package_args})",
                 'missing=(); for package in "${packages[@]}"; do rpm -q "$package" >/dev/null 2>&1 || missing+=("$package"); done',
                 (

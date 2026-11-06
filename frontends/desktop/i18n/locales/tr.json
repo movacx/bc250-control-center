@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Doğrulanmış kurtarma kanıtı {path} dizinine kaydedildi. SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · RAM'in yarısı",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} sağlıklı · {warnings} uyarılar · {errors} hatalar · {distribution} · çekirdek {kernel}",
-  "Remote access key": "Uzaktan erişim anahtarı"
+  "Remote access key": "Uzaktan erişim anahtarı",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "Bu bilgisayardaki paketlerin listesi, aynaların artık taşımadığı sürümleri adlandırır. Bu, sistem bir süre güncellenmediğinde meydana gelir.",
+  "This system's package list is out of date.": "Bu sistemin paket listesi güncel değil.",
+  "Update the system with sudo pacman -Syu, then run this action again.": "Sistemi sudo pacman -Syu ile güncelleyin ve ardından bu işlemi tekrar çalıştırın.",
+  "Wine could not start.": "Wine başlatılamadı.",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "Steam'de, kullanılan Proton sürümünün dosyalarını doğrulayın ve ardından bu işlemi tekrar çalıştırın.",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine kendi Windows dosyalarını yükleyemedi, bu nedenle kullandığı Proton yapısı veya Wine öneki eksik."
 }

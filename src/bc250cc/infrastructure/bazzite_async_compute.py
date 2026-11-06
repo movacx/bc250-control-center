@@ -133,7 +133,6 @@ def build_bazzite_async_compute_command(action: str) -> str:
         'test -r /etc/os-release || { echo "ERROR: /etc/os-release is unavailable."; exit 64; }',
         ". /etc/os-release",
         'test "${ID:-}" = bazzite || { echo "ERROR: This workflow is available only on Bazzite."; exit 64; }',
-        'test "${VERSION_ID:-}" = 44 || { echo "ERROR: Release v0.2.4 supports Bazzite 44 only."; exit 64; }',
         'test "$(uname -m)" = x86_64 || { echo "ERROR: The reviewed payload is x86_64-only."; exit 64; }',
     ]
     if action == "status":
@@ -155,6 +154,9 @@ def build_bazzite_async_compute_command(action: str) -> str:
     ))
     if action == "install":
         commands.extend((
+            # Only installing depends on the release: whoever moved to a newer
+            # Bazzite must still be able to check or remove what they have.
+            'test "${VERSION_ID:-}" = 44 || { echo "ERROR: Release v0.2.4 supports Bazzite 44 only."; exit 64; }',
             "bc250_found=0",
             "for bc250_device in /sys/bus/pci/devices/*; do",
             '  test -r "$bc250_device/vendor" && test -r "$bc250_device/device" || continue',

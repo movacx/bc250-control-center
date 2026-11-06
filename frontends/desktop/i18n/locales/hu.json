@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Az ellenőrzött helyreállítási bizonyíték a következő helyre került: {path}. SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · a RAM fele",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} egészséges · {warnings} figyelmeztetések · {errors} hiba · {distribution} · kernel {kernel}",
-  "Remote access key": "Távoli hozzáférési kulcs"
+  "Remote access key": "Távoli hozzáférési kulcs",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "A számítógépen található csomagok listája azokat a verziókat nevezi meg, amelyeket a tükrök már nem hordoznak. Ez akkor fordul elő, ha a rendszert egy ideig nem frissítették.",
+  "This system's package list is out of date.": "Ennek a rendszernek a csomaglistája elavult.",
+  "Update the system with sudo pacman -Syu, then run this action again.": "Frissítse a rendszert a sudo pacman -Syu paranccsal, majd futtassa újra ezt a műveletet.",
+  "Wine could not start.": "A Wine nem indul el.",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "A Steam alkalmazásban ellenőrizze a használt Proton verziójú fájlokat, majd futtassa újra ezt a műveletet.",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "A Wine nem tudta betölteni a saját Windows fájljait, ezért az általa használt Proton build vagy a Wine előtagja hiányos."
 }

@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "หลักฐานการกู้คืนที่ยืนยันแล้วได้รับการบันทึกลงใน {path} SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · ครึ่งหนึ่งของ RAM",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} ดีต่อสุขภาพ · คำเตือน {warnings} · ข้อผิดพลาด {errors} · {distribution} · เคอร์เนล {kernel}",
-  "Remote access key": "กุญแจการเข้าถึงระยะไกล"
+  "Remote access key": "กุญแจการเข้าถึงระยะไกล",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "รายการแพ็คเกจบนคอมพิวเตอร์เครื่องนี้ระบุเวอร์ชันที่มิเรอร์ไม่มีอีกต่อไป สิ่งนี้เกิดขึ้นเมื่อระบบไม่ได้รับการอัพเดตมาระยะหนึ่งแล้ว",
+  "This system's package list is out of date.": "รายการแพ็กเกจของระบบนี้ล้าสมัย",
+  "Update the system with sudo pacman -Syu, then run this action again.": "อัปเดตระบบด้วย sudo pacman -Syu จากนั้นเรียกใช้การกระทำนี้อีกครั้ง",
+  "Wine could not start.": "Wine ไม่สามารถเริ่มทำงานได้",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "ใน Steam ให้ตรวจสอบไฟล์ของเวอร์ชัน Proton ที่ใช้งานอยู่ จากนั้นให้ดำเนินการนี้อีกครั้ง",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine ไม่สามารถโหลดไฟล์ Windows ของตัวเองได้ ดังนั้น Proton build ที่ใช้หรือคำนำหน้า Wine จึงไม่สมบูรณ์"
 }

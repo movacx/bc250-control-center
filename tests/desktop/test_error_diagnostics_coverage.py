@@ -85,6 +85,13 @@ EVIDENCE: dict[str, tuple[str, ...]] = {
     "BC250-PKG-003": (
         "repository bc250-cachyos is already configured",
     ),
+    "BC250-PKG-005": (
+        "error: failed retrieving file 'a.pkg.tar.zst' from mirror : The requested URL returned error: 404\n"
+        "error: failed to commit transaction (failed to retrieve some files)",
+    ),
+    "BC250-WINE-001": (
+        "wine: could not load kernel32.dll, status c0000135",
+    ),
     "BC250-UPSTREAM-404": (
         "error: failed retrieving file from repo: HTTP 404",
     ),

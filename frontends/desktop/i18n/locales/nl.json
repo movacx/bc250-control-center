@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Geverifieerd herstelbewijs is opgeslagen in {path}. SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · de helft van het RAM-geheugen",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} gezond · {warnings} waarschuwingen · {errors} fouten · {distribution} · kernel {kernel}",
-  "Remote access key": "Sleutel voor toegang op afstand"
+  "Remote access key": "Sleutel voor toegang op afstand",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "De lijst met pakketten op deze computer noemt versies die de spiegelservers niet langer bevatten. Dit gebeurt wanneer het systeem een ​​tijdje niet is bijgewerkt.",
+  "This system's package list is out of date.": "De pakketlijst van dit systeem is verouderd.",
+  "Update the system with sudo pacman -Syu, then run this action again.": "Update het systeem met sudo pacman -Syu en voer deze actie vervolgens opnieuw uit.",
+  "Wine could not start.": "Wine kan niet starten.",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "Controleer in Steam de bestanden van de gebruikte Proton-versie en voer deze actie vervolgens opnieuw uit.",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine kon zijn eigen Windows-bestanden niet laden, dus de Proton build die het gebruikt of het Wine voorvoegsel is onvolledig."
 }

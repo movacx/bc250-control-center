@@ -2688,6 +2688,20 @@ INTERFACE_TRANSLATIONS.update({
         "es": "No se detectó ninguna red privada conectada. Conecta esta placa a tu Wi-Fi o cable."},
 })
 
+# Diagnoses added for the reports of November 2026.
+INTERFACE_TRANSLATIONS.update({
+    "This system's package list is out of date.": {"es": "La lista de paquetes de este sistema está desactualizada."},
+    "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": {
+        "es": "La lista de paquetes de este equipo nombra versiones que los mirrors ya no tienen. Ocurre cuando el sistema lleva un tiempo sin actualizarse."},
+    "Update the system with sudo pacman -Syu, then run this action again.": {
+        "es": "Actualiza el sistema con sudo pacman -Syu y vuelve a ejecutar esta acción."},
+    "Wine could not start.": {"es": "Wine no pudo iniciarse."},
+    "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": {
+        "es": "Wine no pudo cargar sus propios archivos de Windows, así que la versión de Proton que usa o su prefijo de Wine están incompletos."},
+    "In Steam, verify the files of the Proton version in use, then run this action again.": {
+        "es": "En Steam, verifica los archivos de la versión de Proton en uso y vuelve a ejecutar esta acción."},
+})
+
 # Polish for the strings added incrementally above (from the generated pl catalog).
 INTERFACE_POLISH_ADDITIONS = {
     "BC-250 GE-Proton · SteamOS": "BC-250 GE-Proton · SteamOS",
@@ -2722,6 +2736,12 @@ INTERFACE_POLISH_ADDITIONS = {
     "Turn on local network access below so phones can connect.": "Włącz poniżej dostęp do sieci lokalnej, aby telefony mogły się łączyć.",
     "The firewall may be blocking other devices. Use Configure LAN firewall.": "Zapora sieciowa może blokować inne urządzenia. Użyj opcji Konfiguruj zaporę sieci LAN.",
     "No connected private network was detected. Connect this board to your Wi-Fi or cable.": "Nie wykryto podłączonej sieci prywatnej. Podłącz tę płytkę do sieci Wi-Fi lub kabla.",
+    "This system's package list is out of date.": "Lista pakietów tego systemu jest nieaktualna.",
+    "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "Lista pakietów na tym komputerze zawiera nazwy wersji, których serwery lustrzane już nie obsługują. Dzieje się tak, gdy system nie był aktualizowany przez jakiś czas.",
+    "Update the system with sudo pacman -Syu, then run this action again.": "Zaktualizuj system za pomocą sudo pacman -Syu, a następnie uruchom tę akcję ponownie.",
+    "Wine could not start.": "Nie można uruchomić Wine.",
+    "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine nie mogło załadować własnych plików Windows, więc używana przez niego kompilacja Proton lub jej przedrostek Wine jest niekompletny.",
+    "In Steam, verify the files of the Proton version in use, then run this action again.": "W Steam sprawdź pliki używanej wersji Proton, a następnie uruchom tę akcję ponownie.",
 }
 for _source, _polish in INTERFACE_POLISH_ADDITIONS.items():
     INTERFACE_TRANSLATIONS.setdefault(_source, {})["pl"] = _polish

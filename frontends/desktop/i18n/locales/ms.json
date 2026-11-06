@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Bukti pemulihan yang disahkan telah disimpan ke {path}. SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · separuh daripada RAM",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} sihat · {warnings} amaran · {errors} ralat · {distribution} · kernel {kernel}",
-  "Remote access key": "Kunci akses jauh"
+  "Remote access key": "Kunci akses jauh",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "Senarai pakej pada komputer ini menamakan versi yang tidak lagi dibawa oleh cermin. Ini berlaku apabila sistem tidak dikemas kini untuk seketika.",
+  "This system's package list is out of date.": "Senarai pakej sistem ini sudah lapuk.",
+  "Update the system with sudo pacman -Syu, then run this action again.": "Kemas kini sistem dengan sudo pacman -Syu, kemudian jalankan tindakan ini sekali lagi.",
+  "Wine could not start.": "Wine tidak dapat dimulakan.",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "Dalam Steam, sahkan fail versi Proton yang sedang digunakan, kemudian jalankan tindakan ini sekali lagi.",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine tidak dapat memuatkan fail Windowsnya sendiri, jadi binaan Proton yang digunakannya atau awalan Winenya tidak lengkap."
 }

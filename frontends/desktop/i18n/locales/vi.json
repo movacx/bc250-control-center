@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Bằng chứng khôi phục đã được xác minh đã được lưu vào {path}. SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · một nửa RAM",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} khỏe mạnh · {warnings} cảnh báo · {errors} lỗi · {distribution} · kernel {kernel}",
-  "Remote access key": "Chìa khóa truy cập từ xa"
+  "Remote access key": "Chìa khóa truy cập từ xa",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "Danh sách các gói trên máy tính này có tên các phiên bản mà máy nhân bản không còn mang theo. Điều này xảy ra khi hệ thống chưa được cập nhật trong một thời gian.",
+  "This system's package list is out of date.": "Danh sách gói của hệ thống này đã lỗi thời.",
+  "Update the system with sudo pacman -Syu, then run this action again.": "Cập nhật hệ thống bằng sudo pacman -Syu, sau đó chạy lại hành động này.",
+  "Wine could not start.": "Wine không thể khởi động.",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "Trong Steam, hãy xác minh các tệp của phiên bản Proton đang sử dụng, sau đó chạy lại hành động này.",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine không thể tải các tệp Windows của chính nó, do đó bản dựng Proton mà nó sử dụng hoặc tiền tố Wine của nó không đầy đủ."
 }

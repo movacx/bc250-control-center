@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Vahvistettu palautustodistus tallennettiin osoitteeseen {path}. SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · puolet RAM-muistista",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} terve · {warnings} varoitukset · {errors} virheitä · {distribution} · ydin {kernel}",
-  "Remote access key": "Etäkäyttöavain"
+  "Remote access key": "Etäkäyttöavain",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "Tämän tietokoneen pakettiluettelossa on nimetty versiot, joita peilit eivät enää kanna. Tämä tapahtuu, kun järjestelmää ei ole päivitetty vähään aikaan.",
+  "This system's package list is out of date.": "Tämän järjestelmän pakettiluettelo on vanhentunut.",
+  "Update the system with sudo pacman -Syu, then run this action again.": "Päivitä järjestelmä komennolla sudo pacman -Syu ja suorita sitten tämä toiminto uudelleen.",
+  "Wine could not start.": "Wine ei voinut käynnistyä.",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "Tarkista Steamssa käytössä olevan Proton-version tiedostot ja suorita sitten tämä toiminto uudelleen.",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine ei voinut ladata omia Windows-tiedostojaan, joten sen käyttämä Proton-rakennus tai sen Wine-etuliite on epätäydellinen."
 }

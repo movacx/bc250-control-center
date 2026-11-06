@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Ověřený důkaz o obnovení byl uložen do {path}. SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · polovina paměti RAM",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} zdravé · varování {warnings} · chyby {errors} · {distribution} · jádro {kernel}",
-  "Remote access key": "Klíč pro vzdálený přístup"
+  "Remote access key": "Klíč pro vzdálený přístup",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "Seznam balíčků na tomto počítači uvádí verze, které již zrcadla nenesou. K tomu dochází, když systém nebyl nějakou dobu aktualizován.",
+  "This system's package list is out of date.": "Seznam balíčků tohoto systému je zastaralý.",
+  "Update the system with sudo pacman -Syu, then run this action again.": "Aktualizujte systém pomocí sudo pacman -Syu, poté spusťte tuto akci znovu.",
+  "Wine could not start.": "Wine nelze spustit.",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "Ve službě Steam ověřte používané soubory verze Proton a poté spusťte tuto akci znovu.",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine nemohl načíst své vlastní soubory Windows, takže sestavení Proton, které používá, nebo jeho předpona Wine je neúplná."
 }

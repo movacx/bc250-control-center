@@ -172,8 +172,13 @@ def _backend(host: Host) -> str:
         return "limine"
     if host.distro_family() == "fedora" and host.command("grubby"):
         return "grubby"
+    # The grub package can be installed on a machine another loader boots: then
+    # there is no generated menu to rewrite and the options would do nothing.
     if host.path(GRUB_CONFIG).is_file() and (
-        host.command("update-grub") or host.command("grub-mkconfig") or host.command("grub2-mkconfig")
+        host.command("update-grub") or (
+            (host.command("grub-mkconfig") or host.command("grub2-mkconfig"))
+            and any(host.path(path).exists() for path in GRUB_OUTPUTS)
+        )
     ):
         return "grub"
     return "unsupported"

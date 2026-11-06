@@ -48,7 +48,7 @@ PROTECTED_TERMS = (
     "SteamOS", "Bazzite", "CachyOS", "OpenRC", "systemd", "runit",
     "s6-rc", "s6", "dinit", "SysVinit", "Linux", "Mesa", "RADV", "Polkit",
     "Arch", "Manjaro", "Fedora", "Ubuntu", "Debian", "Gentoo", "Artix", "Void",
-    "Podman",
+    "Podman", "Proton", "Wine", "Steam", "pacman",
     "fix-metrics", "fix-freq", "set-method", "gpu-usage", "config.toml",
     "rpm-ostree", "systemctl", "systemctl --user",
 )

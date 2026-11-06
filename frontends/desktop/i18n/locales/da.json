@@ -5799,5 +5799,11 @@
   "Verified recovery evidence was saved to {path}. SHA-256: {sha256}": "Bekræftet gendannelsesbevis blev gemt i {path}. SHA-256: {sha256}",
   "ZRAM · half of RAM": "ZRAM · halvdelen af RAM",
   "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}": "{healthy} sund · {warnings} advarsler · {errors} fejl · {distribution} · kerne {kernel}",
-  "Remote access key": "Fjernadgangsnøgle"
+  "Remote access key": "Fjernadgangsnøgle",
+  "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "Listen over pakker på denne computer navngiver versioner, som spejlene ikke længere bærer. Dette sker, når systemet ikke er blevet opdateret i et stykke tid.",
+  "This system's package list is out of date.": "Dette systems pakkeliste er forældet.",
+  "Update the system with sudo pacman -Syu, then run this action again.": "Opdater systemet med sudo pacman -Syu, og kør derefter denne handling igen.",
+  "Wine could not start.": "Wine kunne ikke starte.",
+  "In Steam, verify the files of the Proton version in use, then run this action again.": "I Steam skal du kontrollere filerne for Proton-versionen, der er i brug, og derefter køre denne handling igen.",
+  "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine kunne ikke indlæse sine egne Windows-filer, så Proton-bygningen den bruger, eller dens Wine-præfiks er ufuldstændig."
 }
