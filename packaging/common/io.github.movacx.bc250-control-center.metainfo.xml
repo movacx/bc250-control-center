@@ -32,6 +32,16 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
+    <release version="1.22.2" date="2026-11-06">
+      <description>
+        <p>Emparejar un dispositivo por QR o con la clave de acceso da control de hardware permanente, la página de acceso remoto es más simple y se corrigen fallos reportados en Bazzite, CachyOS y Arch.</p>
+      </description>
+    </release>
+    <release version="1.22.1" date="2026-11-02">
+      <description>
+        <p>Corregida la preparación de dependencias cuando Cyan está activo sin D-Bus: se reinicia tras reparar su configuración, se comprueba su disponibilidad con tiempos de espera limitados y se restaura el rango anterior únicamente cuando pudo leerse y verificarse.</p>
+      </description>
+    </release>
     <release version="1.22.0" date="2026-11-01">
       <description>
         <p>Nuevas interfaces de terminal y web: TUI para TTY o SSH, con teclado, ratón, consola integrada y temas recordados; web adaptable al móvil con controles de CPU, GPU, CU, ventiladores y gráficas.</p>

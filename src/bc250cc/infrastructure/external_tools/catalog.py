@@ -209,6 +209,19 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         rollback="Upstream AMDGPU and RADV transactions provide independent uninstall/rollback paths; physical boot recovery is still required.",
         validation_level="code-reviewed-hardware-gate-pending",
     ),
+    "steamos_proton": ExternalToolSpec(
+        key="steamos_proton",
+        upstream="https://github.com/keyboardspecialist/bc250-steamos",
+        license="mixed-per-subproject",
+        reviewed_revision="5fe7ae9765c9b419ffbd740eefe1c85d482fa05d",
+        privilege_class="userspace",
+        hardware_writes=False,
+        automated=True,
+        rollback="Upstream bc250-proton.sh uninstall removes its managed user-local tool and preserves Steam prefixes and saves.",
+        validation_level="code-reviewed-hardware-gate-pending",
+        update_strategy="upstream-branch",
+        payload_distribution="runtime-fetch-upstream-main",
+    ),
     # Per-user FSR4 runtime. Registered here so the shared manifest validator
     # and checkout inventory can see it; it was previously pinned only inside
     # bc250_fsr4.py and was therefore invisible to both.
@@ -466,6 +479,14 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
         vocabulary="SteamOS AMDGPU, telemetry, async-compute RADV and optional FSR4 compatibility",
         actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
     ),
+    "steamos_proton": _lifecycle(
+        "Run keyboardspecialist's unmodified bc250-proton.sh from upstream master as the desktop user; it verifies and installs the GE-Proton package in Steam's user folder.",
+        "Run upstream status, preserving its absent/incomplete states as inspection results.",
+        "Run upstream uninstall, preserving Steam prefixes, saved games and unrelated compatibility tools.",
+        vocabulary="SteamOS BC-250 GE-Proton",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.UNINSTALL),
+        maintainer="keyboardspecialist maintains the Proton installer and its tests; the app maintains only this SteamOS adapter.",
+    ),
     "nct6687": _lifecycle(
         "Build and install the reviewed driver for the exact running kernel.",
         "Verify module vermagic, loaded driver, NCT hwmon and writable PWM capability.",
@@ -640,6 +661,7 @@ EXTERNAL_TOOL_DIRECTORIES = {
     "cu_manager_standard": "bc250-cu-live-manager",
     "cu_manager_steamos": "bc250-cu-live-manager-steamos",
     "steamos_amdgpu": "bc250-steamos",
+    "steamos_proton": "bc250-steamos-proton",
     "nct6687": "nct6687d",
     "fsr4_runtime": "bc250-fsr4",
     # Not a git checkout: a verified release archive installed per user.

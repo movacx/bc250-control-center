@@ -47,6 +47,10 @@ from bc250cc.infrastructure.steamos_cu_shell import (
 from bc250cc.infrastructure.steamos_graphics_runtime import (
     build_steamos_graphics_command,
 )
+from bc250cc.infrastructure.steamos_proton import (
+    STEAMOS_PROTON_DIRECTORY,
+    build_steamos_proton_command,
+)
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
 from bc250cc.shared.errors import ActionNeeded
 
@@ -224,6 +228,7 @@ class SteamosDependenciesMixin:
         q_user_audio = shlex.quote(str(user_audio_root))
         q_protected_audio = shlex.quote(str(STEAMOS_AMDGPU_AUDIO_FIX_ROOT))
         index_repair = Path(__file__).resolve().parents[3] / 'scripts' / 'system' / 'repair-steamos-kernel-index.py'
+        runtime_prepare = Path(__file__).resolve().parents[3] / 'scripts' / 'system' / 'prepare-steamos-build-runtime.py'
         install_artifacts_command = '; '.join((
             'set -Eeuo pipefail; '
             f'for artifact in amdgpu.ko.zst amdgpu.gfx1013.attestation; do '
@@ -240,7 +245,8 @@ class SteamosDependenciesMixin:
             f'sudo /usr/bin/bash {q_protected_audio}/ensure-build-prereqs.sh',
             'echo; echo "== Downloading exact Valve kernel sources and build dependencies =="; '
             'echo "[INFO] This step can remain quiet for several minutes while Git is working. Do not close this window; the process is still running."',
-            f'/usr/bin/bash {q_user_audio}/fetch-sources.sh',
+            f'python3 {shlex.quote(str(runtime_prepare))} {q_user_audio}',
+            f'/usr/bin/bash {q_user_audio}/fetch-sources-bc250cc.sh',
             f'python3 {shlex.quote(str(index_repair))} {shlex.quote(str(user_audio_root / "valve-kernel"))}',
             'echo "[OK] Kernel sources and build dependencies are ready."; echo; '
             'echo "== Building the BC250 AMDGPU module =="; '
@@ -249,14 +255,16 @@ class SteamosDependenciesMixin:
             # recognises, typically one patched by an earlier toolkit
             # revision. Like upstream's patch-driver, clean the tree (cached
             # downloads are kept) and build once more.
-            f'bc250_build_rc=0; /usr/bin/bash {q_user_audio}/build.sh || bc250_build_rc=$?',
+            f'bc250_build_rc=0; /usr/bin/bash {q_user_audio}/build-bc250cc.sh || bc250_build_rc=$?',
             'if [ "$bc250_build_rc" = 75 ]; then '
             'echo "[INFO] The kernel tree was prepared by an earlier toolkit revision; cleaning it and building again. Cached downloads are kept."; '
             f'python3 {shlex.quote(str(index_repair))} {shlex.quote(str(user_audio_root / "valve-kernel"))}; '
             f'/usr/bin/bash {q_user_audio}/clean.sh; '
-            f'/usr/bin/bash {q_user_audio}/fetch-sources.sh; '
-            f'/usr/bin/bash {q_user_audio}/build.sh; '
-            'elif [ "$bc250_build_rc" != 0 ]; then exit "$bc250_build_rc"; fi',
+            f'/usr/bin/bash {q_user_audio}/fetch-sources-bc250cc.sh; '
+            f'bc250_build_rc=0; /usr/bin/bash {q_user_audio}/build-bc250cc.sh || bc250_build_rc=$?; fi; '
+            'if [ "$bc250_build_rc" != 0 ]; then '
+            'echo "[ERROR] STEAMOS_AMDGPU_BUILD_FAILED: AMDGPU compilation failed. Read the first compiler or runtime error above; the module was not installed."; '
+            'exit "$bc250_build_rc"; fi',
             wrap_steamos_writable_command(install_artifacts_command, family='steamos'),
         ))
         if install:
@@ -360,6 +368,17 @@ class SteamosDependenciesMixin:
         if action not in titles:
             raise ValueError(f'Unsupported SteamOS graphics action: {action}')
         return self._abrir_terminal(command, titles[action])
+
+    def gestionar_proton_steamos(self, action: str):
+        if self._os_repository().info.family != 'steamos':
+            raise RuntimeError('The SteamOS Proton workflow is available only on SteamOS.')
+        command = build_steamos_proton_command(
+            action,
+            self._tool_dir() / STEAMOS_PROTON_DIRECTORY,
+            backend_guard=protected_backend_guard(reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT),
+        )
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(command, 'SteamOS · BC-250 GE-Proton')
 
     def diagnostico_steamos(self):
         """Run Control Center's native SteamOS checks without toolkit ownership."""

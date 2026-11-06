@@ -484,7 +484,9 @@ def require_cu_runtime(origin_pid: int | None, claimed_uid: int | None) -> int:
     if not bc250_identity_present():
         return fail('HARDWARE_CONTEXT: AMD BC-250 hardware identity was not detected.', 19)
     authenticated_uid = caller_uid()
-    if authenticated_uid <= 0 or claimed_uid != authenticated_uid:
+    if authenticated_uid == 0:
+        return fail('CU_CONTEXT: Control Center was started as root. Close it and open it as your normal user.', 15)
+    if authenticated_uid < 0 or claimed_uid != authenticated_uid:
         return fail('CU_CONTEXT: The forwarded UID does not match the Polkit caller.', 15)
     if origin_pid is None or origin_pid <= 1 or proc_uid(origin_pid) != authenticated_uid:
         return fail('CU_CONTEXT: The origin PID is not owned by the Polkit caller.', 17)

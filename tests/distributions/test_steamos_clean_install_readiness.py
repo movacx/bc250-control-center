@@ -114,8 +114,8 @@ def test_explicit_steamos_compatibility_action_is_separate_and_pinned(tmp_path, 
     # from ResourceTools.
     assert "with-steamos-writable-root.sh" in command
     assert "sudo /usr/bin/bash /usr/libexec/bc250-control-center/steamos-amdgpu-backend/bc250-audio-fix/install.sh" in command
-    assert f"/usr/bin/bash {tmp_path}/ResourceTools/bc250-steamos/bc250-audio-fix/fetch-sources.sh" in command
-    assert f"/usr/bin/bash {tmp_path}/ResourceTools/bc250-steamos/bc250-audio-fix/build.sh" in command
+    assert f"/usr/bin/bash {tmp_path}/ResourceTools/bc250-steamos/bc250-audio-fix/fetch-sources-bc250cc.sh" in command
+    assert f"/usr/bin/bash {tmp_path}/ResourceTools/bc250-steamos/bc250-audio-fix/build-bc250cc.sh" in command
     assert f"sudo /usr/bin/bash {tmp_path}/ResourceTools" not in command
     assert "Do not close this window; the process is still running." in command
     assert "Configuration and compilation can take a while." in command
@@ -313,22 +313,22 @@ def test_the_kernel_module_waits_until_gpu_points_above_its_limit_are_off(tmp_pa
         repository.preparar_compatibilidad_steamos()
 
 
-def test_the_toolkit_is_built_unmodified_and_an_old_tree_is_cleaned_once(tmp_path, monkeypatch):
+def test_reviewed_kernel_patches_are_preserved_and_an_old_tree_is_cleaned_once(tmp_path, monkeypatch):
     repository = _repository(tmp_path, monkeypatch)
     command = repository.preparar_compatibilidad_steamos()
 
-    # No app overlay any more: the reviewed build.sh is used as committed.
+    # Runtime adapters preserve the reviewed kernel patches and protected installer.
     assert "telemetry-oc-overlay" not in command
     assert "bc250-steamos-amdgpu-overlay" not in command
     assert "BC250_CONTROL_CENTER_OC_TELEMETRY" not in command
     audio = f"{tmp_path}/ResourceTools/bc250-steamos/bc250-audio-fix"
     # Exit 75 (tree prepared by an older toolkit) cleans and builds once more.
-    first = command.index(f"/usr/bin/bash {audio}/build.sh || bc250_build_rc=$?")
+    first = command.index(f"/usr/bin/bash {audio}/build-bc250cc.sh || bc250_build_rc=$?")
     retry = command.index('if [ "$bc250_build_rc" = 75 ]; then', first)
     clean = command.index(f"/usr/bin/bash {audio}/clean.sh;", retry)
     recovery = command.index('repair-steamos-kernel-index.py', retry)
     assert retry < recovery < clean
-    rebuild = command.index(f"/usr/bin/bash {audio}/build.sh;", clean)
+    rebuild = command.index(f"/usr/bin/bash {audio}/build-bc250cc.sh || bc250_build_rc=$?", clean)
     assert first < retry < clean < rebuild
-    assert 'elif [ "$bc250_build_rc" != 0 ]; then exit "$bc250_build_rc"; fi' in command
+    assert 'STEAMOS_AMDGPU_BUILD_FAILED' in command
     assert "clean.sh --all" not in command

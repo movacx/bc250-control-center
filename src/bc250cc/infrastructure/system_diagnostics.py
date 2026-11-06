@@ -113,6 +113,14 @@ def _modules() -> str:
     loaded = _run(["lsmod"]).splitlines()
     wanted = [line for line in loaded if re.match(r"(nct|it87|k10temp|amdgpu|zenpower|ryzen_smu)", line)]
     lines = wanted or ["(none of nct*, it87, k10temp, amdgpu, zenpower, ryzen_smu is loaded)"]
+    # Without amdgpu the reason is usually not in the kernel log: say whether the
+    # module exists for this kernel and whether something keeps it out (R-c8e3c3cc).
+    if not Path("/sys/module/amdgpu").exists():  # lsmod does not list a built-in driver
+        lines.append(f"amdgpu: not loaded · module file: {_run(['modinfo', '-F', 'filename', 'amdgpu']) or 'not found for this kernel'}")
+        for pattern in ("/etc/modprobe.d/*.conf", "/usr/lib/modprobe.d/*.conf"):
+            for path in sorted(glob.glob(pattern)):
+                lines.extend(f"{path}: {line.strip()}" for line in _read(path).splitlines()
+                             if re.match(r"\s*(blacklist|install)\s+amdgpu\b", line))
     for module in ("nct6687", "nct6683"):
         vermagic = _run(["modinfo", "-F", "vermagic", module])
         filename = _run(["modinfo", "-F", "filename", module])

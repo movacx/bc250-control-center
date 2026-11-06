@@ -1,55 +1,33 @@
-"""One web-access workspace: connection, visible pairing and device permissions."""
+"""One web-access workspace: connection, QR pairing and device approval."""
 from __future__ import annotations
 
-import math
 import shutil
 import time
 from datetime import datetime
 from pathlib import Path
 
-from PyQt6.QtCore import (
-    QByteArray,
-    QElapsedTimer,
-    QEvent,
-    QPoint,
-    QRect,
-    QRectF,
-    Qt,
-    QTimer,
-    QUrl,
-)
-from PyQt6.QtGui import (
-    QColor,
-    QDesktopServices,
-    QGuiApplication,
-    QLinearGradient,
-    QPainter,
-    QPainterPath,
-    QPixmap,
-    QRadialGradient,
-)
+from PyQt6.QtCore import QByteArray, Qt, QTimer, QUrl
+from PyQt6.QtGui import QDesktopServices, QGuiApplication, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QBoxLayout,
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QMessageBox,
     QScrollArea,
     QSizePolicy,
-    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
-    QToolTip,
     QVBoxLayout,
     QWidget,
 )
 
-from bc250cc.application.system import web_access
+from bc250cc.application.system import web_access, web_pairing
 
-from .. import theme
 from ..components.async_tools import BackgroundExecutor
 from ..components.buttons import WrappingButton as QPushButton
 from ..components.full_diagnosis_dialog import ResizeGrip
@@ -58,210 +36,20 @@ from ..components.responsive import configure_responsive_scroll_area
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
 from ..components.wheel_guard import GuardedComboBox
-from ..components.widgets import readable_text_on
 from ..core.preferences import application_settings
 from ..i18n import tr, tr_format
 from ..theme import COLORS, scale_stylesheet
 from .processes import process_stylesheet
 
-PRIVACY_SECONDS = 5 * 60
-
-
-def _privacy_time():
-    # Linux's boottime includes suspend, so reopening a laptop cannot extend
-    # the five-minute viewing window. Other platforms use a monotonic clock.
-    if hasattr(time, "CLOCK_BOOTTIME"):
-        return time.clock_gettime(time.CLOCK_BOOTTIME)
-    return time.monotonic()
-
-
-class _RemotePrivacyCover(QWidget):
-    """Animated, pre-redacted layout context inside the existing access card."""
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        self._phase = 0.0
-        self._motion_clock = QElapsedTimer()
-        self._context = QPixmap()
-        self._light_context = QPixmap()
-        self._night_context = QPixmap()
-        self._message = QWidget(self)
-        box = QVBoxLayout(self._message)
-        box.setContentsMargins(0, 0, 0, 0)
-        box.setSpacing(12)
-        self.title = QLabel()
-        self.title.setObjectName("remotePrivacyTitle")
-        self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.title.setWordWrap(True)
-        box.addWidget(self.title)
-        self.description = QLabel()
-        self.description.setObjectName("remotePrivacyDescription")
-        self.description.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.description.setWordWrap(True)
-        box.addWidget(self.description)
-        self.reveal_button = QPushButton()
-        self.reveal_button.setObjectName("remotePrivacyReveal")
-        self.reveal_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        box.addWidget(self.reveal_button, 0, Qt.AlignmentFlag.AlignHCenter)
-        self._sweep = QTimer(self)
-        self._sweep.setInterval(16)
-        self._sweep.setTimerType(Qt.TimerType.PreciseTimer)
-        self._sweep.timeout.connect(self._animate)
-        self.retranslate()
-        self.apply_appearance()
-
-    def _animate(self):
-        self._phase = (self._motion_clock.elapsed() % 18000) / 18000
-        self.update()
-
-    def set_context(self, snapshot):
-        # This source has already had every private field removed. Retain only
-        # a small softened thumbnail, never a full-resolution screen capture.
-        self._context = (snapshot.scaledToWidth(128, Qt.TransformationMode.SmoothTransformation)
-                         if not snapshot.isNull() else QPixmap())
-        self._light_context = QPixmap()
-        self._night_context = QPixmap()
-        if not self._context.isNull():
-            # Cache all variants so changing theme while locked also
-            # changes the veil. The source is already redacted.
-            image = self._context.toImage()
-            light_image = image.copy()
-            night_image = image.copy()
-            light = QColor(COLORS["panel"]).lightness() > 127
-            for y in range(image.height()):
-                for x in range(image.width()):
-                    colour = image.pixelColor(x, y)
-                    luminance = round(.2126 * colour.red() + .7152 * colour.green() + .0722 * colour.blue())
-                    silhouette = 255 - luminance if light else luminance
-                    value = 37 + round(silhouette * .23)
-                    image.setPixelColor(x, y, QColor(value, value + 2, value + 4))
-                    shade = round(silhouette * .20)
-                    night_image.setPixelColor(x, y, QColor(28 + shade, 34 + shade, 44 + shade))
-                    value = 230 - round(silhouette * .20)
-                    light_image.setPixelColor(x, y, QColor(value, value + 1, value + 3))
-            self._context = QPixmap.fromImage(image)
-            self._light_context = QPixmap.fromImage(light_image)
-            self._night_context = QPixmap.fromImage(night_image)
-        self.update()
-
-    def retranslate(self):
-        self.setAccessibleName(tr("Hidden remote access information"))
-        self.title.setText(tr("Information protected"))
-        self.description.setText(tr("Access keys, codes and devices are hidden."))
-        self.reveal_button.setText(tr("Show information"))
-
-    def set_visible_region(self, region):
-        width = max(180, min(380, region.width() - 48))
-        self._message.setFixedWidth(width)
-        layout = self._message.layout()
-        height = max(layout.minimumSize().height(), layout.heightForWidth(width))
-        self._message.setFixedHeight(height)
-        self._message.move(max(16, region.center().x() - width // 2),
-                           max(region.top() + 16, region.center().y() - self._message.height() // 2))
-
-    def apply_appearance(self):
-        c = COLORS
-        light = QColor(c["panel"]).lightness() > 127
-        title, description = ("#252A32", "#4F5865") if light else ("#F2F3F5", "#CBD0D6")
-        title_size = 21 if light else 18
-        description_size = 13 if light else 12
-        ink = readable_text_on(QColor(c["blue"])).name()
-        self.setStyleSheet(scale_stylesheet(
-            f"QLabel#remotePrivacyTitle {{ color: {title}; font-size: {title_size}px; font-weight: 700; background: transparent; }}"
-            f"QLabel#remotePrivacyDescription {{ color: {description}; font-size: {description_size}px; background: transparent; }}"
-            f"QPushButton#remotePrivacyReveal {{ background: {c['blue']}; color: {ink}; border: 1px solid {c['blue']};"
-            " border-radius: 8px; padding: 9px 18px; font-size: 12px; font-weight: 650; }"
-            f"QPushButton#remotePrivacyReveal:hover {{ border-color: {c['blue_border']}; }}"))
-        self.update()
-
-    def showEvent(self, event):
-        super().showEvent(event)
-        self._motion_clock.start()
-        self._sweep.start()
-
-    def hideEvent(self, event):
-        self._sweep.stop()
-        super().hideEvent(event)
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        boundary = QPainterPath()
-        boundary.addRoundedRect(QRectF(self.rect()), 14, 14)
-        painter.setClipPath(boundary)
-        light = QColor(COLORS["panel"]).lightness() > 127
-        night = theme.ACTIVE_THEME == "midnight"
-        base = QColor("#E2E6EB" if light else "#1D232D" if night else "#27292D")
-        painter.fillRect(self.rect(), base)
-        phase = self._phase * math.tau
-        if not self._context.isNull():
-            painter.save()
-            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-            painter.setOpacity(.88)
-            # Floating-point geometry avoids the one-pixel jumps of a rounded
-            # position. Motion is confined to the background, never the text.
-            dx, dy = 7 * math.sin(phase), 5 * math.cos(phase)
-            context = self._light_context if light else self._night_context if night else self._context
-            painter.drawPixmap(QRectF(self.rect()).adjusted(-10 + dx, -10 + dy, 10 + dx, 10 + dy),
-                               context, QRectF(context.rect()))
-            painter.restore()
-            tint = QColor(base)
-            tint.setAlpha(28)
-            painter.fillRect(self.rect(), tint)
-        # Broad, overlapping graphite currents glide in different directions.
-        width, height = self.width(), self.height()
-        clouds = ((.18, .20, .48, "#ADB2BA", 88, 0.0),
-                  (.82, .45, .42, "#080A0D", 135, 2.1),
-                  (.48, .87, .55, "#868D98", 78, 4.2))
-        if night:
-            clouds = ((.18, .20, .48, "#93A0B1", 88, 0.0),
-                      (.82, .45, .42, "#0B1018", 135, 2.1),
-                      (.48, .87, .55, "#708094", 78, 4.2))
-        if light:
-            # Silver shadows and broad pearl highlights give the light veil
-            # depth without turning it into a white sheet or a dark panel.
-            clouds = ((.12, .15, .55, "#FFFFFF", 175, 0.0),
-                      (.80, .34, .46, "#737F90", 110, 2.1),
-                      (.38, .89, .58, "#AAB9CA", 85, 4.2),
-                      (.92, .90, .36, "#FFFFFF", 170, 1.1))
-        for x, y, radius, tone, opacity, offset in clouds:
-            cx = width * (x + .23 * math.sin(phase + offset))
-            cy = height * (y + .17 * math.cos(phase + offset))
-            opacity = round(opacity * (.85 + .15 * math.sin(phase + offset)))
-            colour = QColor(tone)
-            colour.setAlpha(opacity)
-            clear = QColor(colour)
-            clear.setAlpha(0)
-            gradient = QRadialGradient(cx, cy, max(width, height) * radius)
-            gradient.setColorAt(0, colour)
-            gradient.setColorAt(.45, QColor(colour.red(), colour.green(), colour.blue(), opacity // 2))
-            gradient.setColorAt(1, clear)
-            painter.fillRect(self.rect(), gradient)
-        if light:
-            # A broad satin reflection passes across the moving silver layers.
-            # Its continuous cosine motion has no jump at the loop boundary.
-            reflection_x = width * (.5 + .65 * math.sin(phase - .8))
-            sheen = QLinearGradient(reflection_x - width * .45, 0,
-                                    reflection_x + width * .45, height * .4)
-            sheen.setColorAt(0, QColor(255, 255, 255, 0))
-            sheen.setColorAt(.5, QColor(255, 255, 255, 82))
-            sheen.setColorAt(1, QColor(255, 255, 255, 0))
-            painter.fillRect(self.rect(), sheen)
-        # A feathered clearing behind the existing message keeps it legible
-        # without introducing another rectangular panel.
-        veil = QRadialGradient(self._message.geometry().center().toPointF(), 340 if light else 260)
-        colour = QColor("#F0F2F5") if light else QColor(base)
-        colour.setAlpha(185 if light else 235)
-        veil.setColorAt(0, colour)
-        colour.setAlpha(125 if light else 200)
-        veil.setColorAt(.45, colour)
-        colour.setAlpha(0)
-        veil.setColorAt(1, colour)
-        painter.fillRect(self.rect(), veil)
+QR_SIZE = 224
 
 
 class RemoteAccessPage(QWidget):
-    """The desktop owner grants control; a newly paired phone can only monitor."""
+    """Scan the QR or type the key shown here: the device gets hardware control for good.
+
+    A session without control (one opened by an older version) is approved here
+    with one click, which also removes its expiry.
+    """
 
     def __init__(self, parent: QWidget | None = None, *, settings=None):
         super().__init__(parent)
@@ -274,10 +62,11 @@ class RemoteAccessPage(QWidget):
         self._name_repair_pending = False
         self._syncing_web = False
         self._code_boxes = []
+        self._panels = []
+        self._dividers = []
         self._qr_signature = None
-        self._expiry_signature = None
-        self._privacy_hidden = False
-        self._privacy_deadline = None
+        self._pair_token = None
+        self._known_devices = None
         self._updates_active = False
         self._view_settings = settings if settings is not None else application_settings()
         try:
@@ -300,32 +89,55 @@ class RemoteAccessPage(QWidget):
         root = QVBoxLayout(content)
         root.setContentsMargins(18, 8, 18, 20)
         self.card = self.web_card = SectionCard("Remote access", "Control and monitor this board from a browser on your home network.", icon_name="")
-        self.card.root.setSpacing(10)
-        self.privacy_lock_button = self.card.add_header_button("Lock view", self._conceal_information, width=120)
+        self.card.root.setSpacing(14)
         root.addWidget(self.card)
         root.addStretch(1)
         scroll.setWidget(content)
         outer.addWidget(scroll)
         body = self.card.body
-        self.web_state_label = self._label("")
-        controls = QHBoxLayout()
-        self.web_switch_button = self._button("Start web access", self._toggle_web, primary=True)
-        self.web_open_button = self._button("Open in browser", self._open_web)
-        controls.addWidget(self.web_switch_button)
-        controls.addWidget(self.web_open_button)
-        controls.addStretch(1)
 
+        # -- Status bar -----------------------------------------------------------------------
+        status_panel, status = self._panel(QHBoxLayout)
+        status.setSpacing(12)
+        self.web_state_label = QLabel("")
+        self.web_state_label.setObjectName("remoteStatusPill")
+        self.web_state_label.setTextFormat(Qt.TextFormat.PlainText)
+        status.addWidget(self.web_state_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.web_notice = self._label("")
+        status.addWidget(self.web_notice, 1)
+        # The active key, for signing in from a computer. A phone only needs the QR.
+        self.key_row = QWidget()
+        key_line = QHBoxLayout(self.key_row)
+        key_line.setContentsMargins(0, 0, 0, 0)
+        key_line.setSpacing(8)
+        self.key_caption = self._label("Remote access key")
+        key_line.addWidget(self.key_caption, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.web_pin_box = self._code("")
+        self.web_pin_box.setWordWrap(False)
+        key_line.addWidget(self.web_pin_box, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.web_copy_pin_button = self._button("Copy", self._copy_web_pin)
+        self.web_new_key_button = self._button("New access key", self._new_web_key)
+        key_line.addWidget(self.web_copy_pin_button)
+        key_line.addWidget(self.web_new_key_button)
+        key_line.addStretch(1)
+        status.addWidget(self.key_row, 1)
+        self.web_open_button = self._button("Open in browser", self._open_web)
+        self.web_switch_button = self._button("Start web access", self._toggle_web, primary=True)
+        status.addWidget(self.web_open_button)
+        status.addWidget(self.web_switch_button)
+        body.addWidget(status_panel)
+
+        # -- Pair a device ----------------------------------------------------------------------
+        pair_panel, pair_box = self._panel(QVBoxLayout)
+        pair_box.setSpacing(10)
+        pair_box.addWidget(self._label("Pair a device", strong=True))
         self.pairing_layout = QBoxLayout(QBoxLayout.Direction.LeftToRight)
-        self.pairing_layout.setSpacing(20)
-        body.addLayout(self.pairing_layout)
+        self.pairing_layout.setSpacing(24)
+        pair_box.addLayout(self.pairing_layout)
         connection = QVBoxLayout()
-        connection.setContentsMargins(0, 8, 0, 0)
-        connection.setSpacing(4)
+        connection.setSpacing(6)
         self.pairing_layout.addLayout(connection, 1)
-        connection.addWidget(self.web_state_label)
-        connection.addLayout(controls)
-        connection.addSpacing(6)
-        connection.addWidget(self._label("Connect your phone", strong=True))
+        connection.addWidget(self._label("Connect your phone to the same Wi-Fi and scan the code. It pairs right away with full hardware control, with no key to type."))
         self.web_address = GuardedComboBox()
         self._web_address_chosen = False
         self.web_address.activated.connect(lambda _index: setattr(self, "_web_address_chosen", True))
@@ -342,36 +154,56 @@ class RemoteAccessPage(QWidget):
         connection.addWidget(self.web_firewall_status)
         self.web_firewall_repair = self._button("Configure LAN firewall", self._repair_firewall)
         connection.addWidget(self.web_firewall_repair)
-        connection.addSpacing(6)
-        connection.addWidget(self._label("Access key", strong=True))
-        self.web_pin_box = self._code("")
-        connection.addWidget(self.web_pin_box)
-        key_controls = QHBoxLayout()
-        self.web_copy_pin_button = self._button("Copy access key", self._copy_web_pin)
-        self.web_new_key_button = self._button("New access key", self._new_web_key)
-        key_controls.addWidget(self.web_copy_pin_button)
-        key_controls.addWidget(self.web_new_key_button)
-        connection.addLayout(key_controls)
+        connection.addSpacing(8)
+        divider = QFrame()
+        divider.setObjectName("remoteDivider")
+        divider.setFixedHeight(1)
+        self._dividers.append(divider)
+        connection.addWidget(divider)
+        connection.addSpacing(8)
+        # Both options on one clean row, the certificate right under them.
+        self.web_lan_switch = ToggleSwitch()
+        self.web_lan_switch.setAccessibleName(tr("Reachable from the local network"))
+        self.web_lan_switch.toggled.connect(lambda checked: self._web_option("lan", checked))
+        self.web_autostart_switch = ToggleSwitch()
+        self.web_autostart_switch.setAccessibleName(tr("Start with the session"))
+        self.web_autostart_switch.toggled.connect(self._autostart_web_toggled)
+        options = QHBoxLayout()
+        options.setSpacing(10)
+        for index, (switch, text) in enumerate(((self.web_lan_switch, "Reachable from the local network"),
+                                                (self.web_autostart_switch, "Start with the session"))):
+            if index:
+                options.addSpacing(18)
+            options.addWidget(switch, 0, Qt.AlignmentFlag.AlignVCenter)
+            options.addWidget(self._label(text), 1)
+        connection.addLayout(options)
+        self.web_certificate_button = self._button("Download certificate", self._save_certificate)
+        connection.addWidget(self.web_certificate_button)
         connection.addStretch(1)
         pairing = QVBoxLayout()
-        pairing.setSpacing(0)
+        pairing.setSpacing(6)
         self.pairing_layout.addLayout(pairing)
         self.web_qr_image = QLabel()
         self.web_qr_image.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.web_qr_image.setFixedSize(240, 240)
+        self.web_qr_image.setFixedSize(QR_SIZE, QR_SIZE)
         self.web_qr_image.setWordWrap(True)
         self.web_qr_image.setAccessibleName(tr("Scan to connect"))
         pairing.addWidget(self.web_qr_image, 0, Qt.AlignmentFlag.AlignHCenter)
-        note = self._label("Scan on the same Wi-Fi. This QR contains your access key; keep it private.")
-        note.setFixedWidth(240)
+        note = self._label("Scan to pair. The code works once and renews by itself.")
+        note.setFixedWidth(QR_SIZE)
         note.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
         self.web_qr_note = note
         pairing.addWidget(note)
         pairing.addStretch(1)
-        body.addSpacing(8)
-        self.device_heading = self._label("Connected devices · Read-only until you verify the code and allow control.", strong=True)
-        self.device_heading.setToolTip(tr("Choose an expiry for the selected browser. It takes effect immediately and does not change hardware permissions."))
-        body.addWidget(self.device_heading)
+        body.addWidget(pair_panel)
+
+        # -- Devices ----------------------------------------------------------------------------
+        device_panel, device_box = self._panel(QVBoxLayout)
+        device_box.setSpacing(8)
+        self.device_heading = self._label("Paired devices", strong=True)
+        device_box.addWidget(self.device_heading)
+        self.device_hint = self._label("A paired device keeps hardware control until you disconnect it or create a new access key.")
+        device_box.addWidget(self.device_hint)
         self.device_table = QTableWidget(0, 7)
         self.device_table.setObjectName("remoteDeviceTable")
         self.device_table.setAlternatingRowColors(True)
@@ -391,7 +223,7 @@ class RemoteAccessPage(QWidget):
         self.device_table.itemSelectionChanged.connect(self._update_device_actions)
         self.device_group = QVBoxLayout()
         self.device_group.setSpacing(2)
-        body.addLayout(self.device_group)
+        device_box.addLayout(self.device_group)
         self.device_group.addWidget(self.device_table)
         self.device_grip = ResizeGrip()
         self.device_grip.setAccessibleName(tr("Resize connected devices table"))
@@ -404,77 +236,35 @@ class RemoteAccessPage(QWidget):
         self.device_group.addWidget(self.device_empty_label)
         actions = self.device_actions_layout = QHBoxLayout()
         actions.setSpacing(8)
-        self.device_control_button = self._button("Allow hardware control", self._toggle_selected_device)
+        self.device_control_button = self._button("Approve device", self._approve_selected_device, primary=True)
         self.device_disconnect_button = self._button("Disconnect", self._disconnect_selected_device)
         self.revoke_all_button = self._button("Disconnect all devices", self._revoke_all)
         actions.addWidget(self.device_control_button)
         actions.addWidget(self.device_disconnect_button)
-        self.expiry_label = self._label("Expires in")
-        actions.addWidget(self.expiry_label)
-        self.device_expiry_choice = GuardedComboBox()
-        self.device_expiry_choice.setObjectName("deviceExpiryChoice")
-        self.device_expiry_choice.setMinimumWidth(150)
-        self.device_expiry_choice.setAccessibleName(tr("Session expiry"))
-        for label, seconds in (("Choose duration", None), ("15 minutes", 900), ("30 minutes", 1800),
-                               ("1 hour", 3600), ("8 hours", 28800), ("24 hours", 86400),
-                               ("7 days", 604800), ("30 days", 2592000), ("Custom", -1)):
-            self.device_expiry_choice.addItem(tr(label), seconds)
-        self.device_expiry_choice.currentIndexChanged.connect(self._update_expiry_form)
-        actions.addWidget(self.device_expiry_choice)
-        self.device_expiry_minutes = QSpinBox()
-        self.device_expiry_minutes.setRange(1, 365 * 24 * 60)
-        self.device_expiry_minutes.setValue(60)
-        self.device_expiry_minutes.setSuffix(" min")
-        self.device_expiry_minutes.setAccessibleName(tr("Custom session duration in minutes"))
-        actions.addWidget(self.device_expiry_minutes)
-        self.device_expiry_apply = self._button("Apply expiry", self._apply_selected_expiry)
-        self.device_expiry_apply.setToolTip(tr("The selected duration starts now and replaces the inactivity limit for this session."))
-        actions.addWidget(self.device_expiry_apply)
         actions.addStretch(1)
         actions.addWidget(self.revoke_all_button)
-        self.device_group.addLayout(actions)
+        device_box.addLayout(actions)
+        body.addWidget(device_panel)
 
-        body.addWidget(self._label("Network and connection", strong=True))
-        self.web_lan_switch = ToggleSwitch()
-        self.web_lan_switch.setAccessibleName(tr("Reachable from the local network"))
-        self.web_lan_switch.toggled.connect(lambda checked: self._web_option("lan", checked))
-        self.web_autostart_switch = ToggleSwitch()
-        self.web_autostart_switch.setAccessibleName(tr("Start with the session"))
-        self.web_autostart_switch.toggled.connect(self._autostart_web_toggled)
-        for switch, text in ((self.web_lan_switch, "Reachable from the local network"),
-                             (self.web_autostart_switch, "Start with the session")):
-            row = QHBoxLayout()
-            row.addWidget(switch)
-            row.addWidget(self._label(text), 1)
-            body.addLayout(row)
-        body.addWidget(self._label("HTTPS is required for home-network access. No router ports or public tunnels are configured by this application."))
-        body.addWidget(self._label("Verify HTTPS on your phone", strong=True))
-        body.addWidget(self._label("Save this board's public CA certificate and transfer it privately to your phone. Check its SHA-256 fingerprint before trusting it. Android: install it as a CA certificate. iPhone/iPad: install the profile, then enable full trust in Certificate Trust Settings. Trust it only on devices you own."))
+        # The fingerprint is still kept for anyone who wants to compare it; it is just not shown.
         self.web_fingerprint_box = self._code("")
-        body.addWidget(self.web_fingerprint_box)
-        self.web_certificate_button = self._button("Save public certificate", self._save_certificate)
-        body.addWidget(self.web_certificate_button)
+        self.web_fingerprint_box.hide()
+
         self.timer = QTimer(self)
         self.timer.setInterval(5000)
         self.timer.timeout.connect(self.refresh)
-        self._privacy_cover = _RemotePrivacyCover(self.card)
-        self._privacy_cover.reveal_button.clicked.connect(self._reveal_information)
-        self._privacy_cover.hide()
-        self._privacy_widgets = []
-        self._capturing_privacy_context = False
-        self._privacy_context_timer = QTimer(self)
-        self._privacy_context_timer.setSingleShot(True)
-        self._privacy_context_timer.timeout.connect(self._refresh_privacy_context)
-        self.card.installEventFilter(self)
-        self._scroll.viewport().installEventFilter(self)
-        self._scroll.verticalScrollBar().valueChanged.connect(self._position_privacy_cover)
-        self._privacy_timer = QTimer(self)
-        self._privacy_timer.setSingleShot(True)
-        self._privacy_timer.setTimerType(Qt.TimerType.PreciseTimer)
-        self._privacy_timer.timeout.connect(self._check_privacy)
-        QGuiApplication.instance().applicationStateChanged.connect(self._application_state_changed)
         self.apply_appearance()
         self._render_web()
+
+    # -- building blocks ----------------------------------------------------------------------
+
+    def _panel(self, layout_class):
+        panel = QFrame()
+        panel.setObjectName("remotePanel")
+        layout = layout_class(panel)
+        layout.setContentsMargins(16, 14, 16, 14)
+        self._panels.append(panel)
+        return panel, layout
 
     @staticmethod
     def _label(text: str, *, strong=False) -> QLabel:
@@ -502,14 +292,13 @@ class RemoteAccessPage(QWidget):
 
     def apply_appearance(self):
         self.setStyleSheet(process_stylesheet())
-        self._privacy_cover.apply_appearance()
-        if self._privacy_hidden:
-            self._privacy_context_timer.start(0)
         c = COLORS
-        # Match the light game tables: white rows, a soft grey header and thin
-        # separators. Dark mode retains alternating surfaces for distinction.
         from .. import theme
         light = theme.ACTIVE_MODE == "light"
+        for panel in self._panels:
+            panel.setStyleSheet(scale_stylesheet(
+                f"QFrame#remotePanel {{ background: {c['panel']}; border: 1px solid {c['border_soft']}; border-radius: 12px; }}"
+                "QFrame#remotePanel QLabel { border: none; background: transparent; }"))
         self.device_table.setAlternatingRowColors(not light)
         self.device_table.setStyleSheet(scale_stylesheet(
             f"QTableWidget#remoteDeviceTable {{ background: {c['panel']}; alternate-background-color: {c['panel'] if light else c['panel_alt']};"
@@ -518,218 +307,46 @@ class RemoteAccessPage(QWidget):
             f"QTableWidget#remoteDeviceTable::item:selected {{ background: {c['blue_soft']}; color: {c['text']}; }}"
             f"QTableWidget#remoteDeviceTable QHeaderView::section {{ background: {c['panel_alt']}; color: {c['text']};"
             f" border: none; border-bottom: 1px solid {c['border']}; padding: 9px 8px; font-size: 11px; font-weight: 700; }}"))
-        arrow = (Path(__file__).resolve().parents[1] / "theme" / "icons" / "chevron_down_gray.svg").as_posix()
-        self.device_expiry_choice.setStyleSheet(scale_stylesheet(
-            f"QComboBox#deviceExpiryChoice {{ background: transparent; color: {c['text']}; border: 1px solid {c['border']};"
-            " border-radius: 8px; min-height: 0px; padding: 0px 32px 0px 12px; font-size: 11px; font-weight: 650; }"
-            f"QComboBox#deviceExpiryChoice:hover {{ background: {c['control_hover']}; border-color: {c['border_strong']}; }}"
-            f"QComboBox#deviceExpiryChoice:focus {{ border-color: {c['blue']}; }}"
-            f"QComboBox#deviceExpiryChoice:disabled {{ color: {c['disabled_text']}; border-color: {c['border_soft']}; }}"
-            "QComboBox#deviceExpiryChoice::drop-down { subcontrol-origin: padding; subcontrol-position: center right; width: 28px; border: none; }"
-            f'QComboBox#deviceExpiryChoice::down-arrow {{ image: url("{arrow}"); width: 12px; height: 12px; }}'
-            f"QComboBox#deviceExpiryChoice QAbstractItemView {{ background: {c['panel']}; color: {c['text']};"
-            f" border: 1px solid {c['border']}; selection-background-color: {c['blue_soft']}; selection-color: {c['text']};"
-            " padding: 4px; outline: 0px; font-size: 11px; }"
-            "QComboBox#deviceExpiryChoice QAbstractItemView::item { min-height: 28px; padding: 4px 10px; }"))
-        self.device_disconnect_button.ensurePolished()
-        control_height = self.device_disconnect_button.sizeHint().height()
-        self.device_expiry_choice.setFixedHeight(control_height)
-        self.device_expiry_minutes.setFixedHeight(control_height)
         for box in self._code_boxes:
             box.setStyleSheet(scale_stylesheet(
-                f"background: {COLORS['panel_alt']}; color: {COLORS['text']}; border: 1px solid {COLORS['border_soft']};"
+                f"background: {c['panel_alt']}; color: {c['text']}; border: 1px solid {c['border_soft']};"
                 "border-radius: 8px; padding: 9px 12px; font-family: monospace; font-size: 12px;"))
+        for divider in self._dividers:
+            divider.setStyleSheet(f"QFrame#remoteDivider {{ background: {c['border_soft']}; border: none; }}")
+        self._style_status_pill()
+
+    def _style_status_pill(self):
+        c = COLORS
+        running = bool(self._web_state.get("running"))
+        foreground, background = (c["green"], c["green_soft"]) if running else (c["muted"], c["neutral_soft"])
+        self.web_state_label.setStyleSheet(scale_stylesheet(
+            f"QLabel#remoteStatusPill {{ color: {foreground}; background: {background}; border: none;"
+            " border-radius: 12px; padding: 5px 14px; font-size: 12px; font-weight: 700; }"))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.pairing_layout.setDirection(QBoxLayout.Direction.TopToBottom if self.width() < 740 else QBoxLayout.Direction.LeftToRight)
-        self.device_actions_layout.setDirection(QBoxLayout.Direction.TopToBottom if self.width() < 1000 else QBoxLayout.Direction.LeftToRight)
+        self.device_actions_layout.setDirection(QBoxLayout.Direction.TopToBottom if self.width() < 560 else QBoxLayout.Direction.LeftToRight)
 
     def hideEvent(self, event):
         self._view_settings.sync()
         super().hideEvent(event)
 
-    def showEvent(self, event):
-        super().showEvent(event)
-        if self._privacy_deadline is None:
-            self._conceal_information()
-        else:
-            self._check_privacy()
-        if self._privacy_hidden:
-            # showEvent can precede the final stacked-page layout and style.
-            self._privacy_context_timer.start(0)
-
-    def _start_privacy_window(self):
-        self._privacy_deadline = _privacy_time() + PRIVACY_SECONDS
-        self._privacy_timer.start(PRIVACY_SECONDS * 1000)
-
-    def _check_privacy(self):
-        if self._privacy_hidden or self._privacy_deadline is None:
-            return
-        remaining = self._privacy_deadline - _privacy_time()
-        if remaining > 0:
-            self._privacy_timer.start(max(1, int(remaining * 1000) + 1))
-            return
-        self._conceal_information()
-
-    def _conceal_information(self):
-        if self._privacy_hidden:
-            return
-        self._privacy_hidden = True
-        self._privacy_timer.stop()
-        self.timer.stop()
-        self.web_address.hidePopup()
-        self.device_expiry_choice.hidePopup()
-        QToolTip.hideText()
-        self._privacy_widgets = []
-        self._privacy_card_heights = (self.card.minimumHeight(), self.card.maximumHeight())
-        self.card.setFixedHeight(self.card.height())
-        self._privacy_cover.set_context(self._sanitized_privacy_context())
-        for widget in self.card.findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly):
-            if widget is self._privacy_cover:
-                continue
-            policy = widget.sizePolicy()
-            self._privacy_widgets.append((widget, widget.isHidden(), policy))
-            retained = widget.sizePolicy()
-            retained.setRetainSizeWhenHidden(True)
-            widget.setSizePolicy(retained)
-            widget.hide()
-        self._position_privacy_cover()
-        self._privacy_cover.show()
-        self._privacy_cover.raise_()
-        if self.isVisible():
-            self._privacy_cover.reveal_button.setFocus(Qt.FocusReason.OtherFocusReason)
-
-    def _reveal_information(self):
-        if not self._privacy_hidden:
-            return
-        self._privacy_hidden = False
-        for widget, hidden, policy in self._privacy_widgets:
-            widget.setSizePolicy(policy)
-            widget.setVisible(not hidden)
-        self._privacy_widgets = []
-        self.card.setMinimumHeight(self._privacy_card_heights[0])
-        self.card.setMaximumHeight(self._privacy_card_heights[1])
-        self._render_web()
-        self._privacy_cover.hide()
-        self._privacy_cover.set_context(QPixmap())
-        self._start_privacy_window()
-        if self._updates_active:
-            self.timer.start()
-            self.refresh()
-
-    def _refresh_privacy_context(self):
-        if not self._privacy_hidden or not self.isVisible() or self._capturing_privacy_context:
-            return
-        # Render synchronously without processing screen updates or input.
-        # The snapshot redacts private fields before QWidget.grab paints them.
-        self._capturing_privacy_context = True
-        try:
-            self._privacy_cover.hide()
-            for widget, hidden, _policy in self._privacy_widgets:
-                widget.setVisible(not hidden)
-            self.card.setMinimumHeight(self._privacy_card_heights[0])
-            self.card.setMaximumHeight(self._privacy_card_heights[1])
-            content_layout = self._scroll.widget().layout()
-            content_layout.invalidate()
-            content_layout.activate()
-            self.card.layout().activate()
-            self.card.setFixedHeight(self.card.height())
-            self._privacy_cover.set_context(self._sanitized_privacy_context())
-        finally:
-            for widget, _hidden, _policy in self._privacy_widgets:
-                widget.hide()
-            self._position_privacy_cover()
-            self._privacy_cover.show()
-            self._privacy_cover.raise_()
-            self._capturing_privacy_context = False
-
-    def _sanitized_privacy_context(self):
-        if not self.card.isVisible():
-            return QPixmap()
-        labels = [(self.web_pin_box, self.web_pin_box.text())]
-        address_hidden = self.web_address.isHidden()
-        address_policy = self.web_address.sizePolicy()
-        qr = self.web_qr_image.pixmap()
-        qr_text = self.web_qr_image.text()
-        cells = [(self.device_table.item(row, column), self.device_table.item(row, column).text())
-                 for row in range(self.device_table.rowCount()) for column in range(self.device_table.columnCount())
-                 if self.device_table.item(row, column) is not None]
-        signals_blocked = self.device_table.blockSignals(True)
-        try:
-            for label, _text in labels:
-                label.setText("•••• ••••")
-            policy = self.web_address.sizePolicy()
-            policy.setRetainSizeWhenHidden(True)
-            self.web_address.setSizePolicy(policy)
-            self.web_address.hide()
-            placeholder = QPixmap(self.web_qr_image.size())
-            placeholder.fill(QColor(COLORS["panel"]))
-            painter = QPainter(placeholder)
-            colour = QColor(COLORS["text"])
-            colour.setAlpha(100)
-            # Decorative blocks suggest the QR's position, never its contents.
-            cell = min(placeholder.width(), placeholder.height()) // 8
-            for row in range(6):
-                for column in range(6):
-                    if (row * 7 + column * 11 + row * column) % 5 < 3:
-                        painter.fillRect((column + 1) * cell, (row + 1) * cell, cell, cell, colour)
-            painter.end()
-            self.web_qr_image.setPixmap(placeholder)
-            for item, _text in cells:
-                item.setText("••••")
-            return self.card.grab()
-        finally:
-            for label, text in labels:
-                label.setText(text)
-            self.web_address.setSizePolicy(address_policy)
-            self.web_address.setVisible(not address_hidden)
-            if qr is not None and not qr.isNull():
-                self.web_qr_image.setPixmap(qr)
-            else:
-                self.web_qr_image.setText(qr_text)
-            for item, text in cells:
-                item.setText(text)
-            self.device_table.blockSignals(signals_blocked)
-
-    def _position_privacy_cover(self):
-        if not self._privacy_hidden:
-            return
-        self._privacy_cover.setGeometry(self.card.rect().adjusted(1, 1, -1, -1))
-        viewport = self._scroll.viewport()
-        visible = self.card.rect().intersected(QRect(self.card.mapFrom(viewport, QPoint(0, 0)), viewport.size()))
-        self._privacy_cover.set_visible_region(visible.translated(-1, -1))
-
-    def eventFilter(self, watched, event):
-        if event.type() in (QEvent.Type.Resize, QEvent.Type.Move) and self._privacy_hidden:
-            QTimer.singleShot(0, self._position_privacy_cover)
-            if event.type() == QEvent.Type.Resize and not self._capturing_privacy_context:
-                self._privacy_context_timer.start(0)
-        return super().eventFilter(watched, event)
-
-    def _application_state_changed(self, state):
-        if state == Qt.ApplicationState.ApplicationActive:
-            self._check_privacy()
+    # -- refresh --------------------------------------------------------------------------------
 
     def set_updates_active(self, active):
         self._updates_active = bool(active)
-        self._check_privacy()
-        if active and not self._privacy_hidden:
+        if active:
             self.timer.start()
             self.refresh()
         else:
             self.timer.stop()
 
     def refresh(self):
-        self._check_privacy()
-        if self._privacy_hidden:
-            return
         self._background.start("web_status", web_access.status, on_success=self._apply_web,
-                               on_error=lambda message: self.web_state_label.setText(tr(message)))
+                               on_error=lambda message: self.web_notice.setText(tr(message)))
 
     def retranslate_dynamic_copy(self):
-        self.privacy_lock_button.setText(tr("Lock view"))
-        self._privacy_cover.retranslate()
         self._render_web()
 
     def _apply_web(self, state):
@@ -750,9 +367,19 @@ class RemoteAccessPage(QWidget):
                 self._name_health_display = health
         self._render_web()
 
+    def _notice(self, state, firewall):
+        """A plain sentence only when something blocks pairing; empty when all is well."""
+        if not state.get("running"):
+            return "Start web access to pair a phone."
+        if not state.get("lan"):
+            return "Turn on local network access below so phones can connect."
+        if firewall.get("state") in {"blocked", "needs_check", "update_helper"}:
+            return "The firewall may be blocking other devices. Use Configure LAN firewall."
+        if firewall.get("state") == "no_network":
+            return "No connected private network was detected. Connect this board to your Wi-Fi or cable."
+        return ""
+
     def _render_web(self):
-        if self._privacy_hidden:
-            return
         state = self._web_state
         health = self._name_health_display if self._name_health_display is not None else state.get("name_health") or {}
         messages = {
@@ -760,10 +387,10 @@ class RemoteAccessPage(QWidget):
             "publication_failed": "The local address is not advertised yet. Use the numeric address or repair local name discovery.",
             "conflict": "The local address points to another device. Use the numeric address.",
             "unavailable": "Local name resolution could not be checked. Use the numeric address.",
-            "ready": "The local address works on this computer. Other devices must support local network name resolution.",
         }
+        # Only problems are shown: a working setup needs no explanation.
         self.web_name_status.setText(tr(messages.get(health.get("status"), "")))
-        self.web_name_status.setVisible(bool(state.get("lan")))
+        self.web_name_status.setVisible(bool(state.get("lan")) and health.get("status") in messages)
         # A successful host NSS lookup does not prove a Flatpak browser can
         # resolve the alias. Keep explicit repair reachable for that case.
         self.web_name_repair.setVisible(
@@ -775,24 +402,27 @@ class RemoteAccessPage(QWidget):
         firewall_messages = {
             "blocked": "The firewall may block access from other devices. Configure LAN access below.",
             "needs_check": "The firewall needs an administrator check before LAN access can be configured.",
-            "ready": "Firewall rules allow this port on the detected LAN networks. Connect your phone to the same network.",
             "inactive": "UFW is inactive. If connection fails, check Wi-Fi isolation and other network filters.",
             "unknown": "The firewall could not be checked. LAN connectivity is not verified.",
             "unsupported": "Custom or multiple firewall managers detected. Automatic changes are unavailable.",
-            "no_network": "No connected private IPv4 network was detected.",
             "update_helper": "Update or reinstall Control Center to install the LAN firewall helper.",
         }
         text = tr(firewall_messages.get(firewall.get("state"), ""))
-        if firewall.get("networks"):
+        if text and firewall.get("networks"):
             text += "\nTCP " + str(state.get("port", 8250)) + " · " + ", ".join(firewall["networks"])
         self.web_firewall_status.setText(text)
-        self.web_firewall_status.setVisible(bool(state.get("lan")))
+        self.web_firewall_status.setVisible(bool(state.get("lan")) and bool(text))
         self.web_firewall_repair.setVisible(bool(state.get("lan")) and (bool(firewall.get("repairable")) or self._firewall_repair_pending))
         self.web_firewall_repair.setEnabled(not self._firewall_repair_pending)
         running = bool(state.get("running"))
         urls = state.get("urls") or []
         available = urls or ([state["local_url"]] if state.get("local_url") else [])
         self.web_state_label.setText(tr("Web access is active" if running else "Web access is stopped"))
+        notice = self._notice(state, firewall)
+        self.web_notice.setText(tr(notice) if notice else "")
+        self.web_notice.setVisible(bool(notice))
+        self.key_row.setVisible(running and bool(state.get("key")))
+        self._style_status_pill()
         self.web_switch_button.setEnabled(not self._background.is_running("switch_web"))
         self.web_switch_button.setText(tr("Stop web access" if running else "Start web access"))
         self.web_switch_button.setProperty("PrimaryAction", not running)
@@ -822,29 +452,46 @@ class RemoteAccessPage(QWidget):
         finally:
             self._syncing_web = False
         fingerprint = state.get("trust_fingerprint") or ""
-        self.web_fingerprint_box.setText("SHA-256\n" + fingerprint if fingerprint else tr("Start web access to prepare the certificate."))
+        self.web_fingerprint_box.setText("SHA-256\n" + fingerprint if fingerprint else "")
         self.web_certificate_button.setEnabled(bool(fingerprint))
         self._render_qr()
         self._render_devices()
 
+    # -- QR pairing -----------------------------------------------------------------------------
+
+    def _current_pair_token(self):
+        """The token the QR carries: kept while fresh, replaced once used or close to expiry."""
+        token = self._pair_token
+        try:
+            age = web_pairing.age(token) if token else None
+            if age is None or age > web_pairing.RENEW_SECONDS:
+                token = self._pair_token = web_pairing.issue()
+        except OSError:
+            return None
+        return token
+
     def _render_qr(self):
         state = self._web_state
         address = self.web_address.currentText()
-        signature = (address, state.get("key"), state.get("running"), state.get("tls", True), state.get("lan"))
+        ready = bool(state.get("running") and state.get("lan") and address.startswith("https://"))
+        token = self._current_pair_token() if ready else None
+        signature = (address, token, state.get("running"), state.get("tls", True), state.get("lan"))
         if signature == self._qr_signature:
             return
         self._qr_signature = signature
-        if not state.get("running") or not state.get("lan") or not address.startswith("https://") or not state.get("key"):
+        if not ready or not token:
             self.web_qr_image.clear()
             self.web_qr_image.setText(tr("Start web access and enable the local network to display your QR here."))
             return
-        renderer = QSvgRenderer(QByteArray(web_access.pairing_svg(address + "#pair=" + state["key"])))
+        renderer = QSvgRenderer(QByteArray(web_access.pairing_svg(address + "#pair=" + token)))
         pixmap = QPixmap(self.web_qr_image.size())
         pixmap.fill(Qt.GlobalColor.white)
         painter = QPainter(pixmap)
         renderer.render(painter)
         painter.end()
         self.web_qr_image.setPixmap(pixmap)
+
+    # -- devices --------------------------------------------------------------------------------
 
     def _selected_device(self):
         row = self.device_table.currentRow()
@@ -856,10 +503,17 @@ class RemoteAccessPage(QWidget):
         devices = self._web_state.get("devices") or []
         selected = self._selected_device()
         selected_id = selected["id"] if selected else None
+        # The page draws once before the first status arrives: only a real list can
+        # be compared, or every saved device looks new each time the app opens.
+        if "devices" in self._web_state:
+            identifiers = {device["id"] for device in devices}
+            if self._known_devices is not None and identifiers - self._known_devices:
+                show_toast(self, tr("Remote access"), tr("New device paired"), tone="green")
+            self._known_devices = identifiers
         position = self.device_table.verticalScrollBar().value()
         self.device_table.blockSignals(True)
         self.device_table.setHorizontalHeaderLabels([tr(label) for label in (
-            "Device", "IP address", "Device code", "Permissions", "Status", "Last activity", "Expires")])
+            "Device", "IP address", "Device code", "Permissions", "Status", "Last activity", "Session")])
         self.device_table.setRowCount(len(devices))
         self.device_table.clearSelection()
         now = time.time()
@@ -886,6 +540,8 @@ class RemoteAccessPage(QWidget):
                 today = datetime.fromtimestamp(now).astimezone()
                 if expiry_date.date() != today.date():
                     expiry_text = expiry_date.strftime("%d/%m/%Y %H:%M" if expiry_date.year != today.year else "%d/%m %H:%M")
+            if web_access.is_permanent(device):
+                expiry_text, expiry_full = tr("Permanent"), ""
             values = (" · ".join(part for part in (platform, browser) if part), device.get("address", "—"),
                       device["id"][:8], tr("Hardware control" if device.get("control") else "Monitoring only"),
                       tr("Active" if active else "Idle") if seen else "—", seen_text, expiry_text)
@@ -924,41 +580,15 @@ class RemoteAccessPage(QWidget):
 
     def _update_device_actions(self):
         device = self._selected_device()
-        self.device_control_button.setEnabled(device is not None)
+        approved = bool(device and device.get("control") and web_access.is_permanent(device))
+        self.device_control_button.setEnabled(device is not None and not approved)
+        self.device_control_button.setText(tr("Approved" if approved else "Approve device"))
         self.device_disconnect_button.setEnabled(device is not None)
-        self.device_control_button.setText(tr("Monitoring only" if device and device.get("control") else "Allow hardware control"))
-        signature = (device["id"], device.get("duration_seconds")) if device else None
-        if signature != self._expiry_signature:
-            self._expiry_signature = signature
-            seconds = device.get("duration_seconds") if device else None
-            self.device_expiry_choice.blockSignals(True)
-            index = self.device_expiry_choice.findData(seconds)
-            if seconds is not None and index < 0:
-                index = self.device_expiry_choice.findData(-1)
-                self.device_expiry_minutes.setValue(max(1, int(seconds) // 60))
-            self.device_expiry_choice.setCurrentIndex(max(0, index))
-            self.device_expiry_choice.blockSignals(False)
-        self.device_expiry_choice.setEnabled(device is not None)
-        self.device_expiry_minutes.setEnabled(device is not None)
-        self._update_expiry_form()
 
-    def _update_expiry_form(self):
-        value = self.device_expiry_choice.currentData()
-        self.device_expiry_minutes.setVisible(value == -1)
-        self.device_expiry_apply.setEnabled(self._selected_device() is not None and value is not None)
-
-    def _apply_selected_expiry(self):
-        device = self._selected_device()
-        value = self.device_expiry_choice.currentData()
-        if device is None or value is None:
-            return
-        seconds = self.device_expiry_minutes.value() * 60 if value == -1 else int(value)
-        self._run("device_expiry", lambda: web_access.set_lifetime(device["id"], seconds))
-
-    def _toggle_selected_device(self):
+    def _approve_selected_device(self):
         device = self._selected_device()
         if device:
-            self._device_control(device["id"], not bool(device.get("control")))
+            self._run("device_approve", lambda: web_access.approve(device["id"]))
 
     def _disconnect_selected_device(self):
         device = self._selected_device()
@@ -966,27 +596,23 @@ class RemoteAccessPage(QWidget):
             self._run("revoke", lambda: web_access.revoke(device["id"]))
 
     def _run(self, name, work):
-        self._check_privacy()
-        if self._privacy_hidden:
-            return
         self._background.start(name, work, on_success=lambda _r: self.refresh(),
                                on_error=lambda message: show_toast(self, tr("Remote access"), tr(message), tone="red"))
-
-    def _device_control(self, device, allowed):
-        self._run("device_control", lambda: web_access.set_control(device, allowed))
 
     def _revoke_all(self):
         self._run("revoke_all", web_access.revoke_all)
 
+    # -- network repairs --------------------------------------------------------------------------
+
     def _repair_firewall(self):
-        self._check_privacy()
-        if self._privacy_hidden or self._firewall_repair_pending:
+        if self._firewall_repair_pending:
             return
         self._firewall_repair_pending = True
         self._render_web()
         networks = ", ".join((self._web_state.get("firewall") or {}).get("networks", []))
         message = tr("Allow this web port only from the connected private networks? Existing firewall rules are preserved. Administrator authorization is required.")
         message += "\n\nTCP " + str(self._web_state.get("port", 8250)) + " · " + networks
+
         def finished():
             self._firewall_repair_pending = False
             self._render_web()
@@ -1004,8 +630,7 @@ class RemoteAccessPage(QWidget):
             finished()
 
     def _repair_local_name(self):
-        self._check_privacy()
-        if self._privacy_hidden or self._name_repair_pending:
+        if self._name_repair_pending:
             return
         self._name_repair_pending = True
         self._render_web()
@@ -1031,6 +656,8 @@ class RemoteAccessPage(QWidget):
             self._name_repair_pending = False
             self._render_web()
 
+    # -- actions ----------------------------------------------------------------------------------
+
     def _toggle_web(self):
         running = bool(self._web_state.get("running"))
         self.web_switch_button.setEnabled(False)
@@ -1043,9 +670,6 @@ class RemoteAccessPage(QWidget):
         self._run("switch_web", apply)
 
     def _open_web(self):
-        self._check_privacy()
-        if self._privacy_hidden:
-            return
         url = self.web_address.currentText()
         if url:
             QDesktopServices.openUrl(QUrl(url))
@@ -1057,7 +681,6 @@ class RemoteAccessPage(QWidget):
     def _web_option(self, name, checked):
         if self._syncing_web:
             return
-
         self._run("web_option", lambda: web_access.configure(**{name: checked}, tls=True))
 
     def _new_web_key(self):
@@ -1070,24 +693,18 @@ class RemoteAccessPage(QWidget):
         self._copy(self._web_state.get("key", ""))
 
     def _copy(self, text):
-        self._check_privacy()
-        if self._privacy_hidden:
-            return
         if text:
             QGuiApplication.clipboard().setText(text)
             show_toast(self, tr("Copied"), tr("Remote access"), tone="green")
 
     def _save_certificate(self):
-        self._check_privacy()
-        if self._privacy_hidden:
-            return
         try:
             source = web_access.trust_certificate()
-            target, _filter = QFileDialog.getSaveFileName(self, tr("Save public certificate"),
+            target, _filter = QFileDialog.getSaveFileName(self, tr("Download certificate"),
                                                         str(Path.home() / "BC250-local-authority.crt"), "Certificate (*.crt)")
             if target:
                 if Path(target).resolve() != source.resolve():
                     shutil.copyfile(source, target)
-                show_toast(self, tr("Remote access"), tr("Public certificate saved. The private key stays on this board."), tone="green")
+                show_toast(self, tr("Remote access"), tr("Certificate saved. Install it on your phone to trust this board."), tone="green")
         except (OSError, RuntimeError) as error:
             show_toast(self, tr("Remote access"), str(error), tone="red")

@@ -14,6 +14,9 @@ from bc250cc.infrastructure.persistence.config_paths import app_config_dir
 MAX_DEVICES = 16
 IDLE_SECONDS = 30 * 60
 MAX_SESSION_SECONDS = 365 * 24 * 3600
+#: An approved device is trusted until the owner disconnects it or renews the access key.
+PERMANENT_SECONDS = 50 * 365 * 24 * 3600
+_PERMANENT = {"control": True, "permanent": True, "idle_seconds": None, "duration_seconds": None}
 
 
 def identity(token: str) -> str:
@@ -50,7 +53,13 @@ def _store():
             fcntl.flock(lock, fcntl.LOCK_UN)
 
 
-def register(token: str, address: str, agent: str, lifetime: int, *, key_id: str = "") -> str:
+def register(token: str, address: str, agent: str, lifetime: int, *, key_id: str = "",
+             trusted: bool = False) -> str:
+    """Register a browser session.
+
+    ``trusted`` is a device paired by scanning the QR shown on this board's own
+    screen: it gets hardware control and a session that never expires.
+    """
     device = identity(token)
     with _store() as data:
         if len(data) >= MAX_DEVICES:
@@ -59,7 +68,23 @@ def register(token: str, address: str, agent: str, lifetime: int, *, key_id: str
         data[device] = {"id": device, "address": address, "agent": agent[:160],
                         "created": now, "seen": now, "expires": now + lifetime, "control": False,
                         "idle_seconds": IDLE_SECONDS, "duration_seconds": None, "key_id": key_id}
+        if trusted:
+            data[device].update(_PERMANENT)
+            data[device]["expires"] = now + PERMANENT_SECONDS
     return device
+
+
+def is_permanent(device: dict) -> bool:
+    return bool(device.get("permanent"))
+
+
+def approve(device: str) -> None:
+    """The desktop owner approves a device: hardware control and no session limit."""
+    with _store() as data:
+        if device not in data:
+            raise ValueError("This browser session has expired")
+        data[device].update(_PERMANENT)
+        data[device]["expires"] = time.time() + PERMANENT_SECONDS
 
 
 def deadline(device: dict) -> float:

@@ -2611,3 +2611,134 @@ INTERFACE_TRANSLATIONS.update(dict([
 INTERFACE_TRANSLATIONS.update(dict([
     _e('A local address entry lets this computer reach bc250cc.local even when its browser cannot use mDNS.', 'Una entrada de dirección local permite a este equipo acceder a bc250cc.local aunque su navegador no pueda usar mDNS.', 'Uma entrada de endereço local permite acessar bc250cc.local mesmo quando o navegador não pode usar mDNS.', 'Локальная запись адреса позволяет этому компьютеру открывать bc250cc.local, даже если браузер не поддерживает mDNS.', 'Локальний запис адреси дозволяє цьому комп’ютеру відкривати bc250cc.local, навіть якщо браузер не підтримує mDNS.', 'Ein lokaler Adresseintrag ermöglicht diesem Computer den Zugriff auf bc250cc.local, auch wenn der Browser kein mDNS verwenden kann.'),
 ]))
+
+# SteamOS upstream Proton integration; exact Spanish copy for incremental UI updates.
+INTERFACE_TRANSLATIONS.update({
+    "BC-250 GE-Proton · SteamOS": {
+        "es": "BC-250 GE-Proton · SteamOS"
+    },
+    "SteamOS · keyboardspecialist upstream": {
+        "es": "SteamOS · toolkit de keyboardspecialist"
+    },
+    "Check Proton": {
+        "es": "Comprobar Proton"
+    },
+    "Remove Proton": {
+        "es": "Quitar Proton"
+    },
+    "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": {
+        "es": "Usa el instalador del toolkit de keyboardspecialist para gestionar BC-250 GE-Proton en tu carpeta de Steam. Requiere tener activo el runtime FSR4 RADV del toolkit. Reinicia Steam después de los cambios y selecciona BC-250 GE-Proton para cada juego."
+    },
+    "Remove BC-250 GE-Proton": {
+        "es": "Quitar BC-250 GE-Proton"
+    },
+    "Install / update BC-250 GE-Proton": {
+        "es": "Instalar / actualizar BC-250 GE-Proton"
+    },
+    "The upstream toolkit removes its managed GE-Proton tool. Steam prefixes and saved games are preserved. Restart Steam afterwards.": {
+        "es": "El toolkit elimina la herramienta GE-Proton que gestiona. Conserva los prefijos de Steam y las partidas guardadas. Reinicia Steam después."
+    },
+    "Downloads and runs keyboardspecialist's current upstream Proton installer. It verifies the BC-250 GE-Proton download and installs it in your Steam folder. The toolkit checks that FSR4 RADV is active first. Restart Steam and select BC-250 GE-Proton per game. Do not use FSR4 injection in anti-cheat games.": {
+        "es": "Descarga y ejecuta el instalador actual de Proton de keyboardspecialist. Verifica la descarga de BC-250 GE-Proton y lo instala en tu carpeta de Steam. El toolkit comprueba primero que FSR4 RADV esté activo. Reinicia Steam y selecciona BC-250 GE-Proton para cada juego. No uses la inyección FSR4 en juegos con anticheat."
+    },
+    "Opened the upstream Proton workflow. Read the terminal result; restart Steam after installing, updating or removing the tool.": {
+        "es": "Se abrió el flujo de Proton del toolkit. Lee el resultado en la terminal; reinicia Steam después de instalar, actualizar o quitar la herramienta."
+    },
+    "Could not manage SteamOS GE-Proton": {
+        "es": "No se pudo gestionar GE-Proton de SteamOS"
+    },
+    "The SteamOS GE-Proton action did not complete.": {
+        "es": "La operación de GE-Proton de SteamOS no se completó."
+    },
+    "The upstream installer stopped. Its preceding message identifies the missing RADV prerequisite, download, integrity or installation problem.": {
+        "es": "El instalador del toolkit se detuvo. El mensaje anterior identifica el requisito RADV pendiente o el problema de descarga, integridad o instalación."
+    },
+    "Follow the upstream message in this log, then retry Install / update. A missing tool in a status check does not require reinstalling Control Center.": {
+        "es": "Sigue el mensaje del toolkit en este registro y vuelve a intentar Instalar / actualizar. Si la herramienta no está instalada al comprobar su estado, no necesitas reinstalar Control Center."
+    }
+})
+
+# Remote access: QR pairing, one-click approval and a simpler layout.
+INTERFACE_TRANSLATIONS.update({
+    "Pair a device": {"es": "Emparejar un dispositivo"},
+    "Remote access key": {"es": "Clave de acceso remoto"},
+    "Connect your phone to the same Wi-Fi and scan the code. It pairs right away with full hardware control, with no key to type.": {
+        "es": "Conecta tu teléfono a la misma red Wi-Fi y escanea el código. Se empareja al instante con control total del hardware, sin escribir ninguna clave."},
+    "Scan to pair. The code works once and renews by itself.": {
+        "es": "Escanea para emparejar. El código sirve una sola vez y se renueva solo."},
+    "Paired devices": {"es": "Dispositivos emparejados"},
+    "A paired device keeps hardware control until you disconnect it or create a new access key.": {
+        "es": "Un dispositivo emparejado conserva el control del hardware hasta que lo desconectes o crees una nueva clave de acceso."},
+    "Approve device": {"es": "Aprobar dispositivo"},
+    "Approved": {"es": "Aprobado"},
+    "Permanent": {"es": "Permanente"},
+    "Session": {"es": "Sesión"},
+    "New device paired": {"es": "Nuevo dispositivo emparejado"},
+    "Download certificate": {"es": "Descargar certificado"},
+    "Certificate saved. Install it on your phone to trust this board.": {
+        "es": "Certificado guardado. Instálalo en tu teléfono para confiar en esta placa."},
+    "Start web access to pair a phone.": {"es": "Inicia el acceso web para emparejar un teléfono."},
+    "Turn on local network access below so phones can connect.": {
+        "es": "Activa abajo el acceso desde la red local para que los teléfonos puedan conectarse."},
+    "The firewall may be blocking other devices. Use Configure LAN firewall.": {
+        "es": "El firewall podría estar bloqueando otros dispositivos. Usa Configurar firewall de la red local."},
+    "No connected private network was detected. Connect this board to your Wi-Fi or cable.": {
+        "es": "No se detectó ninguna red privada conectada. Conecta esta placa a tu Wi-Fi o cable."},
+})
+
+# Diagnoses added for the reports of November 2026.
+INTERFACE_TRANSLATIONS.update({
+    "This system's package list is out of date.": {"es": "La lista de paquetes de este sistema está desactualizada."},
+    "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": {
+        "es": "La lista de paquetes de este equipo nombra versiones que los mirrors ya no tienen. Ocurre cuando el sistema lleva un tiempo sin actualizarse."},
+    "Update the system with sudo pacman -Syu, then run this action again.": {
+        "es": "Actualiza el sistema con sudo pacman -Syu y vuelve a ejecutar esta acción."},
+    "Wine could not start.": {"es": "Wine no pudo iniciarse."},
+    "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": {
+        "es": "Wine no pudo cargar sus propios archivos de Windows, así que la versión de Proton que usa o su prefijo de Wine están incompletos."},
+    "In Steam, verify the files of the Proton version in use, then run this action again.": {
+        "es": "En Steam, verifica los archivos de la versión de Proton en uso y vuelve a ejecutar esta acción."},
+})
+
+# Polish for the strings added incrementally above (from the generated pl catalog).
+INTERFACE_POLISH_ADDITIONS = {
+    "BC-250 GE-Proton · SteamOS": "BC-250 GE-Proton · SteamOS",
+    "SteamOS · keyboardspecialist upstream": "SteamOS · Specjalista od obsługi klawiatur",
+    "Check Proton": "Sprawdź Proton",
+    "Remove Proton": "Usuń Proton",
+    "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "Używa instalatora starszego od KeyboardSpecialist do zarządzania BC-250 GE-Proton w folderze Steam. Wymaga aktywnego środowiska wykonawczego FSR4 RADV pakietu narzędzi. Uruchom ponownie Steam po zmianach i wybierz BC-250 GE-Proton dla każdej gry.",
+    "Remove BC-250 GE-Proton": "Usuń BC-250 GE-Proton",
+    "Install / update BC-250 GE-Proton": "Zainstaluj/zaktualizuj BC-250 GE-Proton",
+    "The upstream toolkit removes its managed GE-Proton tool. Steam prefixes and saved games are preserved. Restart Steam afterwards.": "Zestaw narzędzi nadrzędnych usuwa zarządzane narzędzie GE-Proton. Prefiksy Steam i zapisane gry zostaną zachowane. Uruchom ponownie Steam później.",
+    "Downloads and runs keyboardspecialist's current upstream Proton installer. It verifies the BC-250 GE-Proton download and installs it in your Steam folder. The toolkit checks that FSR4 RADV is active first. Restart Steam and select BC-250 GE-Proton per game. Do not use FSR4 injection in anti-cheat games.": "Pobiera i uruchamia bieżący instalator Proton firmy KeyboardSpecialist. Weryfikuje pobrany plik BC-250 GE-Proton i instaluje go w folderze Steam. Zestaw narzędzi sprawdza najpierw, czy FSR4 RADV jest aktywny. Uruchom ponownie Steam i wybierz BC-250 GE-Proton na grę. Nie używaj wtrysku FSR4 w grach zapobiegających oszustwom.",
+    "Opened the upstream Proton workflow. Read the terminal result; restart Steam after installing, updating or removing the tool.": "Otworzono przepływ pracy poprzedzający Proton. Przeczytaj wynik końcowy; uruchom ponownie Steam po zainstalowaniu, aktualizacji lub usunięciu narzędzia.",
+    "Could not manage SteamOS GE-Proton": "Nie można zarządzać SteamOS GE-Proton",
+    "The SteamOS GE-Proton action did not complete.": "Akcja SteamOS GE-Proton nie została ukończona.",
+    "The upstream installer stopped. Its preceding message identifies the missing RADV prerequisite, download, integrity or installation problem.": "Instalator nadrzędny został zatrzymany. Poprzedzający go komunikat wskazuje brakujący problem z wymaganiami wstępnymi RADV, pobieraniem, integralnością lub instalacją.",
+    "Follow the upstream message in this log, then retry Install / update. A missing tool in a status check does not require reinstalling Control Center.": "Postępuj zgodnie z komunikatem źródłowym w tym dzienniku, a następnie ponów próbę instalacji/aktualizacji. Brakujące narzędzie w sprawdzaniu stanu nie wymaga ponownej instalacji Centrum sterowania.",
+    "Pair a device": "Sparuj urządzenie",
+    "Remote access key": "Klucz zdalnego dostępu",
+    "Connect your phone to the same Wi-Fi and scan the code. It pairs right away with full hardware control, with no key to type.": "Podłącz telefon do tej samej sieci Wi-Fi i zeskanuj kod. Można go od razu sparować z pełną kontrolą sprzętu, bez konieczności pisania za pomocą klawisza.",
+    "Scan to pair. The code works once and renews by itself.": "Zeskanuj, aby sparować. Kod działa raz i odnawia się sam.",
+    "Paired devices": "Sparowane urządzenia",
+    "A paired device keeps hardware control until you disconnect it or create a new access key.": "Sparowane urządzenie zachowuje kontrolę nad sprzętem do czasu jego rozłączenia lub utworzenia nowego klucza dostępu.",
+    "Approve device": "Zatwierdź urządzenie",
+    "Approved": "Zatwierdzone",
+    "Permanent": "Stałe",
+    "Session": "Sesja",
+    "New device paired": "Nowe urządzenie zostało sparowane",
+    "Download certificate": "Pobierz certyfikat",
+    "Certificate saved. Install it on your phone to trust this board.": "Certyfikat został zapisany. Zainstaluj go na swoim telefonie, aby zaufać tej tablicy.",
+    "Start web access to pair a phone.": "Uruchom dostęp do Internetu, aby sparować telefon.",
+    "Turn on local network access below so phones can connect.": "Włącz poniżej dostęp do sieci lokalnej, aby telefony mogły się łączyć.",
+    "The firewall may be blocking other devices. Use Configure LAN firewall.": "Zapora sieciowa może blokować inne urządzenia. Użyj opcji Konfiguruj zaporę sieci LAN.",
+    "No connected private network was detected. Connect this board to your Wi-Fi or cable.": "Nie wykryto podłączonej sieci prywatnej. Podłącz tę płytkę do sieci Wi-Fi lub kabla.",
+    "This system's package list is out of date.": "Lista pakietów tego systemu jest nieaktualna.",
+    "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.": "Lista pakietów na tym komputerze zawiera nazwy wersji, których serwery lustrzane już nie obsługują. Dzieje się tak, gdy system nie był aktualizowany przez jakiś czas.",
+    "Update the system with sudo pacman -Syu, then run this action again.": "Zaktualizuj system za pomocą sudo pacman -Syu, a następnie uruchom tę akcję ponownie.",
+    "Wine could not start.": "Nie można uruchomić Wine.",
+    "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.": "Wine nie mogło załadować własnych plików Windows, więc używana przez niego kompilacja Proton lub jej przedrostek Wine jest niekompletny.",
+    "In Steam, verify the files of the Proton version in use, then run this action again.": "W Steam sprawdź pliki używanej wersji Proton, a następnie uruchom tę akcję ponownie.",
+}
+for _source, _polish in INTERFACE_POLISH_ADDITIONS.items():
+    INTERFACE_TRANSLATIONS.setdefault(_source, {})["pl"] = _polish

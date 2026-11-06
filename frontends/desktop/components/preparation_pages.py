@@ -720,6 +720,25 @@ class PreparationPagesMixin:
         gfx_layout.insertWidget(actions_index, self.bazzite_launch_row)
         gfx_layout.insertWidget(actions_index, self.bazzite_enable_row)
         layout.addWidget(self.gfx_card)
+        self.steamos_proton_card = PreparationInfoCard(
+            "BC-250 GE-Proton · SteamOS",
+            "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.",
+            scope_text="SteamOS · keyboardspecialist upstream",
+            status_text="Optional",
+        )
+        for action, label in (
+            ("install", "Install / update"),
+            ("status", "Check Proton"),
+            ("uninstall", "Remove Proton"),
+        ):
+            self.steamos_proton_card.add_action(
+                label, {"action": f"steamos_proton_{action}", "governor": ""},
+                danger=action == "uninstall",
+            )
+        self.steamos_proton_card.action_requested.connect(self._forward_dependency_action)
+        self.steamos_proton_card.hide()
+        self.steamos_proton_card.setEnabled(False)
+        layout.addWidget(self.steamos_proton_card)
         self.cachyos_stack_card = PreparationInfoCard(
             "Arch / CachyOS BC-250 graphics stack · includes GFX1013 fix",
             "MastaG's matched kernel and Mesa/RADV include the GFX1013 async-compute fix. They can be installed separately or together; the current kernel stays as a boot fallback.",

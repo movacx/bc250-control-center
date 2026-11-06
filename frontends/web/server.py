@@ -34,7 +34,7 @@ from cheroot.ssl.builtin import BuiltinSSLAdapter
 from cheroot.wsgi import Server as WsgiServer
 
 from bc250cc.application import ApplicationContainer
-from bc250cc.application.system import web_access, web_network
+from bc250cc.application.system import web_access, web_network, web_pairing
 from bc250cc.application.system import web_announcement as web_mdns
 from bc250cc.application.system import web_sessions as web_devices
 from bc250cc.application.system.privacy import redact_machine
@@ -63,9 +63,12 @@ web_access.require_supported_version()
 
 logger = logging.getLogger(__name__)
 DIST = Path(__file__).resolve().parent / "dist"
+VERSION_FILE = Path(__file__).resolve().parents[2] / "VERSION"
 COOKIE = "bc250_session"
 SESSION_SECONDS = 8 * 3600
 SESSION_COOKIE_SECONDS = web_devices.MAX_SESSION_SECONDS
+#: Browsers cap a cookie's life at about 400 days; a paired device is renewed on every visit.
+PERMANENT_COOKIE_SECONDS = 400 * 24 * 3600
 MAX_FAILS, LOCK_SECONDS = 5, 300
 MAX_BODY = 64 * 1024
 CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; "
@@ -145,8 +148,10 @@ class Web:
             if self.locked(who):
                 raise PermissionError
             self._sync_key()
-            if not same_key(key, self.key):
-                self.fails[who].append(time.monotonic())
+            # The key shown on the board and the one-time QR token prove the same
+            # thing: this person can see the board. Either trusts the device.
+            if not same_key(key, self.key) and not web_pairing.consume(str(key or "")):
+                self.fails.setdefault(who, []).append(time.monotonic())
                 return None
             self.fails.pop(who, None)
             now = time.monotonic()
@@ -156,8 +161,8 @@ class Web:
                     self._drop_session(token)
             session = secrets.token_urlsafe(32)
             csrf = self._csrf(session)
-            web_devices.register(session, who, agent, SESSION_SECONDS, key_id=self._key_id())
-            self.sessions[session] = (csrf, now + SESSION_SECONDS)
+            web_devices.register(session, who, agent, SESSION_SECONDS, key_id=self._key_id(), trusted=True)
+            self.sessions[session] = (csrf, now + web_devices.PERMANENT_SECONDS)
             return session, csrf
 
     def _key_id(self) -> str:
@@ -191,7 +196,8 @@ class Web:
                 self.sessions[token] = (csrf, expires)
             # A desktop-selected duration is authoritative; do not silently
             # reapply the original eight-hour cap held in this process.
-            legacy_expired = expires <= time.monotonic() and device.get("duration_seconds") is None
+            legacy_expired = (expires <= time.monotonic() and device.get("duration_seconds") is None
+                              and not web_devices.is_permanent(device))
             if not csrf or not device or legacy_expired:
                 self._drop_session(token)
                 return None
@@ -391,7 +397,8 @@ class Handler:
         if result is None:
             return self.fail("That key is not right.", 401)
         session, csrf = result
-        cookie = f"{COOKIE}={session}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_COOKIE_SECONDS}"
+        lifetime = PERMANENT_COOKIE_SECONDS if web_devices.is_permanent(web_devices.session(session)) else SESSION_COOKIE_SECONDS
+        cookie = f"{COOKIE}={session}; Path=/; HttpOnly; SameSite=Strict; Max-Age={lifetime}"
         if getattr(self.server, "secure", False):
             cookie += "; Secure"
         self.json({"ok": True, "csrf": csrf}, extra={"Set-Cookie": cookie})
@@ -648,6 +655,62 @@ class Server(WsgiServer):
         self.stop()
 
 
+def installed_version(path: Path = VERSION_FILE) -> str:
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+class UpdateWatch(threading.Thread):
+    """Stop the server when a newer package replaces the code it is running.
+
+    A package upgrade only swaps files: this process kept serving the old code
+    in memory, so the desktop and the web disagreed until someone stopped web
+    access by hand. A version seen twice has finished installing, and a running
+    hardware job is left to finish. ``main`` then starts the new code over this
+    process; sessions live on disk, so browsers stay signed in.
+    """
+
+    def __init__(self, server, *, interval: float = 30.0, path: Path = VERSION_FILE) -> None:
+        super().__init__(daemon=True, name="bc250-web-update-watch")
+        self.server = server
+        self.interval = interval
+        self.path = path
+        self.running_version = installed_version(path)
+        self.candidate = ""
+        self.update_found = False
+        self.finished = threading.Event()
+
+    def busy(self) -> bool:
+        backend = self.server.web.job_backend
+        if backend is None:
+            return False
+        try:
+            view = getattr(backend, "view", None)
+            job = view() if view else backend.request("job")
+        except Exception:  # noqa: BLE001 - a dead terminal is not a running job
+            return False
+        return bool(job and job.get("id")) and not job.get("done", True)
+
+    def check(self) -> bool:
+        """One look at the disk. True when the server should stop now."""
+        current = installed_version(self.path)
+        if not current or current == self.running_version:
+            self.candidate = ""
+            return False
+        settled = current == self.candidate
+        self.candidate = current
+        return settled and not self.busy()
+
+    def run(self) -> None:
+        while not self.finished.wait(self.interval):
+            if self.check():
+                self.update_found = True
+                self.server.shutdown()
+                return
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argument_parser()
     args = parser.parse_args(argv)
@@ -668,6 +731,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("Home-network access requires HTTPS. HTTP is available only on loopback.")
     networks = web_network.home_networks() if not is_loopback(host) else []
     server = Server((host, port), web, certificate=web_access.tls_certificate() if encrypted else None, networks=networks)
+    watch = None
     try:
         # Advertise the alias only after acquiring the port. Failed duplicate
         # startups must neither publish a competing alias nor clear sessions.
@@ -679,9 +743,16 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"Access key: {key}", flush=True)
             for name in (signal.SIGINT, signal.SIGTERM):
                 signal.signal(name, lambda *_: threading.Thread(target=server.shutdown, daemon=True).start())
+            watch = UpdateWatch(server)
+            watch.start()
             server.serve_forever()
+            watch.finished.set()
     finally:
         server.server_close()
+    if watch is not None and watch.update_found:
+        logger.warning("A new version was installed; restarting the web interface.")
+        # orig_argv keeps "-m frontends.web" and any option this server started with.
+        os.execv(sys.executable, [sys.executable, *sys.orig_argv[1:]])  # nosec B606 - this same program
     return 0
 
 

@@ -130,12 +130,13 @@ def _gpu() -> str:
 def _mesa() -> str:
     for argv in (
         ["pacman", "-Q", "mesa"],
-        ["rpm", "-q", "--qf", "%{VERSION}-%{RELEASE}", "mesa-vulkan-drivers"],
+        ["rpm", "-q", "--qf", "%{VERSION}-%{RELEASE}\\n", "mesa-vulkan-drivers"],
         ["dpkg-query", "-W", "-f", "${Version}", "mesa-vulkan-drivers"],
     ):
         answer = _run(argv)
         if answer:
-            return answer.split()[-1]
+            # rpm answers once per architecture installed.
+            return answer.splitlines()[0].split()[-1]
     return UNKNOWN
 
 

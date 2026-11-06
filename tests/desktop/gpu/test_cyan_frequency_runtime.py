@@ -210,7 +210,7 @@ def test_runtime_verification_restarts_only_an_already_active_service():
     assert "bc250_cyan_previous_max" in command
     assert "SetRange uu" in command
     assert "for bc250_cyan_attempt in {1..25}" in command
-    assert "bc250_cyan_restored_min" in command
+    assert "bc250_cyan_read_min" in command
     assert "bc250_cyan_restore_ok" in command
     assert "previous runtime range could not be restored" in command
     assert "systemctl enable" not in command

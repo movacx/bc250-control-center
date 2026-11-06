@@ -24,6 +24,25 @@ def test_web_controls_stay_visible_when_stopped(qtbot):
     assert page.web_qr_image.pixmap().isNull()
     assert page.web_switch_button.text() == "Start web access"
     assert page.web_pin_box.text() == "ABCD-EFGH"
+    # Stopped: the page says what to do; the key is shown only while access is on.
+    assert not page.web_notice.isHidden() and page.key_row.isHidden()
+
+
+def test_the_active_key_replaces_the_ready_message_and_can_be_copied(qtbot, monkeypatch):
+    page = RemoteAccessPage()
+    qtbot.addWidget(page)
+    page.show()
+    page._apply_web({"running": True, "lan": True, "urls": ["https://192.168.0.9:8250"], "key": "RPQK-SVXD",
+                     "firewall": {"state": "ready"}})
+    assert page.web_pin_box.text() == "RPQK-SVXD"
+    assert page.key_row.isVisible() and page.web_notice.isHidden()
+    copied = []
+    monkeypatch.setattr(page, "_copy", copied.append)
+    page.web_copy_pin_button.click()
+    assert copied == ["RPQK-SVXD"]
+    # A real problem still takes the place of the key.
+    page._apply_web({"running": True, "lan": False, "key": "RPQK-SVXD"})
+    assert page.web_notice.isVisible() and "local network" in page.web_notice.text()
 
 
 def test_addresses_skip_container_and_loopback_links(monkeypatch):
@@ -64,15 +83,15 @@ def test_device_control_and_revocation_are_owner_actions(qtbot, monkeypatch):
     qtbot.addWidget(page)
     calls = []
     monkeypatch.setattr(page, "_run", lambda _name, work: work())
-    monkeypatch.setattr("frontends.desktop.pages.remote_access.web_access.set_control", lambda d, a: calls.append((d, a)))
+    monkeypatch.setattr("frontends.desktop.pages.remote_access.web_access.approve", lambda d: calls.append(("approve", d)))
     monkeypatch.setattr("frontends.desktop.pages.remote_access.web_access.revoke", lambda d: calls.append(d))
     page._apply_web({"devices": [{"id": "device", "address": "192.168.0.22", "agent": "Phone", "control": False}]})
     page.device_table.selectRow(0)
     from PyQt6.QtWidgets import QPushButton
     buttons = page.findChildren(QPushButton)
-    next(b for b in buttons if b.text() == "Allow hardware control").click()
+    next(b for b in buttons if b.text() == "Approve device").click()
     next(b for b in buttons if b.text() == "Disconnect").click()
-    assert calls == [("device", True), "device"]
+    assert calls == [("approve", "device"), "device"]
 
 
 def test_device_table_is_read_only_and_tracks_the_selected_identity_across_refresh(qtbot):
@@ -88,15 +107,17 @@ def test_device_table_is_read_only_and_tracks_the_selected_identity_across_refre
     assert not page.device_control_button.isEnabled()
     table.selectRow(0)
     assert page._selected_device()["id"] == first["id"]
-    assert page.device_control_button.text() == "Allow hardware control"
+    assert page.device_control_button.text() == "Approve device"
     before = table.item(0, 5).text()
-    page._apply_web({"devices": [other, {**first, "seen": 100100, "control": True}]})
+    page._apply_web({"devices": [other, {**first, "seen": 100100, "control": True, "permanent": True}]})
     assert page._selected_device()["id"] == first["id"]
     assert table.currentRow() == 1
     assert table.item(1, 1).text() == first["address"]
     assert table.item(1, 2).text() == "aaaaaaaa"
     assert table.item(1, 5).text() != before
-    assert page.device_control_button.text() == "Monitoring only"
+    assert page.device_control_button.text() == "Approved"
+    assert not page.device_control_button.isEnabled()
+    assert table.item(1, 6).text() == "Permanent"
     page._apply_web({"devices": [other]})
     assert page._selected_device() is None
     assert not page.device_control_button.isEnabled()
@@ -128,34 +149,6 @@ def test_device_table_grip_persists_height_and_refresh_does_not_override_it(qtbo
     assert settings.value("remote_access/device_table_height", type=int) == page.device_table.height()
 
 
-def test_duration_choice_targets_selected_device_and_preserves_draft(qtbot, monkeypatch):
-    page = RemoteAccessPage()
-    qtbot.addWidget(page)
-    devices = [{"id": "first", "control": False}, {"id": "second", "control": True, "duration_seconds": 86400}]
-    page._apply_web({"devices": devices})
-    assert not page.device_expiry_choice.isEnabled()
-    page.device_table.selectRow(0)
-    choice = page.device_expiry_choice
-    choice.setCurrentIndex(choice.findData(3600))
-    page._apply_web({"devices": devices})
-    assert choice.currentData() == 3600
-    called = []
-    monkeypatch.setattr(page, "_run", lambda _name, work: work())
-    monkeypatch.setattr("frontends.desktop.pages.remote_access.web_access.set_lifetime", lambda device, seconds: called.append((device, seconds)))
-    page.device_expiry_apply.click()
-    assert called == [("first", 3600)]
-    page.device_table.selectRow(1)
-    assert choice.currentData() == 86400
-    choice.setCurrentIndex(choice.findData(-1))
-    assert not page.device_expiry_minutes.isHidden()
-    page.device_expiry_minutes.setValue(73)
-    page.device_expiry_apply.click()
-    assert called[-1] == ("second", 73 * 60)
-    page._apply_web({"devices": []})
-    assert not page.device_expiry_choice.isEnabled()
-    assert not page.device_expiry_apply.isEnabled()
-
-
 def test_open_browser_uses_the_selected_address_and_hides_subnet_details(qtbot, monkeypatch):
     from PyQt6.QtWidgets import QLabel
 
@@ -175,3 +168,20 @@ def test_open_browser_uses_the_selected_address_and_hides_subnet_details(qtbot, 
     page._apply_web({"running": True, "lan": False, "urls": [], "local_url": "https://127.0.0.1:8250"})
     page.web_open_button.click()
     assert opened[-1] == "https://127.0.0.1:8250"
+
+
+def test_opening_the_page_does_not_announce_saved_devices(qtbot, monkeypatch):
+    from frontends.desktop.pages import remote_access
+    shown = []
+    monkeypatch.setattr(remote_access, "show_toast", lambda *args, **kwargs: shown.append(args))
+    page = remote_access.RemoteAccessPage()
+    qtbot.addWidget(page)
+    saved = {"id": "saved", "control": True, "permanent": True}
+    page._apply_web({"devices": [saved]})
+    page._render_web()
+    page._apply_web({"devices": [saved]})
+    assert shown == []
+    page._apply_web({"devices": [saved, {"id": "new", "control": True, "permanent": True}]})
+    assert len(shown) == 1
+    page._apply_web({"devices": [saved]})
+    assert len(shown) == 1

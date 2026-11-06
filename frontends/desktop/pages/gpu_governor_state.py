@@ -1280,6 +1280,11 @@ class GpuGovernorStateMixin:
         if action == "steamos_graphics_upstream":
             self._open_steamos_graphics_upstream(dialog_parent=dialog_parent)
             return
+        if action.startswith("steamos_proton_"):
+            self._manage_steamos_proton(
+                action.removeprefix("steamos_proton_"), dialog_parent=dialog_parent
+            )
+            return
         if action.startswith("steamos_graphics_"):
             graphics_action = {
                 "steamos_graphics_status": "status",

@@ -1800,6 +1800,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'set -Eeuo pipefail',
             'export LC_ALL=C LANG=C',
             'bc250_pending_removal=0',
+            'bc250_image_package=0',
             f'echo "== Removing {selected} =="',
             # Never invoke systemctl merely because it happens to be installed
             # on an OpenRC host.  The root helper verifies the ownership and
@@ -1827,10 +1828,30 @@ class DependenciasRepository(SteamosDependenciesMixin):
                 f'if rpm -q {package} >/dev/null 2>&1; then sudo dnf remove -y {package}; fi'
             )
         elif family == 'bazzite':
+            # A community image can carry the package itself: rpm knows it, but
+            # rpm-ostree only removes what was layered on top (R-2eb2645b).
+            layered = shlex.quote(
+                'import json, sys\n'
+                'name = sys.argv[1]\n'
+                'try:\n'
+                '    deployment = (json.load(sys.stdin).get("deployments") or [None])[0]\n'
+                'except ValueError:\n'
+                '    deployment = None\n'
+                # No answer is not evidence: let rpm-ostree decide, and fail in the open.
+                'if deployment is None:\n'
+                '    sys.exit(0)\n'
+                'local = deployment.get("requested-local-packages") or []\n'
+                'requested = deployment.get("requested-packages") or []\n'
+                'sys.exit(0 if name in requested or any(item.startswith(name + "-") for item in local) else 1)\n'
+            )
             commands.append(
                 f'if rpm -q {package} >/dev/null 2>&1; then '
+                f'if rpm-ostree status --json 2>/dev/null | python3 -c {layered} {package}; then '
                 f'sudo rpm-ostree uninstall {package}; bc250_pending_removal=1; '
-                'echo "PENDING: reboot to finish the layered package removal."; fi'
+                'echo "PENDING: reboot to finish the layered package removal."; '
+                'else bc250_image_package=1; '
+                f'echo "[INFO] {package} is part of this system image and cannot be removed; its service stays disabled."; '
+                'fi; fi'
             )
         elif family in {'debian', 'ubuntu'}:
             commands.append(
@@ -1856,7 +1877,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             ])
         commands.extend([
             'if [ ! -f /run/openrc/softlevel ]; then sudo systemctl daemon-reload; fi',
-            'if [ "$bc250_pending_removal" -eq 0 ]; then '
+            'if [ "$bc250_pending_removal" -eq 0 ] && [ "$bc250_image_package" -eq 0 ]; then '
             f'bc250_remaining_binary="$(command -v {shlex.quote(binary_name)} 2>/dev/null || true)"; '
             f'if [ -n "$bc250_remaining_binary" ]; then echo "ERROR: {selected} still has an executable at $bc250_remaining_binary"; exit 70; fi; '
             f'if [ -e /etc/init.d/{shlex.quote(service_name.removesuffix(".service"))} ] || '
@@ -1866,6 +1887,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             f'[ -e /lib/systemd/system/{service} ]; then '
             f'echo "ERROR: {selected} still has a service definition installed"; exit 70; fi; fi',
             f'if [ "$bc250_pending_removal" -eq 1 ]; then echo "PENDING: {selected} removal will be verified after reboot."; '
+            f'elif [ "$bc250_image_package" -eq 1 ]; then echo "OK: {selected} is disabled. It remains installed as part of the system image."; '
             f'else echo "OK: {selected} was completely removed. Its configuration and cloned source were preserved."; fi',
         ])
         command = self._join_shell_commands(commands)

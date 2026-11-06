@@ -108,8 +108,11 @@ def exit_explanation_shell(translate=None) -> str:
         patterns = "|".join(
             marker.replace("\\", "\\\\").replace("|", "\\|") for marker in entry.markers
         )
+        required = (
+            f' && printf "%s" "$target" | grep -qiF {shlex.quote(entry.requires)}' if entry.requires else ""
+        )
         text_rules.append(
-            f'if printf "%s" "$target" | grep -qiE {shlex.quote(patterns)}; then '
+            f'if printf "%s" "$target" | grep -qiE {shlex.quote(patterns)}{required}; then '
             f'summary={shlex.quote(translate(entry.summary))}; '
             f'cause={shlex.quote(translate(entry.cause))}; '
             f'action={shlex.quote(translate(entry.action))}; '
@@ -304,6 +307,10 @@ def workflow_wrapper(
         wait_for_log = ""
         summary_sink = f"2>&1 | tee -a {log}"
     return (
+        # Diagnosis reads the tools' own words, and a sudo or pacman speaking
+        # Polish or French matched no rule (R-e1eaa882, R-8db5f5cd). This changes
+        # the language of messages only, not the character set.
+        "export LANGUAGE=en; "
         f"{run}"
         f"{wait_for_log}"
         f"printf '%s\\n' \"$status\" > {status}; "

@@ -25,7 +25,8 @@ def test_bazzite_release_commands_are_closed_and_shell_valid(action, tmp_path):
     script.write_text(command, encoding="utf-8")
 
     assert "test \"${ID:-}\" = bazzite" in command
-    assert "VERSION_ID:-}" in command
+    # Only installing depends on the release: a newer Bazzite can still check and remove it.
+    assert ("VERSION_ID:-}" in command) is (action == "install")
     assert "tri3gubki-ops/bc250-async-compute-bazzite" in command or action == "status"
     if action != "status":
         assert module.BAZZITE_ASYNC_COMPUTE_ARCHIVE_SHA256 in command

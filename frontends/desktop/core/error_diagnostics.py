@@ -343,6 +343,20 @@ _RULES = (
         "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.",
     ),
     _Rule(
+        "BC250-PKG-005",
+        (r"returned error: 404[\s\S]*failed to commit transaction \(failed to retrieve some files\)",),
+        "This system's package list is out of date.",
+        "The list of packages on this computer names versions that the mirrors no longer carry. This happens when the system has not been updated for a while.",
+        "Update the system with sudo pacman -Syu, then run this action again.",
+    ),
+    _Rule(
+        "BC250-WINE-001",
+        (r"could not load kernel32\.dll",),
+        "Wine could not start.",
+        "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.",
+        "In Steam, verify the files of the Proton version in use, then run this action again.",
+    ),
+    _Rule(
         "BC250-UPSTREAM-404",
         (r"returned error: 404", r"\b404\b.*not found", r"failed retrieving file.*\.db",
          r"failed to synchronize all databases", r"failed retrieving file from repo", r"http 404"),
@@ -360,7 +374,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-NET-001",
-        (r"could not resolve", r"temporary failure in name resolution", r"network is unreachable", r"connection.*(?:timed out|refused|reset)", r"ssl|certificate verify|tls", r"curl: \(\d+\)", r"git.*(?:could not resolve host|unable to access|failed to connect|connection timed out)", r"failed to fetch.*(?:mirror|repository)", r"mirror.*(?:unavailable|not found|failed)", r"could not resolve host"),
+        (r"github's (?:release information could not be read|answer was larger than a release)", r"could not resolve", r"temporary failure in name resolution", r"network is unreachable", r"connection.*(?:timed out|refused|reset)", r"ssl|certificate verify|tls", r"curl: \(\d+\)", r"git.*(?:could not resolve host|unable to access|failed to connect|connection timed out)", r"failed to fetch.*(?:mirror|repository)", r"mirror.*(?:unavailable|not found|failed)", r"could not resolve host"),
         "A required download could not be reached or verified.",
         "The network, DNS, proxy, system clock, certificate store, or upstream server interrupted the download.",
         "Confirm internet access and the system date, then retry. If a proxy or filtered network is in use, test the repository URL in a browser.",

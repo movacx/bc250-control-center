@@ -187,8 +187,9 @@ class Client:
         if response.status == 200:
             self.cookie = response.getheader("Set-Cookie").split(";")[0]
             self.csrf = data["csrf"]
-            if control:
-                web_devices.set_control(web_devices.identity(self.cookie.split("=", 1)[1]), True)
+            # ``control=False`` stands for a session without control, as an older
+            # version opened; a login today always gets it.
+            web_devices.set_control(web_devices.identity(self.cookie.split("=", 1)[1]), control)
         return response, data
 
     def post(self, path, body, **headers):
@@ -438,7 +439,7 @@ def test_job_panel_masks_native_sudo_password_and_rejects_control_input():
     assert session.request("input", text="dummy-password")["ok"] is False
 
 
-@pytest.mark.parametrize("end", ["logout", "rotate", "expire"])
+@pytest.mark.parametrize("end", ["logout", "rotate", "disconnect"])
 def test_local_terminal_is_revoked_with_the_browser_session(client, end):
     client.login()
     assert client.action("gpu.status") == 200
@@ -450,7 +451,7 @@ def test_local_terminal_is_revoked_with_the_browser_session(client, end):
         web_access.access_key(renew=True)
         assert client.call("GET", "/api/live")[0].status == 401
     else:
-        client.httpd.web.sessions[token] = (client.csrf, time.monotonic() - 1)
+        web_devices.revoke(web_devices.identity(token))
         assert client.call("GET", "/api/live")[0].status == 401
     assert terminal.closed
     assert token not in client.httpd.web.local_sessions
@@ -556,11 +557,14 @@ def test_desktop_revocation_invalidates_only_the_selected_browser(client):
     assert other.call("GET", "/api/live")[0].status == 401
 
 
-def test_revoked_device_cannot_reuse_permission_on_a_new_login(client):
+def test_a_revoked_cookie_is_dead_and_a_new_login_is_another_device(client):
     client.login()
+    revoked = client.cookie
     web_devices.revoke_all()
-    client.login(control=False)
-    assert client.action("gpu.status") == 403
+    assert client.call("GET", "/api/live")[0].status == 401
+    client.cookie = ""
+    client.login()
+    assert client.cookie != revoked
 
 
 def test_wrong_origin_scheme_is_rejected_even_on_same_host(client):
@@ -623,3 +627,139 @@ def test_local_name_link_is_shown_only_to_authenticated_lan_sessions(client, mon
     assert client.call("GET", "/api/session")[1]["named_url"] == f"http://bc250.local:{client.port}"
     monkeypatch.setattr(web_access, "options", lambda: {**options, "lan": False})
     assert client.call("GET", "/api/session")[1]["named_url"] is None
+
+
+def test_scanning_the_qr_pairs_a_device_with_control_that_never_expires(client):
+    from bc250cc.infrastructure import web_pairing
+
+    token = web_pairing.issue()
+    response, data = client.call("POST", "/api/login", {"key": token})
+    cookie = response.getheader("Set-Cookie")
+    assert response.status == 200 and f"Max-Age={server.PERMANENT_COOKIE_SECONDS}" in cookie
+    client.cookie, client.csrf = cookie.split(";")[0], data["csrf"]
+    session = client.call("GET", "/api/session")[1]
+    assert session["authenticated"] and session["control"] is True
+    assert client.post("/api/performance/reset", {})[0].status == 200
+    device = web_devices.session(client.cookie.split("=", 1)[1])
+    assert web_devices.is_permanent(device) and device["idle_seconds"] is None
+    # The same QR cannot pair a second device.
+    other = Client(client.httpd)
+    assert other.call("POST", "/api/login", {"key": token})[0].status == 401
+    # The in-process eight-hour cap does not apply to a paired device.
+    web = client.httpd.web
+    for cookie_token in tuple(web.sessions):
+        csrf, _expires = web.sessions[cookie_token]
+        web.sessions[cookie_token] = (csrf, 0.0)
+    assert client.call("GET", "/api/session")[1]["authenticated"] is True
+
+
+def test_the_typed_key_gives_permanent_control_like_the_qr(client):
+    response, _data = client.call("POST", "/api/login", {"key": KEY})
+    assert response.status == 200
+    assert f"Max-Age={server.PERMANENT_COOKIE_SECONDS}" in response.getheader("Set-Cookie")
+    client.cookie = response.getheader("Set-Cookie").split(";")[0]
+    assert client.call("GET", "/api/session")[1]["control"] is True
+    device = web_devices.session(client.cookie.split("=", 1)[1])
+    assert web_devices.is_permanent(device) and device["idle_seconds"] is None
+
+
+def test_a_session_without_control_from_an_older_version_can_still_be_approved(client):
+    client.login(control=False)
+    assert client.call("GET", "/api/session")[1]["control"] is False
+    assert client.action("gpu.status") == 403
+    web_devices.approve(web_devices.identity(client.cookie.split("=", 1)[1]))
+    assert client.call("GET", "/api/session")[1]["control"] is True
+
+
+class _Stopping:
+    def __init__(self, backend=None):
+        self.web = SimpleNamespace(job_backend=backend)
+        self.stopped = 0
+
+    def shutdown(self):
+        self.stopped += 1
+
+
+class _Backend:
+    def __init__(self, job):
+        self.job_state = job
+
+    def request(self, _op):
+        return self.job_state
+
+
+def _watch(tmp_path, backend=None):
+    version = tmp_path / "VERSION"
+    version.write_text("1.22.1\n", encoding="utf-8")
+    return server.UpdateWatch(_Stopping(backend), interval=0.01, path=version), version
+
+
+def test_the_server_keeps_running_while_the_version_does_not_change(tmp_path):
+    watch, _version = _watch(tmp_path)
+    assert watch.running_version == "1.22.1"
+    assert not watch.check() and not watch.check()
+
+
+def test_an_installed_update_stops_the_server_once_it_has_settled(tmp_path):
+    watch, version = _watch(tmp_path)
+    version.write_text("1.22.2\n", encoding="utf-8")
+    assert not watch.check()  # may still be mid-install
+    assert watch.check()
+
+
+def test_a_version_file_gone_during_the_upgrade_is_not_an_update(tmp_path):
+    watch, version = _watch(tmp_path)
+    version.unlink()
+    assert not watch.check() and not watch.check()
+
+
+def test_a_running_hardware_job_is_never_interrupted_by_an_update(tmp_path):
+    backend = _Backend({"id": 3, "done": False})
+    watch, version = _watch(tmp_path, backend)
+    version.write_text("1.22.2\n", encoding="utf-8")
+    assert not watch.check() and not watch.check()
+    backend.job_state = {"id": 3, "done": True}
+    assert watch.check()
+
+
+def test_the_watch_stops_the_real_loop_and_asks_for_the_restart(tmp_path):
+    watch, version = _watch(tmp_path)
+    version.write_text("1.22.2\n", encoding="utf-8")
+    watch.start()
+    watch.join(timeout=5)
+    assert watch.update_found and watch.server.stopped == 1
+
+
+def test_a_real_server_process_restarts_on_the_new_code(tmp_path):
+    """The whole path: serve, see the new version, stop, exec, serve again."""
+    import subprocess
+    import sys
+    import textwrap
+
+    version = tmp_path / "VERSION"
+    version.write_text("1.0\n", encoding="utf-8")
+    marks = tmp_path / "started"
+    program = tmp_path / "program.py"
+    program.write_text(textwrap.dedent(f"""
+        import os, sys, threading, http.server
+        sys.path[:0] = {[str(Path("src").resolve()), str(Path(".").resolve())]!r}
+        from pathlib import Path
+        from frontends.web import server
+        with open({str(marks)!r}, "a") as out:
+            out.write("run\\n")
+        if len(open({str(marks)!r}).read().split()) > 1:
+            sys.exit(0)
+        httpd = http.server.HTTPServer(("127.0.0.1", 0), http.server.BaseHTTPRequestHandler)
+        httpd.web = type("W", (), {{"job_backend": None}})()
+        watch = server.UpdateWatch(httpd, interval=0.05, path=Path({str(version)!r}))
+        watch.start()
+        threading.Timer(0.1, lambda: Path({str(version)!r}).write_text("2.0\\n")).start()
+        httpd.serve_forever()
+        watch.finished.set()
+        httpd.server_close()
+        assert watch.update_found
+        os.execv(sys.executable, [sys.executable, *sys.orig_argv[1:]])
+    """), encoding="utf-8")
+    result = subprocess.run([sys.executable, str(program)], capture_output=True, text=True, timeout=30, check=False)
+    assert result.returncode == 0, result.stderr
+    assert marks.read_text().split() == ["run", "run"]

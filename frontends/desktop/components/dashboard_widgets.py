@@ -3035,7 +3035,7 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
             ("System", (self.acpi_card,)),
             ("GPU governor", (self.cyan_card, self.oberon_card)),
             # Mesa first: it is what leaves the desktop on the CPU, whatever the kernel does.
-            ("Kernel and graphics", (self.mesa_card, self.gfx_card, *self.cachyos_cards)),
+            ("Kernel and graphics", (self.mesa_card, self.gfx_card, self.steamos_proton_card, *self.cachyos_cards)),
             ("Video", (self.vaapi_card,)),
         )
         layout.setSpacing(0)

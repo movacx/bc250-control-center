@@ -129,6 +129,27 @@ for section, chunks in groups.items():
         removed.update(range(start, end))
     repaired = True
 text = "".join(replacements.get(index, "" if index in removed else line) for index, line in enumerate(lines))
+# The same key twice inside one table stops every TOML reader, the governor
+# included. An identical repeat loses nothing, so it is dropped; a repeat with
+# another value is the owner's choice and is left for them (R-7850733e, R-911909d3).
+kept, section, values = [], "", {}
+for line in text.splitlines(keepends=True):
+    header = re.fullmatch(r"[ \t]*\[([^\[\]]+)\][ \t]*(?:#.*)?", line.rstrip("\r\n"))
+    if header:
+        section, values = header[1].strip(), {}
+    elif section in {"gpu-usage", "gpu_usage"} and re.match(r"[ \t]*[A-Za-z0-9_-]+[ \t]*=", line):
+        entry = tomllib.loads(line.strip() + "\n")
+        key, value = next(iter(entry.items()))
+        canonical = key.replace("_", "-")
+        if canonical in values:
+            previous = values[canonical]
+            if type(previous) is not type(value) or previous != value:
+                raise SystemExit(f"Conflicting [{section}] {key}; correct the duplicate values before retrying")
+            repaired = True
+            continue
+        values[canonical] = value
+    kept.append(line)
+text = "".join(kept)
 config = tomllib.loads(text)
 # (section names, key names, line written when it is missing)
 wanted = (
@@ -137,7 +158,7 @@ wanted = (
     (("gpu",), ("set-method",), 'set-method = "smu"'),
     (("dbus",), ("enabled",), "enabled = true"),
 )
-added = ["repaired duplicate compatibility tables"] if repaired else []
+added = ["repaired duplicate compatibility entries"] if repaired else []
 for sections, keys, line in wanted:
     present = next((name for name in sections if isinstance(config.get(name), dict)), None)
     if present is not None and any(key in config[present] for key in keys):
@@ -174,7 +195,7 @@ validate_compatibility_switches() {
   if output="$(validate_compatibility_switches_python 2>&1)"; then
     return 0
   fi
-  error "Cyan configuration is not usable: $(printf '%s\n' "$output" | tail -n 1)"
+  error "Cyan configuration is not usable: $(printf '%s\n' "$output" | tail -n 1) ($CONFIG)"
   return 1
 }
 
