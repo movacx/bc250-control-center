@@ -2661,12 +2661,11 @@ INTERFACE_TRANSLATIONS.update({
 # Remote access: QR pairing, one-click approval and a simpler layout.
 INTERFACE_TRANSLATIONS.update({
     "Pair a device": {"es": "Emparejar un dispositivo"},
+    "Remote access key": {"es": "Clave de acceso remoto"},
     "Connect your phone to the same Wi-Fi and scan the code. It pairs right away with full hardware control, with no key to type.": {
         "es": "Conecta tu teléfono a la misma red Wi-Fi y escanea el código. Se empareja al instante con control total del hardware, sin escribir ninguna clave."},
     "Scan to pair. The code works once and renews by itself.": {
         "es": "Escanea para emparejar. El código sirve una sola vez y se renueva solo."},
-    "Use an access key instead": {"es": "Usar una clave de acceso"},
-    "Hide access key": {"es": "Ocultar clave de acceso"},
     "Type this key in the browser. That device stays read-only until you approve it below.": {
         "es": "Escribe esta clave en el navegador. Ese dispositivo seguirá en solo lectura hasta que lo apruebes abajo."},
     "Paired devices": {"es": "Dispositivos emparejados"},
@@ -2687,5 +2686,42 @@ INTERFACE_TRANSLATIONS.update({
         "es": "El firewall podría estar bloqueando otros dispositivos. Usa Configurar firewall de la red local."},
     "No connected private network was detected. Connect this board to your Wi-Fi or cable.": {
         "es": "No se detectó ninguna red privada conectada. Conecta esta placa a tu Wi-Fi o cable."},
-    "Ready. Scan the code with your phone.": {"es": "Listo. Escanea el código con tu teléfono."},
 })
+
+# Polish for the strings added incrementally above (from the generated pl catalog).
+INTERFACE_POLISH_ADDITIONS = {
+    "BC-250 GE-Proton · SteamOS": "BC-250 GE-Proton · SteamOS",
+    "SteamOS · keyboardspecialist upstream": "SteamOS · Specjalista od obsługi klawiatur",
+    "Check Proton": "Sprawdź Proton",
+    "Remove Proton": "Usuń Proton",
+    "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.": "Używa instalatora starszego od KeyboardSpecialist do zarządzania BC-250 GE-Proton w folderze Steam. Wymaga aktywnego środowiska wykonawczego FSR4 RADV pakietu narzędzi. Uruchom ponownie Steam po zmianach i wybierz BC-250 GE-Proton dla każdej gry.",
+    "Remove BC-250 GE-Proton": "Usuń BC-250 GE-Proton",
+    "Install / update BC-250 GE-Proton": "Zainstaluj/zaktualizuj BC-250 GE-Proton",
+    "The upstream toolkit removes its managed GE-Proton tool. Steam prefixes and saved games are preserved. Restart Steam afterwards.": "Zestaw narzędzi nadrzędnych usuwa zarządzane narzędzie GE-Proton. Prefiksy Steam i zapisane gry zostaną zachowane. Uruchom ponownie Steam później.",
+    "Downloads and runs keyboardspecialist's current upstream Proton installer. It verifies the BC-250 GE-Proton download and installs it in your Steam folder. The toolkit checks that FSR4 RADV is active first. Restart Steam and select BC-250 GE-Proton per game. Do not use FSR4 injection in anti-cheat games.": "Pobiera i uruchamia bieżący instalator Proton firmy KeyboardSpecialist. Weryfikuje pobrany plik BC-250 GE-Proton i instaluje go w folderze Steam. Zestaw narzędzi sprawdza najpierw, czy FSR4 RADV jest aktywny. Uruchom ponownie Steam i wybierz BC-250 GE-Proton na grę. Nie używaj wtrysku FSR4 w grach zapobiegających oszustwom.",
+    "Opened the upstream Proton workflow. Read the terminal result; restart Steam after installing, updating or removing the tool.": "Otworzono przepływ pracy poprzedzający Proton. Przeczytaj wynik końcowy; uruchom ponownie Steam po zainstalowaniu, aktualizacji lub usunięciu narzędzia.",
+    "Could not manage SteamOS GE-Proton": "Nie można zarządzać SteamOS GE-Proton",
+    "The SteamOS GE-Proton action did not complete.": "Akcja SteamOS GE-Proton nie została ukończona.",
+    "The upstream installer stopped. Its preceding message identifies the missing RADV prerequisite, download, integrity or installation problem.": "Instalator nadrzędny został zatrzymany. Poprzedzający go komunikat wskazuje brakujący problem z wymaganiami wstępnymi RADV, pobieraniem, integralnością lub instalacją.",
+    "Follow the upstream message in this log, then retry Install / update. A missing tool in a status check does not require reinstalling Control Center.": "Postępuj zgodnie z komunikatem źródłowym w tym dzienniku, a następnie ponów próbę instalacji/aktualizacji. Brakujące narzędzie w sprawdzaniu stanu nie wymaga ponownej instalacji Centrum sterowania.",
+    "Pair a device": "Sparuj urządzenie",
+    "Remote access key": "Klucz zdalnego dostępu",
+    "Connect your phone to the same Wi-Fi and scan the code. It pairs right away with full hardware control, with no key to type.": "Podłącz telefon do tej samej sieci Wi-Fi i zeskanuj kod. Można go od razu sparować z pełną kontrolą sprzętu, bez konieczności pisania za pomocą klawisza.",
+    "Scan to pair. The code works once and renews by itself.": "Zeskanuj, aby sparować. Kod działa raz i odnawia się sam.",
+    "Type this key in the browser. That device stays read-only until you approve it below.": "Wpisz ten klucz w przeglądarce. To urządzenie pozostanie w trybie tylko do odczytu, dopóki nie zatwierdzisz go poniżej.",
+    "Paired devices": "Sparowane urządzenia",
+    "A paired device keeps hardware control until you disconnect it or create a new access key.": "Sparowane urządzenie zachowuje kontrolę nad sprzętem do czasu jego rozłączenia lub utworzenia nowego klucza dostępu.",
+    "Approve device": "Zatwierdź urządzenie",
+    "Approved": "Zatwierdzone",
+    "Permanent": "Stałe",
+    "Session": "Sesja",
+    "New device paired": "Nowe urządzenie zostało sparowane",
+    "Download certificate": "Pobierz certyfikat",
+    "Certificate saved. Install it on your phone to trust this board.": "Certyfikat został zapisany. Zainstaluj go na swoim telefonie, aby zaufać tej tablicy.",
+    "Start web access to pair a phone.": "Uruchom dostęp do Internetu, aby sparować telefon.",
+    "Turn on local network access below so phones can connect.": "Włącz poniżej dostęp do sieci lokalnej, aby telefony mogły się łączyć.",
+    "The firewall may be blocking other devices. Use Configure LAN firewall.": "Zapora sieciowa może blokować inne urządzenia. Użyj opcji Konfiguruj zaporę sieci LAN.",
+    "No connected private network was detected. Connect this board to your Wi-Fi or cable.": "Nie wykryto podłączonej sieci prywatnej. Podłącz tę płytkę do sieci Wi-Fi lub kabla.",
+}
+for _source, _polish in INTERFACE_POLISH_ADDITIONS.items():
+    INTERFACE_TRANSLATIONS.setdefault(_source, {})["pl"] = _polish

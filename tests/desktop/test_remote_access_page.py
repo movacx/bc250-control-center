@@ -24,6 +24,25 @@ def test_web_controls_stay_visible_when_stopped(qtbot):
     assert page.web_qr_image.pixmap().isNull()
     assert page.web_switch_button.text() == "Start web access"
     assert page.web_pin_box.text() == "ABCD-EFGH"
+    # Stopped: the page says what to do; the key is shown only while access is on.
+    assert not page.web_notice.isHidden() and page.key_row.isHidden()
+
+
+def test_the_active_key_replaces_the_ready_message_and_can_be_copied(qtbot, monkeypatch):
+    page = RemoteAccessPage()
+    qtbot.addWidget(page)
+    page.show()
+    page._apply_web({"running": True, "lan": True, "urls": ["https://192.168.0.9:8250"], "key": "RPQK-SVXD",
+                     "firewall": {"state": "ready"}})
+    assert page.web_pin_box.text() == "RPQK-SVXD"
+    assert page.key_row.isVisible() and page.web_notice.isHidden()
+    copied = []
+    monkeypatch.setattr(page, "_copy", copied.append)
+    page.web_copy_pin_button.click()
+    assert copied == ["RPQK-SVXD"]
+    # A real problem still takes the place of the key.
+    page._apply_web({"running": True, "lan": False, "key": "RPQK-SVXD"})
+    assert page.web_notice.isVisible() and "local network" in page.web_notice.text()
 
 
 def test_addresses_skip_container_and_loopback_links(monkeypatch):

@@ -105,6 +105,23 @@ class RemoteAccessPage(QWidget):
         status.addWidget(self.web_state_label, 0, Qt.AlignmentFlag.AlignVCenter)
         self.web_notice = self._label("")
         status.addWidget(self.web_notice, 1)
+        # The active key, for signing in from a computer. A phone only needs the QR.
+        self.key_row = QWidget()
+        key_line = QHBoxLayout(self.key_row)
+        key_line.setContentsMargins(0, 0, 0, 0)
+        key_line.setSpacing(8)
+        self.key_caption = self._label("Remote access key")
+        key_line.addWidget(self.key_caption, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.web_pin_box = self._code("")
+        self.web_pin_box.setWordWrap(False)
+        self.web_pin_box.setToolTip(tr("Type this key in the browser. That device stays read-only until you approve it below."))
+        key_line.addWidget(self.web_pin_box, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.web_copy_pin_button = self._button("Copy", self._copy_web_pin)
+        self.web_new_key_button = self._button("New access key", self._new_web_key)
+        key_line.addWidget(self.web_copy_pin_button)
+        key_line.addWidget(self.web_new_key_button)
+        key_line.addStretch(1)
+        status.addWidget(self.key_row, 1)
         self.web_open_button = self._button("Open in browser", self._open_web)
         self.web_switch_button = self._button("Start web access", self._toggle_web, primary=True)
         status.addWidget(self.web_open_button)
@@ -138,24 +155,6 @@ class RemoteAccessPage(QWidget):
         connection.addWidget(self.web_firewall_status)
         self.web_firewall_repair = self._button("Configure LAN firewall", self._repair_firewall)
         connection.addWidget(self.web_firewall_repair)
-        self.key_toggle = self._button("Use an access key instead", self._toggle_key_panel)
-        self.key_toggle.setCheckable(True)
-        connection.addWidget(self.key_toggle)
-        self.key_panel = QWidget()
-        key_box = QVBoxLayout(self.key_panel)
-        key_box.setContentsMargins(0, 0, 0, 0)
-        key_box.setSpacing(6)
-        key_box.addWidget(self._label("Type this key in the browser. That device stays read-only until you approve it below."))
-        self.web_pin_box = self._code("")
-        key_box.addWidget(self.web_pin_box)
-        key_controls = QHBoxLayout()
-        self.web_copy_pin_button = self._button("Copy access key", self._copy_web_pin)
-        self.web_new_key_button = self._button("New access key", self._new_web_key)
-        key_controls.addWidget(self.web_copy_pin_button)
-        key_controls.addWidget(self.web_new_key_button)
-        key_box.addLayout(key_controls)
-        self.key_panel.hide()
-        connection.addWidget(self.key_panel)
         connection.addSpacing(8)
         divider = QFrame()
         divider.setObjectName("remoteDivider")
@@ -370,7 +369,7 @@ class RemoteAccessPage(QWidget):
         self._render_web()
 
     def _notice(self, state, firewall):
-        """One plain sentence about what to do next, in order of what blocks pairing first."""
+        """A plain sentence only when something blocks pairing; empty when all is well."""
         if not state.get("running"):
             return "Start web access to pair a phone."
         if not state.get("lan"):
@@ -379,7 +378,7 @@ class RemoteAccessPage(QWidget):
             return "The firewall may be blocking other devices. Use Configure LAN firewall."
         if firewall.get("state") == "no_network":
             return "No connected private network was detected. Connect this board to your Wi-Fi or cable."
-        return "Ready. Scan the code with your phone."
+        return ""
 
     def _render_web(self):
         state = self._web_state
@@ -420,7 +419,10 @@ class RemoteAccessPage(QWidget):
         urls = state.get("urls") or []
         available = urls or ([state["local_url"]] if state.get("local_url") else [])
         self.web_state_label.setText(tr("Web access is active" if running else "Web access is stopped"))
-        self.web_notice.setText(tr(self._notice(state, firewall)))
+        notice = self._notice(state, firewall)
+        self.web_notice.setText(tr(notice) if notice else "")
+        self.web_notice.setVisible(bool(notice))
+        self.key_row.setVisible(running and bool(state.get("key")))
         self._style_status_pill()
         self.web_switch_button.setEnabled(not self._background.is_running("switch_web"))
         self.web_switch_button.setText(tr("Stop web access" if running else "Start web access"))
@@ -455,10 +457,6 @@ class RemoteAccessPage(QWidget):
         self.web_certificate_button.setEnabled(bool(fingerprint))
         self._render_qr()
         self._render_devices()
-
-    def _toggle_key_panel(self):
-        self.key_panel.setVisible(self.key_toggle.isChecked())
-        self.key_toggle.setText(tr("Hide access key" if self.key_toggle.isChecked() else "Use an access key instead"))
 
     # -- QR pairing -----------------------------------------------------------------------------
 

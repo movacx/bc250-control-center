@@ -115,11 +115,22 @@ def canonical_sources() -> list[str]:
     return sorted(source for source in sources if source)
 
 
+def looks_technical_line(line: str) -> bool:
+    """A command, path or identifier: kept as is. (Moved here from ``frontends.desktop.i18n``, which dropped it.)"""
+    stripped = line.strip()
+    if not stripped:
+        return False
+    return bool(
+        stripped.startswith(("/", "~/", "systemctl ", "journalctl ", "sudo ", "pkexec ", "cat ", "ls ", "modinfo ", "rpm-ostree ", "pacman ", "dpkg "))
+        or re.match(r"^[A-Z0-9_./:+-]{2,}$", stripped)
+    )
+
+
 def is_technical_only(source: str) -> bool:
     if source in INTENTIONAL_ENGLISH_VALUES:
         return True
     lines = [line.strip() for line in source.splitlines() if line.strip()]
-    return bool(lines) and all(i18n._looks_technical_line(line) for line in lines)
+    return bool(lines) and all(looks_technical_line(line) for line in lines)
 
 
 def protect(source: str, ordinal: int) -> tuple[str, dict[str, str]]:
