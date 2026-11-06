@@ -68,8 +68,18 @@ def test_bazzite_45_can_still_check_and_remove_async_compute(action):
     assert "VERSION_ID" not in bazzite_async_compute.build_bazzite_async_compute_command(action)
 
 
-def test_installing_async_compute_still_requires_bazzite_44():
-    assert 'test "${VERSION_ID:-}" = 44' in bazzite_async_compute.build_bazzite_async_compute_command("install")
+def test_installing_async_compute_is_limited_to_bazzite_44_and_45():
+    command = bazzite_async_compute.build_bazzite_async_compute_command("install")
+    assert 'case "${VERSION_ID:-}" in 44) ;; 45)' in command
+    assert "supports Bazzite 44 and 45 only" in command
+
+
+def test_per_game_install_keeps_an_earlier_system_wide_activation():
+    # R-c8e76285: the user had already enabled the driver, --per-game leaves
+    # that file alone, and the check blamed the installer for it.
+    command = bazzite_async_compute.build_bazzite_async_compute_command("install")
+    assert "bc250_enabled_before=1" in command
+    assert 'test "$bc250_enabled_before" = 0 && test -e /etc/environment.d/95-bc250-async-compute.conf' in command
 
 
 STALE = (

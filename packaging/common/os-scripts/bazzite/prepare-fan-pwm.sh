@@ -32,7 +32,7 @@ ensure_build_dependencies() {
     return 0
   fi
   bold "Layering missing Bazzite fan build dependencies"
-  as_root rpm-ostree install --idempotent "${missing[@]}"
+  rpm_ostree_layer "${missing[@]}"
   warn "The required packages were added to a pending deployment. Reboot, then press Prepare fan PWM once."
   echo "BC250_REBOOT_REQUIRED=1"
   exit 20

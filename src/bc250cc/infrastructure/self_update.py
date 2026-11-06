@@ -507,6 +507,20 @@ def _rpm_ostree_install(path: str) -> str:
     sudo rpm-ostree "$@"
     return $?
   fi
+  # A 404 means the cached repository metadata is older than the mirrors
+  # (updates-archive after a Fedora bump): refresh it and try once more.
+  if [ "$bc250_rc" -ne 0 ] && grep -qE 'Status code: 404|All mirrors were tried' "$bc250_log"; then
+    echo "Repository metadata is out of date; refreshing it and trying once more..."
+    rpm-ostree refresh-md --force 2>&1 || sudo rpm-ostree refresh-md --force
+    rpm-ostree "$@" 2>&1 | tee "$bc250_log"
+    bc250_rc=${{PIPESTATUS[0]}}
+  fi
+  # rpm-ostree re-resolves every layered package. One that this Fedora release
+  # no longer ships (for example coolercontrol, R-506fdded) blocks the update.
+  if [ "$bc250_rc" -ne 0 ] && grep -q 'Packages not found:' "$bc250_log"; then
+    echo "ERROR: $(grep -m1 'Packages not found:' "$bc250_log")"
+    echo "That layered package is not available for this release. Remove it, then update again: rpm-ostree uninstall <package>"
+  fi
   rm -f "$bc250_log"
   return "$bc250_rc"
 }}

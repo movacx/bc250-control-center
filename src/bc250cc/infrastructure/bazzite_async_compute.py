@@ -129,7 +129,7 @@ def build_bazzite_async_compute_command(action: str) -> str:
     commands = [
         "set -Eeuo pipefail",
         "export LC_ALL=C LANG=C",
-        'echo; echo "=========================================================================="; echo "  BC-250 async compute - Bazzite 44"; echo "  pinned release v0.2.4"; echo "=========================================================================="; echo',
+        'echo; echo "=========================================================================="; echo "  BC-250 async compute - Bazzite 44/45"; echo "  pinned release v0.2.4"; echo "=========================================================================="; echo',
         'test -r /etc/os-release || { echo "ERROR: /etc/os-release is unavailable."; exit 64; }',
         ". /etc/os-release",
         'test "${ID:-}" = bazzite || { echo "ERROR: This workflow is available only on Bazzite."; exit 64; }',
@@ -156,7 +156,8 @@ def build_bazzite_async_compute_command(action: str) -> str:
         commands.extend((
             # Only installing depends on the release: whoever moved to a newer
             # Bazzite must still be able to check or remove what they have.
-            'test "${VERSION_ID:-}" = 44 || { echo "ERROR: Release v0.2.4 supports Bazzite 44 only."; exit 64; }',
+            'case "${VERSION_ID:-}" in 44) ;; 45) echo "[WARN] Release v0.2.4 was reviewed on Bazzite 44; Bazzite 45 is allowed because its libraries resolve, but the driver is optional and per-game." ;; *) echo "ERROR: Release v0.2.4 supports Bazzite 44 and 45 only."; exit 64 ;; esac',
+            'bc250_enabled_before=0; test -e /etc/environment.d/95-bc250-async-compute.conf && bc250_enabled_before=1',
             "bc250_found=0",
             "for bc250_device in /sys/bus/pci/devices/*; do",
             '  test -r "$bc250_device/vendor" && test -r "$bc250_device/device" || continue',
@@ -190,7 +191,10 @@ def build_bazzite_async_compute_command(action: str) -> str:
             'test -s "$bc250_source/payload/lib64/libvulkan_radeon.so" || { echo "ERROR: reviewed RADV payload is missing."; exit 29; }',
             'sudo "$bc250_source/install.sh" --yes --per-game',
             f'test "$(cat {BAZZITE_ASYNC_COMPUTE_SHARE}/VERSION 2>/dev/null)" = {BAZZITE_ASYNC_COMPUTE_VERSION} || {{ echo "ERROR: installed version validation failed."; exit 29; }}',
-            'test ! -e /etc/environment.d/95-bc250-async-compute.conf || { echo "ERROR: per-game install unexpectedly enabled the driver system-wide."; exit 29; }',
+            # --per-game leaves an earlier system-wide activation alone, so only a
+            # file that was not there before means the installer enabled it (R-c8e76285).
+            'if test "$bc250_enabled_before" = 0 && test -e /etc/environment.d/95-bc250-async-compute.conf; then echo "ERROR: per-game install unexpectedly enabled the driver system-wide."; exit 29; fi',
+            'if test "$bc250_enabled_before" = 1; then echo "[INFO] The driver was already enabled system-wide by an earlier install and stays that way. Run: sudo bc250-async-compute always disable"; fi',
             'echo "OK: async compute v0.2.4 installed as an optional per-game RADV driver."',
             f'''printf '%s\n' 'Steam launch option: VK_DRIVER_FILES={BAZZITE_ASYNC_COMPUTE_ICD} %command%' ''',
         ))

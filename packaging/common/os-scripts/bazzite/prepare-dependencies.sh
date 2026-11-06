@@ -85,7 +85,7 @@ layer_packages() {
   fi
 
   bold "Layering packages into one rpm-ostree deployment"
-  as_root rpm-ostree install --idempotent "${missing[@]}"
+  rpm_ostree_layer "${missing[@]}"
   REBOOT_REQUIRED=1
 }
 
