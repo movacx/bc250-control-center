@@ -623,3 +623,36 @@ def test_local_name_link_is_shown_only_to_authenticated_lan_sessions(client, mon
     assert client.call("GET", "/api/session")[1]["named_url"] == f"http://bc250.local:{client.port}"
     monkeypatch.setattr(web_access, "options", lambda: {**options, "lan": False})
     assert client.call("GET", "/api/session")[1]["named_url"] is None
+
+
+def test_scanning_the_qr_pairs_a_device_with_control_that_never_expires(client):
+    from bc250cc.infrastructure import web_pairing
+
+    token = web_pairing.issue()
+    response, data = client.login(token, control=False)
+    cookie = response.getheader("Set-Cookie")
+    assert response.status == 200 and f"Max-Age={server.PERMANENT_COOKIE_SECONDS}" in cookie
+    session = client.call("GET", "/api/session")[1]
+    assert session["authenticated"] and session["control"] is True
+    assert client.post("/api/performance/reset", {})[0].status == 200
+    device = web_devices.session(client.cookie.split("=", 1)[1])
+    assert web_devices.is_permanent(device) and device["idle_seconds"] is None
+    # The same QR cannot pair a second device.
+    other = Client(client.httpd)
+    assert other.login(token, control=False)[0].status == 401
+    # The in-process eight-hour cap does not apply to a paired device.
+    web = client.httpd.web
+    for cookie_token in tuple(web.sessions):
+        csrf, _expires = web.sessions[cookie_token]
+        web.sessions[cookie_token] = (csrf, 0.0)
+    assert client.call("GET", "/api/session")[1]["authenticated"] is True
+
+
+def test_a_typed_key_stays_monitoring_only_until_the_owner_approves(client):
+    response, _data = client.login(control=False)
+    assert response.status == 200
+    assert client.call("GET", "/api/session")[1]["control"] is False
+    assert client.post("/api/performance/reset", {})[0].status == 200
+    assert client.action("gpu.status") == 403
+    web_devices.approve(web_devices.identity(client.cookie.split("=", 1)[1]))
+    assert client.call("GET", "/api/session")[1]["control"] is True

@@ -2657,3 +2657,35 @@ INTERFACE_TRANSLATIONS.update({
         "es": "Sigue el mensaje del toolkit en este registro y vuelve a intentar Instalar / actualizar. Si la herramienta no está instalada al comprobar su estado, no necesitas reinstalar Control Center."
     }
 })
+
+# Remote access: QR pairing, one-click approval and a simpler layout.
+INTERFACE_TRANSLATIONS.update({
+    "Pair a device": {"es": "Emparejar un dispositivo"},
+    "Connect your phone to the same Wi-Fi and scan the code. It pairs right away with full hardware control, with no key to type.": {
+        "es": "Conecta tu teléfono a la misma red Wi-Fi y escanea el código. Se empareja al instante con control total del hardware, sin escribir ninguna clave."},
+    "Scan to pair. The code works once and renews by itself.": {
+        "es": "Escanea para emparejar. El código sirve una sola vez y se renueva solo."},
+    "Use an access key instead": {"es": "Usar una clave de acceso"},
+    "Hide access key": {"es": "Ocultar clave de acceso"},
+    "Type this key in the browser. That device stays read-only until you approve it below.": {
+        "es": "Escribe esta clave en el navegador. Ese dispositivo seguirá en solo lectura hasta que lo apruebes abajo."},
+    "Paired devices": {"es": "Dispositivos emparejados"},
+    "A paired device keeps hardware control until you disconnect it or create a new access key.": {
+        "es": "Un dispositivo emparejado conserva el control del hardware hasta que lo desconectes o crees una nueva clave de acceso."},
+    "Approve device": {"es": "Aprobar dispositivo"},
+    "Approved": {"es": "Aprobado"},
+    "Permanent": {"es": "Permanente"},
+    "Session": {"es": "Sesión"},
+    "New device paired": {"es": "Nuevo dispositivo emparejado"},
+    "Download certificate": {"es": "Descargar certificado"},
+    "Certificate saved. Install it on your phone to trust this board.": {
+        "es": "Certificado guardado. Instálalo en tu teléfono para confiar en esta placa."},
+    "Start web access to pair a phone.": {"es": "Inicia el acceso web para emparejar un teléfono."},
+    "Turn on local network access below so phones can connect.": {
+        "es": "Activa abajo el acceso desde la red local para que los teléfonos puedan conectarse."},
+    "The firewall may be blocking other devices. Use Configure LAN firewall.": {
+        "es": "El firewall podría estar bloqueando otros dispositivos. Usa Configurar firewall de la red local."},
+    "No connected private network was detected. Connect this board to your Wi-Fi or cable.": {
+        "es": "No se detectó ninguna red privada conectada. Conecta esta placa a tu Wi-Fi o cable."},
+    "Ready. Scan the code with your phone.": {"es": "Listo. Escanea el código con tu teléfono."},
+})

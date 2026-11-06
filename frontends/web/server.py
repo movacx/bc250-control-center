@@ -34,7 +34,7 @@ from cheroot.ssl.builtin import BuiltinSSLAdapter
 from cheroot.wsgi import Server as WsgiServer
 
 from bc250cc.application import ApplicationContainer
-from bc250cc.application.system import web_access, web_network
+from bc250cc.application.system import web_access, web_network, web_pairing
 from bc250cc.application.system import web_announcement as web_mdns
 from bc250cc.application.system import web_sessions as web_devices
 from bc250cc.application.system.privacy import redact_machine
@@ -66,6 +66,8 @@ DIST = Path(__file__).resolve().parent / "dist"
 COOKIE = "bc250_session"
 SESSION_SECONDS = 8 * 3600
 SESSION_COOKIE_SECONDS = web_devices.MAX_SESSION_SECONDS
+#: Browsers cap a cookie's life at about 400 days; a paired device is renewed on every visit.
+PERMANENT_COOKIE_SECONDS = 400 * 24 * 3600
 MAX_FAILS, LOCK_SECONDS = 5, 300
 MAX_BODY = 64 * 1024
 CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; "
@@ -145,8 +147,11 @@ class Web:
             if self.locked(who):
                 raise PermissionError
             self._sync_key()
-            if not same_key(key, self.key):
-                self.fails[who].append(time.monotonic())
+            # A QR pairing token works once and trusts the device; the typed key
+            # opens a monitoring-only session the owner approves on the desktop.
+            paired = not same_key(key, self.key) and web_pairing.consume(str(key or ""))
+            if not paired and not same_key(key, self.key):
+                self.fails.setdefault(who, []).append(time.monotonic())
                 return None
             self.fails.pop(who, None)
             now = time.monotonic()
@@ -156,8 +161,8 @@ class Web:
                     self._drop_session(token)
             session = secrets.token_urlsafe(32)
             csrf = self._csrf(session)
-            web_devices.register(session, who, agent, SESSION_SECONDS, key_id=self._key_id())
-            self.sessions[session] = (csrf, now + SESSION_SECONDS)
+            web_devices.register(session, who, agent, SESSION_SECONDS, key_id=self._key_id(), trusted=paired)
+            self.sessions[session] = (csrf, now + (web_devices.PERMANENT_SECONDS if paired else SESSION_SECONDS))
             return session, csrf
 
     def _key_id(self) -> str:
@@ -191,7 +196,8 @@ class Web:
                 self.sessions[token] = (csrf, expires)
             # A desktop-selected duration is authoritative; do not silently
             # reapply the original eight-hour cap held in this process.
-            legacy_expired = expires <= time.monotonic() and device.get("duration_seconds") is None
+            legacy_expired = (expires <= time.monotonic() and device.get("duration_seconds") is None
+                              and not web_devices.is_permanent(device))
             if not csrf or not device or legacy_expired:
                 self._drop_session(token)
                 return None
@@ -391,7 +397,8 @@ class Handler:
         if result is None:
             return self.fail("That key is not right.", 401)
         session, csrf = result
-        cookie = f"{COOKIE}={session}; Path=/; HttpOnly; SameSite=Strict; Max-Age={SESSION_COOKIE_SECONDS}"
+        lifetime = PERMANENT_COOKIE_SECONDS if web_devices.is_permanent(web_devices.session(session)) else SESSION_COOKIE_SECONDS
+        cookie = f"{COOKIE}={session}; Path=/; HttpOnly; SameSite=Strict; Max-Age={lifetime}"
         if getattr(self.server, "secure", False):
             cookie += "; Secure"
         self.json({"ok": True, "csrf": csrf}, extra={"Set-Cookie": cookie})

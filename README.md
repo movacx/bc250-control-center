@@ -232,11 +232,14 @@ Open **Remote access** in the desktop application or TUI, start web access and e
 address shown there or scan its visible QR. Keep both the local name and numeric
 IP available: name resolution depends on the client and network.
 
-Sign in with the access key shown on the board. New browser sessions can only
-monitor. In **Connected devices**, verify the browser's device code before
-granting hardware control. That permission is separate from the Linux
-administrator password required by privileged operations. The owner can revoke
-access and choose an expiry for each session.
+Scan the QR shown on the board to pair a phone: it needs no key, gets hardware
+control and stays signed in. The code works once and renews by itself, so a photo
+of it is useless later. A browser that signs in by typing the access key (under
+**Use an access key instead**) can only monitor until the owner presses
+**Approve device**, which also removes any session limit. Hardware control is
+separate from the Linux administrator password required by privileged
+operations. The owner can disconnect a device at any time; creating a new access
+key signs out every device.
 
 The web provides Dashboard, CPU, Compute Units, GPU, Voltage laboratory, Fans,
 Performance, Black box and Settings. Performance includes CPU, GPU, memory, disk, network
