@@ -320,6 +320,6 @@ def build_bazzite_memory_tuning_command(policy: str, ttm_gib: int) -> str:
         "echo 'BC250_RESULT status=ok component=memory_tuning code=0 message=boot\\ configuration\\ prepared'",
         "echo 'BC250_REBOOT_REQUIRED=1'",
         "echo '== Finished: reboot required =='",
-        "echo 'Reboot once, then open Prepare BC250 system again to verify the active zswap, swapfile and TTM state.'",
+        "echo 'Reboot once, then open Additional settings > Memory and swap > View detailed status to verify the active zswap, swapfile and TTM state.'",
     ))
     return "\n".join(lines)
