@@ -75,7 +75,10 @@ def classify_gfx1013_support(
         ).to_dict()
 
     if family == "bazzite" or distro_id == "bazzite":
-        version_supported = version_id == "44"
+        # 44 is what the release was reviewed on; 45 carries the same OGC kernel
+        # and a newer Mesa, and the RADV build links only against libraries that
+        # resolve there (checked with ldd on a Bazzite 45 BC-250).
+        version_supported = version_id in {"44", "45"}
         kernel_supported = bazzite_async_kernel_supported(kernel)
         installer_allowed = version_supported and kernel_supported
         reason = (

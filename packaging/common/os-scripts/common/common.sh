@@ -56,6 +56,49 @@ as_root() {
   fi
 }
 
+# Layer packages with rpm-ostree on Bazzite / Fedora Atomic. Bazzite checks for
+# updates in the background ("upgrade --check"), which holds the daemon: wait
+# for it instead of failing with "Transaction in progress" (R-7a8454ff,
+# R-7fe1a61c). A 404 while downloading means the cached repository metadata is
+# older than the mirrors (for example updates-archive after a Fedora bump):
+# refresh it once and retry.
+rpm_ostree_layer() {
+  local attempt=0 waited=0 log status
+  while (( attempt < 3 )); do
+    waited=0
+    while rpm-ostree status --json 2>/dev/null | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin).get("transaction") else 1)' 2>/dev/null; do
+      (( waited == 0 )) && info "Another rpm-ostree transaction (usually an automatic update check) is running; waiting for it to finish..."
+      waited=$((waited + 1))
+      if (( waited >= 180 )); then
+        error "rpm-ostree stayed busy for 15 minutes. Run 'rpm-ostree cancel' or wait for the update, then try again."
+        return 75
+      fi
+      sleep 5
+    done
+    log="$(mktemp)"
+    as_root rpm-ostree install --idempotent "$@" 2>&1 | tee "$log"
+    status=${PIPESTATUS[0]}
+    if (( status == 0 )); then rm -f "$log"; return 0; fi
+    attempt=$((attempt + 1))
+    if grep -q 'Transaction in progress' "$log"; then
+      info "A system update started at the same moment; waiting and trying again..."
+      sleep 5
+    elif grep -qE 'Status code: 404|All mirrors were tried|Cannot download' "$log"; then
+      info "Repository metadata is out of date; refreshing it and trying again..."
+      as_root rpm-ostree refresh-md --force || true
+    elif grep -q 'Packages not found:' "$log"; then
+      warn "$(grep -m1 'Packages not found:' "$log"). If you layered it yourself and the repository no longer ships it for this release, remove it with: rpm-ostree uninstall <package>"
+      rm -f "$log"
+      return "$status"
+    else
+      rm -f "$log"
+      return "$status"
+    fi
+    rm -f "$log"
+  done
+  return "$status"
+}
+
 # Source builds default to one compile job: a plain "cmake --build" with the
 # Makefile generator, and makepkg unless makepkg.conf sets MAKEFLAGS. Values
 # the user already set (environment or makepkg.conf) win. Callers that go

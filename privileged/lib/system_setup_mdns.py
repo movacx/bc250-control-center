@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import configparser
 import json
+import os
 import re
 from contextlib import contextmanager
+from pathlib import Path
 
 from system_setup_common import STATE, SetupError
 
@@ -163,17 +165,53 @@ def _local_hosts_transaction(host, own):
         raise
 
 
+NSSWITCH = "/etc/nsswitch.conf"
+AUTHSELECT_NSSWITCH = "/etc/authselect/nsswitch.conf"
+
+
+def _authselect_managed(host):
+    """True when /etc/nsswitch.conf is the standard authselect link.
+
+    Fedora, Bazzite and other Fedora Atomic variants ship it as a link to
+    /etc/authselect/nsswitch.conf. Only that exact link is accepted, and only
+    when its target is a regular file protected by root; anything else stays
+    refused as before.
+    """
+    link = host.path(NSSWITCH)
+    if not link.is_symlink():
+        return False
+    if os.readlink(link) not in (AUTHSELECT_NSSWITCH, "authselect/nsswitch.conf"):
+        raise SetupError(f"Refusing symbolic link: {link}")
+    if host.root == Path("/") and link.lstat().st_uid != 0:
+        raise SetupError(f"Path is not protected by root: {link}")
+    return True
+
+
+def _mdns_before_resolver(line):
+    """The hosts line already asks mDNS before resolve/dns, as authselect's with-mdns4 does."""
+    tokens = re.sub(r"\[[^]]*\]", "", line.partition("#")[0]).split()[1:]
+    mdns = [i for i, token in enumerate(tokens) if re.fullmatch(r"mdns(?:4|6)?(?:_minimal)?", token)]
+    resolvers = [i for i, token in enumerate(tokens) if token in ("resolve", "dns")]
+    return bool(mdns) and (not resolvers or mdns[0] < min(resolvers)) and \
+        re.search(r"mdns(?:4|6)?(?:_minimal)?\s*\[NOTFOUND=return\]", line) is not None
+
+
 def repair(host):
     # Validate the file before installing packages or changing service policy.
-    path = host.safe("/etc/nsswitch.conf")
+    managed = _authselect_managed(host)
+    path = host.safe(AUTHSELECT_NSSWITCH if managed else NSSWITCH)
     original = path.read_text(encoding="utf-8")
-    if any(token in original.lower() for token in ("authselect", "automatically generated", "do not edit")):
+    if not managed and any(token in original.lower() for token in ("authselect", "automatically generated", "do not edit")):
         raise SetupError("The resolver configuration is managed by another system tool; it was preserved. Use the numeric address.")
     matches = list(re.finditer(r"^hosts:[^\n]*", original, re.MULTILINE))
     if len(matches) != 1 or "\\" in matches[0].group():
         raise SetupError("The hosts resolver configuration is ambiguous; it was preserved.")
     match = matches[0]
     line = match.group()
+    if managed and not _mdns_before_resolver(line):
+        # authselect owns this file: enabling mDNS there is its job, not ours.
+        raise SetupError("The resolver configuration is managed by authselect and mDNS is not enabled in it; it was preserved. "
+                         "Enable it with: sudo authselect enable-feature with-mdns4, then retry.")
     # Remove existing mDNS modules and their action clauses before inserting
     # the bridge ahead of resolve, which can otherwise stop with NOTFOUND.
     body, separator, comment = line.partition("#")
@@ -189,7 +227,8 @@ def repair(host):
         if len(advertised) != 2 or advertised[0] != "bc250cc.local" or advertised[1] not in own:
             raise SetupError("The local name belongs to another device or is not advertised. Resolver settings were preserved.")
         with _local_hosts_transaction(host, own) as local_hosts:
-            updated = original[:match.start()] + body + ((" #" + comment) if separator else "") + original[match.end():]
+            # An authselect-managed file already has mDNS in place and is never rewritten.
+            updated = original if managed else original[:match.start()] + body + ((" #" + comment) if separator else "") + original[match.end():]
             backup = f"{STATE}/nsswitch.conf.before-mdns"
             if updated != original:
                 if not host.safe(backup).exists():
