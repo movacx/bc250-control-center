@@ -9,7 +9,9 @@ the root loop that follows it, and the desktop side standing aside.
 
 from __future__ import annotations
 
+import fcntl
 import json
+import os
 import random
 import runpy
 from contextlib import contextmanager
@@ -79,6 +81,7 @@ def board(tmp_path, monkeypatch):
 
     state = tmp_path / "state"
     run = tmp_path / "run"
+    run.mkdir(parents=True, exist_ok=True)
     monkeypatch.setitem(g, "HWMON_BASE", hwmon)
     monkeypatch.setitem(g, "find_sensor", lambda: nct)
     monkeypatch.setitem(g, "STATE_DIR", state)
@@ -87,6 +90,7 @@ def board(tmp_path, monkeypatch):
     monkeypatch.setitem(g, "STATUS_FILE", run / "fan-control.json")
     monkeypatch.setitem(g, "OVERRIDE_FILE", run / "fan-override.json")
     monkeypatch.setitem(g, "EXTERNAL_FILE", state / "fan-external.json")
+    monkeypatch.setitem(g, "SMU_RUN_LOCK", run / "bc250-smu-run.lock")
     monkeypatch.setattr(g["time"], "sleep", lambda _seconds: None)
 
     @contextmanager
@@ -194,6 +198,213 @@ def test_chips_the_curve_does_not_use_are_never_read(board, monkeypatch):
 
     assert readings == {"gpu": 48.0, "cpu": 52.0, "vrm": 44.5, "board": 45.0}
     assert read and not [path for path in read if memory in path.parents]
+
+
+def _regulator(g, cpu=60000, gpu=100000) -> Path:
+    """A wired bc250_vrm: temp1 is "CPU VRM Temp", temp2 "GPU VRM Temp"."""
+    regulator = g["HWMON_BASE"] / "hwmon5"
+    _write(regulator / "name", "bc250_vrm")
+    for index, (label, value) in enumerate(
+        (("CPU VRM Temp", cpu), ("GPU VRM Temp", gpu)), start=1
+    ):
+        (regulator / f"temp{index}_label").write_text(label + "\n", encoding="utf-8")
+        _write(regulator / f"temp{index}_input", value)
+    return regulator
+
+
+def _recording_reads(g, monkeypatch) -> list[Path]:
+    read = []
+    original = g["_read_temperature"]
+
+    def recording(path):
+        read.append(path)
+        return original(path)
+
+    monkeypatch.setitem(g, "_read_temperature", recording)
+    return read
+
+
+def test_the_gpu_regulator_drives_the_vrm_input(board):
+    # kevin-board, 2200 MHz GPU load: the GPU VRM reached 100 C while edge,
+    # Tctl and "VRM MOS" stayed under 70 C, so the curve never saw it.
+    module, g, nct, _k10 = board
+    _regulator(g, cpu=61000, gpu=100000)
+    module["save_policy"](_policy())
+    clock = iter(range(0, 10_000, 10)).__next__
+    controller = module["FanController"](clock=clock)
+
+    controller.step()
+
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+    assert controller.snapshot["sensor"] == "vrm"
+    assert controller.snapshot["vrm_source"] == "bc250_vrm"
+    assert (nct / "pwm2").read_text().strip() == "255"
+
+
+def test_a_regulator_past_its_critical_limit_is_an_emergency(board):
+    module, g, nct, _k10 = board
+    _regulator(g, gpu=106000)
+    module["save_policy"](_policy())
+    controller = module["FanController"](clock=lambda: 0.0)
+
+    controller.step()
+
+    assert controller.snapshot["source"] == "critical"
+    assert controller.snapshot["sensor"] == "vrm"
+    assert (nct / "pwm2").read_text().strip() == "255"
+
+
+def test_the_regulator_is_read_on_its_own_slow_clock(board, monkeypatch):
+    # Every bc250_vrm read is an I2C transaction: never on the 2 s tick.
+    module, g, _nct, _k10 = board
+    regulator = _regulator(g)
+    module["save_policy"](_policy())
+    read = _recording_reads(g, monkeypatch)
+    moments = iter([float(second) for second in range(0, 32, 2)])
+    controller = module["FanController"](clock=lambda: next(moments))
+
+    reads_per_tick = []
+    for _ in range(16):
+        before = len([path for path in read if regulator in path.parents])
+        controller.step()
+        after = len([path for path in read if regulator in path.parents])
+        reads_per_tick.append(after - before)
+        assert controller.snapshot["readings"]["vrm"] == 100.0
+
+    # t=0 and t=16: two inputs each, nothing in between.
+    assert reads_per_tick == [2] + [0] * 7 + [2] + [0] * 7
+    # The 2 s scan itself still skips the chip, as before.
+    read.clear()
+    module["read_temperatures"](g["HWMON_BASE"])
+    assert read and not [path for path in read if regulator in path.parents]
+
+
+def test_without_the_regulator_the_vrm_input_stays_on_the_nuvoton(board):
+    module, _g, _nct, _k10 = board
+    module["save_policy"](_policy())
+    controller = module["FanController"](clock=lambda: 0.0)
+
+    controller.step()
+
+    assert controller.state == "active"
+    assert controller.snapshot["source"] == "curve"
+    assert controller.snapshot["readings"]["vrm"] == 44.5
+    assert controller.snapshot["vrm_source"] == "nct"
+
+
+def test_a_failing_regulator_keeps_its_last_sample_then_falls_back(board):
+    module, g, _nct, _k10 = board
+    regulator = _regulator(g, gpu=90000)
+    module["save_policy"](_policy())
+    moments = iter([0.0, 16.0, 44.0, 46.0])
+    controller = module["FanController"](clock=lambda: next(moments))
+    controller.step()
+    assert controller.snapshot["readings"]["vrm"] == 90.0
+    for path in regulator.glob("temp*_input"):
+        path.unlink()  # the driver answering EIO, or unloaded
+
+    controller.step()  # t=16: a failed read, the t=0 sample stands in
+    assert controller.snapshot["readings"]["vrm"] == 90.0
+    controller.step()  # t=44: still inside the stale window
+    assert controller.snapshot["readings"]["vrm"] == 90.0
+    controller.step()  # t=46: too old, back to "VRM MOS", no failsafe
+    assert controller.snapshot["readings"]["vrm"] == 44.5
+    assert controller.snapshot["vrm_source"] == "nct"
+    assert controller.snapshot["source"] == "curve"
+
+
+@pytest.mark.parametrize(
+    ("failing_input", "cpu", "gpu"),
+    [("temp2_input", 60000, 100000), ("temp1_input", 100000, 60000)],
+)
+def test_a_failed_rail_keeps_its_reading_while_the_other_still_answers(
+    board, failing_input, cpu, gpu
+):
+    # CPU VRM 61 C and GPU VRM 100 C: losing only the GPU's transaction must
+    # not drop `vrm` to 61 at the next poll. Either rail can be the failed one.
+    module, g, _nct, _k10 = board
+    regulator = _regulator(g, cpu=cpu, gpu=gpu)
+    module["save_policy"](_policy())
+    moments = iter([0.0, 16.0, 44.0, 60.0, 76.0])
+    controller = module["FanController"](clock=lambda: next(moments))
+
+    controller.step()
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+
+    healthy_input = "temp1_input" if failing_input == "temp2_input" else "temp2_input"
+    (regulator / failing_input).unlink()  # one transaction now answers EIO
+    _write(regulator / healthy_input, 70000)  # the other rail keeps moving
+
+    controller.step()  # t=16: the failed rail's t=0 sample stands in
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+    controller.step()  # t=44: still inside its 45 s window
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+    controller.step()  # t=60: expired; the rail read all along decides
+    assert controller.snapshot["readings"]["vrm"] == 70.0
+    assert controller.snapshot["vrm_source"] == "bc250_vrm"
+
+    _write(regulator / failing_input, 100000)
+    controller.step()  # t=76: the failed rail answers again and recovers
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+
+
+def test_the_regulator_is_left_alone_during_a_cpu_tuning_run(board, monkeypatch):
+    module, g, _nct, _k10 = board
+    regulator = _regulator(g)
+    module["save_policy"](_policy())
+    read = _recording_reads(g, monkeypatch)
+    moments = iter([0.0, 2.0])
+    controller = module["FanController"](clock=lambda: next(moments))
+    lock = g["SMU_RUN_LOCK"]
+    lock.parent.mkdir(parents=True, exist_ok=True)
+
+    with lock.open("w") as run:
+        fcntl.flock(run, fcntl.LOCK_EX)
+        controller.step()
+        fcntl.flock(run, fcntl.LOCK_UN)
+    assert not [path for path in read if regulator in path.parents]
+    assert controller.snapshot["readings"]["vrm"] == 44.5
+
+    controller.step()  # the run is over: read now, not 15 s later
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+
+
+def test_the_smu_lock_covers_the_first_regulator_read(board, monkeypatch):
+    # A run that starts once the read is already in flight must not get in:
+    # the shared lock is held for the whole I2C transaction, and the first
+    # read creates the lock file when no CPU tuning run has happened yet.
+    module, g, _nct, _k10 = board
+    regulator = _regulator(g)
+    module["save_policy"](_policy())
+    lock = g["SMU_RUN_LOCK"]
+    assert not lock.exists()
+    blocked = []
+    original = g["_read_temperature"]
+
+    def read_while_a_run_tries_to_start(path):
+        if regulator in path.parents and not blocked:
+            fd = os.open(lock, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+            try:
+                with pytest.raises(OSError):
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            finally:
+                os.close(fd)
+            blocked.append(True)
+        return original(path)
+
+    monkeypatch.setitem(g, "_read_temperature", read_while_a_run_tries_to_start)
+    controller = module["FanController"](clock=lambda: 0.0)
+    controller.step()
+
+    assert blocked == [True]  # the run could not have started during the read
+    assert lock.exists()  # created, so the first read is covered too
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+    fd = os.open(lock, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+    try:  # and released once the read is done
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
 
 
 def test_the_loop_follows_the_curve_from_firmware_mode(board):
