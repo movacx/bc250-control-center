@@ -1,12 +1,14 @@
 import json
 import logging
 import os
+import re
 import shutil
 import stat
 import subprocess
 import time
 from pathlib import Path
 
+from bc250cc.domain.fan.headers import BC250_FAN_HEADERS
 from bc250cc.infrastructure.fan_transport import (
     PWMTransport,
     PWMTransportSignals,
@@ -17,7 +19,9 @@ from bc250cc.infrastructure.polkit_session import normalize_polkit_error, pkexec
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
 from bc250cc.infrastructure.system_fan_control import (
     FAN_EXTERNAL_MESSAGE,
+    downgrade_policy_to_v1,
     fan_handed_to_external,
+    is_legacy_helper_refusal,
     read_system_fan_control,
     running_fan_managers,
 )
@@ -594,11 +598,31 @@ class FanRepository:
         """Read-only: what the root fan service is doing, with no prompt."""
         snapshot = read_system_fan_control()
         snapshot['managers'] = running_fan_managers()
+        snapshot['policy_schemas'] = self._installed_fan_policy_schemas()
         snapshot['available'] = bool(
             self._fan_pwm_packaged_helper_path() is not None
             and detect_init_manager().kind in {'systemd', 'openrc'}
         )
         return snapshot
+
+    def _installed_fan_policy_schemas(self):
+        """Read a root-owned helper's declared format without running it or authenticating."""
+        helper = self._fan_pwm_packaged_helper_path()
+        if helper is None:
+            return []
+        try:
+            info = helper.stat()
+            identity = (str(helper), info.st_mtime_ns, info.st_size)
+            cached = getattr(self, '_fan_schema_cache', None)
+            if cached and cached[0] == identity:
+                return list(cached[1])
+            match = re.search(r'^POLICY_SCHEMA\s*=\s*(\d+)\s*$', helper.read_text(encoding='utf-8'), re.MULTILINE)
+        except (OSError, UnicodeError):
+            return []
+        schema = int(match.group(1)) if match else None
+        schemas = [1, 2] if schema == 2 else [1] if schema == 1 else []
+        self._fan_schema_cache = (identity, schemas)
+        return list(schemas)
 
     def sincronizar_control_fan_sistema(self, politica):
         """Copy the desktop fan policy to the root service (or clear it)."""
@@ -606,7 +630,22 @@ class FanRepository:
         if politica is None:
             return {'salida': self._comando_fan_helper('POLICY-CLEAR')}
         payload = json.dumps(politica, sort_keys=True, separators=(',', ':'))
-        salida = self._comando_fan_helper(f'POLICY {payload}')
+        try:
+            salida = self._comando_fan_helper(f'POLICY {payload}')
+        except RuntimeError as error:
+            if not is_legacy_helper_refusal(error):
+                raise
+            # A root helper from before fan control v2: hand it the same
+            # policy in its own schema when nothing is lost, refuse otherwise.
+            legacy = downgrade_policy_to_v1(politica)
+            if legacy is None:
+                raise RuntimeError(
+                    'The installed fan helper is older than this application and cannot '
+                    'follow several fans or the new curve settings. Reinstall BC250 '
+                    'Control Center to update it.'
+                ) from None
+            payload = json.dumps(legacy, sort_keys=True, separators=(',', ':'))
+            salida = self._comando_fan_helper(f'POLICY {payload}')
         return {'salida': salida, 'digest': salida.rsplit(' ', 1)[-1]}
 
     def activar_control_fan_sistema(self, politica):
@@ -995,6 +1034,7 @@ for line in sys.stdin:
 
     def _nct_fan_entry(self, sensor, input_path, modules):
         index = self._numero_archivo(input_path.name)
+        header = BC250_FAN_HEADERS.get(index)
         pwm_path = sensor / f'pwm{index}'
         pwm_present = pwm_path.is_file()
         enable_path = sensor / f'pwm{index}_enable'
@@ -1002,6 +1042,8 @@ for line in sys.stdin:
         return {
             'index': index,
             'label': self._fan_label_bc250(index, modules),
+            'bios_fan_number': header.bios_number if header else None,
+            'header': header.header if header else '',
             'rpm': self._leer_entero(input_path),
             'pwm': self._leer_entero(pwm_path) if pwm_present else None,
             'pwm_path': str(pwm_path) if pwm_present else '',
@@ -1104,27 +1146,8 @@ for line in sys.stdin:
         return f'{sensores.get("chip")} detected. Read-only mode likely: {len(activos)} fan(s) reporting RPM, PWM files not writable.'
 
     def _fan_label_bc250(self, indice, modulos=None):
-        modulos = modulos or {}
-        if modulos.get('nct6687'):
-            nombres = {
-                1: 'CPU Fan',
-                2: 'Pump Fan / J4003 Fan 1',
-                3: 'System Fan #1 / J4003 Fan 2',
-                4: 'System Fan #2 / J4003 Fan 3',
-                5: 'System Fan #3 / J4003 Fan 4',
-                6: 'System Fan #4 / J4003 Fan 5',
-                7: 'System Fan #5',
-                8: 'System Fan #6',
-            }
-        else:
-            nombres = {
-                1: 'Fan 1 / CPU Fan',
-                2: 'Pump Fan / J4003 Fan 1',
-                3: 'System Fan #1 / J4003 Fan 2',
-                4: 'System Fan #2 / J4003 Fan 3',
-                5: 'System Fan #3 / J4003 Fan 4',
-            }
-        return nombres.get(indice, f'Fan {indice}')
+        header = BC250_FAN_HEADERS.get(indice)
+        return header.label if header else f'Fan {indice}'
 
     def _root_puede_escribir(self, ruta):
         try:

@@ -52,6 +52,7 @@ SYSTEM_STEAMOS_AMDGPU_BACKEND_DIR="/usr/libexec/bc250-control-center/steamos-amd
 SYSTEM_CPU_SMU_VENDOR="/usr/libexec/bc250-control-center/lib/bc250_smu_oc_vendor.zip"
 SYSTEM_GOVERNOR_TOML_IMPLEMENTATION="/usr/libexec/bc250-control-center/lib/governor_toml.py"
 SYSTEM_CONTRACT_IMPLEMENTATION="/usr/libexec/bc250-control-center/lib/bc250_contract.py"
+SYSTEM_FAN_ENGINE_IMPLEMENTATION="/usr/libexec/bc250-control-center/lib/bc250_fan_engine.py"
 LEGACY_CORE_UNLOCK_IMPLEMENTATION="/usr/libexec/bc250-control-center/lib/core_unlock.py"
 SYSTEM_POLKIT_ACTION="/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy"
 
@@ -441,6 +442,8 @@ remove_managed_privileged_file "$APP_DIR/privileged/lib/governor_toml.py" "$SYST
 # with no package owning it. Every later package install then refused with a
 # file conflict.
 remove_managed_privileged_file "$APP_DIR/privileged/lib/bc250_contract.py" "$SYSTEM_CONTRACT_IMPLEMENTATION"
+# The fan-control engine the root fan service loads (docs/FAN_CONTROL_V2.md).
+remove_managed_privileged_file "$APP_DIR/privileged/lib/bc250_fan_engine.py" "$SYSTEM_FAN_ENGINE_IMPLEMENTATION"
 remove_managed_privileged_file "$APP_DIR/privileged/policies/io.github.movacx.bc250-control-center.policy" "$SYSTEM_POLKIT_ACTION"
 # Root runs these helpers, so Python leaves bytecode beside their modules and
 # the directory outlived the uninstall. Only once no module is left: a kept

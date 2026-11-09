@@ -39,8 +39,8 @@ def test_save_and_start_enables_the_service_with_the_edited_curve():
     assert level == 1 and not calls
     work()
     assert calls[0][0] == "enable"
-    assert calls[0][1]["points"] == CURVE["points"]
-    assert calls[0][1]["pwm"] == 2
+    assert calls[0][1]["channels"]["2"]["points"] == CURVE["points"]
+    assert list(calls[0][1]["channels"]) == ["2"]
     assert ctx.settings.config["fan_curve"]["enabled"]
 
 
@@ -54,7 +54,7 @@ def test_service_operations_use_current_saved_policy(operation):
     work()
     assert calls[0][0] == operation
     if operation != "disable":
-        assert calls[0][1]["points"] == CURVE["points"]
+        assert calls[0][1]["channels"]["2"]["points"] == CURVE["points"]
 
 
 @pytest.mark.parametrize("operation", ["enable", "sync", "disable"])

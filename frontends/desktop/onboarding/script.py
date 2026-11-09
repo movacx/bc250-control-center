@@ -225,9 +225,9 @@ def _close_sensor_list(window):
 def _open_fan_mode(curve: bool):
     def arrange(window):
         page = getattr(window, "fans_page", None)
-        button = getattr(page, "curve_mode_button" if curve else "manual_mode_button", None)
-        if button is not None and not button.isChecked():
-            button.click()
+        opener = getattr(page, "_set_control_mode", None)
+        if callable(opener):
+            opener("curve" if curve else "manual")
 
     return arrange
 
@@ -647,7 +647,7 @@ def tour_stops() -> tuple[TourStop, ...]:
         # ------------------------------------------------------------ fans
         TourStop(
             page="fans",
-            anchor=_attribute("fans_page", "manual_mode_button"),
+            anchor=_attribute("fans_page", "editor"),
             arrange=_open_fan_mode(curve=False),
             title=tr("Fans, by hand"),
             body=tr(
@@ -659,7 +659,7 @@ def tour_stops() -> tuple[TourStop, ...]:
         ),
         TourStop(
             page="fans",
-            anchor=_attribute("fans_page", "curve_mode_button"),
+            anchor=_attribute("fans_page", "editor"),
             arrange=_open_fan_mode(curve=True),
             title=tr("Fans, on their own"),
             body=tr(
@@ -671,7 +671,7 @@ def tour_stops() -> tuple[TourStop, ...]:
         ),
         TourStop(
             page="fans",
-            anchor=_attribute("fans_page", "system_control_panel"),
+            anchor=_attribute("fans_page", "boot_switch"),
             title=tr("Fans from the moment it boots"),
             body=tr(
                 "Turn this on and a system service applies your curve from "

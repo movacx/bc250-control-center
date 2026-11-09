@@ -6217,7 +6217,7 @@ const removeGameProfile = callable("remove_game_profile");
 const setGameProfilesEnabled = callable("set_game_profiles_enabled");
 const gameStarted = callable("game_started");
 const gameStopped = callable("game_stopped");
-const fanChannels = [2, 3, 4, 5];
+const fanChannels = [1, 2, 3, 4, 5];
 const cuRows = ["SE0.SH0", "SE0.SH1", "SE1.SH0", "SE1.SH1"];
 // Same ladder the desktop's own VRAM control offers; used only until the
 // first status() reply carries the contract-sourced list, so the dropdown

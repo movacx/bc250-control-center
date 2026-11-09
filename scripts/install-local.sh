@@ -457,6 +457,7 @@ install_privileged_pwm_components() {
   local cyan_overlay_preflight_source="$ROOT_DIR/privileged/helpers/bc250-cyan-overlay-preflight"
   local cpu_smu_vendor_source="$ROOT_DIR/privileged/lib/bc250_smu_oc_vendor.zip"
   local governor_toml_source="$ROOT_DIR/privileged/lib/governor_toml.py"
+  local fan_engine_source="$ROOT_DIR/privileged/lib/bc250_fan_engine.py"
   local policy_source="$ROOT_DIR/privileged/policies/io.github.movacx.bc250-control-center.policy"
   local -a elevate=()
 
@@ -505,6 +506,7 @@ install_privileged_pwm_components() {
     "/usr/libexec/bc250-control-center/lib/system_setup_vram.py"
     "/usr/libexec/bc250-control-center/lib/acpi_payload.py"
     "/usr/libexec/bc250-control-center/lib/bc250_contract.py"
+    "/usr/libexec/bc250-control-center/lib/bc250_fan_engine.py"
     "$cu_helper_target"
     "$SYSTEM_PRIV_HELPER"
     "$SYSTEM_STEAMOS_GAME_HELPER"
@@ -556,7 +558,7 @@ install_privileged_pwm_components() {
     # by the group, causing every hardened helper to reject its own imports.
     "${elevate[@]}" install -d -m0755 /usr/libexec/bc250-control-center /usr/libexec/bc250-control-center/lib
     "${elevate[@]}" install -Dm755 "$system_setup_helper_source" /usr/libexec/bc250-control-center/bc250-system-setup-helper
-    for setup_module in system_setup_web_firewall.py system_setup_mdns.py system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py bc250_contract.py; do
+    for setup_module in system_setup_web_firewall.py system_setup_mdns.py system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py bc250_contract.py bc250_fan_engine.py; do
       "${elevate[@]}" install -Dm644 "$ROOT_DIR/privileged/lib/$setup_module" "/usr/libexec/bc250-control-center/lib/$setup_module"
     done
     "${elevate[@]}" install -Dm755 "$helper_source" "$SYSTEM_PRIV_HELPER"
@@ -627,6 +629,7 @@ install_privileged_pwm_components() {
     done
     for implementation_pair in \
       "$governor_toml_source:$SYSTEM_GOVERNOR_TOML_IMPLEMENTATION" \
+      "$fan_engine_source:/usr/libexec/bc250-control-center/lib/bc250_fan_engine.py" \
       "$cpu_smu_vendor_source:$SYSTEM_CPU_SMU_VENDOR"; do
       implementation_source_path="${implementation_pair%%:*}"
       implementation_installed_path="${implementation_pair#*:}"

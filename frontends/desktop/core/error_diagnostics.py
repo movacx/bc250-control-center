@@ -492,7 +492,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-FAN-001",
-        (r"\bpwm\b", r"nct668", r"hwmon.*(?:fan|pwm)", r"(?:fan|pwm).*hwmon", r"fan.*(?:failed|unavailable|not found)", r"fan channel", r"fan request", r"no nct", r"hwmon sensor", r"acpi.*resource conflict", r"acpi support missing from driver", r"ec base i/o port", r"failed to insert module 'nct", r"nct668\d", r"acpi_enforce_resources", r"\bpwm\d?_enable\b"),
+        (r"\bpwm\b", r"nct668", r"hwmon.*(?:fan|pwm)", r"(?:fan|pwm).*hwmon", r"fan.*(?:failed|unavailable|not found)", r"fan channel", r"fan request", r"\bfan (?:curves?|policy|presets?|mix|modes?|setting)\b", r"no nct", r"hwmon sensor", r"acpi.*resource conflict", r"acpi support missing from driver", r"ec base i/o port", r"failed to insert module 'nct", r"nct668\d", r"acpi_enforce_resources", r"\bpwm\d?_enable\b"),
         "The fan control path is unavailable or rejected the write.",
         "The NCT driver may be read-only, the hwmon number may have changed, the selected PWM channel may not exist, or another fan service is controlling it.",
         "Refresh fan detection, confirm the physical channel, prepare NCT6687 PWM support, and stop other fan-control tools before retrying.",

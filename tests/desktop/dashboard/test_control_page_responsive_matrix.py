@@ -74,26 +74,29 @@ def test_control_pages_reflow_without_outer_overflow_or_clipped_copy(
 
 @pytest.mark.parametrize("language", ("en", "es", "de", "pl"))
 @pytest.mark.parametrize("width", (360, 480, 1024, 1440))
-def test_fan_curve_command_deck_reflows_without_hidden_page_height_or_clipping(
+@pytest.mark.parametrize("mode", ("fixed", "curve", "mix"))
+def test_fan_channel_editor_reflows_without_hidden_height_or_clipping(
     qtbot,
     language,
     width,
+    mode,
 ):
+    """The redesigned Fans page: the channel table and its editor, in every
+    mode, keep their copy visible and never push the page sideways."""
     try:
         set_language(language)
         page = FansPage(object())
         qtbot.addWidget(page)
-        page._set_control_mode("curve")
+        page._render()
+        page.editor.load(2, {"mode": mode}, "CPU_FAN1 / J4003 Fan 1")
         page.resize(width, 800)
         page.show()
         qtbot.wait(5)
 
         assert page.scroll.horizontalScrollBar().maximum() == 0
-        # The command deck intentionally follows the current page's preferred
-        # height instead of caching the construction-time height.  Qt may give
-        # it a few pixels of safe layout slack; correctness is that it never
-        # becomes shorter than the visible curve content.
-        assert page.control_stack.height() >= page.curve_card.sizeHint().height()
+        # The mode stack follows the page on screen, never a cached height.
+        current = page.editor.pages.currentWidget()
+        assert page.editor.pages.height() >= current.minimumSizeHint().height()
         assert _clipped_copy(page) == ([], [])
     finally:
         set_language("en")

@@ -59,7 +59,8 @@ def test_automatic_curve_can_save_and_enable_its_service_without_switching_tabs(
     control.handler(ui)
     assert saved[-1]['fan_curve']['enabled']
     call = next(item for item in service.calls if item[0] == 'activar_control_fan_sistema')
-    assert call[1][0]['mode'] == 'curve' and len(call[1][0]['points']) == 5
+    channel = call[1][0]['channels']['2']
+    assert channel['mode'] == 'curve' and len(channel['points']) == 5
     assert 'points' not in ctx.state('fans')
 
 

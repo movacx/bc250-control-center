@@ -619,12 +619,18 @@ class FanCurveScale(QWidget):
     MIN_TEMPERATURE = 30.0
     MAX_TEMPERATURE = 95.0
     MINIMUM_HEIGHT = 420
-    COMPACT_HEIGHT = 320
+    COMPACT_HEIGHT = 240
     #: How close, in pixels, the pointer has to come to a point to read it.
     HOVER_RADIUS = 16.0
 
+    #: A point was dragged: (index in sorted order, temperature °C, duty %).
+    point_dragged = pyqtSignal(int, int, int)
+
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.editable = False
+        self.dragging: int | None = None
+        self._drag_range: tuple[float, float] | None = None
         self.points: list[tuple[int, int]] = [(50, 70), (65, 100), (70, 100)]
         self.live_temperature: float | None = None
         self.live_duty: int | None = None
@@ -665,6 +671,9 @@ class FanCurveScale(QWidget):
 
     def temperature_range(self) -> tuple[float, float]:
         """Axis bounds in whole 5 °C steps around the points and the reading."""
+        if self._drag_range is not None:
+            # The axis holds still under the pointer while a point is dragged.
+            return self._drag_range
         temperatures = [float(temperature) for temperature, _speed in self.points]
         if self.live_temperature is not None:
             temperatures.append(float(self.live_temperature))
@@ -701,8 +710,67 @@ class FanCurveScale(QWidget):
                 best, best_distance = index, distance
         return best
 
+    def set_editable(self, editable: bool) -> None:
+        self.editable = bool(editable)
+        if not self.editable:
+            self.dragging = None
+            self._drag_range = None
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def value_at(self, position: QPointF) -> tuple[float, float]:
+        """(temperature, duty) under a position on the plot."""
+        low, high = self.temperature_range()
+        plot = self._plot
+        if plot.isEmpty():
+            return low, 0.0
+        x = max(plot.left(), min(plot.right(), position.x()))
+        y = max(plot.top(), min(plot.bottom(), position.y()))
+        temperature = low + (x - plot.left()) / plot.width() * (high - low)
+        duty = (plot.bottom() - y) / plot.height() * 100.0
+        return temperature, duty
+
+    def drag_to(self, index: int, position: QPointF) -> tuple[int, int]:
+        """Move point ``index`` under ``position``, kept between its
+        neighbours (1 °C apart) and inside 0..120 °C and 0..100 %."""
+        temperature, duty = self.value_at(position)
+        lowest = self.points[index - 1][0] + 1 if index > 0 else 0
+        highest = self.points[index + 1][0] - 1 if index + 1 < len(self.points) else 120
+        temperature = int(round(max(lowest, min(highest, temperature))))
+        duty = int(round(max(0.0, min(100.0, duty))))
+        self.points[index] = (temperature, duty)
+        self.update()
+        return temperature, duty
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        if self.editable and event.button() == Qt.MouseButton.LeftButton:
+            index = self.point_at(event.position())
+            if index is not None:
+                self.dragging = index
+                self._drag_range = self.temperature_range()
+                self.setCursor(Qt.CursorShape.ClosedHandCursor)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        if self.dragging is not None:
+            self.dragging = None
+            self._drag_range = None
+            self.setCursor(Qt.CursorShape.OpenHandCursor if self.hovered is not None else Qt.CursorShape.ArrowCursor)
+            self.update()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
     def mouseMoveEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        if self.dragging is not None:
+            temperature, duty = self.drag_to(self.dragging, event.position())
+            self.point_dragged.emit(self.dragging, temperature, duty)
+            event.accept()
+            return
         hovered = self.point_at(event.position())
+        if self.editable:
+            self.setCursor(Qt.CursorShape.OpenHandCursor if hovered is not None else Qt.CursorShape.ArrowCursor)
         if hovered != self.hovered:
             self.hovered = hovered
             self.update()
@@ -881,6 +949,9 @@ class FanCurveScale(QWidget):
 class FanCurvePlot(QWidget):
     """The response chart alone: no caption rows competing with the data."""
 
+    #: A point was dragged on the chart: (index, temperature °C, duty %).
+    point_moved = pyqtSignal(int, int, int)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.points = [(50, 70), (65, 100), (70, 100)]
@@ -895,6 +966,7 @@ class FanCurvePlot(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
         self.scale = FanCurveScale(self)
+        self.scale.point_dragged.connect(self.point_moved)
         root.addWidget(self.scale)
         self._render()
 
@@ -921,6 +993,10 @@ class FanCurvePlot(QWidget):
         self.compact = bool(compact)
         self.scale.set_compact(self.compact)
         self.updateGeometry()
+
+    def set_editable(self, editable: bool) -> None:
+        """Points can be dragged with the pointer."""
+        self.scale.set_editable(editable)
 
     def retranslate(self) -> None:
         self._render()

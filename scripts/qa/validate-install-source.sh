@@ -37,6 +37,7 @@ required=(
   privileged/lib/system_setup_vram.py
   privileged/lib/acpi_payload.py
   privileged/lib/governor_toml.py
+  privileged/lib/bc250_fan_engine.py
   privileged/lib/bc250_smu_oc_vendor.zip
   packaging/common/io.github.movacx.bc250-control-center.desktop
   packaging/common/io.github.movacx.bc250-control-center.metainfo.xml

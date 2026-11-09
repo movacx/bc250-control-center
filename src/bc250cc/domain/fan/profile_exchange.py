@@ -12,6 +12,10 @@ Quiet/Balanced/Boost buttons carry the names and speeds chosen here.
 
 from __future__ import annotations
 
+from copy import deepcopy
+
+from bc250cc.domain.fan import channels as channel_model
+from bc250cc.domain.fan import engine
 from bc250cc.domain.fan.persistence import (
     bounded_int,
     normalize_fan_curve,
@@ -29,7 +33,104 @@ DECKY_MIN_PERCENT = 20
 DECKY_MAX_PERCENT = 100
 MAX_NAME_LENGTH = 24
 #: A profile file is a few hundred bytes; anything far larger is not one.
-MAX_DOCUMENT_BYTES = 64 * 1024
+MAX_DOCUMENT_BYTES = 256 * 1024
+
+
+def channel_profiles_document(profiles: list[dict], config: dict) -> dict:
+    """Export every channel and named mode, keeping the v1 speed slots too."""
+    document = fan_profiles_document(profiles)
+    document.update({
+        "schema": 2,
+        "channels": channel_model.normalize_fan_channels(config.get("fan_channels")),
+        "labels": channel_model.normalize_fan_labels(config.get("fan_channel_labels")),
+        "modes": channel_model.normalize_fan_modes(config.get("fan_modes")),
+        "active_mode": str(config.get("fan_active_mode") or ""),
+    })
+    return document
+
+
+def parse_channel_profiles_document(payload: object) -> dict:
+    """Validate the entire bundle before persistence; never activate a fan.
+
+    v1's optional curve becomes an importable snapshot rather than disappearing.
+    The caller stores snapshots as named modes; active channels stay unchanged.
+    """
+    if not isinstance(payload, dict) or payload.get("kind") != DOCUMENT_KIND:
+        raise ValueError("This file is not a BC250 fan profile export.")
+    if type(payload.get("schema")) is not int or payload["schema"] not in (1, 2):
+        raise ValueError("This fan profile file was made by a different version.")
+    legacy = {**payload, "schema": 1}
+    profiles, curve = parse_fan_profiles_document(legacy)
+    if payload["schema"] == 1:
+        channels = {}
+        if curve:
+            channels = engine.validate_policy({"schema": 2, "channels": {
+                str(curve["pwm"]): {"mode": "curve", "source": "hottest", "points": [
+                    [p["temperature"], p["speed"]] for p in curve["points"]
+                ]},
+            }})["channels"]
+        return {"profiles": profiles, "channels": channels, "labels": {}, "modes": [], "active_mode": ""}
+
+    def validate_channels(raw: object) -> dict:
+        if not isinstance(raw, dict):
+            raise ValueError("Invalid fan channels")
+        if not raw:
+            return {}
+        return engine.validate_policy({"schema": 2, "channels": raw})["channels"]
+
+    channels = validate_channels(payload.get("channels", {}))
+    raw_modes = payload.get("modes", [])
+    if not isinstance(raw_modes, list) or len(raw_modes) > channel_model.MAX_MODES:
+        raise ValueError("Invalid fan profiles")
+    modes = []
+    seen = set()
+    reserved = {s.casefold() for s in channel_model.BUILTIN_MODE_NAMES.values()}
+    for raw in raw_modes:
+        if not isinstance(raw, dict) or not isinstance(raw.get("name"), str):
+            raise ValueError("Invalid fan profiles")
+        name = " ".join(raw["name"].split())
+        if not name or len(name) > channel_model.MODE_NAME_MAX_LENGTH or name.casefold() in seen:
+            raise ValueError("Invalid fan profiles")
+        if name.casefold() in reserved:
+            raise ValueError("Reserved profile name")
+        seen.add(name.casefold())
+        value = validate_channels(raw.get("channels"))
+        if not value:
+            raise ValueError("This fan mode has no valid channel.")
+        modes.append({"name": name, "channels": value})
+    labels = payload.get("labels", {})
+    if not isinstance(labels, dict) or any(
+        not isinstance(value, str) or len(value) > channel_model.LABEL_MAX_LENGTH
+        or key not in {str(pwm) for pwm in range(1, engine.PWM_MAX + 1)}
+        for key, value in labels.items()
+    ):
+        raise ValueError("Invalid fan labels")
+    return {"profiles": profiles, "channels": channels, "labels": deepcopy(labels),
+            "modes": modes, "active_mode": str(payload.get("active_mode") or "")}
+
+
+def imported_profile_updates(config: dict, bundle: dict, *, snapshot_name: str) -> dict:
+    """Merge saved profiles atomically, keeping current hardware policy intact."""
+    modes = channel_model.normalize_fan_modes(config.get("fan_modes"))
+    incoming = deepcopy(bundle.get("modes") or [])
+    channels = bundle.get("channels") or {}
+    if channels and not any(m["channels"] == channels for m in modes + incoming):
+        names = {m["name"].casefold() for m in modes + incoming}
+        name = snapshot_name
+        index = 2
+        while name.casefold() in names:
+            name = f"{snapshot_name[:25]} {index}"
+            index += 1
+        incoming.append({"name": name, "channels": deepcopy(channels)})
+    for mode in incoming:
+        modes = [m for m in modes if m["name"].casefold() != mode["name"].casefold()]
+        modes.append(mode)
+    if len(modes) > channel_model.MAX_MODES:
+        raise ValueError(f"At most {channel_model.MAX_MODES} fan modes can be saved.")
+    return {"fan_modes": modes, "fan_channel_labels": {
+        **channel_model.normalize_fan_labels(config.get("fan_channel_labels")),
+        **(bundle.get("labels") or {}),
+    }}
 
 
 def fan_profiles_document(profiles: list[dict], curve: dict | None = None) -> dict:

@@ -11,6 +11,8 @@ import time
 import types
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 BACKEND = ROOT / "integrations" / "decky" / "bc250-quick-access" / "main.py"
 
@@ -292,7 +294,8 @@ def test_backend_refuses_to_queue_a_second_operation(monkeypatch):
     assert "already applying" in result["error"]
 
 
-def test_backend_delegates_one_bounded_fan_channel_operation(monkeypatch):
+@pytest.mark.parametrize("channel", [1, 2, 3, 4, 5])
+def test_backend_delegates_one_bounded_fan_channel_operation(monkeypatch, channel):
     module = _backend_module(monkeypatch)
     plugin = module.Plugin()
     calls: list[tuple[str, ...]] = []
@@ -304,14 +307,14 @@ def test_backend_delegates_one_bounded_fan_channel_operation(monkeypatch):
     monkeypatch.setattr(
         plugin,
         "_run_verified",
-        lambda *args, **_kwargs: calls.append(args) or {"ok": True, "fan_channel": 2, "percent": 60},
+        lambda *args, **_kwargs: calls.append(args) or {"ok": True, "fan_channel": channel, "percent": 60},
     )
 
-    result = asyncio.run(plugin.apply_fan_channel(2, 60))
+    result = asyncio.run(plugin.apply_fan_channel(channel, 60))
 
     assert result["ok"] is True
-    assert calls == [("fan-channel", "2", "60")]
-    assert plugin._recent_actions[-1]["target"] == "pwm2:60"
+    assert calls == [("fan-channel", str(channel), "60")]
+    assert plugin._recent_actions[-1]["target"] == f"pwm{channel}:60"
 
 
 def test_backend_delegates_selected_channel_automatic_mode(monkeypatch):
@@ -340,7 +343,7 @@ def test_backend_rejects_out_of_contract_fan_channel_before_helper(monkeypatch):
     plugin = module.Plugin()
     monkeypatch.setattr(plugin, "_run_verified", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must not run")))
 
-    for channel, target in ((1, 60), (6, 60), (2, 19), (2, 101), (2, 50.0), (True, 60), (2, False)):
+    for channel, target in ((0, 60), (6, 60), (2, 19), (2, 101), (2, 50.0), (True, 60), (2, False)):
         result = asyncio.run(plugin.apply_fan_channel(channel, target))
         assert result["ok"] is False
 

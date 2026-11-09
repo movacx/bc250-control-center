@@ -209,19 +209,21 @@ def test_known_game_mode_distribution_without_systemd_is_blocked(helper_module, 
 def test_system_fan_preset_only_writes_system_bank_and_reads_back(helper_module, tmp_path, monkeypatch, capsys):
     sensor = tmp_path / "hwmon7"
     sensor.mkdir()
-    for channel in (3, 4):
+    for channel in (1, 2, 3, 4):
         (sensor / f"pwm{channel}").write_text("214\n", encoding="ascii")
         (sensor / f"pwm{channel}_enable").write_text("2\n", encoding="ascii")
     monkeypatch.setattr(helper_module, "nct_sensor", lambda: sensor)
     monkeypatch.setattr(helper_module.time, "sleep", lambda _seconds: None)
 
     assert helper_module.fan_system_preset("balanced") == 0
+    assert (sensor / "pwm1").read_text(encoding="ascii").strip() == "153"
+    assert (sensor / "pwm2").read_text(encoding="ascii").strip() == "214"
     assert (sensor / "pwm3").read_text(encoding="ascii").strip() == "153"
     assert (sensor / "pwm4").read_text(encoding="ascii").strip() == "153"
     assert (sensor / "pwm3_enable").read_text(encoding="ascii").strip() == "1"
     payload = __import__("json").loads(capsys.readouterr().out)
     assert payload["preset"] == "balanced"
-    assert [(entry["channel"], entry["mode_attempts"], entry["duty_attempts"]) for entry in payload["pwm_verification"]] == [(3, 1, 1), (4, 1, 1)]
+    assert [(entry["channel"], entry["mode_attempts"], entry["duty_attempts"]) for entry in payload["pwm_verification"]] == [(1, 1, 1), (3, 1, 1), (4, 1, 1)]
     assert all(entry["duty_settle_ms"] >= 0 for entry in payload["pwm_verification"])
 
     assert helper_module.fan_system_preset("automatic") == 0
@@ -1426,30 +1428,32 @@ def test_fan_auto_accepts_explicit_pwm2_and_touches_no_other_channel(
     assert payload["wiring_warning"]
 
 
+@pytest.mark.parametrize("channel", [1, 2, 3, 4, 5])
 def test_fan_channel_manual_percentage_is_bounded_verified_and_isolated(
-    helper_module, tmp_path, monkeypatch, capsys
+    helper_module, tmp_path, monkeypatch, capsys, channel
 ):
     sensor = tmp_path / "hwmon12"
     sensor.mkdir()
-    for channel, duty in ((2, 127), (3, 204)):
-        (sensor / f"pwm{channel}").write_text(f"{duty}\n", encoding="ascii")
-        (sensor / f"pwm{channel}_enable").write_text("2\n", encoding="ascii")
+    other = 3 if channel != 3 else 2
+    for index, duty in ((channel, 127), (other, 204)):
+        (sensor / f"pwm{index}").write_text(f"{duty}\n", encoding="ascii")
+        (sensor / f"pwm{index}_enable").write_text("2\n", encoding="ascii")
     monkeypatch.setattr(helper_module, "nct_sensor", lambda: sensor)
     monkeypatch.setattr(helper_module.time, "sleep", lambda _seconds: None)
 
-    assert helper_module.fan_channel_control("2", "60") == 0
-    assert (sensor / "pwm2").read_text(encoding="ascii").strip() == "153"
-    assert (sensor / "pwm2_enable").read_text(encoding="ascii").strip() == "1"
-    assert (sensor / "pwm3").read_text(encoding="ascii").strip() == "204"
-    assert (sensor / "pwm3_enable").read_text(encoding="ascii").strip() == "2"
+    assert helper_module.fan_channel_control(str(channel), "60") == 0
+    assert (sensor / f"pwm{channel}").read_text(encoding="ascii").strip() == "153"
+    assert (sensor / f"pwm{channel}_enable").read_text(encoding="ascii").strip() == "1"
+    assert (sensor / f"pwm{other}").read_text(encoding="ascii").strip() == "204"
+    assert (sensor / f"pwm{other}_enable").read_text(encoding="ascii").strip() == "2"
     payload = __import__("json").loads(capsys.readouterr().out)
-    assert (payload["fan_channel"], payload["percent"], payload["duty"]) == (2, 60, 153)
+    assert (payload["fan_channel"], payload["percent"], payload["duty"]) == (channel, 60, 153)
     assert payload["pwm_verification"]["duty_attempts"] == 1
 
 
 @pytest.mark.parametrize(
     ("channel", "target"),
-    [("1", "60"), ("6", "60"), ("2", "0"), ("2", "19"), ("2", "101"), ("2", "50.0"), ("2;id", "60")],
+    [("0", "60"), ("6", "60"), ("01", "60"), ("+1", "60"), (" 1", "60"), ("2", "0"), ("2", "19"), ("2", "101"), ("2", "50.0"), ("2;id", "60")],
 )
 def test_fan_channel_rejects_values_outside_closed_protocol(
     helper_module, monkeypatch, channel, target
@@ -1501,12 +1505,12 @@ def test_qam_fan_state_reports_pwm2_wiring_uncertainty(helper_module, tmp_path):
 
     states = helper_module.qam_fan_channel_state(sensor)
 
-    assert [state["channel"] for state in states] == [2, 3, 4, 5]
-    assert states[0]["available"] is True
-    assert states[0]["mode"] == "automatic"
-    assert states[0]["percent"] == 50
-    assert states[0]["wiring_uncertain"] is True
-    assert all(state["available"] is False for state in states[1:])
+    assert [state["channel"] for state in states] == [1, 2, 3, 4, 5]
+    assert states[1]["available"] is True
+    assert states[1]["mode"] == "automatic"
+    assert states[1]["percent"] == 50
+    assert states[1]["wiring_uncertain"] is True
+    assert all(state["available"] is False for state in [states[0], *states[2:]])
 
 
 def test_qam_pwm_writer_completes_a_partial_sysfs_write(helper_module, monkeypatch, tmp_path):
@@ -2280,3 +2284,38 @@ def test_vram_2048_stays_in_the_contract_but_is_never_offered_or_written(helper_
     assert written == []
     assert helper_module.vram_apply_action("4096") == 0
     assert written == [4096]
+
+
+def test_qam_detects_pwm1_as_the_only_available_channel(helper_module, tmp_path):
+    (tmp_path / "name").write_text("nct6687\n")
+    (tmp_path / "pwm1").write_text("153\n")
+    (tmp_path / "pwm1_enable").write_text("2\n")
+    (tmp_path / "fan1_input").write_text("1700\n")
+
+    states = helper_module.qam_fan_channel_state(tmp_path)
+
+    assert [state["channel"] for state in states if state["available"]] == [1]
+    assert states[0]["rpm"] == 1700
+    assert states[0]["percent"] == 60
+    assert states[0]["mode"] == "automatic"
+
+
+@pytest.mark.parametrize("preset", ("quiet", "balanced", "boost", "automatic"))
+def test_group_presets_never_write_pwm2(helper_module, tmp_path, monkeypatch, preset):
+    for channel in range(1, 6):
+        (tmp_path / f"pwm{channel}").write_text("214\n", encoding="ascii")
+        (tmp_path / f"pwm{channel}_enable").write_text("1\n", encoding="ascii")
+    monkeypatch.setattr(helper_module, "nct_sensor", lambda: tmp_path)
+    monkeypatch.setattr(helper_module.time, "sleep", lambda _seconds: None)
+    writes = []
+    original = helper_module.write_sysfs
+
+    def write(path, payload):
+        writes.append(path.name)
+        original(path, payload)
+
+    monkeypatch.setattr(helper_module, "write_sysfs", write)
+    assert helper_module.fan_system_preset(preset) == 0
+    assert writes
+    assert not {"pwm2", "pwm2_enable"}.intersection(writes)
+    assert helper_module.QAM_FAN_CHANNELS == (1, 2, 3, 4, 5)

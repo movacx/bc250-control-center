@@ -114,8 +114,8 @@ def test_decky_plugin_and_helper_keep_a_finite_root_protocol():
     assert 'fan-system' in helper
     assert 'fan-channel' in helper
     assert 'cu-table' in helper
-    assert 'SYSTEM_FAN_CHANNELS = tuple(range(3, 9))' in helper
-    assert 'QAM_FAN_CHANNELS = (2, 3, 4, 5)' in helper
+    assert 'SYSTEM_FAN_CHANNELS = (1, 3, 4, 5)' in helper
+    assert 'QAM_FAN_CHANNELS = (1, 2, 3, 4, 5)' in helper
     assert '"ok": True' in helper
     # Both ends of the wire speak the contract's protocol, whatever its
     # number is today — a literal here went stale at every protocol bump.
@@ -388,3 +388,36 @@ def test_distribution_staging_includes_qam_without_development_dependencies():
 def test_packaged_quick_access_installer_is_discoverable_from_immutable_builds():
     source = (ROOT / "src/bc250cc/infrastructure/dependencias_repository.py").read_text(encoding="utf-8")
     assert "Path('/usr/bin/bc250-control-center-decky-install')" in source
+
+
+def test_all_quick_access_channel_lists_include_the_five_physical_headers():
+    import ast
+    import json
+
+    from bc250cc.domain.fan.headers import BC250_FAN_HEADERS
+    from bc250cc.infrastructure.quick_access_policy import QAM_FAN_CHANNELS
+    from bc250cc.shared.contract import QUICK_ACCESS_FAN_CHANNELS
+
+    expected = tuple(BC250_FAN_HEADERS)
+    assert expected == (1, 2, 3, 4, 5)
+    assert QUICK_ACCESS_FAN_CHANNELS == QAM_FAN_CHANNELS == expected
+    for path, name in (
+        (ROOT / "privileged/helpers/bc250-quick-access-helper", "QAM_FAN_CHANNELS"),
+        (ROOT / "integrations/decky/bc250-quick-access/main.py", "FAN_CHANNELS"),
+    ):
+        assignments = {
+            target.id: node.value
+            for node in ast.parse(path.read_text()).body
+            if isinstance(node, ast.Assign)
+            for target in node.targets
+            if isinstance(target, ast.Name)
+        }
+        assert ast.literal_eval(assignments[name]) == expected
+
+    plugin = ROOT / "integrations/decky/bc250-quick-access"
+    declaration = f"const fanChannels = {list(expected)}"
+    assert declaration in (plugin / "src/index.tsx").read_text()
+    assert declaration in (plugin / "dist/index.js").read_text()
+    source_map = json.loads((plugin / "dist/index.js.map").read_text())
+    source = next(i for i, name in enumerate(source_map["sources"]) if name.endswith("/src/index.tsx"))
+    assert source_map["sourcesContent"][source] == (plugin / "src/index.tsx").read_text()

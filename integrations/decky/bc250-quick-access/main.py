@@ -63,7 +63,7 @@ GPU_PROFILES = (
 )
 CU_MODES = tuple(str(value) for value in range(24, 41, 2))
 FAN_PRESETS = ("quiet", "balanced", "boost", "automatic")
-FAN_CHANNELS = (2, 3, 4, 5)
+FAN_CHANNELS = (1, 2, 3, 4, 5)
 FAN_MIN_PERCENT = 20
 FAN_MAX_PERCENT = 100
 # 3100 MHz, the same floor as canon, the desktop and the root helper — not the

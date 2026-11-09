@@ -17,6 +17,7 @@ from bc250cc.application.system.daemon_policy import (
     safe_number,
 )
 from bc250cc.application.system.settings_service import SettingsService
+from bc250cc.domain.fan.engine import ChannelMemory
 from bc250cc.domain.fan.persistence import (
     FanControlMemory,
     fan_curve_percent_for_temp,
@@ -26,6 +27,7 @@ from bc250cc.infrastructure.persistence.activity_journal import activity_journal
 from bc250cc.infrastructure.persistence.profile_bundle import ProfileBundleRepository
 from bc250cc.infrastructure.sistema_repository import SistemaRepository
 from bc250cc.infrastructure.system_fan_control import (
+    build_system_fan_policy,
     read_system_fan_control,
     system_fan_control_owns_fan,
 )
@@ -54,6 +56,8 @@ class BC250ControlCenterDaemon:
         self.ultimo_fan_verify = 0
         self.ultimo_fan_sensor_path = ''
         self.ultimo_fan_curve_error = 0
+        self.fan_channel_memory = ChannelMemory()
+        self.fan_expected_sensors = frozenset()
         self.fan_temp_missing_since = None
         self.ultima_fan_temperature = None
         self.ultimo_metrics_write = 0
@@ -186,6 +190,8 @@ class BC250ControlCenterDaemon:
             last_verify=getattr(self, 'ultimo_fan_verify', 0),
             missing_since=getattr(self, 'fan_temp_missing_since', None),
             last_temperature=getattr(self, 'ultima_fan_temperature', None),
+            channel_memory=getattr(self, 'fan_channel_memory', ChannelMemory()),
+            expected_sensors=getattr(self, 'fan_expected_sensors', frozenset()),
         )
 
     def _fan_readback_matches(self, decision, target, ahora):
@@ -197,7 +203,7 @@ class BC250ControlCenterDaemon:
         # already does on every later cycle, instead of writing unconditionally
         # and opening an unnecessary polkit prompt right after login.
         first_cycle = decision.action == 'apply' and getattr(self, 'ultimo_fan_target', None) is None
-        if decision.action != 'verify' and not first_cycle:
+        if decision.action not in {'verify', 'skip'} and not first_cycle:
             return False, None
         reader = getattr(self.servicio, 'leer_pwm_fan', None)
         if not callable(reader):
@@ -211,6 +217,9 @@ class BC250ControlCenterDaemon:
         if not (same_value and same_path):
             return False, confirmed
         self.ultimo_fan_curve_apply = ahora
+        # Even an unchanged duty can advance response-delay / kick memory.
+        # Commit that proposal only after this readback confirms the hardware.
+        self.fan_channel_memory = decision.channel_memory
         if first_cycle:
             self.ultimo_fan_curve_percent = target.percent
             self.ultimo_fan_target = target.identity
@@ -224,8 +233,8 @@ class BC250ControlCenterDaemon:
         )
         return True, confirmed
 
-    def _fan_confirm_after_write(self, target, result, prior_confirmed):
-        confirmed = prior_confirmed
+    def _fan_confirm_after_write(self, target, result):
+        confirmed = None
         verification_error = ''
         if isinstance(result, dict):
             confirmed = result.get('verified')
@@ -237,11 +246,15 @@ class BC250ControlCenterDaemon:
                     confirmed = reader(target.pwm)
                 except RuntimeError as error:
                     verification_error = verification_error or str(error)
-        if isinstance(confirmed, dict) and int(confirmed.get('value', -1)) != target.raw:
+        if not isinstance(confirmed, dict):
+            raise RuntimeError(verification_error or 'PWM write could not be verified.')
+        if int(confirmed.get('value', -1)) != target.raw:
             raise RuntimeError('PWM verification did not match the requested value.')
         return confirmed, verification_error
 
-    def _record_fan_apply(self, target, confirmed, verification_error, ahora):
+    def _record_fan_apply(self, decision, confirmed, verification_error, ahora):
+        target = decision.target
+        self.fan_channel_memory = decision.channel_memory
         self.ultimo_fan_curve_apply = ahora
         self.ultimo_fan_curve_percent = target.percent
         self.ultimo_fan_target = target.identity
@@ -298,8 +311,8 @@ class BC250ControlCenterDaemon:
             if matched:
                 return
             result = self.servicio.aplicar_pwm_fan(target.pwm, target.raw)
-            confirmed, error = self._fan_confirm_after_write(target, result, confirmed)
-            self._record_fan_apply(target, confirmed, error, ahora)
+            confirmed, error = self._fan_confirm_after_write(target, result)
+            self._record_fan_apply(decision, confirmed, error, ahora)
         except Exception as error:
             self._record_fan_error(target, error, ahora)
 
@@ -323,14 +336,14 @@ class BC250ControlCenterDaemon:
             return
         ahora = time.monotonic()
         decision = plan_persistent_fan(
-            metrica, config, self._fan_control_memory(), now=ahora
+            metrica, config, self._fan_control_memory(), now=ahora,
+            policy=build_system_fan_policy(config),
         )
+        self.fan_expected_sensors = decision.expected_sensors
         self.fan_temp_missing_since = decision.missing_since
-        if decision.action == 'sensor-missing':
+        if decision.reason and decision.action in {'disabled', 'sensor-missing', 'sensor-wait'}:
             self._write_health(status='warning', fan_error=decision.reason)
-        elif decision.action == 'skip':
-            self.ultimo_fan_curve_apply = ahora
-        elif decision.action in {'verify', 'apply'}:
+        elif decision.action in {'skip', 'verify', 'apply'}:
             self._execute_fan_decision(decision, ahora)
     def _governor_state_for_cycle(self, plan, ahora):
         state = getattr(self, 'estado_bc250_cache', {})

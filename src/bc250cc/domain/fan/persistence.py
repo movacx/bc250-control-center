@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from itertools import pairwise
+
+from bc250cc.domain.fan import engine
 
 #: The preset key of a manual slider value, kept like a named tier.
 CUSTOM_FAN_PRESET = "custom"
@@ -42,6 +44,8 @@ class FanControlMemory:
     last_verify: float = 0
     missing_since: float | None = None
     last_temperature: float | None = None
+    channel_memory: engine.ChannelMemory = field(default_factory=engine.ChannelMemory)
+    expected_sensors: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -66,6 +70,8 @@ class FanControlDecision:
     target: FanTarget | None = None
     missing_since: float | None = None
     reason: str = ""
+    channel_memory: engine.ChannelMemory | None = None
+    expected_sensors: frozenset[str] = frozenset()
 
 
 def bounded_int(value, default: int, minimum: int, maximum: int) -> int:
@@ -304,123 +310,60 @@ def select_fan_control_temperature(
     return effective, sensor
 
 
-def _critical_temperature(
-    metric: object, config: object, *, now: float,
-) -> tuple[float, str] | None:
-    settings = config if isinstance(config, dict) else {}
-    configured = settings.get("fan_daemon_critical_temperatures_c")
-    configured = configured if isinstance(configured, dict) else {}
-    critical = []
-    for _effective, raw, sensor in _temperature_readings(
-        metric, settings, now=now
-    ):
-        threshold = bounded_float(
-            configured.get(sensor), DEFAULT_CRITICAL_TEMPERATURES_C[sensor],
-            50, 125,
-        )
-        if raw >= threshold:
-            critical.append((raw - threshold, raw, sensor))
-    if not critical:
-        return None
-    _excess, raw, sensor = max(critical, key=lambda item: (item[0], item[1]))
-    return raw, sensor
-
-
-def _smoothed_percent(
-    percent: int, temperature: object, config: dict, memory: FanControlMemory,
-    *, pwm: int, source: str,
-) -> int:
-    previous = memory.last_percent
-    if source != "curve" or not memory.last_target or memory.last_target[0] != pwm:
-        return percent
-    hysteresis = bounded_float(config.get("fan_daemon_hysteresis_c"), 1.0, 0, 10)
-    deadband = bounded_int(config.get("fan_daemon_duty_deadband_percent"), 2, 0, 20)
-    if temperature is not None and memory.last_temperature is not None:
-        try:
-            if abs(float(temperature) - float(memory.last_temperature)) < hysteresis:
-                percent = previous if previous is not None else percent
-        except (TypeError, ValueError, OverflowError):
-            pass
-    if previous is not None and abs(percent - previous) <= deadband:
-        percent = previous
-    max_down = bounded_int(config.get("fan_daemon_max_down_step_percent"), 10, 1, 100)
-    if previous is not None and percent < previous - max_down:
-        percent = previous - max_down
-    return percent
-
-
 def plan_persistent_fan(
     metric: object, config: object, memory: FanControlMemory, *, now: float,
+    policy: dict | None,
 ) -> FanControlDecision:
-    """Return the next daemon action without reading or writing hardware."""
+    """Adapt the shared engine to desktop I/O actions for one channel.
+
+    Infrastructure supplies build_system_fan_policy(config), the same translation
+    used by the root service. Engine memory is a proposal until hardware verifies
+    the target; sensor observations and the loss timer can advance independently.
+    """
     settings = config if isinstance(config, dict) else {}
-    sample = metric if isinstance(metric, dict) else {}
-    curve = normalize_fan_curve(settings.get("fan_curve"))
-    preset = normalize_fan_preset(settings.get("fan_preset"))
-    curve_enabled = safe_bool(curve.get("enabled"))
-    preset_enabled = safe_bool(preset.get("enabled"))
-    if not curve_enabled and not preset_enabled:
-        return FanControlDecision("disabled")
-
-    temperature, temperature_sensor = select_fan_control_temperature(
-        sample, settings, now=now
+    if policy is None:
+        return FanControlDecision("disabled", expected_sensors=memory.expected_sensors)
+    controlled = engine.controlled_channels(policy)
+    if len(controlled) > 1:
+        return FanControlDecision(
+            "disabled", reason="Root fan service required for multiple controlled channels.",
+            expected_sensors=memory.expected_sensors,
+        )
+    if not controlled:
+        return FanControlDecision("disabled", expected_sensors=memory.expected_sensors)
+    pwm = controlled[0]
+    channel = policy["channels"][str(pwm)]
+    readings = {
+        sensor: raw for _effective, raw, sensor in
+        _temperature_readings(metric, settings, now=now)
+    }
+    expected = memory.expected_sensors | frozenset(readings)
+    previous = memory.channel_memory
+    if memory.last_target is not None and memory.last_target[0] != pwm:
+        previous = engine.ChannelMemory()
+    previous = replace(previous, missing_since=memory.missing_since)
+    # engine.plan, not plan_channel: the emergency latch and the
+    # missing-sensor rules live there once, for the root service and this
+    # fallback alike.
+    decisions, proposals = engine.plan(
+        policy, readings, {pwm: previous}, now, expected=expected,
     )
-    raw_temperature = next(
-        (
-            raw for _effective, raw, sensor in _temperature_readings(
-                sample, settings, now=now
-            )
-            if sensor == temperature_sensor
-        ),
-        None,
-    )
-    missing_since = memory.missing_since
-    critical = _critical_temperature(sample, settings, now=now)
-    if curve_enabled:
-        if critical is not None:
-            raw_temperature, temperature_sensor = critical
-            temperature = raw_temperature
-            missing_since = None
-            percent = bounded_int(
-                settings.get("fan_daemon_failsafe_percent"), 100, 40, 100
-            )
-            source = "curve:critical"
-        else:
-            percent = fan_curve_percent_for_temp(temperature, curve)
-        if critical is None and percent is None:
-            if missing_since is None:
-                return FanControlDecision(
-                    "sensor-missing", missing_since=now,
-                    reason="CPU and GPU temperature sensors unavailable",
-                )
-            timeout = bounded_float(
-                settings.get("fan_daemon_sensor_timeout_seconds"), 15, 3, 300
-            )
-            if now - missing_since < timeout:
-                return FanControlDecision("sensor-wait", missing_since=missing_since)
-            percent = bounded_int(
-                settings.get("fan_daemon_failsafe_percent"), 100, 40, 100
-            )
-            source = "curve:failsafe"
-        elif critical is None:
-            missing_since = None
-            source = "curve"
-        pwm = bounded_int(curve.get("pwm"), 2, 1, 12)
-    else:
-        percent = bounded_int(preset.get("percent"), 70, 0, 100)
-        pwm = bounded_int(preset.get("pwm"), 2, 1, 12)
-        source = f"preset:{preset.get('preset') or 'unknown'}"
-
-    if source != "curve:critical" and now - memory.last_apply < 5:
-        return FanControlDecision("rate-limited", missing_since=missing_since)
-    percent = _smoothed_percent(
-        percent, temperature, settings, memory, pwm=pwm, source=source
-    )
+    planned, proposed = decisions[pwm], proposals[pwm]
+    if planned.action == "hold":
+        return FanControlDecision(
+            "sensor-missing" if memory.missing_since is None else "sensor-wait",
+            missing_since=proposed.missing_since, reason=planned.reason,
+            expected_sensors=expected,
+        )
+    source = planned.source
+    curve_enabled = channel["mode"] in {"curve", "mix"}
+    if curve_enabled and source in {"critical", "failsafe"}:
+        source = f"{channel['mode']}:{source}"
     target = FanTarget(
-        pwm=pwm, percent=percent, raw=round(percent * 255 / 100), source=source,
-        temperature=temperature, curve_enabled=curve_enabled,
-        temperature_sensor=temperature_sensor,
-        raw_temperature=raw_temperature,
+        pwm=pwm, percent=planned.percent, raw=planned.raw, source=source,
+        temperature=planned.temperature, curve_enabled=curve_enabled,
+        temperature_sensor=planned.sensor or None,
+        raw_temperature=readings.get(planned.sensor),
     )
     verify_seconds = bounded_float(
         settings.get("fan_daemon_verify_seconds"), 30, 5, 600
@@ -429,4 +372,6 @@ def plan_persistent_fan(
         action = "skip" if now - memory.last_verify < verify_seconds else "verify"
     else:
         action = "apply"
-    return FanControlDecision(action, target, missing_since)
+    return FanControlDecision(
+        action, target, proposed.missing_since, planned.reason, proposed, expected,
+    )

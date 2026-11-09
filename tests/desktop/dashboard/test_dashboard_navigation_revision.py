@@ -170,13 +170,16 @@ def test_shortcuts_select_the_requested_tab_even_after_visiting_the_other(qtbot)
     cpu, fans = CpuSmuPage(object()), FansPage(object())
     qtbot.addWidget(cpu)
     qtbot.addWidget(fans)
+    fans._render()
     visited = []
     window = SimpleNamespace(cpu_page=cpu, fans_page=fans, navigate=visited.append)
     for action in ("cpu_overview", "cpu_configuration", "fans_curve", "fans_manual"):
         ControlCenterWindow._dashboard_action(window, action)
+        if action.startswith("fans_"):
+            assert fans.editor.mode.currentData() == ("fixed" if action == "fans_manual" else "curve")
     assert visited == ["cpu", "cpu", "fans", "fans"]
     assert cpu.workspace_tab_buttons["configuration"].isChecked()
-    assert fans.manual_mode_button.isChecked()
+    assert fans.editor.mode.currentData() == "fixed"
 
 
 @pytest.mark.parametrize("language", sorted(SUPPORTED_LANGUAGES))

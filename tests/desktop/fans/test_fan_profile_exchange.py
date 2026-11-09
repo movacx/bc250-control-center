@@ -123,7 +123,9 @@ def test_a_manual_speed_is_saved_like_a_tier_and_followed_from_boot_as_fixed():
 
     policy = build_system_fan_policy({"fan_curve": {"enabled": False}, "fan_preset": preset})
     assert policy is not None
-    assert (policy["mode"], policy["pwm"], policy["percent"], policy["preset"]) == ("fixed", 3, 55, "")
+    assert policy["channels"] == {
+        "3": {"mode": "fixed", "role": "fan", "percent": 55, "preset": "", "stall_detect": True},
+    }
 
     named = build_system_fan_policy({"fan_preset": {"enabled": True, "preset": "quiet", "percent": 45, "pwm": 2}})
-    assert (named["mode"], named["preset"]) == ("preset", "quiet")
+    assert (named["channels"]["2"]["mode"], named["channels"]["2"]["preset"]) == ("fixed", "quiet")
