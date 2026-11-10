@@ -156,6 +156,45 @@ assert "svg" in formats, "Qt SVG image plugin is missing"
 PY
 }
 
+# The same probes one by one, naming each that fails. The aggregate check
+# above once reported "the GUI runtime is still incomplete" on a Fedora whose
+# packages were all installed (R-1aad1216), and nothing said which import or
+# plugin was the one missing.
+explain_python_gui_runtime() {
+  python3 - <<'PY' 2>/dev/null
+import importlib
+
+failed = []
+def probe(name, check):
+    try:
+        check()
+    except Exception as exc:  # noqa: BLE001 - every failure is reported, none hidden
+        failed.append(f"{name}: {type(exc).__name__}: {exc}")
+
+probe("PyQt6.QtWidgets", lambda: importlib.import_module("PyQt6.QtWidgets"))
+probe("PyQt6.QtGui", lambda: importlib.import_module("PyQt6.QtGui"))
+probe("PyQt6.QtSvg", lambda: importlib.import_module("PyQt6.QtSvg"))
+for module in ("psutil", "pip", "venv"):
+    probe(module, lambda module=module: importlib.import_module(module))
+def certificates():
+    import ssl
+    count = ssl.create_default_context().cert_store_stats()["x509_ca"]
+    assert count > 0, "CA certificates are missing"
+probe("ssl", certificates)
+def pip_version():
+    import pip
+    assert tuple(map(int, pip.__version__.split(".")[:2])) >= (22, 3), f"pip {pip.__version__} is older than 22.3"
+probe("pip", pip_version)
+def svg_plugin():
+    from PyQt6.QtGui import QImageReader
+    formats = {bytes(fmt).decode("ascii", "ignore").lower() for fmt in QImageReader.supportedImageFormats()}
+    assert "svg" in formats, "Qt SVG image plugin is missing (qt6-svg / qt6-qtsvg / libqt6svg6)"
+probe("Qt SVG plugin", svg_plugin)
+for line in failed:
+    print(f"[ERROR]   {line}")
+PY
+}
+
 missing_python_deps=0
 missing_python_deps_command=()
 missing_python_deps_command_text=""
@@ -296,12 +335,18 @@ fi
 if [[ "${BC250_SKIP_DEPENDENCY_INSTALL:-0}" != "1" && "$missing_python_deps_reboot_notice" -eq 0 ]]; then
   if [[ "$INSTALL_PROFILE" == "desktop" ]]; then
     if ! check_python_gui_runtime; then
-      echo "Error: the GUI runtime is still incomplete after dependency installation (PyQt6 QtSvg, SVG plugin, psutil, pip or venv)." >&2
-      echo "No installed application code was replaced. Repair the native packages and retry." >&2
+      # [ERROR] lines are the terminal's own explanation; "Error:" was not,
+      # so the installer's exit 2 read as a helper version mismatch.
+      echo "[ERROR] The GUI runtime is still incomplete after dependency installation. Probes that failed:" >&2
+      # The explainer must never abort this path (set -e): the closing line
+      # and the exit status matter more than the detail.
+      explain_python_gui_runtime >&2 || true
+      echo "[ERROR] No installed application code was replaced. Repair the native packages named above and run the installer again." >&2
       exit 2
     fi
   elif ! python3 -c 'import curses, psutil' >/dev/null 2>&1; then
-    echo "Error: the terminal runtime is still incomplete after dependency installation (curses or psutil)." >&2
+    echo "[ERROR] The terminal runtime is still incomplete after dependency installation (Python curses or psutil)." >&2
+    echo "[ERROR] No installed application code was replaced. Install those packages and run the installer again." >&2
     exit 2
   fi
   missing_python_deps=0

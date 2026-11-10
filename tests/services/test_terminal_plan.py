@@ -41,7 +41,8 @@ def test_wrapper_preserves_command_exit_status_and_logs_quoted_text(tmp_path):
     assert "How to fix it:" in evidence
 
 
-def test_wrapper_explains_configuration_exit_status(tmp_path):
+def test_wrapper_does_not_read_a_helper_meaning_into_a_workflow_status(tmp_path):
+    """65 is DATA-001 for a helper; for a workflow it is whatever ran last."""
     status = tmp_path / "status"
     log = tmp_path / "log"
     wrapped = workflow_wrapper("exit 65", status, log)
@@ -53,8 +54,13 @@ def test_wrapper_explains_configuration_exit_status(tmp_path):
         text=True,
     )
     assert result.returncode == 65
-    assert "rejected an existing or inconsistent configuration" in result.stdout
-    assert "Diagnostic code: BC250-DATA-001" in result.stdout
+    assert "rejected an existing or inconsistent configuration" not in result.stdout
+    assert "Diagnostic code: BC250-GENERAL-001" in result.stdout
+
+
+def test_a_command_not_found_keeps_the_shells_own_meaning(tmp_path):
+    result = _run_wrapper(tmp_path, "exit 127")
+    assert "Diagnostic code: BC250-CMD-001" in result.stdout
 
 
 def _run_wrapper(tmp_path, command):

@@ -6,6 +6,16 @@ inside the shell fragment, which meant the wording could never reach ``tr()``
 and so existed in English only, outside all 30 locales. It also explained just
 13 statuses, while the privileged helpers exit with 20-57 — every other status
 printed a bare number, which is where "code 43" came from.
+
+The helpers' numbers were then read for every workflow, and that was wrong the
+other way: a workflow's status is the status of whatever ran last under
+``set -e``. ``make`` exits 2, ``curl --fail`` 22, ``systemctl status`` 3 for a
+unit in auto-restart, and those numbers meant "helper version mismatch", "Cyan
+D-Bus" and "helper version mismatch" in the catalog (R-bb33f44b, R-530bd5f6,
+R-53376560). So the wrapper now reads only the words: the catalog's text
+markers, the script's own ``[ERROR]`` lines, and two statuses the shell itself
+defines (127, command not found; 124, ``timeout``). Everything else is the
+neutral code, with the raw status still shown by the console.
 """
 
 from __future__ import annotations
@@ -37,6 +47,11 @@ _LOG_SYNC_WAIT_TICKS = 50  # of 0.1 s: only a console that is not reading waits 
 # real and described, but no catalog rule was consulted, so claiming a
 # specific rule id would be a lie.
 _WORKFLOW_REPORTED_CODE = "BC250-WORKFLOW-001"
+
+# Exit statuses defined by bash and coreutils themselves, so they mean the
+# same thing whatever ran. Every other number belongs to the program that
+# exited with it, and a workflow runs many programs.
+_SHELL_DEFINED_STATUSES = ((124, "BC250-TIMEOUT-001"), (127, "BC250-CMD-001"))
 
 
 def _identity(value: object) -> str:
@@ -74,11 +89,12 @@ def exit_explanation_shell(translate=None) -> str:
     signal_cause = translate(error_catalog.GENERAL_FAILURE.cause)
     signal_action = translate(error_catalog.GENERAL_FAILURE.action)
 
+    # The only statuses with one meaning for every program: the shell's own
+    # 127 (command not found) and coreutils' 124 (timeout). A helper's number
+    # is read by the helper's caller (failure_text.describe_failure), never here.
     branches = []
-    for status in sorted(error_catalog.known_exit_statuses()):
-        entry = error_catalog.for_exit_status(status)
-        if entry is None:
-            continue
+    for status, code in _SHELL_DEFINED_STATUSES:
+        entry = error_catalog.BY_CODE[code]
         branches.append(
             f'{status}) summary={shlex.quote(translate(entry.summary))}; '
             f'cause={shlex.quote(translate(entry.cause))}; '

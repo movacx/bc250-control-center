@@ -163,6 +163,15 @@ _RULES = (
         "Fix metrics makes Cyan publish its own gpu_metrics file. The running kernel does not expose the file it needs to replace, so the governor refuses to start while that option is on. Nothing on the hardware was changed.",
         "Turn off Fix metrics in Cyan kernel compatibility and apply again. Leave Fix frequencies off too if the start still fails. A BC-250 patched kernel is the other way out.",
     ),
+    # The voltage curve is written through the running Cyan; with Cyan
+    # stopped the edit is refused before anything changes (R-cbc5ba02).
+    _Rule(
+        "BC250-GPU-008",
+        (r"must be active before changing its voltage curve", r"cyan is not running[^\n]*voltage"),
+        "Cyan is not running, so the voltage curve was not changed.",
+        "The voltage curve is applied through the running governor: Cyan has to be active so the new values can be written, read back and verified.",
+        "Press Start governor on the governor card, wait a few seconds until it shows Connected, then apply the voltage curve again.",
+    ),
     # Before the broad Compute Units and missing-command rules: their patterns
     # ("umr", "no such file or directory") also match this text, and their
     # advice does not bring a broken UMR back.
@@ -175,6 +184,17 @@ _RULES = (
         "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.",
         "Reinstall UMR by following these steps:",
     ),
+    # The dynamic loader's own words for a binary built on a newer system
+    # (Oberon built in fedora:latest for an older Bazzite, the SteamOS audio
+    # tools). Early on purpose: the same text also says "not found".
+    _Rule(
+        "BC250-RUNTIME-001",
+        (r"version `?glib(?:c|cxx)_[\d.]+'? not found", r"\bcxxabi_[\d.]+'? not found",
+         r"glibcxx_[\d.]+'? not found", r"glibc_2\.\d+'? not found"),
+        "A program needs a newer system library than this system has.",
+        "The program, or a build tool downloaded for it, was built against a newer glibc or libstdc++ than the one installed here, so Linux refuses to start it.",
+        "Update the system and retry, or use a build made for this release. Never replace the system's glibc or libstdc++ by hand; if the program came from a BC250 workflow, report it with this code.",
+    ),
     # Adding the OptiScaler launch option edits Steam's own settings file,
     # one game or the whole library at a time.
     _Rule(
@@ -184,6 +204,16 @@ _RULES = (
         "Steam's settings could not be changed.",
         "Control Center adds the launch option by editing Steam's own settings file. Steam has to be closed while that happens, and the Steam profile needs at least one game started from it.",
         "Close Steam completely (Steam > Exit, not just its window), start the game once from Steam if it never ran, then try again. The previous settings file is kept beside it as a backup.",
+    ),
+    # HelixSR's bridge refuses a game with an anti-cheat unless told
+    # --anticheat-ok, which Control Center never passes (R-c6ab33f2). Before
+    # the GPU context fallback that used to claim it.
+    _Rule(
+        "BC250-UPSCALE-002",
+        (r"has anti-?cheat", r"anticheat-ok"),
+        "HelixSR refused this game because of its anti-cheat.",
+        "HelixSR's bridge reports that the game uses an anti-cheat such as EasyAntiCheat. Replacing its upscaler files can get the account banned in online play, so HelixSR's bridge declined to install it.",
+        "Use HelixSR with games that have no anti-cheat. Control Center never overrides this check on its own.",
     ),
     # Per-game upscalers (HelixSR, and OptiScaler for FSR4) refuse a game
     # they cannot change safely. Before the missing-command rule: "not
@@ -227,7 +257,7 @@ _RULES = (
          r"sudo: .*(?:timed out reading password|a password is required|incorrect password)"),
         "Administrator authorization was not completed.",
         "The password dialog was cancelled, closed, timed out, or rejected the supplied password.",
-        "Run the action again and finish the administrator password dialog. No hardware change was applied.",
+        "Run the action again and finish the administrator password dialog.",
     ),
     _Rule(
         "BC250-AUTH-003",
@@ -238,6 +268,15 @@ _RULES = (
         "BC250 Control Center needs Polkit for protected changes, but pkexec is not installed or cannot be found.",
         "Install the Polkit package for this distribution, sign out and back in, then retry the action.",
     ),
+    # SteamOS said the root was writable, yet pacman could not write its
+    # database (R-fc1cfbe2). Before PERM-001, whose words it shares.
+    _Rule(
+        "BC250-IMMUTABLE-002",
+        (r"could not create directory[^\n]*read-only file system", r"pacman database is still read-only"),
+        "The SteamOS root was still read-only when packages were written.",
+        "SteamOS reported a writable root, but the pacman database under /usr/lib/holo/pacmandb was still read-only when pacman wrote to it, so the transaction was aborted and no package was changed.",
+        "Restart SteamOS and run the action again. If it repeats, report it with this code and the findmnt and steamos-readonly lines printed above; do not change the read-only state by hand.",
+    ),
     _Rule(
         "BC250-PERM-001",
         (r"permission denied", r"operation not permitted", r"access denied", r"read-only file system"),
@@ -247,7 +286,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-HELPER-001",
-        (r"helper.*(?:missing|not found|unavailable)", r"protected helper", r"system setup helper must be root-owned", r"protected backend guard", r"unsafe ownership", r"unsafe.*permissions", r"traceback \(most recent call last\)", r"helper is not installed"),
+        (r"helper.*(?:missing|not found|unavailable)", r"protected helper", r"system setup helper must be root-owned", r"to install the protected system setup helper", r"protected backend guard", r"unsafe ownership", r"unsafe.*permissions", r"traceback \(most recent call last\)", r"helper is not installed"),
         "A protected BC250 helper is missing or failed its safety check.",
         "The application and its root-owned helper are from different installs, or another toolkit changed the helper's owner, mode, or path.",
         "Reinstall BC250 Control Center. Do not copy a helper manually into /usr/libexec.",
@@ -263,7 +302,8 @@ _RULES = (
     _Rule(
         "BC250-BUSY-001",
         (r"\A(?!.*(?:pacman|apt(?:-get)?|dnf|zypper|rpmdb|rpm-ostree|apk|emerge|xbps)).*\balready (?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy",
-         r"smu returned status 0x(?:00|fc)\b", r"smu timed out after"),
+         r"smu returned status 0x(?:00|fc)\b", r"smu timed out after",
+         r"another bc250 system setup change is running"),
         "Another operation is still using this component.",
         "A previous BC250 action, package manager, service restart, or external toolkit still holds the required lock.",
         "Wait for the current terminal or progress indicator to finish, refresh the page, and retry once. Close other BC250 toolkits if the lock remains.",
@@ -337,7 +377,7 @@ _RULES = (
     _Rule(
         "BC250-PKG-004",
         (r"nothing provides", r"unmet dependencies", r"unable to satisfy dependenc", r"could not satisfy dependencies",
-         r"error: target not found"),
+         r"error: target not found", r"packages not found:"),
         "A required package is not available from the enabled repositories.",
         "The package, or one of its dependencies, is not published for this distribution or release, or the repository that provides it is not enabled.",
         "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.",
@@ -356,10 +396,19 @@ _RULES = (
         "Wine could not load its own Windows files, so the Proton build it uses or its Wine prefix is incomplete.",
         "In Steam, verify the files of the Proton version in use, then run this action again.",
     ),
+    # bash's words for a wine that passes test -x but cannot be loaded here
+    # (a Toolbx, an incomplete Proton; R-a45942d4).
+    _Rule(
+        "BC250-WINE-002",
+        (r"wine[^\n]*cannot execute: required file not found", r"cannot be executed here"),
+        "Wine or Proton cannot run in this environment.",
+        "The Wine program that HelixSR uses to compile its shaders exists, but Linux cannot execute it here: a loader or library it depends on is missing, which happens inside a Toolbx or Distrobox container or with an incomplete Proton.",
+        "In Steam, verify the files of the Proton version in use, or install Wine for this system. Inside a container, install the libraries Wine needs there, then run this action again.",
+    ),
     _Rule(
         "BC250-UPSTREAM-404",
-        (r"returned error: 404", r"\b404\b.*not found", r"failed retrieving file.*\.db",
-         r"failed to synchronize all databases", r"failed retrieving file from repo", r"http 404"),
+        (r"github\.com[^\n]*(?:returned error: 404|http 404|\b404\b)", r"\b404\b[^\n]*github\.com",
+         r"github\.com[^\n]*\.db\b", r"github\.com[\s\S]{0,400}failed to synchronize all databases"),
         "The external package repository is temporarily unavailable at its address.",
         "The upstream project republishes this pacman repository as a GitHub release, and its assets are unavailable while that release is being rebuilt. The address is still the documented one, and nothing is wrong with this system or its network.",
         "Wait for the upstream rebuild to finish and run the workflow again later; the currently installed kernel keeps working meanwhile. Only report the diagnostic code if it still fails after a day.",
@@ -372,9 +421,22 @@ _RULES = (
         "The report service could not be reached, was busy, or did not confirm the report.",
         "Check the internet connection and press Send again. A copy of the report was kept on this computer.",
     ),
+    # A compiler, linker or make stopped (R-bb33f44b). Before NET-001 and CMD-001:
+    # a download error that was recovered from must not outrank the build that
+    # failed after it, and make's line is not a missing program.
+    _Rule(
+        "BC250-BUILD-003",
+        (r"fatal error: [^\n]*: no such file or directory", r"compilation terminated", r"collect2: error",
+         r"ninja: build stopped", r"ld returned 1 exit status", r"undefined reference to",
+         r"make(?:\[\d+\])?: \*\*\* \[[^\n]*\] error \d+"),
+        "A build step failed.",
+        "The compiler, linker or make stopped on an error before the program or module was produced. A missing header file means a development package (kernel headers or linux-api-headers) is not installed; another error names the file and line involved.",
+        "Read the first compiler error in the log above. If it names a missing header, prepare dependencies from the Dashboard and retry; otherwise report the workflow with this code and the log.",
+    ),
     _Rule(
         "BC250-NET-001",
-        (r"github's (?:release information could not be read|answer was larger than a release)", r"could not resolve", r"temporary failure in name resolution", r"network is unreachable", r"connection.*(?:timed out|refused|reset)", r"ssl|certificate verify|tls", r"curl: \(\d+\)", r"git.*(?:could not resolve host|unable to access|failed to connect|connection timed out)", r"failed to fetch.*(?:mirror|repository)", r"mirror.*(?:unavailable|not found|failed)", r"could not resolve host"),
+        (r"github's (?:release information could not be read|answer was larger than a release)", r"could not resolve", r"temporary failure in name resolution", r"network is unreachable", r"connection.*(?:timed out|refused|reset)", r"ssl|certificate verify|tls", r"curl: \(\d+\)", r"git.*(?:could not resolve host|unable to access|failed to connect|connection timed out)", r"failed to fetch.*(?:mirror|repository)", r"mirror.*(?:unavailable|not found|failed)", r"could not resolve host",
+         r"requested url returned error: \d{3}", r"frame_size_error"),
         "A required download could not be reached or verified.",
         "The network, DNS, proxy, system clock, certificate store, or upstream server interrupted the download.",
         "Confirm internet access and the system date, then retry. If a proxy or filtered network is in use, test the repository URL in a browser.",
@@ -388,7 +450,8 @@ _RULES = (
     ),
     _Rule(
         "BC250-IMMUTABLE-001",
-        (r"rpm-ostree", r"ostree", r"immutable", r"deployment.*pending", r"transaction in progress"),
+        (r"rpm-ostree[^\n]*(?:pending|staged|failed|error|refused|busy)", r"ostree[^\n]*(?:pending|staged|failed|error)",
+         r"deployment.*pending", r"pending deployment", r"transaction in progress"),
         "The immutable system deployment is not ready for this change.",
         "Bazzite or SteamOS may have a pending update, rollback, rebase, or restart, or the selected workflow is intended for a mutable distribution.",
         "Finish the pending deployment and restart. Then use the Bazzite or SteamOS workflow shown by the compatibility filter.",
@@ -396,7 +459,7 @@ _RULES = (
     _Rule(
         "BC250-CMD-001",
         (r"web server dependencies are unavailable", r"no installer is known for this system", r"no configuration program for",
-         r"command not found", r"no such file or directory", r"executable.*not found", r"returned an empty command", r": command not found", r"needs one boolean", r"does not accept additional arguments", r"not prepared", r"is not installed", r"was not found", r"does not exist at", r"is missing from", r"unavailable in this build", r"terminal integration is required", r"qualification", r"bundle error", r"refusing .*without --", r"evidence error", r"expects a .*path", r"command is required", r"no custom values", r"integration script", r"requires --", r"runner is unavailable", r"executor is invalid", r"path is invalid", r"cargo.*(?:command not found|failed)", r"rustc.*(?:not found|error)", r"make: \*\*\*", r"cmake.*(?:error|failed)", r"fatal error: .*\.(?:h|hpp):", r"(?:gcc|g\+\+|cc): command not found"),
+         r"command not found", r"no such file or directory", r"executable.*not found", r"returned an empty command", r": command not found", r"needs one boolean", r"does not accept additional arguments", r"not prepared", r"is not installed", r"was not found", r"does not exist at", r"is missing from", r"unavailable in this build", r"terminal integration is required", r"qualification", r"bundle error", r"refusing .*without --", r"evidence error", r"expects a .*path", r"command is required", r"no custom values", r"integration script", r"requires --", r"runner is unavailable", r"executor is invalid", r"path is invalid", r"cargo.*(?:command not found|failed)", r"rustc.*(?:not found|error)", r"cmake.*(?:error|failed)", r"fatal error: .*\.(?:h|hpp):", r"(?:gcc|g\+\+|cc): command not found"),
         "A required program or generated command is missing.",
         "Dependencies were not prepared, a toolkit was removed, or the active distribution provides the program under a different package or path.",
         "Return to the Dashboard and prepare the affected module.",
@@ -422,9 +485,18 @@ _RULES = (
         "The AMDGPU device is unavailable, the application is running in a container or remote session, or the active kernel did not bind the BC-250 GPU.",
         "Verify that lspci shows 1002:13fe and that AMDGPU is loaded. Restart into the BC250 kernel if the device is present without a driver.",
     ),
+    # A repeated or conflicting TOML key is a configuration fault, not a
+    # telemetry one (R-2942b02f, R-c38d23ef). Before GPU-001 on purpose.
+    _Rule(
+        "BC250-CONFIG-001",
+        (r"duplicate (?:gpu-usage|gpu|frequency-range|dbus)\.[\w-]+ key", r"cannot overwrite a value", r"conflicting \["),
+        "A configuration file is invalid or incomplete.",
+        "A manual edit, older toolkit, interrupted write, or unsupported option left syntax or values the current component cannot read.",
+        "Open the named file from the application, correct the first reported line or restore the module defaults, then apply the settings again.",
+    ),
     _Rule(
         "BC250-GPU-001",
-        (r"gpu_busy_percent", r"gpu busy", r"busy-flag", r"gpu-usage", r"frequency.*(?:unavailable|not detected)", r"sensor unavailable"),
+        (r"gpu_busy_percent", r"gpu busy", r"busy-flag", r"frequency.*(?:unavailable|not detected)", r"sensor unavailable"),
         "The selected GPU telemetry source is unavailable.",
         "The active kernel or BIOS does not expose that sensor, or Cyan is using a telemetry method that this kernel does not support.",
         "For an unpatched kernel, select busy-flag or process. Use kernel only when gpu_busy_percent is readable, then apply Fix metrics or Fix frequencies only when needed.",
@@ -566,7 +638,8 @@ _RULES = (
          r"cannot be empty", r"must be (?:integers|strings|numbers|a mapping|a sequence)",
          r"non-finite", r"unsupported .*action\b", r"unknown .*(?:integration|action|backend)\b",
          r"invalid .*identifier", r"requires platformcapabilities", r"unexpectedly large",
-         r"must be a valid", r"contains an invalid", r"invalid .*count", r"unsupported .*component", r"must not end with", r"unknown .*component"),
+         r"must be a valid", r"contains an invalid", r"invalid .*count", r"unsupported .*component", r"must not end with", r"unknown .*component",
+         r"must be an immutable tuple", r"not registered with an immutable reviewed revision", r"immutable archive fallback"),
         "A check inside the application failed.",
         "One part of BC250 Control Center passed a value that another part refuses. This is a defect in the application, not a problem with this machine or its hardware.",
         "Nothing on the hardware was changed. Copy this complete diagnostic and report it so the check can be fixed.",
@@ -627,8 +700,8 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
     ),
     "BC250-STORAGE-001": (r"mb free and this needs", r"steamos keeps /var small", r"not enough free space on", r"insufficient disk space", r"no space left on device"),
     "BC250-IMMUTABLE-001": (
-        r"steamos reports a writable root", r"steamos read-only state", r"read-only protection",
-        r"systemd-sysext or another immutable layer",
+        r"steamos reports a writable root", r"steamos read-only state",
+        r"failed to restore steamos read-only protection", r"systemd-sysext or another immutable layer",
     ),
     "BC250-NET-001": (
         r"unable to download", r"reviewed source commit is unavailable after fetch",
@@ -798,7 +871,7 @@ _PREFIX_MARKER = re.compile(
         re.escape(marker)
         for entry in error_catalog.all_codes()
         for marker in entry.markers
-        if re.fullmatch(r"[A-Z][A-Z0-9_]{3,}", marker)
+        if re.fullmatch(r"[A-Z][A-Z0-9_]{2,}[A-Z0-9]", marker)
     )
 )
 

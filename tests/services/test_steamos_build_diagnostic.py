@@ -1,4 +1,8 @@
-"""A Kbuild exit 2 must not be called a protected-helper version mismatch."""
+"""A Kbuild exit 2 must not be called a protected-helper version mismatch.
+
+A bare GLIBC mismatch is RUNTIME-001 on every distribution; BUILD-001 keeps
+its SteamOS meaning only through the runtime preflight's own marker.
+"""
 import shlex
 import subprocess
 
@@ -14,9 +18,20 @@ def test_reported_glibc_error_is_explained_even_with_make_exit_two(tmp_path):
     result = subprocess.run(['bash', '-c', workflow_wrapper(command, tmp_path / 'status', tmp_path / 'log', hold=False)],
                             capture_output=True, text=True, timeout=30)
     assert result.returncode == 2
-    assert 'BC250-BUILD-001' in result.stdout
+    assert 'BC250-RUNTIME-001' in result.stdout
     assert 'BC250-PROTOCOL-001' not in result.stdout
-    assert for_marker(detail).code == 'BC250-BUILD-001'
+    assert 'BC250-BUILD-001' not in result.stdout
+    assert for_marker(detail.splitlines()[0]).code == 'BC250-RUNTIME-001'
+
+
+def test_the_steamos_preflight_marker_keeps_build_001_over_the_bare_glibc_line(tmp_path):
+    detail = ("[ERROR] STEAMOS_BUILD_RUNTIME_INCOMPATIBLE: the downloaded toolchain needs GLIBC_2.44, "
+              "this SteamOS has 2.41 (version `GLIBC_2.44' not found)")
+    command = 'printf %s ' + shlex.quote(detail) + '; exit 2'
+    result = subprocess.run(['bash', '-c', workflow_wrapper(command, tmp_path / 'status', tmp_path / 'log', hold=False)],
+                            capture_output=True, text=True, timeout=30)
+    assert 'BC250-BUILD-001' in result.stdout
+    assert 'BC250-RUNTIME-001' not in result.stdout
 
 
 def test_unrelated_compiler_error_is_not_a_runtime_or_protocol_mismatch(tmp_path):

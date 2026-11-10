@@ -55,8 +55,9 @@ def test_low_level_failures_have_stable_specific_diagnostics(message, context, c
         ("sudo: a terminal is required to read the password", "BC250-AUTH-001"),
         ("git: fatal: unable to access repository: Could not resolve host", "BC250-NET-001"),
         ("curl: (60) SSL certificate problem: unable to get local issuer certificate", "BC250-NET-001"),
-        ("make: *** [dkms/install] Error 2", "BC250-CMD-001"),
-        ("fatal error: linux/module.h: No such file or directory", "BC250-CMD-001"),
+        # A build that stopped is a build failure, not a missing program (R-bb33f44b).
+        ("make: *** [dkms/install] Error 2", "BC250-BUILD-003"),
+        ("fatal error: linux/module.h: No such file or directory", "BC250-BUILD-003"),
         ("journalctl: failed to read the unit journal", "BC250-SERVICE-003"),
         ("Traceback (most recent call last):\n  File '/usr/libexec/bc250-helper', line 42", "BC250-HELPER-001"),
     ),

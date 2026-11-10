@@ -88,5 +88,7 @@ def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb
         args = ""
     return ("set -euo pipefail\n"
             "echo '== BC250 optional system setup (testing) =='\n"
-            f"test -x {HELPER} || {{ echo 'Update/reinstall Control Center to install the protected system setup helper.'; exit 69; }}\n"
+            # "ERROR:" so the terminal reads this line as the explanation
+            # (HELPER-001) instead of guessing from the status (R-2c5122d2).
+            f"test -x {HELPER} || {{ echo 'ERROR: Update/reinstall Control Center to install the protected system setup helper.' >&2; exit 69; }}\n"
             f"sudo {HELPER} {action}{args}\n")

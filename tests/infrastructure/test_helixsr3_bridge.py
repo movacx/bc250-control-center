@@ -276,3 +276,31 @@ def test_steam_shortcuts_reach_the_bridge_scan(release, monkeypatch):
     assert [row['appid'] for row in rows] == ['Shortcut_1']
     calls = [json.loads(line) for line in (directory / 'calls').read_text().splitlines()]
     assert calls[-1] == ['games', '--folder', str(game)]
+
+
+def test_a_bridge_refusal_after_a_helixsr_2_migration_has_already_removed_the_old_files(release, monkeypatch):
+    """Pins the current order: the HelixSR 2 integration is removed, then the bridge may refuse.
+
+    R-c6ab33f2's anti-cheat refusal arrives from the bridge's ``install``, after
+    ``remove_helixsr_game`` restored the game's own file. Nothing is lost (the
+    original is back), but the old integration is gone, which is why UPSCALE-002
+    does not promise an untouched folder. B8 reorders this; when it does, flip
+    the last assertion.
+    """
+    directory, game = release
+    target = game / 'amd_fidelityfx_dx12.dll'
+    backup = game / 'original.dll'
+    target.write_bytes(b'old helixsr')
+    backup.write_bytes(b'original')
+    h._write_json(h._records_path(), {'1': {'name': 'Game', 'install': str(game), 'files': [{'path': str(target), 'backup': str(backup)}]}})
+    monkeypatch.setattr(h, '_is_helixsr', lambda path, *args: Path(path).read_bytes() == b'old helixsr' if Path(path).is_file() else False)
+    script = directory / h.HELIXSR_BRIDGE
+    script.write_text(script.read_text().replace(
+        'cmd = args[0]',
+        'cmd = args[0]\nif cmd == "install":\n print(json.dumps(dict(ok=False, error="Game has anti-cheat (EasyAntiCheat): only with --anticheat-ok yes")))\n sys.exit(0)'))
+    with pytest.raises(RuntimeError, match='anti-cheat'):
+        h.install_helixsr_bridge('1', 'fsr')
+    assert target.read_bytes() == b'original'
+    assert h._bridge_records() == {}
+    # Current behaviour, pinned: the HelixSR 2 record is already gone.
+    assert not h._records()
