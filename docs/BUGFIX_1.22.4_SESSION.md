@@ -242,3 +242,13 @@ round; Claude commits after a spot check of the R1-R8 tests.
 - Decky artefact regenerated; error_origins.json unchanged.
 - Tests: B1 set + test_installer_runtime_probe + test_helixsr3_bridge → 394 passed; tests/desktop/i18n →
   95 passed; coverage ratchet still satisfied. Codex review already done (arbiter verdict); no second round.
+
+### [Claude] B5, B2, B3, B4, B8 — done directly (owner stopped Fable to save usage)
+
+- B5 `95ac313`: commented TOML key beside the active one is not a duplicate (R-2942b02f).
+- B2 `3ae1d5d`: SteamOS graphics setup inside the app's writable-root guard, pacman db probe, mounts on failure. **Needs real SteamOS.**
+- B3 `63b5bd3`: Oberon restores omitted linux-api-headers (R-bb33f44b); Bazzite builds in the host's Fedora release + ldd gate (R-53376560). Not done: activation is-active/journal tail in gpu_repository.
+- B4 `1464eca`: PCI gate (present/absent/unknown), blocks only confirmed absence; tests default to unknown.
+- B8 `de540c7`: wine probed with --version (WINE-002); bridge asked before migrating a HelixSR 2 game.
+
+Pending: B6 (cancel ≠ fail), B7, B9, B10 (wording), final review of DirectMesh/HelixSR.
