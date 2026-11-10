@@ -215,3 +215,17 @@ def test_a_successful_uninstall_does_not_ask_for_a_reboot(tmp_path):
     result = _run_uninstall(tmp_path, 'echo done; exit 0')
     assert result.returncode == 0
     assert "BC250_REBOOT_REQUIRED" not in result.stdout
+
+
+def test_toolkit_setup_runs_inside_the_writable_root_guard_with_a_pacman_db_probe():
+    """R-fc1cfbe2: pacman found its database read-only during setup."""
+    from bc250cc.infrastructure import steamos_graphics_runtime as runtime
+
+    command = runtime._install_inside_writable_root("/opt/bc250.sh")
+    assert "with-steamos-writable-root.sh" in command
+    probe = command.index("/usr/lib/holo/pacmandb")
+    setup = command.index("/opt/bc250.sh setup")
+    assert probe < setup
+    # The probe's error carries the OS wording IMMUTABLE-002 requires.
+    assert "pacman database is still read-only: Read-only file system" in command
+    assert "findmnt" in command and "steamos-readonly status" in command

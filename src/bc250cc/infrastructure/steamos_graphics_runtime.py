@@ -14,6 +14,7 @@ import shlex
 from pathlib import Path
 
 from .steamos_amdgpu_backend import STEAMOS_GRAPHICS_BACKEND
+from .steamos_shell import wrap_steamos_writable_command
 
 CURRENT_UPSTREAM_COMMIT = "d3e6dc062c34d2523db0abe5741d1f5b0dea00d9"
 LEGACY_UPSTREAM_COMMIT = "b66203e012594204e5e3049856b28a2681112985"
@@ -303,7 +304,7 @@ def build_steamos_graphics_command(
     status_report = _graphics_status_report_command(script)
     command = {
         "status": status_report,
-        "install": f"/usr/bin/bash {qscript} setup",
+        "install": _install_inside_writable_root(qscript),
         "install-fsr4": (
             'echo "ERROR: the toolkit retired the per-game FSR4 V3 profile; only removing it is supported."; '
             "exit 2"
@@ -340,6 +341,35 @@ def build_steamos_graphics_command(
             f'{status_report} || true',
         ))
     return "; ".join(steps)
+
+
+#: Where pacman writes on SteamOS; R-fc1cfbe2 failed there with the root
+#: reported writable.
+_PACMAN_DB = "/usr/lib/holo/pacmandb"
+
+
+def _install_inside_writable_root(qscript: str) -> str:
+    """The toolkit's setup inside Control Center's writable-root window.
+
+    R-fc1cfbe2: the toolkit's own unlock/relock left pacman's database
+    read-only. Inside the app's guard the root is already writable, so the
+    toolkit's toggles are no-ops and the guard restores read-only on exit,
+    failure included. Before anything is downloaded or built, the pacman
+    database itself is probed; on failure the mounts and read-only state are
+    printed so the next report carries the cause.
+    """
+    db = shlex.quote(_PACMAN_DB)
+    inner = "; ".join((
+        f"if test -d {db}; then sudo sh -c 't=\"$1/.bc250-rw.$$\"; : > \"$t\" && rm -f -- \"$t\"' sh {db} || {{ "
+        'echo "[ERROR] SteamOS reports a writable root, but the pacman database is still read-only: '
+        'Read-only file system"; exit 71; }; fi',
+        f"/usr/bin/bash {qscript} setup || {{ bc250_status=$?; "
+        'echo "[INFO] Mounts at the failure:"; '
+        f"findmnt -no TARGET,FSTYPE,OPTIONS / /usr {db} 2>/dev/null | sed 's/^/[INFO]   /' || true; "
+        'echo "[INFO] steamos-readonly: $(steamos-readonly status 2>&1 || true)"; '
+        "exit $bc250_status; }",
+    ))
+    return wrap_steamos_writable_command(inner, family="steamos")
 
 
 def _regular_file(path: Path) -> bool:
