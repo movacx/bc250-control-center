@@ -744,3 +744,18 @@ def test_oberon_yaml_edit_preserves_comments_and_validates_safe_bounds(tmp_path)
     assert "# keep this comment" in path.read_text(encoding="utf-8")
     with pytest.raises(OberonYamlError, match="minimum frequency"):
         editor.set_operating_points(400, 1900, 930, 1200)
+
+
+def test_a_commented_copy_beside_the_active_key_is_not_a_duplicate():
+    """R-2942b02f: Cyan's own default config ships ` #fix-freq = false` above
+    ` fix-freq = true`; TOML accepts it and so must the editor."""
+    from bc250cc.infrastructure.gpu.governor_toml import GovernorTomlEditor, GovernorTomlError
+
+    lines = ["[gpu-usage]\n", " #fix-freq = false\n", " fix-freq = true\n", "[other]\n"]
+    keys, _insertion = GovernorTomlEditor._gpu_usage_layout(lines)
+    assert keys["fix-freq"] == 2  # the active line is the one edited
+    only_comment = ["[gpu-usage]\n", "#fix-freq = false\n"]
+    assert GovernorTomlEditor._gpu_usage_layout(only_comment)[0]["fix-freq"] == 1
+    import pytest
+    with pytest.raises(GovernorTomlError):
+        GovernorTomlEditor._gpu_usage_layout(["[gpu-usage]\n", "fix-freq = true\n", " fix-freq = false\n"])

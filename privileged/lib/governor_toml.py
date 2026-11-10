@@ -777,10 +777,22 @@ class GovernorTomlEditor:
         return section_headers, keys
 
     @staticmethod
-    def _gpu_usage_layout(lines: list[str]) -> tuple[dict[str, int], int]:
-        """Locate one gpu-usage table and reject duplicate managed keys."""
+    def _managed_keys(
+        lines: list[str], section: str, pattern, aliases: dict[str, str],
+    ) -> tuple[dict[str, int], int]:
+        """Locate one ``[section]`` table and the line of each managed key.
+
+        An active line is the key; a commented copy beside it is just a
+        comment and is left alone. Cyan's own default-config.toml ships
+        `` #fix-freq = false`` above `` fix-freq = true``, which TOML accepts
+        and this editor once rejected as a duplicate (R-2942b02f). A commented
+        line is adopted (and uncommented by the edit) only when it is the only
+        copy of that key; two active copies are still refused, because TOML
+        refuses them too and there is no safe value to pick.
+        """
         headers = 0
-        keys: dict[str, int] = {}
+        active: dict[str, int] = {}
+        commented: dict[str, int] = {}
         inside = False
         insertion = -1
         for index, line in enumerate(lines):
@@ -789,25 +801,33 @@ class GovernorTomlEditor:
             if table:
                 if inside and insertion < 0:
                     insertion = index
-                inside = table.group(1).strip() == "gpu-usage"
+                inside = table.group(1).strip() == section
                 headers += int(inside)
                 continue
-            match = _GPU_USAGE_KEY_RE.match(body) if inside else None
+            match = pattern.match(body) if inside else None
             if match is None:
                 continue
-            key = _GPU_USAGE_ALIASES.get(match.group("key"), match.group("key"))
-            if key in keys:
+            key = aliases.get(match.group("key"), match.group("key"))
+            if match.group("comment"):
+                commented.setdefault(key, index)
+                continue
+            if key in active:
                 raise GovernorTomlError(
-                    f"Duplicate gpu-usage.{key} key in governor TOML."
+                    f"Duplicate {section}.{key} key in governor TOML."
                 )
-            keys[key] = index
+            active[key] = index
         if inside and insertion < 0:
             insertion = len(lines)
         if headers != 1:
             raise GovernorTomlError(
-                "The governor TOML requires exactly one [gpu-usage] section."
+                f"The governor TOML requires exactly one [{section}] section."
             )
-        return keys, insertion
+        return {**commented, **active}, insertion
+
+    @classmethod
+    def _gpu_usage_layout(cls, lines: list[str]) -> tuple[dict[str, int], int]:
+        """Locate one gpu-usage table and reject duplicate active managed keys."""
+        return cls._managed_keys(lines, "gpu-usage", _GPU_USAGE_KEY_RE, _GPU_USAGE_ALIASES)
 
     @staticmethod
     def _replace_gpu_usage_value(line: str, key: str, value: str) -> str:
@@ -845,35 +865,9 @@ class GovernorTomlEditor:
                 lines[insertion - 1] += newline
             lines[insertion:insertion] = additions
 
-    @staticmethod
-    def _gpu_layout(lines: list[str]) -> tuple[dict[str, int], int]:
-        headers = 0
-        keys: dict[str, int] = {}
-        inside = False
-        insertion = -1
-        for index, line in enumerate(lines):
-            body = line.rstrip("\r\n")
-            table = _TABLE_RE.match(body)
-            if table:
-                if inside and insertion < 0:
-                    insertion = index
-                inside = table.group(1).strip() == "gpu"
-                headers += int(inside)
-                continue
-            match = _GPU_KEY_RE.match(body) if inside else None
-            if match is None:
-                continue
-            key = match.group("key")
-            if key in keys:
-                raise GovernorTomlError(f"Duplicate gpu.{key} key in governor TOML.")
-            keys[key] = index
-        if inside and insertion < 0:
-            insertion = len(lines)
-        if headers != 1:
-            raise GovernorTomlError(
-                "The governor TOML requires exactly one [gpu] section."
-            )
-        return keys, insertion
+    @classmethod
+    def _gpu_layout(cls, lines: list[str]) -> tuple[dict[str, int], int]:
+        return cls._managed_keys(lines, "gpu", _GPU_KEY_RE, {})
 
     @staticmethod
     def _replace_gpu_value(line: str, key: str, value: str) -> str:
