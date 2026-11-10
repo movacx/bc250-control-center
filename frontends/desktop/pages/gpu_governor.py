@@ -2734,7 +2734,9 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 (tr("Running kernel"), str(state.get("kernel") or tr("Unknown"))),
                 (tr("Source"), "tri3gubki-ops/bc250-async-compute-bazzite v0.2.4"),
                 (tr("System Mesa"), tr("Not modified")),
-                (tr("Activation"), tr("Log out and back in")),
+                # Per game: a game uses it once its launch option sets
+                # VK_DRIVER_FILES; no log-out is involved (R-c8e76285).
+                (tr("Activation"), tr("Steam launch option")),
                 (tr("Recovery"), "Ctrl+Alt+F3 · remove 95-bc250-async-compute.conf"),
             ),
             confirm_text=tr("Install / update" if install else "Uninstall"),
@@ -2749,7 +2751,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 self,
                 tr("GFX1013 async compute"),
                 tr(
-                    "The Bazzite async-compute workflow finished. Log out and back in so the selected RADV driver takes effect."
+                    "The Bazzite async-compute workflow started in the terminal. Games use it once their Steam launch option sets VK_DRIVER_FILES."
                 ),
             ),
             tr("Failed"),

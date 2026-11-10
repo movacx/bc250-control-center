@@ -6002,5 +6002,6 @@
   "The Wine program that HelixSR uses to compile its shaders exists, but Linux cannot execute it here: a loader or library it depends on is missing, which happens inside a Toolbx or Distrobox container or with an incomplete Proton.": "HelixSR 用于编译着色器的 Wine 程序存在，但 Linux 无法在此执行它：它所依赖的加载器或库缺失，这在 Toolbx 或 Distrobox 容器内或 Proton 不完整时会发生。",
   "In Steam, verify the files of the Proton version in use, or install Wine for this system. Inside a container, install the libraries Wine needs there, then run this action again.": "在 Steam 中验证所用 Proton 版本的文件，或为此系统安装 Wine。在容器内，请在容器中安装 Wine 所需的库，然后再次运行该操作。",
   "This action changes BC-250 hardware, and no BC-250 (PCI 1002:13fe) was found in this computer. Nothing was changed.": "此操作会更改 BC-250 硬件，但在此计算机中未找到 BC-250（PCI 1002:13fe）。未做任何更改。",
-  "Cancelled: you answered no. Steps before this question may already have changed the system.": "已取消：你回答了否。此问题之前的步骤可能已经更改了系统。"
+  "Cancelled: you answered no. Steps before this question may already have changed the system.": "已取消：你回答了否。此问题之前的步骤可能已经更改了系统。",
+  "The Bazzite async-compute workflow started in the terminal. Games use it once their Steam launch option sets VK_DRIVER_FILES.": "Bazzite 异步计算流程已在终端中启动。当游戏的 Steam 启动选项设置了 VK_DRIVER_FILES 时，游戏才会使用它。"
 }
