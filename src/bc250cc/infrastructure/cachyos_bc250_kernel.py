@@ -378,7 +378,11 @@ for bc250_target in "${{bc250_packages[@]}}"; do
   pacman -Sl '{repository}' | awk -v package="$bc250_name" '
     $1 == "{repository}" && $2 == package && $NF == "[installed]" {{ found=1 }}
     END {{ exit(found ? 0 : 1) }}
-  ' || {{ echo "ERROR: $bc250_name was not verified as the installed {repository} build."; exit 74; }}
+  ' || {{ echo "ERROR: $bc250_name was not verified as the installed {repository} build."
+  # R-b47961ba: pacman offered to skip it over an unresolved dependency and
+  # the answer was yes. Say so, and what to do; the previous kernel still boots.
+  echo "ERROR: pacman may have skipped it because one of its dependencies could not be resolved. Answer N (the default) to a skip question, update the system, then run this again. The previous kernel still boots."
+  exit 74; }}
 done
 {kernel_step}
 {mesa_step}

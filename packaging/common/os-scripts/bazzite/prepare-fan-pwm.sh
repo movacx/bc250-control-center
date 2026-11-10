@@ -48,7 +48,14 @@ bc250_kernel_headers_preflight "$KERNEL_RELEASE" || true
 ensure_build_dependencies
 if ! bc250_require_matching_kernel_headers "$KERNEL_RELEASE"; then
   error "Bazzite has kernel-devel installed, but it does not match the active immutable kernel."
-  error "Apply the pending system update/deployment, reboot, and run Prepare PWM driver again."
+  error "Running kernel: $KERNEL_RELEASE"
+  # R-d558880f: a custom kernel (no pending deployment) was told to reboot.
+  if rpm-ostree status 2>/dev/null | grep -qiE '^ *(Staged:|● .*pending)|Staged: yes'; then
+    error "A system update is staged: reboot into it, then run Prepare PWM driver again."
+  else
+    error "No update is pending, so a reboot will not help: this kernel has no matching kernel-devel."
+    error "Boot a Bazzite kernel that has its kernel-devel (or install headers built for this kernel), then run Prepare PWM driver again."
+  fi
   error "Do not copy a kernel-devel tree from another deployment."
   exit 21
 fi
