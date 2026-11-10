@@ -198,11 +198,19 @@ def oberon_install_command(
             "sudo pacman -S --needed --noconfirm git cmake base-devel libdrm pkgconf; "
             "if ! pkg-config --exists libdrm libdrm_amdgpu; then "
             'echo "[INFO] Restoring the libdrm development payload omitted by this deployment."; '
-            "sudo pacman -S --noconfirm libdrm; fi"
+            "sudo pacman -S --noconfirm libdrm; fi; "
+            # R-bb33f44b: SteamOS images can record linux-api-headers as
+            # installed while omitting its files, so --needed skips it and the
+            # build dies on <linux/types.h>. Probe the header, not the record.
+            "if ! printf '#include <linux/types.h>\\n' | cc -fsyntax-only -x c - >/dev/null 2>&1; then "
+            'echo "[INFO] Restoring the kernel API headers omitted by this deployment."; '
+            "sudo pacman -S --noconfirm linux-api-headers; fi"
         )
         dependency_preflight = (
             "pkg-config --exists libdrm libdrm_amdgpu || "
-            '{ echo "ERROR: libdrm pkg-config metadata is still unavailable after package repair"; exit 54; }'
+            '{ echo "ERROR: libdrm pkg-config metadata is still unavailable after package repair"; exit 54; }; '
+            "printf '#include <linux/types.h>\\n' | cc -fsyntax-only -x c - >/dev/null 2>&1 || "
+            '{ echo "ERROR: linux/types.h is still missing after reinstalling linux-api-headers"; exit 54; }'
         )
         build_command = (
             f"cmake -S {shlex.quote(str(destination))} -B {shlex.quote(str(build))} "
@@ -240,19 +248,27 @@ def oberon_install_command(
             '{ echo "ERROR: podman is required to build Oberon on Bazzite"; exit 52; }'
         )
         mount = shlex.quote(f"{destination}:/source:Z")
+        qbuild = shlex.quote(str(build))
+        # R-53376560: built in fedora:latest, the binary needed a newer
+        # libstdc++ (GLIBCXX_3.4.35) than the fc43 host had. Build in the
+        # host's own Fedora release, and start over when that changes.
         build_command = (
             container_network.FUNCTION
             + "\n"
             + container_network.setup_lines("podman")[1]
             + "\n"
+            + 'bc250_release="$(. /etc/os-release; printf %s "${VERSION_ID:-}")"; '
+            'case "$bc250_release" in ""|*[!0-9]*) echo "ERROR: the Fedora release of this Bazzite could not be read"; exit 52;; esac; '
+            f'if test "$(cat {qbuild}/.bc250-builder 2>/dev/null)" != "fedora:$bc250_release"; then rm -rf -- {qbuild}; fi; '
             + f"podman run --rm $bc250_net -v {mount} -w /source "
-            "registry.fedoraproject.org/fedora:latest bash -lc "
+            '"registry.fedoraproject.org/fedora:$bc250_release" bash -lc '
             + shlex.quote(
                 "dnf install -y git cmake gcc-c++ make libdrm-devel pkgconf-pkg-config && "
                 "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release "
                 "-DCMAKE_POLICY_VERSION_MINIMUM=3.5 && "
                 "cmake --build build --parallel"
             )
+            + f'; printf %s "fedora:$bc250_release" > {qbuild}/.bc250-builder'
         )
         # Dependencies live inside the disposable Fedora build container.
         dependency_preflight = ":"
@@ -311,6 +327,13 @@ def oberon_install_command(
             ),
             build_command,
             f'test -x {shlex.quote(str(binary))} || {{ echo "ERROR: Oberon build did not produce a binary"; exit 53; }}',
+            # The host must load what was built before it replaces the binary in use.
+            (
+                f'if ldd {shlex.quote(str(binary))} 2>&1 | grep -q "not found"; then '
+                f'ldd {shlex.quote(str(binary))} 2>&1 | grep "not found" | sed "s/^/ERROR: /"; '
+                'echo "ERROR: the new Oberon binary needs libraries this system does not have; the installed one was kept"; '
+                "exit 53; fi"
+            ),
             "sudo install -d -m 0755 /usr/local/bin",
             f"sudo install -m 0755 {shlex.quote(str(binary))} /usr/local/bin/oberon-governor",
             f"test -e /etc/oberon-config.yaml || sudo install -m 0644 {shlex.quote(str(config))} /etc/oberon-config.yaml",
