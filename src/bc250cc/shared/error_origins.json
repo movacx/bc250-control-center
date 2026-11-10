@@ -2063,6 +2063,7 @@
    "_application_log": "DIAG-0173",
    "_settings": "DIAG-0174",
    "_helper_logs": "DIAG-0175",
+   "_core_unlock": "DIAG-0178",
    "collect_system_state": "CORE-0098",
    "split_sections": "DIAG-0171",
    "collect_attachments": "CORE-0099",

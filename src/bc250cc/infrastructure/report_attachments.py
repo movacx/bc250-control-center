@@ -239,8 +239,34 @@ def _helper_logs() -> str:
     return "\n\n".join(blocks) or "(no helper log)"
 
 
+def _core_unlock() -> str:
+    """How the 8-core unlock is kept now (R-886467f7: lost after a restart).
+
+    Observed only: topology, shim files and boot entry. Nothing needs sudo,
+    nothing is changed; what cannot be read is said to be unavailable.
+    """
+    try:
+        from .core_unlock_persistence import detect_core_unlock_persistence
+
+        cores = set()
+        for topology in Path("/sys/devices/system/cpu").glob("cpu[0-9]*/topology"):
+            try:
+                cores.add(((topology / "physical_package_id").read_text().strip(),
+                           (topology / "core_id").read_text().strip()))
+            except OSError:
+                continue
+        logical = os.cpu_count() or 0
+        state = detect_core_unlock_persistence(physical_cores=len(cores), logical_cpus=logical)
+    except Exception as error:  # noqa: BLE001 - a report section never fails the report
+        return f"(not available: {error})"
+    lines = [f"physical cores: {len(cores)}", f"logical CPUs: {logical}"]
+    lines += [f"{key}: {value}" for key, value in state.items()]
+    return "\n".join(lines)
+
+
 STATE_SECTIONS = (
     ("Boot and deployments", _boot),
+    ("Core unlock", _core_unlock),
     ("GPU device", _gpu_device),
     ("Kernel log (unfiltered)", _kernel_log_full),
     ("BC-250 services and their journals", _service_journals),
