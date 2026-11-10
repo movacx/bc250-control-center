@@ -1837,9 +1837,21 @@ for bc250_candidate in "$HOME"/.local/share/Steam/steamapps/common/Proton*/files
     "$HOME"/.steam/steam/steamapps/common/Proton*/files/bin/wine \\
     "$HOME"/.local/share/Steam/compatibilitytools.d/*/files/bin/wine \\
     "$HOME"/.steam/root/compatibilitytools.d/*/files/bin/wine {candidates}; do
-  if test -x "$bc250_candidate"; then bc250_wine="$bc250_candidate"; break; fi
+  test -x "$bc250_candidate" || continue
+  # R-a45942d4: in a Toolbx container Proton's wine passed test -x and then
+  # could not run ("required file not found"). Use one that actually starts.
+  if timeout 30 "$bc250_candidate" --version >/dev/null 2>&1; then bc250_wine="$bc250_candidate"; break; fi
+  bc250_wine_broken="$bc250_candidate"
 done
-test -n "$bc250_wine" || bc250_wine="$(command -v wine || true)"
+if test -z "$bc250_wine" && command -v wine >/dev/null 2>&1 && timeout 30 wine --version >/dev/null 2>&1; then
+  bc250_wine="$(command -v wine)"
+fi
+if test -z "$bc250_wine" && test -n "${{bc250_wine_broken:-}}"; then
+  echo "ERROR: Proton's wine cannot be executed here: $bc250_wine_broken"
+  test ! -e /run/.toolboxenv && test ! -e /run/.containerenv || \
+    echo "This looks like a Toolbx or Distrobox container: run Control Center on the host instead."
+  exit 69
+fi
 test -n "$bc250_wine" || {{
   echo "ERROR: HelixSR's setup compiles its shaders through Proton or Wine, and neither was found."
   echo "Install Proton from Steam (any game set to Proton installs it), then retry."
@@ -2649,6 +2661,16 @@ def install_helixsr_bridge(appid: str, way: str) -> dict:
             raise ActionNeeded("Restore or inspect the existing HelixSR files before migration.")
         if _optiscaler_ini_folders(folder):
             raise ActionNeeded("Remove the existing OptiScaler integration first.")
+        # Ask the bridge before HelixSR 2's files leave the game: a way the
+        # bridge would refuse must not cost the game its working install.
+        try:
+            found = _run_bridge("games", "--folder", str(folder)).get("games") or []
+        except RuntimeError:
+            found = []
+        row = next((g for g in found if isinstance(g, dict)
+                    and os.path.realpath(str(g.get("folder"))) == os.path.realpath(str(folder))), None)
+        if row is not None and way not in (row.get("ways") or ()):
+            raise ActionNeeded("HelixSR cannot go into this game that way; its current HelixSR was kept.")
         result = remove_helixsr_game(appid)
         if result.get("kept"):
             raise ActionNeeded("The original backup was kept; inspect it before installing HelixSR.")

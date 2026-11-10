@@ -735,7 +735,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"this folder is not on the list", r"no optiscaler\.ini was found", r"more than one optiscaler\.ini",
         r"helixsr's own folder", r"game already has optiscaler", r"build helixsr's frame generation first",
         r"no earlier helixsr version kept", r"helixsr scaler is not recorded",
-        r"install directmesh first", r"directmesh release (?:is not on offer|cannot be verified)",
+        r"install directmesh first", r"its current helixsr was kept", r"directmesh release (?:is not on offer|cannot be verified)",
         r"(?:invalid|unsupported) helixsr (?:bridge |)action", r"invalid helixsr bridge way or release",
         r"invalid network build option", r"build options require helixsr",
         r"adding vulkan to a built network requires rebuild", r"selected helixsr way is not ready",

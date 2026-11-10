@@ -304,3 +304,26 @@ def test_a_bridge_refusal_after_a_helixsr_2_migration_has_already_removed_the_ol
     assert h._bridge_records() == {}
     # Current behaviour, pinned: the HelixSR 2 record is already gone.
     assert not h._records()
+
+
+def test_a_refused_way_keeps_the_helixsr2_install(release, monkeypatch):
+    """The bridge is asked before HelixSR 2's files leave the game."""
+    directory, game = release
+    script = directory / h.HELIXSR_BRIDGE
+    script.write_text(script.read_text().replace(
+        'print(json.dumps(dict(ok=True, games=[])))',
+        f'print(json.dumps(dict(ok=True, games=[dict(folder={str(game)!r}, ways=["scaler"])])))'))
+    h._write_json(h._records_path(), {'1': {'name': 'Game', 'install': str(game), 'files': []}})
+    monkeypatch.setattr(h, '_record_state', lambda record: 'installed')
+    removed = []
+    monkeypatch.setattr(h, 'remove_helixsr_game', lambda appid: removed.append(appid) or {})
+    with pytest.raises(h.ActionNeeded, match="current HelixSR was kept"):
+        h.install_helixsr_bridge('1', 'fsr')
+    assert removed == []
+
+
+def test_wine_that_cannot_run_is_reported_not_used():
+    """R-a45942d4: Proton's wine passed test -x in Toolbx and could not start."""
+    script = h._wine_check()
+    assert '--version' in script
+    assert "cannot be executed here" in script
