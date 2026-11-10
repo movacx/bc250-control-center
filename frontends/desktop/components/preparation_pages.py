@@ -8,11 +8,13 @@ from PyQt6.QtCore import (
     Qt,
 )
 from PyQt6.QtWidgets import (
+    QApplication,
     QBoxLayout,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMenu,
     QProgressBar,
     QSizePolicy,
@@ -720,6 +722,8 @@ class PreparationPagesMixin:
         gfx_layout.insertWidget(actions_index, self.bazzite_launch_row)
         gfx_layout.insertWidget(actions_index, self.bazzite_enable_row)
         layout.addWidget(self.gfx_card)
+        self._build_directmesh_card()
+        layout.addWidget(self.directmesh_card)
         self.steamos_proton_card = PreparationInfoCard(
             "BC-250 GE-Proton · SteamOS",
             "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.",
@@ -850,7 +854,108 @@ class PreparationPagesMixin:
         layout.addStretch(1)
         if self._standalone:
             self._organise_compatibility(layout)
+            group_layout = self.gfx_card.parentWidget().layout()
+            group_layout.insertWidget(group_layout.indexOf(self.gfx_card) + 1, self.directmesh_card)
+            self.compatibility_groups = tuple(
+                (title, tuple(item for card in cards for item in ((card, self.directmesh_card) if card is self.gfx_card else (card,))))
+                for title, cards in self.compatibility_groups
+            )
         return page
+
+    def _build_directmesh_card(self) -> None:
+        """DirectMesh (lonewolf0622): Mesh shaders through upstream's installer.
+
+        The title row matches every other Compatibility row (title, where it
+        applies, status). Inside: one line on what it is, the Steam launch
+        option with how to use it right under it, the version row, then the
+        actions.
+        """
+        card = PreparationInfoCard(
+            "Mesh shaders · DirectMesh",
+            "Mesh shaders for DX12 Ultimate games on the BC-250. Development build: a game can hang the GPU.",
+            scope_text="Detecting distribution", status_text="Checking",
+        )
+        self.directmesh_card = card
+        body = card.layout()
+
+        # The launch option, labelled, with how to use it beneath.
+        self.directmesh_launch_row = QFrame()
+        self.directmesh_launch_row.setProperty("launchStrip", True)
+        launch = QVBoxLayout(self.directmesh_launch_row)
+        launch.setContentsMargins(10, 8, 10, 8)
+        launch.setSpacing(6)
+        launch_title = _label("Steam launch option", "dashboardComponentDetail", wrap=False)
+        launch_title.setProperty("settingHint", True)
+        launch.addWidget(launch_title)
+        field_row = QHBoxLayout()
+        field_row.setSpacing(6)
+        self.directmesh_launch_field = QLineEdit()
+        self.directmesh_launch_field.setReadOnly(True)
+        self.directmesh_launch_field.setProperty("launchOption", True)
+        self.directmesh_launch_field.setAccessibleName(tr("Steam launch option"))
+        self.directmesh_launch_field.setMinimumWidth(0)
+        self.directmesh_launch_field.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        field_row.addWidget(self.directmesh_launch_field, 1)
+        self.directmesh_copy_button = IconButton("⧉")
+        self.directmesh_copy_button.setProperty("fsr4LaunchCopy", True)
+        self.directmesh_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.directmesh_copy_button.setAccessibleName(tr("Copy Steam launch option"))
+        self.directmesh_copy_button.setToolTip(tr("Copy Steam launch option"))
+        self.directmesh_copy_button.clicked.connect(
+            lambda: QApplication.clipboard().setText(self.directmesh_launch_field.text())
+        )
+        field_row.addWidget(self.directmesh_copy_button)
+        launch.addLayout(field_row)
+        launch_hint = _label(
+            "Paste it in Steam > right-click the game > Properties > Launch options. "
+            "Remove it to turn DirectMesh off for that game.",
+            "dashboardComponentDetail",
+        )
+        launch_hint.setProperty("settingHint", True)
+        launch.addWidget(launch_hint)
+        body.insertWidget(2, self.directmesh_launch_row)
+
+        # The release Install brings in, GitHub's list, and a newer one.
+        version_host = QWidget()
+        version_row = QHBoxLayout(version_host)
+        version_row.setContentsMargins(0, 0, 0, 0)
+        version_row.setSpacing(6)
+        version_row.addWidget(_label("Version", "dashboardComponentDetail", wrap=False))
+        self.directmesh_version_combo = GuardedComboBox()
+        self.directmesh_version_combo.setAccessibleName(tr("DirectMesh version"))
+        self.directmesh_version_combo.setSizeAdjustPolicy(GuardedComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.directmesh_version_combo.setMinimumWidth(150)
+        self.directmesh_version_combo.activated.connect(
+            lambda index: self._forward_dependency_action({
+                "action": f"directmesh_select:{self.directmesh_version_combo.itemData(index)}",
+                "governor": "",
+            })
+        )
+        self.directmesh_version_combo.currentIndexChanged.connect(
+            lambda _index: self._sync_directmesh_main_action()
+        )
+        version_row.addWidget(self.directmesh_version_combo)
+        self.directmesh_releases_button = self._releases_button(
+            "Check for new DirectMesh releases", "directmesh_releases"
+        )
+        version_row.addWidget(self.directmesh_releases_button)
+        version_row.addStretch(1)
+        body.insertWidget(3, version_host)
+
+        # Its text and payload follow the version picked above (see
+        # _sync_directmesh_main_action): install, reinstall, update or go back.
+        self.directmesh_install_button = card.add_action(
+            "Install", {"action": "directmesh_install", "governor": ""}
+        )
+        self.directmesh_check_button = card.add_action(
+            "Check mesh shaders", {"action": "directmesh_check", "governor": ""}
+        )
+        self.directmesh_remove_button = card.add_action(
+            "Remove", {"action": "directmesh_uninstall", "governor": ""}, danger=True
+        )
+        card.action_requested.connect(self._forward_dependency_action)
+        card.setProperty("listRow", True)
+        card.make_collapsible()
 
     def _build_mesa_card(self) -> None:
         """Mesa older than 26.1: Vulkan runs on the GPU but the desktop is drawn by the CPU."""

@@ -1262,6 +1262,9 @@ class GpuGovernorStateMixin:
         if action == "fsr4_upstream":
             self._open_fsr4_upstream(dialog_parent=dialog_parent)
             return
+        if action.startswith("directmesh_") and action != "directmesh_upstream":
+            self._manage_directmesh(action.removeprefix("directmesh_"), dialog_parent=dialog_parent)
+            return
         if action.startswith("helixsr_") and action != "helixsr_upstream":
             self._manage_helixsr(
                 action.removeprefix("helixsr_"), dialog_parent=dialog_parent
@@ -1270,6 +1273,7 @@ class GpuGovernorStateMixin:
         if action in {
             "acpi_upstream",
             "helixsr_upstream",
+            "directmesh_upstream",
             "vaapi_upstream",
             "gfx1013_upstream",
             "bazzite_async_upstream",

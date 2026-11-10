@@ -1643,6 +1643,15 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             error_parent=dialog_parent,
         )
 
+    def _manage_directmesh(self, action: str, *, dialog_parent: QWidget | None) -> None:
+        self._run_backend_action(
+            lambda: self.controller.repo.gestionar_directmesh(action),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self, tr("DirectMesh"), tr("DirectMesh selection saved.") if action.startswith("select:") else tr("Opened the DirectMesh workflow in the terminal.")
+            ),
+            tr("Could not manage DirectMesh"), controls=(), error_parent=dialog_parent,
+        )
+
     def _manage_helixsr(self, action: str, *, dialog_parent: QWidget | None) -> None:
         """HelixSR: release and network files in the terminal, games in place."""
         from bc250cc.infrastructure.helixsr import HELIXSR_TAG
@@ -2491,7 +2500,10 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             gfx_state.get("upstream_url")
             or "https://github.com/DryhoppedIPA/bc250-gfx1013-fix"
         )
+        from bc250cc.infrastructure.directmesh import DIRECTMESH_REPOSITORY
+
         urls = {
+            "directmesh_upstream": DIRECTMESH_REPOSITORY,
             "acpi_upstream": "https://github.com/e-tho/bc250-acpi-fix",
             "gfx1013_upstream": gfx_url,
             "bazzite_async_upstream": BAZZITE_ASYNC_COMPUTE_REPOSITORY,

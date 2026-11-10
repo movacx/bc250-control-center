@@ -637,6 +637,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
     "BC250-FAN-001": (
         r"fan/pwm hwmon", r"usable nct6687 module", r"nct6687 could not be loaded",
         r"persisted nct6687 source is missing", r"\bfan\b.*does not exist",
+        r"\btachometer\b", r"reserved profile name", r"overheating: temperature at or above",
     ),
     "BC250-HELPER-001": (
         r"protected bc250 openrc service helper is missing",
@@ -650,6 +651,8 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"gddr6_firmware_unsupported", r"unsupported accessory", r"openlinkhub.*x86_64", r"trcc.*(?:no package|not installed)",
         r"debian release.*backports kernel", r"kernel boot options.*managed differently",
         r"only mitigations=off", r"optiscaler client.*x86_64",
+        r"directmesh's installer does not support", r"offered on arch, cachyos",
+        r"fedora release of this bazzite", r"directmesh is unsupported",
     ),
     "BC250-COLLISION-001": (r"openlinkhub.*already installed another way",),
     "BC250-UPSCALE-001": (
@@ -658,6 +661,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"this folder is not on the list", r"no optiscaler\.ini was found", r"more than one optiscaler\.ini",
         r"helixsr's own folder", r"game already has optiscaler", r"build helixsr's frame generation first",
         r"no earlier helixsr version kept", r"helixsr scaler is not recorded",
+        r"install directmesh first", r"directmesh release (?:is not on offer|cannot be verified)",
     ),
     "BC250-CONFIG-001": (
         r"cyan configuration is not usable", r"invalid web network option", r"invalid browser session registry",

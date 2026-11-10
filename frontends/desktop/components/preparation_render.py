@@ -27,6 +27,12 @@ from .dashboard_widgets import (  # noqa: E402
 from .responsive import clear_grid
 
 
+def _directmesh_version(tag: object) -> tuple[int, ...]:
+    """``directmesh-v1.4`` -> (1, 4); () for anything else."""
+    parts = str(tag or "").removeprefix("directmesh-v").split(".")
+    return tuple(int(part) for part in parts) if all(part.isdigit() for part in parts) else ()
+
+
 class PreparationRenderMixin:
     """Methods of ``PreparationSidebar`` split out of ``dashboard_widgets``."""
 
@@ -443,6 +449,74 @@ class PreparationRenderMixin:
             self.gfx_quinary_button,
             text="Open upstream project",
             payload={"action": "bazzite_async_upstream", "governor": ""},
+        )
+
+    def _render_directmesh(self, state: Mapping) -> None:
+        """DirectMesh's row: title-row status, launch option, version, actions."""
+        supported = bool(state.get("supported"))
+        installed = bool(state.get("installed"))
+        newer = _mapping(state.get("newer"))
+        upgradable = bool(newer) and installed and supported
+        card = self.directmesh_card
+        if not supported:
+            card.set_status("Unsupported", "gray")
+        elif upgradable:
+            card.set_status("Update available", "orange")
+        elif installed:
+            card.set_status("Installed", "green")
+        else:
+            card.set_status("Not installed", "gray")
+        if state.get("experimental"):
+            scope = tr("Bazzite · container · experimental")
+        elif state.get("platform") == "host":
+            scope = tr("Arch family")
+        else:
+            scope = tr("Compatibility")
+        version = str(state.get("installed_version") or "")
+        card.set_scope(scope + (" · v" + version if version else ""))
+        detail = tr("Mesh shaders for DX12 Ultimate games on the BC-250. Development build: a game can hang the GPU.")
+        reason = str(state.get("reason") or "")
+        card.detail.setText(detail + (" " + tr(reason) if not supported and reason else ""))
+        self.directmesh_launch_field.setText(str(state.get("launch_option") or ""))
+        # The start of the option is what people recognise; the end is %command%.
+        self.directmesh_launch_field.setCursorPosition(0)
+        self.directmesh_launch_row.setVisible(installed)
+        self._render_version_picker(
+            self.directmesh_version_combo, self.directmesh_releases_button,
+            {**state, "tag": state.get("selected_tag"), "installer_available": supported},
+        )
+        self._directmesh_view = {"installed": installed, "supported": supported,
+                                 "installed_tag": str(state.get("installed_tag") or "")}
+        self._sync_directmesh_main_action()
+        card.update_action(self.directmesh_check_button, text="Check mesh shaders", enabled=supported and installed)
+        card.update_action(self.directmesh_remove_button, text="Remove", enabled=installed)
+        self.directmesh_check_button.setVisible(installed)
+        self.directmesh_remove_button.setVisible(installed)
+        card._refresh_action_styles()
+
+    def _sync_directmesh_main_action(self) -> None:
+        """The main button follows the picked version: Install 1.4 when none
+        is installed, Reinstall for the installed one, Update to a newer one,
+        Switch to an older one. Its payload carries the tag, so the pick and
+        the install are one step."""
+        view = getattr(self, "_directmesh_view", None) or {}
+        combo = self.directmesh_version_combo
+        tag = str(combo.currentData() or "")
+        picked = _directmesh_version(tag)
+        mine = _directmesh_version(view.get("installed_tag", ""))
+        label = tag.removeprefix("directmesh-v")
+        if not view.get("installed"):
+            text = tr_format("Install {name}", name=label) if label else tr("Install")
+        elif not mine or picked == mine or not picked:
+            text = tr("Reinstall")
+        elif picked > mine:
+            text = tr_format("Update to {version}", version=label)
+        else:
+            text = tr_format("Switch to {name}", name=label)
+        action = f"directmesh_upgrade:{tag}" if tag else "directmesh_install"
+        self.directmesh_card.update_action(
+            self.directmesh_install_button, text=text,
+            payload={"action": action, "governor": ""}, enabled=bool(view.get("supported")),
         )
 
     def _render_helixsr(self, helixsr: Mapping) -> None:
@@ -1515,6 +1589,7 @@ class PreparationRenderMixin:
             [dict(_mapping(item)) for item in fsr4.get("backups") or ()] if FSR4_UI_ENABLED else [],
         )
 
+        self._render_directmesh(_mapping(tools.get("directmesh")))
         self._render_helixsr(_mapping(tools.get("helixsr")))
         self._render_upscaling()
 

@@ -139,6 +139,11 @@ from bc250cc.infrastructure.governor_install_shell import (
     oberon_install_command,
 )
 from bc250cc.infrastructure.gpu_driver_probe import gpu_driver_state
+from bc250cc.infrastructure.directmesh import (
+    directmesh_state, select_directmesh_release, build_directmesh_install_command,
+    build_directmesh_check_command, build_directmesh_uninstall_command,
+    build_directmesh_releases_command,
+)
 from bc250cc.infrastructure.helixsr import (
     add_helixsr_folder,
     add_optiscaler_folder,
@@ -717,6 +722,33 @@ class DependenciasRepository(SteamosDependenciesMixin):
             raise ValueError('Unsupported HelixSR action.')
         self.estado_herramientas_cache = None
         return self._abrir_terminal(command, title)
+
+    def gestionar_directmesh(self, action: str) -> object:
+        info = self._os_repository().info
+        platform = dict(family=info.family, distro_id=info.distro_id,
+                        version_id=str(read_os_release().get('VERSION_ID', '')).strip())
+        if action.startswith('select:'):
+            result = select_directmesh_release(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('upgrade:'):
+            select_directmesh_release(action.partition(':')[2])
+            action = 'install'
+        state = directmesh_state(**platform)
+        if not state.get('supported'):
+            raise RuntimeError(state.get('reason') or 'DirectMesh is unsupported.')
+        if action == 'install':
+            command = build_directmesh_install_command(**platform)
+        elif action == 'releases':
+            command = build_directmesh_releases_command()
+        elif action == 'check':
+            command = build_directmesh_check_command()
+        elif action == 'uninstall':
+            command = build_directmesh_uninstall_command(family=info.family, distro_id=info.distro_id)
+        else:
+            raise ValueError('Unsupported DirectMesh action.')
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(command, 'DirectMesh · ' + action)
 
     def gestionar_gfx1013_fedora(self, action: str) -> object:
         """Run the official upstream GFX1013 lifecycle on mutable Fedora."""
@@ -1313,6 +1345,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'gfx1013_compute': gfx1013_compute,
             'fsr4': fsr4,
             'helixsr': helixsr,
+            'directmesh': repository_probe['directmesh'],
             'tools_dir': str(self._tool_dir()),
             'optional_dependencies': optional_dependencies,
             'prepare_components': component_capabilities,
@@ -1544,6 +1577,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
         )
         fsr4 = safe(opticlient_state, {'installed': False, 'installer_available': False})
         helixsr = safe(helixsr_state, {'installed': False, 'installer_available': False})
+        directmesh = safe(lambda: directmesh_state(family=getattr(getattr(os_repository, 'info', None), 'family', ''), distro_id=getattr(getattr(os_repository, 'info', None), 'distro_id', ''), version_id=str(read_os_release().get('VERSION_ID', '')).strip()), {'supported': False})
         return {
             'smu_path': smu_path,
             'smu_exists': bool(smu_path and safe(lambda: Path(smu_path).exists(), False)),
@@ -1560,6 +1594,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'gfx1013_compute': gfx1013_compute,
             'fsr4': fsr4,
             'helixsr': helixsr,
+            'directmesh': directmesh,
         }
 
     def _probe_platform_inventory(self, *, is_steamos, expected_steamos_repo):

@@ -1,4 +1,4 @@
-"""Keep HelixSR's and OptiScaler Client's release lists fresh, in the background.
+"""Keep HelixSR's, OptiScaler Client's and DirectMesh's release lists fresh, in the background.
 
 Both projects publish often. Their lists used to be read only when the user
 pressed Check for new releases, so a new release went unnoticed until then.
@@ -48,13 +48,15 @@ _running = False
 
 def _sources() -> list[tuple[str, Path, str, int]]:
     """(name, releases.json, URL, size limit) for each tool that is installed."""
-    from . import bc250_opticlient, helixsr
+    from . import bc250_opticlient, directmesh, helixsr
 
     sources = []
     for name, root, url, limit in (
         ("helixsr", helixsr.helixsr_root(), helixsr.HELIXSR_RELEASES_API, helixsr._RELEASES_LIMIT),
         ("opticlient", bc250_opticlient.opticlient_root(), bc250_opticlient.OPTICLIENT_RELEASES_API,
          bc250_opticlient._RELEASES_LIMIT),
+        ("directmesh", directmesh.directmesh_root(), directmesh.DIRECTMESH_RELEASES_API,
+         directmesh._RELEASES_LIMIT),
     ):
         if root.is_dir():
             sources.append((name, root / "releases.json", url, limit))
