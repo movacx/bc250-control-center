@@ -1537,7 +1537,9 @@
    "build_gpu_state_snapshot": "GPU-0609"
   },
   "bc250cc/infrastructure/hardware_identity.py": {
-   "is_bc250_platform": "SYS-0041"
+   "is_bc250_platform": "SYS-0041",
+   "bc250_identity": "SYS-0326",
+   "require_bc250_hardware": "SYS-0327"
   },
   "bc250cc/infrastructure/helixsr.py": {
    "_data_home": "UPS-0076",

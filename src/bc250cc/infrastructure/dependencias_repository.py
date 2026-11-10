@@ -4,6 +4,7 @@ import shlex
 import shutil
 import subprocess
 import time
+from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from contextlib import suppress
 from copy import deepcopy
 from pathlib import Path
@@ -776,6 +777,10 @@ class DependenciasRepository(SteamosDependenciesMixin):
 
     def gestionar_gfx1013_fedora(self, action: str) -> object:
         """Run the official upstream GFX1013 lifecycle on mutable Fedora."""
+        # BC-250 hardware actions stop here on a computer without one;
+        # checking state and removing stay available.
+        if str(action or '').strip().lower() not in {'status', 'uninstall', 'remove', 'stop', 'disable'}:
+            require_bc250_hardware()
         os_repository = self._os_repository()
         state = self._gfx1013_compute_state(os_repository)
         action = str(action or '').strip().lower()
@@ -798,6 +803,10 @@ class DependenciasRepository(SteamosDependenciesMixin):
 
     def gestionar_gfx1013_bazzite(self, action: str) -> object:
         """Run the checksum-pinned Bazzite 44 async-compute release."""
+        # BC-250 hardware actions stop here on a computer without one;
+        # checking state and removing stay available.
+        if str(action or '').strip().lower() not in {'status', 'uninstall', 'remove', 'stop', 'disable'}:
+            require_bc250_hardware()
         os_repository = self._os_repository()
         state = self._gfx1013_compute_state(os_repository)
         action = str(action or '').strip().lower()
@@ -990,6 +999,10 @@ class DependenciasRepository(SteamosDependenciesMixin):
 
     def gestionar_gfx1013_source(self, action: str) -> object:
         """Build, install, switch or remove the independent GFX1013 fix."""
+        # BC-250 hardware actions stop here on a computer without one;
+        # checking state and removing stay available.
+        if str(action or '').strip().lower() not in {'status', 'uninstall', 'remove', 'stop', 'disable'}:
+            require_bc250_hardware()
         os_repository = self._os_repository()
         info = os_repository.info
         action = str(action or '').strip().lower()
@@ -1019,6 +1032,10 @@ class DependenciasRepository(SteamosDependenciesMixin):
 
     def gestionar_kernel_debian(self, action: str) -> object:
         """Install the newer kernel and Mesa still missing from the Debian backports, in the terminal."""
+        # BC-250 hardware actions stop here on a computer without one;
+        # checking state and removing stay available.
+        if str(action or '').strip().lower() not in {'status', 'uninstall', 'remove', 'stop', 'disable'}:
+            require_bc250_hardware()
         info = self._os_repository().info
         action = str(action or '').strip().lower()
         state = debian_kernel_upgrade_state(
@@ -1780,6 +1797,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
         desactivar_conflictos=False,
         governor_preference=None,
     ):
+        require_bc250_hardware()  # nothing to change on a computer without a BC-250
         governor_context = self._configured_gpu_governor(governor_preference)
         selected = str(governor_context['selected'])
         preflight = getattr(self, '_require_openrc_governor_preflight', None)
@@ -1813,6 +1831,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
         governor is prepared and finally its service is enabled and verified.
         A failure in any step aborts the script before the following step runs.
         """
+        require_bc250_hardware()  # nothing to change on a computer without a BC-250
         selected = normalize_governor_preference(governor)
         if selected not in {CYAN_GOVERNOR, OBERON_GOVERNOR}:
             raise ValueError('A supported GPU governor must be selected.')
