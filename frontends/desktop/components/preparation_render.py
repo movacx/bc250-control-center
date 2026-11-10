@@ -877,8 +877,13 @@ class PreparationRenderMixin:
         helixsr_games, _ready = getattr(self, "_helixsr_games", ([], False))
         # HelixSR's column once it can go into games, or while a game still
         # has it (to update or remove it).
-        helixsr_on = HELIXSR_UI_ENABLED and bool(helixsr.get("current")) and (
-            ready or bool(helixsr_games) or getattr(self, "_helixsr_bridge", None) is not None
+        # Also while games still have HelixSR and another release is picked
+        # but not installed yet: their rows (and Remove) must not vanish.
+        recorded = any(str(_mapping(game).get("state") or "") != "available" for game in helixsr_games)
+        helixsr_on = HELIXSR_UI_ENABLED and (
+            (bool(helixsr.get("current")) and (
+                ready or bool(helixsr_games) or getattr(self, "_helixsr_bridge", None) is not None))
+            or recorded
         )
         # FSR4's column also while the client's records or a backup are left
         # without the client: they can still be undone or put back.

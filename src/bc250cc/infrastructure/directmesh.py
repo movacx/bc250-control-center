@@ -172,8 +172,9 @@ def directmesh_releases() -> list[dict]:
                 releases[tag]["prerelease"] = release["prerelease"]
             else:
                 releases[tag] = {**release, "reviewed": False}
-        if found:
-            releases = {tag: release for tag, release in releases.items() if tag in found}
+        # A list GitHub answered is the truth, even an empty one: a release it
+        # no longer lists (withdrawn) is not offered.
+        releases = {tag: release for tag, release in releases.items() if tag in found}
     rows = [
         {
             **release,
@@ -193,7 +194,11 @@ def directmesh_release(tag: str | None = None) -> dict:
         return releases[wanted]
     if DIRECTMESH_TAG in releases:
         return releases[DIRECTMESH_TAG]
+    if releases:
+        # The pick and the default are gone: the newest still on offer.
+        return next(iter(releases.values()))
     return {
+        "unavailable": True,
         "tag": DIRECTMESH_TAG,
         "version": DIRECTMESH_TAG.removeprefix("directmesh-v"),
         **DIRECTMESH_REVIEWED[DIRECTMESH_TAG],
@@ -361,6 +366,8 @@ def build_directmesh_install_command(*, family: str, distro_id: str, version_id:
     if not platform:
         raise RuntimeError(reason)
     release = directmesh_release()
+    if release.get("unavailable"):
+        raise RuntimeError("No DirectMesh release can be installed: GitHub no longer lists one with an installer.")
     tag = release["tag"]
     digest = str(release.get("installer_sha256") or "")
     if _version(tag) is None or tag in DIRECTMESH_WITHDRAWN or not _SHA256.fullmatch(digest):
@@ -395,8 +402,9 @@ if test "$bc250_actual" != {digest}; then
 fi
 echo "Installer verified ({source})."
 {run}
-test -f {icd} || {{ echo "ERROR: the installer finished but {icd} is missing."; exit 29; }}
-bc250_library="$(dirname {icd})/../../../lib/libvulkan_radeon.so"
+bc250_icd={icd}
+test -f "$bc250_icd" || {{ printf 'ERROR: the installer finished but %s is missing.\n' "$bc250_icd"; exit 29; }}
+bc250_library="$(dirname "$bc250_icd")/../../../lib/libvulkan_radeon.so"
 if command -v ldd >/dev/null 2>&1 && test -f "$bc250_library" && ldd "$bc250_library" | grep -q 'not found'; then
   ldd "$bc250_library" | grep 'not found' || true
   echo "ERROR: this system lacks libraries the driver was built against. Remove DirectMesh and report it upstream."

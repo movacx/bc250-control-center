@@ -1072,7 +1072,11 @@ def game_matrix_rows(
         # HelixSR 3 and newer: every game goes through upstream's bridge, one
         # entry per game; the 2.x lists below do not apply.
         _bridge_cells(row_for, bridge_games)
-        helixsr_games, scaler_games = [], ()
+        # HelixSR added through an OptiScaler put in by hand is HelixSR 2's
+        # own route: it keeps its row and its Remove until it is taken out.
+        helixsr_games = [game for game in helixsr_games
+                         if game.get("kind") == "optiscaler" and game.get("state") != "available"]
+        scaler_games = ()
     by_game: dict[str, list[Mapping]] = {}
     for game in helixsr_games:
         appid = str(game.get("appid") or "")

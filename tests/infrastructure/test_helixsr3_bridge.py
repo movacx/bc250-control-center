@@ -94,6 +94,9 @@ def test_native_migration_restores_original_before_bridge_install(release, monke
     h._write_json(h._records_path(), {'1': {'name': 'Game', 'install': str(game), 'files': [{'path': str(target), 'backup': str(backup)}]}})
     monkeypatch.setattr(h, '_is_helixsr', lambda path, *args: Path(path).read_bytes() == b'old helixsr' if Path(path).is_file() else False)
     script = directory / h.HELIXSR_BRIDGE
+    script.write_text(script.read_text().replace(
+        'print(json.dumps(dict(ok=True, games=[])))',
+        f'print(json.dumps(dict(ok=True, games=[dict(folder={str(game)!r}, ways=["scaler", "fsr"])])))'))
     script.write_text(script.read_text().replace('cmd = args[0]', 'cmd = args[0]\nif cmd == "install":\n assert (Path(args[args.index("--game") + 1]) / "amd_fidelityfx_dx12.dll").read_bytes() == b"original"'))
     h.install_helixsr_bridge('1', 'fsr')
     assert target.read_bytes() == b'original'
@@ -279,7 +282,9 @@ def test_steam_shortcuts_reach_the_bridge_scan(release, monkeypatch):
 
 
 def test_a_bridge_refusal_after_a_helixsr_2_migration_has_already_removed_the_old_files(release, monkeypatch):
-    """Pins the current order: the HelixSR 2 integration is removed, then the bridge may refuse.
+    """Pins what is left after B8: once the bridge has listed the way (the
+    affirmative preflight), the HelixSR 2 integration is removed and the
+    bridge's own install can still refuse.
 
     R-c6ab33f2's anti-cheat refusal arrives from the bridge's ``install``, after
     ``remove_helixsr_game`` restored the game's own file. Nothing is lost (the
@@ -295,6 +300,9 @@ def test_a_bridge_refusal_after_a_helixsr_2_migration_has_already_removed_the_ol
     h._write_json(h._records_path(), {'1': {'name': 'Game', 'install': str(game), 'files': [{'path': str(target), 'backup': str(backup)}]}})
     monkeypatch.setattr(h, '_is_helixsr', lambda path, *args: Path(path).read_bytes() == b'old helixsr' if Path(path).is_file() else False)
     script = directory / h.HELIXSR_BRIDGE
+    script.write_text(script.read_text().replace(
+        'print(json.dumps(dict(ok=True, games=[])))',
+        f'print(json.dumps(dict(ok=True, games=[dict(folder={str(game)!r}, ways=["scaler", "fsr"])])))'))
     script.write_text(script.read_text().replace(
         'cmd = args[0]',
         'cmd = args[0]\nif cmd == "install":\n print(json.dumps(dict(ok=False, error="Game has anti-cheat (EasyAntiCheat): only with --anticheat-ok yes")))\n sys.exit(0)'))
@@ -327,3 +335,16 @@ def test_wine_that_cannot_run_is_reported_not_used():
     script = h._wine_check()
     assert '--version' in script
     assert "cannot be executed here" in script
+
+
+
+def test_a_failed_bridge_scan_keeps_the_helixsr2_install(release, monkeypatch):
+    """Only a yes from the bridge lets HelixSR 2's files go."""
+    directory, game = release
+    h._write_json(h._records_path(), {'1': {'name': 'Game', 'install': str(game), 'files': []}})
+    monkeypatch.setattr(h, '_record_state', lambda record: 'installed')
+    removed = []
+    monkeypatch.setattr(h, 'remove_helixsr_game', lambda appid: removed.append(appid) or {})
+    with pytest.raises(h.ActionNeeded, match="current HelixSR was kept"):
+        h.install_helixsr_bridge('1', 'fsr')  # the fake lists no game
+    assert removed == []

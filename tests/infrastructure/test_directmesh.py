@@ -183,3 +183,20 @@ def test_background_release_check_includes_directmesh_once_set_up():
     directmesh.directmesh_root().mkdir(parents=True)
     names = [name for name, *_ in upscaler_releases._sources()]
     assert "directmesh" in names
+
+
+def test_a_release_github_no_longer_lists_is_not_offered_or_installed():
+    _save_list(_release("directmesh-v1.5"))
+    assert [r["tag"] for r in directmesh.directmesh_releases()] == ["directmesh-v1.5"]
+    assert directmesh.directmesh_release()["tag"] == "directmesh-v1.5"
+    _save_list(_release("directmesh-v1.4.1", prerelease=True))  # only the withdrawn one is listed
+    assert directmesh.directmesh_releases() == []
+    with pytest.raises(RuntimeError, match="No DirectMesh release"):
+        directmesh.build_directmesh_install_command(family="arch", distro_id="cachyos")
+
+
+def test_install_paths_never_reach_shell_source_unquoted(data_home):
+    command = directmesh.build_directmesh_install_command(family="arch", distro_id="cachyos")
+    assert "bc250_icd=" in command
+    assert 'ERROR: the installer finished but {' not in command
+    assert '"$bc250_icd"' in command

@@ -778,7 +778,8 @@ def test_a_changed_client_copy_is_skipped_and_nothing_is_downloaded_without_a_ye
 
     result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch, answer="n\n")
 
-    assert result.returncode == 1, result.stdout + result.stderr
+    # Declining the download is a cancellation (130), not a failure.
+    assert result.returncode == 130, result.stdout + result.stderr
     assert "is not NVIDIA's DLSS 310.7.0 DLL" in result.stdout
     assert "Download it now?" in result.stdout + result.stderr
     assert "Nothing was downloaded" in result.stdout

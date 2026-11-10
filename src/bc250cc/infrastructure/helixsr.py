@@ -1962,7 +1962,7 @@ if test "${{#bc250_dlss_args[@]}}" -eq 0; then
     *)
       rm -rf -- "$bc250_dlss_dir"
       echo "Nothing was downloaded. HelixSR is installed; use Build network files when you want the network."
-      exit 1 ;;
+      exit 130 ;;
   esac
   bc250_fetch "$bc250_dlss_dir/nvngx_dlss.dll" {shlex.quote(DLSS_DLL_URL)}
   printf '%s  %s\\n' {DLSS_DLL_SHA256} "$bc250_dlss_dir/nvngx_dlss.dll" | sha256sum -c - || {{
@@ -2149,7 +2149,7 @@ for bc250_old in {root}/*; do
   echo "Removing the HelixSR $(basename "$bc250_old") copy it replaces."
   rm -rf -- "$bc250_old"
 done
-echo "OK: the HelixSR {release['version']} release is installed in {helixsr_directory()}."
+printf 'OK: the HelixSR %s release is installed in %s.\n' {shlex.quote(release['version'])} {target}
 {_setup_block(target)}
 '''
 
@@ -2669,7 +2669,9 @@ def install_helixsr_bridge(appid: str, way: str) -> dict:
             found = []
         row = next((g for g in found if isinstance(g, dict)
                     and os.path.realpath(str(g.get("folder"))) == os.path.realpath(str(folder))), None)
-        if row is not None and way not in (row.get("ways") or ()):
+        # Only a yes from the bridge lets the old files go: a failed scan or a
+        # game it does not list keeps the working install.
+        if row is None or way not in (row.get("ways") or ()):
             raise ActionNeeded("HelixSR cannot go into this game that way; its current HelixSR was kept.")
         result = remove_helixsr_game(appid)
         if result.get("kept"):
