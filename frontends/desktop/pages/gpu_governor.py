@@ -1792,6 +1792,9 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         if game_action.startswith("scaler_"):
             self._manage_helixsr_scaler(action, dialog_parent=dialog_parent)
             return
+        if game_action.startswith("bridge_"):
+            self._manage_helixsr_bridge(action, dialog_parent=dialog_parent)
+            return
         if game_action in {"game_install", "game_remove"}:
             helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
             game = next(
@@ -1847,6 +1850,18 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 "Update",
                 "blue",
             )
+        elif action.startswith("network:"):
+            # HelixSR 3's optional builds: Preset K, or HLX DLSS's Vulkan kernels.
+            options = set(action.partition(":")[2].split(","))
+            copy = (
+                ("Build Preset K",
+                 "Builds NVIDIA's DLSS 4 Preset K network on this PC, sharper than the default and a little slower. It can take many minutes. Pick it in HelixSR Scaler's DLSS Upscaler list.",
+                 "Build Preset K", "blue")
+                if "preset_k" in options else
+                ("Build Vulkan kernels",
+                 "Builds HLX DLSS's Vulkan kernels, so Vulkan games run it natively instead of through HelixSR Scaler's DirectX 12 bridge. The network is built again with them; this takes a long time.",
+                 "Build Vulkan kernels", "blue")
+            )
         else:
             copy = {
                 "install": (
@@ -1899,6 +1914,100 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 self, label, "Opened the HelixSR workflow in the terminal.",
             ),
             "Could not manage HelixSR",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _manage_helixsr_bridge(self, action: str, *, dialog_parent: QWidget | None) -> None:
+        """HelixSR 3 in a game, through the release's own bridge: add (DLSS
+        through HelixSR Scaler, or HLX FSR 4), switch, update, go back, remove."""
+        game_action, _sep, rest = action.partition(":")
+        key, _sep, way = rest.partition(":")
+        helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
+        game = next(
+            (dict(item) for item in helixsr.get("bridge_games") or ()
+             if str(_dict(item).get("appid") or _dict(item).get("name")) == key),
+            {"appid": key, "name": key},
+        )
+        name = str(game.get("name") or key)
+        installed = str(game.get("installed_way") or "")
+        version = str(helixsr.get("version") or "")
+        names = {"scaler": "DLSS · HelixSR Scaler", "fsr": "HLX FSR 4"}
+        pick = {"scaler": "In the game, choose DLSS.", "fsr": "In the game, choose AMD FSR."}
+        if game_action == "bridge_install" and game.get("managed_by") == "app-2x":
+            copy = (
+                tr_format("Update HelixSR to {version}", version=version),
+                tr("The old HelixSR files are removed and the game's own ones put back first.") + " " + tr(pick.get(way, "")),
+                "Update", "blue",
+            )
+        elif game_action == "bridge_install" and installed and installed != way:
+            copy = (
+                tr_format("Switch to {name}", name=tr(names.get(way, way))),
+                tr("The other way is removed first; the version kept to go back to is dropped.") + " " + tr(pick.get(way, "")),
+                "Switch", "blue",
+            )
+        elif game_action == "bridge_install" and installed:
+            copy = (
+                tr_format("Update HelixSR to {version}", version=version),
+                tr_format("The game keeps version {version} so you can go back to it.", version=str(game.get("version") or "?")),
+                "Update", "blue",
+            )
+        elif game_action == "bridge_install":
+            body = {
+                "scaler": "HelixSR Scaler goes next to the game and keeps any file it replaces. In the game, choose DLSS; Insert opens its menu. Don't use it in online games with anti-cheat.",
+                "fsr": "HLX FSR 4 takes the place of the game's FSR 3.1 file; the original is kept. In the game, choose AMD FSR. Don't use it in online games with anti-cheat.",
+            }.get(way, "")
+            copy = (tr_format("Add {name} to this game", name=tr(names.get(way, way))), tr(body),
+                    "Add", "blue")
+        elif game_action == "bridge_rollback":
+            copy = (
+                tr_format("Go back to HelixSR {version}", version=str(game.get("previous_version") or "?")),
+                tr("The game gets back the version it had before its last update. You can undo this the same way."),
+                "Go back", "orange",
+            )
+        elif game_action == "bridge_remove":
+            copy = ("Remove HelixSR from this game", tr("Every file HelixSR replaced is put back."),
+                    "Remove", "orange")
+        else:
+            raise ValueError("Unsupported HelixSR action.")
+        title, body, confirm, tone = copy
+        confirmation = ConfirmDialog(
+            title,
+            body + " " + tr("Close the game first."),
+            summary=((tr("Game"), name),),
+            confirm_text=confirm,
+            eyebrow="HelixSR",
+            tone=tone,
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        def done(result: object) -> None:
+            result = _dict(result)
+            game_name = str(result.get("game") or name)
+            if game_action == "bridge_remove":
+                message = tr_format("HelixSR was removed from {game}; its own files are back.", game=game_name)
+            elif game_action == "bridge_rollback":
+                message = tr_format("{game} now has HelixSR {version}.", game=game_name,
+                                    version=str(result.get("version") or "?"))
+            else:
+                message = tr_format("{game} now has {name}.", game=game_name, name=tr(names.get(way, way)))
+                message = f"{message} {tr(pick.get(way, ''))}".strip()
+                if result.get("launch_option_error"):
+                    message = f"{message} " + tr_format(
+                        "Steam also needs this launch option for it: {option}", option=str(result.get("launch_options"))
+                    )
+                if result.get("settings_error"):
+                    message = f"{message} " + tr(
+                        "The saved HelixSR Scaler settings could not be written into it; save them again on the card."
+                    )
+            GpuGovernorPage._record_preparation_result(self, "HelixSR", message)
+
+        self._run_backend_action(
+            lambda: self.controller.gestionar_helixsr(action),
+            done,
+            "Could not change the game's files",
             controls=(),
             error_parent=dialog_parent,
         )

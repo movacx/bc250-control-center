@@ -154,6 +154,11 @@ from bc250cc.infrastructure.helixsr import (
     build_helixsr_remove_command,
     forget_helixsr_folder,
     helixsr_state,
+    install_helixsr_bridge,
+    build_helixsr_upgrade_command,
+    forget_helixsr_bridge_games,
+    remove_helixsr_bridge,
+    rollback_helixsr_bridge,
     install_helixsr_game,
     install_helixsr_optiscaler,
     install_helixsr_scaler,
@@ -641,6 +646,19 @@ class DependenciasRepository(SteamosDependenciesMixin):
         # case: OptiScaler Client names games added by hand "Manual_...".
         verb, separator, game = action.partition(':')
         action = verb.lower() + separator + game.strip()
+        if action.startswith('bridge_install:'):
+            parts = action.split(':')
+            if len(parts) != 3:
+                raise ValueError('Invalid HelixSR bridge action.')
+            result = install_helixsr_bridge(parts[1], parts[2])
+            self.estado_herramientas_cache = None
+            return result
+        for prefix, operation in (('bridge_remove:', remove_helixsr_bridge),
+                                  ('bridge_rollback:', rollback_helixsr_bridge)):
+            if action.startswith(prefix):
+                result = operation(action[len(prefix):])
+                self.estado_herramientas_cache = None
+                return result
         if action.startswith('forget_folder:'):
             result = forget_helixsr_folder(action.partition(':')[2])
             self.estado_herramientas_cache = None
@@ -651,6 +669,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             self.estado_herramientas_cache = None
             return result
         if action == 'scan':
+            forget_helixsr_bridge_games()
             result = scan_helixsr_games()
             self.estado_herramientas_cache = None
             return {'games': len(result)}
@@ -695,22 +714,27 @@ class DependenciasRepository(SteamosDependenciesMixin):
             self.estado_herramientas_cache = None
             return result
         if action.startswith('upgrade:'):
-            # The newer release in one step: picked, then installed in the terminal.
-            select_helixsr_release(action.partition(':')[2])
+            # The newer release in one step. The pick is written by the
+            # terminal once the release is installed: a cancelled or failed
+            # install leaves the installed release, and its games, in place.
+            if not helixsr_state().get('installer_available'):
+                raise RuntimeError("HelixSR's setup runs on x86_64 Linux only.")
+            command = build_helixsr_upgrade_command(action.partition(':')[2])
             self.estado_herramientas_cache = None
-            action = 'install'
+            return self._abrir_terminal(command, 'HelixSR · install')
         state = helixsr_state()
         if action == 'install':
             if not state.get('installer_available'):
                 raise RuntimeError("HelixSR's setup runs on x86_64 Linux only.")
             command, title = build_helixsr_install_command(), 'HelixSR · install'
-        elif action == 'network':
+        elif action == 'network' or action.startswith('network:'):
             if not state.get('current'):
                 raise RuntimeError('Install HelixSR first.')
-            command, title = build_helixsr_network_command(), 'HelixSR · network files'
+            options = tuple(filter(None, action.partition(':')[2].split(',')))
+            command, title = (build_helixsr_network_command(options=options) if options else build_helixsr_network_command()), 'HelixSR · network files'
         elif action == 'fg':
-            if not state.get('scaler_supported'):
-                raise ActionNeeded('Install HelixSR 2.0 or newer and build its network first.')
+            if not state.get('scaler_supported') or (state.get('layout') == '3' and not state.get('capabilities', {}).get('fg')):
+                raise ActionNeeded('Frame generation is not available for this release.')
             command, title = build_helixsr_fg_command(), 'HelixSR · frame generation'
         elif action == 'releases':
             command, title = build_helixsr_releases_command(), 'HelixSR · releases'

@@ -1022,6 +1022,13 @@ class PreparationPagesMixin:
         self.helixsr_fg_button = self.helixsr_card.add_action(
             "Build frame generation", {"action": "helixsr_fg", "governor": ""}
         )
+        # HelixSR 3 on: the setup's optional builds, behind the card's menu.
+        self.helixsr_preset_k_button = self.helixsr_card.add_action(
+            "Build Preset K", {"action": "helixsr_network:preset_k", "governor": ""}
+        )
+        self.helixsr_vulkan_button = self.helixsr_card.add_action(
+            "Build Vulkan kernels", {"action": "helixsr_network:vulkan,rebuild", "governor": ""}
+        )
         self.helixsr_remove_button = self.helixsr_card.add_action(
             "Remove",
             {"action": "helixsr_uninstall", "governor": ""},

@@ -653,6 +653,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"only mitigations=off", r"optiscaler client.*x86_64",
         r"directmesh's installer does not support", r"offered on arch, cachyos",
         r"fedora release of this bazzite", r"directmesh is unsupported",
+        r"frame generation is not available for this release",
     ),
     "BC250-COLLISION-001": (r"openlinkhub.*already installed another way",),
     "BC250-UPSCALE-001": (
@@ -662,6 +663,12 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"helixsr's own folder", r"game already has optiscaler", r"build helixsr's frame generation first",
         r"no earlier helixsr version kept", r"helixsr scaler is not recorded",
         r"install directmesh first", r"directmesh release (?:is not on offer|cannot be verified)",
+        r"(?:invalid|unsupported) helixsr (?:bridge |)action", r"invalid helixsr bridge way or release",
+        r"invalid network build option", r"build options require helixsr",
+        r"adding vulkan to a built network requires rebuild", r"selected helixsr way is not ready",
+        r"remove the existing optiscaler integration first", r"restore or inspect the existing helixsr files",
+        r"original backup was kept; inspect it", r"bridge installed helixsr.*record could not be saved",
+        r"helixsr bridge install is not recorded", r"bridge reports the network is not ready",
     ),
     "BC250-CONFIG-001": (
         r"cyan configuration is not usable", r"invalid web network option", r"invalid browser session registry",

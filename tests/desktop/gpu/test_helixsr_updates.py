@@ -263,9 +263,13 @@ def test_the_repository_routes_the_new_actions(home, release, tmp_path, monkeypa
     assert repository.gestionar_helixsr("scaler_rollback:100")["version"] == "1.9.2"
     assert repository.gestionar_helixsr("update_all")["updated"] == ["Space Game"]
     _list_releases((helixsr.HELIXSR_TAG, False), ("v2.8.1", False))
-    title, _command = repository.gestionar_helixsr("upgrade:v2.8.1")
+    before = helixsr.helixsr_release()["tag"]
+    title, command = repository.gestionar_helixsr("upgrade:v2.8.1")
     assert title == "HelixSR · install"
-    assert helixsr.helixsr_release()["tag"] == "v2.8.1"
+    # The pick is written by the terminal once v2.8.1 is installed, so a
+    # cancelled install keeps the release that is there.
+    assert helixsr.helixsr_release()["tag"] == before
+    assert "v2.8.1" in command and str(helixsr._selection_path()) in command
 
 
 def test_a_newer_client_build_is_offered(home, monkeypatch):  # noqa: F811

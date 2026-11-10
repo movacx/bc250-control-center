@@ -9,6 +9,7 @@ from PyQt6.QtCore import (
 )
 from PyQt6.QtWidgets import (
     QBoxLayout,
+    QLabel,
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
 
@@ -529,8 +530,16 @@ class PreparationRenderMixin:
         state = str(helixsr.get("state") or "not-installed")
         games = [dict(game) for game in helixsr.get("games") or () if isinstance(game, Mapping)]
         detail = "DLSS's neural network running on this GPU, in place of a game's FSR 3.1 upscaler."
+        hlx_only = (
+            str(helixsr.get("layout") or "") == "3" and current
+            and bool(_mapping(helixsr.get("ready")).get("hlx"))
+        )
         if ready:
             status, tone = "Ready", "green"
+        elif hlx_only and wine:
+            # HelixSR 3: HLX FSR 4 comes built; only DLSS waits for its network.
+            status, tone = "Ready", "green"
+            detail = "HLX FSR 4 is ready for games. DLSS needs its network built once on this PC."
         elif not available:
             status, tone = "Unavailable", "gray"
             detail = "HelixSR's setup runs on x86_64 Linux only."
@@ -563,14 +572,31 @@ class PreparationRenderMixin:
             "version": str(helixsr.get("version") or "") if current else "",
         }
 
+        # HelixSR 3: upstream's bridge says what is built; HLX FSR 4 comes
+        # built, only HLX DLSS (the scaler way) needs the network.
+        layout3 = str(helixsr.get("layout") or "") == "3"
+        capabilities = _mapping(helixsr.get("capabilities"))
+        built = _mapping(helixsr.get("ready"))
         self.helixsr_card.update_action(
-            self.helixsr_scan_button, text="Find FSR 3.1 games", visible=ready,
+            self.helixsr_scan_button, text="Find games" if layout3 else "Find FSR 3.1 games",
+            visible=ready or (layout3 and current),
         )
         self.helixsr_card.update_action(
             self.helixsr_network_button,
-            text="Build network files",
+            text="Build DLSS network" if layout3 else "Build network files",
             enabled=wine,
             visible=current and not ready,
+        )
+        self.helixsr_card.update_action(
+            self.helixsr_preset_k_button,
+            text="Rebuild Preset K" if built.get("preset_k") else "Build Preset K",
+            enabled=wine,
+            # Both build on top of the DLSS network: offered once it is there.
+            visible=layout3 and current and ready and bool(capabilities.get("preset_k")),
+        )
+        self.helixsr_card.update_action(
+            self.helixsr_vulkan_button, text="Build Vulkan kernels", enabled=wine,
+            visible=layout3 and current and ready and bool(capabilities.get("vulkan")),
         )
         self.helixsr_card.update_action(
             self.helixsr_install_button,
@@ -586,15 +612,24 @@ class PreparationRenderMixin:
         )
         scaler_ready = bool(helixsr.get("scaler_supported"))
         fg_ready = bool(helixsr.get("fg_ready"))
+        # HelixSR 3.0 dropped its frame generation.
+        fg_offered = scaler_ready and (not layout3 or bool(capabilities.get("fg")))
         if hasattr(self, "helixsr_fg_button"):
             self.helixsr_card.update_action(
                 self.helixsr_fg_button,
                 text="Rebuild frame generation" if fg_ready else "Build frame generation",
-                visible=scaler_ready,
+                visible=fg_offered,
             )
         self.helixsr_upstream_button.show()
         self.helixsr_card._refresh_action_styles()
         self._helixsr_games = (games if HELIXSR_UI_ENABLED else [], ready)
+        # HelixSR 3: one bridge entry per game; None keeps the 2.x columns.
+        self._helixsr_bridge = (
+            [dict(_mapping(game)) for game in helixsr.get("bridge_games") or ()]
+            if layout3 and current and HELIXSR_UI_ENABLED else None
+        )
+        self._helixsr_layout3 = layout3
+        self._helixsr_capabilities = (capabilities, built, str(helixsr.get("status_error") or ""))
         self._helixsr_scaler = (
             [dict(_mapping(game)) for game in helixsr.get("scaler_games") or ()] if HELIXSR_UI_ENABLED else [],
             scaler_ready,
@@ -609,6 +644,12 @@ class PreparationRenderMixin:
         self._helixsr_scaler_count = sum(
             1 for game in helixsr.get("scaler_games") or () if _mapping(game).get("state") == "installed"
         )
+        if getattr(self, "_helixsr_bridge", None) is not None:
+            # HelixSR 3: the games with DLSS through HelixSR Scaler.
+            self._helixsr_scaler_count = sum(
+                1 for game in self._helixsr_bridge
+                if game.get("installed_way") == "scaler" and game.get("managed_by") == "bridge"
+            )
         # Games the settings reach: HelixSR Scaler's get them through its bridge.
         self._helixsr_game_count = sum(
             1 for game in games if str(_mapping(game).get("state") or "") == "installed"
@@ -624,6 +665,7 @@ class PreparationRenderMixin:
             )
             self.helixsr_settings.set_settings(*self._helixsr_settings_state)
             self.helixsr_settings.set_game_count(self._helixsr_game_count)
+            self.helixsr_settings.set_bridge_mode(getattr(self, "_helixsr_bridge", None) is not None)
 
     def _render_upscaling(self) -> None:
         """Both upscalers' cards, then the games table shared by both."""
@@ -636,6 +678,7 @@ class PreparationRenderMixin:
             helixsr_games, getattr(self, "_fsr4_games", []), helixsr_ready=ready,
             scaler_games=scaler_games, scaler_ready=scaler_ready, fg_ready=fg_ready,
             fsr4_installations=installations, fsr4_backups=backups,
+            bridge_games=getattr(self, "_helixsr_bridge", None),
         )
         self._render_fsr4_section()
         self._render_helixsr_section()
@@ -737,46 +780,92 @@ class PreparationRenderMixin:
             helixsr_ready=ready,
             # Only the games HelixSR Scaler is in count here, not every one it could go into.
             scaler_games=[game for game in scaler_games if game.get("state") != "available"],
+            bridge_games=[game for game in getattr(self, "_helixsr_bridge", None) or ()
+                          if game.get("installed_way") or game.get("managed_by") == "app-2x"]
+            if getattr(self, "_helixsr_bridge", None) is not None else None,
         )
         # A game still on an older release is active all the same.
         working = {"Update available", "Other version", "Network files missing"}
         active = [row for row in games if row["helixsr"]
                   and (row["helixsr"][1] == "green" or row["helixsr"][0] in working)]
         section = self.helixsr_section
+        subtitle = next((label for label in section.findChildren(QLabel) if label.property("sectionSubtitle")), None)
+        if subtitle is not None:
+            subtitle.setText(tr(
+                "DLSS and FSR 4 networks on this GPU, put into each game by HelixSR's own installer."
+                if getattr(self, "_helixsr_layout3", False) else
+                "DLSS's neural network on this GPU, installed per game in place of FSR 3.1."
+            ))
         section.set_version(view["version"])
         self._render_helixsr_versions(helixsr)
         section.set_status(view["status"], view["tone"])
         section.set_fact(
             "games", "Active games", self._games_reading(len(active), len(games), current and (ready or bool(games)))
         )
+        layout3 = bool(getattr(self, "_helixsr_layout3", False))
+        capabilities, built, status_error = getattr(self, "_helixsr_capabilities", ({}, {}, ""))
+        if layout3 and current:
+            # HelixSR 3: HLX FSR 4 comes built; DLSS needs its network.
+            section.set_fact(
+                "hlx", "HLX FSR 4", "Ready" if built.get("hlx") else "Not built yet",
+                "" if built.get("hlx") else "orange",
+            )
+            section.set_fact(
+                "prepare", "DLSS network", "Ready" if ready else "Not built yet", "" if ready else "orange",
+            )
+            if status_error:
+                section.set_fact("bridge", "HelixSR's setup", "Did not answer", "orange")
+            elif hasattr(section, "remove_fact"):
+                section.remove_fact("bridge")
         # The network files are worth a row only while they are missing.
-        if current and not ready:
+        elif current and not ready:
             section.set_fact("prepare", "Network files", "Not built yet", "orange")
         elif hasattr(section, "remove_fact"):
             section.remove_fact("prepare")
-        if scaler_ready:
+        if not layout3 and hasattr(section, "remove_fact"):
+            section.remove_fact("hlx")
+            section.remove_fact("bridge")
+        if layout3 or not scaler_ready:
+            if hasattr(section, "remove_fact"):
+                section.remove_fact("frame_generation")
+        elif scaler_ready:
             section.set_fact(
                 "frame_generation", "Frame generation",
                 "Available" if fg_ready else "Not built",
                 "" if fg_ready else "orange",
             )
-        elif hasattr(section, "remove_fact"):
-            section.remove_fact("frame_generation")
-        section.set_notice("" if ready else view["detail"])
-        upgrade = self._offer_upgrade(self.helixsr_upgrade_button, helixsr.get("newer"), ready)
+        if layout3 and current:
+            # Games can take HLX FSR 4 already; the network is only DLSS's.
+            section.set_notice(
+                "" if ready else "HLX FSR 4 is ready for games now. Build the DLSS network once (a few minutes) to add DLSS through HelixSR Scaler."
+            )
+        else:
+            section.set_notice("" if ready else view["detail"])
+        upgrade = self._offer_upgrade(self.helixsr_upgrade_button, helixsr.get("newer"), ready or (layout3 and current))
         more = [self.helixsr_install_button, self.helixsr_remove_button]
-        if scaler_ready and fg_ready:
+        if scaler_ready and fg_ready and not layout3:
             more.insert(0, self.helixsr_fg_button)
+        if layout3 and current and ready:
+            # The setup's optional builds: rare, behind the menu.
+            more[:0] = [button for button, offered in (
+                (self.helixsr_preset_k_button, capabilities.get("preset_k")),
+                (self.helixsr_vulkan_button, capabilities.get("vulkan")),
+            ) if offered]
         if not current:
             secondary, primary = [], self.helixsr_install_button
             more = [self.helixsr_remove_button]
+        elif not ready and layout3:
+            # HLX FSR 4 works without the network: games first, the build beside.
+            secondary, primary = [self.helixsr_network_button], (
+                self.helixsr_upgrade_button if upgrade else self.helixsr_scan_button
+            )
         elif not ready:
             secondary, primary = [], self.helixsr_network_button
         elif upgrade:
             secondary, primary = [self.helixsr_scan_button], self.helixsr_upgrade_button
         else:
             secondary, primary = [], self.helixsr_scan_button
-        if scaler_ready and not fg_ready and ready:
+        if scaler_ready and not fg_ready and ready and not layout3:
             # Not built yet: a next step of its own, beside the main one.
             secondary.insert(0, self.helixsr_fg_button)
         section.set_actions(secondary, primary, more)
@@ -788,7 +877,9 @@ class PreparationRenderMixin:
         helixsr_games, _ready = getattr(self, "_helixsr_games", ([], False))
         # HelixSR's column once it can go into games, or while a game still
         # has it (to update or remove it).
-        helixsr_on = HELIXSR_UI_ENABLED and bool(helixsr.get("current")) and (ready or bool(helixsr_games))
+        helixsr_on = HELIXSR_UI_ENABLED and bool(helixsr.get("current")) and (
+            ready or bool(helixsr_games) or getattr(self, "_helixsr_bridge", None) is not None
+        )
         # FSR4's column also while the client's records or a backup are left
         # without the client: they can still be undone or put back.
         fsr4_on = FSR4_UI_ENABLED and (
@@ -839,17 +930,26 @@ class PreparationRenderMixin:
         self.fsr4_launch_panel.setVisible(bool(columns) and uses_optiscaler and bool(self._fsr4_launch_option))
         self.fsr4_launch_field.setText(self._fsr4_launch_option)
         self.fsr4_launch_field.setCursorPosition(0)
-        for button in (self.helixsr_folder_button, self.helixsr_opti_folder_button):
-            button.setVisible(helixsr_on and ready)
-        self.upscaling_add_button.setVisible(helixsr_on and ready)
-        outdated = int(helixsr.get("outdated_games") or 0) if helixsr_on and ready else 0
+        # HelixSR 3: games can take HLX FSR 4 before the DLSS network is built.
+        bridge = getattr(self, "_helixsr_bridge", None) is not None
+        usable = ready or bridge
+        self.helixsr_folder_button.setVisible(helixsr_on and usable)
+        # OptiScaler put in by hand is HelixSR 2's route; HelixSR 3 brings its own.
+        self.helixsr_opti_folder_button.setVisible(helixsr_on and ready and not bridge)
+        self.upscaling_add_button.setVisible(helixsr_on and usable)
+        outdated = int(helixsr.get("outdated_games") or 0) if helixsr_on and usable else 0
         self.helixsr_update_all_button.setVisible(outdated > 1)
         self.helixsr_update_all_button.setText(tr_format("Update all games ({count})", count=outdated))
         for button in (self.upscaling_add_button, self.helixsr_update_all_button):
             # The header keeps each label on one line.
             button.setProperty("headerActionWidth", IconButton.sizeHint(button).width())
         self.upscaling_games._layout_header(force=True)
-        self.helixsr_settings.setVisible(HELIXSR_UI_ENABLED and bool(helixsr.get("current")))
+        # HelixSR 3: only HelixSR Scaler's group is left, and only while a game has it.
+        bridge = getattr(self, "_helixsr_bridge", None)
+        self.helixsr_settings.setVisible(
+            HELIXSR_UI_ENABLED and bool(helixsr.get("current"))
+            and (bridge is None or getattr(self, "_helixsr_scaler_count", 0) > 0)
+        )
 
     def _render_fsr4_games(self, games: list[dict]) -> None:
         """FSR4's games are rows of its section on the Upscaling tab."""

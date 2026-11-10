@@ -62,6 +62,7 @@ HELIXSR_REPOSITORY = "https://github.com/lonewolf0622/HelixSR"
 #: aside. 1.2 to 1.4 keep the network in two files beside the DLL, 1.7 builds
 #: it the same way and 1.8 appends it to the DLL.
 HELIXSR_REVIEWED: dict[str, dict] = {
+    "v3.3.0": {"archive": "HelixSR-3.3.0.zip", "sha256": "30838854b545d31891e50075b929b2ab03512cece95b453d98dc2fc620135eaf", "size": 281_134_182, "dll_sha256": "2feb14f1db4d29eb9e389c955fb9c7d90a565890ab63c789c77f2d1fc0532a46"},
     # 2.0 moved the DLL into HELIXSR_BUILD_FOLDER (helixsr_dll_folder finds
     # it) and builds DLSS frame generation there too, which this module asks
     # the setup to skip (see _setup_block).
@@ -110,7 +111,7 @@ HELIXSR_REVIEWED: dict[str, dict] = {
 }
 #: The release installed unless the user picks another: the newest stable
 #: one checked on a BC-250 with this module (2.0.0, tested by the maintainer).
-HELIXSR_TAG = "v2.0.0"
+HELIXSR_TAG = "v3.3.0"
 HELIXSR_VERSION = HELIXSR_TAG.removeprefix("v")
 HELIXSR_SHA256 = HELIXSR_REVIEWED[HELIXSR_TAG]["sha256"]
 HELIXSR_DLL_SHA256 = HELIXSR_REVIEWED[HELIXSR_TAG]["dll_sha256"]
@@ -190,7 +191,7 @@ def _version(tag: str) -> tuple[int, ...] | None:
 #: (a pre-release) ships helixsr.dll and its own setup instead of the one
 #: amd_fidelityfx_dx12.dll, and its install stopped with "the archive has
 #: no amd_fidelityfx_dx12.dll".
-SUPPORTED_MAJOR = 2
+SUPPORTED_MAJOR = 3
 
 
 def _supported_layout(tag: str) -> bool:
@@ -288,6 +289,14 @@ def helixsr_release(tag: str | None = None) -> dict:
     releases = {release["tag"]: release for release in helixsr_releases()}
     if wanted in releases:
         return releases[wanted]
+    if tag is None and wanted is None:
+        # Never picked: the release installed here stays the one in use, so a
+        # new default (3.3.0 replaced 2.0.0) is offered as an update instead
+        # of hiding the games that still have the installed one.
+        installed = [release for release in releases.values()
+                     if (helixsr_root() / release["version"] / HELIXSR_MARKER).is_file()]
+        if installed:
+            return max(installed, key=lambda release: _version(release["tag"]) or ())
     if HELIXSR_TAG in releases:
         return releases[HELIXSR_TAG]
     return {"tag": HELIXSR_TAG, "version": HELIXSR_VERSION, **HELIXSR_REVIEWED[HELIXSR_TAG],
@@ -314,8 +323,18 @@ def helixsr_directory() -> Path:
 def helixsr_dll_folder(directory: Path | None = None) -> Path:
     """Where the release keeps HelixSR's DLL: HELIXSR_BUILD_FOLDER since 2.0."""
     directory = helixsr_directory() if directory is None else directory
+    if (directory / "HelixSR" / "helixsr.dll").is_file():
+        return directory / "HelixSR"
     built = directory / HELIXSR_BUILD_FOLDER
     return built if (built / HELIXSR_DLL).is_file() else directory
+
+
+def _layout3() -> bool:
+    return (_version(helixsr_release()["tag"]) or (0,))[0] == 3
+
+
+def _release_dll(directory: Path) -> Path:
+    return helixsr_dll_folder(directory) / ("helixsr.dll" if _layout3() else HELIXSR_DLL)
 
 
 def _digests_path() -> Path:
@@ -1239,9 +1258,15 @@ def helixsr_state(*, machine: str | None = None) -> dict:
         marker == release["sha256"]
         and expected
         and (directory / HELIXSR_SETUP).is_file()
-        and _is_helixsr(helixsr_dll_folder(directory) / HELIXSR_DLL, frozenset({expected}))
+        and _is_helixsr(_release_dll(directory), frozenset({expected}))
     )
-    network_ready = current and _carries_network(helixsr_dll_folder(directory) / HELIXSR_DLL)
+    status, status_error = {}, ""
+    if current and _layout3():
+        try:
+            status = _run_bridge("status")
+        except (OSError, RuntimeError) as error:
+            status_error = str(error)
+    network_ready = bool(status.get("network_ready")) if _layout3() else current and _carries_network(_release_dll(directory))
     try:
         others = sorted(
             entry.name for entry in helixsr_root().iterdir()
@@ -1275,7 +1300,14 @@ def helixsr_state(*, machine: str | None = None) -> dict:
     # still carry HelixSR and must stay removable.
     games = helixsr_games(optiscaler=network_ready)
     scaler_rows = helixsr_scaler_rows() if network_ready else _recorded_scaler_rows()
+    bridge_games = _bridge_game_rows(status) if _layout3() else []
     return {
+        "layout": "3" if _layout3() else "2",
+        "status_error": status_error,
+        "capabilities": {"fg": bool(status.get("fg_available")) if _layout3() else bool(current and helixsr_scaler_supported(directory)), "preset_k": bool(status.get("k_available")), "vulkan": bool(current and _layout3())},
+        "ready": {"network": bool(network_ready), "hlx": bool(status.get("hlx_ready")), "preset_k": bool(status.get("k_ready")), "fg": bool(status.get("fg_ready")) if _layout3() else bool(current and helixsr_fg_ready(directory))},
+        "scaler_version": _bundled_scaler_version(directory) if _layout3() else "",
+        "bridge_games": bridge_games,
         "provider": "helixsr",
         "version": release["version"],
         "tag": release["tag"],
@@ -1301,9 +1333,10 @@ def helixsr_state(*, machine: str | None = None) -> dict:
         "games": games,
         # The release's bridge removes HelixSR Scaler again: games keep it in use.
         "installed_games": sum(1 for game in games if game["state"] != "available")
-        + sum(1 for row in scaler_rows if row["state"] == "installed"),
+        + sum(1 for row in scaler_rows if row["state"] == "installed")
+        + sum(1 for row in bridge_games if row["managed_by"] == "bridge"),
         "scaler_supported": bool(current and network_ready and helixsr_scaler_supported(directory)),
-        "fg_ready": bool(current and helixsr_fg_ready(directory)),
+        "fg_ready": bool(status.get("fg_ready")) if _layout3() else bool(current and helixsr_fg_ready(directory)),
         "scaler_games": scaler_rows,
         "int8_supported": _reads_int8(release["tag"]),
         "fast_output_supported": _reads_fast_output(release["tag"]),
@@ -1315,7 +1348,11 @@ def helixsr_state(*, machine: str | None = None) -> dict:
         "scaler_settings": helixsr_scaler_settings() if current else [],
         # The newest stable release on offer, when it is newer than this one.
         "newer": _newer_release(release) if current else None,
-        "outdated_games": _outdated_games(games, scaler_rows),
+        # HelixSR 3: what Update all updates, counted the same way.
+        "outdated_games": (
+            sum(1 for row in bridge_games if row["managed_by"] in ("bridge", "app-2x") and row["outdated"])
+            if _layout3() else _outdated_games(games, scaler_rows)
+        ),
     }
 
 
@@ -1573,6 +1610,8 @@ def helixsr_scaler_settings() -> list[dict]:
         return []
     rows = []
     for name, choices in allowed.items():
+        if _layout3() and name != "HelixSR.WaveSize":
+            continue
         if (not isinstance(name, str) or "." not in name or not isinstance(choices, (tuple, list)) or not choices
                 or not all(isinstance(choice, str) and _PLAIN_VALUE.fullmatch(choice) for choice in choices)):
             continue
@@ -1772,6 +1811,19 @@ def save_helixsr_settings(values: dict) -> dict:
             skipped.append(str(record.get("name") or appid))
             continue
         applied += 1
+    wave_value = values.get("Scaler:HelixSR.WaveSize", values.get("HelixSR.WaveSize"))
+    if wave_value is not None:
+        wave = str(wave_value)
+        for appid, record in _bridge_records().items():
+            if record.get("way") != "scaler":
+                continue
+            try:
+                folder = Path(record["folder"])
+                _refuse_running(folder)
+                _run_bridge("settings-set", "--game", str(folder), "--values", json.dumps({"HelixSR.WaveSize": wave}))
+                applied += 1
+            except RuntimeError:
+                skipped.append(str(record.get("name") or appid))
     return {"settings": clean, "games": applied, "skipped": skipped}
 
 
@@ -1838,7 +1890,7 @@ def _shader_progress(work: str) -> str:
 bc250_progress=$!'''
 
 
-def _setup_block(target: str) -> str:
+def _setup_block(target: str, *, options: tuple[str, ...] = ()) -> str:
     """Build the network with upstream's setup, and nothing else.
 
     With system numpy present the setup uses it. Without it the setup would
@@ -1857,6 +1909,17 @@ def _setup_block(target: str) -> str:
     """
     candidates = " ".join(shlex.quote(str(path)) for path in local_dlss_candidates())
     version = helixsr_release()["version"]
+    flags = "".join(" --" + option.replace("_", "-") for option in options)
+    dll_name = "helixsr.dll" if _layout3() else HELIXSR_DLL
+    build_folder = "HelixSR" if _layout3() else HELIXSR_BUILD_FOLDER
+    if _layout3():
+        check_network = f'''python3 -I {target}/{HELIXSR_BRIDGE} {target} status | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("ok") and d.get("network_ready") else 1)' || {{ echo "ERROR: bridge reports the network is not ready."; exit 1; }}'''
+    else:
+        check_network = f'''bc250_built={target}
+test ! -f {target}/{build_folder}/{dll_name} || bc250_built={target}/{build_folder}
+test "$(tail -c {_EMBED_FOOTER} "$bc250_built/{dll_name}" | head -c {len(HELIXSR_EMBED_MAGIC)})" = {HELIXSR_EMBED_MAGIC.decode()} \\
+  || {{ test -s {target}/{HELIXSR_NETWORK_FILES[0]} && test -s {target}/{HELIXSR_NETWORK_FILES[1]}; }} || {{
+  echo "ERROR: the setup finished without building the network."; exit 1; }}'''
     return f'''bc250_portable=1
 if command -v python3 >/dev/null 2>&1 && python3 -c 'import numpy, sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1; then
   bc250_portable=0
@@ -1914,7 +1977,7 @@ bc250_work="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr-build.XXXXXX")"
 bc250_fg_args=()
 test ! -d {target}/{HELIXSR_BUILD_FOLDER} || bc250_fg_args=(--no-fg)
 {_shader_progress('"$bc250_work"')}
-if ! TMPDIR="$bc250_work" PATH="$bc250_shim:$PATH" HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} "${{bc250_dlss_args[@]}}" "${{bc250_fg_args[@]}}" </dev/null; then
+if ! TMPDIR="$bc250_work" PATH="$bc250_shim:$PATH" HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} "${{bc250_dlss_args[@]}}" "${{bc250_fg_args[@]}}"{flags} </dev/null; then
   kill "$bc250_progress" 2>/dev/null || true
   rm -rf -- "$bc250_dlss_dir" "$bc250_work"
   echo
@@ -1927,11 +1990,7 @@ echo
 echo "(The setup's own list of games above stops by design: Control Center adds HelixSR to games itself.)"
 # 1.8 and newer append the network to the DLL (2.0 the one in its build
 # folder); older releases write two files.
-bc250_built={target}
-test ! -f {target}/{HELIXSR_BUILD_FOLDER}/{HELIXSR_DLL} || bc250_built={target}/{HELIXSR_BUILD_FOLDER}
-test "$(tail -c {_EMBED_FOOTER} "$bc250_built/{HELIXSR_DLL}" | head -c {len(HELIXSR_EMBED_MAGIC)})" = {HELIXSR_EMBED_MAGIC.decode()} \\
-  || {{ test -s {target}/{HELIXSR_NETWORK_FILES[0]} && test -s {target}/{HELIXSR_NETWORK_FILES[1]}; }} || {{
-  echo "ERROR: the setup finished without building the network."; exit 1; }}
+{check_network}
 echo
 echo "OK: HelixSR {version} is ready. Add it to a game from Additional settings > Upscaling."'''
 
@@ -1955,7 +2014,41 @@ else
 fi'''
 
 
-def build_helixsr_install_command() -> str:
+def _commit_selection_line(tag: str | None) -> str:
+    """The pick written by the install script, once the release is there."""
+    if not tag:
+        return ""
+    if not re.fullmatch(r"v[0-9][0-9A-Za-z._-]*", tag):
+        raise ValueError("Invalid HelixSR release.")
+    path = shlex.quote(str(_selection_path()))
+    return f"""printf '{{"tag": "%s"}}\\n' {shlex.quote(tag)} > {path}"""
+
+
+def build_helixsr_upgrade_command(tag: str) -> str:
+    """Install ``tag``, and make it the pick only once its files are in place.
+
+    Picking first and installing after left a cancelled or failed install
+    with the new release picked and not there: the games that still have the
+    installed one lost their row. The command is built for ``tag``; the pick
+    on disk stays as it was until the script writes it after the install.
+    """
+    tag = str(tag or "").strip()
+    path = _selection_path()
+    try:
+        before = path.read_bytes()
+    except OSError:
+        before = None
+    select_helixsr_release(tag)
+    try:
+        return build_helixsr_install_command(commit_selection=tag)
+    finally:
+        if before is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.write_bytes(before)
+
+
+def build_helixsr_install_command(*, commit_selection: str | None = None) -> str:
     """Download, verify and unpack the picked release, then build the network."""
     release = helixsr_release()
     if not _supported_layout(release["tag"]):
@@ -1977,6 +2070,7 @@ def build_helixsr_install_command() -> str:
         check = f'''test -f "$bc250_dll" || {{ echo "ERROR: the archive has no {HELIXSR_DLL}."; exit 29; }}
 echo "This release is newer than the ones Control Center was reviewed with."'''
         source = "Checking the SHA-256 GitHub published for this release..."
+    dll_select = 'bc250_dll="$bc250_stage/HelixSR/helixsr.dll"' if _layout3() else ''
     return f'''set -Eeuo pipefail
 echo "== HelixSR {release['version']}{label} · DLSS Model E for FSR 3.1 games =="
 echo "Source: {HELIXSR_REPOSITORY} ({release['tag']})"
@@ -2017,6 +2111,7 @@ bc250_stage="$bc250_work/$bc250_top"
 # 2.0 keeps the DLL in {HELIXSR_BUILD_FOLDER}; earlier releases at the top.
 bc250_dll="$bc250_stage/{HELIXSR_DLL}"
 test ! -f "$bc250_stage/{HELIXSR_BUILD_FOLDER}/{HELIXSR_DLL}" || bc250_dll="$bc250_stage/{HELIXSR_BUILD_FOLDER}/{HELIXSR_DLL}"
+{dll_select}
 {check}
 chmod +x "$bc250_stage/{HELIXSR_SETUP}"
 test ! -f "$bc250_stage/setup/lib/model/launch_synth" || chmod +x "$bc250_stage/setup/lib/model/launch_synth"
@@ -2031,6 +2126,9 @@ if test -e {target}; then
   mv -- {target} "$bc250_previous"
 fi
 mv -- "$bc250_stage" {target}
+# The new release is in place: pick it before anything older is removed, so
+# no step after this can leave a pick pointing at a deleted release.
+{_commit_selection_line(commit_selection)}
 test -z "$bc250_previous" || rm -rf -- "$bc250_previous"
 cat {target}/{HELIXSR_DLL_MARKER} >> {root}/{_digests_path().name}
 for bc250_old in {root}/*; do
@@ -2044,15 +2142,22 @@ echo "OK: the HelixSR {release['version']} release is installed in {helixsr_dire
 '''
 
 
-def build_helixsr_network_command() -> str:
+def build_helixsr_network_command(*, options: tuple[str, ...] = ()) -> str:
     """Build (or rebuild) the network of the installed release."""
+    if any(option not in {"preset_k", "vulkan", "rebuild"} for option in options):
+        raise ValueError("Invalid network build option.")
+    if options and not _layout3():
+        raise ValueError("Build options require HelixSR 3.x.")
+    if "vulkan" in options and "rebuild" not in options and (helixsr_directory() / HELIXSR_BRIDGE).is_file():
+        if _run_bridge("status").get("network_ready"):
+            raise ActionNeeded("Adding Vulkan to a built network requires rebuild.")
     target = shlex.quote(str(helixsr_directory()))
     return f'''set -Eeuo pipefail
 echo "== HelixSR {helixsr_release()['version']} · network =="
 test -f {target}/{HELIXSR_SETUP} || {{ echo "ERROR: install HelixSR first."; exit 66; }}
 {_fetch_check()}
 {_wine_check()}
-{_setup_block(target)}
+{_setup_block(target, options=options)}
 '''
 
 
@@ -2162,6 +2267,8 @@ def install_helixsr_game(appid: str) -> dict:
 
     All or nothing: if any step fails, every file already changed is put back.
     """
+    if _layout3():
+        return install_helixsr_bridge(appid, "fsr")
     state = helixsr_state()
     if not state["network_ready"]:
         raise RuntimeError("Install HelixSR and build its network files first.")
@@ -2230,6 +2337,8 @@ def install_helixsr_game(appid: str) -> dict:
 def remove_helixsr_game(appid: str) -> dict:
     """Put the game's own DLL back and remove what HelixSR added."""
     appid = str(appid or "").strip()
+    if appid in _bridge_records():
+        return remove_helixsr_bridge(appid)
     records = _records()
     record = records.get(appid)
     if record is None:
@@ -2296,6 +2405,9 @@ def update_helixsr_game(appid: str) -> dict:
     changed the kernel format, 1.7 moved the network into the DLL). The
     game's own FSR backup and OptiScaler.ini are not touched.
     """
+    if _layout3():
+        record = _bridge_records().get(str(appid))
+        return install_helixsr_bridge(appid, record.get("way", "fsr") if record else "fsr")
     if not helixsr_state()["network_ready"]:
         raise RuntimeError("Install HelixSR and build its network files first.")
     appid = str(appid or "").strip()
@@ -2377,7 +2489,7 @@ def helixsr_scaler_supported(directory: Path | None = None) -> bool:
     return bool(
         (directory / HELIXSR_BRIDGE).is_file()
         and (directory / HELIXSR_SCALER / "OptiScaler.dll").is_file()
-        and (directory / HELIXSR_BUILD_FOLDER / HELIXSR_DLL).is_file()
+        and _release_dll(directory).is_file()
     )
 
 
@@ -2385,6 +2497,23 @@ def helixsr_fg_ready(directory: Path | None = None) -> bool:
     """HelixSR's setup built DLSS frame generation into the release."""
     folder = helixsr_dll_folder(directory) / HELIXSR_FG_FOLDER
     return (folder / _FG_BUILT).is_file()
+
+
+#: Reading commands answer in seconds; a stuck library scan must not hold
+#: the state refresh for the install timeout.
+_BRIDGE_READ_TIMEOUTS = {"status": 60, "games": 180, "settings-get": 60, "log": 60}
+#: The bridge's game scan, kept for a while: every state refresh asked again.
+_BRIDGE_GAMES_TTL = 120.0
+_bridge_games_cache: dict = {}
+
+
+def _forget_bridge_games() -> None:
+    _bridge_games_cache.clear()
+
+
+def forget_helixsr_bridge_games() -> None:
+    """Find games: the next state asks the bridge again."""
+    _forget_bridge_games()
 
 
 def _run_bridge(*arguments: str) -> dict:
@@ -2397,7 +2526,8 @@ def _run_bridge(*arguments: str) -> dict:
     try:
         result = subprocess.run(
             [python, "-I", str(bridge), str(directory), *arguments],
-            capture_output=True, text=True, timeout=_BRIDGE_TIMEOUT, check=False,
+            capture_output=True, text=True, check=False,
+            timeout=_BRIDGE_READ_TIMEOUTS.get(arguments[0] if arguments else "", _BRIDGE_TIMEOUT),
         )
     except subprocess.TimeoutExpired:
         raise RuntimeError("HelixSR's bridge did not finish in time.") from None
@@ -2410,6 +2540,210 @@ def _run_bridge(*arguments: str) -> dict:
         error = payload.get("error") if isinstance(payload, dict) else ""
         raise RuntimeError(str(error or result.stderr.strip() or "HelixSR's bridge failed."))
     return payload
+
+
+def _bridge_records_path() -> Path:
+    return helixsr_root() / "bridge_games.json"
+
+
+def _bridge_records() -> dict:
+    records = _read_json(_bridge_records_path(), {})
+    return records if isinstance(records, dict) else {}
+
+
+def _bundled_scaler_version(directory: Path) -> str:
+    try:
+        data = (directory / HELIXSR_SCALER / "OptiScaler.dll").read_bytes()
+    except OSError:
+        return ""
+    match = re.search(rb"HelixSR Scaler v([0-9]+\.[0-9]+\.[0-9]+)", data)
+    return match.group(1).decode("ascii") if match else ""
+
+
+def _bridge_game_rows(status: dict) -> list[dict]:
+    records, native, scaler = _bridge_records(), _records(), _scaler_records()
+    candidates = {str(g["appid"]): g for g in installed_steam_game_folders()}
+    try:
+        # Non-Steam games added to Steam, as the 2.x list has them.
+        candidates.update({str(g["appid"]): g for g in steam_shortcut_game_folders()})
+    except (OSError, ValueError):
+        pass
+    candidates.update({key: {"appid": key, **entry} for key, entry in _folders().items()})
+    for key, record in {**native, **scaler, **records}.items():
+        candidates.setdefault(key, {"appid": key, "name": record.get("name", key),
+                                    "path": record.get("folder") or _record_folder(record)})
+    try:
+        args = [item for game in candidates.values() for item in ("--folder", str(game.get("path") or "")) if item]
+        key = (str(helixsr_directory()), tuple(args))
+        cached = _bridge_games_cache.get(key)
+        if cached is not None and time.monotonic() - cached[0] < _BRIDGE_GAMES_TTL:
+            found = cached[1]
+        else:
+            found = _run_bridge("games", *args).get("games") or []
+            _bridge_games_cache.clear()
+            _bridge_games_cache[key] = (time.monotonic(), found)
+        # Steam may name a library through a symlink the bridge resolves.
+        by_folder = {os.path.realpath(str(g.get("folder"))): g for g in found if isinstance(g, dict)}
+    except (OSError, RuntimeError):
+        by_folder = {}
+    rows = []
+    for appid, game in candidates.items():
+        folder = str(game.get("path") or "")
+        info = by_folder.get(os.path.realpath(folder), {}) if folder else {}
+        record = records.get(appid, {})
+        owner = "bridge" if record else "app-2x" if appid in native or appid in scaler else "other"
+        installed = info.get("installed") if info else record.get("way")
+        previous = info.get("previous") if info else {"version": record.get("previous_version", "")}
+        version = str(info.get("version") or record.get("version") or (native.get(appid) or scaler.get(appid) or {}).get("version") or "")
+        rows.append({"appid": appid, "name": str(game.get("name") or appid), "folder": folder,
+                     "ways": list(info.get("ways") or []), "recommended": info.get("recommended"),
+                     "installed_way": installed, "version": version,
+                     "previous_version": str(previous.get("version") or "") if isinstance(previous, dict) else "",
+                     "way_ready": {"scaler": bool(status.get("network_ready")), "fsr": bool(status.get("hlx_ready"))},
+                     "launch_options": str(info.get("launch_options") or record.get("launch_options") or ""),
+                     # HelixSR 2's way as HelixSR 3 names it: its Scaler stays the
+                     # Scaler; its FSR 3.1 replacement becomes HLX FSR 4.
+                     "legacy_way": "scaler" if appid in scaler else "fsr" if appid in native else None,
+                     "managed_by": owner,
+                     # A game HelixSR 2 put in always needs the update to 3.
+                     "outdated": owner == "app-2x" or bool(version and version != helixsr_release()["version"]),
+                     "settings_supported": ["HelixSR.WaveSize"] if installed == "scaler" else []})
+    return rows
+
+
+def _bridge_save(appid: str, name: str, folder: Path, way: str, payload: dict) -> dict:
+    game = payload.get("game") or {}
+    previous = game.get("previous") or {}
+    record = {"appid": appid, "name": name, "folder": str(folder), "way": str(game.get("installed") or way),
+              "release": helixsr_release()["tag"], "version": str(game.get("version") or ""),
+              "scaler_version": str(game.get("scaler_version") or ""), "layout": str(game.get("scaler_layout") or ""),
+              "launch_options": str(game.get("launch_options") or ""),
+              "previous_version": str(previous.get("version") or "") if isinstance(previous, dict) else "",
+              "exe_folder": str(game.get("exe_folder") or ""), "scaler_dll": str(game.get("scaler_dll") or "")}
+    records = _bridge_records()
+    records[appid] = record
+    _write_json(_bridge_records_path(), records)
+    return record
+
+
+def install_helixsr_bridge(appid: str, way: str) -> dict:
+    appid = str(appid).strip()
+    if way not in ("scaler", "fsr") or not _layout3():
+        raise ValueError("Invalid HelixSR bridge way or release.")
+    status = _run_bridge("status")
+    if not status.get("network_ready" if way == "scaler" else "hlx_ready"):
+        raise ActionNeeded("The selected HelixSR way is not ready.")
+    records, old_scaler = _bridge_records(), _scaler_records()
+    existing = records.get(appid) or old_scaler.get(appid) or _records().get(appid)
+    game = _game(appid) if not existing else {"name": existing.get("name") or appid,
+        "path": existing.get("folder") or _record_folder(existing)}
+    folder = Path(str(game["path"]))
+    _refuse_running(folder)
+    _refuse_native_game(folder)
+    if appid in _optiscaler_records():
+        raise ActionNeeded("Remove the existing OptiScaler integration first.")
+    if not existing:
+        _refuse_other_helixsr(appid, folder)
+    if appid in _records():
+        if _record_state(_records()[appid]) != "installed":
+            raise ActionNeeded("Restore or inspect the existing HelixSR files before migration.")
+        if _optiscaler_ini_folders(folder):
+            raise ActionNeeded("Remove the existing OptiScaler integration first.")
+        result = remove_helixsr_game(appid)
+        if result.get("kept"):
+            raise ActionNeeded("The original backup was kept; inspect it before installing HelixSR.")
+    args = ["install", "--game", str(folder), "--way", way]
+    if way == "scaler":
+        directory = helixsr_directory()
+        args += ["--scaler", str(directory / HELIXSR_SCALER)]
+        version = _bundled_scaler_version(directory)
+        if version:
+            args += ["--scaler-version", version]
+    payload = _run_bridge(*args)
+    _forget_bridge_games()
+    try:
+        record = _bridge_save(appid, str(game["name"]), folder, way, payload)
+    except OSError as error:
+        raise RuntimeError(f"Bridge installed HelixSR in {folder}, but its record could not be saved; use the HelixSR bridge to inspect or remove it: {error}") from error
+    if appid in old_scaler:
+        del old_scaler[appid]
+        _write_json(_scaler_records_path(), old_scaler)
+    result = {"game": record["name"], **record, "messages": list(payload.get("messages") or []),
+              "launch_option_added": False, "launch_option_error": "", "settings_error": ""}
+    if way == "scaler":
+        # "Saved into every game you add it to": the card's wave size too.
+        try:
+            _apply_saved_scaler_settings(folder)
+        except RuntimeError as error:
+            result["settings_error"] = str(error)
+    # As for HelixSR 2's Scaler: Proton loads dxgi.dll from the game folder by
+    # itself; any other name HelixSR Scaler had to take needs Steam's override.
+    if way == "scaler" and record["launch_options"] and record["scaler_dll"] and appid.isdigit():
+        try:
+            add_dll_override(appid, Path(record["scaler_dll"]).stem)
+            result["launch_option_added"] = True
+        except (OSError, RuntimeError, ValueError) as error:
+            result["launch_option_error"] = str(error)
+    return result
+
+
+def remove_helixsr_bridge(appid: str) -> dict:
+    """Take HelixSR out of a game, whoever put it in.
+
+    A bridge record: the bridge removes it. A game HelixSR 2 put in: its own
+    removal (native files, or HelixSR Scaler's record). Neither (HelixSR's
+    setup or HelixSR Desktop did it): the bridge, by the game's folder.
+    """
+    appid = str(appid).strip()
+    records = _bridge_records()
+    record = records.get(appid)
+    if not record:
+        if appid in _records():
+            _forget_bridge_games()
+            return remove_helixsr_game(appid)
+        if appid in _scaler_records():
+            _forget_bridge_games()
+            return remove_helixsr_scaler(appid)
+        game = _game(appid)
+        folder = Path(str(game["path"]))
+        _refuse_running(folder)
+        _run_bridge("remove", "--game", str(folder))
+        _forget_bridge_games()
+        return {"game": str(game["name"])}
+    folder = Path(record["folder"])
+    _refuse_running(folder)
+    _run_bridge("remove", "--game", str(folder))
+    _forget_bridge_games()
+    del records[appid]
+    _write_json(_bridge_records_path(), records)
+    return {"game": record["name"]}
+
+
+def rollback_helixsr_bridge(appid: str) -> dict:
+    appid = str(appid).strip()
+    record = _bridge_records().get(appid)
+    if not record:
+        if appid in _scaler_records():
+            _forget_bridge_games()
+            return rollback_helixsr_scaler(appid)
+        raise RuntimeError("HelixSR bridge install is not recorded for this game.")
+    folder = Path(record["folder"])
+    _refuse_running(folder)
+    payload = _run_bridge("rollback", "--game", str(folder))
+    _forget_bridge_games()
+    return _bridge_save(appid, record["name"], folder, record["way"], payload)
+
+
+def _apply_saved_scaler_settings(folder: Path) -> None:
+    """The HelixSR Scaler settings saved on the card, into a game just given it."""
+    try:
+        saved = helixsr_settings()
+    except (OSError, ValueError):
+        return
+    wave = saved.get("Scaler:HelixSR.WaveSize")
+    if wave is None or str(wave) == "auto":
+        return
+    _run_bridge("settings-set", "--game", str(folder), "--values", json.dumps({"HelixSR.WaveSize": str(wave)}))
 
 
 def _steam_game(appid: str) -> dict:
@@ -2532,6 +2866,10 @@ def _scaler_result(appid: str, name: str, folder: Path, payload: dict) -> dict:
 
 def install_helixsr_scaler(appid: str, *, frame_generation: bool = False) -> dict:
     """HelixSR Scaler into a Steam game, through the release's bridge."""
+    if _layout3():
+        if frame_generation:
+            raise ActionNeeded("Frame generation is not available for this release.")
+        return install_helixsr_bridge(appid, "scaler")
     appid = str(appid).strip()
     game = _steam_game(appid)
     folder = Path(game["path"])
@@ -2584,6 +2922,8 @@ def update_helixsr_scaler(appid: str) -> dict:
     HelixSR-previous.zip (Go back puts it back). Frame generation stays as
     the game has it.
     """
+    if _layout3():
+        return install_helixsr_bridge(appid, "scaler")
     appid = str(appid).strip()
     record = _scaler_records().get(appid)
     if record is None or _scaler_state(record) != "installed":
@@ -2625,8 +2965,24 @@ def update_all_helixsr_games() -> dict:
     still go through.
     """
     state = helixsr_state()
-    if not state["network_ready"]:
+    if state.get("layout") != "3" and not state["network_ready"]:
         raise RuntimeError("Install HelixSR and build its network files first.")
+    if state.get("layout") == "3":
+        if state.get("status_error"):
+            raise RuntimeError(state["status_error"])
+        updated, skipped = [], []
+        for row in state["bridge_games"]:
+            if row["managed_by"] not in ("bridge", "app-2x") or not row["outdated"]:
+                continue
+            way = row["installed_way"]
+            if way not in ("fsr", "scaler"):
+                way = row.get("legacy_way") or ("scaler" if row["appid"] in _scaler_records() else "fsr")
+            try:
+                install_helixsr_bridge(row["appid"], way)
+                updated.append(row["name"])
+            except (OSError, RuntimeError, ValueError):
+                skipped.append(row["name"])
+        return {"updated": updated, "skipped": skipped, "version": state["version"]}
     updated: list[str] = []
     skipped: list[str] = []
     for game in state["games"]:

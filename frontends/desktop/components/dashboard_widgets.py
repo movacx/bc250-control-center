@@ -964,6 +964,84 @@ def _undo_rows(row_for, installations: Iterable[Mapping], backups: Iterable[Mapp
             row["fsr4"] = (cell[0], cell[1], f"{cell[2]} {note}", (*cell[3], action))
 
 
+#: HelixSR 3's two ways into a game, as the game matrix names them.
+_HELIXSR3_WAYS = {"scaler": "DLSS · HelixSR Scaler", "fsr": "HLX FSR 4"}
+_HELIXSR3_ADD = {"scaler": "Add DLSS", "fsr": "Add HLX FSR 4"}
+_HELIXSR3_SWITCH = {"scaler": "Switch to DLSS", "fsr": "Switch to HLX FSR 4"}
+_HELIXSR3_COPY = {
+    "scaler": "In the game choose DLSS; Insert opens HelixSR Scaler's menu, where HLX FSR 4, AMD FSR and XeSS can be picked too. Remove puts every file it replaced back.",
+    "fsr": "In the game choose AMD FSR: HLX FSR 4 takes the place of the game's FSR 3.1. Remove puts the game's own file back.",
+    "available": "Add DLSS puts HelixSR Scaler in the game: its DLSS option runs HelixSR's DLSS network. Add HLX FSR 4 replaces the game's FSR 3.1 with HelixSR's FSR 4. Not for online games or games with anti-cheat.",
+    "network": "Build the DLSS network first (on the HelixSR card). HLX FSR 4 needs no build.",
+    "legacy": "This game has HelixSR {version}, put in by an earlier release. Update gives it HelixSR 3: the old files are removed and the game's own ones put back first.",
+    "outdated": "This game has HelixSR {version}. Update gives it the installed release and keeps {version} to go back to.",
+    "switch": "Switching to the other way removes this one first; the version kept to go back to is dropped.",
+    "other": "HelixSR's own setup or HelixSR Desktop put it in this game: update it there. Remove works from here too.",
+}
+
+
+def _bridge_cells(row_for, bridge_games: Iterable[Mapping]) -> None:
+    """HelixSR 3's cell of each game, from the bridge's view of it."""
+    for game in bridge_games:
+        appid = str(game.get("appid") or "")
+        name = str(game.get("name") or appid)
+        if not appid and not name:
+            continue
+        row = row_for(appid, name)
+        if game.get("folder") and not appid.isdigit():
+            # Added by hand (a Folder_ key), or a Steam shortcut: where it is.
+            row["folder"] = str(game["folder"])
+            row["folder_detail"] = "Outside Steam"
+        ways = [way for way in (game.get("ways") or ()) if way in _HELIXSR3_WAYS]
+        recommended = str(game.get("recommended") or "")
+        ways.sort(key=lambda way: way != recommended)
+        ready = _mapping(game.get("way_ready"))
+        installed = str(game.get("installed_way") or "")
+        version = str(game.get("version") or "")
+        key = appid or name
+        remove = ("Remove HelixSR", f"helixsr_bridge_remove:{key}", True)
+        if game.get("managed_by") == "app-2x":
+            # The same way HelixSR 2 gave it (Update all does the same).
+            way = str(game.get("legacy_way") or recommended or (ways[0] if ways else ""))
+            actions = [("Update HelixSR", f"helixsr_bridge_install:{key}:{way}", bool(way and ready.get(way)))] if way else []
+            row["helixsr"] = (
+                "Update available", "orange",
+                tr_format(_HELIXSR3_COPY["legacy"], version=version or "2"),
+                (*actions, remove),
+            )
+            continue
+        if installed in _HELIXSR3_WAYS and game.get("managed_by") == "other":
+            # HelixSR's own setup or HelixSR Desktop put it in: shown, and
+            # removable through the bridge, but managed where it came from.
+            row["helixsr"] = (
+                _HELIXSR3_WAYS[installed], "green",
+                f"{tr(_HELIXSR3_COPY[installed])} {tr(_HELIXSR3_COPY['other'])}", (remove,),
+            )
+            continue
+        if installed in _HELIXSR3_WAYS:
+            actions: list[tuple[str, str, bool]] = []
+            text, tone = _HELIXSR3_WAYS[installed], "green"
+            copy = tr(_HELIXSR3_COPY[installed])
+            if game.get("outdated"):
+                text, tone = "Update available", "orange"
+                copy = tr_format(_HELIXSR3_COPY["outdated"], version=version or "?")
+                actions.append(("Update HelixSR", f"helixsr_bridge_install:{key}:{installed}", bool(ready.get(installed))))
+            for other in ways:
+                if other != installed:
+                    actions.append((_HELIXSR3_SWITCH[other], f"helixsr_bridge_install:{key}:{other}", bool(ready.get(other))))
+            if game.get("previous_version"):
+                actions.append(("Go back to the previous version", f"helixsr_bridge_rollback:{key}", True))
+            row["helixsr"] = (text, tone, copy, (*actions, remove))
+            continue
+        if not ways:
+            continue
+        actions = [(_HELIXSR3_ADD[way], f"helixsr_bridge_install:{key}:{way}", bool(ready.get(way))) for way in ways]
+        copy = tr(_HELIXSR3_COPY["available"])
+        if "scaler" in ways and not ready.get("scaler"):
+            copy = f"{copy} {tr(_HELIXSR3_COPY['network'])}"
+        row["helixsr"] = ("", "", copy, tuple(actions))
+
+
 def game_matrix_rows(
     helixsr_games: list[Mapping],
     fsr4_games: list[Mapping],
@@ -974,6 +1052,7 @@ def game_matrix_rows(
     fg_ready: bool = False,
     fsr4_installations: Iterable[Mapping] = (),
     fsr4_backups: Iterable[Mapping] = (),
+    bridge_games: Iterable[Mapping] | None = None,
 ) -> list[dict]:
     """One row per Steam game, with what HelixSR and FSR4 each do in it.
 
@@ -989,6 +1068,11 @@ def game_matrix_rows(
         row["name"] = row["name"] or name
         return row
 
+    if bridge_games is not None:
+        # HelixSR 3 and newer: every game goes through upstream's bridge, one
+        # entry per game; the 2.x lists below do not apply.
+        _bridge_cells(row_for, bridge_games)
+        helixsr_games, scaler_games = [], ()
     by_game: dict[str, list[Mapping]] = {}
     for game in helixsr_games:
         appid = str(game.get("appid") or "")
@@ -1870,7 +1954,7 @@ class _UpscalingGames(SectionCard):
         return host
 
     #: Row actions offered behind the row's menu rather than as buttons.
-    OVERFLOW = ("Remove", "Go back")
+    OVERFLOW = ("Remove", "Go back", "Switch to")
     #: The two labels of HelixSR Scaler's frame-generation switch.
     FG_TOGGLE = frozenset({"Turn on frame generation", "Turn off frame generation"})
 
@@ -2258,6 +2342,26 @@ class _HelixSRSettings(SectionCard):
                 control.setCurrentIndex(max(index, 0))
             control.blockSignals(False)
         self._changed()
+
+    def set_bridge_mode(self, on: bool) -> None:
+        """HelixSR 3: its bridge takes only what the installed way reads.
+
+        HLX FSR 4 has its own file and HelixSR Scaler keeps the upscaler and
+        sharpening in its menu (Insert); what is left here is HelixSR
+        Scaler's group. The helixsr.ini groups of 2.x are hidden.
+        """
+        static = {title for title, _fields in self.GROUPS}
+        for title, (head, _toggle, _body, _summary, _fields) in self.groups.items():
+            if title in static:
+                head.parentWidget().setVisible(not on)
+        subtitle = next((label for label in self.findChildren(QLabel) if label.property("sectionSubtitle")), None)
+        if subtitle is not None:
+            subtitle.setText(tr(
+                "Saved into every game with DLSS through HelixSR Scaler. The upscaler, sharpening and the rest are set in the game's HelixSR Scaler menu (Insert); HLX FSR 4 needs nothing here."
+                if on else
+                "Saved into every game that has HelixSR, and into every game you add it to. In games with HelixSR Scaler, sharpening is set in its own menu (Insert)."
+            ))
+        self.defaults_button.setVisible(not on)
 
     def set_game_count(self, count: int) -> None:
         """How many games have HelixSR, so reapplying is offered only with one."""
