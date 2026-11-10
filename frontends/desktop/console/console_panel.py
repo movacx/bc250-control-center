@@ -801,8 +801,11 @@ class ConsolePanel(QFrame):
             self.input_field.clear()
             self.view.set_input_elsewhere(False)
         # Offered for the last run only; a success or a new run takes it back.
-        self._failed_tab = tab if code != 0 else None
-        self.report_button.setVisible(code != 0 and tab is self._active)
+        # Stopped by the user, or declined at a prompt (exit 130): not a
+        # failure, so nothing to report.
+        cancelled = bool(getattr(tab, "stop_requested", False)) or code == 130
+        self._failed_tab = tab if code != 0 and not cancelled else None
+        self.report_button.setVisible(code != 0 and not cancelled and tab is self._active)
         if code == 0 and self._auto_hide and not self.busy:
             # Only when the last one is done: withdrawing the panel over a
             # workflow that is still printing would hide the running one.

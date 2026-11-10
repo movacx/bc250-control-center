@@ -6001,5 +6001,6 @@
   "Wine or Proton cannot run in this environment.": "Wine または Proton をこの環境で実行できません。",
   "The Wine program that HelixSR uses to compile its shaders exists, but Linux cannot execute it here: a loader or library it depends on is missing, which happens inside a Toolbx or Distrobox container or with an incomplete Proton.": "HelixSR がシェーダーのコンパイルに使う Wine プログラムは存在しますが、Linux はここでそれを実行できません。依存するローダーまたはライブラリが見つからないためで、Toolbx や Distrobox のコンテナ内、または不完全な Proton で起こります。",
   "In Steam, verify the files of the Proton version in use, or install Wine for this system. Inside a container, install the libraries Wine needs there, then run this action again.": "Steam で使用中の Proton バージョンのファイルを検証するか、このシステムに Wine をインストールしてください。コンテナ内では、Wine が必要とするライブラリをそこにインストールしてから、操作をもう一度実行してください。",
-  "This action changes BC-250 hardware, and no BC-250 (PCI 1002:13fe) was found in this computer. Nothing was changed.": "この操作は BC-250 のハードウェアを変更しますが、このコンピューターに BC-250（PCI 1002:13fe）が見つかりませんでした。何も変更されていません。"
+  "This action changes BC-250 hardware, and no BC-250 (PCI 1002:13fe) was found in this computer. Nothing was changed.": "この操作は BC-250 のハードウェアを変更しますが、このコンピューターに BC-250（PCI 1002:13fe）が見つかりませんでした。何も変更されていません。",
+  "Cancelled: you answered no. Steps before this question may already have changed the system.": "キャンセルしました: 「いいえ」と答えました。この質問より前の手順で、すでにシステムが変更されている場合があります。"
 }

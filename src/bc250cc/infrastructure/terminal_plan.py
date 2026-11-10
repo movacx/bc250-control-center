@@ -48,6 +48,9 @@ _LOG_SYNC_WAIT_TICKS = 50  # of 0.1 s: only a console that is not reading waits 
 # specific rule id would be a lie.
 _WORKFLOW_REPORTED_CODE = "BC250-WORKFLOW-001"
 
+#: Printed instead of a diagnosis when the user declined at a prompt.
+CANCELLED_MESSAGE = "Cancelled: you answered no. Steps before this question may already have changed the system."
+
 # Exit statuses defined by bash and coreutils themselves, so they mean the
 # same thing whatever ran. Every other number belongs to the program that
 # exited with it, and a workflow runs many programs.
@@ -138,7 +141,8 @@ def exit_explanation_shell(translate=None) -> str:
     workflow = error_catalog.BY_CODE[_WORKFLOW_REPORTED_CODE]
     workflow_action = shlex.quote(translate(workflow.action))
     return (
-        'if [ "$status" -ne 0 ]; then '
+        # 130: the user declined or interrupted; no diagnosis (see workflow_wrapper).
+        'if [ "$status" -ne 0 ] && [ "$status" -ne 130 ]; then '
         'matched=0; '
         # When the script explained itself, its own [ERROR] lines are what a
         # rule is matched against: the tail of the log can hold an earlier,
@@ -329,12 +333,17 @@ def workflow_wrapper(
         "export LANGUAGE=en; "
         f"{run}"
         f"{wait_for_log}"
-        f"printf '%s\\n' \"$status\" > {status}; "
         f"{_evidence_capture_shell(log_path)}; "
+        # R-097a4530: answering "n" to the package manager is a choice, not a
+        # failure: status 130, a calm line, no diagnosis and no report.
+        'bc250_last=$(printf "%s\\n" "$evidence" | awk \'NF{l=$0} END{print l}\'); '
+        'case "$bc250_last" in *"[Y/n] n"|*"[y/N] n"|*"[Y/n] N"|*"[y/N] N") status=130;; esac; '
+        f"printf '%s\\n' \"$status\" > {status}; "
         "{ echo; "
         # A successful run reports success, not a number. Only a failure needs
         # a diagnosis, and the raw status stays in the technical detail below.
         f"if [ \"$status\" -eq 0 ]; then echo \"{finished_ok}\"; "
+        f"elif [ \"$status\" -eq 130 ]; then printf '%s\\n' {shlex.quote(translate(CANCELLED_MESSAGE))}; "
         f"else echo \"{finished_failed}\"; fi; "
         f"{_first_error_shell(translate)}; "
         f"{exit_explanation_shell(translate)}; "

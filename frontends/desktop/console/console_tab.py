@@ -273,6 +273,7 @@ class ConsoleTab(QWidget):
             self.interactive = False
             return False
         self._session = session
+        self.stop_requested = False
         self._sync_close_button()
         return True
 
@@ -345,6 +346,7 @@ class ConsoleTab(QWidget):
         session.failed.connect(self._on_failed)
         session.input_mode_changed.connect(self.input_mode_changed)
         self._session = session
+        self.stop_requested = False
         self.set_state(tr("Running") if session.running else tr("Completed"),
                        "running" if session.running else "ok")
         self._sync_close_button()
@@ -353,6 +355,9 @@ class ConsoleTab(QWidget):
     def stop(self) -> None:
         if self._session is None or not self._session.running:
             return
+        # A run the user stopped is not a problem to report (R-71fa038c,
+        # R-cfed2e1d and R-f45191f6 were Stops at a password prompt).
+        self.stop_requested = True
         self.set_state(tr("Stop"), "warning")
         self._session.terminate()
 

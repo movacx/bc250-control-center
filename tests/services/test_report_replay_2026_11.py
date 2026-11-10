@@ -370,3 +370,18 @@ def test_the_new_codes_are_registered_and_translatable():
             # no metacharacters ("." matches itself too; "]" is literal outside a bracket).
             assert not set(marker) & set("[(){}*+?^$|\\"), (code, marker)
     assert error_catalog.HARDWARE_GATE_MESSAGE in error_catalog.translatable_strings()
+
+
+def test_declining_the_package_manager_is_a_calm_cancel(tmp_path):
+    """R-097a4530: the user answered "n" to pacman; that is not a failure."""
+    detail = ("Total Installed Size:  311.64 MiB\n"
+              ":: Proceed with installation? [Y/n] n")
+    output = _terminal(detail, tmp_path, status=1)
+    assert "Diagnostic code" not in output
+    assert "Cancelled: you answered no" in output
+    assert (tmp_path / "status").read_text().strip() == "130"
+
+
+def test_a_real_failure_after_a_yes_is_still_diagnosed(tmp_path):
+    output = _terminal(":: Proceed with installation? [Y/n] y\nerror: failed to commit transaction", tmp_path)
+    assert "Diagnostic code" in output
