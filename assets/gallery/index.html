@@ -98,21 +98,25 @@
     // photos.json, so adding a file is all a new screenshot needs.
     const KNOWN = [
       ['dashboard', 'dashboard-overview.png', 'BC250 Control Center dashboard'],
-      ['tui-dashboard-mono', 'tui-dashboard-mono.png', 'Terminal dashboard · monochrome theme'],
       ['cpu', 'cpu-tuning.png', 'CPU / SMU tuning'],
-      ['gpu', 'gpu-governor.png', 'GPU governor'],
       ['compute', 'compute-units.png', 'Compute Units'],
-      ['monitor', 'monitor-1.png', 'Performance monitoring'],
-      ['sensors', 'monitor-2.png', 'Performance · sensors'],
+      ['gpu', 'gpu-governor.png', 'GPU governor'],
+      ['compatibility', 'additional-compatibility.png', 'Additional settings · Compatibility'],
+      ['scaling', 'additional-scaling.png', 'Additional settings · Upscaling'],
+      ['memory', 'memory-swap.png', 'Additional settings · Memory and swap'],
+      ['drivers', 'additional-drivers.png', 'Additional settings · Drivers'],
+      ['monitor', 'monitor-1.png', 'Performance · sensors'],
       ['fans', 'fan-control.png', 'Fan control'],
+      ['black-box', 'black-box.png', 'Black box'],
       ['firmware', 'firmware-bios.png', 'Firmware (BIOS)'],
-      ['memory', 'memory-swap.png', 'Memory and swap'],
-      ['preparation', 'dependency-preparation.png', 'Dependency preparation'],
+      ['settings', 'settings-general.png', 'Settings · General'],
+      ['settings-appearance', 'settings-appearance.png', 'Settings · Appearance'],
+      ['settings-terminal', 'settings-terminal.png', 'Settings · Terminal themes'],
+      ['tui-dashboard-mono', 'tui-dashboard-mono.png', 'Terminal dashboard · monochrome theme'],
       ['decky', 'decky-quick-access.png', 'BC250 Decky Quick Access · board setup'],
       ['decky-monitoring', 'decky-quick-access-monitoring.png', 'BC250 Decky Quick Access · monitoring'],
-    ];
-    // Links shared before a screenshot was renamed keep opening it.
-    const ALIASES = { 'compute-monitor': 'monitor' };
+    ];    // Links shared before a screenshot was renamed keep opening it.
+    const ALIASES = { 'compute-monitor': 'monitor', 'sensors': 'monitor', 'preparation': 'dashboard' };
     const FOLDER = '../assets/screenshots/';
 
     function titleFrom(file) {

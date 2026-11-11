@@ -5,7 +5,7 @@ Skonfiguruj, dostrój i monitoruj AMD BC-250 w systemie Linux z komputera stacjo
 Obejmuje zarządzanie GPU, dostrajanie CPU, jednostki obliczeniowe, wentylatory, pamięć, nośniki aktualizacji BIOS-u, skalowanie w górę i przygotowanie systemu dla obsługiwanych dystrybucji. Interfejsy współdzielą usługi aplikacyjne, ograniczenia sprzętowe i uprzywilejowane pomocniki. Opcjonalna wtyczka Decky przenosi codzienne sterowanie do trybu gry Steam.
 
 <p align="center">
-  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard" width="100%"></a>
+  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/demo.gif" alt="BC250 Control Center dashboard" width="100%"></a>
 </p>
 
 <p align="center">

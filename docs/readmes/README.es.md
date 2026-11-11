@@ -5,7 +5,7 @@ Configure, ajuste y supervise el AMD BC-250 en Linux desde el escritorio, un ter
 Cubre el regulador de GPU, el ajuste de CPU, las unidades de cómputo, los ventiladores, la memoria, los medios de actualización del BIOS, la ampliación y la preparación del sistema para las distribuciones compatibles. Las interfaces comparten servicios de aplicaciones, límites de hardware y ayudantes privilegiados. Un complemento opcional Decky trae los controles cotidianos al modo de juego de Steam.
 
 <p align="center">
-  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard" width="100%"></a>
+  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/demo.gif" alt="BC250 Control Center dashboard" width="100%"></a>
 </p>
 
 <p align="center">

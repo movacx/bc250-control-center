@@ -5,7 +5,7 @@ Richten Sie den AMD BC-250 unter Linux über den Desktop, ein Terminal oder eine
 Es behandelt den GPU-Governor, die CPU-Optimierung, Recheneinheiten, Lüfter, Speicher, BIOS-Aktualisierungsmedien, Hochskalierung und Systemvorbereitung für die unterstützten Distributionen. Die Schnittstellen teilen sich Anwendungsdienste, Hardwarebeschränkungen und privilegierte Helfer. Ein optionales Decky-Plugin bringt die alltäglichen Steuerelemente in den Spielemodus von Steam.
 
 <p align="center">
-  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard" width="100%"></a>
+  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/demo.gif" alt="BC250 Control Center dashboard" width="100%"></a>
 </p>
 
 <p align="center">
