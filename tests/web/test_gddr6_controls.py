@@ -100,6 +100,7 @@ def test_native_sudo_parses_memory_identity_before_command_separator(monkeypatch
     result = subprocess.run(probe, capture_output=True, text=True, timeout=5, check=False)
     if result.returncode and any(reason in result.stderr.lower() for reason in (
         "password is required", "not allowed", "not permitted", "no new privileges",
+        "not in the sudoers",
     )):
         pytest.skip("Host sudo policy does not allow a non-interactive self-user probe")
     assert result.returncode == 0, result.stderr

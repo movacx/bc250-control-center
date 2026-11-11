@@ -147,6 +147,8 @@ def test_the_raise_site_is_the_innermost_function_of_ours():
 
 
 def test_the_raw_error_keeps_the_type_and_hides_the_home_folder(monkeypatch, tmp_path):
+    if ROOT.parent == Path(ROOT.anchor):
+        pytest.skip("the checkout sits directly under the filesystem root, so it has no home folder to hide")
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: ROOT.parent))
     with pytest.raises(Exception) as caught:
         _raise_from_backend()
