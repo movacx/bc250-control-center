@@ -480,6 +480,76 @@ def theme_palette(theme: str, accent: str, style: str = "standard") -> dict[str,
     return _finish_palette(palette, mode)
 
 
+#: Built-in terminal themes. "app" follows the application's own console
+#: colours; the others set the ground, the text and the sixteen ANSI slots.
+#: Warm ones after the clay-and-cream look of Anthropic's own apps, cool ones
+#: for the rest of the application's palette.
+TERMINAL_THEMES: dict[str, dict] = {
+    "clay-dark": {
+        "name": "Clay Dark", "bg": "#262624", "text": "#E8E6DC", "border": "#3A3936", "muted": "#A6A39A",
+        "accent": "#D97757",
+        "ansi": ("#3A3936", "#E5826B", "#8FBF7F", "#E0B866", "#7BA7D6", "#C79BD1", "#79BFB8", "#D9D6CC",
+                 "#6B6962", "#F09A85", "#A8D598", "#EDCB85", "#98BEE6", "#D9B3E0", "#97D3CC", "#FAF9F5"),
+    },
+    "clay-light": {
+        "name": "Clay Light", "bg": "#FAF9F5", "text": "#3D3929", "border": "#E3DFD3", "muted": "#7A7568",
+        "accent": "#C15F3C",
+        "ansi": ("#3D3929", "#B3412F", "#3F7A3A", "#8A6A12", "#2F5E9E", "#8A4C93", "#2C7A73", "#6B6658",
+                 "#8F8A7C", "#C9553F", "#4E8F48", "#A07E1C", "#3B6FB3", "#9E5CA8", "#368B83", "#1F1E1D"),
+    },
+    "midnight": {
+        "name": "Midnight", "bg": "#0B1020", "text": "#D6DEEB", "border": "#1E2A44", "muted": "#8793A8",
+        "accent": "#6FA8FF",
+        "ansi": ("#26324A", "#F1707A", "#5BD08A", "#E2C275", "#6FA8FF", "#C89BF0", "#5CCFD6", "#D3DCEC",
+                 "#56637A", "#FF9098", "#7EE7A6", "#F5D98C", "#93C1FF", "#DDB6FF", "#7FE4EA", "#FFFFFF"),
+    },
+    "graphite": {
+        "name": "Graphite", "bg": "#1B1B1B", "text": "#E4E4E4", "border": "#333333", "muted": "#9A9A9A",
+        "accent": "#8AB4F8",
+        "ansi": ("#3A3A3A", "#F28B82", "#81C995", "#FDD663", "#8AB4F8", "#D7AEFB", "#78D9EC", "#DADADA",
+                 "#6A6A6A", "#F6AEA9", "#A8DAB5", "#FDE293", "#AECBFA", "#E9D2FD", "#A1E4F2", "#FFFFFF"),
+    },
+    "paper": {
+        "name": "Paper", "bg": "#FFFFFF", "text": "#1A1A1A", "border": "#DADCE0", "muted": "#5F6368",
+        "accent": "#1A73E8",
+        "ansi": ("#1A1A1A", "#C5221F", "#188038", "#B06000", "#1A73E8", "#9334E6", "#007B83", "#5F6368",
+                 "#80868B", "#D93025", "#1E8E3E", "#E37400", "#4285F4", "#A142F4", "#12A4AF", "#202124"),
+    },
+}
+TERMINAL_THEME = "app"
+
+
+def _apply_terminal_theme() -> None:
+    theme = TERMINAL_THEMES.get(TERMINAL_THEME)
+    if theme is None:
+        return
+    COLORS.update({
+        "console_bg": theme["bg"], "console_text": theme["text"],
+        "console_border": theme["border"], "console_muted": theme["muted"],
+    })
+
+
+def set_terminal_theme(key: str) -> None:
+    """Choose the built-in terminal's theme; ``app`` follows the application."""
+    global TERMINAL_THEME, ACTIVE_THEME
+    TERMINAL_THEME = key if key in TERMINAL_THEMES else "app"
+    # Rebuild the console colours from the application palette, then lay the
+    # chosen theme over them.
+    current = ACTIVE_THEME
+    ACTIVE_THEME = None
+    configure_theme(current, ACTIVE_ACCENT, ACTIVE_DENSITY, ACTIVE_SCALE, ACTIVE_STYLE)
+
+
+def terminal_ansi() -> tuple[str, ...] | None:
+    theme = TERMINAL_THEMES.get(TERMINAL_THEME)
+    return theme["ansi"] if theme else None
+
+
+def terminal_accent() -> str:
+    theme = TERMINAL_THEMES.get(TERMINAL_THEME)
+    return theme["accent"] if theme else COLORS["blue"]
+
+
 def configure_theme(
     mode: str = "light",
     accent: str = "blue",
@@ -514,6 +584,7 @@ def configure_theme(
     palette = theme_palette(theme, accent, style)
     COLORS.clear()
     COLORS.update(palette)
+    _apply_terminal_theme()
     ACTIVE_MODE = mode
     ACTIVE_THEME = theme
     ACTIVE_ACCENT = accent
@@ -688,6 +759,19 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: transparent;
         border: none;
     }}
+    QScrollArea#SidebarScroll, QScrollArea#SidebarScroll > QWidget > QWidget#SidebarScrollBody {{
+        background: transparent; border: none;
+    }}
+    QScrollArea#SidebarScroll QScrollBar:vertical {{
+        background: transparent; width: 6px; margin: 2px 0px 2px 0px;
+    }}
+    QScrollArea#SidebarScroll QScrollBar::handle:vertical {{
+        background: {c['border_strong']}; border-radius: 3px; min-height: 24px;
+    }}
+    QScrollArea#SidebarScroll QScrollBar::add-line:vertical,
+    QScrollArea#SidebarScroll QScrollBar::sub-line:vertical {{ height: 0px; }}
+    QScrollArea#SidebarScroll QScrollBar::add-page:vertical,
+    QScrollArea#SidebarScroll QScrollBar::sub-page:vertical {{ background: transparent; }}
     QFrame#Sidebar {{
         background: {c['panel']};
         border: 1px solid {c['border']};
@@ -1448,6 +1532,218 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[dashboardMemoryOptionRow='true']:disabled {{
         background: {c['panel_alt']};
         border-color: {c['border_soft']};
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memorySection='true'] {{
+        background: {c['panel_raised'] if ACTIVE_MODE != 'light' else c['panel_alt']};
+        border: 1px solid {c['border']}; border-radius: 10px;
+    }}
+    QWidget[memoryWorkspace='true'] QLabel[memorySectionTitle='true'] {{
+        color: {c['text']}; font-size: 16px; font-weight: 750;
+    }}
+    QWidget[memoryWorkspace='true'] QLabel[memorySectionNote='true'] {{ color: {c['muted']}; font-size: 12px; }}
+    QWidget[memoryWorkspace='true'] QLabel[memoryChip='true'] {{ color: {c['text']}; font-size: 11px; font-weight: 600; }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryOption='true'] {{
+        background: {c['panel']}; border: 1px solid {c['border']}; border-radius: 8px;
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryOption='true']:hover,
+    QWidget[memoryWorkspace='true'] QFrame[memoryOption='true']:focus {{ border-color: {c['border_strong']}; }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryOption='true'][selected='true'] {{
+        border: 1px solid {c['blue']}; background: {c['blue_soft']};
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryOption='true']:disabled {{
+        background: transparent; border-color: {c['border_soft']};
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryOptionMark='true'] {{
+        background: transparent; border: 2px solid {c['border_strong']}; border-radius: 7px;
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryOptionMark='true'][selected='true'] {{
+        border: 4px solid {c['blue']}; background: {c['panel']};
+    }}
+    QWidget[memoryWorkspace='true'] QLabel[memoryOptionTitle='true'] {{
+        color: {c['text']}; font-size: 13px; font-weight: 700;
+    }}
+    QWidget[memoryWorkspace='true'] QLabel[memoryOptionTitle='true'][selected='true'] {{ color: {c['blue']}; }}
+    QWidget[memoryWorkspace='true'] QLabel[memoryOptionTitle='true']:disabled,
+    QWidget[memoryWorkspace='true'] QLabel[memoryOptionDetail='true']:disabled {{ color: {c['subtle']}; }}
+    QWidget[memoryWorkspace='true'] QLabel[memoryOptionDetail='true'] {{ color: {c['muted']}; font-size: 12px; }}
+    QWidget[memoryWorkspace='true'] QPushButton[memoryChoice='true'] {{
+        background: transparent; color: {c['muted']}; border: 1px solid {c['border']};
+        border-radius: 7px; min-height: 0px; padding: 6px 14px; font-size: 12px; font-weight: 650;
+    }}
+    QWidget[memoryWorkspace='true'] QPushButton[memoryChoice='true']:hover {{ color: {c['text']}; border-color: {c['border_strong']}; }}
+    QWidget[memoryWorkspace='true'] QPushButton[memoryChoice='true']:checked {{
+        color: {c['blue']}; background: {c['blue_soft']}; border-color: {c['blue']};
+    }}
+    QWidget[memoryWorkspace='true'] QPushButton[memoryChoice='true']:disabled {{
+        color: {c['subtle']}; border-color: {c['border']};
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryTable='true'] {{
+        background: transparent; border: 1px solid {c['border']}; border-radius: 8px;
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryTableHeader='true'] {{
+        background: transparent; border: none; border-bottom: 1px solid {c['border']};
+    }}
+    QWidget[memoryWorkspace='true'] QLabel[memoryTableHeading='true'] {{
+        color: {c['muted']}; font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryListRow='true'] {{
+        background: transparent; border: none; border-bottom: 1px solid {c['border_soft']}; border-radius: 0px;
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryTableFooter='true'] {{
+        background: transparent; border: none; border-top: 1px solid {c['border']};
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryListRow='true'][alternate='true'] {{
+        background: {_blend(c['panel_raised'], c['text'], 0.03) if ACTIVE_MODE != 'light' else c['panel']};
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryListRow='true'][last='true'] {{
+        border-bottom: none; border-bottom-left-radius: 7px; border-bottom-right-radius: 7px;
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryListRow='true']:hover,
+    QWidget[memoryWorkspace='true'] QFrame[memoryListRow='true']:focus {{
+        background: {c['control_hover']};
+    }}
+    QWidget[memoryWorkspace='true'] QFrame[memoryListRow='true'][selected='true'] {{
+        background: {c['blue_soft']};
+    }}
+    QWidget[memoryWorkspace='true'] QLabel[memoryOptionDetail='true'][selected='true'] {{ color: {c['text']}; }}
+    QWidget[memoryWorkspace='true'] QComboBox[memoryField='true'] {{
+        min-height: 0px; padding: 6px 30px 6px 10px; font-size: 12px; font-weight: 650; border-radius: 7px;
+        color: {c['text']}; background: {c['panel'] if ACTIVE_MODE != 'light' else c['panel_raised']};
+        border: 1px solid {c['border_strong']};
+    }}
+    QWidget[memoryWorkspace='true'] QComboBox[memoryField='true']:hover {{ border-color: {c['blue_border']}; }}
+    QWidget[memoryWorkspace='true'] QComboBox[memoryField='true']:focus {{ border-color: {c['blue']}; }}
+    QWidget[memoryWorkspace='true'] QComboBox[memoryField='true']::drop-down {{
+        width: 26px; border: none; border-left: 1px solid {c['border']};
+    }}
+    QWidget[memoryWorkspace='true'] QComboBox[memoryField='true']::down-arrow {{
+        image: url({icon_dir}/chevron_down_gray.svg); width: 12px; height: 12px;
+    }}
+    QWidget[memoryWorkspace='true'] QPushButton[memoryButton='secondary'],
+    QWidget[memoryWorkspace='true'] QPushButton[memoryButton='primary'] {{
+        background: transparent; color: {c['text']}; border: 1px solid {c['border']};
+        border-radius: 8px; min-height: 0px; padding: 8px 20px; font-size: 12px; font-weight: 700;
+    }}
+    QWidget[memoryWorkspace='true'] QPushButton[memoryButton='secondary']:hover {{
+        background: {c['control_hover']}; border-color: {c['border_strong']};
+    }}
+    QWidget[memoryWorkspace='true'] QPushButton[memoryButton='primary'] {{
+        color: {c['on_accent']}; background: {c['blue']}; border-color: {c['blue']};
+    }}
+    QWidget[memoryWorkspace='true'] QPushButton[memoryButton='primary']:hover {{
+        background: {c['blue_hover']}; border-color: {c['blue_hover']};
+    }}
+    QWidget[memoryWorkspace='true'] QPushButton[memoryButton]:focus {{ border-color: {c['blue']}; }}
+    QWidget[memoryWorkspace='true'] QPushButton[memoryButton]:disabled {{
+        color: {c['subtle']}; border-color: {c['border']}; background: transparent;
+    }}
+    QWidget[compatPage='true'] QFrame[dashboardBootPanel='true'] {{
+        background: {c['panel_raised'] if ACTIVE_MODE != 'light' else c['panel_alt']};
+        border: 1px solid {c['border']}; border-radius: 10px;
+        padding: 6px 8px;
+    }}
+    QWidget[compatPage='true'] QFrame[dashboardBootPanel='true'] QLabel[dashboardComponentTitle='true'] {{
+        font-size: 12px; font-weight: 650;
+    }}
+    QWidget[compatPage='true'] QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true'] {{
+        background: transparent; color: {c['text']}; border: 1px solid {c['border']};
+        border-radius: 8px; min-height: 0px; padding: 6px 16px; font-size: 11px; font-weight: 650;
+    }}
+    QWidget[compatPage='true'] QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true']:hover,
+    QWidget[compatPage='true'] QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true']:focus {{
+        background: {c['control_hover']}; border-color: {c['border_strong']}; color: {c['text']};
+    }}
+    QWidget[compatPage='true'] QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true'][dangerAction='true'] {{
+        background: transparent; color: {c['red']}; border-color: {c['red_border']};
+    }}
+    QWidget[compatPage='true'] QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true'][dangerAction='true']:hover {{
+        background: {c['red_soft']};
+    }}
+    QFrame[compatItem='true'] {{ background: transparent; border: none; }}
+    QFrame[compatItem='true'][ruled='true'] {{ border-top: 1px solid {c['border_soft']}; }}
+    QFrame[compatGroup='true'] {{
+        background: {c['panel_raised'] if ACTIVE_MODE != 'light' else c['panel_alt']};
+        border: 1px solid {c['border']}; border-radius: 10px;
+    }}
+    QLabel[compatGroupTitle='true'] {{
+        color: {c['text']}; font-size: 13px; font-weight: 750; padding: 14px 2px 2px 2px;
+    }}
+    QLabel[compatItemScope='true'] {{ color: {c['subtle']}; font-size: 10px; }}
+    QLabel[compatItemTitle='true'] {{ color: {c['text']}; font-size: 12px; font-weight: 650; }}
+    QLabel[compatItemSummary='true'] {{ color: {c['muted']}; font-size: 11px; }}
+    QLabel[compatItemState='true'] {{ font-size: 11px; font-weight: 600; }}
+    QPushButton[compatAction='true'] {{
+        background: transparent; color: {c['text']}; border: 1px solid {c['border']};
+        border-radius: 8px; min-height: 0px; padding: 6px 16px; font-size: 11px; font-weight: 650;
+    }}
+    QPushButton[compatAction='true']:hover {{ background: {c['control_hover']}; border-color: {c['border_strong']}; }}
+    QPushButton[compatAction='true'][primary='true'] {{
+        background: {c['blue']}; border-color: {c['blue']}; color: {c['on_accent']};
+    }}
+    QPushButton[compatAction='true'][primary='true']:hover {{ background: {c['blue_hover']}; border-color: {c['blue_hover']}; }}
+    QPushButton[compatAction='true']:disabled {{
+        color: {c['disabled_text']}; border-color: {c['border_soft']}; background: transparent;
+    }}
+    QToolButton[compatMore='true'] {{
+        background: transparent; color: {c['text']}; border: 1px solid {c['border']};
+        border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 650;
+    }}
+    QToolButton[compatMore='true']:hover {{ background: {c['control_hover']}; border-color: {c['border_strong']}; }}
+    QToolButton[compatMore='true']::menu-indicator {{ width: 0px; image: none; }}
+    QFrame[compatSection='true'] {{
+        background: {c['panel_alt']}; border: 1px solid {c['border_soft']}; border-radius: 10px;
+    }}
+    QFrame[compatRule='true'] {{ background: {c['border_soft']}; border: none; min-height: 1px; max-height: 1px; }}
+    QFrame[compatList='true'] {{
+        background: transparent; border: none; border-right: 1px solid {c['border_soft']}; border-radius: 0px;
+    }}
+    QFrame[compatRow='true'] {{ background: transparent; border: 1px solid transparent; border-radius: 8px; }}
+    QFrame[compatRow='true']:hover, QFrame[compatRow='true']:focus {{ background: {c['control_hover']}; }}
+    QFrame[compatRow='true'][current='true'] {{ background: {c['blue_soft']}; border-color: {c['blue_border']}; }}
+    QLabel[compatRowTitle='true'] {{ color: {c['text']}; font-size: 12px; font-weight: 650; }}
+    QLabel[compatRowTitle='true'][current='true'] {{ color: {c['blue']}; }}
+    QLabel[compatRowState='true'] {{ color: {c['muted']}; font-size: 10px; }}
+    QLabel[compatCaption='true'] {{
+        color: {c['muted']}; font-size: 10px; font-weight: 650; padding: 12px 8px 4px 8px;
+    }}
+    QLabel[compatHeading='true'] {{ color: {c['text']}; font-size: 13px; font-weight: 750; }}
+    QLabel[compatCount='true'] {{ color: {c['muted']}; font-size: 11px; }}
+    QLabel[compatDetailTitle='true'] {{ color: {c['text']}; font-size: 16px; font-weight: 750; }}
+    QLabel[compatDetailMeta='true'] {{ font-size: 11px; font-weight: 650; }}
+    QFrame[dashboardPreparationInfo='true'][detailCard='true'],
+    QFrame[dashboardPreparationInfo='true'][detailCard='true']:hover {{
+        background: transparent; border: none; padding: 0px;
+    }}
+    QFrame[detailCard='true'] QLabel[dashboardComponentDetail='true'] {{ color: {c['text']}; font-size: 12px; }}
+    QFrame[detailCard='true'] QFrame[dashboardCompatibilityActions='true'],
+    QFrame[detailCard='true'] QFrame[dashboardCompatibilityState='true'] {{
+        background: transparent; border: none; padding: 0px;
+    }}
+    QFrame[detailCard='true'] QPushButton[dashboardCardAction='true'] {{
+        background: transparent; color: {c['text']}; border: 1px solid {c['border']};
+        border-radius: 8px; min-height: 0px; padding: 6px 16px; font-size: 11px; font-weight: 650;
+    }}
+    QFrame[detailCard='true'] QPushButton[dashboardCardAction='true']:hover,
+    QFrame[detailCard='true'] QPushButton[dashboardCardAction='true']:focus {{
+        background: {c['control_hover']}; border-color: {c['border_strong']}; color: {c['text']};
+    }}
+    QFrame[detailCard='true'] QPushButton[dashboardCardAction='true'][accented='true'] {{
+        background: {c['blue']}; border-color: {c['blue']}; color: {c['on_accent']};
+    }}
+    QFrame[detailCard='true'] QPushButton[dashboardCardAction='true'][accented='true']:hover {{
+        background: {c['blue_hover']}; border-color: {c['blue_hover']};
+    }}
+    QFrame[detailCard='true'] QPushButton[dashboardCardAction='true'][dangerAction='true'] {{
+        background: transparent; color: {c['red']}; border-color: {c['red_border']};
+    }}
+    QFrame[detailCard='true'] QPushButton[dashboardCardAction='true'][dangerAction='true']:hover {{
+        background: {c['red_soft']};
+    }}
+    QFrame[detailCard='true'] QPushButton[dashboardCardAction='true'][linkAction='true'] {{
+        border-color: transparent; color: {c['blue']}; padding: 6px 4px;
+    }}
+    QFrame[detailCard='true'] QPushButton[dashboardCardAction='true']:disabled {{
+        color: {c['disabled_text']}; border-color: {c['border_soft']}; background: transparent;
     }}
     QFrame[dashboardMemoryOptionIndicator='true'] {{
         border-radius: 8px;
@@ -2798,6 +3094,12 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QPushButton#consoleHeaderButton:pressed {{
         background: {c['control_pressed']};
+    }}
+    QFrame#consoleActions {{
+        background: transparent; border: 1px solid {c['border_soft']}; border-radius: 9px;
+    }}
+    QPushButton#consoleHeaderButton[iconOnly='true'] {{
+        padding: 0px; border-radius: 7px; min-height: 0px; min-width: 0px;
     }}
     QPushButton#consoleHeaderButton:disabled {{
         color: {c['disabled_text']};

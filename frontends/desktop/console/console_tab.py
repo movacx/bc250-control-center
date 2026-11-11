@@ -18,7 +18,7 @@ import json
 import time
 from pathlib import Path
 
-from PyQt6.QtCore import QPointF, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QPointF, QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPen, QPolygonF
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
@@ -48,14 +48,15 @@ class _PromptGlyph(QWidget):
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        pen = QPen(QColor(COLORS["console_blue" if self.on_console else "blue"]))
-        pen.setWidthF(1.6)
+        # One quiet ink: a terminal window, its prompt inside.
+        pen = QPen(QColor(COLORS["console_muted" if self.on_console else "muted"]))
+        pen.setWidthF(1.3)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         painter.setPen(pen)
-        # The chevron of a prompt, then the underscore of its cursor.
-        painter.drawPolyline(QPolygonF([QPointF(4, 4), QPointF(8, 8), QPointF(4, 12)]))
-        painter.drawLine(QPointF(9.5, 12), QPointF(13, 12))
+        painter.drawRoundedRect(QRectF(1.5, 2.5, 13, 11), 2.2, 2.2)
+        painter.drawPolyline(QPolygonF([QPointF(4.5, 6), QPointF(6.5, 8), QPointF(4.5, 10)]))
+        painter.drawLine(QPointF(8, 10), QPointF(11, 10))
         painter.end()
 
 
@@ -192,7 +193,10 @@ class ConsoleTab(QWidget):
         self.title_label.setText(self.title)
 
     def set_state(self, text: str, tone: str) -> None:
-        self.state_label.setText(f"· {text}" if text else "")
+        # The tab names the workflow only; its state is the rule under it.
+        del text
+        self.state_label.setText("")
+        self.state_label.hide()
         self.state_label.setProperty("tone", tone)
         self.setProperty("tone", tone)
         self.repolish_tree()

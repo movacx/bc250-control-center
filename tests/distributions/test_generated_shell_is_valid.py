@@ -31,7 +31,7 @@ def _assert_valid_shell(script: str, label: str) -> None:
         assert leak not in script, f"{label} contains Python source: {leak!r}"
 
 
-@pytest.mark.parametrize("action", ("kernel", "mesa", "full"))
+@pytest.mark.parametrize("action", ("kernel", "mesa", "full", "proton-native", "remove-proton-ge", "extra-fixes", "extra-paccache", "remove-extra-fixes", "remove-extra-paccache", "extra-ch7218", "remove-extra-ch7218"))
 def test_cachyos_workflows_are_valid_shell(action: str) -> None:
     _assert_valid_shell(build_cachyos_bc250_kernel_command(action), f"cachyos/{action}")
 

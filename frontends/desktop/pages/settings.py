@@ -62,6 +62,8 @@ from bc250cc.platform.packages.strategies.detector import detect_os_info
 from bc250cc.shared.failure_text import describe_failure
 from bc250cc.shared.version import __version__
 
+from PyQt6.QtWidgets import QPushButton as _PlainButton
+
 from ..components.buttons import WrappingButton as QPushButton
 from ..components.density import apply_layout_density
 from ..components.dialogs import center_dialog, enable_adaptive_dialog
@@ -157,6 +159,10 @@ def settings_stylesheet() -> str:
     table_selection = c["blue_soft"]
     # The rail of the first-run panel, so the two read as one family.
     rail = _theme._blend(c["panel_alt"], c["border_strong"], 0.20) if _theme.ACTIVE_MODE == "light" else c["panel_alt"]
+    # A step between the sidebar and the page, and descriptions a little
+    # nearer the text than the plain muted grey, so nothing reads washed out.
+    nav_ground = c["window"] if _theme.ACTIVE_MODE != "light" else c["panel_alt"]
+    row_note = _theme._blend(c["muted"], c["text"], 0.30)
     # The tabs and the footer sit on a band a shade off the page, so the
     # window reads as a frame around the settings rather than one flat sheet.
     band = c["panel"] if _theme.ACTIVE_MODE == "light" else _theme._blend(c["window"], c["panel"], 0.55)
@@ -174,26 +180,27 @@ def settings_stylesheet() -> str:
         color:{c['text']}; font-size:13px; font-weight:600;
     }}
     QWidget[settingsPage='true'] QFrame[settingsNav='true'] {{
-        background:transparent; border:none; border-right:1px solid {c['border']};
+        background:{nav_ground}; border:none; border-right:1px solid {c['border']};
+        border-bottom-left-radius:12px;
     }}
     QWidget[settingsPage='true'] QLineEdit[navSearch='true'] {{
         min-height:30px; padding:0 8px; border-radius:8px; font-size:12px;
-        background:{c['window']}; border:1px solid {c['border']}; color:{c['text']};
+        background:{c['panel_raised']}; border:1px solid {c['border_strong']}; color:{c['text']};
     }}
     QWidget[settingsPage='true'] QLineEdit[navSearch='true']:focus {{ border-color:{c['border_strong']}; }}
     QWidget[settingsPage='true'] QLabel[navCaption='true'] {{
-        color:{c['muted']}; font-size:11px; font-weight:500; padding:14px 8px 6px 8px;
+        color:{c['muted']}; font-size:11px; font-weight:650; padding:14px 8px 6px 8px;
     }}
     QWidget[settingsPage='true'] QPushButton[settingsNavButton='true'] {{
         text-align:left; padding:6px 8px; border:none; border-radius:8px;
-        color:{c['text']}; font-size:12px; font-weight:500; background:transparent;
+        color:{c['text']}; font-size:12px; font-weight:600; background:transparent;
     }}
     QWidget[settingsPage='true'] QPushButton[settingsNavButton='true']:hover {{ background:{hover}; }}
     QWidget[settingsPage='true'] QPushButton[settingsNavButton='true']:checked {{
         background:{c['control_pressed']}; color:{c['text']};
     }}
     QWidget[settingsPage='true'] QLabel[sectionHeading='true'] {{
-        color:{c['text']}; font-size:16px; font-weight:600; padding-bottom:2px;
+        color:{c['text']}; font-size:17px; font-weight:700; padding-bottom:2px;
     }}
     QWidget[settingsPage='true'] QFrame[settingsContent='true'] {{
         background:transparent; border:none;
@@ -295,7 +302,7 @@ def settings_stylesheet() -> str:
         background:transparent; border:none;
     }}
     QWidget[settingsPage='true'] QFrame[settingRow='true'] {{
-        background:transparent; border:none; border-bottom:1px solid {c['border_soft']};
+        background:transparent; border:none; border-bottom:1px solid {c['border']};
     }}
     QWidget[settingsPage='true'] QFrame[settingRow='true'][lastRow='true'] {{
         border-bottom:none;
@@ -316,10 +323,10 @@ def settings_stylesheet() -> str:
         color:{c['muted']}; font-size:10px; font-weight:700;
     }}
     QWidget[settingsPage='true'] QLabel[rowTitle='true'] {{
-        color:{c['text']}; font-size:12px; font-weight:500;
+        color:{c['text']}; font-size:12px; font-weight:650;
     }}
     QWidget[settingsPage='true'] QLabel[rowDescription='true'] {{
-        color:{c['muted']}; font-size:11px; line-height:135%;
+        color:{row_note}; font-size:11px; line-height:135%;
     }}
     QComboBox[settingsCombo='true'] {{
         min-width:190px; min-height:34px; padding:0 36px 0 11px;
@@ -451,14 +458,17 @@ class SettingsNavButton(QPushButton):
         self.setCheckable(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setProperty("settingsNavButton", True)
-        self.setMinimumHeight(32)
+        self.setMinimumHeight(34)
         self.icon_name = icon_name
-        self.setIconSize(QSize(16, 16))
         self.refresh_icon()
 
     def refresh_icon(self) -> None:
-        """The glyph in the text colour, so it follows the theme."""
-        self.setIcon(tinted_icon(self.icon_name, COLORS["text"]))
+        """Drawn as the main sidebar draws its rows: sharp at every screen
+        scale, muted at rest, the accent once selected."""
+        from ..components.sidebar import EXPANDED_ICON, _nav_icon
+
+        self.setIcon(_nav_icon(self.icon_name, "blue"))
+        self.setIconSize(EXPANDED_ICON)
 
 
 #: A magnifier for the search field, drawn like the other glyphs.
@@ -747,6 +757,151 @@ class LinkRow(QPushButton):
         self.clicked.connect(callback)
 
 
+class TerminalThemeCard(QFrame):
+    """A built-in terminal theme as a miniature of the terminal it gives.
+
+    A small window: a title bar, a few lines of a real workflow in the
+    theme's own colours, the cursor, and its eight base colours as swatches;
+    the name under it, with a check once it is the one in use.
+    """
+
+    chosen = pyqtSignal(str)
+
+    SAMPLE = (
+        (("text", "$ "), ("text", "pacman -S mesa")),
+        ((4, "info "), ("text", "resolving deps")),
+        ((2, "\u2713 "), ("text", "mesa installed")),
+        ((3, "! "), ("muted", "reboot required")),
+        ((1, "\u2717 "), ("text", "1 conflict")),
+    )
+    CAPTION = 30
+
+    def __init__(self, key: str, name: str, parent: QWidget | None = None, *, compact: bool = False) -> None:
+        super().__init__(parent)
+        self.key = key
+        self.name = name
+        self.selected = False
+        self.hovered = False
+        #: Smaller, for the welcome panel: two sample lines, no extra width.
+        self.compact = compact
+        self.sample = self.SAMPLE[:2] if compact else self.SAMPLE
+        if compact:
+            self.CAPTION = 26
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setMinimumHeight(122 if compact else 196)
+        self.setMinimumWidth(80 if compact else 200)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMouseTracking(True)
+
+    def _colors(self) -> tuple[str, str, str, str, tuple[str, ...]]:
+        from ..console.palette import BASE_16
+
+        theme = _theme.TERMINAL_THEMES.get(self.key)
+        if theme is None:
+            return (COLORS["console_bg"], COLORS["console_text"], COLORS["console_muted"],
+                    COLORS["blue"], BASE_16)
+        return theme["bg"], theme["text"], theme["muted"], theme["accent"], theme["ansi"]
+
+    def enterEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        self.hovered = True
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        self.hovered = False
+        self.update()
+        super().leaveEvent(event)
+
+    def paintEvent(self, _event) -> None:  # noqa: N802 - Qt API name
+        from PyQt6.QtCore import QPointF, QRectF
+        from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+
+        background, text, muted, accent, ansi = self._colors()
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        window = QRectF(2, 2, self.width() - 4, self.height() - self.CAPTION - 4)
+
+        # The window, clipped to its rounded corners.
+        clip = QPainterPath()
+        clip.addRoundedRect(window, 9, 9)
+        painter.save()
+        painter.setClipPath(clip)
+        painter.fillRect(window, QColor(background))
+        # Its title bar, one shade off the ground, with the shell's name.
+        bar = QRectF(window.left(), window.top(), window.width(), 22)
+        ground = QColor(background)
+        shade = ground.darker(112) if ground.lightness() > 128 else ground.lighter(135)
+        painter.fillRect(bar, shade)
+        painter.setPen(QPen(QColor(muted)))
+        small = QFont(self.font())
+        small.setPointSizeF(max(6.5, self.font().pointSizeF() - 2.0))
+        painter.setFont(small)
+        painter.drawText(bar.adjusted(10, 0, -10, 0),
+                         int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter), "bash")
+        # The lines, in a monospace that fits the card without cutting a word.
+        mono = QFont("monospace")
+        mono.setStyleHint(QFont.StyleHint.Monospace)
+        mono.setPointSizeF(self.font().pointSizeF() + 0.5)
+        painter.setFont(mono)
+        metrics = painter.fontMetrics()
+        widest = max(sum(metrics.horizontalAdvance(part) for _c, part in line) for line in self.sample)
+        room = window.width() - 28
+        if widest > room:
+            mono.setPointSizeF(mono.pointSizeF() * room / widest)
+            painter.setFont(mono)
+            metrics = painter.fontMetrics()
+        y = bar.bottom() + 10 + metrics.ascent()
+        x = 0.0
+        for row, line in enumerate(self.sample):
+            x = window.left() + 14
+            for color, part in line:
+                ink = text if color == "text" else muted if color == "muted" else ansi[color]
+                painter.setPen(QColor(ink))
+                painter.drawText(QPointF(x, y), part)
+                x += metrics.horizontalAdvance(part)
+            if row == 0:
+                prompt_end = (x, y)
+            y += metrics.height() + 3
+        # The cursor after the command, in the theme's accent.
+        cursor = QRectF(prompt_end[0] + 3, prompt_end[1] - metrics.ascent() + 1,
+                        metrics.horizontalAdvance("m") * 0.8, metrics.ascent())
+        painter.fillRect(cursor, QColor(accent))
+        # The eight base colours, as a strip along the bottom of the window.
+        swatch = 10.0
+        gap = 5.0
+        left = window.left() + 14
+        top = window.bottom() - swatch - 11
+        for index in range(8):
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(ansi[index if index else 8]))
+            painter.drawRoundedRect(QRectF(left + index * (swatch + gap), top, swatch, swatch), 2.5, 2.5)
+        painter.restore()
+
+        # The frame: the accent once chosen, a step stronger on hover.
+        if self.selected:
+            pen = QPen(QColor(COLORS["blue"]), 2)
+        else:
+            pen = QPen(QColor(COLORS["border_strong" if self.hovered else "border"]), 1)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(window, 9, 9)
+
+        # The name under the window, with a check for the one in use.
+        caption = QRectF(4, self.height() - self.CAPTION + 4, self.width() - 8, self.CAPTION - 8)
+        name_font = QFont(self.font())
+        name_font.setBold(True)
+        painter.setFont(name_font)
+        painter.setPen(QColor(COLORS["blue"] if self.selected else COLORS["text"]))
+        label = ("\u2713  " if self.selected else "") + self.name
+        painter.drawText(caption, int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter), label)
+        painter.end()
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.chosen.emit(self.key)
+        super().mousePressEvent(event)
+
+
 class SettingsTask(QThread):
     """Run blocking settings/backend operations outside the GUI thread."""
 
@@ -947,6 +1102,7 @@ class SettingsPage(QWidget):
     gamepad_keypad_auto_show_changed = pyqtSignal(bool)
     embedded_terminal_changed = pyqtSignal(bool)
     console_auto_hide_changed = pyqtSignal(bool)
+    console_theme_changed = pyqtSignal(str)
     gddr6_manual_changed = pyqtSignal(bool)
     vrm_manual_changed = pyqtSignal(bool)
     tour_requested = pyqtSignal()
@@ -1250,7 +1406,8 @@ class SettingsPage(QWidget):
         self.gamepad_keypad_auto_show_changed.emit(enabled)
 
     def _small_button(self, text: str, callback) -> QPushButton:
-        button = QPushButton(tr(text))
+        # Never wrapped: a short action is as wide as its label, on one line.
+        button = _PlainButton(tr(text))
         button.setProperty("toolbarAction", True)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.clicked.connect(callback)
@@ -1518,6 +1675,7 @@ class SettingsPage(QWidget):
             shortcut,
         ))
         layout.addWidget(terminal)
+        layout.addWidget(self._terminal_theme_group())
 
         controller = SettingsGroup("Game controller")
         controller.add_row(SettingRow(
@@ -1537,6 +1695,37 @@ class SettingsPage(QWidget):
         layout.addWidget(controller)
         layout.addStretch(1)
         return page
+
+    def _terminal_theme_group(self) -> QWidget:
+        """The built-in terminal's colours, each shown as the terminal it gives."""
+        group = SettingsGroup("Terminal theme")
+        host = QWidget()
+        grid = QGridLayout(host)
+        grid.setContentsMargins(0, 10, 0, 12)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(12)
+        current = str(self.app_settings.value("settings/console_theme", "app") or "app")
+        choices = [("app", tr("Same as the application"))] + [
+            (key, theme["name"]) for key, theme in _theme.TERMINAL_THEMES.items()
+        ]
+        self.terminal_theme_cards: dict[str, TerminalThemeCard] = {}
+        for index, (key, name) in enumerate(choices):
+            card = TerminalThemeCard(key, name, host)
+            card.selected = key == current
+            card.chosen.connect(self._terminal_theme_chosen)
+            grid.addWidget(card, index // 3, index % 3)
+            self.terminal_theme_cards[key] = card
+        for column in range(3):
+            grid.setColumnStretch(column, 1)
+        group.body.addWidget(host)
+        return group
+
+    def _terminal_theme_chosen(self, key: str) -> None:
+        self.app_settings.setValue("settings/console_theme", key)
+        for name, card in self.terminal_theme_cards.items():
+            card.selected = name == key
+            card.update()
+        self.console_theme_changed.emit(key)
 
     def _gpu_governor_changed(self, value: object) -> None:
         normalized = normalize_governor_preference(value)
@@ -2120,31 +2309,29 @@ class SettingsPage(QWidget):
         return dialog.exec() == QDialog.DialogCode.Accepted
 
     def _build_reports_page(self) -> QWidget:
-        page, layout = self._build_page_frame(
-            "History & reports",
-            "Review application activity and export recorded performance data.",
+        # No page title: the sidebar names it, and the table is the page.
+        page, layout = self._build_page_frame("", "")
+        self.metrics_csv_button = self._small_button(
+            "Export metrics as CSV", lambda: self._export_runtime_metrics("csv")
         )
-
-        export = SettingsGroup("Data")
-        self.metrics_csv_button = self._button(
-            "Export metrics as CSV", lambda: self._export_runtime_metrics("csv"), primary=True
-        )
-        export.add_row(SettingRow(
-            "Metrics report",
-            "Export recorded samples as a spreadsheet-ready CSV file.",
-            self.metrics_csv_button,
-        ))
-        layout.addWidget(export)
-
-        layout.addWidget(self._table_header(
+        # Still written by the history code, never shown: the table says how
+        # many events there are, and it refreshes each time it is opened.
+        count = self._register_count("history_count", "0 events")
+        refresh = self._remember("history_refresh_button", self._small_button("Refresh", lambda: self.refresh_history(force=True)))
+        for hidden in (count, refresh):
+            hidden.setParent(page)
+            hidden.hide()
+        header = self._table_header(
             "Recent activity",
-            self._register_count("history_count", "0 events"),
+            None,
             (
+                self.metrics_csv_button,
                 self._small_button("Open history folder", self._open_history_folder),
                 self._small_button("Clear history", self._clear_history),
-                self._remember("history_refresh_button", self._small_button("Refresh", lambda: self.refresh_history(force=True))),
             ),
-        ))
+        )
+        header.layout().setContentsMargins(0, 4, 0, 10)
+        layout.addWidget(header)
         self.history_table = QTableWidget(0, 4)
         self.history_table.setProperty("historyTable", True)
         self.history_table.setHorizontalHeaderLabels(["Date", "Level", "Event", "Details"])
@@ -2280,7 +2467,11 @@ class SettingsPage(QWidget):
         copy.addSpacing(4)
         copy.addWidget(text)
         identity_layout.addLayout(copy, 1)
-        update = self._button("Update application", self._update_application, primary=True)
+        # As wide as its label: the wrapping button folded it into two lines.
+        update = _PlainButton(tr("Update application"))
+        update.setProperty("primaryAction", True)
+        update.setCursor(Qt.CursorShape.PointingHandCursor)
+        update.clicked.connect(self._update_application)
         update.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._update_button = update
         identity_layout.addWidget(update, 0, Qt.AlignmentFlag.AlignTop)
@@ -2943,6 +3134,10 @@ class SettingsPage(QWidget):
         return self.scroll
 
     def select_section(self, key: str) -> None:
+        if key in self.SUBPAGES:
+            # A page opened from a section (About › Official repositories).
+            self._show_section(key)
+            return
         if key == "home":
             # Settings opens on the section last used.
             self._show_section(self._last_section)
@@ -3086,6 +3281,7 @@ class SettingsDialog(QDialog):
     gamepad_keypad_auto_show_changed = pyqtSignal(bool)
     embedded_terminal_changed = pyqtSignal(bool)
     console_auto_hide_changed = pyqtSignal(bool)
+    console_theme_changed = pyqtSignal(str)
     gddr6_manual_changed = pyqtSignal(bool)
     vrm_manual_changed = pyqtSignal(bool)
     tour_requested = pyqtSignal()
@@ -3106,8 +3302,8 @@ class SettingsDialog(QDialog):
             # Wide enough for the side navigation at every scale up to 110 %:
             # below 760 px the sections fold into a two-column grid above the
             # content, which cost a third of the height before any setting.
-            preferred_width=1000,
-            preferred_height=680,
+            preferred_width=1180,
+            preferred_height=780,
             minimum_width=620,
             minimum_height=460,
         )
@@ -3140,6 +3336,7 @@ class SettingsDialog(QDialog):
         self.page.gamepad_keypad_auto_show_changed.connect(self.gamepad_keypad_auto_show_changed.emit)
         self.page.embedded_terminal_changed.connect(self.embedded_terminal_changed.emit)
         self.page.console_auto_hide_changed.connect(self.console_auto_hide_changed.emit)
+        self.page.console_theme_changed.connect(self.console_theme_changed.emit)
         self.page.gddr6_manual_changed.connect(self.gddr6_manual_changed.emit)
         self.page.vrm_manual_changed.connect(self.vrm_manual_changed.emit)
         outer.addWidget(self.page, 1)

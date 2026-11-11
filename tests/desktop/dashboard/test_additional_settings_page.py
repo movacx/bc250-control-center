@@ -47,38 +47,28 @@ def _compatibility(qtbot):
     return panel
 
 
-def test_compatibility_cards_start_as_a_title_row_and_open_on_demand(qtbot):
+def test_compatibility_cards_are_folded_under_their_rows(qtbot):
     panel = _compatibility(qtbot)
-    for card in (panel.cyan_card, panel.oberon_card, panel.gfx_card, panel.fsr4_card):
-        assert not card.is_expanded()
-        assert card.detail.isHidden() or not card.detail.isVisible()
-    card = panel.cyan_card
-    card._toggle.click()
-    assert card.is_expanded()
-    assert card.detail.isVisible()
-    card._toggle.click()
-    assert not card.is_expanded()
+    browser = panel.compatibility_browser
+    for card in (panel.cyan_card, panel.oberon_card, panel.gfx_card):
+        assert card in browser.cards()
+        # The row is the list entry; the card's own body stays folded away.
+        assert not card.detail.isVisible()
 
 
-def test_a_card_that_needs_attention_opens_itself_once(qtbot):
+def test_directmesh_sits_in_the_list_right_after_the_gfx1013_row(qtbot):
     panel = _compatibility(qtbot)
-    card = panel.cachyos_stack_card
-    card.set_status("Partially installed", "orange")
-    assert card.is_expanded()
-    card.set_expanded(False)
-    card.set_status("Partially installed", "orange")
-    assert not card.is_expanded()
+    cards = panel.compatibility_browser.cards()
+    assert cards.index(panel.directmesh_card) == cards.index(panel.gfx_card) + 1
 
 
 def test_each_group_is_one_list_without_a_banner(qtbot):
     panel = _compatibility(qtbot)
     assert not hasattr(panel, "compatibility_attention")
-    for heading, box, cards in panel._compatibility_headings:
-        assert all(card.parentWidget() is box for card in cards)
-    panel.gfx_card.hide()
-    panel._refresh_compatibility_summary()
-    assert panel.cachyos_stack_card.property("listFirst") is True
-    assert panel.gfx_card.property("listFirst") is False
+    cards = panel.compatibility_browser.cards()
+    assert len(cards) == len(set(map(id, cards)))
+    for _title, group in panel.compatibility_groups:
+        assert all(card in cards for card in group)
 
 
 def test_the_dashboard_copy_keeps_full_cards(qtbot):

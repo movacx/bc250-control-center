@@ -52,7 +52,10 @@ print(json.dumps({"ok": True, "messages": ["done"], "game": {
 
 
 @pytest.fixture
-def release(home):  # noqa: F811 - the imported fixture
+def release(home, monkeypatch):  # noqa: F811 - the imported fixture
+    # These tests are about a HelixSR 2 install (a user who has not moved to
+    # 3.x yet); the pinned release is a 3.x one, whose layout is tested apart.
+    monkeypatch.setattr(helixsr, "_layout3", lambda: False)
     directory = helixsr.helixsr_directory()
     _release_2(directory)
     (directory / "setup").mkdir()

@@ -67,13 +67,24 @@ def _pump_row(fan: Mapping[str, object]) -> Mapping[str, object]:
     rows = sensors.get("fans") if isinstance(sensors, Mapping) else ()
     if not isinstance(rows, (list, tuple)):
         return {}
+    # The pump header is CPU_FAN1 (Linux fan2). The five J4003 headers all
+    # carry "j4003" in their label, and the first one listed is Fan 5, so a
+    # bare "j4003" match picked an empty header and the card read 0 RPM.
+    # Prefer the pump by name, then any J4003 header that is actually
+    # spinning, and only then the first J4003 header.
+    candidates = []
     for row in rows:
         if not isinstance(row, Mapping):
             continue
-        label = str(row.get("label") or row.get("canal") or row.get("name") or "")
-        if any(token in label.lower() for token in ("pump", "j4003", "fan2")):
+        label = str(row.get("label") or row.get("canal") or row.get("name") or "").lower()
+        if any(token in label for token in ("pump", "cpu_fan1", "fan2")):
             return row
-    return {}
+        if "j4003" in label:
+            candidates.append(row)
+    for row in candidates:
+        if _integer(row.get("rpm", row.get("input")), 0) > 0:
+            return row
+    return candidates[0] if candidates else {}
 
 
 def _pwm_percent(value: object, default: int = 0) -> int:

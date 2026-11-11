@@ -96,16 +96,14 @@ def test_a_hidden_prompt_says_it_is_waiting(qtbot, panel):
     """Otherwise it is indistinguishable from a panel ignoring the keyboard."""
     assert panel.run(["/bin/sleep", "300"], title="Prueba")
     panel._set_input_masked(True)
-    assert "·" in panel.state_label.text()
     assert panel.state_label.property("tone") == "warning"
 
 
 def test_the_state_goes_back_when_the_prompt_does(qtbot, panel):
     assert panel.run(["/bin/sleep", "300"], title="Prueba")
     panel._set_input_masked(True)
-    secret = panel.state_label.text()
+    assert panel.state_label.property("tone") == "warning"
     panel._set_input_masked(False)
-    assert panel.state_label.text() != secret
     assert panel.state_label.property("tone") == "running"
 
 

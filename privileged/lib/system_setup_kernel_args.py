@@ -18,6 +18,9 @@ does it:
 
 * Limine (CachyOS): a marked block at the end of ``/etc/default/limine``,
   then ``limine-mkinitcpio``. Removing it leaves the file as it was.
+* Limine without that tooling (plain Arch): the options are appended to every
+  ``cmdline:`` line of ``limine.conf`` on the boot partition, and taken off
+  again exactly; Limine reads that file at boot, so nothing is regenerated.
 * GRUB (Arch family, Debian, Ubuntu): a managed drop-in in
   ``/etc/default/grub.d`` when this ``grub-mkconfig`` reads it, otherwise a
   marked block in ``/etc/default/grub`` (see below).
@@ -50,11 +53,13 @@ read the directory, the options go in a marked block at the end of
 """
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import stat
+import tempfile
 
-from system_setup_common import Host, SetupError
+from system_setup_common import STATE, Host, SetupError
 
 CU_UNLOCK = "amdgpu.bc250_cc_write_mode=3"
 #: The module parameter exists only on a kernel that carries the BC-250 patch;
@@ -63,7 +68,22 @@ CU_UNLOCK_PARAMETER = "/sys/module/amdgpu/parameters/bc250_cc_write_mode"
 CU_UNLOCK_PREFIX = "amdgpu.bc250_cc_write_mode="
 #: Hides the kernel's boot messages, the RDSEED warning included.
 HIDE_BOOT_MESSAGES = "loglevel=0"
-ARGUMENTS = ("mitigations=off", "nosmt", CU_UNLOCK, HIDE_BOOT_MESSAGES)
+#: MastaG's BC-250 kernel documents these amdgpu switches. The scheduler
+#: policy is optional and workload dependent; the other two turn off features
+#: its kernel has on by default (HDMI 2.1 / DSC negotiation, and the re-detect
+#: that recovers the picture after a mode change).
+SCHED_POLICY = "amdgpu.sched_policy=2"
+HDMI21_OFF = "amdgpu.bc250_hdmi21=0"
+RELINK_OFF = "amdgpu.cs_relink_ms=0"
+PARAMETER_DIRECTORY = "/sys/module/amdgpu/parameters/"
+#: The options whose parameter only the BC-250 kernel has: without it the
+#: kernel ignores the argument, so it is neither offered nor written.
+KERNEL_PARAMETERS = {
+    CU_UNLOCK: "bc250_cc_write_mode",
+    HDMI21_OFF: "bc250_hdmi21",
+    RELINK_OFF: "cs_relink_ms",
+}
+ARGUMENTS = ("mitigations=off", "nosmt", CU_UNLOCK, HIDE_BOOT_MESSAGES, SCHED_POLICY, HDMI21_OFF, RELINK_OFF)
 #: What SteamOS's boot menu takes among the switches.
 STEAMOS_ARGUMENTS = ("mitigations=off", "nosmt", HIDE_BOOT_MESSAGES)
 #: Arguments that carry a value, and the only values each may have.
@@ -73,6 +93,16 @@ SMT_CONTROL = "/sys/devices/system/cpu/smt/control"
 BOOT_ID = "/proc/sys/kernel/random/boot_id"
 LIMINE_CONFIG = "/etc/default/limine"
 REFIND_CONFIG = "/boot/refind_linux.conf"
+#: Where Limine looks for its configuration on the boot partition, mounted at
+#: /boot, /efi or /boot/efi (limine(8): the partition root, /limine, /boot,
+#: /boot/limine and /EFI/BOOT).
+LIMINE_CONF_CANDIDATES = tuple(
+    f"{mount}{folder}/limine.conf"
+    for mount in ("/boot", "/efi", "/boot/efi")
+    for folder in ("", "/limine", "/boot", "/boot/limine", "/EFI/BOOT", "/EFI/limine")
+)
+#: A kernel line of limine.conf: ``cmdline:`` (``kernel_cmdline:`` is its alias).
+_LIMINE_CMDLINE = re.compile(r"^(?P<lead>[ \t]*(?:kernel_)?cmdline:)(?P<value>[^\n]*)$", re.M | re.I)
 GRUB_CONFIG = "/etc/default/grub"
 GRUB_DROPIN = "/etc/default/grub.d/91-bc250-kernel-options.cfg"
 GRUB_OUTPUTS = ("/boot/grub/grub.cfg", "/boot/grub2/grub.cfg")
@@ -153,6 +183,53 @@ def _refind_direct(host: Host) -> bool:
     return "refind" in entry[4:].decode("utf-16-le", errors="ignore").lower()
 
 
+#: The Boot Loader Interface variable a loader fills in with its own name.
+LOADER_INFO = "/sys/firmware/efi/efivars/LoaderInfo-4a67b082-0a4c-41cf-b6c7-440b29bb8c4f"
+
+
+def _limine_entry_booted(host: Host) -> bool:
+    """Limine booted this system (readable without root).
+
+    Limine names itself in ``LoaderInfo`` ("Limine 12.9.6"), also when the
+    firmware started it through the generic EFI/BOOT/BOOTX64.EFI path, whose
+    boot entry is called "UEFI OS"; a boot entry named Limine is the fallback.
+    """
+    try:
+        if "limine" in host.path(LOADER_INFO).read_bytes()[4:].decode("utf-16-le", errors="ignore").lower():
+            return True
+    except OSError:
+        pass
+    directory = host.path("/sys/firmware/efi/efivars")
+    try:
+        current = next(directory.glob("BootCurrent-*")).read_bytes()
+        number = int.from_bytes(current[4:6], "little")
+        entry = next(directory.glob(f"Boot{number:04X}-*")).read_bytes()
+    except (OSError, StopIteration):
+        return False
+    return "limine" in entry[4:].decode("utf-16-le", errors="ignore").lower()
+
+
+def limine_conf(host: Host) -> str | None:
+    """The limine.conf this machine boots from, ``""`` when only root can tell.
+
+    The boot partition is often root-only (mode 0700): the unprivileged status
+    cannot look in it, so a firmware entry named Limine stands in for the file
+    there, and the privileged apply finds the file itself before writing.
+    """
+    hidden = False
+    for name in LIMINE_CONF_CANDIDATES:
+        try:
+            if stat.S_ISREG(host.path(name).stat().st_mode):
+                return name
+        except PermissionError:
+            hidden = True
+        except OSError:
+            continue
+    if hidden and _limine_entry_booted(host):
+        return ""
+    return None
+
+
 def _backend(host: Host) -> str:
     if host.steamos():
         # Only a GRUB that reads the drop-in directory: SteamOS's own
@@ -170,6 +247,10 @@ def _backend(host: Host) -> str:
         return "refind"
     if host.path(LIMINE_CONFIG).is_file() and host.command("limine-mkinitcpio"):
         return "limine"
+    # Plain Limine: GRUB would have named its image on the command line.
+    if not any(word.startswith("BOOT_IMAGE=") for word in host.read(CMDLINE).split()) \
+            and limine_conf(host) is not None:
+        return "limine-conf"
     if host.distro_family() == "fedora" and host.command("grubby"):
         return "grubby"
     # The grub package can be installed on a machine another loader boots: then
@@ -208,6 +289,12 @@ def _configured_tokens(host: Host, backend: str) -> set[str]:
         text = host.read(REFIND_CONFIG)
     elif backend == "limine":
         text = host.read(LIMINE_CONFIG)
+    elif backend == "limine-conf":
+        name = limine_conf(host)
+        text = "\n".join(match["value"] for match in _LIMINE_CMDLINE.finditer(_read_exact(host, name))) if name else None
+        if text is None:
+            # Unreadable from here: what this boot started with stands in.
+            text = host.read(CMDLINE)
     elif backend == "grub":
         text = host.read(GRUB_CONFIG)
         if grub_reads_dropins(host):
@@ -228,6 +315,12 @@ def _configured_tokens(host: Host, backend: str) -> set[str]:
 def _other_cu_mode(tokens: set[str]) -> bool:
     """The write mode set to something other than 3, by somebody else."""
     return any(token.startswith(CU_UNLOCK_PREFIX) and token != CU_UNLOCK for token in tokens)
+
+
+def _other_value(tokens, argument: str) -> bool:
+    """The same amdgpu parameter given another value, by somebody else."""
+    prefix = argument.split("=", 1)[0] + "="
+    return any(token.startswith(prefix) and token != argument for token in tokens)
 
 
 def _values(saved: dict) -> dict[str, str]:
@@ -263,7 +356,10 @@ def _stale(host: Host, backend: str, saved: dict, configured_tokens: set[str] | 
     that an earlier release put where this GRUB never reads it, or a block the
     owner deleted by hand, would otherwise count as set and never be redone.
     """
-    if backend not in ("limine", "grub", "steamos-grub", "refind"):
+    if backend not in ("limine", "limine-conf", "grub", "steamos-grub", "refind"):
+        return set()
+    if backend == "limine-conf" and not limine_conf(host):
+        # The file cannot be read from here; the saved state is what we know.
         return set()
     managed = set(_managed_tokens(saved.get("arguments"), _values(saved)))
     if not managed:
@@ -325,6 +421,10 @@ def status(host: Host) -> dict:
         external = (argument in configured or argument in active) and not mine
         if argument == CU_UNLOCK and foreign_cu_mode and not mine:
             external = True
+        elif argument in (SCHED_POLICY, HDMI21_OFF, RELINK_OFF) and not mine and (
+            _other_value(configured_tokens, argument) or _other_value(active, argument)
+        ):
+            external = True
         arguments[argument] = {
             "active": argument in active,
             "managed": argument in managed,
@@ -361,6 +461,11 @@ def status(host: Host) -> dict:
         "cu_unlock": {
             "supported": host.path(CU_UNLOCK_PARAMETER).exists(),
             "mode": mode,
+        },
+        # Which of the BC-250 kernel's switches this kernel has at all.
+        "parameters": {
+            argument: {"supported": host.path(PARAMETER_DIRECTORY + name).exists()}
+            for argument, name in KERNEL_PARAMETERS.items()
         },
         "reboot_required": any(
             item["configured"] != item["active"] for item in arguments.values()
@@ -435,6 +540,8 @@ def _write(host: Host, backend: str, tokens: list[str], previous: list[str]) -> 
         except Exception:
             host.write(LIMINE_CONFIG, original)
             raise
+    elif backend == "limine-conf":
+        _write_limine_conf(host, tokens, previous)
     elif backend == "grub":
         line = f'GRUB_CMDLINE_LINUX_DEFAULT="${{GRUB_CMDLINE_LINUX_DEFAULT}} {" ".join(tokens)}"'
         dropin_before = _read_exact(host, GRUB_DROPIN) if host.path(GRUB_DROPIN).exists() else None
@@ -473,6 +580,67 @@ def _write(host: Host, backend: str, tokens: list[str], previous: list[str]) -> 
             host.run("grubby", "--update-kernel=ALL", f"--remove-args={' '.join(removed)}")
         if added:
             host.run("grubby", "--update-kernel=ALL", f"--args={' '.join(added)}")
+
+
+def limine_conf_with(text: str, tokens: list[str], previous: list[str]) -> str:
+    """Every ``cmdline:`` line without ``previous`` and ending in ``tokens``.
+
+    What this module appended is taken off the end of the line first, byte for
+    byte; a managed word found elsewhere on the line (moved by hand) is taken
+    out on its own. Nothing else on the line, or in the file, changes.
+    """
+    def line(match) -> str:
+        value = match["value"]
+        suffix = " " + " ".join(previous) if previous else ""
+        if suffix and value.endswith(suffix):
+            value = value[: -len(suffix)]
+        elif previous:
+            words = value.split(" ")
+            value = " ".join(word for word in words if word not in set(previous))
+        if tokens:
+            value = value.rstrip() + " " + " ".join(tokens)
+        return match["lead"] + value
+
+    return _LIMINE_CMDLINE.sub(line, text)
+
+
+def _write_limine_conf(host: Host, tokens: list[str], previous: list[str]) -> None:
+    """Change limine.conf in place, checking every kernel line before keeping it."""
+    name = limine_conf(host)
+    if not name:
+        raise SetupError("Limine's limine.conf was not found on the boot partition")
+    path = host.safe(name)
+    original = _read_exact(host, name)
+    if not original:
+        raise SetupError(f"{name} could not be read")
+    if not _LIMINE_CMDLINE.search(original):
+        raise SetupError(f"{name} has no cmdline: line to carry kernel options")
+    updated = limine_conf_with(original, tokens, previous)
+    gone = [token for token in previous if token not in tokens]
+    for match in _LIMINE_CMDLINE.finditer(updated):
+        words = match["value"].split()
+        repeated = any(sum(word.startswith(n + "=") for word in words) > 1 for n in VALUE_ARGUMENTS)
+        if repeated or any(t not in words for t in tokens) or any(t in words for t in gone):
+            raise SetupError(f"{name} could not be changed safely; it was left as it was")
+    if updated == original:
+        return
+    # A copy beside the state, from before the first change, for recovery by hand.
+    backup = f"{STATE}/limine.conf.before-bc250"
+    if not host.path(backup).exists():
+        host.write(backup, original, mode=0o600)
+    # The boot partition is usually FAT: no chmod (it would fail there), and
+    # the temporary file goes beside the original so the rename stays on it.
+    fd, temp = tempfile.mkstemp(prefix=".bc250-", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(updated)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp, path)
+    except Exception:
+        with contextlib.suppress(OSError):
+            os.unlink(temp)
+        raise
 
 
 def _kernel_entries(menu: str) -> list[list[str]]:
@@ -612,24 +780,25 @@ def apply(host: Host, wanted: list[str] | tuple[str, ...]) -> dict:
     """Make exactly ``wanted`` the set of switches this module manages."""
     wanted_set = set(wanted)
     if wanted_set - set(ARGUMENTS):
-        raise SetupError("Only mitigations=off, nosmt, loglevel=0 and amdgpu.bc250_cc_write_mode=3 can be managed here")
+        raise SetupError("Only mitigations=off, nosmt, loglevel=0 and the BC-250 amdgpu switches can be managed here")
     current, backend, saved = _prepare(host)
     if backend == "steamos-grub" and wanted_set - set(STEAMOS_ARGUMENTS):
         raise SetupError("On SteamOS only mitigations=off, nosmt, loglevel=0 and the GPU memory limit are set here")
     for argument in wanted_set:
         if current["arguments"][argument]["external"]:
             raise SetupError(f"{argument} is already set outside Control Center and is left as it is")
-    if (
-        CU_UNLOCK in wanted_set
-        and CU_UNLOCK not in set(saved.get("arguments") or ())
-        and not current["cu_unlock"]["supported"]
-    ):
-        # Without the parameter the kernel ignores the argument: it would be
-        # written, a reboot asked for, and nothing would change.
-        raise SetupError(
-            "This kernel has no amdgpu.bc250_cc_write_mode parameter, so the argument would do nothing. "
-            "It comes with the BC-250 kernel (linux-cachyos-bc250)."
-        )
+    for argument, name in KERNEL_PARAMETERS.items():
+        if (
+            argument in wanted_set
+            and argument not in set(saved.get("arguments") or ())
+            and not current["parameters"][argument]["supported"]
+        ):
+            # Without the parameter the kernel ignores the argument: it would be
+            # written, a reboot asked for, and nothing would change.
+            raise SetupError(
+                f"This kernel has no amdgpu.{name} parameter, so the argument would do nothing. "
+                "It comes with the BC-250 kernel (linux-cachyos-bc250)."
+            )
     wanted_list = [argument for argument in ARGUMENTS if argument in wanted_set]
     return _commit(host, backend, saved, wanted_list, _values(saved))
 

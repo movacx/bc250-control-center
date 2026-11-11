@@ -1301,6 +1301,23 @@ class PreparationRenderMixin:
             enabled=masta_supported and bool(proton_have),
             visible=bool(proton_have),
         )
+        extras = _mapping(masta.get("extras_installed"))
+        for key, install_text, remove_text, install_button, remove_button in (
+            ("fixes", "Install BC-250 fixes", "Remove BC-250 fixes",
+             self.cachyos_fixes_button, self.cachyos_fixes_remove_button),
+            ("paccache", "Install pacman cache cleanup", "Remove pacman cache cleanup",
+             self.cachyos_paccache_button, self.cachyos_paccache_remove_button),
+            ("ch7218", "Install UGREEN adapter firmware files", "Remove UGREEN adapter firmware files",
+             self.cachyos_ch7218_button, self.cachyos_ch7218_remove_button),
+        ):
+            have = bool(extras.get(key))
+            self.cachyos_stack_card.update_action(
+                install_button, text=install_text, enabled=masta_supported and not have,
+                visible=not have, tooltip="" if masta_supported else unsupported_tip,
+            )
+            self.cachyos_stack_card.update_action(
+                remove_button, text=remove_text, enabled=masta_supported and have, visible=have,
+            )
         self.cachyos_stack_card.update_action(
             self.cachyos_kernel_button,
             text="Update / repair kernel" if kernel_installed else "Install kernel",

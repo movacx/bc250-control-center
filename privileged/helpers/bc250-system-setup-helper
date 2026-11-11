@@ -21,7 +21,7 @@ def main():
     parser.add_argument("--smt", choices=("on", "off"), default="on",
                         help="smt-live: switch simultaneous multithreading now; not saved across a reboot")
     parser.add_argument("--kernel-options", default="",
-                        help="Comma-separated subset of mitigations=off,nosmt,amdgpu.bc250_cc_write_mode=3; empty restores all")
+                        help="Comma-separated subset of mitigations=off,nosmt,loglevel=0,amdgpu.bc250_cc_write_mode=3,amdgpu.sched_policy=2,amdgpu.bc250_hdmi21=0,amdgpu.cs_relink_ms=0; empty restores all")
     parser.add_argument("--takeover-zram", action="store_true",
                          help="Confirm disabling an existing, foreign ZRAM to switch to ZSWAP")
     parser.add_argument("--target-mount", default=None,

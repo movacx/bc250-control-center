@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 from .. import theme as theme_module
 from ..i18n import LANGUAGE_OPTIONS, language_name, system_language, tr, tr_format
 from ..components.toggle_switch import ToggleSwitch
+from ..components.wheel_guard import GuardedComboBox
 from .components import ComponentPicker, component_specs
 from .mini_console import MiniConsole
 from .previews import AccentDot, SidebarPreview, ThemePreview
@@ -78,6 +79,8 @@ class WelcomeOverlay(QWidget):
     scale_chosen = pyqtSignal(int)
     gamepad_chosen = pyqtSignal(bool)
     sidebar_chosen = pyqtSignal(bool)
+    #: A built-in terminal theme key, or "app" for the application's colours.
+    terminal_theme_chosen = pyqtSignal(str)
     #: The user pressed the button that installs the chosen components.
     prepare_requested = pyqtSignal()
     #: The dependencies step has been opened; a good moment to ask the board
@@ -103,8 +106,10 @@ class WelcomeOverlay(QWidget):
         system_mode: str = "light",
         style: str = "standard",
         scale: int = 100,
+        terminal_theme: str = "app",
     ) -> None:
         super().__init__(parent)
+        self._terminal_theme = str(terminal_theme)
         # Its own layout previews the density; the pass must not reshape it.
         self.setProperty("densityLocked", True)
         self.setObjectName("onboardingOverlay")
@@ -326,6 +331,11 @@ class WelcomeOverlay(QWidget):
         self._dress_scrollbar()
         self._sync_appearance()
         self._sync_sidebar()
+        console = getattr(self, "console", None)
+        if console is not None:
+            console.apply_theme()
+        for card in getattr(self, "terminal_cards", {}).values():
+            card.update()
 
     @staticmethod
     def _theme_names() -> tuple[tuple[str, str], ...]:
@@ -429,7 +439,7 @@ class WelcomeOverlay(QWidget):
         density.addStretch(1)
         self.scale_heading = QLabel(tr("Interface scale"), page)
         self.scale_heading.setObjectName("onboardingSectionLabel")
-        self.scale_combo = QComboBox(page)
+        self.scale_combo = GuardedComboBox(page)
         self.scale_combo.setObjectName("onboardingScale")
         for value in range(70, 151, 10):
             self.scale_combo.addItem(f"{value}%", value)
@@ -441,8 +451,35 @@ class WelcomeOverlay(QWidget):
         density.addWidget(self.scale_heading)
         density.addWidget(self.scale_combo)
         layout.addLayout(density)
+
+        # The built-in terminal's colours, each as the terminal it gives.
+        from ..pages.settings import TerminalThemeCard
+
+        self.terminal_heading = QLabel(tr("Terminal theme"), page)
+        self.terminal_heading.setObjectName("onboardingSectionLabel")
+        layout.addWidget(self.terminal_heading)
+        terminals = QHBoxLayout()
+        terminals.setSpacing(8)
+        self.terminal_cards: dict[str, TerminalThemeCard] = {}
+        choices = [("app", tr("Automatic"))] + [
+            (key, entry["name"]) for key, entry in theme_module.TERMINAL_THEMES.items()
+        ]
+        for key, name in choices:
+            card = TerminalThemeCard(key, name, page, compact=True)
+            card.selected = key == self._terminal_theme
+            card.chosen.connect(self._choose_terminal_theme)
+            self.terminal_cards[key] = card
+            terminals.addWidget(card, 1)
+        layout.addLayout(terminals)
         layout.addStretch(1)
         return page
+
+    def _choose_terminal_theme(self, key: str) -> None:
+        self._terminal_theme = str(key)
+        for name, card in self.terminal_cards.items():
+            card.selected = name == self._terminal_theme
+            card.update()
+        self.terminal_theme_chosen.emit(self._terminal_theme)
 
     def _build_sidebar_step(self) -> QWidget:
         page = QWidget()
@@ -831,6 +868,7 @@ class WelcomeOverlay(QWidget):
         self.style_buttons["formal"].setText(tr("Formal"))
         self.scale_heading.setText(tr("Interface scale"))
         self.density_heading.setText(tr("Density"))
+        self.terminal_heading.setText(tr("Terminal theme"))
         self.density_buttons["comfortable"].setText(tr("Comfortable"))
         self.density_buttons["compact"].setText(tr("Compact"))
         self.sidebar_labels["expanded"].setText(tr("Expanded"))

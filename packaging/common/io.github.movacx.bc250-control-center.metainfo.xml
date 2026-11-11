@@ -32,6 +32,11 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
+    <release version="1.22.4" date="2026-11-11">
+      <description>
+        <p>Ajustes rediseñados al estilo de un panel lateral, con temas para la terminal integrada, Memoria y swap con tabla y rieles de TTM y VRAM, Compatibilidad y Controladores por categorías, DirectMesh y HelixSR 3.3, Limine en Arch, temperaturas GDDR6 desde el módulo bc250_memory del kernel y varias correcciones de reportes.</p>
+      </description>
+    </release>
     <release version="1.22.3" date="2026-11-06">
       <description>
         <p>Bazzite 45: las dependencias, el governor y las unidades de cómputo se preparan sin quedarse esperando a las actualizaciones automáticas, el async compute puede instalarse, y «Reparar dirección local» del acceso remoto funciona con el nsswitch.conf de authselect.</p>

@@ -1225,6 +1225,12 @@ class GpuGovernorStateMixin:
             "cachyos_bc250_proton-ge",
             "cachyos_bc250_proton-slr",
             "cachyos_bc250_remove-proton",
+            "cachyos_bc250_extra-fixes",
+            "cachyos_bc250_extra-paccache",
+            "cachyos_bc250_remove-extra-fixes",
+            "cachyos_bc250_remove-extra-paccache",
+            "cachyos_bc250_extra-ch7218",
+            "cachyos_bc250_remove-extra-ch7218",
         }:
             chosen = action.removeprefix("cachyos_bc250_")
             if chosen == "remove-proton":
@@ -1278,6 +1284,9 @@ class GpuGovernorStateMixin:
             "gfx1013_upstream",
             "bazzite_async_upstream",
             "bazzite_image_upstream",
+            "cyan_upstream",
+            "oberon_upstream",
+            "cachyos_stack_upstream",
         }:
             self._open_compatibility_upstream(action, dialog_parent=dialog_parent)
             return

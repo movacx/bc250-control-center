@@ -180,16 +180,16 @@ def test_the_mesa_card_stays_hidden_where_mesa_is_fine():
 def test_the_mesa_card_is_a_row_of_the_kernel_and_graphics_group_and_the_groups_keep_their_order():
     sidebar = _sidebar()
     sidebar.set_state(_mesa_state({"offered": True, "route": "ppa", "action": "mesa_ppa_install"}))
-    assert sidebar.mesa_card.property("listRow") is True
-    groups = {heading.text(): cards for heading, _box, cards in sidebar._compatibility_headings}
+    groups = {title: cards for title, cards in sidebar.compatibility_groups}
     assert groups["Kernel and graphics"][0] is sidebar.mesa_card
-    layout = sidebar._compatibility_headings[0][0].parentWidget().layout()
-    positions = [layout.indexOf(heading) for heading, _box, _cards in sidebar._compatibility_headings]
-    assert positions == sorted(positions), "the groups sit on the page in the order they are declared"
+    cards = sidebar.compatibility_browser.cards()
+    order = [cards.index(card) for _title, group in sidebar.compatibility_groups for card in group]
+    assert order == sorted(order), "the groups sit on the page in the order they are declared"
 
 
 def test_the_kernel_and_graphics_group_stays_when_the_mesa_row_is_hidden():
     sidebar = _sidebar()
     sidebar.set_state(_mesa_state({"offered": False, "route": "", "action": ""}))
-    headings = {heading.text(): heading for heading, _box, _cards in sidebar._compatibility_headings}
-    assert not headings["Kernel and graphics"].isHidden(), "the GFX1013 row is still there"
+    groups = {title: cards for title, cards in sidebar.compatibility_groups}
+    assert sidebar.gfx_card in groups["Kernel and graphics"], "the GFX1013 row is still there"
+    assert sidebar.compatibility_browser.cards().count(sidebar.gfx_card) == 1

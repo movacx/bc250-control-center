@@ -168,6 +168,24 @@ const tokens = {
 
 var codes = [
 	{
+		code: "BC250-GPU-008",
+		markers: [
+			"must be active before changing its voltage curve"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-BUILD-001",
+		markers: [
+			"STEAMOS_BUILD_RUNTIME_INCOMPATIBLE"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-CMD-001",
 		markers: [
 		],
@@ -242,6 +260,16 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-IMMUTABLE-002",
+		markers: [
+			"could not create directory",
+			"pacman database is still read-only"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-SERVICE-003",
 		markers: [
 			"QUICK_ACCESS_GPU_SERVICE",
@@ -263,6 +291,16 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-WINE-002",
+		markers: [
+			"cannot execute: required file not found",
+			"cannot be executed here"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-CONFIG-001",
 		markers: [
 			"QUICK_ACCESS_GPU_CONFIG",
@@ -271,6 +309,18 @@ var codes = [
 		],
 		exit_statuses: [
 			78
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-IMMUTABLE-001",
+		markers: [
+			"SteamOS reports a writable root",
+			"SteamOS read-only state",
+			"Failed to restore SteamOS read-only protection",
+			"systemd-sysext or another immutable layer"
+		],
+		exit_statuses: [
 		],
 		retryable: false
 	},
@@ -348,18 +398,6 @@ var codes = [
 		retryable: false
 	},
 	{
-		code: "BC250-IMMUTABLE-001",
-		markers: [
-			"SteamOS reports a writable root",
-			"SteamOS read-only state",
-			"read-only protection",
-			"systemd-sysext or another immutable layer"
-		],
-		exit_statuses: [
-		],
-		retryable: false
-	},
-	{
 		code: "BC250-TIMEOUT-001",
 		markers: [
 			"QUICK_ACCESS_TIMEOUT",
@@ -424,18 +462,6 @@ var codes = [
 			"database is locked",
 			"Waiting for cache lock",
 			"System management is locked by the application"
-		],
-		exit_statuses: [
-		],
-		retryable: false
-	},
-	{
-		code: "BC250-NET-001",
-		markers: [
-			"Unable to download",
-			"Reviewed source commit is unavailable after fetch",
-			"Reviewed source revision could not be checked out",
-			"computed checksum did NOT match"
 		],
 		exit_statuses: [
 		],
@@ -516,7 +542,8 @@ var codes = [
 			"Unmet dependencies",
 			"unable to satisfy dependency",
 			"could not satisfy dependencies",
-			"error: target not found"
+			"error: target not found",
+			"Packages not found"
 		],
 		exit_statuses: [
 		],
@@ -568,7 +595,11 @@ var codes = [
 			"The GPU driver (amdgpu) did not start",
 			"invalid ip discovery binary signature",
 			"HARDWARE_CONTEXT",
-			"QUICK_ACCESS_CONTEXT"
+			"QUICK_ACCESS_CONTEXT",
+			"13fe was not found",
+			"13fe was not detected",
+			"13FE was not detected",
+			"expected PCI bus location"
 		],
 		exit_statuses: [
 			10,
@@ -603,7 +634,27 @@ var codes = [
 			"protected GDDR6 patch helper is not installed",
 			"installation permission repair is unavailable",
 			"install the local name repair helper",
-			"install the LAN firewall helper"
+			"install the LAN firewall helper",
+			"to install the protected system setup helper"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-NET-001",
+		markers: [
+			"Unable to download",
+			"Reviewed source commit is unavailable after fetch",
+			"Reviewed source revision could not be checked out",
+			"computed checksum did NOT match",
+			"Could not resolve host",
+			"Temporary failure in name resolution",
+			"nghttp2 shuts down connection",
+			"FRAME_SIZE_ERROR",
+			"returned error: 5",
+			"Connection timed out",
+			"Operation timed out"
 		],
 		exit_statuses: [
 		],
@@ -636,6 +687,16 @@ var codes = [
 			"unknown public key",
 			"unknown trust",
 			"GPG check FAILED"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-UPSCALE-002",
+		markers: [
+			"has anti-cheat",
+			"anticheat-ok"
 		],
 		exit_statuses: [
 		],
@@ -696,6 +757,7 @@ var codes = [
 		markers: [
 			"Transaction in progress",
 			"another BC250 system preparation is already running",
+			"Another BC250 system setup change is running",
 			"index.lock': File exists",
 			"Another git process seems to be running",
 			"smu returned status 0x00",
@@ -754,9 +816,23 @@ var codes = [
 		retryable: false
 	},
 	{
-		code: "BC250-BUILD-001",
+		code: "BC250-BUILD-003",
 		markers: [
-			"STEAMOS_BUILD_RUNTIME_INCOMPATIBLE",
+			"compilation terminated.",
+			"collect2: error",
+			"ninja: build stopped",
+			"ld returned 1 exit status",
+			"] Error "
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-RUNTIME-001",
+		markers: [
+			"GLIBCXX_",
+			"CXXABI_",
 			"GLIBC_2."
 		],
 		exit_statuses: [
@@ -776,27 +852,34 @@ var markers_longest_first = [
 	"QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling",
 	"Reviewed source commit is unavailable after fetch",
 	"Reviewed source revision could not be checked out",
+	"must be active before changing its voltage curve",
 	"protected BC250 OpenRC service helper is missing",
 	"target must be an even value from 24 through 40",
 	"Run automatic detection at this exact frequency",
 	"System management is locked by the application",
+	"Failed to restore SteamOS read-only protection",
 	"fork: retry: Resource temporarily unavailable",
 	"protected GDDR6 patch helper is not installed",
 	"installation permission repair is unavailable",
+	"Another BC250 system setup change is running",
+	"to install the protected system setup helper",
 	"the reviewed SteamOS kernel backend supports",
 	"DKMS installation did not produce a module",
 	"systemd-sysext or another immutable layer",
+	"cannot execute: required file not found",
 	"Another git process seems to be running",
 	"fork: Resource temporarily unavailable",
 	"The GPU driver (amdgpu) did not start",
 	"invalid ip discovery binary signature",
 	"matching kernel-devel is unavailable",
 	"install the local name repair helper",
+	"Temporary failure in name resolution",
 	"CU executor is missing or untrusted",
 	"umr is installed but does not start",
 	"persisted nct6687 source is missing",
 	"GDDR6 patch did not finish in time",
 	"stress is required by bc250-detect",
+	"pacman database is still read-only",
 	"STEAMOS_BUILD_RUNTIME_INCOMPATIBLE",
 	"shared contract could not be read",
 	"match the active immutable kernel",
@@ -819,6 +902,7 @@ var markers_longest_first = [
 	"a release is already installed",
 	"QUICK_ACCESS_CPU_SCALE_VERIFY",
 	"failed to retrieve some files",
+	"nghttp2 shuts down connection",
 	"Untrusted helper dependency:",
 	"unable to satisfy dependency",
 	"QUICK_ACCESS_GPU_HIGH_POINTS",
@@ -836,6 +920,7 @@ var markers_longest_first = [
 	"nct6687.ko was not produced",
 	"STEAMOS_AMDGPU_BUILD_FAILED",
 	"headers for another kernel",
+	"could not create directory",
 	"is not protected by root:",
 	"QUICK_ACCESS_GPU_CONFLICT",
 	"does not accept arguments",
@@ -844,6 +929,8 @@ var markers_longest_first = [
 	"Frequency must be between",
 	"QAM CPU frequency must be",
 	"QUICK_ACCESS_FAN_EXTERNAL",
+	"expected PCI bus location",
+	"ld returned 1 exit status",
 	"QUICK_ACCESS_GPU_SERVICE",
 	"SteamOS keeps /var small",
 	"not enough free space on",
@@ -860,6 +947,7 @@ var markers_longest_first = [
 	"unable to lock database",
 	"could not lock database",
 	"error: target not found",
+	"cannot be executed here",
 	"Insufficient disk space",
 	"no space left on device",
 	"No space left on device",
@@ -873,6 +961,7 @@ var markers_longest_first = [
 	"QUICK_ACCESS_CPU_VERIFY",
 	"QUICK_ACCESS_GPU_HELPER",
 	"SteamOS read-only state",
+	"compilation terminated.",
 	"QUICK_ACCESS_PRIVILEGE",
 	"Cannot allocate memory",
 	"Waiting for cache lock",
@@ -883,12 +972,15 @@ var markers_longest_first = [
 	"QUICK_ACCESS_CU_VERIFY",
 	"Module/kernel mismatch",
 	"smu returned status 0x",
+	"Could not resolve host",
 	"QUICK_ACCESS_GPU_DBUS",
 	"QUICK_ACCESS_CU_TABLE",
 	"QUICK_ACCESS_CU_STATE",
 	"usable nct6687 module",
 	"exact Neptune headers",
 	"kernel-devel mismatch",
+	"13fe was not detected",
+	"13FE was not detected",
 	"QUICK_ACCESS_GPU_BUSY",
 	"CPU_BACKEND_UNTRUSTED",
 	"STEAMOS_PROTON_FAILED",
@@ -898,7 +990,8 @@ var markers_longest_first = [
 	"nct6687 build failed",
 	"QUICK_ACCESS_CONTEXT",
 	"CU_BACKEND_UNTRUSTED",
-	"read-only protection",
+	"Connection timed out",
+	"ninja: build stopped",
 	"Timeout was reached",
 	"smu timed out after",
 	"patched_gpu_metrics",
@@ -908,9 +1001,12 @@ var markers_longest_first = [
 	"CPU_PAYLOAD_REFUSED",
 	"CPU_BACKEND_MISSING",
 	"returned error: 404",
+	"Operation timed out",
 	"Could not get lock",
 	"database is locked",
 	"Unmet dependencies",
+	"Packages not found",
+	"13fe was not found",
 	"unknown public key",
 	"Unable to download",
 	"QUICK_ACCESS_GDDR6",
@@ -919,6 +1015,7 @@ var markers_longest_first = [
 	"Cyan D-Bus policy",
 	"QUICK_ACCESS_AUTH",
 	"CU_HELPER_MISSING",
+	"returned error: 5",
 	"QUICK_ACCESS_TTM",
 	"nothing provides",
 	"QUICK_ACCESS_FAN",
@@ -929,10 +1026,14 @@ var markers_longest_first = [
 	"HELPER_UNTRUSTED",
 	"signature from \"",
 	"GPG check FAILED",
+	"FRAME_SIZE_ERROR",
 	"Missing action.",
 	"Unknown action.",
+	"collect2: error",
+	"has anti-cheat",
 	"fan/PWM hwmon",
 	"unknown trust",
+	"anticheat-ok",
 	"accepts only",
 	"HELPER_USAGE",
 	"mount --bind",
@@ -941,7 +1042,10 @@ var markers_longest_first = [
 	"SMU_IN_USE",
 	"move_mount",
 	"expects:",
-	"GLIBC_2."
+	"] Error ",
+	"GLIBCXX_",
+	"GLIBC_2.",
+	"CXXABI_"
 ];
 var errorCatalog = {
 	codes: codes,

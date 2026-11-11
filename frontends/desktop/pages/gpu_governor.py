@@ -53,7 +53,10 @@ from bc250cc.infrastructure.gpu.governor_toml import (
 from bc250cc.infrastructure.system_setup import (
     CU_UNLOCK_OPTION,
     CU_UNLOCK_THERMAL_NOTE,
+    HDMI21_OFF_OPTION,
     HIDE_BOOT_MESSAGES_OPTION,
+    RELINK_OFF_OPTION,
+    SCHED_POLICY_OPTION,
 )
 
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
@@ -1192,6 +1195,30 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                     "The change applies after reboot and can be restored from Control Center."
                 )
                 confirm_text, tone = "Hide boot messages", "orange"
+            elif changed == SCHED_POLICY_OPTION:
+                title = "Use the non-HWS GPU scheduler"
+                body = (
+                    "Some systems and games run smoother with the software GPU scheduler "
+                    "(amdgpu.sched_policy=2), others slower, so measure yours. ROCm and KFD work needs it. "
+                    "The change applies after reboot and can be restored from Control Center."
+                )
+                confirm_text, tone = "Use non-HWS scheduling", "orange"
+            elif changed == HDMI21_OFF_OPTION:
+                title = "Turn HDMI 2.1 negotiation off"
+                body = (
+                    "This removes 4K120 at 4:4:4 through a DisplayPort to HDMI 2.1 adapter. Only do it if "
+                    "that negotiation gives you a black screen or flicker. The change applies after "
+                    "reboot and can be restored from Control Center."
+                )
+                confirm_text, tone = "Turn HDMI 2.1 off", "orange"
+            elif changed == RELINK_OFF_OPTION:
+                title = "Turn picture recovery off"
+                body = (
+                    "The kernel re-detects the display when the picture stays off after a mode change. "
+                    "Turning this off leaves a lost picture as it is. The change applies after reboot "
+                    "and can be restored from Control Center."
+                )
+                confirm_text, tone = "Turn recovery off", "orange"
             else:
                 title = "Disable simultaneous multithreading"
                 body = (
@@ -1445,6 +1472,43 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 package,
                 tr("Kernel and Mesa are not changed"),
             )
+        extra_packages = {
+            "extra-fixes": "bc250-fixes",
+            "extra-paccache": "bc250-paccache-cleanup",
+            "extra-ch7218": "bc250-ch7218-fw",
+        }
+        for key, package in extra_packages.items():
+            actions[key] = (
+                "Install external Arch/CachyOS BC-250 extra",
+                package,
+                tr("Kernel and Mesa are not changed"),
+            )
+        if action.startswith("remove-extra-"):
+            package = extra_packages.get(action.removeprefix("remove-"))
+            if package is None:
+                raise ValueError("Unsupported CachyOS BC-250 action.")
+            removal = ConfirmDialog(
+                "Remove BC-250 extra",
+                tr("This removes the package from your system."),
+                summary=((tr("Packages"), package),),
+                confirm_text=tr("Open removal terminal"),
+                tone="orange",
+                parent=dialog_parent or self,
+            )
+            if removal.exec() != QDialog.DialogCode.Accepted:
+                return
+            self._run_backend_action(
+                lambda: self.controller.preparar_cachyos_bc250(action),
+                lambda _result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    "Arch/CachyOS BC-250 extras",
+                    "Opened the removal terminal. Review its output.",
+                ),
+                "Could not prepare the BC-250 extra removal",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         if action.startswith("remove-proton-"):
             package = proton_packages.get(action.removeprefix("remove-"))
             if package is None:
@@ -1487,9 +1551,11 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                     tr("Unsigned external repository (Optional TrustAll)"),
                 ),
                 (tr("Recovery"), recovery),
-                (tr("Reboot"), tr("Restart Steam after installation") if action.startswith("proton-") else tr("Required after installation") if action != "mesa" else tr("Recommended after Mesa changes")),
+                (tr("Reboot"), tr("Restart Steam after installation") if action.startswith("proton-") else tr("Not required") if action.startswith("extra-") else tr("Required after installation") if action != "mesa" else tr("Recommended after Mesa changes")),
             ),
-            confirm_text=tr("Open Proton installation terminal") if action.startswith("proton-") else tr("Open kernel installation terminal"),
+            confirm_text=tr("Open Proton installation terminal") if action.startswith("proton-")
+            else tr("Open installation terminal") if action.startswith("extra-")
+            else tr("Open kernel installation terminal"),
             tone="red",
             parent=dialog_parent or self,
         )
@@ -2619,6 +2685,9 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             "bazzite_image_upstream": "https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images",
             "helixsr_upstream": "https://github.com/lonewolf0622/HelixSR",
             "vaapi_upstream": "https://github.com/simpmix/bc250-encoding-decoding-fix",
+            "cyan_upstream": "https://github.com/filippor/cyan-skillfish-governor/tree/smu",
+            "oberon_upstream": "https://gitlab.com/mothenjoyer69/oberon-governor",
+            "cachyos_stack_upstream": "https://github.com/MastaG/linux-cachyos-bc250",
         }
         opened, message = open_external_url(urls[action])
         if opened:

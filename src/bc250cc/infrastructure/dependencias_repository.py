@@ -546,6 +546,9 @@ class DependenciasRepository(SteamosDependenciesMixin):
         for key in ('native', 'ge', 'slr'):
             labels[f'proton-{key}'] = 'Install BC-250 Proton for Arch/CachyOS'
             labels[f'remove-proton-{key}'] = 'Remove BC-250 Proton for Arch/CachyOS'
+        for key in ('fixes', 'paccache', 'ch7218'):
+            labels[f'extra-{key}'] = 'Install BC-250 extra for Arch/CachyOS'
+            labels[f'remove-extra-{key}'] = 'Remove BC-250 extra for Arch/CachyOS'
         if action not in labels:
             raise ValueError('Unsupported CachyOS BC-250 action.')
         return self._abrir_terminal(

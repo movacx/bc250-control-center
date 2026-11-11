@@ -129,8 +129,15 @@ class ConsolePanel(QFrame):
         self.new_button.clicked.connect(self.open_new_shell)
         header_layout.addStretch(1)
 
+        # The actions sit together in one quiet group, icons only, as the
+        # rest of the application draws its own; each says its name on hover.
+        actions = QFrame(self.header)
+        actions.setObjectName("consoleActions")
+        actions_layout = QHBoxLayout(actions)
+        actions_layout.setContentsMargins(2, 2, 2, 2)
+        actions_layout.setSpacing(2)
         self.stop_button = self._header_button(
-            tr("Stop"), header_layout, icon_name="stop_red"
+            tr("Stop"), actions_layout, icon_name="stop_red", icon_only=True
         )
         self.stop_button.clicked.connect(self._stop_workflow)
         # Only after a failed run: the way from the output to the report form.
@@ -143,18 +150,19 @@ class ConsolePanel(QFrame):
         header_layout.addWidget(self.report_button)
         self._failed_tab: ConsoleTab | None = None
         self.copy_button = self._header_button(
-            tr("Copy"), header_layout, icon_name="copy_gray", icon_only=True
+            tr("Copy"), actions_layout, icon_name="copy_gray", icon_only=True
         )
         self.copy_button.clicked.connect(self._copy_everything)
         self.external_button = self._header_button(
-            tr("Open terminal"), header_layout,
-            icon_name="terminal_window_gray", icon_only=True,
+            tr("Open terminal"), actions_layout,
+            icon_name="external_gray", icon_only=True,
         )
         self.external_button.clicked.connect(self._open_external_terminal)
         self.hide_button = self._header_button(
-            tr("Hide"), header_layout,
+            tr("Hide"), actions_layout,
             icon_name="chevron_down_gray", icon_only=True,
         )
+        header_layout.addWidget(actions)
         self.hide_button.clicked.connect(self.slide_out)
         #: The actions that also carry their word once the header has room.
         #: An icon alone asked people to hover each one to learn what it did.
@@ -240,10 +248,38 @@ class ConsolePanel(QFrame):
         button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         button.setToolTip(text)
         if icon_name:
-            button.setIcon(icon(icon_name))
-            button.setIconSize(QSize(16, 16))
+            button.setProperty("lineIcon", icon_name)
+            ConsolePanel._paint_icon(button)
+            button.setIconSize(QSize(18, 18))
+        if icon_only:
+            button.setFixedSize(QSize(32, 28))
         layout.addWidget(button)
         return button
+
+    @staticmethod
+    def _paint_icon(button: QPushButton) -> None:
+        """The application's own icon, drawn as the sidebar draws its rows:
+        sharp at every screen scale, muted at rest, brighter under the
+        pointer; Stop turns red under it, being the one that ends something."""
+        from PyQt6.QtGui import QIcon
+
+        from ..components.sidebar import _tinted_icon
+        from ..theme import COLORS
+
+        name = str(button.property("lineIcon") or "")
+        if not name:
+            return
+        hover = COLORS["red"] if name == "stop_red" else COLORS["text"]
+        button.setIcon(_tinted_icon(
+            name,
+            {
+                (QIcon.Mode.Normal, QIcon.State.Off): COLORS["muted"],
+                (QIcon.Mode.Active, QIcon.State.Off): hover,
+                (QIcon.Mode.Disabled, QIcon.State.Off): COLORS["disabled_text"],
+            },
+            QSize(18, 18),
+            18,
+        ))
 
     # ------------------------------------------------------------------ tabs
 
@@ -542,7 +578,8 @@ class ConsolePanel(QFrame):
 
     def _sync_header_labels(self) -> None:
         """Words beside the icons once the header is wide enough for them."""
-        shown = self.width() >= HEADER_LABELS_WIDTH
+        # Icons only: the names are in the tooltips.
+        shown = False
         if shown == self._labels_shown:
             return
         self._labels_shown = shown
@@ -862,7 +899,8 @@ class ConsolePanel(QFrame):
     def retranslate(self) -> None:
         self._set_input_masked(self.active_tab.input_is_masked())
         self.send_button.setText(tr("Send"))
-        self.stop_button.setText(tr("Stop"))
+        # Icon only, like the other actions: the name is the tooltip.
+        self.stop_button.setAccessibleName(tr("Stop"))
         self.stop_button.setToolTip(tr("Stop"))
         self.report_button.setText(tr("Report this problem"))
         for button, label in self._labelled_actions:
@@ -878,6 +916,10 @@ class ConsolePanel(QFrame):
     def apply_theme(self) -> None:
         for tab in self._tabs:
             tab.view.apply_theme()
+            tab.glyph.update()
+        for button in self.findChildren(QPushButton):
+            if button.property("lineIcon"):
+                self._paint_icon(button)
 
     def shutdown(self) -> None:
         """Stop everything, for application close."""

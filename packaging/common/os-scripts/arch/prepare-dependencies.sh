@@ -109,6 +109,10 @@ PKGBUILD
 )
 
 install_stress() {
+  if have stress; then
+    verify_command stress
+    return 0
+  fi
   if pacman -Si stress >/dev/null 2>&1; then
     # A failed repository install (network, signature, etc.) must remain an
     # error rather than silently switching to a source build.

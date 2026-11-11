@@ -112,6 +112,11 @@ class ControlCenterWindow(QMainWindow):
         self.preferences = UiPreferences()
         self.settings = self.preferences.settings
         migration = self.preferences.initialize()
+        # The terminal theme is laid over the palette from the first restyle on.
+        from . import theme as _theme_module
+
+        saved_terminal = str(self.settings.value("settings/console_theme", "app") or "app")
+        _theme_module.TERMINAL_THEME = saved_terminal if saved_terminal in _theme_module.TERMINAL_THEMES else "app"
         self._background = BackgroundExecutor(self)
         self._state_cache = state_cache_for(
             controller,
@@ -628,7 +633,9 @@ class ControlCenterWindow(QMainWindow):
             system_mode=self._system_theme(),
             style=self.preferences.style(),
             scale=self.preferences.scale(),
+            terminal_theme=str(self.settings.value("settings/console_theme", "app") or "app"),
         )
+        overlay.terminal_theme_chosen.connect(self._welcome_terminal_theme)
         overlay.language_chosen.connect(self._welcome_language)
         # Live, behind the panel: the shell is restyled as the options are
         # picked, coalesced so a palette switch (style and accent together)
@@ -690,6 +697,18 @@ class ControlCenterWindow(QMainWindow):
         # A new size re-lays out every widget (about 1.5 s here, all of it
         # inside Qt), so wait for the wheel or the arrow keys to settle.
         self._appearance_timer.start(SCALE_SETTLE_MS)
+
+    def _welcome_terminal_theme(self, key: str) -> None:
+        self.settings.setValue("settings/console_theme", key)
+        self._set_console_theme(key)
+
+    def _set_console_theme(self, key: str) -> None:
+        """A new terminal theme: the console colours, then a restyle to show them."""
+        from . import theme as theme_module
+
+        theme_module.set_terminal_theme(key)
+        self._applied_appearance = None
+        self._queue_saved_appearance()
 
     def _queue_saved_appearance(self) -> None:
         pending = getattr(self, "_pending_appearance", None)
@@ -1298,6 +1317,7 @@ class ControlCenterWindow(QMainWindow):
             dialog.gamepad_keypad_auto_show_changed.connect(self.gamepad.set_onscreen_keypad_auto_show)
             dialog.embedded_terminal_changed.connect(self.set_embedded_terminal_enabled)
             dialog.console_auto_hide_changed.connect(self.set_console_auto_hide)
+            dialog.console_theme_changed.connect(self._set_console_theme)
             dialog.gddr6_manual_changed.connect(self._set_gddr6_manual_override)
             dialog.vrm_manual_changed.connect(self._set_vrm_manual)
             dialog.tour_requested.connect(self._tour_requested_from_settings)
@@ -1749,9 +1769,8 @@ class ControlCenterWindow(QMainWindow):
             self.fans_page.scroll.verticalScrollBar().setValue(0)
             return
         if action == "repositories":
-            from .pages.settings import RepositoriesDialog
-
-            RepositoriesDialog(self).exec()
+            # The list lives in Settings › About, not in a window of its own.
+            self._open_settings_dialog("repositories")
             return
         if action == "apply_profile":
             self.navigate("cpu")

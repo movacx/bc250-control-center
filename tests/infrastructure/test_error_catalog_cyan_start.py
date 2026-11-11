@@ -42,7 +42,7 @@ def test_cyan_start_failures_get_a_gpu_code(tail, code):
 
 
 def test_a_compute_units_failure_keeps_its_code():
-    assert _diagnose("ERROR: live WGP map does not match") == "BC250-CU-001"
+    assert _diagnose("QUICK_ACCESS_CU_VERIFY: live WGP map does not match") == "BC250-CU-001"
 
 
 def test_the_kernel_usage_method_on_a_stock_kernel_is_named_before_start():

@@ -149,7 +149,19 @@ from PyQt6.QtGui import QImageReader
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtSvg import QSvgRenderer
 import psutil, pip, venv, ssl
-assert ssl.create_default_context().cert_store_stats()["x509_ca"] > 0, "CA certificates are missing"
+def _certificates_present():
+    # Python 3.14 on Fedora reads a hashed directory lazily, so the store
+    # reports 0 even though verification works: look at the files instead.
+    import os
+    if ssl.create_default_context().cert_store_stats()["x509_ca"] > 0:
+        return True
+    paths = ssl.get_default_verify_paths()
+    files = (paths.cafile, paths.openssl_cafile)
+    if any(item and os.path.isfile(item) and os.path.getsize(item) > 0 for item in files):
+        return True
+    directory = paths.capath or paths.openssl_capath
+    return bool(directory and os.path.isdir(directory) and any(os.scandir(directory)))
+assert _certificates_present(), "CA certificates are missing"
 assert tuple(map(int, pip.__version__.split(".")[:2])) >= (22, 3), "pip >=22.3 is required"
 formats = {bytes(fmt).decode("ascii", "ignore").lower() for fmt in QImageReader.supportedImageFormats()}
 assert "svg" in formats, "Qt SVG image plugin is missing"
@@ -178,8 +190,16 @@ for module in ("psutil", "pip", "venv"):
     probe(module, lambda module=module: importlib.import_module(module))
 def certificates():
     import ssl
-    count = ssl.create_default_context().cert_store_stats()["x509_ca"]
-    assert count > 0, "CA certificates are missing"
+    import os
+    if ssl.create_default_context().cert_store_stats()["x509_ca"] > 0:
+        return
+    paths = ssl.get_default_verify_paths()
+    # A hashed directory is read lazily (Python 3.14 on Fedora): count files.
+    present = any(item and os.path.isfile(item) and os.path.getsize(item) > 0
+                  for item in (paths.cafile, paths.openssl_cafile))
+    directory = paths.capath or paths.openssl_capath
+    present = present or bool(directory and os.path.isdir(directory) and any(os.scandir(directory)))
+    assert present, "CA certificates are missing"
 probe("ssl", certificates)
 def pip_version():
     import pip

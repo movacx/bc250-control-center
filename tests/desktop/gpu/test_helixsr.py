@@ -274,7 +274,7 @@ def test_the_install_refuses_a_different_archive(home, monkeypatch):
     _pin(sha256="0" * 64)
     result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch, pin=False)
     assert result.returncode != 0
-    assert "FAILED" in result.stdout + result.stderr
+    assert "Nothing was installed" in result.stdout + result.stderr
     assert not helixsr.helixsr_directory().exists()
 
 

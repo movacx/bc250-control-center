@@ -199,3 +199,32 @@ def test_a_file_the_daemon_stopped_writing_is_not_a_running_collector(tmp_path):
     os.utime(path, (old, old))
     assert leer_memoria_telemetria(path)["state"] == ""
     assert leer_memoria_telemetria(tmp_path / "missing.json")["state"] == ""
+
+
+def _kernel_memory_device(root, temps_mc, name="bc250_memory"):
+    device = root / "hwmon7"
+    device.mkdir(parents=True)
+    (device / "name").write_text(name + "\n")
+    for index, value in enumerate(temps_mc):
+        (device / f"temp{index + 3}_input").write_text(f"{value}\n")
+    return device
+
+
+def test_memory_comes_from_the_kernel_module_when_no_collector_runs(tmp_path):
+    _kernel_memory_device(tmp_path / "hwmon", [36000, 34000, 44000, 36000, 36000, 42000, 42000, 38000])
+    state = leer_memoria_telemetria(tmp_path / "missing.json", hwmon_root=tmp_path / "hwmon")
+    assert state["state"] == "active"
+    assert state["status"] == "kernel"
+    assert state["hotspot_c"] == 44.0
+    assert state["hotspot_chip"] == 2
+    assert state["average_c"] == 38.5
+
+
+def test_kernel_memory_with_an_implausible_chip_is_not_used(tmp_path):
+    _kernel_memory_device(tmp_path / "hwmon", [36000] * 7 + [500000])
+    assert leer_memoria_telemetria(tmp_path / "missing.json", hwmon_root=tmp_path / "hwmon")["state"] == ""
+
+
+def test_other_hwmon_devices_are_not_taken_for_the_memory_module(tmp_path):
+    _kernel_memory_device(tmp_path / "hwmon", [36000] * 8, name="amdgpu")
+    assert leer_memoria_telemetria(tmp_path / "missing.json", hwmon_root=tmp_path / "hwmon")["state"] == ""

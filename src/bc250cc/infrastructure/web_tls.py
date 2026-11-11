@@ -80,7 +80,7 @@ def certificate() -> tuple[Path, Path]:
                     "-keyout", stage / "private.pem", "-out", stage / "request.pem")
                 extensions = stage / "extensions.cnf"
                 extensions.write_text("basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\n"
-                                      "extendedKeyUsage=serverAuth\nsubjectAltName=" +
+                                      "extendedKeyUsage=serverAuth\nauthorityKeyIdentifier=keyid\nsubjectAltName=" +
                                       ",".join([*(f"DNS:{name}" for name in sorted(names)),
                                                 *(f"IP:{ip}" for ip in sorted(ips))]) + "\n", encoding="ascii")
                 run("x509", "-req", "-in", stage / "request.pem", "-CA", authority, "-CAkey", authority_key,

@@ -14,7 +14,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import QAbstractScrollArea, QMenu, QSizePolicy
 
-from ..theme import COLORS
+from ..theme import COLORS, terminal_accent
 from .key_bindings import key_sequence, paste_payload
 from .palette import brighten_for_bold, resolve
 from .terminal_screen import TerminalScreen
@@ -154,9 +154,9 @@ class TerminalView(QAbstractScrollArea):
             "background": QColor(COLORS["console_bg"]),
             "text": QColor(COLORS["console_text"]),
             "border": QColor(COLORS["console_border"]),
-            "accent": QColor(COLORS["blue"]),
+            "accent": QColor(terminal_accent()),
         }
-        selection = QColor(COLORS["blue"])
+        selection = QColor(terminal_accent())
         selection.setAlpha(90)
         self._colors["selection"] = selection
         self.viewport().update()

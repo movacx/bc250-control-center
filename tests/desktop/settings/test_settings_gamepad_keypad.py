@@ -74,9 +74,9 @@ def test_settings_dialog_uses_the_settings_shell_as_its_window_boundary(qtbot, t
     dialog.show()
     qtbot.wait(10)
 
-    assert dialog.layout().contentsMargins().left() == 0
-    assert dialog.layout().contentsMargins().top() == 0
-    assert dialog.page.size() == dialog.contentsRect().size()
+    shell = next(frame for frame in dialog.findChildren(QFrame) if frame.property("settingsShell"))
+    assert dialog.rect().contains(shell.geometry()), "the rounded shell is the window's boundary"
+    assert shell.width() >= dialog.width() - 2 * dialog.layout().contentsMargins().left() - 2
     assert dialog.findChild(QFrame, "ControlDialogCard") is None
     assert dialog.close_button.parentWidget() is dialog
 

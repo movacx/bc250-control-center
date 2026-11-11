@@ -63,7 +63,10 @@ HELIXSR_REPOSITORY = "https://github.com/lonewolf0622/HelixSR"
 #: aside. 1.2 to 1.4 keep the network in two files beside the DLL, 1.7 builds
 #: it the same way and 1.8 appends it to the DLL.
 HELIXSR_REVIEWED: dict[str, dict] = {
-    "v3.3.0": {"archive": "HelixSR-3.3.0.zip", "sha256": "30838854b545d31891e50075b929b2ab03512cece95b453d98dc2fc620135eaf", "size": 281_134_182, "dll_sha256": "2feb14f1db4d29eb9e389c955fb9c7d90a565890ab63c789c77f2d1fc0532a46"},
+    # Re-published in place on 2026-11-11 (same tag): Preset K and HelixSR
+    # Scaler fixes, INT8 picked by the real GPU on the BC-250. helixsr.dll is
+    # byte-identical, so games given the earlier archive are still known.
+    "v3.3.0": {"archive": "HelixSR-3.3.0.zip", "sha256": "4adcf41267d31da63fc97da9c50ec68941d037853b14679e33cfcfdaf099fd8b", "size": 279_139_677, "dll_sha256": "2feb14f1db4d29eb9e389c955fb9c7d90a565890ab63c789c77f2d1fc0532a46"},
     # 2.0 moved the DLL into HELIXSR_BUILD_FOLDER (helixsr_dll_folder finds
     # it) and builds DLSS frame generation there too, which this module asks
     # the setup to skip (see _setup_block).
@@ -2098,7 +2101,14 @@ bc250_archive="$bc250_work/{release['archive']}"
 echo "Downloading {release['archive']} ({release['size'] / 1_000_000:.1f} MB)..."
 bc250_fetch "$bc250_archive" {shlex.quote(helixsr_url(release))}
 echo "{source}"
-printf '%s  %s\\n' {release['sha256']} "$bc250_archive" | sha256sum -c -
+# A mismatch on a complete download is not the network: the file published
+# under this version is no longer the one checked here (it was re-uploaded).
+printf '%s  %s\\n' {release['sha256']} "$bc250_archive" | sha256sum -c --status - || {{
+  echo "ERROR: HelixSR-{release['tag'].removeprefix('v')}.zip as published now is not the archive Control Center checked."
+  echo "The author replaced the file under the same version. Nothing was installed."
+  echo "Update Control Center, or choose another HelixSR version."
+  exit 30; }}
+echo "Archive verified."
 echo "Checking the archive layout and unpacking..."
 # Every entry sits in one HelixSR-* folder (1.9.0.2's archive holds
 # HelixSR-1.9.0), with no links and no way out of it.

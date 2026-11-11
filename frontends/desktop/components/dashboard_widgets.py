@@ -44,7 +44,10 @@ from PyQt6.QtWidgets import QPushButton as IconButton
 
 from bc250cc.infrastructure.system_setup import (
     CU_UNLOCK_OPTION,
+    HDMI21_OFF_OPTION,
     HIDE_BOOT_MESSAGES_OPTION,
+    RELINK_OFF_OPTION,
+    SCHED_POLICY_OPTION,
 )
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
@@ -2644,7 +2647,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         layout.setSpacing(12)
         header = QHBoxLayout()
         header.setSpacing(10)
-        header.addWidget(IconBadge(icon_name, background, 34, radius=9))
+        # A plain heading: a coloured badge per card read as decoration.
+        del icon_name, background
         header.addWidget(_label(title, "cardTitle"), 1)
         layout.addLayout(header)
         return card, layout, header
@@ -2704,6 +2708,9 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         self.memory_zswap_tile.value_label.setText(
             tr("Active") if runtime.get("zswap_enabled") is True else tr("Disabled")
         )
+        workspace = getattr(self, "memory_workspace", None)
+        if workspace is not None:
+            workspace.set_runtime(runtime)
 
     # ---------------------------------------------------------- status report
 
@@ -2978,12 +2985,20 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         ("nosmt", "Simultaneous multithreading (SMT)", "Disable SMT", "Restore SMT"),
         (CU_UNLOCK_OPTION, "Compute Units unlock (kernel)", "Unlock all 40 CUs", "Restore CU lock"),
         (HIDE_BOOT_MESSAGES_OPTION, "Boot messages (hides the RDSEED warning)", "Hide boot messages", "Show boot messages"),
+        (SCHED_POLICY_OPTION, "GPU scheduler policy (non-HWS)", "Use non-HWS scheduling", "Restore default scheduling"),
+        (HDMI21_OFF_OPTION, "HDMI 2.1 and DSC negotiation", "Turn HDMI 2.1 off", "Turn HDMI 2.1 on"),
+        (RELINK_OFF_OPTION, "Picture recovery after a mode change", "Turn recovery off", "Turn recovery on"),
     )
+    #: Options only the BC-250 kernel has a parameter for: offered where the
+    #: kernel reports it (or where one is already staged, to take it back).
+    KERNEL_PARAMETER_OPTIONS = frozenset({HDMI21_OFF_OPTION, RELINK_OFF_OPTION})
     #: Options that give something up, and so are drawn as a warning. Unlocking
     #: compute units gives nothing up: it is the BC-250 kernel's own method.
     #: Hiding boot messages risks nothing for the board; it is explained in its
     #: confirmation, not painted red.
-    KERNEL_OPTION_NEUTRAL = frozenset({CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION})
+    KERNEL_OPTION_NEUTRAL = frozenset({
+        CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION, SCHED_POLICY_OPTION, HDMI21_OFF_OPTION, RELINK_OFF_OPTION,
+    })
 
 
     def _request_smt_live(self) -> None:
@@ -3035,7 +3050,15 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
             name, pill, button = self.kernel_option_controls[option]
             item = _mapping(arguments.get(option))
             row_visible = option in allowed and (option != CU_UNLOCK_OPTION or cu_visible)
-            if option == CU_UNLOCK_OPTION or option not in allowed:
+            gated = option in self.KERNEL_PARAMETER_OPTIONS
+            if gated:
+                row_visible = option in allowed and bool(
+                    _mapping(_mapping(state.get("parameters")).get(option)).get("supported")
+                    or item.get("managed")
+                    or item.get("configured")
+                    or item.get("external")
+                )
+            if option == CU_UNLOCK_OPTION or gated or option not in allowed:
                 for widget in (name, pill, button, self.kernel_option_rules.get(option)):
                     if widget is not None:
                         widget.setVisible(row_visible and (widget is not pill))
@@ -3060,7 +3083,7 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
             # means it is on, "Restore SMT" that it is off). The pill is kept
             # only for what the button cannot say: a pending reboot, or an
             # option set outside Control Center.
-            pill.setVisible(status not in {"Enabled", "Disabled"} and (option != CU_UNLOCK_OPTION or cu_visible))
+            pill.setVisible(status not in {"Enabled", "Disabled"} and row_visible)
             managed = bool(item.get("managed"))
             button.setText(tr(restore_text if managed else disable_text))
             button.setProperty("dangerAction", not managed and option not in self.KERNEL_OPTION_NEUTRAL)
@@ -3143,53 +3166,37 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
             ("System", (self.acpi_card,)),
             ("GPU governor", (self.cyan_card, self.oberon_card)),
             # Mesa first: it is what leaves the desktop on the CPU, whatever the kernel does.
-            ("Kernel and graphics", (self.mesa_card, self.gfx_card, self.steamos_proton_card, *self.cachyos_cards)),
+            ("Kernel and graphics", (
+                self.mesa_card, self.gfx_card,
+                *((self.directmesh_card,) if hasattr(self, "directmesh_card") else ()),
+                self.steamos_proton_card, *self.cachyos_cards,
+            )),
             ("Video", (self.vaapi_card,)),
         )
         layout.setSpacing(0)
         # Boot options: the panels that used to sit above the component list.
         layout.insertSpacing(layout.count() - 1, 12)
         layout.insertWidget(layout.count() - 1, self._boot_holder)
-        self._compatibility_headings = []
-        for title, cards in self.compatibility_groups:
-            # The earliest of its cards, whatever order they are listed in.
-            index = min(layout.indexOf(card) for card in cards)
-            box = QFrame()
-            box.setProperty("dashboardCompatibilityGroupBox", True)
-            box_layout = QVBoxLayout(box)
-            box_layout.setContentsMargins(0, 0, 0, 0)
-            box_layout.setSpacing(0)
+        from .compat_browser import CompatibilityBrowser
+
+        index = min(layout.indexOf(card) for _title, cards in self.compatibility_groups for card in cards)
+        for _title, cards in self.compatibility_groups:
             for card in cards:
                 layout.removeWidget(card)
-                card.setProperty("listRow", True)
-                card.make_collapsible()
-                # State rows (Kernel / Mesa pills) line up with the title.
-                for frame in card.findChildren(QFrame):
-                    if frame.property("dashboardCompatibilityState") and frame.layout():
-                        margins = frame.layout().contentsMargins()
-                        frame.layout().setContentsMargins(0, margins.top(), 0, margins.bottom())
-                box_layout.addWidget(card)
-            heading = _label(title, "dashboardCompatibilityGroup", wrap=False)
-            layout.insertWidget(index, heading)
-            layout.insertWidget(index + 1, box)
-            self._compatibility_headings.append((heading, box, cards))
+        # A list of the tools and the chosen one's card beside it.
+        page = layout.parentWidget()
+        if page is not None:
+            page.setProperty("compatPage", True)
+        self.compatibility_browser = CompatibilityBrowser(self.compatibility_groups)
+        layout.insertWidget(index, self.compatibility_browser)
         self._refresh_compatibility_summary()
 
     def _refresh_compatibility_summary(self) -> None:
-        """Hide a group whose tools are all hidden; keep one rule above each row but the first."""
-        if not self._standalone or not hasattr(self, "_compatibility_headings"):
+        """The list follows its cards; the boot panels show when one has something."""
+        if not self._standalone or not hasattr(self, "compatibility_browser"):
             return
         self._boot_holder.setVisible(any(not panel.isHidden() for panel in self._boot_panels))
-        for heading, box, cards in self._compatibility_headings:
-            shown = [card for card in cards if not card.isHidden()]
-            heading.setVisible(bool(shown))
-            box.setVisible(bool(shown))
-            for card in cards:
-                first = bool(shown) and card is shown[0]
-                if card.property("listFirst") != first:
-                    card.setProperty("listFirst", first)
-                    card.style().unpolish(card)
-                    card.style().polish(card)
+        self.compatibility_browser.refresh()
 
 
     def _handle_decky_action(self, payload: object) -> None:
@@ -3322,7 +3329,9 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
                     self.memory_policy_combo.currentData() or "current"
                 ),
                 "memory_ttm_gib": 0,
-                "memory_takeover_zram": self.memory_zram_warning.isVisible(),
+                # Set by the render code exactly when ZSWAP has to take ZRAM's
+                # place; read from the text, not from whether the note is shown.
+                "memory_takeover_zram": bool(self.memory_zram_warning.text().strip()),
                 "memory_target_mount": str(
                     self.memory_swap_target_combo.currentData() or ""
                 ) if hasattr(self, "memory_swap_target_combo") else "",

@@ -21,8 +21,16 @@ CU_UNLOCK_THERMAL_NOTE = (
 )
 #: Hides the kernel's boot messages, among them the RDSEED warning of the BC-250's CPU.
 HIDE_BOOT_MESSAGES_OPTION = "loglevel=0"
+#: MastaG's BC-250 kernel switches: the scheduler policy (optional, depends on
+#: the workload), and the two features its kernel has on by default.
+SCHED_POLICY_OPTION = "amdgpu.sched_policy=2"
+HDMI21_OFF_OPTION = "amdgpu.bc250_hdmi21=0"
+RELINK_OFF_OPTION = "amdgpu.cs_relink_ms=0"
 #: The only kernel boot options the helper manages.
-KERNEL_OPTIONS = ("mitigations=off", "nosmt", CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION)
+KERNEL_OPTIONS = (
+    "mitigations=off", "nosmt", CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION,
+    SCHED_POLICY_OPTION, HDMI21_OFF_OPTION, RELINK_OFF_OPTION,
+)
 
 
 def inventory() -> dict:
