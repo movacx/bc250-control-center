@@ -259,3 +259,96 @@ esac
     assert result.returncode == 69
     assert "Fedora 43; Fedora 44 is required" in result.stdout
     assert not commands.exists()
+
+
+# Upstream wraps each package list over two lines and runs it with eval, so the
+# second line ran as a program ("libxshmfence-devel: command not found",
+# "systemd-libs: command not found", R-006daa34 and R-a51b4e18).
+WRAPPED_INSTALLER = '''PKG_ARCH="base-devel cmake python curl tar xz glslang libx11 libxcb libxshmfence xcb-util-keysyms wayland wayland-protocols
+          systemd-libs expat zlib zstd libelf"
+PKG_FED="gcc gcc-c++ cmake pkgconf-pkg-config python3 python3-pip curl tar xz glslang libX11-devel libxcb-devel
+         libxshmfence-devel xcb-util-keysyms-devel wayland-devel wayland-protocols-devel systemd-devel expat-devel
+         zlib-devel libzstd-devel elfutils-libelf-devel"
+'''
+
+
+def _packages(tmp_path, installer_text, variable):
+    installer = tmp_path / "installer.sh"
+    installer.write_text(installer_text, encoding="utf-8")
+    snippet = directmesh._PACKAGE_LIST + f'\nbc250_installer={installer}\nbc250_packages {variable}\n'
+    return subprocess.run(["bash", "-ec", snippet], capture_output=True, text=True)
+
+
+@pytest.mark.parametrize("variable, first, second", [
+    ("PKG_ARCH", "wayland-protocols", "systemd-libs"),
+    ("PKG_FED", "libxcb-devel", "libxshmfence-devel"),
+])
+def test_the_package_list_is_read_whole_across_the_wrapped_line(tmp_path, variable, first, second):
+    result = _packages(tmp_path, WRAPPED_INSTALLER, variable)
+    assert result.returncode == 0, result.stderr
+    assert "\n" not in result.stdout.strip()
+    names = result.stdout.split()
+    assert first in names and second in names
+    assert names.index(second) == names.index(first) + 1
+
+
+@pytest.mark.parametrize("text", [
+    "",
+    'PKG_ARCH=""\n',
+    'PKG_ARCH="gcc $(touch /tmp/owned) make"\n',
+    'PKG_ARCH="gcc; rm -rf ~ make"\n',
+    'PKG_ARCH="-S --overwrite=* make"\n',
+])
+def test_an_unreadable_or_suspicious_package_list_is_not_used(tmp_path, text):
+    result = _packages(tmp_path, text, "PKG_ARCH")
+    assert result.returncode != 0
+    assert result.stdout.strip() == ""
+
+
+def test_install_commands_install_the_packages_before_upstream_runs():
+    host = directmesh.build_directmesh_install_command(family="arch", distro_id="cachyos")
+    _bash_syntax(host)
+    assert "bc250_packages PKG_ARCH" in host and "sudo pacman -S --needed $bc250_absent" in host
+    assert host.index("sudo pacman -S --needed") < host.index('bash "$bc250_installer"')
+    container = directmesh.build_directmesh_install_command(
+        family="bazzite", distro_id="bazzite", version_id="45"
+    )
+    _bash_syntax(container)
+    assert "bc250_packages PKG_FED" in container and "sudo dnf install $bc250_absent" in container
+    assert container.index("sudo dnf install") < container.rindex('bash "$bc250_installer"')
+
+
+def test_missing_packages_are_installed_whole_before_the_installer_runs(tmp_path, monkeypatch):
+    import hashlib
+    import os
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    log = tmp_path / "order.log"
+    installer = tmp_path / "installer"
+    installer.write_text(WRAPPED_INSTALLER + 'echo "installer ran" >> "$ORDER"; exit 27\n')
+    digest = hashlib.sha256(installer.read_bytes()).hexdigest()
+    monkeypatch.setattr(directmesh, "directmesh_release", lambda: {"tag": "directmesh-v1.5", "installer_sha256": digest})
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    scripts = {
+        "vulkaninfo": "exit 1",
+        "curl": 'while [ "$1" != -o ]; do shift; done; cp "$INSTALLER" "$2"',
+        # pacman -T reports what is missing; sudo only records what it was asked to run.
+        "pacman": 'echo "systemd-libs libxshmfence"',
+        "sudo": 'echo "sudo $*" >> "$ORDER"',
+    }
+    for name, script in scripts.items():
+        executable = fake_bin / name
+        executable.write_text("#!/bin/sh\n" + script)
+        executable.chmod(0o755)
+    result = subprocess.run(
+        ["bash", "-c", directmesh.build_directmesh_install_command(family="arch", distro_id="arch")],
+        env=os.environ | {"INSTALLER": str(installer), "ORDER": str(log),
+                          "PATH": f"{fake_bin}:{os.environ['PATH']}"},
+        capture_output=True, text=True, timeout=20,
+    )
+    assert result.returncode == 27, result.stdout + result.stderr
+    assert log.read_text().splitlines() == [
+        "sudo pacman -S --needed systemd-libs libxshmfence",
+        "installer ran",
+    ]
