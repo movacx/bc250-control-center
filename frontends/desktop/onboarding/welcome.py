@@ -1,37 +1,16 @@
-"""The screen the application opens on the first time it is ever run.
-
-Every desktop that respects its users asks four questions before it hands the
-keys over — Plasma and Fedora both do it — and this application had been
-answering all four on the user's behalf: a language guessed from the locale, a
-theme guessed from the desktop, a rail width guessed from the window, and a
-set of modules nobody had been introduced to.
-
-So it asks. Four steps, each with a real preview rather than a word, each
-applied to the live application the moment it is chosen. The shell behind is
-frosted rather than hidden, because the thing being configured is the thing
-you should be looking at — and frosted rather than merely dimmed, because a
-legible interface behind a panel invites a click that will not land.
-
-Nothing here is mandatory: every step can be skipped, and every choice made in
-it can be remade later in Settings.
-"""
+"""First-run preferences, component preparation and the guided tour."""
 
 from __future__ import annotations
 
 from PyQt6.QtCore import (
-    QEasingCurve,
-    QPropertyAnimation,
-    QSize,
     Qt,
-    QTimer,
     pyqtSignal,
 )
-from PyQt6.QtGui import QColor, QPainter, QPixmap
+from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import (
     QButtonGroup,
+    QComboBox,
     QFrame,
-    QGraphicsDropShadowEffect,
-    QGraphicsOpacityEffect,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -45,21 +24,12 @@ from PyQt6.QtWidgets import (
 
 from .. import theme as theme_module
 from ..i18n import LANGUAGE_OPTIONS, language_name, system_language, tr, tr_format
+from ..components.toggle_switch import ToggleSwitch
+from ..components.wheel_guard import GuardedComboBox
 from .components import ComponentPicker, component_specs
-from .glass import frosted
 from .mini_console import MiniConsole
 from .previews import AccentDot, SidebarPreview, ThemePreview
 from .script import tour_stops
-
-#: The card never grows past this, however wide the window is. Past roughly
-#: this width a line of body copy stops being one eye movement.
-CARD_MAXIMUM = QSize(920, 620)
-#: How dark the glass is over the frosted shell, per mode. Glassmorphism wants
-#: a translucent white; on a dark palette that reads as fog, so the dark side
-#: gets a translucent black and the card carries the light edge instead.
-SCRIM_ALPHA = {"light": 118, "dark": 150}
-FADE_MS = 260
-
 
 class _StepRow(QPushButton):
     """One entry in the rail: a number, a name, and where the user is."""
@@ -100,13 +70,17 @@ class _LanguageChip(QPushButton):
 
 
 class WelcomeOverlay(QWidget):
-    """A frosted, four-step first run laid over the whole window."""
+    """First-run options shown over the application window."""
 
     language_chosen = pyqtSignal(str)
     appearance_chosen = pyqtSignal(str, str, str)
     #: "standard" or "formal": the register, independent of the theme.
     style_chosen = pyqtSignal(str)
+    scale_chosen = pyqtSignal(int)
+    gamepad_chosen = pyqtSignal(bool)
     sidebar_chosen = pyqtSignal(bool)
+    #: A built-in terminal theme key, or "app" for the application's colours.
+    terminal_theme_chosen = pyqtSignal(str)
     #: The user pressed the button that installs the chosen components.
     prepare_requested = pyqtSignal()
     #: The dependencies step has been opened; a good moment to ask the board
@@ -128,10 +102,14 @@ class WelcomeOverlay(QWidget):
         accent: str = "blue",
         density: str = "comfortable",
         collapsed: bool = False,
+        gamepad_enabled: bool = False,
         system_mode: str = "light",
         style: str = "standard",
+        scale: int = 100,
+        terminal_theme: str = "app",
     ) -> None:
         super().__init__(parent)
+        self._terminal_theme = str(terminal_theme)
         # Its own layout previews the density; the pass must not reshape it.
         self.setProperty("densityLocked", True)
         self.setObjectName("onboardingOverlay")
@@ -145,22 +123,14 @@ class WelcomeOverlay(QWidget):
         self._accent = str(accent)
         self._density = str(density)
         self._style = str(style)
+        self._initial_scale = scale
+        self._gamepad_enabled = gamepad_enabled
         self._collapsed = bool(collapsed)
         # What "System" resolves to on this desktop. Fixed for the life of the
         # panel: it describes the desktop, not the choice being made in here,
         # so picking Light must not repaint the System card as light.
         self._system_mode = str(system_mode)
-        self._backdrop = QPixmap()
-        self._backdrop_source: QWidget | None = None
-        self._refreshing = False
-        # Coalesced: a window drag emits a resize per frame, and each one
-        # would otherwise grab and blur the whole shell.
-        self._regrab = QTimer(self)
-        self._regrab.setSingleShot(True)
-        self._regrab.setInterval(90)
-        self._regrab.timeout.connect(self.refresh_backdrop)
         self._step = 0
-        self._fade: QPropertyAnimation | None = None
 
         self._build()
         self._sync_rail()
@@ -168,35 +138,13 @@ class WelcomeOverlay(QWidget):
     # ------------------------------------------------------------- structure
 
     def _build(self) -> None:
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        # The card takes the room it can up to its own maximum; the spacers
-        # only centre what is left. Equal stretches would have pinned it to a
-        # third of the window whatever its maximum said.
-        outer.addStretch(1)
-
-        row = QHBoxLayout()
-        row.setContentsMargins(0, 0, 0, 0)
-        row.addStretch(1)
-
+        outer = QGridLayout(self)
+        outer.setContentsMargins(12, 12, 12, 12)
         self.card = QFrame(self)
         self.card.setObjectName("onboardingCard")
-        self.card.setMaximumSize(CARD_MAXIMUM)
-        self.card.setMinimumWidth(560)
-        # Wide as it can be, tall as its tallest step. Stretching the height
-        # too left every step but the first with an empty lower half, and an
-        # empty half reads as a panel that has not finished loading.
-        self.card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        shadow = QGraphicsDropShadowEffect(self.card)
-        shadow.setBlurRadius(60)
-        shadow.setOffset(0, 18)
-        shadow.setColor(QColor(0, 0, 0, 130))
-        self.card.setGraphicsEffect(shadow)
-        row.addWidget(self.card, 14)
-
-        row.addStretch(1)
-        outer.addLayout(row, 0)
-        outer.addStretch(1)
+        self.card.setMaximumSize(1240, 760)
+        self.card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        outer.addWidget(self.card, 0, 0)
 
         card_layout = QHBoxLayout(self.card)
         card_layout.setContentsMargins(0, 0, 0, 0)
@@ -207,18 +155,15 @@ class WelcomeOverlay(QWidget):
     def _build_rail(self) -> QWidget:
         rail = QWidget(self.card)
         rail.setObjectName("onboardingRail")
-        rail.setFixedWidth(238)
+        rail.setMinimumWidth(212)
         layout = QVBoxLayout(rail)
-        layout.setContentsMargins(22, 26, 18, 22)
+        layout.setContentsMargins(16, 24, 16, 20)
         layout.setSpacing(6)
 
         self.brand = QLabel("BC250 Control Center", rail)
         self.brand.setObjectName("onboardingBrand")
         self.brand.setWordWrap(True)
         layout.addWidget(self.brand)
-        self.brand_note = QLabel(tr("First steps"), rail)
-        self.brand_note.setObjectName("onboardingBrandNote")
-        layout.addWidget(self.brand_note)
         layout.addSpacing(22)
 
         self.step_rows: list[_StepRow] = []
@@ -242,7 +187,7 @@ class WelcomeOverlay(QWidget):
     @staticmethod
     def _step_labels() -> tuple[str, ...]:
         return (
-            tr("Language"), tr("Appearance"), tr("Sidebar"),
+            tr("Language"), tr("Appearance"), tr("Navigation"),
             tr("Dependencies"), tr("Guided tour"),
         )
 
@@ -251,7 +196,7 @@ class WelcomeOverlay(QWidget):
         content.setObjectName("onboardingContent")
         content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(34, 30, 34, 24)
+        layout.setContentsMargins(28, 26, 28, 18)
         layout.setSpacing(0)
 
         self.title = QLabel("", content)
@@ -273,9 +218,13 @@ class WelcomeOverlay(QWidget):
         self.steps.addWidget(self._build_tour_step())
         layout.addWidget(self.steps, 1)
 
-        layout.addSpacing(18)
+        layout.addSpacing(12)
+        divider = QFrame(content)
+        divider.setObjectName("onboardingDivider")
+        divider.setFixedHeight(1)
+        layout.addWidget(divider)
         footer = QHBoxLayout()
-        footer.setContentsMargins(0, 0, 0, 0)
+        footer.setContentsMargins(0, 12, 0, 0)
         footer.setSpacing(10)
         self.progress = QLabel("", content)
         self.progress.setObjectName("onboardingProgress")
@@ -308,30 +257,30 @@ class WelcomeOverlay(QWidget):
         area.setWidgetResizable(True)
         area.setFrameShape(QFrame.Shape.NoFrame)
         area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        # Thirty-one entries. The minimum makes it read as a choice rather
-        # than a dropdown that lost its arrow; the maximum is what stops the
-        # whole card being sized for the one step that scrolls, which left
-        # every other step with an empty lower half.
-        area.setMinimumHeight(300)
-        area.setMaximumHeight(350)
-        area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.language_scrollbar = area.verticalScrollBar()
         self._dress_scrollbar()
         holder = QWidget()
         grid = QGridLayout(holder)
         grid.setContentsMargins(0, 0, 12, 0)
+        grid.setAlignment(Qt.AlignmentFlag.AlignTop)
         grid.setSpacing(8)
 
         self.language_chips: dict[str, _LanguageChip] = {}
         self._language_group = QButtonGroup(page)
         self._language_group.setExclusive(True)
-        for position, (code, native) in enumerate(LANGUAGE_OPTIONS):
+        position = 0
+        for code, native in LANGUAGE_OPTIONS:
             label = self._automatic_label() if code == "auto" else native
             chip = _LanguageChip(code, label, holder)
             chip.clicked.connect(lambda _checked=False, value=code: self._choose_language(value))
             self._language_group.addButton(chip)
             self.language_chips[code] = chip
-            grid.addWidget(chip, position // 3, position % 3)
+            if code == "auto":
+                grid.addWidget(chip, 0, 0, 1, 3)
+            else:
+                grid.addWidget(chip, 1 + position // 3, position % 3)
+                position += 1
         area.setWidget(holder)
         layout.addWidget(area, 1)
         return page
@@ -377,6 +326,17 @@ class WelcomeOverlay(QWidget):
             if bar is not None:
                 bar.setStyleSheet(sheet)
 
+    def refresh_appearance(self) -> None:
+        """Repaint what does not come from the window's style sheet."""
+        self._dress_scrollbar()
+        self._sync_appearance()
+        self._sync_sidebar()
+        console = getattr(self, "console", None)
+        if console is not None:
+            console.apply_theme()
+        for card in getattr(self, "terminal_cards", {}).values():
+            card.update()
+
     @staticmethod
     def _theme_names() -> tuple[tuple[str, str], ...]:
         return (
@@ -403,7 +363,7 @@ class WelcomeOverlay(QWidget):
             ("midnight", "midnight"),
         ):
             card = ThemePreview(value, preview_mode, self._accent, page, style=self._style)
-            card.setMinimumHeight(170)
+            card.setMinimumHeight(126)
             card.chosen.connect(self._choose_mode)
             self.theme_cards[value] = card
             themes.addWidget(card, 1)
@@ -420,60 +380,49 @@ class WelcomeOverlay(QWidget):
             labels.addWidget(label, 1)
         layout.addLayout(labels)
 
-        # Accent on one side, style and density stacked on the other. Stacked
-        # all together, they left the lower half of the step empty, and an
-        # empty half reads as a step that is still loading; in one row the
-        # three did not fit a small window.
-        below = QHBoxLayout()
-        below.setSpacing(26)
-
-        accent_column = QVBoxLayout()
-        accent_column.setSpacing(8)
         self.accent_heading = QLabel(tr("Accent color"), page)
         self.accent_heading.setObjectName("onboardingSectionLabel")
-        accent_column.addWidget(self.accent_heading)
-        accents = QHBoxLayout()
-        accents.setSpacing(6)
-        self.accent_dots: dict[str, AccentDot] = {}
-        for name in theme_module.ACCENTS:
-            dot = AccentDot(name, page)
-            dot.chosen.connect(self._choose_accent)
-            self.accent_dots[name] = dot
-            accents.addWidget(dot)
-        accents.addStretch(1)
-        accent_column.addLayout(accents)
-        # The column beside it is two sections tall; this one keeps to the top.
-        accent_column.addStretch(1)
-        below.addLayout(accent_column)
+        layout.addWidget(self.accent_heading)
 
-        density_column = QVBoxLayout()
-        density_column.setSpacing(8)
-        self.style_heading = QLabel(tr("Style"), page)
-        self.style_heading.setObjectName("onboardingSectionLabel")
-        density_column.addWidget(self.style_heading)
-        styles = QHBoxLayout()
-        styles.setSpacing(8)
+        palettes = QHBoxLayout()
+        palettes.setSpacing(10)
         self.style_buttons: dict[str, QPushButton] = {}
+        self.palette_dots: dict[str, dict[str, AccentDot]] = {}
         self._style_group = QButtonGroup(page)
         self._style_group.setExclusive(True)
-        for value, text in (("standard", tr("Standard")), ("formal", tr("Formal"))):
-            button = QPushButton(text, page)
+        for style, title in (("standard", tr("Standard")), ("formal", tr("Formal"))):
+            panel = QFrame(page)
+            panel.setObjectName("onboardingOptions")
+            grid = QGridLayout(panel)
+            grid.setContentsMargins(10, 12, 10, 12)
+            grid.setHorizontalSpacing(2)
+            grid.setVerticalSpacing(6)
+
+            button = QPushButton(title, panel)
             button.setObjectName("onboardingChip")
             button.setCheckable(True)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setMinimumHeight(38)
-            button.clicked.connect(lambda _checked=False, item=value: self._choose_style(item))
+            button.clicked.connect(lambda _checked=False, item=style: self._choose_style(item))
             self._style_group.addButton(button)
-            self.style_buttons[value] = button
-            styles.addWidget(button)
-        styles.addStretch(1)
-        density_column.addLayout(styles)
-        density_column.addSpacing(4)
+            self.style_buttons[style] = button
+            grid.addWidget(button, 0, 0, 1, 5)
+
+            dots = {}
+            for index, name in enumerate(theme_module.ACCENTS):
+                dot = AccentDot(name, panel, style=style)
+                dot.chosen.connect(lambda accent, item=style: self._choose_accent(accent, item))
+                dots[name] = dot
+                grid.addWidget(dot, 1 + index // 5, index % 5, Qt.AlignmentFlag.AlignCenter)
+            self.palette_dots[style] = dots
+            palettes.addWidget(panel, 1)
+        layout.addLayout(palettes)
+
         self.density_heading = QLabel(tr("Density"), page)
         self.density_heading.setObjectName("onboardingSectionLabel")
-        density_column.addWidget(self.density_heading)
         density = QHBoxLayout()
         density.setSpacing(8)
+        density.addWidget(self.density_heading)
+        density.addSpacing(8)
         self.density_buttons: dict[str, QPushButton] = {}
         self._density_group = QButtonGroup(page)
         self._density_group.setExclusive(True)
@@ -488,12 +437,49 @@ class WelcomeOverlay(QWidget):
             self.density_buttons[value] = button
             density.addWidget(button)
         density.addStretch(1)
-        density_column.addLayout(density)
-        below.addLayout(density_column)
-        below.addStretch(1)
-        layout.addLayout(below)
+        self.scale_heading = QLabel(tr("Interface scale"), page)
+        self.scale_heading.setObjectName("onboardingSectionLabel")
+        self.scale_combo = GuardedComboBox(page)
+        self.scale_combo.setObjectName("onboardingScale")
+        for value in range(70, 151, 10):
+            self.scale_combo.addItem(f"{value}%", value)
+        self.scale_combo.setCurrentIndex(self.scale_combo.findData(self._initial_scale))
+        self.scale_combo.currentIndexChanged.connect(
+            lambda index: self.scale_chosen.emit(self.scale_combo.itemData(index))
+        )
+        self.scale_heading.setBuddy(self.scale_combo)
+        density.addWidget(self.scale_heading)
+        density.addWidget(self.scale_combo)
+        layout.addLayout(density)
+
+        # The built-in terminal's colours, each as the terminal it gives.
+        from ..pages.settings import TerminalThemeCard
+
+        self.terminal_heading = QLabel(tr("Terminal theme"), page)
+        self.terminal_heading.setObjectName("onboardingSectionLabel")
+        layout.addWidget(self.terminal_heading)
+        terminals = QHBoxLayout()
+        terminals.setSpacing(8)
+        self.terminal_cards: dict[str, TerminalThemeCard] = {}
+        choices = [("app", tr("Automatic"))] + [
+            (key, entry["name"]) for key, entry in theme_module.TERMINAL_THEMES.items()
+        ]
+        for key, name in choices:
+            card = TerminalThemeCard(key, name, page, compact=True)
+            card.selected = key == self._terminal_theme
+            card.chosen.connect(self._choose_terminal_theme)
+            self.terminal_cards[key] = card
+            terminals.addWidget(card, 1)
+        layout.addLayout(terminals)
         layout.addStretch(1)
         return page
+
+    def _choose_terminal_theme(self, key: str) -> None:
+        self._terminal_theme = str(key)
+        for name, card in self.terminal_cards.items():
+            card.selected = name == self._terminal_theme
+            card.update()
+        self.terminal_theme_chosen.emit(self._terminal_theme)
 
     def _build_sidebar_step(self) -> QWidget:
         page = QWidget()
@@ -501,28 +487,51 @@ class WelcomeOverlay(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
 
+        controller = QFrame(page)
+        controller.setObjectName("onboardingOptions")
+        navigation = QHBoxLayout(controller)
+        navigation.setContentsMargins(16, 12, 16, 12)
+        self.gamepad_label = QLabel(tr("Gamepad navigation"), page)
+        self.gamepad_switch = ToggleSwitch()
+        self.gamepad_switch.setAccessibleName(self.gamepad_label.text())
+        self.gamepad_switch.setChecked(self._gamepad_enabled)
+        self.gamepad_switch.toggled.connect(self.gamepad_chosen)
+        labels = QVBoxLayout()
+        labels.addWidget(self.gamepad_label)
+        self.gamepad_hint = QLabel(tr("Detect controllers automatically and show controller hints while active."), page)
+        self.gamepad_hint.setObjectName("onboardingSubtitle")
+        self.gamepad_hint.setWordWrap(True)
+        labels.addWidget(self.gamepad_hint)
+        navigation.addLayout(labels, 1)
+        navigation.addWidget(self.gamepad_switch)
+        layout.addWidget(controller)
+        self.sidebar_heading = QLabel(tr("Sidebar"), page)
+        self.sidebar_heading.setObjectName("onboardingCaption")
+        layout.addSpacing(12)
+        layout.addWidget(self.sidebar_heading)
         cards = QHBoxLayout()
-        cards.setSpacing(12)
+        cards.setSpacing(16)
         self.sidebar_cards: dict[str, SidebarPreview] = {}
+        self.sidebar_labels: dict[str, QLabel] = {}
         for value, collapsed in (("expanded", False), ("collapsed", True)):
+            column = QVBoxLayout()
+            column.setSpacing(6)
             card = SidebarPreview(value, collapsed, page)
-            card.setMinimumHeight(296)
-            card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            card.setMaximumWidth(210)
+            card.setMinimumHeight(168)
+            card.setMaximumHeight(232)
+            card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
             card.chosen.connect(self._choose_sidebar)
             self.sidebar_cards[value] = card
-            cards.addWidget(card, 1)
-        layout.addLayout(cards)
-
-        captions = QHBoxLayout()
-        captions.setSpacing(12)
-        self.sidebar_labels: dict[str, QLabel] = {}
-        for value, text in (("expanded", tr("Expanded")), ("collapsed", tr("Collapsed"))):
-            label = QLabel(text, page)
+            column.addWidget(card)
+            label = QLabel(tr("Collapsed") if collapsed else tr("Expanded"), page)
             label.setObjectName("onboardingCaption")
             label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
             self.sidebar_labels[value] = label
-            captions.addWidget(label, 1)
-        layout.addLayout(captions)
+            column.addWidget(label)
+            cards.addLayout(column)
+        cards.addStretch(1)
+        layout.addLayout(cards, 2)
         layout.addStretch(1)
         return page
 
@@ -724,8 +733,15 @@ class WelcomeOverlay(QWidget):
         self._sync_appearance()
         self.appearance_chosen.emit(self._mode, self._accent, self._density)
 
-    def _choose_accent(self, accent: str) -> None:
+    @property
+    def accent_dots(self) -> dict[str, AccentDot]:
+        return self.palette_dots[self._style]
+
+    def _choose_accent(self, accent: str, style: str | None = None) -> None:
         self._accent = str(accent)
+        if style is not None and style != self._style:
+            self._style = style
+            self.style_chosen.emit(style)
         self._sync_appearance()
         self.appearance_chosen.emit(self._mode, self._accent, self._density)
 
@@ -791,9 +807,8 @@ class WelcomeOverlay(QWidget):
             (tr("Choose your language"),
              tr("The interface, its reports and its guides are all translated.")),
             (tr("Choose how it looks"),
-             tr("Every choice is applied to the application behind this panel as you make it.")),
-            (tr("Choose the sidebar"),
-             tr("Wide names every module. Narrow gives the width back to the page.")),
+             ""),
+            (tr("Navigation"), ""),
             (tr("Prepare the board"),
              f'{tr("Tools the other modules need. Anything already installed is marked.")} '
              f'{tr("Needs internet and your password. Every command is shown in the terminal.")}'),
@@ -803,6 +818,7 @@ class WelcomeOverlay(QWidget):
         title, subtitle = headings[self._step]
         self.title.setText(title)
         self.subtitle.setText(subtitle)
+        self.subtitle.setVisible(bool(subtitle))
         self.tour_note.setText(
             tr("It stops at each module, says what it is for and what it changes on "
                "the board. You can leave it at any point, and start it again from "
@@ -818,9 +834,10 @@ class WelcomeOverlay(QWidget):
             card.set_selected(value == self._mode)
             card.set_accent(self._accent)
             card.set_style(self._style)
-        for name, dot in self.accent_dots.items():
-            dot.set_selected(name == self._accent)
-            dot.update()
+        for style, dots in self.palette_dots.items():
+            for name, dot in dots.items():
+                dot.set_selected(style == self._style and name == self._accent)
+                dot.update()
         for value, button in self.style_buttons.items():
             button.setChecked(value == self._style)
         for value, button in self.density_buttons.items():
@@ -831,45 +848,11 @@ class WelcomeOverlay(QWidget):
             card.set_selected((value == "collapsed") == self._collapsed)
             card.update()
 
-    # -------------------------------------------------------------- the glass
-
-    def set_backdrop_source(self, source: QWidget | None) -> None:
-        """Name the widget whose frosted portrait this panel floats over."""
-        self._backdrop_source = source
-        self.refresh_backdrop()
-
-    def refresh_backdrop(self) -> None:
-        """Re-take the portrait, because the palette underneath just moved.
-
-        Called after every appearance change: the whole point of applying a
-        theme live is that the glass shows it.
-        """
-        self._dress_scrollbar()
-        source = self._backdrop_source
-        if source is None or source.width() <= 0 or source.height() <= 0:
-            self._backdrop = QPixmap()
-            self.update()
-            return
-        if self._refreshing:
-            # Grabbing the shell flushes its pending layout, and that comes
-            # back here as a resize of this panel. Without this guard the two
-            # call each other until the stack runs out.
-            return
-        self._refreshing = True
-        was_enabled = source.isEnabled()
-        # A disabled shell grabs as a greyed-out shell, and the user never saw
-        # that state — it is an artefact of this panel being up.
-        source.setEnabled(True)
-        try:
-            shot = source.grab()
-        finally:
-            source.setEnabled(was_enabled)
-            self._refreshing = False
-        self._backdrop = frosted(shot)
-        self.update()
-
     def retranslate(self) -> None:
-        self.brand_note.setText(tr("First steps"))
+        self.gamepad_hint.setText(tr("Detect controllers automatically and show controller hints while active."))
+        self.sidebar_heading.setText(tr("Sidebar"))
+        self.gamepad_label.setText(tr("Gamepad navigation"))
+        self.gamepad_switch.setAccessibleName(self.gamepad_label.text())
         for row, label in zip(self.step_rows, self._step_labels()):
             row.set_label(label)
         chip = self.language_chips.get("auto")
@@ -878,10 +861,14 @@ class WelcomeOverlay(QWidget):
         for value, text in self._theme_names():
             self.theme_labels[value].setText(text)
         self.accent_heading.setText(tr("Accent color"))
-        self.style_heading.setText(tr("Style"))
+        for dots in self.palette_dots.values():
+            for dot in dots.values():
+                dot.retranslate()
         self.style_buttons["standard"].setText(tr("Standard"))
         self.style_buttons["formal"].setText(tr("Formal"))
+        self.scale_heading.setText(tr("Interface scale"))
         self.density_heading.setText(tr("Density"))
+        self.terminal_heading.setText(tr("Terminal theme"))
         self.density_buttons["comfortable"].setText(tr("Comfortable"))
         self.density_buttons["compact"].setText(tr("Compact"))
         self.sidebar_labels["expanded"].setText(tr("Expanded"))
@@ -896,32 +883,13 @@ class WelcomeOverlay(QWidget):
     # -------------------------------------------------------------- lifecycle
 
     def reveal(self) -> None:
-        """Cover the parent and fade in over the frosted shell."""
+        """Cover the parent and focus the first-run panel."""
         parent = self.parentWidget()
         if parent is not None:
             self.setGeometry(parent.rect())
         self.show()
         self.raise_()
         self.setFocus(Qt.FocusReason.OtherFocusReason)
-        # windowOpacity belongs to windows; this is a child covering one, so
-        # the fade goes through an opacity effect and is taken off again at the
-        # end, to leave the panel on the plain painting path.
-        effect = QGraphicsOpacityEffect(self)
-        effect.setOpacity(0.0)
-        self.setGraphicsEffect(effect)
-        self._fade = QPropertyAnimation(effect, b"opacity", self)
-        self._fade.setDuration(FADE_MS)
-        self._fade.setStartValue(0.0)
-        self._fade.setEndValue(1.0)
-        self._fade.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self._fade.finished.connect(lambda: self.setGraphicsEffect(None))
-        self._fade.start()
-
-    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        super().resizeEvent(event)
-        # The portrait is the size of the window it was taken from, so a resize
-        # makes it the wrong one — but only once the resize has settled.
-        self._regrab.start()
 
     def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt API name
         if event.key() == Qt.Key.Key_Escape:
@@ -932,15 +900,7 @@ class WelcomeOverlay(QWidget):
     def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
         del event
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        colors = theme_module.COLORS
-        if self._backdrop.isNull():
-            painter.fillRect(self.rect(), QColor(colors["window"]))
-        else:
-            painter.drawPixmap(self.rect(), self._backdrop)
-        scrim = QColor("#0B0F17" if theme_module.ACTIVE_MODE == "dark" else "#F7F9FC")
-        scrim.setAlpha(SCRIM_ALPHA.get(theme_module.ACTIVE_MODE, 130))
-        painter.fillRect(self.rect(), scrim)
+        painter.fillRect(self.rect(), QColor(17, 25, 39, 155))
         painter.end()
 
     @property

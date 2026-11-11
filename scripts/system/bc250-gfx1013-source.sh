@@ -161,7 +161,7 @@ check_host() {
         [[ -r $device/vendor && -r $device/device ]] || continue
         [[ $(<"$device/vendor") == 0x1002 && $(<"$device/device") == 0x13fe ]] && { found=1; break; }
     done
-    [[ $found -eq 1 ]] || die "AMD BC-250 (PCI 1002:13fe) was not found."
+    [[ $found -eq 1 ]] || die "AMD BC-250 PCI device 1002:13fe was not found."
     case "$KVER" in
         *bc250*) die "this kernel ($KVER) already carries a BC-250 build of amdgpu; the fix is part of it." ;;
     esac

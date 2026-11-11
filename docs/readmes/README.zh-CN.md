@@ -5,7 +5,7 @@
 它涵盖了受支持发行版的 GPU 调控器、CPU 调整、计算单元、风扇、内存、BIOS 更新介质、升级和系统准备。这些接口共享应用程序服务、硬件限制和特权助手。可选的 Decky 插件将日常控制带入 Steam 的游戏模式。
 
 <p align="center">
-  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard" width="100%"></a>
+  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/demo.gif" alt="BC250 Control Center dashboard" width="100%"></a>
 </p>
 
 <p align="center">

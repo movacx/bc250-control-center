@@ -84,6 +84,7 @@ async function receive(request, env, ctx) {
     distribution: clip(system["Operating system"] || owner.distribution || report.distribution, 60),
     version: clip((report.app || {}).version || report.version, 20),
     source: clip((report.app || {}).opened_from, 60),
+    installation_id: clip((report.app || {}).installation_id, 32),
     attachments: (report.attachments || []).length,
     bytes: compressed.byteLength,
   };
@@ -306,7 +307,12 @@ actions.append(dl,cp,del);head.append(actions);v.append(head);
 if(rep.idea){const c=card("Idea");c.append(el("dd",rep.idea));v.append(c)}
 const p=pairs(rep.problem,[["area","Area"],["seen","What they saw"],["frequency","How often"],["worked_before","Worked before"],["steps","Steps"],["expected","Expected"],["media","Media"],["notes","Notes"]]);if(p){const c=card("What the user reports");c.append(p);v.append(c)}
 if(rep.error){const c=card("Error");const e=pairs(err,[["code","Code"],["title","Window"],["what","What happened"],["cause","Likely cause"]]);if(e)c.append(e);if(err.fix)c.append(el("p",err.fix,"fix"));const w=pairs(err,[["reference","Reference"],["where","Where"]]);if(w)c.append(w);if(err.raw)c.append(block("Raw error",err.raw,true));v.append(c)}
-const wf=rep.workflow||{};if(wf.log||wf.title){const c=card("Failed workflow");if(wf.title)c.append(el("p",wf.title));if(wf.log)c.append(block("Log",wf.log,true));v.append(c)}
+const build=pairs(rep.app,[["build_type","Build"],["commit","Commit"],["modified_checkout","Local changes"],["installation_id","Installation ID"],["container","Container"]]);
+if(build){const c=card("Application");c.append(build);v.append(c)}
+const wf=rep.workflow||{};if(wf.log||wf.title||wf.exit_status!=null){const c=card("Workflow");if(wf.title)c.append(el("p",wf.title));
+const context=pairs(wf,[["action","Action"],["page","Page"],["exit_status","Exit status"],["outcome","Outcome"],["duration_seconds","Seconds"]]);if(context)c.append(context);
+const upstream=table(wf.upstreams);if(upstream)c.append(el("h3","Upstream revisions"),upstream);
+if(wf.log)c.append(block("Log",wf.log,true));v.append(c)}
 const sysT=table(rep.system);const fw=table(rep.firmware);const os=table(rep.os_release);
 if(sysT||fw||os){const c=card("System (detected)");if(sysT)c.append(sysT);if(fw){c.append(el("h3","BIOS"));c.append(fw)}if(os){c.append(el("h3","os-release"));c.append(os)}v.append(c)}
 const ow=pairs(rep.owner,[["distribution","Distribution"],["install","Installed with"],["bios","BIOS"],["cores","CPU cores"],["cus","GPU CUs"],["other_tools","Other tools"]]);if(ow){const c=card("User answers");c.append(ow);v.append(c)}

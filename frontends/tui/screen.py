@@ -471,7 +471,7 @@ class Screen(PointerSupport):
                 self.put(top + 2 + line, width - 1, "┃" if start <= line < start + thumb else self.glyphs.v,
                          self.attrs["accent" if start <= line < start + thumb else "dim"])
         hints = [("Enter Esc", "Close")] if done else [("Esc Ctrl+C", "Cancel")]
-        if done and not console.succeeded:
+        if console.reportable:
             hints.append(("r", "Report this problem"))
         self._draw_hints(hints + [("PgUp", "Scroll"), ("PgDn", "Scroll")], y=height - self._bottom())
 
@@ -958,7 +958,11 @@ class Screen(PointerSupport):
             self._repaint()
         if closed_with == "report":  # the failed workflow's own log goes with the report
             log = "\n".join("".join(run[0] for run in line).rstrip() for line in console.view(SCROLLBACK_ALL)[0])
-            report(self, title=label, log=log)
+            report(self, title=label, log=log, workflow_details={
+                "action": label, "page": self.page_key, "exit_status": console.exit_status,
+                "duration_seconds": round(console.finished_at - console.started, 2),
+                "outcome": "timeout" if console.exit_status == 124 else "failed",
+            })
         return console.succeeded, console.result
 
     def _console_key(self, console: Console, code: int) -> str:
@@ -972,7 +976,7 @@ class Screen(PointerSupport):
         elif console.done.is_set():
             if key in ("esc", "enter", "q", "space"):
                 return "close"
-            if key == "r" and not console.succeeded:
+            if key == "r" and console.reportable:
                 return "report"
             if key in ("up", "down", "home", "end"):
                 self.console_scroll += {"up": 1, "down": -1, "home": 10**6, "end": -10**6}[key]

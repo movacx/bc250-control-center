@@ -63,16 +63,24 @@ def test_changed_target_returns_exact_detected_channel_and_clamped_percent():
 
 
 def test_real_page_never_auto_writes_an_undetected_fallback_channel(qtbot):
-    page = FansPage(object())
-    qtbot.addWidget(page)
-    page.current_state = {"driver_control": True, "sensores": {"fans": []}}
-    page.performance_state = {"gpu_temp": 60}
-    page.curve_enabled.setChecked(True)
+    """The redesigned page never writes on its own: a refresh with a curve
+    saved and no fan detected renders the board headers and writes nothing."""
     writes = []
-    page._run_pwm_write = lambda *args, **kwargs: writes.append((args, kwargs))
 
-    page._apply_state()
-    page._maybe_apply_curve()
+    class Controller:
+        def aplicar_pwm_fan(self, *args):
+            writes.append(args)
 
-    assert page.channel_combo.count() == 0
+        def restaurar_pwm_automatico(self, *args):
+            writes.append(args)
+
+    page = FansPage(Controller())
+    qtbot.addWidget(page)
+    page._apply_refresh_payload({
+        "fans": {"driver_control": True, "sensores": {"fans": []}},
+        "performance": {"gpu_temp": 60},
+        "system": {},
+    })
+
+    assert page.model.rowCount() == 5  # the five J4003 headers, none detected
     assert writes == []

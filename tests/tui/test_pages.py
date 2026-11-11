@@ -201,7 +201,7 @@ def test_fans_boot_service_turns_on_with_the_policy_after_confirmation():
         {"temperature": 40, "speed": 50}, {"temperature": 60, "speed": 75}, {"temperature": 74, "speed": 100}]}}
     choice(render(build_pages()["fans"], ctx, ui, "boot"), "Turn on").handler(ui)
     call = next(c for c in service.calls if c[0] == "activar_control_fan_sistema")
-    assert call[1][0]["mode"] == "curve" and call[1][0]["pwm"] == 2
+    assert call[1][0]["channels"]["2"]["mode"] == "curve" and list(call[1][0]["channels"]) == ["2"]
 
 
 def test_protected_processes_cannot_be_acted_on():

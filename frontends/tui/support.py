@@ -77,7 +77,7 @@ def install_update(ctx, family: str):
     return ctx.service.instalar_actualizacion(plan, str(package) if package else None)
 
 
-def report(ui, *, title: str = "", log: str = "") -> None:
+def report(ui, *, title: str = "", log: str = "", workflow_details=None) -> None:
     """The report form, as questions: a problem (or an idea), what happened, a contact.
 
     ``title``/``log`` come from a failed workflow and are attached as its log.
@@ -92,8 +92,15 @@ def report(ui, *, title: str = "", log: str = "") -> None:
     if kind is None:
         return
     text = ui.ask_text(tr("What went wrong?") if kind == form.KIND_PROBLEM else tr("Suggestions and ideas"), title)
+    while kind == form.KIND_PROBLEM and text and len(text.strip()) < 4:
+        text = ui.ask_text(tr(form.SUMMARY_HINT), text)
     if not (text or "").strip():
         return
+    expected = ""
+    if kind == form.KIND_PROBLEM:
+        expected = ui.ask_text(tr("What did you expect to happen?"), "")
+        if expected is None:
+            return
     contact = ui.ask_text(tr("Telegram or Discord username"), "")
     if contact is None or not ui.confirm(tr("Send") + "?"):
         return
@@ -102,14 +109,15 @@ def report(ui, *, title: str = "", log: str = "") -> None:
         from bc250cc.shared.version import application_version
 
         facts = read_report_facts()
-        fields = {key: facts[key] for key in ("system", "os_release", "firmware", "history", "attachments",
+        fields = {key: facts[key] for key in ("identity", "system", "os_release", "firmware", "history", "attachments",
                                                "install", "distribution", "bios", "cores") if key in facts}
+        fields["history"] = form.history_items(facts.get("history", ()))
         problem = kind == form.KIND_PROBLEM
         document = form.Report(
-            kind=kind, summary=text if problem else "", notes="" if problem else text, contact=contact,
+            kind=kind, expected=expected, summary=text if problem else "", notes="" if problem else text, contact=contact,
             version=str(facts.get("version") or application_version()), opened_from="tui",
             language=current_language(), workflow_title=title if log else "", workflow_log=form.clean_log(log),
-            **fields)
+            workflow_details=dict(workflow_details or {}), **fields)
         try:
             return f"{tr('Thanks, it was sent')} ({form.submit(document)})"
         except form.ReportError as error:

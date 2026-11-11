@@ -1225,6 +1225,12 @@ class GpuGovernorStateMixin:
             "cachyos_bc250_proton-ge",
             "cachyos_bc250_proton-slr",
             "cachyos_bc250_remove-proton",
+            "cachyos_bc250_extra-fixes",
+            "cachyos_bc250_extra-paccache",
+            "cachyos_bc250_remove-extra-fixes",
+            "cachyos_bc250_remove-extra-paccache",
+            "cachyos_bc250_extra-ch7218",
+            "cachyos_bc250_remove-extra-ch7218",
         }:
             chosen = action.removeprefix("cachyos_bc250_")
             if chosen == "remove-proton":
@@ -1262,6 +1268,9 @@ class GpuGovernorStateMixin:
         if action == "fsr4_upstream":
             self._open_fsr4_upstream(dialog_parent=dialog_parent)
             return
+        if action.startswith("directmesh_") and action != "directmesh_upstream":
+            self._manage_directmesh(action.removeprefix("directmesh_"), dialog_parent=dialog_parent)
+            return
         if action.startswith("helixsr_") and action != "helixsr_upstream":
             self._manage_helixsr(
                 action.removeprefix("helixsr_"), dialog_parent=dialog_parent
@@ -1270,10 +1279,14 @@ class GpuGovernorStateMixin:
         if action in {
             "acpi_upstream",
             "helixsr_upstream",
+            "directmesh_upstream",
             "vaapi_upstream",
             "gfx1013_upstream",
             "bazzite_async_upstream",
             "bazzite_image_upstream",
+            "cyan_upstream",
+            "oberon_upstream",
+            "cachyos_stack_upstream",
         }:
             self._open_compatibility_upstream(action, dialog_parent=dialog_parent)
             return

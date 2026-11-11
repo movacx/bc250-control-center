@@ -518,8 +518,10 @@ def _rpm_ostree_install(path: str) -> str:
   # rpm-ostree re-resolves every layered package. One that this Fedora release
   # no longer ships (for example coolercontrol, R-506fdded) blocks the update.
   if [ "$bc250_rc" -ne 0 ] && grep -q 'Packages not found:' "$bc250_log"; then
+    bc250_missing="$(grep -m1 'Packages not found:' "$bc250_log" | sed 's/.*Packages not found: *//')"
     echo "ERROR: $(grep -m1 'Packages not found:' "$bc250_log")"
-    echo "That layered package is not available for this release. Remove it, then update again: rpm-ostree uninstall <package>"
+    echo "Layered on this system, but no enabled repository publishes it any more: $bc250_missing"
+    echo "Control Center did not install it. Re-enable the repository that provides it, or remove it on purpose and update again: rpm-ostree uninstall $bc250_missing"
   fi
   rm -f "$bc250_log"
   return "$bc250_rc"

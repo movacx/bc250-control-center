@@ -41,6 +41,7 @@ def test_masta_stack_state_reports_kernel_and_repository_mesa(monkeypatch, tmp_p
         "kernel_is_bc250": True,
         "kernel_fallbacks": ["7.1.4-1-cachyos"],
         "proton_installed": {"native": True, "ge": True, "slr": True},
+        "extras_installed": {"fixes": True, "paccache": True, "ch7218": True},
         "kernel_installed": True,
         "kernel_active": True,
         "kernel_variant": "stable",
@@ -306,3 +307,27 @@ def test_proton_install_touches_only_the_chosen_package_and_removal_needs_no_rep
 def test_kernel_workflow_says_the_kernel_manager_does_not_list_it():
     command = build_cachyos_bc250_kernel_command("kernel")
     assert "Kernel Manager" in command and "uname -r" in command
+
+
+def test_the_extras_install_only_their_own_package_and_removal_needs_no_repository():
+    for key, package in (("fixes", "bc250-fixes"), ("paccache", "bc250-paccache-cleanup"), ("ch7218", "bc250-ch7218-fw")):
+        install = build_cachyos_bc250_kernel_command(f"extra-{key}")
+        assert f"bc250_packages=(bc250-cachyos/{package})" in install
+        assert "--ignore 'linux-cachyos-bc250*" in install, "the kernel and Mesa are not touched"
+        assert f"pacman -Q {package}" in install
+        removal = build_cachyos_bc250_kernel_command(f"remove-extra-{key}")
+        assert f"pacman -Rns {package}" in removal
+        assert "Remove BC-250 extra" in removal
+        assert "bc250-cachyos/" not in removal
+
+
+def test_every_extra_action_is_a_known_action_and_nothing_else_is():
+    from bc250cc.infrastructure.cachyos_bc250_kernel import CACHYOS_BC250_EXTRA_PACKAGES
+
+    assert {f"extra-{key}" for key in CACHYOS_BC250_EXTRA_PACKAGES} <= set(CACHYOS_BC250_ACTIONS)
+    assert {f"remove-extra-{key}" for key in CACHYOS_BC250_EXTRA_PACKAGES} <= set(CACHYOS_BC250_ACTIONS)
+    import pytest
+
+    for bad in ("extra-flash", "extra-fixes;rm", "remove-extra-"):
+        with pytest.raises(ValueError):
+            build_cachyos_bc250_kernel_command(bad)

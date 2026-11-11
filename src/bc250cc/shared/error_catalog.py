@@ -146,7 +146,9 @@ _CODES: tuple[ErrorCode, ...] = (
         "A required package is not available from the enabled repositories.",
         "The package, or one of its dependencies, is not published for this distribution or release, or the repository that provides it is not enabled.",
         "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.",
-        markers=('nothing provides', 'has unmet dependencies', 'Unmet dependencies', 'unable to satisfy dependency', 'could not satisfy dependencies', 'error: target not found',),
+        markers=('nothing provides', 'has unmet dependencies', 'Unmet dependencies', 'unable to satisfy dependency', 'could not satisfy dependencies', 'error: target not found',
+                 # rpm-ostree, for a layered package the repositories no longer carry (R-506fdded).
+                 'Packages not found',),
     ),
     # Wine's loader, when kernel32.dll is missing from the prefix or the build.
     ErrorCode(
@@ -156,6 +158,35 @@ _CODES: tuple[ErrorCode, ...] = (
         "In Steam, verify the files of the Proton version in use, then run this action again.",
         markers=(
             "could not load kernel32.dll",
+        ),
+    ),
+    # bash's own words for an executable whose loader or a library is absent
+    # (a Toolbx or an incomplete Proton); the file passes ``test -x``, so the
+    # HelixSR shader build gets this far before stopping (R-a45942d4).
+    ErrorCode(
+        "BC250-WINE-002",
+        "Wine or Proton cannot run in this environment.",
+        "The Wine program that HelixSR uses to compile its shaders exists, but Linux cannot execute it here: a loader or library it depends on is missing, which happens inside a Toolbx or Distrobox container or with an incomplete Proton.",
+        "In Steam, verify the files of the Proton version in use, or install Wine for this system. Inside a container, install the libraries Wine needs there, then run this action again.",
+        markers=(
+            "cannot execute: required file not found",
+            "cannot be executed here",
+        ),
+        requires="wine",
+    ),
+    # HelixSR's bridge refuses a game with an anti-cheat unless told
+    # ``--anticheat-ok yes``, which Control Center never passes (R-c6ab33f2).
+    ErrorCode(
+        "BC250-UPSCALE-002",
+        "HelixSR refused this game because of its anti-cheat.",
+        # No "nothing was changed" promise: install_helixsr_bridge migrates a
+        # HelixSR 2 game before the bridge can refuse (B8 reorders that).
+        "HelixSR's bridge reports that the game uses an anti-cheat such as EasyAntiCheat. Replacing its upscaler files can get the account banned in online play, so HelixSR's bridge declined to install it.",
+        "Use HelixSR with games that have no anti-cheat. Control Center never overrides this check on its own.",
+        # No bare "EasyAntiCheat": a game-folder listing names that directory.
+        markers=(
+            "has anti-cheat",
+            "anticheat-ok",
         ),
     ),
     ErrorCode(
@@ -179,7 +210,8 @@ _CODES: tuple[ErrorCode, ...] = (
         # The SMU mailbox gave no answer in time (0x00) or said it was busy
         # (0xFC). The CPU/SMU helper exits 70 for it, which alone reads as a
         # helper version mismatch and sent users to reinstall.
-        markers=('Transaction in progress', 'another BC250 system preparation is already running', "index.lock': File exists", 'Another git process seems to be running', 'smu returned status 0x00', 'smu returned status 0xFC', 'smu timed out after',
+        markers=('Transaction in progress', 'another BC250 system preparation is already running',
+                 'Another BC250 system setup change is running', "index.lock': File exists", 'Another git process seems to be running', 'smu returned status 0x00', 'smu returned status 0xFC', 'smu timed out after',
                  # The CPU helper exits 44 (a RANGE status) for it.
                  'SMU_IN_USE'),
     ),
@@ -235,6 +267,15 @@ _CODES: tuple[ErrorCode, ...] = (
         "Cyan replaces two GPU sensor files with patched copies while it runs. One replacement from an earlier run is still in place, so the new one cannot be made and the service stops.",
         "Stop the governor, undo the leftover replacement on the path named in the technical detail, then start it again. If it keeps happening, turn off Fix metrics and Fix frequencies.",
         markers=('patched_gpu_metrics', 'patched_freq_metrics', 'move_mount', 'mount --bind'),
+    ),
+    # The voltage curve is written through the running Cyan; with Cyan stopped
+    # the edit is refused before anything is changed (R-cbc5ba02, R-5577dbea).
+    ErrorCode(
+        "BC250-GPU-008",
+        "Cyan is not running, so the voltage curve was not changed.",
+        "The voltage curve is applied through the running governor: Cyan has to be active so the new values can be written, read back and verified.",
+        "Press Start governor on the governor card, wait a few seconds until it shows Connected, then apply the voltage curve again.",
+        markers=('must be active before changing its voltage curve',),
     ),
     ErrorCode(
         "BC250-RANGE-001",
@@ -333,7 +374,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "BC250-AUTH-002",
         "Administrator authorization was not completed.",
         "The password dialog was cancelled, closed, timed out, or rejected the supplied password.",
-        "Run the action again and finish the administrator password dialog. No hardware change was applied.",
+        "Run the action again and finish the administrator password dialog.",
         exit_statuses=(),
         markers=('sudo: timed out reading password', 'sudo: a password is required', 'Error executing command as another user: Not authorized', 'QUICK_ACCESS_AUTH',),
     ),
@@ -345,7 +386,12 @@ _CODES: tuple[ErrorCode, ...] = (
         "The AMDGPU device is unavailable, the application is running in a container or remote session, or the active kernel did not bind the BC-250 GPU.",
         "Verify that lspci shows 1002:13fe and that AMDGPU is loaded. Restart into the BC250 kernel if the device is present without a driver.",
         exit_statuses=(10, 12, 18, 19),
-        markers=('probe with driver amdgpu failed', 'The GPU driver (amdgpu) did not start', 'invalid ip discovery binary signature', "HARDWARE_CONTEXT", "QUICK_ACCESS_CONTEXT"),
+        markers=('probe with driver amdgpu failed', 'The GPU driver (amdgpu) did not start', 'invalid ip discovery binary signature', "HARDWARE_CONTEXT", "QUICK_ACCESS_CONTEXT",
+                 # The scripts' own PCI checks (bazzite_async_compute, steamos_amdgpu,
+                 # bc250_fsr4) and Cyan's service on a PC that is not a BC-250. Both
+                 # spellings: ``for_marker`` is case-sensitive.
+                 '13fe was not found', '13fe was not detected', '13FE was not detected',
+                 'expected PCI bus location'),
     ),
     ErrorCode(
         "BC250-GPU-001",
@@ -378,6 +424,7 @@ _CODES: tuple[ErrorCode, ...] = (
             'installation permission repair is unavailable',
             'install the local name repair helper',
             'install the LAN firewall helper',
+            'to install the protected system setup helper',
         ),
     ),
     # An upstream release that hosts a pacman repository can be removed or
@@ -391,6 +438,8 @@ _CODES: tuple[ErrorCode, ...] = (
         markers=(
             "returned error: 404",
         ),
+        # A mirror's 404 is a stale package list (PKG-005), not an upstream rebuild.
+        requires="github.com",
     ),
     # The database was read but the files it names are gone from the mirrors: it
     # is older than they are. pacman prints this after its 404 lines, so a repo
@@ -428,9 +477,22 @@ _CODES: tuple[ErrorCode, ...] = (
         markers=(
             'SteamOS reports a writable root',
             'SteamOS read-only state',
-            'read-only protection',
+            'Failed to restore SteamOS read-only protection',
             'systemd-sysext or another immutable layer',
         ),
+    ),
+    # After IMMUTABLE-001 on purpose (a later text rule wins): the root was
+    # reported writable, yet pacman could not write its database (R-fc1cfbe2).
+    ErrorCode(
+        "BC250-IMMUTABLE-002",
+        "The SteamOS root was still read-only when packages were written.",
+        "SteamOS reported a writable root, but the pacman database under /usr/lib/holo/pacmandb was still read-only when pacman wrote to it, so the transaction was aborted and no package was changed.",
+        "Restart SteamOS and run the action again. If it repeats, report it with this code and the findmnt and steamos-readonly lines printed above; do not change the read-only state by hand.",
+        markers=(
+            'could not create directory',
+            'pacman database is still read-only',
+        ),
+        requires="Read-only file system",
     ),
     # A pinned release or reviewed source revision could not be fetched.
     ErrorCode(
@@ -444,7 +506,40 @@ _CODES: tuple[ErrorCode, ...] = (
             'Reviewed source revision could not be checked out',
             # sha256sum -c on a downloaded update package.
             'computed checksum did NOT match',
+            # curl and git (R-530bd5f6, R-cc0af5ae, R-86b82fd2, R-86d44da1).
+            # "returned error: 5" covers every 5xx; 404 keeps its own rules.
+            'Could not resolve host', 'Temporary failure in name resolution',
+            # Not a bare "nghttp2": package lists carry libnghttp2.
+            'nghttp2 shuts down connection', 'FRAME_SIZE_ERROR', 'returned error: 5',
+            'Connection timed out', 'Operation timed out',
         ),
+    ),
+    # A compiler, linker or make stopped (R-bb33f44b). After NET-001 so a
+    # download error that was recovered from does not outrank the build that
+    # failed after it; before RUNTIME-001, whose library mismatch is the
+    # more precise cause when both appear. "] Error N" is make's own line;
+    # "]" outside a bracket expression is literal in POSIX ERE.
+    ErrorCode(
+        "BC250-BUILD-003",
+        "A build step failed.",
+        "The compiler, linker or make stopped on an error before the program or module was produced. A missing header file means a development package (kernel headers or linux-api-headers) is not installed; another error names the file and line involved.",
+        "Read the first compiler error in the log above. If it names a missing header, prepare dependencies from the Dashboard and retry; otherwise report the workflow with this code and the log.",
+        markers=(
+            'compilation terminated.', 'collect2: error', 'ninja: build stopped',
+            'ld returned 1 exit status', '] Error ',
+        ),
+    ),
+    # A binary built on a newer system (Oberon from fedora:latest on an older
+    # Bazzite, R-53376560; the audio tools on SteamOS, R-79e92b51). Before
+    # BUILD-001 so its SteamOS-specific marker still wins there.
+    ErrorCode(
+        "BC250-RUNTIME-001",
+        "A program needs a newer system library than this system has.",
+        "The program, or a build tool downloaded for it, was built against a newer glibc or libstdc++ than the one installed here, so Linux refuses to start it.",
+        "Update the system and retry, or use a build made for this release. Never replace the system's glibc or libstdc++ by hand; if the program came from a BC250 workflow, report it with this code.",
+        markers=('GLIBCXX_', 'CXXABI_', 'GLIBC_2.'),
+        # The loader's own wording: "version `X' not found (required by Y)".
+        requires="(required by",
     ),
     # The workflow printed its own [ERROR] lines, so its wording is shown
     # instead of a rule. This entry exists so the identifier is a registered
@@ -481,7 +576,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "The SteamOS build tools are incompatible with the installed system libraries.",
         "A downloaded build tool requires a newer GLIBC runtime than this SteamOS provides, or its runtime preflight failed.",
         "Run SteamOS compatibility repair with the updated Control Center build, which uses the installed SteamOS branch and a separate dependency cache. Do not replace the system GLIBC libraries.",
-        markers=("STEAMOS_BUILD_RUNTIME_INCOMPATIBLE", "GLIBC_2."),
+        markers=("STEAMOS_BUILD_RUNTIME_INCOMPATIBLE",),
     ),
     ErrorCode(
         "BC250-PROTON-001",
@@ -501,6 +596,12 @@ _CODES: tuple[ErrorCode, ...] = (
 )
 
 GENERAL_FAILURE = _CODES[-1]
+
+#: The calm dialog a hardware action shows on a PC that is not a BC-250; the
+#: HW-001 entry above explains it. Defined here so the locales carry it.
+HARDWARE_GATE_MESSAGE = (
+    "This action changes BC-250 hardware, and no BC-250 (PCI 1002:13fe) was found in this computer. Nothing was changed."
+)
 
 BY_CODE: dict[str, ErrorCode] = {entry.code: entry for entry in _CODES}
 
@@ -524,6 +625,12 @@ for _entry in _CODES:
 
 def for_exit_status(status: object) -> ErrorCode | None:
     """Return the code a process exit status means, or None when unmapped.
+
+    Only for known producers: the protected helpers, whose numbers this table
+    was written for, and whose callers (``failure_text.describe_failure``)
+    read the helper's own marker first. A terminal workflow's status is the
+    status of whatever ran last (``make`` 2, ``curl`` 22, ``systemctl status``
+    3) and means nothing here, so ``terminal_plan`` no longer consults it.
 
     Signals are reported as ``128 + n`` by the shell; they are not workflow
     failures with a fix, so they stay unmapped and render as the generic entry
@@ -577,4 +684,5 @@ def translatable_strings() -> tuple[str, ...]:
     for entry in _CODES:
         for value in (entry.summary, entry.cause, entry.action):
             seen.setdefault(value, None)
+    seen.setdefault(HARDWARE_GATE_MESSAGE, None)
     return tuple(seen)

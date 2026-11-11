@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from bc250cc.domain.fan.persistence import FanControlMemory, plan_persistent_fan
+from bc250cc.domain.fan import engine
 from bc250cc.infrastructure import system_fan_control
 from bc250cc.infrastructure.daemon import BC250ControlCenterDaemon
 from bc250cc.infrastructure.system_fan_control import (
@@ -98,6 +98,7 @@ def board(tmp_path, monkeypatch):
         yield
 
     monkeypatch.setitem(g, "fan_operation_lock", no_lock)
+    g["fan_engine"]()  # load it now: tests that pretend to be root skip the trust walk
     return module, g, nct, k10
 
 
@@ -129,19 +130,23 @@ def test_nothing_to_follow_means_no_policy():
     assert build_system_fan_policy({}) is None
 
 
+def _channel(p):
+    return p["channels"]["2"]
+
+
 @pytest.mark.parametrize("mutation, message", [
     (lambda p: p.update(extra=1), "Unknown fan policy keys"),
-    (lambda p: p.update(schema=2), "schema"),
-    (lambda p: p.update(pwm=True), "pwm"),
-    (lambda p: p.update(pwm=13), "pwm"),
-    (lambda p: p.update(points=[[45, 70], [45, 90], [68, 100]]), "strictly increasing"),
-    (lambda p: p.update(points=[[45, 70], [60, 101], [68, 100]]), "s must be"),
-    (lambda p: p.update(points=[[45, 70]]), "between 3 and 8"),
+    (lambda p: p.update(schema=3), "schema"),
+    (lambda p: p.update(channels={"true": _channel(p)}), "Channel keys"),
+    (lambda p: p.update(channels={"13": _channel(p)}), "PWM channels"),
+    (lambda p: _channel(p).update(points=[[45, 70], [45, 90], [68, 100]]), "strictly increasing"),
+    (lambda p: _channel(p).update(points=[[45, 70], [60, 101], [68, 100]]), "s must be"),
+    (lambda p: _channel(p).update(points=[[45, 70]]), "between 2 and 8"),
     (lambda p: p.update(failsafe_percent=20), "failsafe_percent"),
-    (lambda p: p.update(hysteresis_c=float("nan")), "hysteresis_c"),
+    (lambda p: _channel(p).update(hysteresis_c=float("nan")), "hysteresis_c"),
     (lambda p: p.update(critical_c={"gpu": 200}), "gpu must be"),
     (lambda p: p.update(offsets_c={"nvme": 1}), "offsets_c accepts only"),
-    (lambda p: p.update(mode="turbo"), "mode"),
+    (lambda p: _channel(p).update(mode="turbo"), "mode"),
 ])
 def test_the_root_helper_refuses_rather_than_repairs(board, mutation, message):
     module, _g, _nct, _k10 = board
@@ -163,7 +168,7 @@ def test_session_policy_command_saves_the_file_and_ends_a_takeover(board):
     assert json.loads(g["POLICY_FILE"].read_text()) == _policy()
     assert not g["OVERRIDE_FILE"].exists()
     assert module["session_policy_command"]("POLICY {not json").startswith("ERR ")
-    assert module["session_policy_command"]("POLICY " + "x" * 5000) == "ERR The fan policy is too large."
+    assert module["session_policy_command"]("POLICY " + "x" * 20000) == "ERR The fan policy is too large."
     assert module["session_policy_command"]("POLICY-CLEAR") == "OK POLICY CLEARED"
     assert not g["POLICY_FILE"].exists()
 
@@ -508,38 +513,30 @@ def test_an_invalid_policy_file_is_reported_and_never_followed(board):
     assert (nct / "pwm2_enable").read_text().strip() == "2"
 
 
-def test_the_root_math_matches_the_desktop_daemon(board):
-    """Same curve, same smoothing: the service may not pick another duty."""
-    module, _g, _nct, _k10 = board
-    policy = _policy()
+def test_the_root_loop_writes_exactly_what_the_engine_plans(board, monkeypatch):
+    """The service may not pick another duty than the shared engine: drive both
+    through the same random walk and compare every tick."""
+    module, g, nct, _k10 = board
+    module["save_policy"](_policy())
     rng = random.Random(15)
-    controller = module["FanController"](clock=lambda: 0.0)
-    controller.policy = policy
-    memory = FanControlMemory()
+    moments = iter([100.0 + step * 2.0 for step in range(300)])
+    controller = module["FanController"](clock=lambda: next(moments))
     temperature = 50.0
-    for step in range(400):
-        now = 100.0 + step * 10.0
-        temperature = max(30.0, min(90.0, temperature + rng.uniform(-4.0, 4.0)))
-        metric = {"cpu_temp": temperature}
-        decision = plan_persistent_fan(metric, CURVE_CONFIG, memory, now=now)
-        planned = controller.plan({"cpu": temperature}, now)
-        assert planned is not None
-        percent = planned[0]
-        if decision.action == "apply":
-            assert decision.target.percent == percent, (step, temperature)
-            target = decision.target
-            memory = FanControlMemory(
-                last_apply=now, last_percent=target.percent, last_target=target.identity,
-                last_verify=now, last_temperature=target.temperature,
-            )
-        else:
-            assert memory.last_percent == percent, (step, temperature)
-        raw = round(percent * 255 / 100)
-        if raw != controller.last_raw:
-            controller.last_raw = raw
-            controller.last_percent = percent
-            controller.last_source = "curve"
-            controller.last_temperature = temperature
+    readings = {}
+    monkeypatch.setitem(g, "read_temperatures", lambda base=None: dict(readings))
+    memories = {}
+    for step in range(300):
+        temperature = max(30.0, min(90.0, temperature + rng.uniform(-2.0, 2.0)))
+        readings = {"cpu": temperature}
+        now = 100.0 + step * 2.0
+        decisions, memories = engine.plan(
+            controller.policy or engine.validate_policy(_policy()), readings, memories, now,
+            expected={"cpu"},
+        )
+        controller.step()
+        expected_raw = decisions[2].raw
+        assert controller.snapshot["channels"]["2"]["raw"] == expected_raw, step
+        assert int((nct / "pwm2").read_text()) == expected_raw, step
 
 
 def test_restore_boot_stands_aside_for_the_control_service(board, monkeypatch):
@@ -799,3 +796,148 @@ def test_the_repository_refuses_every_route_while_another_program_has_the_fan(mo
     with pytest.raises(RuntimeError, match="handed to another program"):
         repository.restaurar_pwm_automatico(2)
     assert touched == [], "refused before any route is even chosen"
+
+
+def test_an_emergency_after_a_takeover_writes_at_once(board):
+    # Codex review: the cached duty must not survive someone else's write.
+    module, g, nct, k10 = board
+    module["save_policy"](_policy())
+    moments = iter([0.0, 2.0, 4.0])
+    controller = module["FanController"](clock=lambda: next(moments))
+    controller.step()
+    _write(k10 / "temp1_input", 99000)  # Tctl far past its limit
+    controller.step()
+    assert (nct / "pwm2").read_text().strip() == "255"
+    g["OVERRIDE_FILE"].parent.mkdir(parents=True, exist_ok=True)
+    g["OVERRIDE_FILE"].write_text('{"channels": [2], "source": "session"}', encoding="utf-8")
+    _write(nct / "pwm2", 60)  # the takeover's own write
+
+    controller.step()  # still critical: the policy takes the channel back now
+
+    assert (nct / "pwm2").read_text().strip() == "255"
+    assert not g["OVERRIDE_FILE"].exists()
+
+
+def test_a_failed_hand_back_is_retried_and_reported(board, monkeypatch):
+    module, g, nct, _k10 = board
+    module["save_policy"](_policy())
+    moments = iter([0.0, 2.0, 4.0])
+    controller = module["FanController"](clock=lambda: next(moments))
+    controller.step()
+    assert controller.driven == {2}
+    answers = iter(["ERR busy", "ERR busy", "OK PWM 2 AUTO"])
+    monkeypatch.setitem(g, "restore_automatic", lambda _channel: next(answers))
+    g["POLICY_FILE"].unlink()
+
+    controller.step()  # policy gone: the hand-back fails, twice this tick
+    assert controller.driven == {2}
+    assert controller.errors[2] == "busy"
+    controller.step()  # next tick: retried, and it works
+    assert controller.driven == set()
+    assert 2 not in controller.errors
+
+
+def _two_channel_policy(pwm3_points=((40, 30), (80, 100))):
+    return engine.validate_policy({"schema": 2, "channels": {
+        "2": {"mode": "fixed", "percent": 90, "role": "pump"},
+        "3": {"mode": "curve", "points": [list(p) for p in pwm3_points]},
+    }})
+
+
+def _sensor_board(board):
+    module, g, nct, k10 = board
+    for index in (2, 3):
+        _write(nct / f"pwm{index}", 127)
+        _write(nct / f"pwm{index}_enable", 2)
+    return module, g, nct, k10
+
+
+def test_editing_one_channel_keeps_the_others_memory(board):
+    # Codex final review: an unrelated edit must not reset every channel.
+    module, g, nct, _k10 = _sensor_board(board)
+    module["save_policy"](_two_channel_policy())
+    moments = iter([0.0, 2.0, 4.0])
+    controller = module["FanController"](clock=lambda: next(moments))
+    controller.step()
+    first_write = controller.last_write[2]
+
+    module["save_policy"](_two_channel_policy(((30, 40), (70, 100))))
+    controller.step()
+
+    assert controller.memories[2].source == "fixed"
+    assert controller.applied[2] == round(90 * 255 / 100)
+    assert controller.last_write[2] == first_write, "the pump was not rewritten"
+
+
+def test_an_emergency_survives_a_failed_write_and_is_retried(board, monkeypatch):
+    module, g, nct, k10 = board
+    module["save_policy"](_policy())
+    moments = iter([0.0, 2.0, 4.0])
+    controller = module["FanController"](clock=lambda: next(moments))
+    controller.step()
+    _write(k10 / "temp1_input", 99000)
+    answers = iter(["ERR busy", "OK PWM 2 255"])
+
+    def flaky(channel, value, remember=True):
+        answer = next(answers)
+        if answer.startswith("OK"):
+            _write(nct / f"pwm{channel}", value)
+        return answer
+
+    monkeypatch.setitem(g, "apply_pwm", flaky)
+    controller.step()
+    assert controller.memories[2].source == "critical"
+    # ...and now every sensor that answered before is gone: no evidence the
+    # emergency is over, so the retry still goes to 100 %.
+    monkeypatch.setitem(g, "read_temperatures", lambda base=None: {})
+    controller.step()
+    assert (nct / "pwm2").read_text().strip() == "255"
+
+
+def test_an_emergency_rereads_the_register_every_tick(board):
+    module, g, nct, k10 = board
+    module["save_policy"](_policy())
+    moments = iter([0.0, 2.0, 4.0])
+    controller = module["FanController"](clock=lambda: next(moments))
+    _write(k10 / "temp1_input", 99000)
+    controller.step()
+    _write(nct / "pwm2", 60)  # a takeover that came and went between ticks
+
+    controller.step()
+
+    assert (nct / "pwm2").read_text().strip() == "255"
+
+
+@pytest.mark.parametrize("refusal", [
+    "ERR Unknown fan policy keys: channels.", "ERR Unsupported fan policy schema.",
+])
+def test_an_old_helper_gets_a_lossless_schema_1_policy(refusal):
+    from bc250cc.infrastructure.fan_repository import FanRepository
+
+    sent = []
+
+    class Repository(FanRepository):
+        def __init__(self):
+            pass
+
+        def _requerir_helper_control_sistema(self):
+            return None
+
+        def _comando_fan_helper(self, line, *, timeout=60):
+            sent.append(json.loads(line.split(" ", 1)[1]))
+            if sent[-1]["schema"] == 2:
+                raise RuntimeError(refusal[4:])
+            return "OK POLICY abc"
+
+    result = Repository().sincronizar_control_fan_sistema(_policy())
+
+    assert [payload["schema"] for payload in sent] == [2, 1]
+    assert sent[1]["pwm"] == 2 and sent[1]["mode"] == "curve"
+    assert result["digest"] == "abc"
+
+    sent.clear()
+    multi = build_system_fan_policy({"fan_channels": {
+        "1": {"mode": "fixed", "percent": 50}, "3": {"mode": "fixed", "percent": 60},
+    }})
+    with pytest.raises(RuntimeError, match="Reinstall"):
+        Repository().sincronizar_control_fan_sistema(multi)

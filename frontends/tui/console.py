@@ -43,6 +43,8 @@ class Console:
         self.lock = threading.Lock()
         self.done = threading.Event()
         self.ok = True
+        self.exit_status: int | None = None
+        self.interrupted = False
         self.failed = False  # a workflow it ran exited non-zero
         self.printed = False
         self.log_file = ""  # the last workflow's full log, named in the pane's header
@@ -113,6 +115,10 @@ class Console:
     def succeeded(self) -> bool:
         return self.ok and not self.failed
 
+    @property
+    def reportable(self) -> bool:
+        return self.done.is_set() and not self.succeeded and not self.interrupted and self.exit_status != 130
+
     def finish(self, ok: bool, result: object) -> None:
         self.ok, self.result, self.finished_at = ok, result, time.monotonic()
         self.done.set()
@@ -130,6 +136,7 @@ class Console:
 
     def interrupt(self) -> None:
         """Ctrl+C for whatever is waiting on the console (a command, or a password prompt)."""
+        self.interrupted = True
         if self.send(b"\x03"):  # the pty turns it into SIGINT for its foreground group
             return
         process = self.process
@@ -208,7 +215,10 @@ class Console:
     def run(self, argv: list[str], log_file: str = "") -> int:
         """Run ``argv`` until it exits; its output lands here and in ``log_file``."""
         self.process, self.master = self._spawn(argv)
-        return self._pump(self.process, self.master, TranscriptLog(log_file) if log_file else None)
+        status = self._pump(self.process, self.master, TranscriptLog(log_file) if log_file else None)
+        if status != 0 or self.exit_status is None:
+            self.exit_status = status
+        return status
 
     @contextlib.contextmanager
     def password_agent(self):

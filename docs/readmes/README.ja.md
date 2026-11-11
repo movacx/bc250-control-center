@@ -5,7 +5,7 @@
 GPU ガバナー、CPU チューニング、コンピューティング ユニット、ファン、メモリ、BIOS アップデート メディア、サポートされるディストリビューションのアップスケーリングとシステムの準備について説明します。インターフェイスは、アプリケーション サービス、ハードウェア制限、特権ヘルパーを共有します。オプションの Decky プラグインを使用すると、Steam のゲーム モードに日常的なコントロールが追加されます。
 
 <p align="center">
-  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard" width="100%"></a>
+  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/demo.gif" alt="BC250 Control Center dashboard" width="100%"></a>
 </p>
 
 <p align="center">

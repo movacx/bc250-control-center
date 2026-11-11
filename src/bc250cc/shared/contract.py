@@ -188,7 +188,9 @@ QUICK_ACCESS_FAN_PRESET_DUTY = {
     "boost": 204,
     "automatic": None,
 }
-QUICK_ACCESS_FAN_CHANNELS = (2, 3, 4, 5)
+# PWM1 is J4003 Fan 5. Adding this accepted value preserves protocol 21
+# request/response shapes; no wire protocol or contract revision bump is needed.
+QUICK_ACCESS_FAN_CHANNELS = (1, 2, 3, 4, 5)
 QUICK_ACCESS_FAN_PERCENT_RANGE = (20, 100)
 QUICK_ACCESS_FAN_PERCENT_STEP = 5
 

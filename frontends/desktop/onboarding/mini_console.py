@@ -111,6 +111,11 @@ class MiniConsole(QFrame):
     def shutdown(self) -> None:
         self._tab.shutdown()
 
+    def apply_theme(self) -> None:
+        """Re-read the terminal colours, as the docked console does."""
+        self.view.apply_theme()
+        self.view.viewport().update()
+
     def retranslate(self) -> None:
         if not self._tab.title:
             self.title.setText(tr("Terminal"))

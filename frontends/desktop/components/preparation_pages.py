@@ -8,11 +8,13 @@ from PyQt6.QtCore import (
     Qt,
 )
 from PyQt6.QtWidgets import (
+    QApplication,
     QBoxLayout,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMenu,
     QProgressBar,
     QSizePolicy,
@@ -149,6 +151,8 @@ class PreparationPagesMixin:
             summary.addWidget(tile, 0, column)
             summary.setColumnStretch(column, 1)
         memory_layout.addLayout(summary)
+        columns = QHBoxLayout()
+        memory_layout.addLayout(columns)
 
         # ---- Swap and compression ----
         swap_card, swap_layout, swap_header = self._memory_card(
@@ -223,14 +227,12 @@ class PreparationPagesMixin:
         self.memory_swap_apply_button.clicked.connect(self._request_memory_swap)
         swap_actions.addWidget(self.memory_swap_apply_button)
         swap_layout.addLayout(swap_actions)
-        memory_layout.addWidget(swap_card)
+        columns.addWidget(swap_card, 3, Qt.AlignmentFlag.AlignTop)
 
         # ---- TTM + VRAM ----
-        gpu_row = QGridLayout()
-        gpu_row.setHorizontalSpacing(16)
-        gpu_row.setVerticalSpacing(16)
-        gpu_row.setColumnStretch(0, 1)
-        gpu_row.setColumnStretch(1, 1)
+        gpu_column = QVBoxLayout()
+        gpu_column.setSpacing(16)
+        columns.addLayout(gpu_column, 2)
 
         ttm_card, ttm_layout, _ttm_header = self._memory_card(
             "gpu_purple", "purple_soft", "Dynamic GPU Memory Limit (TTM)"
@@ -263,7 +265,7 @@ class PreparationPagesMixin:
         self.memory_ttm_apply_button.setProperty("dashboardCardAction", True)
         self.memory_ttm_apply_button.clicked.connect(self._request_memory_ttm)
         ttm_layout.addWidget(self.memory_ttm_apply_button)
-        gpu_row.addWidget(ttm_card, 0, 0)
+        gpu_column.addWidget(ttm_card)
 
         vram_card, vram_layout, _vram_header = self._memory_card(
             "vram_gray", "cyan_soft", "VRAM size (UMA_SIZE)"
@@ -285,13 +287,36 @@ class PreparationPagesMixin:
         self.vram_apply_button.setProperty("dashboardCardAction", True)
         self.vram_apply_button.clicked.connect(self._request_vram_apply)
         vram_layout.addWidget(self.vram_apply_button)
-        gpu_row.addWidget(vram_card, 0, 1)
-        memory_layout.addLayout(gpu_row)
+        gpu_column.addWidget(vram_card)
+        gpu_column.addStretch(1)
 
         self._sync_memory_option_rows()
         self._update_ttm_readout()
         self._update_vram_readout()
+        self._arrange_memory_workspace(memory_layout)
         return self.memory_panel
+
+    def _arrange_memory_workspace(self, memory_layout: QVBoxLayout) -> None:
+        """Lay the panel out as the Fans page: a table of memory, an editor beside it.
+
+        Everything built above stays built and fed; what the workspace does
+        not show waits in a hidden holder, so the render code can keep
+        writing to it.
+        """
+        from .memory_workspace import MemoryWorkspace
+
+        holder = QWidget(self.memory_panel)
+        holder.hide()
+        holder_layout = QVBoxLayout(holder)
+        while memory_layout.count():
+            item = memory_layout.takeAt(0)
+            if item.widget() is not None:
+                holder_layout.addWidget(item.widget())
+            elif item.layout() is not None:
+                holder_layout.addLayout(item.layout())
+        self._memory_holder = holder
+        self.memory_workspace = MemoryWorkspace(self)
+        memory_layout.addWidget(self.memory_workspace)
 
     def _build_memory_status_report(self) -> str:
         """Compose the human-readable report shown in the embedded terminal.
@@ -419,7 +444,7 @@ class PreparationPagesMixin:
         root.setSpacing(8)
         root.addWidget(_label("Kernel boot options", "dashboardComponentTitle", wrap=False))
         detail = _label(
-            "Both apply at the next boot and can be restored here. Disabling mitigations exposes the system to CPU vulnerabilities; disabling SMT leaves one thread per core.",
+            "Each applies at the next boot and can be restored here. Disabling mitigations exposes the system to CPU vulnerabilities; disabling SMT leaves one thread per core. The scheduler policy, HDMI 2.1 and picture-recovery switches belong to the BC-250 kernel and are shown where it has them.",
             "dashboardMemoryDetail",
         )
         detail.setWordWrap(True)
@@ -611,6 +636,9 @@ class PreparationPagesMixin:
             scope_text="Alternative backend",
             status_text="Not installed",
         )
+        # Where each governor comes from, as every other compatibility tool says.
+        self.cyan_card.add_action("Open upstream project", {"action": "cyan_upstream", "governor": ""})
+        self.oberon_card.add_action("Open upstream project", {"action": "oberon_upstream", "governor": ""})
         for card in (self.cyan_card, self.oberon_card):
             card.action_requested.connect(self._forward_dependency_action)
             layout.addWidget(card)
@@ -720,6 +748,8 @@ class PreparationPagesMixin:
         gfx_layout.insertWidget(actions_index, self.bazzite_launch_row)
         gfx_layout.insertWidget(actions_index, self.bazzite_enable_row)
         layout.addWidget(self.gfx_card)
+        self._build_directmesh_card()
+        layout.addWidget(self.directmesh_card)
         self.steamos_proton_card = PreparationInfoCard(
             "BC-250 GE-Proton · SteamOS",
             "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.",
@@ -794,6 +824,26 @@ class PreparationPagesMixin:
             "Remove Proton BC-250",
             {"action": "cachyos_bc250_remove-proton", "governor": ""},
         )
+        # Small optional packages of the same repository.
+        self.cachyos_fixes_button = self.cachyos_stack_card.add_action(
+            "Install BC-250 fixes", {"action": "cachyos_bc250_extra-fixes", "governor": ""}
+        )
+        self.cachyos_fixes_remove_button = self.cachyos_stack_card.add_action(
+            "Remove BC-250 fixes", {"action": "cachyos_bc250_remove-extra-fixes", "governor": ""}
+        )
+        self.cachyos_paccache_button = self.cachyos_stack_card.add_action(
+            "Install pacman cache cleanup", {"action": "cachyos_bc250_extra-paccache", "governor": ""}
+        )
+        self.cachyos_paccache_remove_button = self.cachyos_stack_card.add_action(
+            "Remove pacman cache cleanup", {"action": "cachyos_bc250_remove-extra-paccache", "governor": ""}
+        )
+        # Files only: the flash itself is a manual command upstream documents.
+        self.cachyos_ch7218_button = self.cachyos_stack_card.add_action(
+            "Install UGREEN adapter firmware files", {"action": "cachyos_bc250_extra-ch7218", "governor": ""}
+        )
+        self.cachyos_ch7218_remove_button = self.cachyos_stack_card.add_action(
+            "Remove UGREEN adapter firmware files", {"action": "cachyos_bc250_remove-extra-ch7218", "governor": ""}
+        )
         self.cachyos_stack_card.primary_button = self.cachyos_kernel_button
         self.cachyos_stack_card.secondary_button = self.cachyos_mesa_button
         self.cachyos_stack_card.action_requested.connect(
@@ -840,6 +890,10 @@ class PreparationPagesMixin:
         self.fsr4_card.action_requested.connect(self._forward_dependency_action)
         self.fsr4_card.setEnabled(FSR4_UI_ENABLED)
         self.cachyos_cards = (self.cachyos_stack_card,)
+        # MastaG's kernel and Mesa: the project they come from.
+        self.cachyos_stack_card.add_action(
+            "Open upstream project", {"action": "cachyos_stack_upstream", "governor": ""}
+        )
         self._build_helixsr_card()
         for card in self.cachyos_cards:
             layout.addWidget(card)
@@ -849,8 +903,105 @@ class PreparationPagesMixin:
         layout.addWidget(self.vaapi_card)
         layout.addStretch(1)
         if self._standalone:
+            # DirectMesh is listed right after the GFX1013 fix it builds on.
             self._organise_compatibility(layout)
         return page
+
+    def _build_directmesh_card(self) -> None:
+        """DirectMesh (lonewolf0622): Mesh shaders through upstream's installer.
+
+        The title row matches every other Compatibility row (title, where it
+        applies, status). Inside: one line on what it is, the Steam launch
+        option with how to use it right under it, the version row, then the
+        actions.
+        """
+        card = PreparationInfoCard(
+            "Mesh shaders · DirectMesh",
+            "Mesh shaders for DX12 Ultimate games on the BC-250. Development build: a game can hang the GPU.",
+            scope_text="Detecting distribution", status_text="Checking",
+        )
+        self.directmesh_card = card
+        body = card.layout()
+
+        # The launch option, labelled, with how to use it beneath.
+        self.directmesh_launch_row = QFrame()
+        self.directmesh_launch_row.setProperty("launchStrip", True)
+        launch = QVBoxLayout(self.directmesh_launch_row)
+        launch.setContentsMargins(10, 8, 10, 8)
+        launch.setSpacing(6)
+        launch_title = _label("Steam launch option", "dashboardComponentDetail", wrap=False)
+        launch_title.setProperty("settingHint", True)
+        launch.addWidget(launch_title)
+        field_row = QHBoxLayout()
+        field_row.setSpacing(6)
+        self.directmesh_launch_field = QLineEdit()
+        self.directmesh_launch_field.setReadOnly(True)
+        self.directmesh_launch_field.setProperty("launchOption", True)
+        self.directmesh_launch_field.setAccessibleName(tr("Steam launch option"))
+        self.directmesh_launch_field.setMinimumWidth(0)
+        self.directmesh_launch_field.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        field_row.addWidget(self.directmesh_launch_field, 1)
+        self.directmesh_copy_button = IconButton("⧉")
+        self.directmesh_copy_button.setProperty("fsr4LaunchCopy", True)
+        self.directmesh_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.directmesh_copy_button.setAccessibleName(tr("Copy Steam launch option"))
+        self.directmesh_copy_button.setToolTip(tr("Copy Steam launch option"))
+        self.directmesh_copy_button.clicked.connect(
+            lambda: QApplication.clipboard().setText(self.directmesh_launch_field.text())
+        )
+        field_row.addWidget(self.directmesh_copy_button)
+        launch.addLayout(field_row)
+        launch_hint = _label(
+            "Paste it in Steam > right-click the game > Properties > Launch options. "
+            "Remove it to turn DirectMesh off for that game.",
+            "dashboardComponentDetail",
+        )
+        launch_hint.setProperty("settingHint", True)
+        launch.addWidget(launch_hint)
+        body.insertWidget(2, self.directmesh_launch_row)
+
+        # The release Install brings in, GitHub's list, and a newer one.
+        version_host = QWidget()
+        version_row = QHBoxLayout(version_host)
+        version_row.setContentsMargins(0, 0, 0, 0)
+        version_row.setSpacing(6)
+        version_row.addWidget(_label("Version", "dashboardComponentDetail", wrap=False))
+        self.directmesh_version_combo = GuardedComboBox()
+        self.directmesh_version_combo.setAccessibleName(tr("DirectMesh version"))
+        self.directmesh_version_combo.setSizeAdjustPolicy(GuardedComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.directmesh_version_combo.setMinimumWidth(150)
+        self.directmesh_version_combo.activated.connect(
+            lambda index: self._forward_dependency_action({
+                "action": f"directmesh_select:{self.directmesh_version_combo.itemData(index)}",
+                "governor": "",
+            })
+        )
+        self.directmesh_version_combo.currentIndexChanged.connect(
+            lambda _index: self._sync_directmesh_main_action()
+        )
+        version_row.addWidget(self.directmesh_version_combo)
+        self.directmesh_releases_button = self._releases_button(
+            "Check for new DirectMesh releases", "directmesh_releases"
+        )
+        version_row.addWidget(self.directmesh_releases_button)
+        version_row.addStretch(1)
+        body.insertWidget(3, version_host)
+
+        # Its text and payload follow the version picked above (see
+        # _sync_directmesh_main_action): install, reinstall, update or go back.
+        self.directmesh_install_button = card.add_action(
+            "Install", {"action": "directmesh_install", "governor": ""}
+        )
+        self.directmesh_check_button = card.add_action(
+            "Check mesh shaders", {"action": "directmesh_check", "governor": ""}
+        )
+        card.add_action("Open upstream project", {"action": "directmesh_upstream", "governor": ""})
+        self.directmesh_remove_button = card.add_action(
+            "Remove", {"action": "directmesh_uninstall", "governor": ""}, danger=True
+        )
+        card.action_requested.connect(self._forward_dependency_action)
+        card.setProperty("listRow", True)
+        card.make_collapsible()
 
     def _build_mesa_card(self) -> None:
         """Mesa older than 26.1: Vulkan runs on the GPU but the desktop is drawn by the CPU."""
@@ -916,6 +1067,13 @@ class PreparationPagesMixin:
         # HelixSR 2.0 on: DLSS frame generation, for games with HelixSR Scaler.
         self.helixsr_fg_button = self.helixsr_card.add_action(
             "Build frame generation", {"action": "helixsr_fg", "governor": ""}
+        )
+        # HelixSR 3 on: the setup's optional builds, behind the card's menu.
+        self.helixsr_preset_k_button = self.helixsr_card.add_action(
+            "Build Preset K", {"action": "helixsr_network:preset_k", "governor": ""}
+        )
+        self.helixsr_vulkan_button = self.helixsr_card.add_action(
+            "Build Vulkan kernels", {"action": "helixsr_network:vulkan,rebuild", "governor": ""}
         )
         self.helixsr_remove_button = self.helixsr_card.add_action(
             "Remove",
@@ -1228,14 +1386,31 @@ class PreparationPagesMixin:
         layout.addWidget(self.network_driver_card)
         layout.addWidget(self.printing_driver_card)
         self._build_accessory_cards(layout)
-        layout.addWidget(
-            PreparationInfoCard(
-                "External drivers",
-                "Device-specific kernel modules are not generic driver packs.",
-            )
+        self.external_drivers_card = PreparationInfoCard(
+            "External drivers",
+            "Device-specific kernel modules are not generic driver packs.",
         )
+        layout.addWidget(self.external_drivers_card)
         layout.addStretch(1)
+        if self._standalone:
+            self._organise_drivers(layout)
         return page
+
+    def _organise_drivers(self, layout: QVBoxLayout) -> None:
+        """Additional settings: the drivers in topics, as Compatibility lists its tools."""
+        from .compat_browser import CompatibilityBrowser
+
+        groups = (
+            ("Connectivity", (self.network_driver_card, self.printing_driver_card, self.external_drivers_card)),
+            ("Case accessories", (self.thermalright_card, self.corsair_card)),
+            ("Audio and TV", (self.hdmi_ac3_card, self.hdmi_cec_card)),
+        )
+        for _title, cards in groups:
+            for card in cards:
+                layout.removeWidget(card)
+        # The category already says what each scope did ("Case accessory").
+        self.drivers_browser = CompatibilityBrowser(groups, show_scope=False)
+        layout.insertWidget(0, self.drivers_browser)
 
     def _build_accessory_cards(self, layout: QVBoxLayout) -> None:
         """Hardware a BC-250 case may carry beside the board.

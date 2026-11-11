@@ -92,18 +92,49 @@ EVIDENCE: dict[str, tuple[str, ...]] = {
     "BC250-WINE-001": (
         "wine: could not load kernel32.dll, status c0000135",
     ),
+    # Only the GitHub-hosted pacman repository: a mirror's 404 is PKG-005.
     "BC250-UPSTREAM-404": (
-        "error: failed retrieving file from repo: HTTP 404",
+        "error: failed retrieving file 'bc250.db' from github.com : The requested URL returned error: 404",
+    ),
+    # -- the dynamic loader (upstream: glibc) ---------------------------------
+    "BC250-RUNTIME-001": (
+        "/usr/local/bin/oberon-governor: /lib64/libstdc++.so.6: version `GLIBCXX_3.4.35' not found (required by /usr/local/bin/oberon-governor)",
+        "ImportError: /usr/lib/libm.so.6: version `GLIBC_2.44' not found (required by math.cpython-314-x86_64-linux-gnu.so)",
+    ),
+    # -- compilers and make (upstream: gcc, GNU make, ninja) -----------------
+    "BC250-BUILD-003": (
+        "/usr/include/bits/sched.h:68:12: fatal error: linux/types.h: No such file or directory",
+        "collect2: error: ld returned 1 exit status",
+        "ninja: build stopped: subcommand failed.",
+        "make[2]: *** [CMakeFiles/oberon-governor.dir/build.make:121: src/main.cpp.o] Error 1",
+    ),
+    # -- pacman on a SteamOS root that was reported writable (R-fc1cfbe2) ----
+    "BC250-IMMUTABLE-002": (
+        "error: could not create directory /usr/lib/holo/pacmandb/local/ninja-1.13.2-3/: Read-only file system",
+    ),
+    # -- HelixSR's bridge (upstream: lonewolf0622/HelixSR) -------------------
+    "BC250-UPSCALE-002": (
+        "VRChat has anti-cheat (EasyAntiCheat): HelixSR Scaler can get the account banned in online play; only with --anticheat-ok yes (offline / single-player use)",
+    ),
+    # -- bash, for a wine whose loader is absent (R-a45942d4) ----------------
+    "BC250-WINE-002": (
+        "dxc-wine.sh: line 5: /home/u/.local/share/Steam/steamapps/common/Proton 10.0/files/bin/wine: cannot execute: required file not found",
+    ),
+    "BC250-GPU-008": (
+        "The Cyan governor must be active before changing its voltage curve.",
     ),
     "BC250-NET-001": (
         "Could not resolve host: github.com",
         "curl: (28) Operation timed out",
+        "curl: (22) The requested URL returned error: 504",
+        "curl: (16) nghttp2 shuts down connection with error 6: FRAME_SIZE_ERROR",
     ),
     "BC250-STORAGE-001": (
         "No space left on device",
     ),
     "BC250-IMMUTABLE-001": (
         "rpm-ostree: A pending deployment is already staged",
+        "[ERROR] Failed to restore SteamOS read-only protection. Run: sudo steamos-readonly enable",
     ),
     # -- kernel / driver ABI (upstream: bc250-steamos, bc250-gfx1013-fix) ----
     "BC250-KERNEL-001": (
@@ -137,6 +168,13 @@ EVIDENCE: dict[str, tuple[str, ...]] = {
     ),
     "BC250-HELPER-001": (
         "the protected helper is missing",
+        "ERROR: Update/reinstall Control Center to install the protected system setup helper.",
+    ),
+    "BC250-PKG-004": (
+        "error: Packages not found: coolercontrol",
+    ),
+    "BC250-CONFIG-001": (
+        "Duplicate gpu-usage.fix-freq key in governor TOML.",
     ),
     "BC250-PROTOCOL-001": (
         "helper protocol version mismatch",

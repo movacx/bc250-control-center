@@ -287,7 +287,7 @@ const setGameProfilesEnabled = callable<[enabled: boolean], GameStore>("set_game
 const gameStarted = callable<[appId: string, name: string, refresh: boolean], GameEvent>("game_started");
 const gameStopped = callable<[appId: string], GameEvent>("game_stopped");
 
-const fanChannels = [2, 3, 4, 5] as const;
+const fanChannels = [1, 2, 3, 4, 5] as const;
 const cuRows = ["SE0.SH0", "SE0.SH1", "SE1.SH0", "SE1.SH1"] as const;
 // Same ladder the desktop's own VRAM control offers; used only until the
 // first status() reply carries the contract-sourced list, so the dropdown

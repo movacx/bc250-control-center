@@ -19,6 +19,7 @@ def read_report_facts() -> dict[str, object]:
     """
     from bc250cc.application.system.feedback import (
         collect_attachments,
+        report_identity,
         os_release,
         read_board_firmware,
         read_installed_bios,
@@ -49,6 +50,7 @@ def read_report_facts() -> dict[str, object]:
         firmware = {}
     return {
         # The version is the report's own, and the BIOS is in ``firmware``.
+        "identity": report_identity(),
         "system": {str(label): str(value) for label, value in rows if label not in ("Control Center", "BIOS")},
         "os_release": form.os_release_subset(release),
         "firmware": firmware,

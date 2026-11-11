@@ -21,8 +21,16 @@ CU_UNLOCK_THERMAL_NOTE = (
 )
 #: Hides the kernel's boot messages, among them the RDSEED warning of the BC-250's CPU.
 HIDE_BOOT_MESSAGES_OPTION = "loglevel=0"
+#: MastaG's BC-250 kernel switches: the scheduler policy (optional, depends on
+#: the workload), and the two features its kernel has on by default.
+SCHED_POLICY_OPTION = "amdgpu.sched_policy=2"
+HDMI21_OFF_OPTION = "amdgpu.bc250_hdmi21=0"
+RELINK_OFF_OPTION = "amdgpu.cs_relink_ms=0"
 #: The only kernel boot options the helper manages.
-KERNEL_OPTIONS = ("mitigations=off", "nosmt", CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION)
+KERNEL_OPTIONS = (
+    "mitigations=off", "nosmt", CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION,
+    SCHED_POLICY_OPTION, HDMI21_OFF_OPTION, RELINK_OFF_OPTION,
+)
 
 
 def inventory() -> dict:
@@ -88,5 +96,7 @@ def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb
         args = ""
     return ("set -euo pipefail\n"
             "echo '== BC250 optional system setup (testing) =='\n"
-            f"test -x {HELPER} || {{ echo 'Update/reinstall Control Center to install the protected system setup helper.'; exit 69; }}\n"
+            # "ERROR:" so the terminal reads this line as the explanation
+            # (HELPER-001) instead of guessing from the status (R-2c5122d2).
+            f"test -x {HELPER} || {{ echo 'ERROR: Update/reinstall Control Center to install the protected system setup helper.' >&2; exit 69; }}\n"
             f"sudo {HELPER} {action}{args}\n")

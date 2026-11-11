@@ -47,6 +47,7 @@ LIBRARIES = (
     "system_setup_vram.py",
     "acpi_payload.py",
     "bc250_contract.py",
+    "bc250_fan_engine.py",
     "governor_toml.py",
     "bc250_smu_oc_vendor.zip",
 )

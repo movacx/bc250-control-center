@@ -269,11 +269,13 @@ class FeedbackDialog(QDialog):
         where: str = "",
         raw: str = "",
         opened_from: str = "",
+        workflow_details=None,
         read_report=_read_report,
         needs_password=_needs_password,
         submit=form.submit,
     ):
         super().__init__(parent)
+        self._workflow_details = dict(workflow_details or {})
         self._submit = submit
         self._facts: dict[str, object] = {}
         # From the error window that opened the form, when one did.
@@ -366,6 +368,7 @@ class FeedbackDialog(QDialog):
         column.setSpacing(14)
 
         self.summary = _line('Example: "GPU governor stops after a few seconds"')
+        self.summary.setToolTip(tr(form.SUMMARY_HINT))
         column.addWidget(_field("What went wrong?", self.summary, required=True))
         self.area = _ChoiceOther(form.AREAS, "Type the part of the app")
         self.code = _line("BC250-…")
@@ -611,6 +614,7 @@ class FeedbackDialog(QDialog):
             error=self._error_evidence(),
             workflow_title=(self._title or self.summary.text()) if terminal.strip() else "",
             workflow_log=form.clean_log(terminal),
+            workflow_details=self._workflow_details,
             **common,
             **(self._automatic() if automatic else {}),
         )
@@ -635,6 +639,7 @@ class FeedbackDialog(QDialog):
     def _automatic(self) -> dict[str, object]:
         """What the app read by itself; left out when the owner unticked it."""
         return {
+            "identity": dict(self._facts.get("identity") or {}),
             "system": dict(self._facts.get("system") or {}),
             "os_release": dict(self._facts.get("os_release") or {}),
             "firmware": dict(self._facts.get("firmware") or {}),
@@ -696,7 +701,8 @@ class FeedbackDialog(QDialog):
         report = self.report()
         missing = report.missing()
         if missing:
-            self._set_status(tr_format("Answer this first: {question}", question=tr(missing)), "warning")
+            message = tr(form.SUMMARY_HINT) if report.is_problem else tr_format("Answer this first: {question}", question=tr(missing))
+            self._set_status(message, "warning")
             (self.summary if report.is_problem else self.ideas).setFocus()
             return
         self.send_button.setEnabled(False)

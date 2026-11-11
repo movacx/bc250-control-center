@@ -40,7 +40,10 @@ def indexed_color(index: int) -> str:
     """Resolve one of the 256 palette slots to a hex colour."""
     value = max(0, min(255, int(index)))
     if value < 16:
-        return BASE_16[value]
+        from .. import theme
+
+        # The chosen terminal theme's own sixteen, else the tuned defaults.
+        return (theme.terminal_ansi() or BASE_16)[value]
     if value < 232:
         offset = value - 16
         return _hex(

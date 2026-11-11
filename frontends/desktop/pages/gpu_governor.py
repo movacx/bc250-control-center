@@ -53,7 +53,10 @@ from bc250cc.infrastructure.gpu.governor_toml import (
 from bc250cc.infrastructure.system_setup import (
     CU_UNLOCK_OPTION,
     CU_UNLOCK_THERMAL_NOTE,
+    HDMI21_OFF_OPTION,
     HIDE_BOOT_MESSAGES_OPTION,
+    RELINK_OFF_OPTION,
+    SCHED_POLICY_OPTION,
 )
 
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
@@ -1192,6 +1195,30 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                     "The change applies after reboot and can be restored from Control Center."
                 )
                 confirm_text, tone = "Hide boot messages", "orange"
+            elif changed == SCHED_POLICY_OPTION:
+                title = "Use the non-HWS GPU scheduler"
+                body = (
+                    "Some systems and games run smoother with the software GPU scheduler "
+                    "(amdgpu.sched_policy=2), others slower, so measure yours. ROCm and KFD work needs it. "
+                    "The change applies after reboot and can be restored from Control Center."
+                )
+                confirm_text, tone = "Use non-HWS scheduling", "orange"
+            elif changed == HDMI21_OFF_OPTION:
+                title = "Turn HDMI 2.1 negotiation off"
+                body = (
+                    "This removes 4K120 at 4:4:4 through a DisplayPort to HDMI 2.1 adapter. Only do it if "
+                    "that negotiation gives you a black screen or flicker. The change applies after "
+                    "reboot and can be restored from Control Center."
+                )
+                confirm_text, tone = "Turn HDMI 2.1 off", "orange"
+            elif changed == RELINK_OFF_OPTION:
+                title = "Turn picture recovery off"
+                body = (
+                    "The kernel re-detects the display when the picture stays off after a mode change. "
+                    "Turning this off leaves a lost picture as it is. The change applies after reboot "
+                    "and can be restored from Control Center."
+                )
+                confirm_text, tone = "Turn recovery off", "orange"
             else:
                 title = "Disable simultaneous multithreading"
                 body = (
@@ -1445,6 +1472,43 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 package,
                 tr("Kernel and Mesa are not changed"),
             )
+        extra_packages = {
+            "extra-fixes": "bc250-fixes",
+            "extra-paccache": "bc250-paccache-cleanup",
+            "extra-ch7218": "bc250-ch7218-fw",
+        }
+        for key, package in extra_packages.items():
+            actions[key] = (
+                "Install external Arch/CachyOS BC-250 extra",
+                package,
+                tr("Kernel and Mesa are not changed"),
+            )
+        if action.startswith("remove-extra-"):
+            package = extra_packages.get(action.removeprefix("remove-"))
+            if package is None:
+                raise ValueError("Unsupported CachyOS BC-250 action.")
+            removal = ConfirmDialog(
+                "Remove BC-250 extra",
+                tr("This removes the package from your system."),
+                summary=((tr("Packages"), package),),
+                confirm_text=tr("Open removal terminal"),
+                tone="orange",
+                parent=dialog_parent or self,
+            )
+            if removal.exec() != QDialog.DialogCode.Accepted:
+                return
+            self._run_backend_action(
+                lambda: self.controller.preparar_cachyos_bc250(action),
+                lambda _result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    "Arch/CachyOS BC-250 extras",
+                    "Opened the removal terminal. Review its output.",
+                ),
+                "Could not prepare the BC-250 extra removal",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         if action.startswith("remove-proton-"):
             package = proton_packages.get(action.removeprefix("remove-"))
             if package is None:
@@ -1487,9 +1551,11 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                     tr("Unsigned external repository (Optional TrustAll)"),
                 ),
                 (tr("Recovery"), recovery),
-                (tr("Reboot"), tr("Restart Steam after installation") if action.startswith("proton-") else tr("Required after installation") if action != "mesa" else tr("Recommended after Mesa changes")),
+                (tr("Reboot"), tr("Restart Steam after installation") if action.startswith("proton-") else tr("Not required") if action.startswith("extra-") else tr("Required after installation") if action != "mesa" else tr("Recommended after Mesa changes")),
             ),
-            confirm_text=tr("Open Proton installation terminal") if action.startswith("proton-") else tr("Open kernel installation terminal"),
+            confirm_text=tr("Open Proton installation terminal") if action.startswith("proton-")
+            else tr("Open installation terminal") if action.startswith("extra-")
+            else tr("Open kernel installation terminal"),
             tone="red",
             parent=dialog_parent or self,
         )
@@ -1643,6 +1709,15 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             error_parent=dialog_parent,
         )
 
+    def _manage_directmesh(self, action: str, *, dialog_parent: QWidget | None) -> None:
+        self._run_backend_action(
+            lambda: self.controller.repo.gestionar_directmesh(action),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self, tr("DirectMesh"), tr("DirectMesh selection saved.") if action.startswith("select:") else tr("Opened the DirectMesh workflow in the terminal.")
+            ),
+            tr("Could not manage DirectMesh"), controls=(), error_parent=dialog_parent,
+        )
+
     def _manage_helixsr(self, action: str, *, dialog_parent: QWidget | None) -> None:
         """HelixSR: release and network files in the terminal, games in place."""
         from bc250cc.infrastructure.helixsr import HELIXSR_TAG
@@ -1783,6 +1858,9 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         if game_action.startswith("scaler_"):
             self._manage_helixsr_scaler(action, dialog_parent=dialog_parent)
             return
+        if game_action.startswith("bridge_"):
+            self._manage_helixsr_bridge(action, dialog_parent=dialog_parent)
+            return
         if game_action in {"game_install", "game_remove"}:
             helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
             game = next(
@@ -1838,6 +1916,18 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 "Update",
                 "blue",
             )
+        elif action.startswith("network:"):
+            # HelixSR 3's optional builds: Preset K, or HLX DLSS's Vulkan kernels.
+            options = set(action.partition(":")[2].split(","))
+            copy = (
+                ("Build Preset K",
+                 "Builds NVIDIA's DLSS 4 Preset K network on this PC, sharper than the default and a little slower. It can take many minutes. Pick it in HelixSR Scaler's DLSS Upscaler list.",
+                 "Build Preset K", "blue")
+                if "preset_k" in options else
+                ("Build Vulkan kernels",
+                 "Builds HLX DLSS's Vulkan kernels, so Vulkan games run it natively instead of through HelixSR Scaler's DirectX 12 bridge. The network is built again with them; this takes a long time.",
+                 "Build Vulkan kernels", "blue")
+            )
         else:
             copy = {
                 "install": (
@@ -1890,6 +1980,100 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 self, label, "Opened the HelixSR workflow in the terminal.",
             ),
             "Could not manage HelixSR",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _manage_helixsr_bridge(self, action: str, *, dialog_parent: QWidget | None) -> None:
+        """HelixSR 3 in a game, through the release's own bridge: add (DLSS
+        through HelixSR Scaler, or HLX FSR 4), switch, update, go back, remove."""
+        game_action, _sep, rest = action.partition(":")
+        key, _sep, way = rest.partition(":")
+        helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
+        game = next(
+            (dict(item) for item in helixsr.get("bridge_games") or ()
+             if str(_dict(item).get("appid") or _dict(item).get("name")) == key),
+            {"appid": key, "name": key},
+        )
+        name = str(game.get("name") or key)
+        installed = str(game.get("installed_way") or "")
+        version = str(helixsr.get("version") or "")
+        names = {"scaler": "DLSS · HelixSR Scaler", "fsr": "HLX FSR 4"}
+        pick = {"scaler": "In the game, choose DLSS.", "fsr": "In the game, choose AMD FSR."}
+        if game_action == "bridge_install" and game.get("managed_by") == "app-2x":
+            copy = (
+                tr_format("Update HelixSR to {version}", version=version),
+                tr("The old HelixSR files are removed and the game's own ones put back first.") + " " + tr(pick.get(way, "")),
+                "Update", "blue",
+            )
+        elif game_action == "bridge_install" and installed and installed != way:
+            copy = (
+                tr_format("Switch to {name}", name=tr(names.get(way, way))),
+                tr("The other way is removed first; the version kept to go back to is dropped.") + " " + tr(pick.get(way, "")),
+                "Switch", "blue",
+            )
+        elif game_action == "bridge_install" and installed:
+            copy = (
+                tr_format("Update HelixSR to {version}", version=version),
+                tr_format("The game keeps version {version} so you can go back to it.", version=str(game.get("version") or "?")),
+                "Update", "blue",
+            )
+        elif game_action == "bridge_install":
+            body = {
+                "scaler": "HelixSR Scaler goes next to the game and keeps any file it replaces. In the game, choose DLSS; Insert opens its menu. Don't use it in online games with anti-cheat.",
+                "fsr": "HLX FSR 4 takes the place of the game's FSR 3.1 file; the original is kept. In the game, choose AMD FSR. Don't use it in online games with anti-cheat.",
+            }.get(way, "")
+            copy = (tr_format("Add {name} to this game", name=tr(names.get(way, way))), tr(body),
+                    "Add", "blue")
+        elif game_action == "bridge_rollback":
+            copy = (
+                tr_format("Go back to HelixSR {version}", version=str(game.get("previous_version") or "?")),
+                tr("The game gets back the version it had before its last update. You can undo this the same way."),
+                "Go back", "orange",
+            )
+        elif game_action == "bridge_remove":
+            copy = ("Remove HelixSR from this game", tr("Every file HelixSR replaced is put back."),
+                    "Remove", "orange")
+        else:
+            raise ValueError("Unsupported HelixSR action.")
+        title, body, confirm, tone = copy
+        confirmation = ConfirmDialog(
+            title,
+            body + " " + tr("Close the game first."),
+            summary=((tr("Game"), name),),
+            confirm_text=confirm,
+            eyebrow="HelixSR",
+            tone=tone,
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        def done(result: object) -> None:
+            result = _dict(result)
+            game_name = str(result.get("game") or name)
+            if game_action == "bridge_remove":
+                message = tr_format("HelixSR was removed from {game}; its own files are back.", game=game_name)
+            elif game_action == "bridge_rollback":
+                message = tr_format("{game} now has HelixSR {version}.", game=game_name,
+                                    version=str(result.get("version") or "?"))
+            else:
+                message = tr_format("{game} now has {name}.", game=game_name, name=tr(names.get(way, way)))
+                message = f"{message} {tr(pick.get(way, ''))}".strip()
+                if result.get("launch_option_error"):
+                    message = f"{message} " + tr_format(
+                        "Steam also needs this launch option for it: {option}", option=str(result.get("launch_options"))
+                    )
+                if result.get("settings_error"):
+                    message = f"{message} " + tr(
+                        "The saved HelixSR Scaler settings could not be written into it; save them again on the card."
+                    )
+            GpuGovernorPage._record_preparation_result(self, "HelixSR", message)
+
+        self._run_backend_action(
+            lambda: self.controller.gestionar_helixsr(action),
+            done,
+            "Could not change the game's files",
             controls=(),
             error_parent=dialog_parent,
         )
@@ -2491,13 +2675,19 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             gfx_state.get("upstream_url")
             or "https://github.com/DryhoppedIPA/bc250-gfx1013-fix"
         )
+        from bc250cc.infrastructure.directmesh import DIRECTMESH_REPOSITORY
+
         urls = {
+            "directmesh_upstream": DIRECTMESH_REPOSITORY,
             "acpi_upstream": "https://github.com/e-tho/bc250-acpi-fix",
             "gfx1013_upstream": gfx_url,
             "bazzite_async_upstream": BAZZITE_ASYNC_COMPUTE_REPOSITORY,
             "bazzite_image_upstream": "https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images",
             "helixsr_upstream": "https://github.com/lonewolf0622/HelixSR",
             "vaapi_upstream": "https://github.com/simpmix/bc250-encoding-decoding-fix",
+            "cyan_upstream": "https://github.com/filippor/cyan-skillfish-governor/tree/smu",
+            "oberon_upstream": "https://gitlab.com/mothenjoyer69/oberon-governor",
+            "cachyos_stack_upstream": "https://github.com/MastaG/linux-cachyos-bc250",
         }
         opened, message = open_external_url(urls[action])
         if opened:
@@ -2613,7 +2803,9 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 (tr("Running kernel"), str(state.get("kernel") or tr("Unknown"))),
                 (tr("Source"), "tri3gubki-ops/bc250-async-compute-bazzite v0.2.4"),
                 (tr("System Mesa"), tr("Not modified")),
-                (tr("Activation"), tr("Log out and back in")),
+                # Per game: a game uses it once its launch option sets
+                # VK_DRIVER_FILES; no log-out is involved (R-c8e76285).
+                (tr("Activation"), tr("Steam launch option")),
                 (tr("Recovery"), "Ctrl+Alt+F3 · remove 95-bc250-async-compute.conf"),
             ),
             confirm_text=tr("Install / update" if install else "Uninstall"),
@@ -2628,7 +2820,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 self,
                 tr("GFX1013 async compute"),
                 tr(
-                    "The Bazzite async-compute workflow finished. Log out and back in so the selected RADV driver takes effect."
+                    "The Bazzite async-compute workflow started in the terminal. Games use it once their Steam launch option sets VK_DRIVER_FILES."
                 ),
             ),
             tr("Failed"),

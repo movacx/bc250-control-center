@@ -165,4 +165,7 @@ def test_the_whole_remote_fits_in_the_window_without_scrolling(qtbot):
     dialog.show()
     qtbot.waitExposed(dialog)
     scroll = dialog.stack.widget(REMOTE_PAGE).findChild(QScrollArea)
-    assert not scroll.verticalScrollBar().isVisible(), "the remote had to be scrolled"
+    bar = scroll.verticalScrollBar()
+    # Qt hides a bar the content no longer needs on the next layout pass.
+    qtbot.waitUntil(lambda: bar.maximum() == 0 and not bar.isVisible(), timeout=3000)
+    assert bar.maximum() == 0, "the remote had to be scrolled"

@@ -51,6 +51,10 @@ def test_both_helpers_take_the_shared_window_lock(helper):
 @pytest.mark.skipif(
     not Path(WINDOW).exists(), reason="no BC-250 root complex on this machine"
 )
+@pytest.mark.skipif(
+    Path("/.dockerenv").exists() or Path("/run/.containerenv").exists(),
+    reason="a container shows the host's PCI tree read-only: the lock cannot be taken there",
+)
 @pytest.mark.parametrize(
     "helper", ["bc250-gddr6-temp-reader", "bc250-gddr6-temp-helper"]
 )

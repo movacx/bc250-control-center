@@ -12,6 +12,7 @@ from PyQt6.QtCore import (
     QEvent,
     QRect,
     QSettings,
+    QSize,
     QSignalBlocker,
     Qt,
     QThread,
@@ -19,7 +20,7 @@ from PyQt6.QtCore import (
     QUrl,
     pyqtSignal,
 )
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QDesktopServices, QIcon, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -38,7 +39,6 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit,
     QScrollArea,
     QSizePolicy,
-    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -62,6 +62,8 @@ from bc250cc.platform.packages.strategies.detector import detect_os_info
 from bc250cc.shared.failure_text import describe_failure
 from bc250cc.shared.version import __version__
 
+from PyQt6.QtWidgets import QPushButton as _PlainButton
+
 from ..components.buttons import WrappingButton as QPushButton
 from ..components.density import apply_layout_density
 from ..components.dialogs import center_dialog, enable_adaptive_dialog
@@ -74,7 +76,7 @@ from ..components.responsive import (
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
 from ..components.wheel_guard import GuardedComboBox
-from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
+from ..components.widgets import InfoDialog, PillLabel, icon
 from ..core.diagnostic_history import (
     clear_history,
     current_wording,
@@ -97,6 +99,7 @@ from ..i18n import (
     translate_history_event,
 )
 from ..theme import COLORS, application_stylesheet, scale_stylesheet
+from .. import theme as _theme
 
 DAEMON_SERVICE = "bc250-control-centerd.service"
 OFFICIAL_REPOSITORIES = (
@@ -154,36 +157,137 @@ def settings_stylesheet() -> str:
     switch_off = c["control_pressed"]
     switch_border = c["border_strong"]
     table_selection = c["blue_soft"]
+    # The rail of the first-run panel, so the two read as one family.
+    rail = _theme._blend(c["panel_alt"], c["border_strong"], 0.20) if _theme.ACTIVE_MODE == "light" else c["panel_alt"]
+    # A step between the sidebar and the page, and descriptions a little
+    # nearer the text than the plain muted grey, so nothing reads washed out.
+    nav_ground = c["window"] if _theme.ACTIVE_MODE != "light" else c["panel_alt"]
+    row_note = _theme._blend(c["muted"], c["text"], 0.30)
+    # The tabs and the footer sit on a band a shade off the page, so the
+    # window reads as a frame around the settings rather than one flat sheet.
+    band = c["panel"] if _theme.ACTIVE_MODE == "light" else _theme._blend(c["window"], c["panel"], 0.55)
     return scale_stylesheet(f"""
     QDialog[settingsPage='true'] {{
         background:{c['panel']}; color:{c['text']};
     }}
     QWidget[settingsPage='true'] QFrame[settingsShell='true'] {{
-        background:{c['panel']}; border:1px solid {c['border']}; border-radius:16px;
+        background:{c['panel']}; border:1px solid {c['border_strong']}; border-radius:12px;
+    }}
+    QWidget[settingsPage='true'] QFrame[settingsTitleBar='true'] {{
+        background:transparent; border:none; border-bottom:1px solid {c['border']};
+    }}
+    QWidget[settingsPage='true'] QLabel[titleBarText='true'] {{
+        color:{c['text']}; font-size:13px; font-weight:600;
     }}
     QWidget[settingsPage='true'] QFrame[settingsNav='true'] {{
-        background:{c['panel_alt']}; border:none; border-right:1px solid {c['border']};
-        border-top-left-radius:16px; border-bottom-left-radius:16px;
+        background:{nav_ground}; border:none; border-right:1px solid {c['border']};
+        border-bottom-left-radius:12px;
+    }}
+    QWidget[settingsPage='true'] QLineEdit[navSearch='true'] {{
+        min-height:30px; padding:0 8px; border-radius:8px; font-size:12px;
+        background:{c['panel_raised']}; border:1px solid {c['border_strong']}; color:{c['text']};
+    }}
+    QWidget[settingsPage='true'] QLineEdit[navSearch='true']:focus {{ border-color:{c['border_strong']}; }}
+    QWidget[settingsPage='true'] QLabel[navCaption='true'] {{
+        color:{c['muted']}; font-size:11px; font-weight:650; padding:14px 8px 6px 8px;
     }}
     QWidget[settingsPage='true'] QPushButton[settingsNavButton='true'] {{
-        text-align:left; padding:9px 11px; border:none; border-radius:10px;
-        color:{c['text']}; font-size:12px; font-weight:650; background:transparent;
+        text-align:left; padding:6px 8px; border:none; border-radius:8px;
+        color:{c['text']}; font-size:12px; font-weight:600; background:transparent;
     }}
     QWidget[settingsPage='true'] QPushButton[settingsNavButton='true']:hover {{ background:{hover}; }}
     QWidget[settingsPage='true'] QPushButton[settingsNavButton='true']:checked {{
-        background:{selected}; color:{c['blue']}; border-left:3px solid {c['blue']};
+        background:{c['control_pressed']}; color:{c['text']};
+    }}
+    QWidget[settingsPage='true'] QLabel[sectionHeading='true'] {{
+        color:{c['text']}; font-size:17px; font-weight:700; padding-bottom:2px;
     }}
     QWidget[settingsPage='true'] QFrame[settingsContent='true'] {{
-        background:{c['panel']}; border:none; border-top-right-radius:20px; border-bottom-right-radius:20px;
+        background:transparent; border:none;
+    }}
+    QWidget[settingsPage='true'] QFrame[settingsHeader='true'] {{
+        background:transparent; border:none; border-bottom:1px solid {c['border']};
     }}
     QWidget[settingsPage='true'] QLabel[pageTitle='true'] {{
-        color:{c['text']}; font-size:24px; font-weight:820;
+        color:{c['text']}; font-size:21px; font-weight:800; letter-spacing:-0.4px;
     }}
     QWidget[settingsPage='true'] QLabel[pageSubtitle='true'] {{
+        color:{c['muted']}; font-size:11px;
+    }}
+    QWidget[settingsPage='true'] QFrame[settingsCard='true'] {{
+        background:transparent; border:none;
+    }}
+    QWidget[settingsPage='true'] QFrame[settingsFooter='true'] {{
+        background:{band}; border:none; border-top:1px solid {c['border']};
+        border-bottom-left-radius:12px; border-bottom-right-radius:12px;
+    }}
+    QWidget[settingsPage='true'] QLabel[settingsFooterNote='true'] {{
         color:{c['muted']}; font-size:10px;
     }}
+    QWidget[settingsPage='true'] QPushButton[footerLink='true'] {{
+        background:transparent; border:none; padding:2px 0; color:{c['blue']};
+        font-size:11px; font-weight:680;
+    }}
+    QWidget[settingsPage='true'] QPushButton[footerLink='true']:hover {{ color:{c['blue_hover']}; }}
+    QWidget[settingsPage='true'] QPushButton[segment='true'] {{
+        background:{c['panel_alt']}; border:1px solid {c['border']}; border-radius:7px;
+        padding:6px 12px; color:{c['text']}; font-size:11px; font-weight:650; min-height:16px;
+    }}
+    QWidget[settingsPage='true'] QPushButton[segment='true']:hover {{
+        background:{hover}; border-color:{c['border_strong']};
+    }}
+    QWidget[settingsPage='true'] QPushButton[segment='true']:checked {{
+        background:{c['blue']}; border-color:{c['blue']}; color:{c['on_accent']};
+    }}
+    QWidget[settingsPage='true'] QLabel[themeCaption='true'] {{
+        color:{c['text']}; font-size:11px; font-weight:650;
+    }}
+    QWidget[settingsPage='true'] QPushButton[linkRow='true'] {{
+        background:transparent; border:none; border-bottom:1px solid {c['border_soft']};
+        border-radius:0px; padding:13px 0; text-align:left; color:{c['text']};
+        font-size:12px; font-weight:620;
+    }}
+    QWidget[settingsPage='true'] QPushButton[linkRow='true']:hover {{ color:{c['blue']}; }}
+    QWidget[settingsPage='true'] QPushButton[linkRow='true'][lastRow='true'] {{ border-bottom:none; }}
+    QWidget[settingsPage='true'] QLabel[statusValue] {{ font-size:11px; font-weight:680; }}
+    QWidget[settingsPage='true'] QLabel[statusValue='green'] {{ color:{c['green']}; }}
+    QWidget[settingsPage='true'] QLabel[statusValue='orange'] {{ color:{c['orange']}; }}
+    QWidget[settingsPage='true'] QLabel[statusValue='gray'] {{ color:{c['muted']}; }}
+    QWidget[settingsPage='true'] QLabel[aboutName='true'] {{
+        color:{c['text']}; font-size:18px; font-weight:800; letter-spacing:-0.3px;
+    }}
+    QWidget[settingsPage='true'] QLabel[aboutVersion='true'] {{
+        color:{c['muted']}; font-size:11px; font-weight:600;
+    }}
+    QWidget[settingsPage='true'] QLineEdit[settingsSearch='true'] {{
+        min-height:40px; padding:0 14px; border-radius:10px; font-size:13px; font-weight:500;
+        background:{c['panel']}; border:1px solid {c['border_strong']}; color:{c['text']};
+    }}
+    QWidget[settingsPage='true'] QLineEdit[settingsSearch='true']:focus {{ border-color:{c['blue']}; }}
+    QWidget[settingsPage='true'] QFrame[settingsTabs='true'] {{
+        background:{band}; border:none; border-bottom:1px solid {c['border']};
+        border-top-left-radius:12px; border-top-right-radius:12px;
+    }}
+    QWidget[settingsPage='true'] QPushButton[backLink='true'] {{
+        background:transparent; border:none; padding:2px 0; color:{c['blue']};
+        font-size:11px; font-weight:700;
+    }}
+    QWidget[settingsPage='true'] QPushButton[backLink='true']:hover {{ color:{c['blue_hover']}; }}
+    QWidget[settingsPage='true'] QLabel[subpageTitle='true'] {{
+        color:{c['text']}; font-size:18px; font-weight:800; letter-spacing:-0.3px; padding-top:6px;
+    }}
+    QWidget[settingsPage='true'] QLabel[overviewLead='true'] {{ color:{c['text']}; font-size:12px; }}
+    QWidget[settingsPage='true'] QLabel[overviewItem='true'] {{ color:{c['text']}; font-size:11px; }}
+    QWidget[settingsPage='true'] QFrame[sectionBlock='true'] {{ background:transparent; border:none; }}
+    QWidget[settingsPage='true'] QPushButton[toolbarAction='true'] {{
+        min-height:26px; padding:0 11px; border-radius:7px; border:1px solid {c['border']};
+        background:{c['panel']}; color:{c['text']}; font-size:10px; font-weight:650;
+    }}
+    QWidget[settingsPage='true'] QPushButton[toolbarAction='true']:hover {{
+        border-color:{c['border_strong']}; background:{hover};
+    }}
     QWidget[settingsPage='true'] QFrame[banner='true'] {{
-        background:{c['panel_alt']}; border:1px solid {c['border_soft']}; border-radius:14px;
+        background:{c['panel_alt']}; border:none; border-radius:9px;
     }}
     QWidget[settingsPage='true'] QLabel[bannerTitle='true'] {{
         color:{c['text']}; font-size:13px; font-weight:760;
@@ -192,13 +296,13 @@ def settings_stylesheet() -> str:
         color:{c['muted']}; font-size:10px;
     }}
     QWidget[settingsPage='true'] QLabel[groupTitle='true'] {{
-        color:{c['muted']}; font-size:10px; font-weight:780;
+        color:{c['text']}; font-size:14px; font-weight:600;
     }}
     QWidget[settingsPage='true'] QFrame[settingsGroup='true'] {{
-        background:{c['panel_alt']}; border:1px solid {c['border_soft']}; border-radius:13px;
+        background:transparent; border:none;
     }}
     QWidget[settingsPage='true'] QFrame[settingRow='true'] {{
-        background:transparent; border:none; border-bottom:1px solid {c['border_soft']};
+        background:transparent; border:none; border-bottom:1px solid {c['border']};
     }}
     QWidget[settingsPage='true'] QFrame[settingRow='true'][lastRow='true'] {{
         border-bottom:none;
@@ -219,10 +323,10 @@ def settings_stylesheet() -> str:
         color:{c['muted']}; font-size:10px; font-weight:700;
     }}
     QWidget[settingsPage='true'] QLabel[rowTitle='true'] {{
-        color:{c['text']}; font-size:12px; font-weight:670;
+        color:{c['text']}; font-size:12px; font-weight:650;
     }}
     QWidget[settingsPage='true'] QLabel[rowDescription='true'] {{
-        color:{c['muted']}; font-size:10px;
+        color:{row_note}; font-size:11px; line-height:135%;
     }}
     QComboBox[settingsCombo='true'] {{
         min-width:190px; min-height:34px; padding:0 36px 0 11px;
@@ -230,6 +334,7 @@ def settings_stylesheet() -> str:
         background-color:{c['panel_raised']}; color:{c['text']};
         font-size:12px; font-weight:620;
     }}
+    QComboBox[settingsCombo='true'][narrowCombo='true'] {{ min-width:96px; }}
     QComboBox[settingsCombo='true']:hover {{
         background-color:{c['control_hover']}; border-color:{c['border_strong']};
     }}
@@ -274,8 +379,8 @@ def settings_stylesheet() -> str:
     }}
     QWidget[settingsPage='true'] QPushButton[ghostAction='true'],
     QWidget[settingsPage='true'] QPushButton[bannerAction='true'] {{
-        min-height:34px; padding:0 14px; border-radius:10px; border:1px solid {c['border']};
-        background:{control}; color:{c['text']}; font-size:11px; font-weight:680;
+        min-height:32px; padding:0 14px; border-radius:9px; border:1px solid {c['border_strong']};
+        background:transparent; color:{c['text']}; font-size:11px; font-weight:680;
     }}
     QWidget[settingsPage='true'] QPushButton[ghostAction='true']:hover,
     QWidget[settingsPage='true'] QPushButton[bannerAction='true']:hover {{
@@ -298,7 +403,7 @@ def settings_stylesheet() -> str:
     }}
     QWidget[settingsPage='true'] QTableWidget[historyTable='true'] {{
         background:{c['panel']}; alternate-background-color:{c['panel_alt']}; color:{c['text']};
-        border:1px solid {c['border']}; border-radius:12px; gridline-color:{c['border_soft']};
+        border:1px solid {c['border']}; border-radius:10px; gridline-color:{c['border_soft']};
         selection-background-color:{table_selection}; selection-color:{c['text']}; font-size:10px;
     }}
     QWidget[settingsPage='true'] QTableWidget[historyTable='true']::item {{ padding:5px 7px; border:none; }}
@@ -314,7 +419,7 @@ def settings_stylesheet() -> str:
         color:{c['muted']}; font-size:11px; padding:14px;
     }}
     QWidget[settingsPage='true'] QFrame[reportHero='true'] {{
-        background:{c['panel_alt']}; border:1px solid {c['border']}; border-radius:14px;
+        background:transparent; border:none; border-bottom:1px solid {c['border']}; border-radius:0px;
     }}
     QWidget[settingsPage='true'] QLabel[reportHeroTitle='true'] {{
         color:{c['text']}; font-size:14px; font-weight:760;
@@ -323,7 +428,7 @@ def settings_stylesheet() -> str:
         color:{c['muted']}; font-size:10px;
     }}
     QWidget[settingsPage='true'][compactDensity='true'] QPushButton[settingsNavButton='true'] {{
-        padding:6px 9px; font-size:11px; border-radius:9px;
+        padding:4px 8px;
     }}
     QWidget[settingsPage='true'][compactDensity='true'] QPushButton[ghostAction='true'],
     QWidget[settingsPage='true'][compactDensity='true'] QPushButton[bannerAction='true'],
@@ -353,8 +458,41 @@ class SettingsNavButton(QPushButton):
         self.setCheckable(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setProperty("settingsNavButton", True)
-        self.setMinimumHeight(40)
-        self.setIcon(icon(icon_name))
+        self.setMinimumHeight(34)
+        self.icon_name = icon_name
+        self.refresh_icon()
+
+    def refresh_icon(self) -> None:
+        """Drawn as the main sidebar draws its rows: sharp at every screen
+        scale, muted at rest, the accent once selected."""
+        from ..components.sidebar import EXPANDED_ICON, _nav_icon
+
+        self.setIcon(_nav_icon(self.icon_name, "blue"))
+        self.setIconSize(EXPANDED_ICON)
+
+
+#: A magnifier for the search field, drawn like the other glyphs.
+SEARCH_GLYPH = (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" '
+    'stroke="#000" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/>'
+    '<path d="M16 16l4.5 4.5"/></svg>'
+)
+
+
+def tinted_icon(name: str, color: str) -> QIcon:
+    """One of the line glyphs, recoloured: they ship in a single accent."""
+    import re
+
+    path = Path(__file__).resolve().parents[1] / "theme" / "icons" / f"{name}.svg"
+    try:
+        svg = SEARCH_GLYPH if name == "search" else path.read_text(encoding="utf-8")
+    except OSError:
+        return QIcon()
+    svg = re.sub(r'stroke="#[0-9A-Fa-f]{3,8}"', f'stroke="{color}"', svg)
+    svg = re.sub(r'fill="#[0-9A-Fa-f]{3,8}"', f'fill="{color}"', svg)
+    pixmap = QPixmap()
+    pixmap.loadFromData(svg.encode("utf-8"), "SVG")
+    return QIcon(pixmap)
 
 
 class ReadOnlyPathField(QLineEdit):
@@ -498,8 +636,8 @@ class SettingRow(QFrame):
         self._compact = False
         self._stacked = False
         self._layout = QGridLayout(self)
-        self._layout.setContentsMargins(0, 10, 0, 10)
-        self._layout.setHorizontalSpacing(14)
+        self._layout.setContentsMargins(0, 12, 0, 12)
+        self._layout.setHorizontalSpacing(18)
         self._layout.setVerticalSpacing(6)
 
         copy = QWidget()
@@ -513,6 +651,7 @@ class SettingRow(QFrame):
         self.description_label.setProperty("rowDescription", True)
         copy_layout.addWidget(self.title_label)
         copy_layout.addWidget(self.description_label)
+        self.description_label.setVisible(bool(description))
         # Any height the row has beyond its copy goes under the description,
         # not between the title and the line that explains it.
         copy_layout.addStretch(1)
@@ -559,6 +698,8 @@ class SettingRow(QFrame):
 
 
 class SettingsGroup(QFrame):
+    """A caption over an inset card of rows, as in a system preferences pane."""
+
     def __init__(self, title: str, parent: QWidget | None = None):
         super().__init__(parent)
         # Keep the group transparent without installing an unscoped local QSS.
@@ -566,13 +707,20 @@ class SettingsGroup(QFrame):
         # Qt and used to override every settings combo box background and border.
         self.setProperty("settingsGroup", True)
         self.rows: list[SettingRow] = []
-        self.layout_root = QVBoxLayout(self)
-        self.layout_root.setContentsMargins(14, 12, 14, 4)
-        self.layout_root.setSpacing(0)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 30, 0, 0)
+        outer.setSpacing(4)
         self.title_label = QLabel(tr(title))
         self.title_label.setProperty("groupTitle", True)
-        self.layout_root.addWidget(self.title_label)
-        self.layout_root.addSpacing(6)
+        self.title_label.setVisible(bool(title))
+        outer.addWidget(self.title_label)
+        self.card = QFrame()
+        self.card.setProperty("settingsCard", True)
+        outer.addWidget(self.card)
+        # Everything a section adds to its group lands inside the card.
+        self.layout_root = QVBoxLayout(self.card)
+        self.layout_root.setContentsMargins(0, 0, 0, 0)
+        self.layout_root.setSpacing(0)
         self.body = QVBoxLayout()
         self.body.setContentsMargins(0, 0, 0, 0)
         self.body.setSpacing(0)
@@ -580,7 +728,7 @@ class SettingsGroup(QFrame):
 
     def add_row(self, row: SettingRow) -> None:
         # Rows are separated by a line under each one; the last row of a group
-        # must not end in a stray line against the group's own border.
+        # must not end in a stray line against the card's own border.
         if self.rows:
             self._mark_last(self.rows[-1], False)
         self.rows.append(row)
@@ -595,9 +743,163 @@ class SettingsGroup(QFrame):
         style.polish(row)
 
     def set_compact(self, compact: bool) -> None:
-        self.layout_root.setSpacing(0)
         for row in self.rows:
             row.set_compact(compact)
+
+
+class LinkRow(QPushButton):
+    """A row that is itself the action: a label and a chevron, in a card."""
+
+    def __init__(self, text: str, callback, parent: QWidget | None = None):
+        super().__init__(tr(text) + "   \u203a", parent)
+        self.setProperty("linkRow", True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.clicked.connect(callback)
+
+
+class TerminalThemeCard(QFrame):
+    """A built-in terminal theme as a miniature of the terminal it gives.
+
+    A small window: a title bar, a few lines of a real workflow in the
+    theme's own colours, the cursor, and its eight base colours as swatches;
+    the name under it, with a check once it is the one in use.
+    """
+
+    chosen = pyqtSignal(str)
+
+    SAMPLE = (
+        (("text", "$ "), ("text", "pacman -S mesa")),
+        ((4, "info "), ("text", "resolving deps")),
+        ((2, "\u2713 "), ("text", "mesa installed")),
+        ((3, "! "), ("muted", "reboot required")),
+        ((1, "\u2717 "), ("text", "1 conflict")),
+    )
+    CAPTION = 30
+
+    def __init__(self, key: str, name: str, parent: QWidget | None = None, *, compact: bool = False) -> None:
+        super().__init__(parent)
+        self.key = key
+        self.name = name
+        self.selected = False
+        self.hovered = False
+        #: Smaller, for the welcome panel: two sample lines, no extra width.
+        self.compact = compact
+        self.sample = self.SAMPLE[:2] if compact else self.SAMPLE
+        if compact:
+            self.CAPTION = 26
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setMinimumHeight(122 if compact else 196)
+        self.setMinimumWidth(80 if compact else 200)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMouseTracking(True)
+
+    def _colors(self) -> tuple[str, str, str, str, tuple[str, ...]]:
+        from ..console.palette import BASE_16
+
+        theme = _theme.TERMINAL_THEMES.get(self.key)
+        if theme is None:
+            return (COLORS["console_bg"], COLORS["console_text"], COLORS["console_muted"],
+                    COLORS["blue"], BASE_16)
+        return theme["bg"], theme["text"], theme["muted"], theme["accent"], theme["ansi"]
+
+    def enterEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        self.hovered = True
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        self.hovered = False
+        self.update()
+        super().leaveEvent(event)
+
+    def paintEvent(self, _event) -> None:  # noqa: N802 - Qt API name
+        from PyQt6.QtCore import QPointF, QRectF
+        from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+
+        background, text, muted, accent, ansi = self._colors()
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        window = QRectF(2, 2, self.width() - 4, self.height() - self.CAPTION - 4)
+
+        # The window, clipped to its rounded corners.
+        clip = QPainterPath()
+        clip.addRoundedRect(window, 9, 9)
+        painter.save()
+        painter.setClipPath(clip)
+        painter.fillRect(window, QColor(background))
+        # Its title bar, one shade off the ground, with the shell's name.
+        bar = QRectF(window.left(), window.top(), window.width(), 22)
+        ground = QColor(background)
+        shade = ground.darker(112) if ground.lightness() > 128 else ground.lighter(135)
+        painter.fillRect(bar, shade)
+        painter.setPen(QPen(QColor(muted)))
+        small = QFont(self.font())
+        small.setPointSizeF(max(6.5, self.font().pointSizeF() - 2.0))
+        painter.setFont(small)
+        painter.drawText(bar.adjusted(10, 0, -10, 0),
+                         int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter), "bash")
+        # The lines, in a monospace that fits the card without cutting a word.
+        mono = QFont("monospace")
+        mono.setStyleHint(QFont.StyleHint.Monospace)
+        mono.setPointSizeF(self.font().pointSizeF() + 0.5)
+        painter.setFont(mono)
+        metrics = painter.fontMetrics()
+        widest = max(sum(metrics.horizontalAdvance(part) for _c, part in line) for line in self.sample)
+        room = window.width() - 28
+        if widest > room:
+            mono.setPointSizeF(mono.pointSizeF() * room / widest)
+            painter.setFont(mono)
+            metrics = painter.fontMetrics()
+        y = bar.bottom() + 10 + metrics.ascent()
+        x = 0.0
+        for row, line in enumerate(self.sample):
+            x = window.left() + 14
+            for color, part in line:
+                ink = text if color == "text" else muted if color == "muted" else ansi[color]
+                painter.setPen(QColor(ink))
+                painter.drawText(QPointF(x, y), part)
+                x += metrics.horizontalAdvance(part)
+            if row == 0:
+                prompt_end = (x, y)
+            y += metrics.height() + 3
+        # The cursor after the command, in the theme's accent.
+        cursor = QRectF(prompt_end[0] + 3, prompt_end[1] - metrics.ascent() + 1,
+                        metrics.horizontalAdvance("m") * 0.8, metrics.ascent())
+        painter.fillRect(cursor, QColor(accent))
+        # The eight base colours, as a strip along the bottom of the window.
+        swatch = 10.0
+        gap = 5.0
+        left = window.left() + 14
+        top = window.bottom() - swatch - 11
+        for index in range(8):
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(ansi[index if index else 8]))
+            painter.drawRoundedRect(QRectF(left + index * (swatch + gap), top, swatch, swatch), 2.5, 2.5)
+        painter.restore()
+
+        # The frame: the accent once chosen, a step stronger on hover.
+        if self.selected:
+            pen = QPen(QColor(COLORS["blue"]), 2)
+        else:
+            pen = QPen(QColor(COLORS["border_strong" if self.hovered else "border"]), 1)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(window, 9, 9)
+
+        # The name under the window, with a check for the one in use.
+        caption = QRectF(4, self.height() - self.CAPTION + 4, self.width() - 8, self.CAPTION - 8)
+        name_font = QFont(self.font())
+        name_font.setBold(True)
+        painter.setFont(name_font)
+        painter.setPen(QColor(COLORS["blue"] if self.selected else COLORS["text"]))
+        label = ("\u2713  " if self.selected else "") + self.name
+        painter.drawText(caption, int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter), label)
+        painter.end()
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.chosen.emit(self.key)
+        super().mousePressEvent(event)
 
 
 class SettingsTask(QThread):
@@ -651,75 +953,24 @@ class TextDetailsDialog(QDialog):
         localize_widget_tree(self)
 
 
-class RepositoriesDialog(QDialog):
+class RepositoryList(QWidget):
+    """The official repositories, a search over them and an Open button each."""
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self.setModal(True)
-        self.setWindowTitle(tr("Official repositories"))
-        self.setStyleSheet(application_stylesheet() + settings_stylesheet())
-        enable_adaptive_dialog(
-            self,
-            preferred_width=640,
-            preferred_height=500,
-            minimum_width=420,
-            minimum_height=320,
-        )
-        self.setProperty("settingsPage", True)
-
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 14, 16, 12)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
-        header = QHBoxLayout()
-        header.setSpacing(12)
-        header_icon = IconBadge("github", "neutral_soft", 36, radius=10)
-        header.addWidget(header_icon)
-        header_copy = QVBoxLayout()
-        header_copy.setContentsMargins(0, 0, 0, 0)
-        header_copy.setSpacing(2)
-        header_title = QLabel(tr("Official repositories"))
-        header_title.setProperty("bannerTitle", True)
-        header_subtitle = QLabel(tr("Build information, local paths, project scope, and official repositories."))
-        header_subtitle.setProperty("bannerText", True)
-        header_subtitle.setProperty("naturalHeight", True)
-        header_subtitle.setWordWrap(True)
-        header_copy.addWidget(header_title)
-        header_copy.addWidget(header_subtitle)
-        header.addLayout(header_copy, 1)
-        count = PillLabel(str(len(OFFICIAL_REPOSITORIES)), "blue")
-        count.setToolTip(tr("Official repositories"))
-        header.addWidget(count, 0, Qt.AlignmentFlag.AlignTop)
-        layout.addLayout(header)
-        intro = QLabel(
-            tr(
-                "BC250 Control Center does not own these tools. They are installed, cloned, or used as credited reference implementations according to each integration."
-            )
-        )
-        intro.setWordWrap(True)
-        intro.setProperty("bannerText", True)
-        intro.setProperty("naturalHeight", True)
-        layout.addWidget(intro)
-
         self.search = QLineEdit()
         self.search.setPlaceholderText(tr("Search repositories"))
         self.search.setAccessibleName(tr("Search repositories"))
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self._filter)
         layout.addWidget(self.search)
-        self._count = count
-
-        repository_scroll = QScrollArea()
-        repository_scroll.setWidgetResizable(True)
-        repository_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        # 39 rows must not size the dialog: the list scrolls inside whatever
-        # height is left, instead of stretching the window to the screen.
-        repository_scroll.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
-        repository_scroll.setMinimumHeight(160)
-        repository_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        repository_body = QWidget()
-        repository_layout = QVBoxLayout(repository_body)
+        self.rows_host = QWidget()
+        repository_layout = QVBoxLayout(self.rows_host)
         repository_layout.setContentsMargins(0, 0, 0, 0)
         repository_layout.setSpacing(4)
-        repository_scroll.setWidget(repository_body)
         self._rows: list[tuple[QFrame, str]] = []
         for index, (name, repository, url) in enumerate(OFFICIAL_REPOSITORIES, start=1):
             row = QFrame()
@@ -767,22 +1018,7 @@ class RepositoriesDialog(QDialog):
         self._no_match.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._no_match.hide()
         repository_layout.addWidget(self._no_match)
-        repository_layout.addStretch(1)
-        layout.addWidget(repository_scroll, 1)
-
-        note = QLabel("If Firefox reports a locked profile when opened from a terminal, use the buttons in this window or copy the URL into the browser that is already running.")
-        note.setProperty("bannerText", True)
-        note.setProperty("naturalHeight", True)
-        note.setWordWrap(True)
-        layout.addWidget(note)
-        footer = QHBoxLayout()
-        footer.addStretch(1)
-        close = QPushButton("Close")
-        close.setProperty("primaryAction", True)
-        close.clicked.connect(self.accept)
-        footer.addWidget(close)
-        layout.addLayout(footer)
-        localize_widget_tree(self)
+        layout.addWidget(self.rows_host)
 
     def _filter(self, text: str) -> None:
         """Show the repositories whose name, address or URL has every word typed."""
@@ -793,7 +1029,6 @@ class RepositoriesDialog(QDialog):
             row.setVisible(match)
             shown += match
         self._no_match.setVisible(shown == 0)
-        self._count.setText(str(shown))
 
     def _open_repository(self, url: str) -> None:
         if QDesktopServices.openUrl(QUrl(url)):
@@ -807,6 +1042,49 @@ class RepositoriesDialog(QDialog):
             notice="Copy the repository address into the browser that is already running.",
             tone="red",
         ).exec()
+
+
+class RepositoriesDialog(QDialog):
+    """The repository list on its own, for the places outside Settings."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setModal(True)
+        self.setWindowTitle(tr("Official repositories"))
+        self.setStyleSheet(application_stylesheet() + settings_stylesheet())
+        enable_adaptive_dialog(
+            self,
+            preferred_width=640,
+            preferred_height=500,
+            minimum_width=420,
+            minimum_height=320,
+        )
+        self.setProperty("settingsPage", True)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 14, 16, 12)
+        layout.setSpacing(8)
+        header_title = QLabel(tr("Official repositories"))
+        header_title.setProperty("bannerTitle", True)
+        layout.addWidget(header_title)
+        repository_scroll = QScrollArea()
+        repository_scroll.setWidgetResizable(True)
+        repository_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        # 39 rows must not size the dialog: the list scrolls inside whatever
+        # height is left, instead of stretching the window to the screen.
+        repository_scroll.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
+        repository_scroll.setMinimumHeight(160)
+        repository_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.repositories = RepositoryList()
+        repository_scroll.setWidget(self.repositories)
+        layout.addWidget(repository_scroll, 1)
+        footer = QHBoxLayout()
+        footer.addStretch(1)
+        close = QPushButton("Close")
+        close.setProperty("primaryAction", True)
+        close.clicked.connect(self.accept)
+        footer.addWidget(close)
+        layout.addLayout(footer)
+        localize_widget_tree(self)
 
 
 class SettingsPage(QWidget):
@@ -824,6 +1102,7 @@ class SettingsPage(QWidget):
     gamepad_keypad_auto_show_changed = pyqtSignal(bool)
     embedded_terminal_changed = pyqtSignal(bool)
     console_auto_hide_changed = pyqtSignal(bool)
+    console_theme_changed = pyqtSignal(str)
     gddr6_manual_changed = pyqtSignal(bool)
     vrm_manual_changed = pyqtSignal(bool)
     tour_requested = pyqtSignal()
@@ -876,29 +1155,59 @@ class SettingsPage(QWidget):
         shell = QFrame()
         shell.setProperty("settingsShell", True)
         shell.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        apply_shadow(shell, blur=20, y=4, alpha=12)
-        shell_layout = QHBoxLayout(shell)
+        self.shell = shell
+        shell_column = QVBoxLayout(shell)
+        shell_column.setContentsMargins(0, 0, 0, 0)
+        shell_column.setSpacing(0)
+        title_bar = QFrame()
+        title_bar.setProperty("settingsTitleBar", True)
+        title_bar.setFixedHeight(46)
+        title_row = QHBoxLayout(title_bar)
+        # The dialog's close button sits at the right end of this bar.
+        title_row.setContentsMargins(18, 0, 56, 0)
+        title_text = QLabel(tr("Settings"))
+        title_text.setProperty("titleBarText", True)
+        title_row.addWidget(title_text)
+        title_row.addStretch(1)
+        shell_column.addWidget(title_bar)
+        body_host = QWidget()
+        shell_layout = QHBoxLayout(body_host)
         self.shell_layout = shell_layout
         shell_layout.setContentsMargins(0, 0, 0, 0)
         shell_layout.setSpacing(0)
+        shell_column.addWidget(body_host, 1)
         outer.addWidget(shell, 1)
 
         nav = QFrame()
         nav.setProperty("settingsNav", True)
         self.nav_frame = nav
-        nav.setMinimumWidth(184)
-        nav.setMaximumWidth(240)
+        nav.setMinimumWidth(200)
+        nav.setMaximumWidth(220)
         nav.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
-        nav_layout = QGridLayout(nav)
+        nav_column = QVBoxLayout(nav)
+        nav_column.setContentsMargins(12, 12, 10, 12)
+        nav_column.setSpacing(0)
+        self.search_field = QLineEdit()
+        self.search_field.setProperty("navSearch", True)
+        self.search_field.setPlaceholderText(tr("Search"))
+        self.search_field.setClearButtonEnabled(True)
+        self._search_action = self.search_field.addAction(
+            tinted_icon("search", COLORS["muted"]), QLineEdit.ActionPosition.LeadingPosition
+        )
+        self.search_field.textChanged.connect(self._filter_nav)
+        nav_column.addWidget(self.search_field)
+        nav_buttons_host = QWidget()
+        nav_layout = QGridLayout(nav_buttons_host)
         self.nav_layout = nav_layout
-        nav_layout.setContentsMargins(12, 14, 12, 14)
+        nav_layout.setContentsMargins(0, 0, 0, 0)
         nav_layout.setHorizontalSpacing(6)
-        nav_layout.setVerticalSpacing(6)
+        nav_layout.setVerticalSpacing(4)
+        nav_column.addWidget(nav_buttons_host)
+        nav_column.addStretch(1)
 
         self.nav_group = QButtonGroup(self)
         self.nav_group.setExclusive(True)
         self.nav_buttons: dict[str, SettingsNavButton] = {}
-        self.stack = QStackedWidget()
 
         # One subject per section, in the order a user looks for them: how the
         # application starts and looks, then the hardware backend, then the
@@ -908,14 +1217,13 @@ class SettingsPage(QWidget):
         sections = [
             ("general", "General", "settings_blue"),
             ("appearance", "Appearance", "dashboard_blue"),
-            ("hardware", "Hardware", "gpu_blue"),
-            ("console", "Terminal and controls", "terminal_blue"),
+            ("console", "Terminal and controls", "terminal_window_gray"),
+            ("hardware", "GPU governor", "gpu_blue"),
             ("telemetry", "Telemetry", "metrics_blue"),
             # "and", never "&": a push button reads "&" as a keyboard
             # mnemonic, and "History & reports" rendered as "History _reports".
-            ("security", "Privacy and safety", "shield_green"),
+            ("diagnostics", "Diagnostics", "logs_gray"),
             ("reports", "History and reports", "history_blue"),
-            ("diagnostics", "Diagnostics", "processes_blue"),
             ("about", "About", "info_blue"),
         ]
         self.section_order = [key for key, _text, _icon in sections]
@@ -926,6 +1234,18 @@ class SettingsPage(QWidget):
             self.nav_buttons[key] = button
             nav_layout.addWidget(button, len(self.nav_buttons) - 1, 0)
         nav_layout.setRowStretch(len(sections), 1)
+        # Captions over the sections, as a preferences window groups them.
+        self.nav_groups = (
+            ("Interface", ("general", "appearance", "console")),
+            ("Hardware", ("hardware", "telemetry")),
+            ("Data", ("diagnostics", "reports")),
+            ("Application", ("about",)),
+        )
+        self.nav_captions: list[QLabel] = []
+        for caption, _keys in self.nav_groups:
+            label = QLabel(tr(caption))
+            label.setProperty("navCaption", True)
+            self.nav_captions.append(label)
 
         content_wrap = QFrame()
         self.content_wrap = content_wrap
@@ -933,10 +1253,28 @@ class SettingsPage(QWidget):
         content_wrap.setProperty("settingsContent", True)
         wrap_layout = QVBoxLayout(content_wrap)
         self.content_layout = wrap_layout
-        wrap_layout.setContentsMargins(18, 16, 18, 16)
-        wrap_layout.setSpacing(10)
-        wrap_layout.addWidget(self.stack)
-
+        wrap_layout.setContentsMargins(0, 0, 0, 0)
+        wrap_layout.setSpacing(0)
+        self._section_titles = {key: text for key, text, _icon in sections}
+        self.scroll = QScrollArea()
+        self.scroll.setObjectName("SettingsSectionScroll")
+        body = QWidget()
+        body.setObjectName("SettingsSectionBody")
+        configure_responsive_scroll_area(self.scroll, body)
+        body.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.scroll_body = body
+        centring = QHBoxLayout(body)
+        centring.setContentsMargins(28, 22, 22, 28)
+        centring.setSpacing(0)
+        column = QWidget()
+        column.setMaximumWidth(self.CONTENT_MAX_WIDTH)
+        column.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.sections_layout = QVBoxLayout(column)
+        self.sections_layout.setContentsMargins(0, 0, 0, 0)
+        self.sections_layout.setSpacing(0)
+        centring.addWidget(column, 1)
+        self.scroll.setWidget(body)
+        wrap_layout.addWidget(self.scroll, 1)
         shell_layout.addWidget(nav)
         shell_layout.addWidget(content_wrap, 1)
 
@@ -947,7 +1285,9 @@ class SettingsPage(QWidget):
         # settings dialog on an empty stack page.
         if initial_section not in self.nav_buttons:
             initial_section = "general"
-        self.select_section(initial_section)
+        self._last_section = initial_section
+        self.sections_layout.addStretch(1)
+        self.select_section("home")
         localize_widget_tree(self)
         self.apply_density(str(self.app_settings.value("settings/density", "comfortable")))
         self._reflow_shell(980)
@@ -977,21 +1317,31 @@ class SettingsPage(QWidget):
                 self.nav_layout.addWidget(button, index // columns, index % columns)
             for column in range(columns):
                 self.nav_layout.setColumnStretch(column, 1)
-            self.content_layout.setContentsMargins(12, 10, 12, 12)
+            for caption in self.nav_captions:
+                caption.hide()
+            self.content_layout.setContentsMargins(0, 0, 0, 0)
         else:
             self.shell_layout.setDirection(QBoxLayout.Direction.LeftToRight)
-            self.nav_frame.setMinimumWidth(208 if width >= 980 else 184)
-            self.nav_frame.setMaximumWidth(240)
+            self.nav_frame.setMinimumWidth(200)
+            self.nav_frame.setMaximumWidth(220)
             self.nav_frame.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
-            for index, button in enumerate(buttons):
-                button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-                self.nav_layout.addWidget(button, index, 0)
+            row = 0
+            for caption, (_title, keys) in zip(self.nav_captions, self.nav_groups):
+                caption.show()
+                self.nav_layout.addWidget(caption, row, 0)
+                row += 1
+                for key in keys:
+                    button = self.nav_buttons[key]
+                    button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                    self.nav_layout.addWidget(button, row, 0)
+                    row += 1
             self.nav_layout.setColumnStretch(0, 1)
-            self.nav_layout.setRowStretch(len(buttons), 1)
-            self.content_layout.setContentsMargins(18, 16, 18, 16)
+            self.nav_layout.setRowStretch(row, 1)
+            self.content_layout.setContentsMargins(0, 0, 0, 0)
         # The margins above are the comfortable ones; Compact tightens them
         # again after every change of form, like any other layout.
         apply_layout_density(self)
+        self._filter_nav(self.search_field.text())
         self.updateGeometry()
 
     @staticmethod
@@ -1055,40 +1405,109 @@ class SettingsPage(QWidget):
         self.gamepad_keypad_changed.emit(enabled)
         self.gamepad_keypad_auto_show_changed.emit(enabled)
 
+    def _small_button(self, text: str, callback) -> QPushButton:
+        # Never wrapped: a short action is as wide as its label, on one line.
+        button = _PlainButton(tr(text))
+        button.setProperty("toolbarAction", True)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.clicked.connect(callback)
+        return button
+
+    def _remember(self, name: str, widget: QWidget) -> QWidget:
+        setattr(self, name, widget)
+        return widget
+
+    def _register_count(self, name: str, text: str) -> QLabel:
+        label = PillLabel(text, "blue")
+        setattr(self, name, label)
+        return label
+
+    @staticmethod
+    def _table_header(title: str, count: QWidget | None, actions) -> QWidget:
+        """A table's caption: its name and count, its own actions at the right."""
+        host = QWidget()
+        row = QHBoxLayout(host)
+        row.setContentsMargins(0, 22, 0, 8)
+        row.setSpacing(8)
+        label = QLabel(tr(title))
+        label.setProperty("groupTitle", True)
+        row.addWidget(label)
+        if count is not None:
+            row.addWidget(count)
+        row.addStretch(1)
+        for action in actions:
+            row.addWidget(action)
+        return host
+
     def _button(self, text: str, callback, *, primary: bool = False) -> QPushButton:
         button = QPushButton(tr(text))
         button.setProperty("primaryAction" if primary else "ghostAction", True)
         button.clicked.connect(callback)
         return button
 
+    #: The column of settings stops growing here; wider dialogs centre it.
+    CONTENT_MAX_WIDTH = 900
+
     def _build_page_frame(self, title: str, subtitle: str) -> tuple[QWidget, QVBoxLayout]:
-        page = QWidget()
-        page_layout = QVBoxLayout(page)
-        page_layout.setContentsMargins(0, 0, 0, 0)
-        page_layout.setSpacing(0)
-
-        scroll = QScrollArea()
-        scroll.setObjectName("SettingsSectionScroll")
-        page_layout.addWidget(scroll, 1)
-
-        body = QWidget()
-        body.setObjectName("SettingsSectionBody")
-        configure_responsive_scroll_area(scroll, body)
-        body.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        layout = QVBoxLayout(body)
-        layout.setContentsMargins(0, 0, 6, 0)
-        layout.setSpacing(10)
-        scroll.setWidget(body)
-
-        title_label = QLabel(tr(title))
-        title_label.setProperty("pageTitle", True)
-        subtitle_label = QLabel(tr(subtitle))
-        subtitle_label.setProperty("pageSubtitle", True)
-        subtitle_label.setWordWrap(True)
-        layout.addWidget(title_label)
-        layout.addWidget(subtitle_label)
+        """One section: its name, then its groups of rows."""
+        del subtitle
+        block = QFrame()
+        block.setProperty("sectionBlock", True)
+        layout = QVBoxLayout(block)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        if title:
+            heading = QLabel(tr(title))
+            heading.setProperty("sectionHeading", True)
+            layout.addWidget(heading)
         self._page_layouts.append(layout)
-        return page, layout
+        return block, layout
+
+    def _filter_nav(self, text: str) -> None:
+        """Keep the sections whose name or any setting holds what was typed."""
+        query = text.strip().casefold()
+        shown: list[str] = []
+        for key in self.section_order:
+            visible = True
+            if query:
+                page = self._ensure_section(key)
+                visible = query in tr(self._section_titles[key]).casefold() or any(
+                    query in f"{row.title_label.text()} {row.description_label.text()}".casefold()
+                    for row in (page.findChildren(SettingRow) if page is not None else ())
+                )
+            self.nav_buttons[key].setVisible(visible)
+            if visible:
+                shown.append(key)
+        compact = getattr(self, "_shell_compact", False)
+        for caption, (_title, keys) in zip(self.nav_captions, self.nav_groups):
+            caption.setVisible(not compact and any(key in shown for key in keys))
+        current = next((key for key, button in self.nav_buttons.items() if button.isChecked()), None)
+        if query and shown and current not in shown:
+            self.select_section(shown[0])
+
+    #: Pages opened from a section, shown under its tab with a way back.    #: Pages opened from a section, shown under its tab with a way back.
+    SUBPAGES = {"overview": "about", "repositories": "about"}
+
+    def _show_section(self, key: str) -> None:
+        owner = self.SUBPAGES.get(key, key)
+        for section_key, button in self.nav_buttons.items():
+            button.setChecked(section_key == owner)
+        self._ensure_section(key)
+        for section_key, page in self._section_pages.items():
+            page.setVisible(section_key == key)
+        self.scroll.verticalScrollBar().setValue(0)
+        self._section_shown(key)
+
+    def _section_shown(self, key: str) -> None:
+        """Fetch what a section shows, now that it is on screen."""
+        if key == "reports":
+            self.refresh_history()
+        elif key == "diagnostics":
+            self._refresh_diagnostics()
+        elif key == "telemetry":
+            self._load_daemon_config()
+            self.refresh_daemon_status()
+            self.refresh_vrm_detection()
 
     def _initialize_pages(self) -> None:
         """Install lightweight placeholders; build each section on first use."""
@@ -1098,29 +1517,35 @@ class SettingsPage(QWidget):
             "hardware": self._build_hardware_page,
             "console": self._build_console_page,
             "telemetry": self._build_telemetry_page,
-            "security": self._build_security_page,
             "reports": self._build_reports_page,
             "diagnostics": self._build_diagnostics_page,
             "about": self._build_about_page,
+            "overview": self._build_overview_page,
+            "repositories": self._build_repositories_page,
         }
         self._built_sections: set[str] = set()
-        for key in self.section_order:
+        self._section_pages: dict[str, QWidget] = {}
+        for key in (*self.section_order, *self.SUBPAGES):
             placeholder = QWidget()
             placeholder.setObjectName(f"SettingsPlaceholder_{key}")
-            self.stack.addWidget(placeholder)
+            placeholder.hide()
+            self.sections_layout.addWidget(placeholder)
+            self._section_pages[key] = placeholder
 
     def _ensure_section(self, key: str) -> QWidget | None:
         if key not in self._page_builders:
             return None
-        index = self.section_order.index(key)
         if key in self._built_sections:
-            return self.stack.widget(index)
+            return self._section_pages[key]
         started = time.perf_counter()
         page = self._page_builders[key]()
-        placeholder = self.stack.widget(index)
-        self.stack.removeWidget(placeholder)
+        placeholder = self._section_pages[key]
+        index = self.sections_layout.indexOf(placeholder)
+        self.sections_layout.removeWidget(placeholder)
         placeholder.deleteLater()
-        self.stack.insertWidget(index, page)
+        page.hide()
+        self.sections_layout.insertWidget(index, page)
+        self._section_pages[key] = page
         self._built_sections.add(key)
         localize_widget_tree(page)
         compact = str(self.app_settings.value("settings/density", "comfortable")).strip().lower() == "compact"
@@ -1141,6 +1566,14 @@ class SettingsPage(QWidget):
             "General",
             "Configure the default behavior of the control center and how the workspace resumes between sessions.",
         )
+        language = SettingsGroup("Language")
+        language.add_row(SettingRow(
+            "Language",
+            "Set the interface language. The change is applied immediately to the interface and its dialogs.",
+            self._coded_combo([(name, code) for code, name in LANGUAGE_OPTIONS], "settings/language", "auto", self._language_control_changed),
+        ))
+        layout.addWidget(language)
+
         startup = SettingsGroup("Startup")
         startup.add_row(SettingRow(
             "Start page",
@@ -1173,6 +1606,11 @@ class SettingsPage(QWidget):
             "Highlight the report button",
             "A soft glow every few seconds around the dashboard's button for reporting a problem or suggesting an idea.",
             self._switch(REPORT_GLOW_KEY, True, self.report_glow_changed.emit),
+        ))
+        help_group.add_row(SettingRow(
+            "Reset interface preferences",
+            "",
+            self._button("Reset preferences", self._reset_preferences),
         ))
         layout.addWidget(help_group)
         layout.addStretch(1)
@@ -1237,12 +1675,13 @@ class SettingsPage(QWidget):
             shortcut,
         ))
         layout.addWidget(terminal)
+        layout.addWidget(self._terminal_theme_group())
 
         controller = SettingsGroup("Game controller")
         controller.add_row(SettingRow(
             "Gamepad navigation",
             "Detect controllers automatically and show controller hints while active.",
-            self._switch("settings/gamepad_navigation", True, self.gamepad_navigation_changed.emit),
+            self._switch("settings/gamepad_navigation", False, self.gamepad_navigation_changed.emit),
         ))
         controller.add_row(SettingRow(
             "Automatic gamepad keypad",
@@ -1256,6 +1695,37 @@ class SettingsPage(QWidget):
         layout.addWidget(controller)
         layout.addStretch(1)
         return page
+
+    def _terminal_theme_group(self) -> QWidget:
+        """The built-in terminal's colours, each shown as the terminal it gives."""
+        group = SettingsGroup("Terminal theme")
+        host = QWidget()
+        grid = QGridLayout(host)
+        grid.setContentsMargins(0, 10, 0, 12)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(12)
+        current = str(self.app_settings.value("settings/console_theme", "app") or "app")
+        choices = [("app", tr("Same as the application"))] + [
+            (key, theme["name"]) for key, theme in _theme.TERMINAL_THEMES.items()
+        ]
+        self.terminal_theme_cards: dict[str, TerminalThemeCard] = {}
+        for index, (key, name) in enumerate(choices):
+            card = TerminalThemeCard(key, name, host)
+            card.selected = key == current
+            card.chosen.connect(self._terminal_theme_chosen)
+            grid.addWidget(card, index // 3, index % 3)
+            self.terminal_theme_cards[key] = card
+        for column in range(3):
+            grid.setColumnStretch(column, 1)
+        group.body.addWidget(host)
+        return group
+
+    def _terminal_theme_chosen(self, key: str) -> None:
+        self.app_settings.setValue("settings/console_theme", key)
+        for name, card in self.terminal_theme_cards.items():
+            card.selected = name == key
+            card.update()
+        self.console_theme_changed.emit(key)
 
     def _gpu_governor_changed(self, value: object) -> None:
         normalized = normalize_governor_preference(value)
@@ -1339,70 +1809,150 @@ class SettingsPage(QWidget):
             controls=(combo,) if isinstance(combo, QWidget) else (),
         )
 
+    def _segmented(self, combo: QComboBox, labels: list[str] | None = None) -> QWidget:
+        """Buttons for a short list, bound to the stored combo they replace.
+
+        The combo stays the record: it saves the value, runs the callback and
+        is what a reset writes to. The buttons only show it and set it.
+        """
+        host = QWidget()
+        row = QHBoxLayout(host)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)
+        group = QButtonGroup(host)
+        group.setExclusive(True)
+        buttons: list[QPushButton] = []
+        for index in range(combo.count()):
+            text = labels[index] if labels else combo.itemText(index)
+            button = QPushButton(text)
+            button.setCheckable(True)
+            button.setProperty("segment", True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.clicked.connect(lambda _checked=False, item=index: combo.setCurrentIndex(item))
+            group.addButton(button)
+            row.addWidget(button)
+            buttons.append(button)
+
+        def sync(current: int) -> None:
+            for index, button in enumerate(buttons):
+                button.setChecked(index == current)
+
+        combo.currentIndexChanged.connect(sync)
+        sync(combo.currentIndex())
+        host.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        return host
+
+    @staticmethod
+    def _stored(combo: QComboBox, page: QWidget) -> QComboBox:
+        combo.setParent(page)
+        combo.hide()
+        return combo
+
     def _build_appearance_page(self) -> QWidget:
-        # Appearance and language
+        from ..onboarding.previews import AccentDot, ThemePreview
+
         page, layout = self._build_page_frame(
             "Appearance",
             "Visual density, color, and language preferences for the interface.",
         )
-        colors = SettingsGroup("Theme and color")
-        colors.add_row(SettingRow(
-            "Theme",
-            "The colour of the surfaces: follow the system, or choose light, the neutral graphite dark, or the night blue of the application icon.",
-            self._coded_combo(
-                [("System", "system"), ("Light", "light"), ("Dark", "dark"), ("Night blue", "midnight")],
-                "settings/appearance", "system", self._appearance_control_changed,
-            ),
-        ))
-        colors.add_row(SettingRow(
+        theme_combo = self._stored(self._coded_combo(
+            [("System", "system"), ("Light", "light"), ("Dark", "dark"), ("Night blue", "midnight")],
+            "settings/appearance", "system", self._appearance_control_changed,
+        ), page)
+        style_combo = self._stored(self._coded_combo(
+            [("Standard", "standard"), ("Formal", "formal")],
+            "settings/style", "formal", self._appearance_control_changed,
+        ), page)
+        accent_combo = self._stored(self._coded_combo(
+            [(name.capitalize(), name) for name in _theme.ACCENTS],
+            "settings/accent", "blue", self._appearance_control_changed,
+        ), page)
+
+        # Theme: the same miniatures as the welcome panel.
+        theme_group = SettingsGroup("Theme and color")
+        cards_host = QWidget()
+        cards = QGridLayout(cards_host)
+        cards.setContentsMargins(0, 8, 0, 10)
+        cards.setHorizontalSpacing(10)
+        cards.setVerticalSpacing(6)
+        system_mode = "light" if _theme.ACTIVE_MODE == "light" else "dark"
+        self.theme_cards: dict[str, ThemePreview] = {}
+        for column, (value, label) in enumerate(
+            (("system", "System"), ("light", "Light"), ("dark", "Dark"), ("midnight", "Night blue"))
+        ):
+            card = ThemePreview(
+                value, system_mode if value == "system" else value,
+                str(accent_combo.currentData()), cards_host, style=str(style_combo.currentData()),
+            )
+            card.setMinimumHeight(88)
+            card.chosen.connect(lambda item, combo=theme_combo: combo.setCurrentIndex(combo.findData(item)))
+            caption = QLabel(tr(label))
+            caption.setProperty("themeCaption", True)
+            caption.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+            cards.addWidget(card, 0, column)
+            cards.addWidget(caption, 1, column)
+            cards.setColumnStretch(column, 1)
+            self.theme_cards[value] = card
+        theme_group.body.addWidget(cards_host)
+        accent_group = theme_group
+        # Style as two buttons, the accents as the colours themselves.
+        accent_group.add_row(SettingRow(
             "Style",
             "The register, in any theme. Standard keeps the rounded, lively look. Formal uses deeper, quieter colours, squarer corners and flat cards.",
-            self._coded_combo(
-                [("Standard", "standard"), ("Formal", "formal")],
-                "settings/style", "formal", self._appearance_control_changed,
-            ),
+            self._segmented(style_combo),
         ))
-        colors.add_row(SettingRow(
-            "Accent color",
-            "Select the main interface accent used across modules.",
-            self._coded_combo(
-                [
-                    ("Blue", "blue"), ("Indigo", "indigo"), ("Violet", "violet"),
-                    ("Pink", "pink"), ("Orange", "orange"), ("Amber", "amber"),
-                    ("Green", "green"), ("Teal", "teal"), ("Cyan", "cyan"),
-                    ("Graphite", "graphite"),
-                ],
-                "settings/accent", "blue", self._appearance_control_changed,
-            ),
-        ))
-        layout.addWidget(colors)
+        dots_host = QWidget()
+        dots = QHBoxLayout(dots_host)
+        dots.setContentsMargins(0, 0, 0, 0)
+        dots.setSpacing(4)
+        self.accent_dots: dict[str, AccentDot] = {}
+        for name in _theme.ACCENTS:
+            dot = AccentDot(name, dots_host, style=str(style_combo.currentData()))
+            dot.chosen.connect(lambda item, combo=accent_combo: combo.setCurrentIndex(combo.findData(item)))
+            dots.addWidget(dot)
+            self.accent_dots[name] = dot
+        dots_host.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        accent_group.add_row(SettingRow("Accent color", "Select the main interface accent used across modules.", dots_host))
+        layout.addWidget(accent_group)
+
+        def sync_previews(_index: int = 0) -> None:
+            mode, accent, style = theme_combo.currentData(), accent_combo.currentData(), style_combo.currentData()
+            for value, card in self.theme_cards.items():
+                card.set_selected(value == mode)
+                card.set_accent(str(accent))
+                card.set_style(str(style))
+            for name, dot in self.accent_dots.items():
+                dot._style = str(style)
+                dot.set_selected(name == accent)
+                dot.update()
+
+        for combo in (theme_combo, style_combo, accent_combo):
+            combo.currentIndexChanged.connect(sync_previews)
+        sync_previews()
+        self._sync_appearance_previews = sync_previews
 
         sizing = SettingsGroup("Layout")
         sizing.add_row(SettingRow(
             "Density",
             "Comfortable keeps generous spacing. Compact tightens margins, rows and buttons in every module so more fits on screen; text keeps its size.",
-            self._coded_combo(
+            self._segmented(self._stored(self._coded_combo(
                 [("Comfortable", "comfortable"), ("Compact", "compact")],
                 "settings/density", "comfortable", self._appearance_control_changed,
-            ),
+            ), page)),
         ))
+        scale_combo = self._coded_combo(
+            [(f"{value}%", value) for value in range(70, 151, 10)],
+            "settings/scale", 100, lambda value: self.scale_changed.emit(int(value)),
+        )
+        scale_combo.setProperty("narrowCombo", True)
+        scale_combo.setMinimumWidth(110)
+        scale_combo.setMaximumWidth(130)
         sizing.add_row(SettingRow(
             "Interface scale",
             "Scale fonts, controls, spacing, and technical panels from 70% to 150%.",
-            self._coded_combo(
-                [(f"{value}%", value) for value in range(70, 151, 10)],
-                "settings/scale", 100, lambda value: self.scale_changed.emit(int(value)),
-            ),
+            scale_combo,
         ))
         layout.addWidget(sizing)
-
-        language = SettingsGroup("Language")
-        language.add_row(SettingRow(
-            "Language",
-            "Set the interface language. The change is applied immediately to the interface and its dialogs.",
-            self._coded_combo([(name, code) for code, name in LANGUAGE_OPTIONS], "settings/language", "auto", self._language_control_changed),
-        ))
-        layout.addWidget(language)
         layout.addStretch(1)
         return page
 
@@ -1432,20 +1982,10 @@ class SettingsPage(QWidget):
         ))
         # What the daemon does and its buttons belong to the daemon, so they sit
         # inside its group instead of in a second, unrelated card below.
-        daemon_text = WrappedLabel(
-            "The optional user daemon records JSONL metrics and restores the saved fan mode after login: "
-            "an enabled automatic curve, a named preset or the last manual speed. "
-            "It never applies CPU or GPU overclock automatically."
-        )
-        daemon_text.setProperty("rowDescription", True)
-        daemon_group.layout_root.addSpacing(8)
-        daemon_group.layout_root.addWidget(daemon_text)
         daemon_group.layout_root.addSpacing(8)
         daemon_actions = ActionGrid(columns=2, fit_content=True)
-        self.daemon_refresh_button = self._button("Refresh status", self.refresh_daemon_status)
         self.daemon_enable_button = self._button("Enable daemon", lambda: self._change_daemon(True))
         self.daemon_disable_button = self._button("Disable daemon", lambda: self._change_daemon(False))
-        daemon_actions.addWidget(self.daemon_refresh_button)
         daemon_actions.addWidget(self.daemon_enable_button)
         daemon_actions.addWidget(self.daemon_disable_button)
         daemon_actions.addWidget(self._button("View daemon details", self._show_daemon_details))
@@ -1768,74 +2308,30 @@ class SettingsPage(QWidget):
         )
         return dialog.exec() == QDialog.DialogCode.Accepted
 
-    def _build_security_page(self) -> QWidget:
-        # Security policies remain mandatory. The page documents the behavior
-        # without presenting controls that could falsely imply safety bypasses.
-        page, layout = self._build_page_frame(
-            "Privacy and safety",
-            "What diagnostics may reveal, and the confirmations every privileged or hardware-impacting action requires.",
-        )
-        diagnostic_group = SettingsGroup("Diagnostic privacy")
-        diagnostic_group.add_row(SettingRow(
-            "Detailed diagnostics",
-            "Show complete device and configuration paths in technical diagnostic panels.",
-            self._switch("settings/detailed_diagnostics", False, self.diagnostics_changed.emit),
-        ))
-        layout.addWidget(diagnostic_group)
-        group = SettingsGroup("Protection policy")
-        group.add_row(SettingRow("CPU changes", "A confirmation is required before sending CPU frequency or voltage changes.", PillLabel("Required", "orange")))
-        group.add_row(SettingRow("GPU changes", "A confirmation is required before GPU ranges, service actions, or voltage curves are applied.", PillLabel("Required", "orange")))
-        group.add_row(SettingRow("Fan writes", "A confirmation is required before explicit PWM writes are authorized.", PillLabel("Required", "orange")))
-        group.add_row(SettingRow("Process termination", "A confirmation is required before selected workloads are closed.", PillLabel("Required", "orange")))
-        layout.addWidget(group)
-        layout.addStretch(1)
-        return page
-
     def _build_reports_page(self) -> QWidget:
-        page, layout = self._build_page_frame(
-            "History & reports",
-            "Review application activity and export recorded performance data.",
+        # No page title: the sidebar names it, and the table is the page.
+        page, layout = self._build_page_frame("", "")
+        self.metrics_csv_button = self._small_button(
+            "Export metrics as CSV", lambda: self._export_runtime_metrics("csv")
         )
-
-        hero = QFrame()
-        hero.setProperty("reportHero", True)
-        hero_layout = QHBoxLayout(hero)
-        hero_layout.setContentsMargins(14, 12, 14, 12)
-        hero_layout.setSpacing(12)
-        hero_layout.addWidget(IconBadge("history_blue", COLORS["orange_soft"], 38, radius=11))
-        hero_copy = QVBoxLayout()
-        hero_copy.setSpacing(2)
-        hero_title = QLabel(tr("Metrics report"))
-        hero_title.setProperty("reportHeroTitle", True)
-        hero_text = QLabel(tr("Export recorded samples as a spreadsheet-ready CSV file."))
-        hero_text.setProperty("reportHeroText", True)
-        hero_text.setWordWrap(True)
-        hero_copy.addWidget(hero_title)
-        hero_copy.addWidget(hero_text)
-        hero_layout.addLayout(hero_copy, 1)
-        self.metrics_csv_button = self._button(
-            "Export metrics as CSV", lambda: self._export_runtime_metrics("csv"), primary=True
+        # Still written by the history code, never shown: the table says how
+        # many events there are, and it refreshes each time it is opened.
+        count = self._register_count("history_count", "0 events")
+        refresh = self._remember("history_refresh_button", self._small_button("Refresh", lambda: self.refresh_history(force=True)))
+        for hidden in (count, refresh):
+            hidden.setParent(page)
+            hidden.hide()
+        header = self._table_header(
+            "Recent activity",
+            None,
+            (
+                self.metrics_csv_button,
+                self._small_button("Open history folder", self._open_history_folder),
+                self._small_button("Clear history", self._clear_history),
+            ),
         )
-        hero_layout.addWidget(self.metrics_csv_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(hero)
-
-        history_header = QHBoxLayout()
-        history_header.setSpacing(10)
-        history_title = QLabel(tr("Recent activity"))
-        history_title.setProperty("groupTitle", True)
-        history_header.addWidget(history_title)
-        self.history_count = PillLabel("0 events", "blue")
-        history_header.addWidget(self.history_count)
-        history_header.addStretch(1)
-        layout.addLayout(history_header)
-        toolbar = ActionGrid(columns=3)
-        self.history_refresh_button = self._button("Refresh", lambda: self.refresh_history(force=True), primary=True)
-        toolbar.addWidget(self.history_refresh_button)
-        toolbar.addWidget(self._button("Clear history", self._clear_history))
-        toolbar.addWidget(self._button("Open history folder", self._open_history_folder))
-        layout.addWidget(toolbar)
-        self._action_grids.append(toolbar)
-
+        header.layout().setContentsMargins(0, 4, 0, 10)
+        layout.addWidget(header)
         self.history_table = QTableWidget(0, 4)
         self.history_table.setProperty("historyTable", True)
         self.history_table.setHorizontalHeaderLabels(["Date", "Level", "Event", "Details"])
@@ -1860,24 +2356,28 @@ class SettingsPage(QWidget):
             "Diagnostics",
             "This system at a glance and every error Control Center explained, ready to paste into a problem report.",
         )
-        actions = ActionGrid(columns=4)
+        support = SettingsGroup("Help")
         self.diagnostics_send_button = self._button("Send a report", self._send_problem_report, primary=True)
-        self.diagnostics_copy_button = self._button("Copy for a problem report", self._copy_diagnostic_report)
-        self.diagnostics_refresh_button = self._button("Refresh", self._refresh_diagnostics)
-        self.diagnostics_clear_button = self._button("Clear history", self._clear_diagnostic_history)
-        for button in (
-            self.diagnostics_send_button,
-            self.diagnostics_copy_button,
-            self.diagnostics_refresh_button,
-            self.diagnostics_clear_button,
-        ):
-            actions.addWidget(button)
-        self._action_grids.append(actions)
-        layout.addWidget(actions)
+        self.diagnostics_copy_button = self._small_button("Copy for a problem report", self._copy_diagnostic_report)
+        actions = QWidget()
+        actions_row = QHBoxLayout(actions)
+        actions_row.setContentsMargins(0, 0, 0, 0)
+        actions_row.setSpacing(8)
+        actions_row.addWidget(self.diagnostics_copy_button)
+        actions_row.addWidget(self.diagnostics_send_button)
+        support.add_row(SettingRow(
+            "Send a report",
+            "This system at a glance and every error Control Center explained, ready to paste into a problem report.",
+            actions,
+        ))
+        support.add_row(SettingRow(
+            "Detailed diagnostics",
+            "Show complete device and configuration paths in technical diagnostic panels.",
+            self._switch("settings/detailed_diagnostics", False, self.diagnostics_changed.emit),
+        ))
+        layout.addWidget(support)
 
-        system_title = QLabel(tr("System"))
-        system_title.setProperty("groupTitle", True)
-        layout.addWidget(system_title)
+        layout.addWidget(self._table_header("System", None, ()))
         # A sheet, not a list: every fact in its own cell, so a screenshot of
         # it answers what a support thread asks first.
         self.system_table = self._sheet(("Item", "Value"))
@@ -1886,14 +2386,13 @@ class SettingsPage(QWidget):
         self.system_table.setWordWrap(True)
         layout.addWidget(self.system_table)
 
-        history_header = QHBoxLayout()
-        history_title = QLabel(tr("Diagnostic history"))
-        history_title.setProperty("groupTitle", True)
-        history_header.addWidget(history_title)
-        self.diagnostics_count = PillLabel("0 entries", "blue")
-        history_header.addWidget(self.diagnostics_count)
-        history_header.addStretch(1)
-        layout.addLayout(history_header)
+        self.diagnostics_refresh_button = self._small_button("Refresh", self._refresh_diagnostics)
+        self.diagnostics_clear_button = self._small_button("Clear history", self._clear_diagnostic_history)
+        layout.addWidget(self._table_header(
+            "Diagnostic history",
+            self._register_count("diagnostics_count", "0 entries"),
+            (self.diagnostics_clear_button, self.diagnostics_refresh_button),
+        ))
 
         self.diagnostics_table = self._sheet(("Date and time", "Code", "Where", "What happened", "Likely cause"))
         header = self.diagnostics_table.horizontalHeader()
@@ -1941,33 +2440,119 @@ class SettingsPage(QWidget):
             "About",
             "Build information, local paths, project scope, and official repositories.",
         )
+        identity = QFrame()
+        identity.setProperty("aboutIdentity", True)
+        identity_layout = QHBoxLayout(identity)
+        identity_layout.setContentsMargins(0, 18, 0, 0)
+        identity_layout.setSpacing(16)
+        mark = QLabel()
+        app_icon = Path(__file__).resolve().parents[3] / "assets" / "icons" / "bc250-control-center-128.png"
+        mark.setPixmap(QPixmap(str(app_icon)).scaled(
+            48, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation,
+        ))
+        mark.setFixedSize(52, 52)
+        mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        identity_layout.addWidget(mark, 0, Qt.AlignmentFlag.AlignTop)
+        copy = QVBoxLayout()
+        copy.setSpacing(3)
+        name = QLabel("BC250 Control Center")
+        name.setProperty("aboutName", True)
+        version = QLabel(f"{tr('Version')} {__version__}")
+        version.setProperty("aboutVersion", True)
+        text = QLabel("BC250 Control Center is a graphical interface for managing, preparing, and monitoring community tools for the AMD BC-250 board.")
+        text.setProperty("rowDescription", True)
+        text.setWordWrap(True)
+        copy.addWidget(name)
+        copy.addWidget(version)
+        copy.addSpacing(4)
+        copy.addWidget(text)
+        identity_layout.addLayout(copy, 1)
+        # As wide as its label: the wrapping button folded it into two lines.
+        update = _PlainButton(tr("Update application"))
+        update.setProperty("primaryAction", True)
+        update.setCursor(Qt.CursorShape.PointingHandCursor)
+        update.clicked.connect(self._update_application)
+        update.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self._update_button = update
+        identity_layout.addWidget(update, 0, Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(identity)
+
         group = SettingsGroup("Application")
-        group.add_row(SettingRow("Application", "Product name of the current interface.", PillLabel("BC250 Control Center", "blue")))
-        group.add_row(SettingRow("Version", "Exact application release identity.", PillLabel(__version__, "gray")))
-        group.add_row(SettingRow("Backend", "Indicates whether the validated hardware backend is connected.", PillLabel("Connected", "green")))
         self.config_path_field = ReadOnlyPathField(str(Path(self._path_for("config")).expanduser().resolve().parent))
-        group.add_row(SettingRow("Configuration folder", "Shared application configuration used by the GUI and optional daemon.", self.config_path_field))
+        folder = QWidget()
+        folder_row = QHBoxLayout(folder)
+        folder_row.setContentsMargins(0, 0, 0, 0)
+        folder_row.setSpacing(8)
+        folder_row.addWidget(self.config_path_field, 1)
+        folder_row.addWidget(self._small_button("Open", self._open_settings_folder))
+        group.add_row(SettingRow("Configuration folder", "Shared application configuration used by the GUI and optional daemon.", folder))
         layout.addWidget(group)
 
-        about_box = QFrame()
-        about_box.setProperty("banner", True)
-        box_layout = QVBoxLayout(about_box)
-        box_layout.setContentsMargins(14, 12, 14, 12)
-        box_layout.setSpacing(8)
-        text = QLabel("BC250 Control Center is a graphical interface for managing, preparing, and monitoring community tools for the AMD BC-250 board.")
-        text.setProperty("bannerText", True)
-        text.setWordWrap(True)
-        box_layout.addWidget(text)
-        action_row = ActionGrid(columns=2)
-        action_row.addWidget(self._button("Project overview", self._show_project_overview))
-        action_row.addWidget(self._button("Official repositories", self._show_repositories))
-        action_row.addWidget(self._button("Open settings folder", self._open_settings_folder))
-        action_row.addWidget(self._button("Reset interface preferences", self._reset_preferences))
-        action_row.addWidget(self._button("Update application", self._update_application, primary=True))
-        action_row.addWidget(self._button("Report a problem / Contact", self._open_contact))
-        box_layout.addWidget(action_row)
-        self._action_grids.append(action_row)
-        layout.addWidget(about_box)
+        links = SettingsGroup("Help")
+        for text, callback in (
+            ("Project overview", self._show_project_overview),
+            ("Official repositories", self._show_repositories),
+            ("Report a problem / Contact", self._open_contact),
+        ):
+            link = LinkRow(text, callback)
+            links.layout_root.addWidget(link)
+        link.setProperty("lastRow", True)
+        layout.addWidget(links)
+        layout.addStretch(1)
+        return page
+
+    def _back_link(self, layout: QVBoxLayout, title: str) -> None:
+        """A way back to About, then the page's title."""
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 18, 0, 0)
+        back = QPushButton("\u2039  " + tr("About"))
+        back.setProperty("backLink", True)
+        back.setCursor(Qt.CursorShape.PointingHandCursor)
+        back.clicked.connect(lambda: self.select_section("about"))
+        row.addWidget(back)
+        row.addStretch(1)
+        layout.addLayout(row)
+        heading = QLabel(tr(title))
+        heading.setProperty("subpageTitle", True)
+        layout.addWidget(heading)
+
+    def _build_overview_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Project overview")
+        # The overview is a lead paragraph, then "Heading:" blocks of bullets.
+        blocks = [block.strip() for block in project_overview().split("\n\n") if block.strip()]
+        if blocks:
+            lead = QLabel(blocks[0])
+            lead.setWordWrap(True)
+            lead.setProperty("overviewLead", True)
+            layout.addSpacing(6)
+            layout.addWidget(lead)
+        for block in blocks[1:]:
+            lines = [line.strip() for line in block.splitlines() if line.strip()]
+            heading = lines[0].rstrip(":") if lines and not lines[0].startswith("\u2022") else ""
+            group = SettingsGroup(heading)
+            group.layout_root.setContentsMargins(16, 10, 16, 12)
+            group.layout_root.setSpacing(8)
+            for line in lines[1 if heading else 0:]:
+                item = WrappedLabel(line)
+                item.setProperty("overviewItem", True)
+                group.layout_root.addWidget(item)
+            layout.addWidget(group)
+        layout.addStretch(1)
+        return page
+
+    def _build_repositories_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Official repositories")
+        intro = QLabel(tr(
+            "BC250 Control Center does not own these tools. They are installed, cloned, or used as credited reference implementations according to each integration."
+        ))
+        intro.setWordWrap(True)
+        intro.setProperty("rowDescription", True)
+        layout.addSpacing(4)
+        layout.addWidget(intro)
+        layout.addSpacing(12)
+        layout.addWidget(RepositoryList())
         layout.addStretch(1)
         return page
 
@@ -2420,7 +3005,7 @@ class SettingsPage(QWidget):
         self._start_task(operation, success, failure)
 
     def _show_project_overview(self) -> None:
-        TextDetailsDialog("About", project_overview(), self).exec()
+        self._show_section("overview")
 
     def _refresh_diagnostics(self) -> None:
         """Read the history now and the system facts in the background."""
@@ -2517,7 +3102,7 @@ class SettingsPage(QWidget):
         show_toast(self, "Diagnostic history cleared", tone="blue")
 
     def _show_repositories(self) -> None:
-        RepositoriesDialog(self).exec()
+        self._show_section("repositories")
 
     def _open_contact(self) -> None:
         opened, message = open_external_url(CONTACT_URL)
@@ -2546,25 +3131,24 @@ class SettingsPage(QWidget):
         self.select_section(target)
 
     def gamepad_focus_scope(self) -> QWidget:
-        return self.stack.currentWidget() or self
+        return self.scroll
 
     def select_section(self, key: str) -> None:
+        if key in self.SUBPAGES:
+            # A page opened from a section (About › Official repositories).
+            self._show_section(key)
+            return
+        if key == "home":
+            # Settings opens on the section last used.
+            self._show_section(self._last_section)
+            return
         if key not in self.nav_buttons:
             return
-        index = self.section_order.index(key)
-        self._ensure_section(key)
-        self.stack.setCurrentIndex(index)
+        self._last_section = key
         for section_key, button in self.nav_buttons.items():
             button.setChecked(section_key == key)
         self.app_settings.setValue("settings/current_section", key)
-        if key == "reports":
-            self.refresh_history()
-        elif key == "diagnostics":
-            self._refresh_diagnostics()
-        elif key == "telemetry":
-            self._load_daemon_config()
-            self.refresh_daemon_status()
-            self.refresh_vrm_detection()
+        self._show_section(key)
         self.section_requested.emit(key)
 
     @staticmethod
@@ -2585,9 +3169,7 @@ class SettingsPage(QWidget):
         self._applied_density = normalized
         compact = normalized == "compact"
         for key in self._built_sections:
-            page = self.stack.widget(self.section_order.index(key))
-            if page is not None:
-                self._apply_density_to_page(page, compact)
+            self._apply_density_to_page(self._section_pages[key], compact)
         if hasattr(self, "history_table"):
             self.history_table.verticalHeader().setDefaultSectionSize(27 if compact else 32)
             self.history_table.setMinimumHeight(260 if compact else 330)
@@ -2604,6 +3186,15 @@ class SettingsPage(QWidget):
             self.setStyleSheet(settings_stylesheet())
         self._applied_density = None
         self.apply_density(str(self.app_settings.value("settings/density", "comfortable")))
+        for button in self.nav_buttons.values():
+            button.refresh_icon()
+        self._search_action.setIcon(tinted_icon("search", COLORS["muted"]))
+        sync = getattr(self, "_sync_appearance_previews", None)
+        if sync is not None:
+            # The miniatures paint the live palette themselves.
+            sync()
+            for card in self.theme_cards.values():
+                card.update()
 
     def _set_control_value(self, key: str, value: object) -> None:
         control = self.controls.get(key)
@@ -2629,7 +3220,7 @@ class SettingsPage(QWidget):
             "settings/start_page": "dashboard",
             "settings/reopen_last_module": "true",
             "sidebar_collapsed": "false",
-            "settings/gamepad_navigation": "true",
+            "settings/gamepad_navigation": "false",
             REPORT_GLOW_KEY: "true",
             "settings/gamepad_onscreen_keypad": "true",
             "settings/gamepad_keypad_auto_show": "true",
@@ -2661,7 +3252,7 @@ class SettingsPage(QWidget):
         self.desktop_notifications_changed.emit(False)
         self.diagnostics_changed.emit(False)
         self.sidebar_collapsed_changed.emit(False)
-        self.gamepad_navigation_changed.emit(True)
+        self.gamepad_navigation_changed.emit(False)
         self.report_glow_changed.emit(True)
         self.gamepad_keypad_changed.emit(True)
         self.gamepad_keypad_auto_show_changed.emit(True)
@@ -2690,6 +3281,7 @@ class SettingsDialog(QDialog):
     gamepad_keypad_auto_show_changed = pyqtSignal(bool)
     embedded_terminal_changed = pyqtSignal(bool)
     console_auto_hide_changed = pyqtSignal(bool)
+    console_theme_changed = pyqtSignal(str)
     gddr6_manual_changed = pyqtSignal(bool)
     vrm_manual_changed = pyqtSignal(bool)
     tour_requested = pyqtSignal()
@@ -2710,14 +3302,15 @@ class SettingsDialog(QDialog):
             # Wide enough for the side navigation at every scale up to 110 %:
             # below 760 px the sections fold into a two-column grid above the
             # content, which cost a third of the height before any setting.
-            preferred_width=1000,
-            preferred_height=680,
+            preferred_width=1180,
+            preferred_height=780,
             minimum_width=620,
             minimum_height=460,
         )
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
+        # Room for the shadow, so the window floats over the application.
+        outer.setContentsMargins(self.SHADOW_MARGIN, self.SHADOW_MARGIN - 4, self.SHADOW_MARGIN, self.SHADOW_MARGIN + 4)
         outer.setSpacing(0)
 
         self.page = SettingsPage(
@@ -2743,9 +3336,11 @@ class SettingsDialog(QDialog):
         self.page.gamepad_keypad_auto_show_changed.connect(self.gamepad_keypad_auto_show_changed.emit)
         self.page.embedded_terminal_changed.connect(self.embedded_terminal_changed.emit)
         self.page.console_auto_hide_changed.connect(self.console_auto_hide_changed.emit)
+        self.page.console_theme_changed.connect(self.console_theme_changed.emit)
         self.page.gddr6_manual_changed.connect(self.gddr6_manual_changed.emit)
         self.page.vrm_manual_changed.connect(self.vrm_manual_changed.emit)
         outer.addWidget(self.page, 1)
+        self._lift_window()
 
         # Frameless dialogs still need an obvious exit.  Keep it inside the
         # settings shell so it no longer creates a separate header/margin.
@@ -2759,6 +3354,20 @@ class SettingsDialog(QDialog):
         self.close_button.raise_()
         self._localized_language = current_language()
         localize_widget_tree(self)
+
+    SHADOW_MARGIN = 18
+
+    def _lift_window(self) -> None:
+        from PyQt6.QtGui import QColor
+        from PyQt6.QtWidgets import QGraphicsDropShadowEffect
+
+        shadow = self.page.shell.graphicsEffect()
+        if not isinstance(shadow, QGraphicsDropShadowEffect):
+            shadow = QGraphicsDropShadowEffect(self.page.shell)
+            self.page.shell.setGraphicsEffect(shadow)
+        shadow.setBlurRadius(36)
+        shadow.setOffset(0, 6)
+        shadow.setColor(QColor(0, 0, 0, 150 if _theme.ACTIVE_MODE != "light" else 60))
 
     def _request_close(self) -> None:
         if self.page.has_running_tasks():
@@ -2786,10 +3395,15 @@ class SettingsDialog(QDialog):
     def refresh_appearance(self) -> None:
         self.setStyleSheet(application_stylesheet() + settings_stylesheet())
         self.page.refresh_appearance()
+        self._lift_window()
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().resizeEvent(event)
-        self.close_button.move(max(0, self.width() - self.close_button.width() - 8), 8)
+        # Clear of the section's scrollbar, level with the section title.
+        # Level with the tabs, inside the shadow's margin.
+        self.close_button.move(
+            max(0, self.width() - self.close_button.width() - 12 - self.SHADOW_MARGIN), self.SHADOW_MARGIN - 4 + 8
+        )
         self.close_button.raise_()
 
     def showEvent(self, event) -> None:  # noqa: N802 - Qt API name

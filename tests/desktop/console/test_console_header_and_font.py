@@ -69,12 +69,14 @@ def test_plus_is_unavailable_once_every_tab_is_taken(qtbot, panel):
     assert panel.open_new_shell() is False
 
 
-def test_the_actions_carry_their_word_when_there_is_room(qtbot, panel):
+def test_the_actions_are_icons_with_their_word_in_the_tooltip(qtbot, panel):
+    """The header actions are icon-only at every width; the tooltip names them."""
     panel.slide_in()
     qtbot.waitUntil(lambda: panel.is_open)
     assert panel.width() >= HEADER_LABELS_WIDTH
-    assert panel.copy_button.text() == tr("Copy")
-    assert panel.hide_button.text() == tr("Hide")
+    assert panel.copy_button.text() == ""
+    assert panel.hide_button.text() == ""
+    assert panel.copy_button.toolTip() == tr("Copy")
     assert "F4" in panel.hide_button.toolTip()
 
     panel.window().resize(700, 900)

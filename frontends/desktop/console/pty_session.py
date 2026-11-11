@@ -471,7 +471,8 @@ class PtySession(QObject):
             pid = self._pid
             if pid is not None:
                 try:
-                    os.waitpid(pid, 0)
+                    _, status = os.waitpid(pid, 0)
+                    self._exit_code = os.waitstatus_to_exitcode(status)
                 except OSError:
                     pass
                 self._pid = None

@@ -74,8 +74,32 @@ def test_settings_dialog_uses_the_settings_shell_as_its_window_boundary(qtbot, t
     dialog.show()
     qtbot.wait(10)
 
-    assert dialog.layout().contentsMargins().left() == 0
-    assert dialog.layout().contentsMargins().top() == 0
-    assert dialog.page.size() == dialog.contentsRect().size()
+    shell = next(frame for frame in dialog.findChildren(QFrame) if frame.property("settingsShell"))
+    assert dialog.rect().contains(shell.geometry()), "the rounded shell is the window's boundary"
+    assert shell.width() >= dialog.width() - 2 * dialog.layout().contentsMargins().left() - 2
     assert dialog.findChild(QFrame, "ControlDialogCard") is None
     assert dialog.close_button.parentWidget() is dialog
+
+
+def test_welcome_and_settings_share_the_gamepad_choice_across_launches(tmp_path, qtbot):
+    from types import SimpleNamespace
+    from frontends.desktop.app import ControlCenterWindow
+
+    settings = _settings(tmp_path)
+    UiPreferences(settings).initialize()
+    assert settings.value("settings/gamepad_navigation", type=bool) is False
+    changes = []
+    owner = SimpleNamespace(settings=settings, _set_gamepad_navigation_enabled=changes.append)
+    ControlCenterWindow._welcome_gamepad(owner, True)
+    settings.sync()
+    reopened = _settings(tmp_path)
+    UiPreferences(reopened).initialize()
+    page = SettingsPage(object(), settings_service=SettingsService(), activity_service=ActivityService(), app_settings=reopened)
+    qtbot.addWidget(page)
+    page._ensure_section("console")
+    switch = page.controls["settings/gamepad_navigation"]
+    assert switch.isChecked()
+    page.gamepad_navigation_changed.connect(changes.append)
+    switch.click()
+    assert changes == [True, False]
+    assert reopened.value("settings/gamepad_navigation", type=bool) is False

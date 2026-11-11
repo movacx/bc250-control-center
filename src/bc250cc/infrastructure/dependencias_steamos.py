@@ -1,6 +1,7 @@
 """SteamOS compute-unit backend and compatibility commands of the dependency repository."""
 
 import shlex
+from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from pathlib import Path
 
 from bc250cc.infrastructure.cu_privileged_backend import (
@@ -301,6 +302,7 @@ class SteamosDependenciesMixin:
         )
 
     def preparar_compatibilidad_steamos(self):
+        require_bc250_hardware()  # nothing to change on a computer without a BC-250
         os_repository = self._os_repository()
         if os_repository.info.family != 'steamos':
             raise RuntimeError('The dedicated SteamOS compatibility workflow is available only on SteamOS.')
@@ -324,6 +326,10 @@ class SteamosDependenciesMixin:
 
     def gestionar_graficos_steamos(self, action):
         """Install, verify or remove the matched SteamOS RADV/FSR4 stage."""
+        # BC-250 hardware actions stop here on a computer without one;
+        # checking state and removing stay available.
+        if str(action or '').strip().lower() not in {'status', 'uninstall', 'remove', 'stop', 'disable'}:
+            require_bc250_hardware()
         os_repository = self._os_repository()
         if os_repository.info.family != 'steamos':
             raise RuntimeError(

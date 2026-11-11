@@ -32,13 +32,9 @@ CPU_QAM_FREQUENCIES = tuple(range(3100, 4201, 50))
 CPU_QAM_SCALES = tuple(range(-50, 1))
 CPU_QAM_MAX_ESTIMATED_VID_MV = 1325
 
-# PWM wiring is not standardized across every community BC-250 conversion.
-# Earlier observations labelled PWM2 as a pump, but the user has explicitly
-# identified it as the board-default control they need in QAM.  Expose only
-# the four observed channels and keep PWM2's wiring uncertainty visible in the
-# presentation instead of silently blocking it.  A manual 0% is intentionally
-# unavailable: Automatic is the safe way to hand the channel back to NCT.
-QAM_FAN_CHANNELS = (2, 3, 4, 5)
+# The five BC-250 fan signals occupy Linux PWM1..5 (BIOS order 5, 1..4).
+# Manual 0% remains unavailable; Automatic returns control to the NCT.
+QAM_FAN_CHANNELS = (1, 2, 3, 4, 5)
 QAM_FAN_MIN_PERCENT = 20
 QAM_FAN_MAX_PERCENT = 100
 

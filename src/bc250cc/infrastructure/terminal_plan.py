@@ -6,6 +6,16 @@ inside the shell fragment, which meant the wording could never reach ``tr()``
 and so existed in English only, outside all 30 locales. It also explained just
 13 statuses, while the privileged helpers exit with 20-57 — every other status
 printed a bare number, which is where "code 43" came from.
+
+The helpers' numbers were then read for every workflow, and that was wrong the
+other way: a workflow's status is the status of whatever ran last under
+``set -e``. ``make`` exits 2, ``curl --fail`` 22, ``systemctl status`` 3 for a
+unit in auto-restart, and those numbers meant "helper version mismatch", "Cyan
+D-Bus" and "helper version mismatch" in the catalog (R-bb33f44b, R-530bd5f6,
+R-53376560). So the wrapper now reads only the words: the catalog's text
+markers, the script's own ``[ERROR]`` lines, and two statuses the shell itself
+defines (127, command not found; 124, ``timeout``). Everything else is the
+neutral code, with the raw status still shown by the console.
 """
 
 from __future__ import annotations
@@ -37,6 +47,14 @@ _LOG_SYNC_WAIT_TICKS = 50  # of 0.1 s: only a console that is not reading waits 
 # real and described, but no catalog rule was consulted, so claiming a
 # specific rule id would be a lie.
 _WORKFLOW_REPORTED_CODE = "BC250-WORKFLOW-001"
+
+#: Printed instead of a diagnosis when the user declined at a prompt.
+CANCELLED_MESSAGE = "Cancelled: you answered no. Steps before this question may already have changed the system."
+
+# Exit statuses defined by bash and coreutils themselves, so they mean the
+# same thing whatever ran. Every other number belongs to the program that
+# exited with it, and a workflow runs many programs.
+_SHELL_DEFINED_STATUSES = ((124, "BC250-TIMEOUT-001"), (127, "BC250-CMD-001"))
 
 
 def _identity(value: object) -> str:
@@ -74,11 +92,12 @@ def exit_explanation_shell(translate=None) -> str:
     signal_cause = translate(error_catalog.GENERAL_FAILURE.cause)
     signal_action = translate(error_catalog.GENERAL_FAILURE.action)
 
+    # The only statuses with one meaning for every program: the shell's own
+    # 127 (command not found) and coreutils' 124 (timeout). A helper's number
+    # is read by the helper's caller (failure_text.describe_failure), never here.
     branches = []
-    for status in sorted(error_catalog.known_exit_statuses()):
-        entry = error_catalog.for_exit_status(status)
-        if entry is None:
-            continue
+    for status, code in _SHELL_DEFINED_STATUSES:
+        entry = error_catalog.BY_CODE[code]
         branches.append(
             f'{status}) summary={shlex.quote(translate(entry.summary))}; '
             f'cause={shlex.quote(translate(entry.cause))}; '
@@ -122,7 +141,8 @@ def exit_explanation_shell(translate=None) -> str:
     workflow = error_catalog.BY_CODE[_WORKFLOW_REPORTED_CODE]
     workflow_action = shlex.quote(translate(workflow.action))
     return (
-        'if [ "$status" -ne 0 ]; then '
+        # 130: the user declined or interrupted; no diagnosis (see workflow_wrapper).
+        'if [ "$status" -ne 0 ] && [ "$status" -ne 130 ]; then '
         'matched=0; '
         # When the script explained itself, its own [ERROR] lines are what a
         # rule is matched against: the tail of the log can hold an earlier,
@@ -217,6 +237,8 @@ def _first_error_shell(translate=None) -> str:
         "END { for (i = 1; i <= n; i++) print lines[i] }' || true); "
         # Its first line: what happened.
         'first_error=$(printf "%s\\n" "$error_block" | head -n 1); '
+        'if [ "$status" -eq 100 ] && [ -z "$first_error" ]; then '
+        'first_error=$(printf "%s\\n" "$error_scan" | grep -E "^dpkg: error processing package " | tail -1); fi; '
         # The rest: the script's own remediation steps.
         'error_hints=$(printf "%s\\n" "$error_block" | tail -n +2 | sed "s/^/  /"); '
         'fi'
@@ -310,19 +332,26 @@ def workflow_wrapper(
         # Diagnosis reads the tools' own words, and a sudo or pacman speaking
         # Polish or French matched no rule (R-e1eaa882, R-8db5f5cd). This changes
         # the language of messages only, not the character set.
-        "export LANGUAGE=en; "
+        "export LANGUAGE=en; bc250_start=$SECONDS; "
         f"{run}"
+        'bc250_raw_status=$status; bc250_elapsed=$((SECONDS - bc250_start)); '
         f"{wait_for_log}"
-        f"printf '%s\\n' \"$status\" > {status}; "
         f"{_evidence_capture_shell(log_path)}; "
+        # R-097a4530: answering "n" to the package manager is a choice, not a
+        # failure: status 130, a calm line, no diagnosis and no report.
+        'bc250_last=$(printf "%s\\n" "$evidence" | awk \'NF{l=$0} END{print l}\'); '
+        'case "$bc250_last" in *"[Y/n] n"|*"[y/N] n"|*"[Y/n] N"|*"[y/N] N") status=130;; esac; '
+        f"printf '%s\\n' \"$status\" > {status}; "
         "{ echo; "
         # A successful run reports success, not a number. Only a failure needs
         # a diagnosis, and the raw status stays in the technical detail below.
         f"if [ \"$status\" -eq 0 ]; then echo \"{finished_ok}\"; "
+        f"elif [ \"$status\" -eq 130 ]; then printf '%s\\n' {shlex.quote(translate(CANCELLED_MESSAGE))}; "
         f"else echo \"{finished_failed}\"; fi; "
         f"{_first_error_shell(translate)}; "
         f"{exit_explanation_shell(translate)}; "
         f"{_evidence_render_shell(translate)}; "
+        'printf "BC250_WORKFLOW exit_status=%d duration_seconds=%d\\n" "$bc250_raw_status" "$bc250_elapsed"; '
         f"echo \"{saved_log}: {log_path!s}\"; "
         f"echo \"{share_hint}\"; }} "
         f"{summary_sink}; "

@@ -215,3 +215,43 @@ def test_a_successful_uninstall_does_not_ask_for_a_reboot(tmp_path):
     result = _run_uninstall(tmp_path, 'echo done; exit 0')
     assert result.returncode == 0
     assert "BC250_REBOOT_REQUIRED" not in result.stdout
+
+
+def test_toolkit_setup_runs_inside_the_writable_root_guard_with_a_pacman_db_probe():
+    """R-fc1cfbe2: pacman found its database read-only during setup."""
+    from bc250cc.infrastructure import steamos_graphics_runtime as runtime
+
+    command = runtime._install_inside_writable_root("/opt/bc250.sh")
+    assert "with-steamos-writable-root.sh" in command
+    probe = command.index("/usr/lib/holo/pacmandb")
+    setup = command.index("/opt/bc250.sh setup")
+    assert probe < setup
+    # The probe's error carries the OS wording IMMUTABLE-002 requires.
+    assert "pacman database is still read-only: Read-only file system" in command
+    assert "findmnt" in command and "steamos-readonly status" in command
+
+
+def test_failed_mesa_setup_restores_readonly_and_preserves_the_error(tmp_path, monkeypatch):
+    from bc250cc.infrastructure import steamos_graphics_runtime as runtime
+    from tests.distributions.test_steamos_readonly_guard import _fake_environment
+
+    env, state = _fake_environment(tmp_path, "enabled")
+    # Login bash reads its PATH from the distribution profile.
+    shell_env = tmp_path / "bash-env"
+    shell_env.write_text('export PATH="$TEST_BIN:$PATH"\n')
+    env.update(BASH_ENV=str(shell_env), TEST_BIN=str(tmp_path / "bin"))
+    db = tmp_path / "pacmandb"
+    db.mkdir()
+    monkeypatch.setattr(runtime, "_PACMAN_DB", str(db))
+    script = tmp_path / "toolkit"
+    script.write_text('test "$1" = setup || exit 99\n'
+                      'test "$(steamos-readonly status)" = disabled || exit 98\n'
+                      'echo "setup started"; exit 23\n')
+    os_release = tmp_path / "os-release"
+    os_release.write_text("ID=steamos\n")
+    command = runtime.build_steamos_graphics_command("install", backend_guard="true", script=script)
+    result = subprocess.run(["bash", "-c", command.replace("/etc/os-release", str(os_release))],
+                            env=env, capture_output=True, text=True, timeout=15)
+    assert "setup started" in result.stdout
+    assert result.returncode == 23
+    assert state.read_text().strip() == "enabled"

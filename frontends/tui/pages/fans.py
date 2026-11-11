@@ -5,6 +5,7 @@ from __future__ import annotations
 from bc250cc.application.fan.system_control import (
     build_system_fan_policy,
     policy_digest,
+    policy_overview,
     system_fan_control_owns_fan,
 )
 from bc250cc.domain.fan.persistence import (
@@ -383,6 +384,19 @@ class FansPage(Page):
             chip, tone = "Out of date", "warn"
             detail = tr("The service still follows an older curve or preset. Sync it to use the one on screen.")
         out = [Heading(tr("Fans from the moment it boots")), Field(tr("State"), tr(chip), tone), Note(detail, "dim")]
+        # Fan control v2: one line per channel the service drives. Data only
+        # (PWM numbers, sensor names, numbers), so no new strings to translate.
+        channels = status.get("channels") if isinstance(status.get("channels"), dict) else {}
+        for key in sorted(channels, key=lambda item: int(item) if str(item).isdigit() else 99):
+            row = channels[key] if isinstance(channels[key], dict) else {}
+            if row.get("state") == "firmware":
+                continue
+            temperature = row.get("temperature")
+            reading = (f"{str(row.get('sensor') or '').upper()} {float(temperature):.1f} °C → "
+                       if isinstance(temperature, (int, float)) else "")
+            fault = str(row.get("fault") or row.get("error") or "")
+            value = f"{reading}{row.get('percent', '--')} % · {row.get('source') or row.get('state') or ''}"
+            out.append(Field(f"PWM {key}", f"{value} · {fault}" if fault else value, "bad" if fault else "dim"))
 
         def toggle(ui_):
             if enabled:
@@ -392,9 +406,10 @@ class FansPage(Page):
             if policy is None:
                 ui_.notify(tr("Choose a curve or a preset first"), "warn")
                 return
-            follows = (tr_format("Curve with {count} points", count=len(policy["points"])) if policy["mode"] == "curve"
-                       else tr_format("Preset · {percent}%", percent=policy["percent"]))
-            if ui_.confirm(f"{tr('Turn on control from boot')}\n{tr('Channel')}: PWM {policy['pwm']}\n{tr('Follows')}: {follows}"):
+            overview = policy_overview(policy)
+            follows = (tr_format("Curve with {count} points", count=overview["points"]) if overview["mode"] in ("curve", "mix")
+                       else tr_format("Preset · {percent}%", percent=overview["percent"]))
+            if ui_.confirm(f"{tr('Turn on control from boot')}\n{tr('Channel')}: {overview['channels_text']}\n{tr('Follows')}: {follows}"):
                 guarded(ui_, tr("Turn on"), lambda: service.activar_control_fan_sistema(policy))
 
         def sync(ui_):

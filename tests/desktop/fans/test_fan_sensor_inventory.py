@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from bc250cc.infrastructure.fan_repository import FanRepository
 
 
@@ -37,7 +39,9 @@ def test_nct_inventory_collects_fan_pwm_and_temperature_once(tmp_path):
     assert inventory["path"] == str(tmp_path)
     assert inventory["fans"] == [{
         "index": 2,
-        "label": "Pump Fan / J4003 Fan 1",
+        "label": "CPU_FAN1 / J4003 Fan 1 · BIOS Fan 1",
+        "bios_fan_number": 1,
+        "header": "CPU_FAN1 / J4003 Fan 1",
         "rpm": 1711,
         "pwm": 163,
         "pwm_path": str(pwm),
@@ -119,3 +123,32 @@ def test_nct_selector_prefers_richer_telemetry_then_stable_path(tmp_path, monkey
     monkeypatch.setattr("bc250cc.infrastructure.fan_repository.os.access", lambda *_args: False)
 
     assert repo._sensor_nct_principal() == rich
+
+
+@pytest.mark.parametrize("modules", [{"nct6683": True}, {"nct6687": True}, {}])
+@pytest.mark.parametrize(("channel", "header", "bios_number"), [
+    (1, "J4003 Fan 5", 5),
+    (2, "CPU_FAN1 / J4003 Fan 1", 1),
+    (3, "J4003 Fan 2", 2),
+    (4, "J4003 Fan 3", 3),
+    (5, "J4003 Fan 4", 4),
+    (6, "", None),
+    (12, "", None),
+])
+def test_inventory_maps_physical_headers_independently_of_driver(
+    tmp_path, modules, channel, header, bios_number
+):
+    (tmp_path / f"fan{channel}_input").write_text("1700\n")
+    (tmp_path / f"pwm{channel}").write_text("153\n")
+    repo = FixtureFanRepository(tmp_path, modules)
+
+    fan = repo._leer_sensores_nct()["fans"][0]
+
+    assert fan["index"] == channel
+    assert fan["header"] == header
+    assert fan["bios_fan_number"] == bios_number
+    assert fan["label"] == (
+        f"{header} · BIOS Fan {bios_number}" if header else f"Fan {channel}"
+    )
+    assert fan["rpm"] == 1700
+    assert fan["pwm"] == 153

@@ -1,0 +1,20 @@
+BC-250 ACE (async compute) queue test
+device: AMD BC-250 (RADV GFX1013) (driver 26.2.3)
+  family 0: count=1 flags=0xf
+  family 1: count=4 flags=0xe  <- dedicated compute (ACE)
+  family 2: count=1 flags=0x8
+using ACE family 1 with 4 queues
+RUN   1/5 vkCmdFillBuffer on ACE queue, 65536 words
+PASS  1/5 fill
+RUN   2/5 vkCmdCopyBuffer on ACE queue, 65536 words
+PASS  2/5 copy
+RUN   3/5 compute dispatch on ACE queue 0, 65536 elements
+PASS  3/5 dispatch
+RUN   4/5 large dispatch on ACE queue 0, 4194304 elements (threadgroup workaround path)
+PASS  4/5 large dispatch
+RUN   5/5 all 4 ACE queues, 3 rounds (queue lifecycle / reuse)
+      round 0 done
+      round 1 done
+      round 2 done
+PASS  5/5 all queues, all rounds
+RESULT PASS (async compute usable)

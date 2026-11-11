@@ -45,6 +45,10 @@ DEFAULT_MAX_AGE_SECONDS = 5.0
 KERNEL_VRM_MODULE = Path("/sys/module/bc250_vrm")
 HWMON_ROOT = Path("/sys/class/hwmon")
 KERNEL_VRM_HWMON_NAME = "bc250_vrm"
+#: Hexxeh's bc250-memory-dkms (bundled, off by default, in MastaG's kernels):
+#: the kernel reads the eight GDDR6 chips through the SMU and publishes them as
+#: hwmon temp3..temp10 (temp1 hotspot, temp2 average, millidegrees C).
+KERNEL_MEMORY_HWMON_NAME = "bc250_memory"
 #: Each attribute read is an I2C transaction with a settling delay, and the
 #: dashboard asks for the rails from more than one place per refresh.
 _KERNEL_CACHE_SECONDS = 1.0
@@ -103,18 +107,22 @@ def kernel_vrm_driver_present(module: Path = KERNEL_VRM_MODULE) -> bool:
         return False
 
 
-def _kernel_vrm_device(root: Path) -> Path | None:
+def _named_hwmon(root: Path, name: str) -> Path | None:
     try:
         entries = sorted(root.glob("hwmon*"))
     except OSError:
         return None
     for entry in entries:
         try:
-            if (entry / "name").read_text(encoding="utf-8").strip() == KERNEL_VRM_HWMON_NAME:
+            if (entry / "name").read_text(encoding="utf-8").strip() == name:
                 return entry
         except (OSError, UnicodeError):
             continue
     return None
+
+
+def _kernel_vrm_device(root: Path) -> Path | None:
+    return _named_hwmon(root, KERNEL_VRM_HWMON_NAME)
 
 
 def _attribute(device: Path, name: str, divisor: float) -> float | None:
@@ -331,10 +339,29 @@ def _probe_daemon(
     return probe
 
 
+def _kernel_memory_chips(root: Path) -> list[dict[str, Any]]:
+    """The chips ``bc250_memory`` publishes, or nothing when it is not loaded.
+
+    The kernel does the SMU work and caches it for a second, so this is a plain
+    sysfs read; one missing or implausible chip invalidates the sample.
+    """
+    device = _named_hwmon(root, KERNEL_MEMORY_HWMON_NAME)
+    if device is None:
+        return []
+    chips: list[dict[str, Any]] = []
+    for index in range(MEMORY_CHIP_COUNT):
+        value = _attribute(device, f"temp{index + 3}_input", 1000.0)
+        if value is None or not -40.0 <= value <= MEMORY_CODE_MAX * 2 - 40:
+            return []
+        chips.append({"chip": index, "temperature_c": float(value), "source": "kernel"})
+    return chips
+
+
 def leer_memoria_telemetria(
     path: Path = DEFAULT_TELEMETRY_PATH,
     *,
     max_age: float = DEFAULT_MAX_AGE_SECONDS,
+    hwmon_root: Path = HWMON_ROOT,
 ) -> dict[str, Any]:
     """What BC250-Telemetry's optional GDDR6 collector last published.
 
@@ -355,7 +382,7 @@ def leer_memoria_telemetria(
     payload = _fresh_snapshot(path, max_age)
     memory = payload.get("memory") if isinstance(payload, dict) else None
     if not isinstance(memory, dict):
-        return result
+        return _with_kernel_memory(result, hwmon_root)
     status = str(memory.get("status") or "")
     result["status"] = status
     chips = _memory_chips(memory)
@@ -373,6 +400,25 @@ def leer_memoria_telemetria(
         result["state"] = "waiting"
     elif status == "stale":
         result["state"] = "stale"
+    if result["state"] != "active":
+        return _with_kernel_memory(result, hwmon_root)
+    return result
+
+
+def _with_kernel_memory(result: dict[str, Any], root: Path) -> dict[str, Any]:
+    """Fill ``result`` from the kernel's ``bc250_memory`` hwmon when it is loaded."""
+    chips = _kernel_memory_chips(root)
+    if chips:
+        temperatures = [chip["temperature_c"] for chip in chips]
+        hotspot = max(temperatures)
+        result.update(
+            state="active",
+            status="kernel",
+            chips=chips,
+            average_c=sum(temperatures) / len(temperatures),
+            hotspot_c=hotspot,
+            hotspot_chip=temperatures.index(hotspot),
+        )
     return result
 
 

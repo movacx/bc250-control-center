@@ -372,3 +372,27 @@ finish(output="u " + ("1000" if prop == "Min" else "1700"))
                 assert final["set_calls"] == 3
     assert final.get("set_calls", 0) <= 25
     assert len([c for c in recorded if c[0] == "busctl"]) < 85
+
+
+def test_steamos_restores_omitted_kernel_api_headers(tmp_path):
+    """R-bb33f44b: linux-api-headers recorded as installed, linux/types.h missing."""
+    command = oberon_install_command(
+        _os_repository(tmp_path, "steamos"), destination=tmp_path / "oberon",
+        checkout_command="CHECKOUT", yaml_cpp_revision="reviewed-yaml",
+    )
+    assert "#include <linux/types.h>" in command
+    assert "sudo pacman -S --noconfirm linux-api-headers" in command
+    assert "linux/types.h is still missing" in command
+
+
+def test_bazzite_builds_in_the_hosts_fedora_release_and_checks_the_binary(tmp_path):
+    """R-53376560: built in fedora:latest, the binary needed GLIBCXX_3.4.35."""
+    command = oberon_install_command(
+        _os_repository(tmp_path, "bazzite"), destination=tmp_path / "oberon",
+        checkout_command="CHECKOUT", yaml_cpp_revision="reviewed-yaml",
+    )
+    assert "fedora:latest" not in command
+    assert '"registry.fedoraproject.org/fedora:$bc250_release"' in command
+    assert ".bc250-builder" in command
+    gate = command.index('grep -q "not found"')
+    assert gate < command.index("/usr/local/bin/oberon-governor")

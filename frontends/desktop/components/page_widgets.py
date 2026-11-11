@@ -574,7 +574,14 @@ class StatusLine(QFrame):
 
 
 class ConfirmDialog(QDialog):
-    """Frameless confirmation used before hardware-changing operations."""
+    """Frameless confirmation used before hardware-changing operations.
+
+    ``secondary_text`` adds a third choice between Cancel and the confirm
+    button; ``exec()`` then returns :data:`SECONDARY` for it.
+    """
+
+    #: exec() result of the optional secondary button.
+    SECONDARY = 2
 
     def __init__(
         self,
@@ -587,6 +594,7 @@ class ConfirmDialog(QDialog):
         eyebrow: str = "CONFIRM HARDWARE ACTION",
         tone: str = "blue",
         parent: QWidget | None = None,
+        secondary_text: str = "",
     ):
         title = tr(title)
         message = tr(message)
@@ -706,6 +714,12 @@ class ConfirmDialog(QDialog):
         confirm.setDefault(True)
         confirm.clicked.connect(self.accept)
         footer.addWidget(cancel)
+        if secondary_text:
+            secondary = QPushButton(tr(secondary_text))
+            secondary.setObjectName("DialogSecondary")
+            secondary.clicked.connect(lambda: self.done(self.SECONDARY))
+            self.secondary_button = secondary
+            footer.addWidget(secondary)
         footer.addWidget(confirm)
         layout.addWidget(footer_frame)
         localize_widget_tree(self)

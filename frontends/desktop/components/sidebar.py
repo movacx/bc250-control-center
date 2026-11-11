@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QStyle,
     QStyleOptionButton,
@@ -301,6 +302,24 @@ class Sidebar(QFrame):
         brand_row.addWidget(self.toggle, 0, Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(self.brand)
         layout.addSpacing(12)
+        root = layout
+        # The modules scroll when the window leaves them too little height
+        # (a tall terminal, a short screen) instead of squeezing their rows
+        # into each other; the brand and Settings stay where they are.
+        self.nav_scroll = QScrollArea()
+        self.nav_scroll.setObjectName("SidebarScroll")
+        self.nav_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.nav_scroll.setWidgetResizable(True)
+        self.nav_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.nav_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.nav_scroll.viewport().setAutoFillBackground(False)
+        nav_host = QWidget()
+        nav_host.setObjectName("SidebarScrollBody")
+        layout = QVBoxLayout(nav_host)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+        self.nav_scroll.setWidget(nav_host)
+        root.addWidget(self.nav_scroll, 1)
 
         # Shared row geometry for every application module. The order is the
         # one LB/RB cycles through; captions only group what is already there.
@@ -338,12 +357,16 @@ class Sidebar(QFrame):
                 # modules that are opened all the time.
                 layout.addStretch(1)
             if key == "settings":
-                # Settings closes the rail from the bottom, under a rule.
+                # Settings closes the rail from the bottom, under a rule, out
+                # of the scrolling list so it is always within reach.
                 self.footer_rule = QFrame()
                 self.footer_rule.setObjectName("SidebarDivider")
                 self.footer_rule.setFixedHeight(1)
-                layout.addWidget(self.footer_rule)
-                layout.addSpacing(6)
+                root.addSpacing(4)
+                root.addWidget(self.footer_rule)
+                root.addSpacing(6)
+                root.addWidget(button)
+                continue
             layout.addWidget(button)
         self.buttons["dashboard"].setChecked(True)
         self._refresh_toggle()

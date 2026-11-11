@@ -2742,3 +2742,6347 @@ INTERFACE_POLISH_ADDITIONS = {
 }
 for _source, _polish in INTERFACE_POLISH_ADDITIONS.items():
     INTERFACE_TRANSLATIONS.setdefault(_source, {})["pl"] = _polish
+
+
+# Multi-channel fan board sources, also consumed by generate-complete-locales.py.
+INTERFACE_TRANSLATIONS.update(
+{'Add curve': {'en': 'Add curve',
+               'es': 'Añadir curva',
+               'pt': 'Adicionar curva',
+               'ru': 'Добавить кривую',
+               'uk': 'Додати криву',
+               'de': 'Kurve hinzufügen',
+               'pl': 'Dodaj krzywą'},
+ 'Advanced': {'en': 'Advanced',
+              'es': 'Avanzado',
+              'pt': 'Avançado',
+              'ru': 'Дополнительно',
+              'uk': 'Додатково',
+              'de': 'Erweitert',
+              'pl': 'Zaawansowane'},
+ 'Channel label': {'en': 'Channel label',
+                   'es': 'Nombre del canal',
+                   'pt': 'Nome do canal',
+                   'ru': 'Название канала',
+                   'uk': 'Назва каналу',
+                   'de': 'Kanalname',
+                   'pl': 'Nazwa kanału'},
+ 'Curve': {'en': 'Curve',
+           'es': 'Curva',
+           'pt': 'Curva',
+           'ru': 'Кривая',
+           'uk': 'Крива',
+           'de': 'Kurve',
+           'pl': 'Krzywa'},
+ 'Delete': {'en': 'Delete',
+            'es': 'Eliminar',
+            'pt': 'Excluir',
+            'ru': 'Удалить',
+            'uk': 'Видалити',
+            'de': 'Löschen',
+            'pl': 'Usuń'},
+ 'Fan curve temperatures must be strictly increasing.': {'en': 'Fan curve temperatures must be strictly '
+                                                               'increasing.',
+                                                         'es': 'Las temperaturas de la curva deben ser '
+                                                               'estrictamente crecientes.',
+                                                         'pt': 'As temperaturas da curva devem ser '
+                                                               'estritamente crescentes.',
+                                                         'ru': 'Температуры кривой вентилятора должны строго '
+                                                               'возрастать.',
+                                                         'uk': 'Температури кривої вентилятора мають строго '
+                                                               'зростати.',
+                                                         'de': 'Die Temperaturen der Lüfterkurve müssen '
+                                                               'streng ansteigen.',
+                                                         'pl': 'Temperatury krzywej wentylatora muszą ściśle '
+                                                               'rosnąć.'},
+ 'Mix': {'en': 'Mix',
+         'es': 'Mezcla',
+         'pt': 'Mistura',
+         'ru': 'Смешивание',
+         'uk': 'Змішування',
+         'de': 'Mischung',
+         'pl': 'Mieszanie'},
+ 'Mode name': {'en': 'Mode name',
+               'es': 'Nombre del modo',
+               'pt': 'Nome do modo',
+               'ru': 'Название режима',
+               'uk': 'Назва режиму',
+               'de': 'Modusname',
+               'pl': 'Nazwa trybu'},
+ 'Modes': {'en': 'Modes',
+           'es': 'Modos',
+           'pt': 'Modos',
+           'ru': 'Режимы',
+           'uk': 'Режими',
+           'de': 'Modi',
+           'pl': 'Tryby'},
+ 'Pump': {'en': 'Pump',
+          'es': 'Bomba',
+          'pt': 'Bomba',
+          'ru': 'Помпа',
+          'uk': 'Помпа',
+          'de': 'Pumpe',
+          'pl': 'Pompa'},
+ 'Pump stalled': {'en': 'Pump stalled',
+                  'es': 'Bomba detenida',
+                  'pt': 'Bomba parada',
+                  'ru': 'Помпа остановилась',
+                  'uk': 'Помпа зупинилася',
+                  'de': 'Pumpe steht still',
+                  'pl': 'Pompa zatrzymana'},
+ 'Pumps need at least {percent} % duty.': {'en': 'Pumps need at least {percent} % duty.',
+                                           'es': 'Las bombas necesitan al menos {percent} % de velocidad.',
+                                           'pt': 'As bombas precisam de pelo menos {percent} % de '
+                                                 'velocidade.',
+                                           'ru': 'Помпам требуется не менее {percent} % мощности.',
+                                           'uk': 'Помпам потрібно щонайменше {percent} % потужності.',
+                                           'de': 'Pumpen benötigen mindestens {percent} % Ansteuerung.',
+                                           'pl': 'Pompy wymagają co najmniej {percent} % wysterowania.'},
+ 'Remove curve': {'en': 'Remove curve',
+                  'es': 'Quitar curva',
+                  'pt': 'Remover curva',
+                  'ru': 'Удалить кривую',
+                  'uk': 'Видалити криву',
+                  'de': 'Kurve entfernen',
+                  'pl': 'Usuń krzywą'},
+ 'Role': {'en': 'Role',
+          'es': 'Función',
+          'pt': 'Função',
+          'ru': 'Назначение',
+          'uk': 'Призначення',
+          'de': 'Funktion',
+          'pl': 'Rola'},
+ 'Save as…': {'en': 'Save as…',
+              'es': 'Guardar como…',
+              'pt': 'Salvar como…',
+              'ru': 'Сохранить как…',
+              'uk': 'Зберегти як…',
+              'de': 'Speichern unter…',
+              'pl': 'Zapisz jako…'},
+ 'Several fans need control from boot': {'en': 'Several fans need control from boot',
+                                         'es': 'Varios ventiladores necesitan control desde el arranque',
+                                         'pt': 'Várias ventoinhas precisam de controle desde a inicialização',
+                                         'ru': 'Нескольким вентиляторам нужно управление с момента загрузки',
+                                         'uk': 'Кільком вентиляторам потрібне керування від завантаження',
+                                         'de': 'Mehrere Lüfter benötigen Steuerung ab dem Systemstart',
+                                         'pl': 'Kilka wentylatorów wymaga sterowania od rozruchu'},
+ 'Stall detection': {'en': 'Stall detection',
+                     'es': 'Detección de parada',
+                     'pt': 'Detecção de parada',
+                     'ru': 'Обнаружение остановки',
+                     'uk': 'Виявлення зупинки',
+                     'de': 'Stillstandserkennung',
+                     'pl': 'Wykrywanie zatrzymania'},
+ 'Stalled': {'en': 'Stalled',
+             'es': 'Detenido',
+             'pt': 'Parado',
+             'ru': 'Остановлен',
+             'uk': 'Зупинено',
+             'de': 'Stillstand',
+             'pl': 'Zatrzymany'},
+ 'Hysteresis': {'en': 'Hysteresis',
+                'es': 'Histéresis',
+                'pt': 'Histerese',
+                'ru': 'Гистерезис',
+                'uk': 'Гістерезис',
+                'de': 'Hysterese',
+                'pl': 'Histereza'},
+ 'Response delay': {'en': 'Response delay',
+                    'es': 'Retardo de respuesta',
+                    'pt': 'Atraso de resposta',
+                    'ru': 'Задержка реакции',
+                    'uk': 'Затримка реакції',
+                    'de': 'Reaktionsverzögerung',
+                    'pl': 'Opóźnienie reakcji'},
+ 'Maximum up step': {'en': 'Maximum up step',
+                     'es': 'Paso máximo de subida',
+                     'pt': 'Passo máximo de subida',
+                     'ru': 'Максимальный шаг повышения',
+                     'uk': 'Максимальний крок підвищення',
+                     'de': 'Maximaler Erhöhungsschritt',
+                     'pl': 'Maksymalny krok zwiększania'},
+ 'Maximum down step': {'en': 'Maximum down step',
+                       'es': 'Paso máximo de bajada',
+                       'pt': 'Passo máximo de descida',
+                       'ru': 'Максимальный шаг снижения',
+                       'uk': 'Максимальний крок зниження',
+                       'de': 'Maximaler Absenkungsschritt',
+                       'pl': 'Maksymalny krok zmniejszania'},
+ 'Start kick': {'en': 'Start kick',
+                'es': 'Impulso de arranque',
+                'pt': 'Impulso de partida',
+                'ru': 'Пусковой импульс',
+                'uk': 'Пусковий імпульс',
+                'de': 'Anlaufimpuls',
+                'pl': 'Impuls rozruchowy'},
+ 'Failsafe': {'en': 'Failsafe',
+              'es': 'Protección ante fallos',
+              'pt': 'Proteção contra falhas',
+              'ru': 'Аварийная защита',
+              'uk': 'Аварійний захист',
+              'de': 'Ausfallschutz',
+              'pl': 'Ochrona awaryjna'},
+ '{header} · BIOS Fan {number}': {'en': '{header} · BIOS Fan {number}',
+                                  'es': '{header} · BIOS Ventilador {number}',
+                                  'pt': '{header} · BIOS Ventilador {number}',
+                                  'ru': '{header} · BIOS Вентилятор {number}',
+                                  'uk': '{header} · BIOS Вентилятор {number}',
+                                  'de': '{header} · BIOS Lüfter {number}',
+                                  'pl': '{header} · BIOS Wentylator {number}'},
+ '{value} %': {'en': '{value} %',
+               'es': '{value} %',
+               'pt': '{value} %',
+               'ru': '{value} %',
+               'uk': '{value} %',
+               'de': '{value} %',
+               'pl': '{value} %'},
+ '{value} RPM': {'en': '{value} RPM',
+                 'es': '{value} RPM',
+                 'pt': '{value} RPM',
+                 'ru': '{value} RPM',
+                 'uk': '{value} RPM',
+                 'de': '{value} RPM',
+                 'pl': '{value} RPM'},
+ '{value} °C': {'en': '{value} °C',
+                'es': '{value} °C',
+                'pt': '{value} °C',
+                'ru': '{value} °C',
+                'uk': '{value} °C',
+                'de': '{value} °C',
+                'pl': '{value} °C'}}
+)
+
+
+# Fans table, channel editor, thermal inputs and service status.
+INTERFACE_TRANSLATIONS.update(
+{'A fan this slow can let the board overheat under load.': {'es': 'Un ventilador tan lento puede dejar que la placa se '
+                                                                  'sobrecaliente bajo carga.',
+                                                            'pt': 'Uma ventoinha tão lenta pode deixar a placa '
+                                                                  'sobreaquecer sob carga.',
+                                                            'ru': 'При такой низкой скорости вентилятора плата может '
+                                                                  'перегреться под нагрузкой.',
+                                                            'uk': 'За такої низької швидкості вентилятора плата може '
+                                                                  'перегрітися під навантаженням.',
+                                                            'de': 'Bei so niedriger Lüfterdrehzahl kann die Platine '
+                                                                  'unter Last überhitzen.',
+                                                            'pl': 'Tak wolny wentylator może doprowadzić do '
+                                                                  'przegrzania płyty pod obciążeniem.',
+                                                            'fr': 'Un ventilateur aussi lent peut laisser la carte '
+                                                                  'surchauffer en charge.',
+                                                            'it': 'Una ventola così lenta può far surriscaldare la '
+                                                                  'scheda sotto carico.',
+                                                            'nl': 'Een zo langzame ventilator kan het bord onder '
+                                                                  'belasting laten oververhitten.',
+                                                            'cs': 'Takto pomalý ventilátor může způsobit přehřátí '
+                                                                  'desky při zátěži.',
+                                                            'tr': 'Bu kadar yavaş bir fan, yük altında kartın aşırı '
+                                                                  'ısınmasına yol açabilir.',
+                                                            'ro': 'Un ventilator atât de lent poate lăsa placa să se '
+                                                                  'supraîncălzească în sarcină.',
+                                                            'hu': 'Ilyen lassú ventilátornál a lap terhelés alatt '
+                                                                  'túlmelegedhet.',
+                                                            'bg': 'Толкова бавен вентилатор може да доведе до '
+                                                                  'прегряване на платката под товар.',
+                                                            'da': 'En så langsom blæser kan få kortet til at '
+                                                                  'overophede under belastning.',
+                                                            'no': 'En så langsom vifte kan la kortet overopphetes '
+                                                                  'under belastning.',
+                                                            'sv': 'En så långsam fläkt kan få kortet att överhettas '
+                                                                  'under belastning.',
+                                                            'fi': 'Näin hidas tuuletin voi aiheuttaa levyn '
+                                                                  'ylikuumenemisen kuormituksessa.',
+                                                            'el': 'Ένας τόσο αργός ανεμιστήρας μπορεί να αφήσει την '
+                                                                  'πλακέτα να υπερθερμανθεί υπό φορτίο.',
+                                                            'zh-CN': '风扇转速过低可能导致主板在负载下过热。',
+                                                            'zh-TW': '風扇轉速過低可能導致主機板在負載下過熱。',
+                                                            'ja': 'ファンの速度が低すぎると、負荷時に基板が過熱するおそれがあります。',
+                                                            'ko': '팬 속도가 너무 낮으면 부하가 걸릴 때 보드가 과열될 수 있습니다.',
+                                                            'id': 'Kipas selambat ini dapat membuat papan terlalu '
+                                                                  'panas saat dibebani.',
+                                                            'ms': 'Kipas selambat ini boleh menyebabkan papan terlalu '
+                                                                  'panas semasa dibebani.',
+                                                            'th': 'พัดลมที่หมุนช้าเช่นนี้อาจทำให้บอร์ดร้อนเกินไปขณะรับโหลด',
+                                                            'vi': 'Quạt quay chậm như vậy có thể khiến bo mạch quá '
+                                                                  'nóng khi chịu tải.',
+                                                            'es-419': 'Un ventilador tan lento puede dejar que la '
+                                                                      'placa se sobrecaliente bajo carga.',
+                                                            'pt-BR': 'Uma ventoinha tão lenta pode deixar a placa '
+                                                                     'superaquecer sob carga.',
+                                                            'en': 'A fan this slow can let the board overheat under '
+                                                                  'load.'},
+ 'A fan was changed by hand or from Quick Access. Apply its setting again to resume.': {'es': 'Se cambió un ventilador '
+                                                                                              'manualmente o desde '
+                                                                                              'Quick Access. Vuelve a '
+                                                                                              'aplicar su ajuste para '
+                                                                                              'reanudar.',
+                                                                                        'pt': 'Uma ventoinha foi '
+                                                                                              'alterada manualmente ou '
+                                                                                              'pelo Quick Access. '
+                                                                                              'Aplique novamente a '
+                                                                                              'definição para retomar.',
+                                                                                        'ru': 'Вентилятор изменён '
+                                                                                              'вручную или через Quick '
+                                                                                              'Access. Примените его '
+                                                                                              'настройку снова для '
+                                                                                              'возобновления.',
+                                                                                        'uk': 'Вентилятор змінено '
+                                                                                              'вручну або через Quick '
+                                                                                              'Access. Застосуйте його '
+                                                                                              'налаштування знову для '
+                                                                                              'відновлення.',
+                                                                                        'de': 'Ein Lüfter wurde von '
+                                                                                              'Hand oder über Quick '
+                                                                                              'Access geändert. Wenden '
+                                                                                              'Sie seine Einstellung '
+                                                                                              'erneut an, um '
+                                                                                              'fortzufahren.',
+                                                                                        'pl': 'Wentylator zmieniono '
+                                                                                              'ręcznie lub przez Quick '
+                                                                                              'Access. Zastosuj '
+                                                                                              'ponownie jego '
+                                                                                              'ustawienie, aby '
+                                                                                              'wznowić.',
+                                                                                        'fr': 'Un ventilateur a été '
+                                                                                              'modifié manuellement ou '
+                                                                                              'depuis Quick Access. '
+                                                                                              'Réappliquez son réglage '
+                                                                                              'pour reprendre.',
+                                                                                        'it': 'Una ventola è stata '
+                                                                                              'modificata manualmente '
+                                                                                              'o da Quick Access. '
+                                                                                              'Riapplica la sua '
+                                                                                              'impostazione per '
+                                                                                              'riprendere.',
+                                                                                        'nl': 'Een ventilator is '
+                                                                                              'handmatig of via Quick '
+                                                                                              'Access gewijzigd. Pas '
+                                                                                              'de instelling opnieuw '
+                                                                                              'toe om te hervatten.',
+                                                                                        'cs': 'Ventilátor byl změněn '
+                                                                                              'ručně nebo přes Quick '
+                                                                                              'Access. Pro pokračování '
+                                                                                              'znovu použijte jeho '
+                                                                                              'nastavení.',
+                                                                                        'tr': 'Bir fan elle veya Quick '
+                                                                                              'Access üzerinden '
+                                                                                              'değiştirildi. Sürdürmek '
+                                                                                              'için ayarını yeniden '
+                                                                                              'uygulayın.',
+                                                                                        'ro': 'Un ventilator a fost '
+                                                                                              'modificat manual sau '
+                                                                                              'din Quick Access. '
+                                                                                              'Reaplică setarea pentru '
+                                                                                              'a relua.',
+                                                                                        'hu': 'Egy ventilátort kézzel '
+                                                                                              'vagy a Quick Access '
+                                                                                              'felületén módosítottak. '
+                                                                                              'A folytatáshoz '
+                                                                                              'alkalmazza újra a '
+                                                                                              'beállítását.',
+                                                                                        'bg': 'Вентилатор е променен '
+                                                                                              'ръчно или чрез Quick '
+                                                                                              'Access. Приложете '
+                                                                                              'настройката му отново '
+                                                                                              'за продължаване.',
+                                                                                        'da': 'En blæser blev ændret '
+                                                                                              'manuelt eller via Quick '
+                                                                                              'Access. Anvend dens '
+                                                                                              'indstilling igen for at '
+                                                                                              'fortsætte.',
+                                                                                        'no': 'En vifte ble endret '
+                                                                                              'manuelt eller via Quick '
+                                                                                              'Access. Bruk '
+                                                                                              'innstillingen på nytt '
+                                                                                              'for å fortsette.',
+                                                                                        'sv': 'En fläkt ändrades '
+                                                                                              'manuellt eller via '
+                                                                                              'Quick Access. Tillämpa '
+                                                                                              'inställningen igen för '
+                                                                                              'att fortsätta.',
+                                                                                        'fi': 'Tuuletinta muutettiin '
+                                                                                              'käsin tai Quick Access '
+                                                                                              '-toiminnolla. Ota sen '
+                                                                                              'asetus uudelleen '
+                                                                                              'käyttöön jatkaaksesi.',
+                                                                                        'el': 'Ένας ανεμιστήρας άλλαξε '
+                                                                                              'χειροκίνητα ή από το '
+                                                                                              'Quick Access. Εφαρμόστε '
+                                                                                              'ξανά τη ρύθμισή του για '
+                                                                                              'συνέχιση.',
+                                                                                        'zh-CN': '风扇已被手动或通过 Quick '
+                                                                                                 'Access '
+                                                                                                 '更改。请重新应用其设置以恢复。',
+                                                                                        'zh-TW': '風扇已被手動或透過 Quick '
+                                                                                                 'Access '
+                                                                                                 '變更。請重新套用其設定以恢復。',
+                                                                                        'ja': 'ファンが手動または Quick Access '
+                                                                                              'から変更されました。再開するには設定を再適用してください。',
+                                                                                        'ko': '팬이 수동으로 또는 Quick '
+                                                                                              'Access에서 변경되었습니다. 다시 '
+                                                                                              '시작하려면 설정을 다시 적용하세요.',
+                                                                                        'id': 'Kipas diubah secara '
+                                                                                              'manual atau dari Quick '
+                                                                                              'Access. Terapkan '
+                                                                                              'kembali pengaturannya '
+                                                                                              'untuk melanjutkan.',
+                                                                                        'ms': 'Kipas telah diubah '
+                                                                                              'secara manual atau '
+                                                                                              'melalui Quick Access. '
+                                                                                              'Gunakan semula '
+                                                                                              'tetapannya untuk '
+                                                                                              'menyambung.',
+                                                                                        'th': 'พัดลมถูกเปลี่ยนด้วยตนเองหรือผ่าน '
+                                                                                              'Quick Access '
+                                                                                              'ใช้การตั้งค่าอีกครั้งเพื่อทำงานต่อ',
+                                                                                        'vi': 'Một quạt đã được thay '
+                                                                                              'đổi thủ công hoặc từ '
+                                                                                              'Quick Access. Áp dụng '
+                                                                                              'lại thiết lập để tiếp '
+                                                                                              'tục.',
+                                                                                        'es-419': 'Se cambió un '
+                                                                                                  'ventilador '
+                                                                                                  'manualmente o desde '
+                                                                                                  'Quick Access. '
+                                                                                                  'Vuelve a aplicar su '
+                                                                                                  'ajuste para '
+                                                                                                  'reanudar.',
+                                                                                        'pt-BR': 'Uma ventoinha foi '
+                                                                                                 'alterada manualmente '
+                                                                                                 'ou pelo Quick '
+                                                                                                 'Access. Aplique '
+                                                                                                 'novamente a '
+                                                                                                 'configuração para '
+                                                                                                 'retomar.',
+                                                                                        'en': 'A fan was changed by '
+                                                                                              'hand or from Quick '
+                                                                                              'Access. Apply its '
+                                                                                              'setting again to '
+                                                                                              'resume.'},
+ 'BIOS Fan {number}': {'es': 'BIOS Ventilador {number}',
+                       'pt': 'BIOS Ventilador {number}',
+                       'ru': 'BIOS Вентилятор {number}',
+                       'uk': 'BIOS Вентилятор {number}',
+                       'de': 'BIOS Lüfter {number}',
+                       'pl': 'BIOS Wentylator {number}',
+                       'fr': 'BIOS Ventilateur {number}',
+                       'it': 'BIOS Ventola {number}',
+                       'nl': 'BIOS Ventilator {number}',
+                       'cs': 'BIOS Ventilátor {number}',
+                       'tr': 'BIOS Fan {number}',
+                       'ro': 'BIOS Ventilator {number}',
+                       'hu': 'BIOS Ventilátor {number}',
+                       'bg': 'BIOS Вентилатор {number}',
+                       'da': 'BIOS Blæser {number}',
+                       'no': 'BIOS Vifte {number}',
+                       'sv': 'BIOS Fläkt {number}',
+                       'fi': 'BIOS Tuuletin {number}',
+                       'el': 'BIOS Ανεμιστήρας {number}',
+                       'zh-CN': 'BIOS 风扇 {number}',
+                       'zh-TW': 'BIOS 風扇 {number}',
+                       'ja': 'BIOS ファン {number}',
+                       'ko': 'BIOS 팬 {number}',
+                       'id': 'BIOS Kipas {number}',
+                       'ms': 'BIOS Kipas {number}',
+                       'th': 'BIOS พัดลม {number}',
+                       'vi': 'BIOS Quạt {number}',
+                       'es-419': 'BIOS Ventilador {number}',
+                       'pt-BR': 'BIOS Ventilador {number}',
+                       'en': 'BIOS Fan {number}'},
+ 'Channels': {'es': 'Canales',
+              'pt': 'Canais',
+              'ru': 'Каналы',
+              'uk': 'Канали',
+              'de': 'Kanäle',
+              'pl': 'Kanały',
+              'fr': 'Canaux',
+              'it': 'Canali',
+              'nl': 'Kanalen',
+              'cs': 'Kanály',
+              'tr': 'Kanallar',
+              'ro': 'Canale',
+              'hu': 'Csatornák',
+              'bg': 'Канали',
+              'da': 'Kanaler',
+              'no': 'Kanaler',
+              'sv': 'Kanaler',
+              'fi': 'Kanavat',
+              'el': 'Κανάλια',
+              'zh-CN': '通道',
+              'zh-TW': '通道',
+              'ja': 'チャンネル',
+              'ko': '채널',
+              'id': 'Kanal',
+              'ms': 'Saluran',
+              'th': 'ช่อง',
+              'vi': 'Kênh',
+              'es-419': 'Canales',
+              'pt-BR': 'Canais',
+              'en': 'Channels'},
+ 'Could not save fan curve': {'es': 'No se pudo guardar la curva del ventilador',
+                              'pt': 'Não foi possível guardar a curva da ventoinha',
+                              'ru': 'Не удалось сохранить кривую вентилятора',
+                              'uk': 'Не вдалося зберегти криву вентилятора',
+                              'de': 'Lüfterkurve konnte nicht gespeichert werden',
+                              'pl': 'Nie udało się zapisać krzywej wentylatora',
+                              'fr': 'Impossible d’enregistrer la courbe du ventilateur',
+                              'it': 'Impossibile salvare la curva della ventola',
+                              'nl': 'Ventilatorcurve kon niet worden opgeslagen',
+                              'cs': 'Křivku ventilátoru nelze uložit',
+                              'tr': 'Fan eğrisi kaydedilemedi',
+                              'ro': 'Curba ventilatorului nu a putut fi salvată',
+                              'hu': 'A ventilátorgörbe nem menthető',
+                              'bg': 'Кривата на вентилатора не можа да се запази',
+                              'da': 'Kunne ikke gemme blæserkurven',
+                              'no': 'Kunne ikke lagre viftekurven',
+                              'sv': 'Kunde inte spara fläktkurvan',
+                              'fi': 'Tuulettimen käyrää ei voitu tallentaa',
+                              'el': 'Δεν ήταν δυνατή η αποθήκευση της καμπύλης ανεμιστήρα',
+                              'zh-CN': '无法保存风扇曲线',
+                              'zh-TW': '無法儲存風扇曲線',
+                              'ja': 'ファンカーブを保存できませんでした',
+                              'ko': '팬 곡선을 저장할 수 없습니다',
+                              'id': 'Kurva kipas tidak dapat disimpan',
+                              'ms': 'Lengkung kipas tidak dapat disimpan',
+                              'th': 'บันทึกเส้นโค้งพัดลมไม่ได้',
+                              'vi': 'Không thể lưu đường cong quạt',
+                              'es-419': 'No se pudo guardar la curva del ventilador',
+                              'pt-BR': 'Não foi possível salvar a curva da ventoinha',
+                              'en': 'Could not save fan curve'},
+ 'Critical': {'es': 'Crítico',
+              'pt': 'Crítico',
+              'ru': 'Критично',
+              'uk': 'Критично',
+              'de': 'Kritisch',
+              'pl': 'Krytyczne',
+              'fr': 'Critique',
+              'it': 'Critico',
+              'nl': 'Kritiek',
+              'cs': 'Kritické',
+              'tr': 'Kritik',
+              'ro': 'Critic',
+              'hu': 'Kritikus',
+              'bg': 'Критично',
+              'da': 'Kritisk',
+              'no': 'Kritisk',
+              'sv': 'Kritiskt',
+              'fi': 'Kriittinen',
+              'el': 'Κρίσιμο',
+              'zh-CN': '临界',
+              'zh-TW': '臨界',
+              'ja': '危険',
+              'ko': '위험',
+              'id': 'Kritis',
+              'ms': 'Kritikal',
+              'th': 'วิกฤต',
+              'vi': 'Tới hạn',
+              'es-419': 'Crítico',
+              'pt-BR': 'Crítico',
+              'en': 'Critical'},
+ 'Critical °C': {'es': 'Temperatura crítica °C',
+                 'pt': 'Temperatura crítica °C',
+                 'ru': 'Критическая температура °C',
+                 'uk': 'Критична температура °C',
+                 'de': 'Kritische Temperatur °C',
+                 'pl': 'Temperatura krytyczna °C',
+                 'fr': 'Température critique °C',
+                 'it': 'Temperatura critica °C',
+                 'nl': 'Kritieke temperatuur °C',
+                 'cs': 'Kritická teplota °C',
+                 'tr': 'Kritik sıcaklık °C',
+                 'ro': 'Temperatură critică °C',
+                 'hu': 'Kritikus hőmérséklet °C',
+                 'bg': 'Критична температура °C',
+                 'da': 'Kritisk temperatur °C',
+                 'no': 'Kritisk temperatur °C',
+                 'sv': 'Kritisk temperatur °C',
+                 'fi': 'Kriittinen lämpötila °C',
+                 'el': 'Κρίσιμη θερμοκρασία °C',
+                 'zh-CN': '临界温度 °C',
+                 'zh-TW': '臨界溫度 °C',
+                 'ja': '臨界温度 °C',
+                 'ko': '임계 온도 °C',
+                 'id': 'Suhu kritis °C',
+                 'ms': 'Suhu kritikal °C',
+                 'th': 'อุณหภูมิวิกฤต °C',
+                 'vi': 'Nhiệt độ tới hạn °C',
+                 'es-419': 'Temperatura crítica °C',
+                 'pt-BR': 'Temperatura crítica °C',
+                 'en': 'Critical °C'},
+ 'Curve {number}': {'es': 'Curva {number}',
+                    'pt': 'Curva {number}',
+                    'ru': 'Кривая {number}',
+                    'uk': 'Крива {number}',
+                    'de': 'Kurve {number}',
+                    'pl': 'Krzywa {number}',
+                    'fr': 'Courbe {number}',
+                    'it': 'Curva {number}',
+                    'nl': 'Curve {number}',
+                    'cs': 'Křivka {number}',
+                    'tr': 'Eğri {number}',
+                    'ro': 'Curba {number}',
+                    'hu': '{number}. görbe',
+                    'bg': 'Крива {number}',
+                    'da': 'Kurve {number}',
+                    'no': 'Kurve {number}',
+                    'sv': 'Kurva {number}',
+                    'fi': 'Käyrä {number}',
+                    'el': 'Καμπύλη {number}',
+                    'zh-CN': '曲线 {number}',
+                    'zh-TW': '曲線 {number}',
+                    'ja': 'カーブ {number}',
+                    'ko': '곡선 {number}',
+                    'id': 'Kurva {number}',
+                    'ms': 'Lengkung {number}',
+                    'th': 'เส้นโค้ง {number}',
+                    'vi': 'Đường cong {number}',
+                    'es-419': 'Curva {number}',
+                    'pt-BR': 'Curva {number}',
+                    'en': 'Curve {number}'},
+ 'Curves are followed by control from boot. Without it, only the desktop follows one curve, after you log in.': {'es': 'El '
+                                                                                                                       'control '
+                                                                                                                       'desde '
+                                                                                                                       'el '
+                                                                                                                       'arranque '
+                                                                                                                       'sigue '
+                                                                                                                       'las '
+                                                                                                                       'curvas. '
+                                                                                                                       'Sin '
+                                                                                                                       'él, '
+                                                                                                                       'solo '
+                                                                                                                       'el '
+                                                                                                                       'escritorio '
+                                                                                                                       'sigue '
+                                                                                                                       'una '
+                                                                                                                       'curva '
+                                                                                                                       'después '
+                                                                                                                       'de '
+                                                                                                                       'iniciar '
+                                                                                                                       'sesión.',
+                                                                                                                 'pt': 'O '
+                                                                                                                       'controlo '
+                                                                                                                       'desde '
+                                                                                                                       'o '
+                                                                                                                       'arranque '
+                                                                                                                       'segue '
+                                                                                                                       'as '
+                                                                                                                       'curvas. '
+                                                                                                                       'Sem '
+                                                                                                                       'ele, '
+                                                                                                                       'apenas '
+                                                                                                                       'o '
+                                                                                                                       'ambiente '
+                                                                                                                       'de '
+                                                                                                                       'trabalho '
+                                                                                                                       'segue '
+                                                                                                                       'uma '
+                                                                                                                       'curva '
+                                                                                                                       'após '
+                                                                                                                       'iniciar '
+                                                                                                                       'sessão.',
+                                                                                                                 'ru': 'За '
+                                                                                                                       'кривыми '
+                                                                                                                       'следит '
+                                                                                                                       'управление '
+                                                                                                                       'с '
+                                                                                                                       'загрузки. '
+                                                                                                                       'Без '
+                                                                                                                       'него '
+                                                                                                                       'рабочий '
+                                                                                                                       'стол '
+                                                                                                                       'отслеживает '
+                                                                                                                       'только '
+                                                                                                                       'одну '
+                                                                                                                       'кривую '
+                                                                                                                       'после '
+                                                                                                                       'входа '
+                                                                                                                       'в '
+                                                                                                                       'систему.',
+                                                                                                                 'uk': 'За '
+                                                                                                                       'кривими '
+                                                                                                                       'стежить '
+                                                                                                                       'керування '
+                                                                                                                       'від '
+                                                                                                                       'завантаження. '
+                                                                                                                       'Без '
+                                                                                                                       'нього '
+                                                                                                                       'стільниця '
+                                                                                                                       'відстежує '
+                                                                                                                       'лише '
+                                                                                                                       'одну '
+                                                                                                                       'криву '
+                                                                                                                       'після '
+                                                                                                                       'входу '
+                                                                                                                       'в '
+                                                                                                                       'систему.',
+                                                                                                                 'de': 'Die '
+                                                                                                                       'Steuerung '
+                                                                                                                       'ab '
+                                                                                                                       'Systemstart '
+                                                                                                                       'folgt '
+                                                                                                                       'den '
+                                                                                                                       'Kurven. '
+                                                                                                                       'Ohne '
+                                                                                                                       'sie '
+                                                                                                                       'folgt '
+                                                                                                                       'nur '
+                                                                                                                       'der '
+                                                                                                                       'Desktop '
+                                                                                                                       'einer '
+                                                                                                                       'Kurve, '
+                                                                                                                       'nach '
+                                                                                                                       'der '
+                                                                                                                       'Anmeldung.',
+                                                                                                                 'pl': 'Sterowanie '
+                                                                                                                       'od '
+                                                                                                                       'rozruchu '
+                                                                                                                       'śledzi '
+                                                                                                                       'krzywe. '
+                                                                                                                       'Bez '
+                                                                                                                       'niego '
+                                                                                                                       'pulpit '
+                                                                                                                       'śledzi '
+                                                                                                                       'tylko '
+                                                                                                                       'jedną '
+                                                                                                                       'krzywą '
+                                                                                                                       'po '
+                                                                                                                       'zalogowaniu.',
+                                                                                                                 'fr': 'Le '
+                                                                                                                       'contrôle '
+                                                                                                                       'dès '
+                                                                                                                       'le '
+                                                                                                                       'démarrage '
+                                                                                                                       'suit '
+                                                                                                                       'les '
+                                                                                                                       'courbes. '
+                                                                                                                       'Sans '
+                                                                                                                       'lui, '
+                                                                                                                       'seul '
+                                                                                                                       'le '
+                                                                                                                       'bureau '
+                                                                                                                       'suit '
+                                                                                                                       'une '
+                                                                                                                       'courbe '
+                                                                                                                       'après '
+                                                                                                                       'la '
+                                                                                                                       'connexion.',
+                                                                                                                 'it': 'Il '
+                                                                                                                       'controllo '
+                                                                                                                       'dall’avvio '
+                                                                                                                       'segue '
+                                                                                                                       'le '
+                                                                                                                       'curve. '
+                                                                                                                       'Senza '
+                                                                                                                       'di '
+                                                                                                                       'esso, '
+                                                                                                                       'solo '
+                                                                                                                       'il '
+                                                                                                                       'desktop '
+                                                                                                                       'segue '
+                                                                                                                       'una '
+                                                                                                                       'curva '
+                                                                                                                       'dopo '
+                                                                                                                       'l’accesso.',
+                                                                                                                 'nl': 'Besturing '
+                                                                                                                       'vanaf '
+                                                                                                                       'opstarten '
+                                                                                                                       'volgt '
+                                                                                                                       'de '
+                                                                                                                       'curves. '
+                                                                                                                       'Zonder '
+                                                                                                                       'deze '
+                                                                                                                       'volgt '
+                                                                                                                       'alleen '
+                                                                                                                       'het '
+                                                                                                                       'bureaublad '
+                                                                                                                       'één '
+                                                                                                                       'curve '
+                                                                                                                       'na '
+                                                                                                                       'het '
+                                                                                                                       'aanmelden.',
+                                                                                                                 'cs': 'Řízení '
+                                                                                                                       'od '
+                                                                                                                       'spuštění '
+                                                                                                                       'sleduje '
+                                                                                                                       'křivky. '
+                                                                                                                       'Bez '
+                                                                                                                       'něj '
+                                                                                                                       'sleduje '
+                                                                                                                       'pracovní '
+                                                                                                                       'plocha '
+                                                                                                                       'pouze '
+                                                                                                                       'jednu '
+                                                                                                                       'křivku '
+                                                                                                                       'po '
+                                                                                                                       'přihlášení.',
+                                                                                                                 'tr': 'Açılıştan '
+                                                                                                                       'itibaren '
+                                                                                                                       'denetim '
+                                                                                                                       'eğrileri '
+                                                                                                                       'izler. '
+                                                                                                                       'Bu '
+                                                                                                                       'olmadan '
+                                                                                                                       'yalnızca '
+                                                                                                                       'masaüstü, '
+                                                                                                                       'oturum '
+                                                                                                                       'açtıktan '
+                                                                                                                       'sonra '
+                                                                                                                       'tek '
+                                                                                                                       'bir '
+                                                                                                                       'eğriyi '
+                                                                                                                       'izler.',
+                                                                                                                 'ro': 'Controlul '
+                                                                                                                       'de '
+                                                                                                                       'la '
+                                                                                                                       'pornire '
+                                                                                                                       'urmărește '
+                                                                                                                       'curbele. '
+                                                                                                                       'Fără '
+                                                                                                                       'el, '
+                                                                                                                       'doar '
+                                                                                                                       'desktopul '
+                                                                                                                       'urmărește '
+                                                                                                                       'o '
+                                                                                                                       'curbă '
+                                                                                                                       'după '
+                                                                                                                       'autentificare.',
+                                                                                                                 'hu': 'A '
+                                                                                                                       'görbéket '
+                                                                                                                       'az '
+                                                                                                                       'indítástól '
+                                                                                                                       'működő '
+                                                                                                                       'vezérlés '
+                                                                                                                       'követi. '
+                                                                                                                       'Enélkül '
+                                                                                                                       'csak '
+                                                                                                                       'az '
+                                                                                                                       'asztal '
+                                                                                                                       'követ '
+                                                                                                                       'egy '
+                                                                                                                       'görbét, '
+                                                                                                                       'bejelentkezés '
+                                                                                                                       'után.',
+                                                                                                                 'bg': 'Управлението '
+                                                                                                                       'от '
+                                                                                                                       'зареждането '
+                                                                                                                       'следва '
+                                                                                                                       'кривите. '
+                                                                                                                       'Без '
+                                                                                                                       'него '
+                                                                                                                       'само '
+                                                                                                                       'работният '
+                                                                                                                       'плот '
+                                                                                                                       'следва '
+                                                                                                                       'една '
+                                                                                                                       'крива '
+                                                                                                                       'след '
+                                                                                                                       'влизане.',
+                                                                                                                 'da': 'Styring '
+                                                                                                                       'fra '
+                                                                                                                       'opstart '
+                                                                                                                       'følger '
+                                                                                                                       'kurverne. '
+                                                                                                                       'Uden '
+                                                                                                                       'den '
+                                                                                                                       'følger '
+                                                                                                                       'kun '
+                                                                                                                       'skrivebordet '
+                                                                                                                       'én '
+                                                                                                                       'kurve '
+                                                                                                                       'efter '
+                                                                                                                       'login.',
+                                                                                                                 'no': 'Styring '
+                                                                                                                       'fra '
+                                                                                                                       'oppstart '
+                                                                                                                       'følger '
+                                                                                                                       'kurvene. '
+                                                                                                                       'Uten '
+                                                                                                                       'den '
+                                                                                                                       'følger '
+                                                                                                                       'bare '
+                                                                                                                       'skrivebordet '
+                                                                                                                       'én '
+                                                                                                                       'kurve '
+                                                                                                                       'etter '
+                                                                                                                       'innlogging.',
+                                                                                                                 'sv': 'Styrning '
+                                                                                                                       'från '
+                                                                                                                       'uppstart '
+                                                                                                                       'följer '
+                                                                                                                       'kurvorna. '
+                                                                                                                       'Utan '
+                                                                                                                       'den '
+                                                                                                                       'följer '
+                                                                                                                       'bara '
+                                                                                                                       'skrivbordet '
+                                                                                                                       'en '
+                                                                                                                       'kurva '
+                                                                                                                       'efter '
+                                                                                                                       'inloggning.',
+                                                                                                                 'fi': 'Käynnistyksestä '
+                                                                                                                       'alkava '
+                                                                                                                       'ohjaus '
+                                                                                                                       'seuraa '
+                                                                                                                       'käyriä. '
+                                                                                                                       'Ilman '
+                                                                                                                       'sitä '
+                                                                                                                       'vain '
+                                                                                                                       'työpöytä '
+                                                                                                                       'seuraa '
+                                                                                                                       'yhtä '
+                                                                                                                       'käyrää '
+                                                                                                                       'kirjautumisen '
+                                                                                                                       'jälkeen.',
+                                                                                                                 'el': 'Ο '
+                                                                                                                       'έλεγχος '
+                                                                                                                       'από '
+                                                                                                                       'την '
+                                                                                                                       'εκκίνηση '
+                                                                                                                       'ακολουθεί '
+                                                                                                                       'τις '
+                                                                                                                       'καμπύλες. '
+                                                                                                                       'Χωρίς '
+                                                                                                                       'αυτόν, '
+                                                                                                                       'μόνο '
+                                                                                                                       'η '
+                                                                                                                       'επιφάνεια '
+                                                                                                                       'εργασίας '
+                                                                                                                       'ακολουθεί '
+                                                                                                                       'μία '
+                                                                                                                       'καμπύλη '
+                                                                                                                       'μετά '
+                                                                                                                       'τη '
+                                                                                                                       'σύνδεση.',
+                                                                                                                 'zh-CN': '开机控制负责跟随曲线。未启用时，只有桌面会在登录后跟随一条曲线。',
+                                                                                                                 'zh-TW': '開機控制負責跟隨曲線。未啟用時，只有桌面會在登入後跟隨一條曲線。',
+                                                                                                                 'ja': '起動時からの制御がカーブに追従します。無効の場合、ログイン後にデスクトップのみが1つのカーブに追従します。',
+                                                                                                                 'ko': '부팅 '
+                                                                                                                       '시 '
+                                                                                                                       '제어가 '
+                                                                                                                       '곡선을 '
+                                                                                                                       '따릅니다. '
+                                                                                                                       '사용하지 '
+                                                                                                                       '않으면 '
+                                                                                                                       '로그인 '
+                                                                                                                       '후 '
+                                                                                                                       '데스크톱만 '
+                                                                                                                       '하나의 '
+                                                                                                                       '곡선을 '
+                                                                                                                       '따릅니다.',
+                                                                                                                 'id': 'Kontrol '
+                                                                                                                       'sejak '
+                                                                                                                       'boot '
+                                                                                                                       'mengikuti '
+                                                                                                                       'kurva. '
+                                                                                                                       'Tanpanya, '
+                                                                                                                       'hanya '
+                                                                                                                       'desktop '
+                                                                                                                       'yang '
+                                                                                                                       'mengikuti '
+                                                                                                                       'satu '
+                                                                                                                       'kurva '
+                                                                                                                       'setelah '
+                                                                                                                       'masuk.',
+                                                                                                                 'ms': 'Kawalan '
+                                                                                                                       'sejak '
+                                                                                                                       'but '
+                                                                                                                       'mengikuti '
+                                                                                                                       'lengkung. '
+                                                                                                                       'Tanpanya, '
+                                                                                                                       'hanya '
+                                                                                                                       'desktop '
+                                                                                                                       'mengikuti '
+                                                                                                                       'satu '
+                                                                                                                       'lengkung '
+                                                                                                                       'selepas '
+                                                                                                                       'log '
+                                                                                                                       'masuk.',
+                                                                                                                 'th': 'การควบคุมตั้งแต่บูตจะติดตามเส้นโค้ง '
+                                                                                                                       'หากไม่เปิดใช้ '
+                                                                                                                       'จะมีเพียงเดสก์ท็อปที่ติดตามหนึ่งเส้นโค้งหลังเข้าสู่ระบบ',
+                                                                                                                 'vi': 'Điều '
+                                                                                                                       'khiển '
+                                                                                                                       'từ '
+                                                                                                                       'lúc '
+                                                                                                                       'khởi '
+                                                                                                                       'động '
+                                                                                                                       'theo '
+                                                                                                                       'dõi '
+                                                                                                                       'các '
+                                                                                                                       'đường '
+                                                                                                                       'cong. '
+                                                                                                                       'Nếu '
+                                                                                                                       'không '
+                                                                                                                       'bật, '
+                                                                                                                       'chỉ '
+                                                                                                                       'màn '
+                                                                                                                       'hình '
+                                                                                                                       'nền '
+                                                                                                                       'theo '
+                                                                                                                       'dõi '
+                                                                                                                       'một '
+                                                                                                                       'đường '
+                                                                                                                       'cong '
+                                                                                                                       'sau '
+                                                                                                                       'khi '
+                                                                                                                       'đăng '
+                                                                                                                       'nhập.',
+                                                                                                                 'es-419': 'El '
+                                                                                                                           'control '
+                                                                                                                           'desde '
+                                                                                                                           'el '
+                                                                                                                           'arranque '
+                                                                                                                           'sigue '
+                                                                                                                           'las '
+                                                                                                                           'curvas. '
+                                                                                                                           'Sin '
+                                                                                                                           'él, '
+                                                                                                                           'solo '
+                                                                                                                           'el '
+                                                                                                                           'escritorio '
+                                                                                                                           'sigue '
+                                                                                                                           'una '
+                                                                                                                           'curva '
+                                                                                                                           'después '
+                                                                                                                           'de '
+                                                                                                                           'iniciar '
+                                                                                                                           'sesión.',
+                                                                                                                 'pt-BR': 'O '
+                                                                                                                          'controle '
+                                                                                                                          'desde '
+                                                                                                                          'o '
+                                                                                                                          'inicialização '
+                                                                                                                          'segue '
+                                                                                                                          'as '
+                                                                                                                          'curvas. '
+                                                                                                                          'Sem '
+                                                                                                                          'ele, '
+                                                                                                                          'apenas '
+                                                                                                                          'o '
+                                                                                                                          'área '
+                                                                                                                          'de '
+                                                                                                                          'trabalho '
+                                                                                                                          'segue '
+                                                                                                                          'uma '
+                                                                                                                          'curva '
+                                                                                                                          'após '
+                                                                                                                          'entrar '
+                                                                                                                          'na '
+                                                                                                                          'sessão.',
+                                                                                                                 'en': 'Curves '
+                                                                                                                       'are '
+                                                                                                                       'followed '
+                                                                                                                       'by '
+                                                                                                                       'control '
+                                                                                                                       'from '
+                                                                                                                       'boot. '
+                                                                                                                       'Without '
+                                                                                                                       'it, '
+                                                                                                                       'only '
+                                                                                                                       'the '
+                                                                                                                       'desktop '
+                                                                                                                       'follows '
+                                                                                                                       'one '
+                                                                                                                       'curve, '
+                                                                                                                       'after '
+                                                                                                                       'you '
+                                                                                                                       'log '
+                                                                                                                       'in.'},
+ 'Discard': {'es': 'Descartar',
+             'pt': 'Descartar',
+             'ru': 'Отбросить',
+             'uk': 'Відкинути',
+             'de': 'Verwerfen',
+             'pl': 'Odrzuć',
+             'fr': 'Ignorer',
+             'it': 'Scarta',
+             'nl': 'Verwerpen',
+             'cs': 'Zahodit',
+             'tr': 'Vazgeç',
+             'ro': 'Renunță',
+             'hu': 'Elvetés',
+             'bg': 'Отхвърляне',
+             'da': 'Kassér',
+             'no': 'Forkast',
+             'sv': 'Förkasta',
+             'fi': 'Hylkää',
+             'el': 'Απόρριψη',
+             'zh-CN': '放弃',
+             'zh-TW': '捨棄',
+             'ja': '破棄',
+             'ko': '버리기',
+             'id': 'Buang',
+             'ms': 'Buang',
+             'th': 'ละทิ้ง',
+             'vi': 'Bỏ',
+             'es-419': 'Descartar',
+             'pt-BR': 'Descartar',
+             'en': 'Discard'},
+ 'Discard changes': {'es': 'Descartar cambios',
+                     'pt': 'Descartar alterações',
+                     'ru': 'Отбросить изменения',
+                     'uk': 'Відкинути зміни',
+                     'de': 'Änderungen verwerfen',
+                     'pl': 'Odrzuć zmiany',
+                     'fr': 'Ignorer les modifications',
+                     'it': 'Scarta modifiche',
+                     'nl': 'Wijzigingen verwerpen',
+                     'cs': 'Zahodit změny',
+                     'tr': 'Değişiklikleri at',
+                     'ro': 'Renunță la modificări',
+                     'hu': 'Módosítások elvetése',
+                     'bg': 'Отхвърляне на промените',
+                     'da': 'Kassér ændringer',
+                     'no': 'Forkast endringer',
+                     'sv': 'Förkasta ändringar',
+                     'fi': 'Hylkää muutokset',
+                     'el': 'Απόρριψη αλλαγών',
+                     'zh-CN': '放弃更改',
+                     'zh-TW': '捨棄變更',
+                     'ja': '変更を破棄',
+                     'ko': '변경 사항 버리기',
+                     'id': 'Buang perubahan',
+                     'ms': 'Buang perubahan',
+                     'th': 'ละทิ้งการเปลี่ยนแปลง',
+                     'vi': 'Bỏ thay đổi',
+                     'es-419': 'Descartar cambios',
+                     'pt-BR': 'Descartar alterações',
+                     'en': 'Discard changes'},
+ 'Every controlled fan goes to 100 % when a sensor passes its critical limit, and stays there until all of them are 5 °C below it.': {'es': 'Cada '
+                                                                                                                                            'ventilador '
+                                                                                                                                            'controlado '
+                                                                                                                                            'pasa '
+                                                                                                                                            'al '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'cuando '
+                                                                                                                                            'un '
+                                                                                                                                            'sensor '
+                                                                                                                                            'supera '
+                                                                                                                                            'su '
+                                                                                                                                            'límite '
+                                                                                                                                            'crítico '
+                                                                                                                                            'y '
+                                                                                                                                            'permanece '
+                                                                                                                                            'así '
+                                                                                                                                            'hasta '
+                                                                                                                                            'que '
+                                                                                                                                            'todos '
+                                                                                                                                            'estén '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'por '
+                                                                                                                                            'debajo '
+                                                                                                                                            'de '
+                                                                                                                                            'él.',
+                                                                                                                                      'pt': 'Cada '
+                                                                                                                                            'ventoinha '
+                                                                                                                                            'controlada '
+                                                                                                                                            'passa '
+                                                                                                                                            'a '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'quando '
+                                                                                                                                            'um '
+                                                                                                                                            'sensor '
+                                                                                                                                            'ultrapassa '
+                                                                                                                                            'o '
+                                                                                                                                            'limite '
+                                                                                                                                            'crítico '
+                                                                                                                                            'e '
+                                                                                                                                            'mantém-se '
+                                                                                                                                            'assim '
+                                                                                                                                            'até '
+                                                                                                                                            'todos '
+                                                                                                                                            'estarem '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'abaixo '
+                                                                                                                                            'dele.',
+                                                                                                                                      'ru': 'Каждый '
+                                                                                                                                            'управляемый '
+                                                                                                                                            'вентилятор '
+                                                                                                                                            'переходит '
+                                                                                                                                            'на '
+                                                                                                                                            '100 '
+                                                                                                                                            '%, '
+                                                                                                                                            'когда '
+                                                                                                                                            'датчик '
+                                                                                                                                            'превышает '
+                                                                                                                                            'критический '
+                                                                                                                                            'предел, '
+                                                                                                                                            'и '
+                                                                                                                                            'остаётся '
+                                                                                                                                            'так, '
+                                                                                                                                            'пока '
+                                                                                                                                            'все '
+                                                                                                                                            'датчики '
+                                                                                                                                            'не '
+                                                                                                                                            'покажут '
+                                                                                                                                            'на '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'ниже '
+                                                                                                                                            'него.',
+                                                                                                                                      'uk': 'Кожен '
+                                                                                                                                            'керований '
+                                                                                                                                            'вентилятор '
+                                                                                                                                            'переходить '
+                                                                                                                                            'на '
+                                                                                                                                            '100 '
+                                                                                                                                            '%, '
+                                                                                                                                            'коли '
+                                                                                                                                            'датчик '
+                                                                                                                                            'перевищує '
+                                                                                                                                            'критичну '
+                                                                                                                                            'межу, '
+                                                                                                                                            'і '
+                                                                                                                                            'залишається '
+                                                                                                                                            'так, '
+                                                                                                                                            'доки '
+                                                                                                                                            'всі '
+                                                                                                                                            'датчики '
+                                                                                                                                            'не '
+                                                                                                                                            'покажуть '
+                                                                                                                                            'на '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'нижче '
+                                                                                                                                            'неї.',
+                                                                                                                                      'de': 'Jeder '
+                                                                                                                                            'gesteuerte '
+                                                                                                                                            'Lüfter '
+                                                                                                                                            'geht '
+                                                                                                                                            'auf '
+                                                                                                                                            '100 '
+                                                                                                                                            '%, '
+                                                                                                                                            'wenn '
+                                                                                                                                            'ein '
+                                                                                                                                            'Sensor '
+                                                                                                                                            'seine '
+                                                                                                                                            'kritische '
+                                                                                                                                            'Grenze '
+                                                                                                                                            'überschreitet, '
+                                                                                                                                            'bis '
+                                                                                                                                            'alle '
+                                                                                                                                            'Sensoren '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'darunter '
+                                                                                                                                            'liegen.',
+                                                                                                                                      'pl': 'Każdy '
+                                                                                                                                            'sterowany '
+                                                                                                                                            'wentylator '
+                                                                                                                                            'przechodzi '
+                                                                                                                                            'na '
+                                                                                                                                            '100 '
+                                                                                                                                            '%, '
+                                                                                                                                            'gdy '
+                                                                                                                                            'czujnik '
+                                                                                                                                            'przekroczy '
+                                                                                                                                            'próg '
+                                                                                                                                            'krytyczny, '
+                                                                                                                                            'aż '
+                                                                                                                                            'wszystkie '
+                                                                                                                                            'czujniki '
+                                                                                                                                            'wskażą '
+                                                                                                                                            'temperaturę '
+                                                                                                                                            'o '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'niższą.',
+                                                                                                                                      'fr': 'Chaque '
+                                                                                                                                            'ventilateur '
+                                                                                                                                            'contrôlé '
+                                                                                                                                            'passe '
+                                                                                                                                            'à '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'lorsqu’un '
+                                                                                                                                            'capteur '
+                                                                                                                                            'dépasse '
+                                                                                                                                            'sa '
+                                                                                                                                            'limite '
+                                                                                                                                            'critique '
+                                                                                                                                            'et '
+                                                                                                                                            'y '
+                                                                                                                                            'reste '
+                                                                                                                                            'jusqu’à '
+                                                                                                                                            'ce '
+                                                                                                                                            'que '
+                                                                                                                                            'tous '
+                                                                                                                                            'soient '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'en '
+                                                                                                                                            'dessous.',
+                                                                                                                                      'it': 'Ogni '
+                                                                                                                                            'ventola '
+                                                                                                                                            'controllata '
+                                                                                                                                            'passa '
+                                                                                                                                            'al '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'quando '
+                                                                                                                                            'un '
+                                                                                                                                            'sensore '
+                                                                                                                                            'supera '
+                                                                                                                                            'il '
+                                                                                                                                            'limite '
+                                                                                                                                            'critico '
+                                                                                                                                            'e '
+                                                                                                                                            'resta '
+                                                                                                                                            'così '
+                                                                                                                                            'finché '
+                                                                                                                                            'tutti '
+                                                                                                                                            'sono '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'sotto '
+                                                                                                                                            'tale '
+                                                                                                                                            'limite.',
+                                                                                                                                      'nl': 'Elke '
+                                                                                                                                            'geregelde '
+                                                                                                                                            'ventilator '
+                                                                                                                                            'gaat '
+                                                                                                                                            'naar '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'wanneer '
+                                                                                                                                            'een '
+                                                                                                                                            'sensor '
+                                                                                                                                            'de '
+                                                                                                                                            'kritieke '
+                                                                                                                                            'grens '
+                                                                                                                                            'overschrijdt '
+                                                                                                                                            'en '
+                                                                                                                                            'blijft '
+                                                                                                                                            'zo '
+                                                                                                                                            'tot '
+                                                                                                                                            'alle '
+                                                                                                                                            'sensoren '
+                                                                                                                                            'er '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'onder '
+                                                                                                                                            'liggen.',
+                                                                                                                                      'cs': 'Každý '
+                                                                                                                                            'řízený '
+                                                                                                                                            'ventilátor '
+                                                                                                                                            'přejde '
+                                                                                                                                            'na '
+                                                                                                                                            '100 '
+                                                                                                                                            '%, '
+                                                                                                                                            'když '
+                                                                                                                                            'čidlo '
+                                                                                                                                            'překročí '
+                                                                                                                                            'kritický '
+                                                                                                                                            'limit, '
+                                                                                                                                            'dokud '
+                                                                                                                                            'všechna '
+                                                                                                                                            'čidla '
+                                                                                                                                            'neukazují '
+                                                                                                                                            'o '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'méně.',
+                                                                                                                                      'tr': 'Denetlenen '
+                                                                                                                                            'her '
+                                                                                                                                            'fan, '
+                                                                                                                                            'bir '
+                                                                                                                                            'sensör '
+                                                                                                                                            'kritik '
+                                                                                                                                            'sınırını '
+                                                                                                                                            'aştığında '
+                                                                                                                                            '%100 '
+                                                                                                                                            'olur '
+                                                                                                                                            've '
+                                                                                                                                            'tüm '
+                                                                                                                                            'sensörler '
+                                                                                                                                            'sınırın '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'altına '
+                                                                                                                                            'inene '
+                                                                                                                                            'kadar '
+                                                                                                                                            'böyle '
+                                                                                                                                            'kalır.',
+                                                                                                                                      'ro': 'Fiecare '
+                                                                                                                                            'ventilator '
+                                                                                                                                            'controlat '
+                                                                                                                                            'trece '
+                                                                                                                                            'la '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'când '
+                                                                                                                                            'un '
+                                                                                                                                            'senzor '
+                                                                                                                                            'depășește '
+                                                                                                                                            'limita '
+                                                                                                                                            'critică '
+                                                                                                                                            'și '
+                                                                                                                                            'rămâne '
+                                                                                                                                            'astfel '
+                                                                                                                                            'până '
+                                                                                                                                            'când '
+                                                                                                                                            'toți '
+                                                                                                                                            'sunt '
+                                                                                                                                            'cu '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'sub '
+                                                                                                                                            'ea.',
+                                                                                                                                      'hu': 'Minden '
+                                                                                                                                            'vezérelt '
+                                                                                                                                            'ventilátor '
+                                                                                                                                            '100 '
+                                                                                                                                            '%-ra '
+                                                                                                                                            'vált, '
+                                                                                                                                            'ha '
+                                                                                                                                            'egy '
+                                                                                                                                            'érzékelő '
+                                                                                                                                            'túllépi '
+                                                                                                                                            'a '
+                                                                                                                                            'kritikus '
+                                                                                                                                            'határát, '
+                                                                                                                                            'amíg '
+                                                                                                                                            'minden '
+                                                                                                                                            'érzékelő '
+                                                                                                                                            'legalább '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C-kal '
+                                                                                                                                            'alá '
+                                                                                                                                            'nem '
+                                                                                                                                            'kerül.',
+                                                                                                                                      'bg': 'Всеки '
+                                                                                                                                            'управляван '
+                                                                                                                                            'вентилатор '
+                                                                                                                                            'преминава '
+                                                                                                                                            'на '
+                                                                                                                                            '100 '
+                                                                                                                                            '%, '
+                                                                                                                                            'когато '
+                                                                                                                                            'датчик '
+                                                                                                                                            'превиши '
+                                                                                                                                            'критичната '
+                                                                                                                                            'си '
+                                                                                                                                            'граница, '
+                                                                                                                                            'докато '
+                                                                                                                                            'всички '
+                                                                                                                                            'датчици '
+                                                                                                                                            'не '
+                                                                                                                                            'са '
+                                                                                                                                            'с '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'под '
+                                                                                                                                            'нея.',
+                                                                                                                                      'da': 'Hver '
+                                                                                                                                            'styret '
+                                                                                                                                            'blæser '
+                                                                                                                                            'går '
+                                                                                                                                            'til '
+                                                                                                                                            '100 '
+                                                                                                                                            '%, '
+                                                                                                                                            'når '
+                                                                                                                                            'en '
+                                                                                                                                            'sensor '
+                                                                                                                                            'overskrider '
+                                                                                                                                            'sin '
+                                                                                                                                            'kritiske '
+                                                                                                                                            'grænse, '
+                                                                                                                                            'indtil '
+                                                                                                                                            'alle '
+                                                                                                                                            'sensorer '
+                                                                                                                                            'er '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'under '
+                                                                                                                                            'den.',
+                                                                                                                                      'no': 'Hver '
+                                                                                                                                            'styrte '
+                                                                                                                                            'vifte '
+                                                                                                                                            'går '
+                                                                                                                                            'til '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'når '
+                                                                                                                                            'en '
+                                                                                                                                            'sensor '
+                                                                                                                                            'overstiger '
+                                                                                                                                            'sin '
+                                                                                                                                            'kritiske '
+                                                                                                                                            'grense, '
+                                                                                                                                            'til '
+                                                                                                                                            'alle '
+                                                                                                                                            'sensorene '
+                                                                                                                                            'er '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'under '
+                                                                                                                                            'den.',
+                                                                                                                                      'sv': 'Varje '
+                                                                                                                                            'styrd '
+                                                                                                                                            'fläkt '
+                                                                                                                                            'går '
+                                                                                                                                            'till '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'när '
+                                                                                                                                            'en '
+                                                                                                                                            'sensor '
+                                                                                                                                            'överskrider '
+                                                                                                                                            'sin '
+                                                                                                                                            'kritiska '
+                                                                                                                                            'gräns, '
+                                                                                                                                            'tills '
+                                                                                                                                            'alla '
+                                                                                                                                            'sensorer '
+                                                                                                                                            'är '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'under '
+                                                                                                                                            'den.',
+                                                                                                                                      'fi': 'Jokainen '
+                                                                                                                                            'ohjattu '
+                                                                                                                                            'tuuletin '
+                                                                                                                                            'siirtyy '
+                                                                                                                                            '100 '
+                                                                                                                                            '%:iin '
+                                                                                                                                            'anturin '
+                                                                                                                                            'ylittäessä '
+                                                                                                                                            'kriittisen '
+                                                                                                                                            'rajansa '
+                                                                                                                                            'ja '
+                                                                                                                                            'pysyy '
+                                                                                                                                            'siinä, '
+                                                                                                                                            'kunnes '
+                                                                                                                                            'kaikki '
+                                                                                                                                            'anturit '
+                                                                                                                                            'ovat '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'rajan '
+                                                                                                                                            'alapuolella.',
+                                                                                                                                      'el': 'Κάθε '
+                                                                                                                                            'ελεγχόμενος '
+                                                                                                                                            'ανεμιστήρας '
+                                                                                                                                            'πηγαίνει '
+                                                                                                                                            'στο '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'όταν '
+                                                                                                                                            'ένας '
+                                                                                                                                            'αισθητήρας '
+                                                                                                                                            'υπερβεί '
+                                                                                                                                            'το '
+                                                                                                                                            'κρίσιμο '
+                                                                                                                                            'όριό '
+                                                                                                                                            'του, '
+                                                                                                                                            'μέχρι '
+                                                                                                                                            'όλοι '
+                                                                                                                                            'να '
+                                                                                                                                            'είναι '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'χαμηλότερα.',
+                                                                                                                                      'zh-CN': '当任一传感器超过临界温度时，所有受控风扇均升至 '
+                                                                                                                                               '100 '
+                                                                                                                                               '%，直到所有传感器的温度都降至临界值以下 '
+                                                                                                                                               '5 '
+                                                                                                                                               '°C。',
+                                                                                                                                      'zh-TW': '當任一感測器超過臨界溫度時，所有受控風扇均升至 '
+                                                                                                                                               '100 '
+                                                                                                                                               '%，直到所有感測器的溫度都降至臨界值以下 '
+                                                                                                                                               '5 '
+                                                                                                                                               '°C。',
+                                                                                                                                      'ja': 'いずれかのセンサーが危険温度を超えると、すべての制御対象ファンが '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'になり、すべてのセンサーがその温度より '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            '下がるまで維持されます。',
+                                                                                                                                      'ko': '센서가 '
+                                                                                                                                            '위험 '
+                                                                                                                                            '한계를 '
+                                                                                                                                            '넘으면 '
+                                                                                                                                            '제어되는 '
+                                                                                                                                            '모든 '
+                                                                                                                                            '팬이 '
+                                                                                                                                            '100 '
+                                                                                                                                            '%로 '
+                                                                                                                                            '올라가며, '
+                                                                                                                                            '모든 '
+                                                                                                                                            '센서가 '
+                                                                                                                                            '한계보다 '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            '낮아질 '
+                                                                                                                                            '때까지 '
+                                                                                                                                            '유지됩니다.',
+                                                                                                                                      'id': 'Setiap '
+                                                                                                                                            'kipas '
+                                                                                                                                            'terkontrol '
+                                                                                                                                            'naik '
+                                                                                                                                            'ke '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'saat '
+                                                                                                                                            'sensor '
+                                                                                                                                            'melewati '
+                                                                                                                                            'batas '
+                                                                                                                                            'kritisnya '
+                                                                                                                                            'dan '
+                                                                                                                                            'tetap '
+                                                                                                                                            'demikian '
+                                                                                                                                            'hingga '
+                                                                                                                                            'semua '
+                                                                                                                                            'sensor '
+                                                                                                                                            'berada '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'di '
+                                                                                                                                            'bawahnya.',
+                                                                                                                                      'ms': 'Setiap '
+                                                                                                                                            'kipas '
+                                                                                                                                            'terkawal '
+                                                                                                                                            'naik '
+                                                                                                                                            'ke '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'apabila '
+                                                                                                                                            'sensor '
+                                                                                                                                            'melepasi '
+                                                                                                                                            'had '
+                                                                                                                                            'kritikalnya '
+                                                                                                                                            'dan '
+                                                                                                                                            'kekal '
+                                                                                                                                            'begitu '
+                                                                                                                                            'sehingga '
+                                                                                                                                            'semua '
+                                                                                                                                            'sensor '
+                                                                                                                                            'berada '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'di '
+                                                                                                                                            'bawahnya.',
+                                                                                                                                      'th': 'พัดลมที่ควบคุมทุกตัวจะเพิ่มเป็น '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'เมื่อเซ็นเซอร์ใดเกินขีดจำกัดวิกฤต '
+                                                                                                                                            'และคงไว้จนกว่าเซ็นเซอร์ทั้งหมดจะต่ำกว่าขีดจำกัด '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C',
+                                                                                                                                      'vi': 'Mọi '
+                                                                                                                                            'quạt '
+                                                                                                                                            'được '
+                                                                                                                                            'điều '
+                                                                                                                                            'khiển '
+                                                                                                                                            'tăng '
+                                                                                                                                            'lên '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'khi '
+                                                                                                                                            'một '
+                                                                                                                                            'cảm '
+                                                                                                                                            'biến '
+                                                                                                                                            'vượt '
+                                                                                                                                            'giới '
+                                                                                                                                            'hạn '
+                                                                                                                                            'tới '
+                                                                                                                                            'hạn '
+                                                                                                                                            'và '
+                                                                                                                                            'giữ '
+                                                                                                                                            'nguyên '
+                                                                                                                                            'cho '
+                                                                                                                                            'đến '
+                                                                                                                                            'khi '
+                                                                                                                                            'mọi '
+                                                                                                                                            'cảm '
+                                                                                                                                            'biến '
+                                                                                                                                            'thấp '
+                                                                                                                                            'hơn '
+                                                                                                                                            'giới '
+                                                                                                                                            'hạn '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C.',
+                                                                                                                                      'es-419': 'Cada '
+                                                                                                                                                'ventilador '
+                                                                                                                                                'controlado '
+                                                                                                                                                'pasa '
+                                                                                                                                                'al '
+                                                                                                                                                '100 '
+                                                                                                                                                '% '
+                                                                                                                                                'cuando '
+                                                                                                                                                'un '
+                                                                                                                                                'sensor '
+                                                                                                                                                'supera '
+                                                                                                                                                'su '
+                                                                                                                                                'límite '
+                                                                                                                                                'crítico '
+                                                                                                                                                'y '
+                                                                                                                                                'permanece '
+                                                                                                                                                'así '
+                                                                                                                                                'hasta '
+                                                                                                                                                'que '
+                                                                                                                                                'todos '
+                                                                                                                                                'estén '
+                                                                                                                                                '5 '
+                                                                                                                                                '°C '
+                                                                                                                                                'por '
+                                                                                                                                                'debajo '
+                                                                                                                                                'de '
+                                                                                                                                                'él.',
+                                                                                                                                      'pt-BR': 'Cada '
+                                                                                                                                               'ventoinha '
+                                                                                                                                               'controlada '
+                                                                                                                                               'passa '
+                                                                                                                                               'a '
+                                                                                                                                               '100 '
+                                                                                                                                               '% '
+                                                                                                                                               'quando '
+                                                                                                                                               'um '
+                                                                                                                                               'sensor '
+                                                                                                                                               'ultrapassa '
+                                                                                                                                               'o '
+                                                                                                                                               'limite '
+                                                                                                                                               'crítico '
+                                                                                                                                               'e '
+                                                                                                                                               'mantém-se '
+                                                                                                                                               'assim '
+                                                                                                                                               'até '
+                                                                                                                                               'todos '
+                                                                                                                                               'estarem '
+                                                                                                                                               '5 '
+                                                                                                                                               '°C '
+                                                                                                                                               'abaixo '
+                                                                                                                                               'dele.',
+                                                                                                                                      'en': 'Every '
+                                                                                                                                            'controlled '
+                                                                                                                                            'fan '
+                                                                                                                                            'goes '
+                                                                                                                                            'to '
+                                                                                                                                            '100 '
+                                                                                                                                            '% '
+                                                                                                                                            'when '
+                                                                                                                                            'a '
+                                                                                                                                            'sensor '
+                                                                                                                                            'passes '
+                                                                                                                                            'its '
+                                                                                                                                            'critical '
+                                                                                                                                            'limit, '
+                                                                                                                                            'and '
+                                                                                                                                            'stays '
+                                                                                                                                            'there '
+                                                                                                                                            'until '
+                                                                                                                                            'all '
+                                                                                                                                            'of '
+                                                                                                                                            'them '
+                                                                                                                                            'are '
+                                                                                                                                            '5 '
+                                                                                                                                            '°C '
+                                                                                                                                            'below '
+                                                                                                                                            'it.'},
+ 'Fan stopped': {'es': 'Ventilador detenido',
+                 'pt': 'Ventoinha parada',
+                 'ru': 'Вентилятор остановлен',
+                 'uk': 'Вентилятор зупинено',
+                 'de': 'Lüfter steht',
+                 'pl': 'Wentylator zatrzymany',
+                 'fr': 'Ventilateur arrêté',
+                 'it': 'Ventola ferma',
+                 'nl': 'Ventilator gestopt',
+                 'cs': 'Ventilátor zastaven',
+                 'tr': 'Fan durdu',
+                 'ro': 'Ventilator oprit',
+                 'hu': 'Ventilátor leállt',
+                 'bg': 'Вентилаторът е спрял',
+                 'da': 'Blæser stoppet',
+                 'no': 'Vifte stoppet',
+                 'sv': 'Fläkt stannad',
+                 'fi': 'Tuuletin pysähtynyt',
+                 'el': 'Ανεμιστήρας σταματημένος',
+                 'zh-CN': '风扇已停止',
+                 'zh-TW': '風扇已停止',
+                 'ja': 'ファン停止',
+                 'ko': '팬 정지',
+                 'id': 'Kipas berhenti',
+                 'ms': 'Kipas berhenti',
+                 'th': 'พัดลมหยุด',
+                 'vi': 'Quạt đã dừng',
+                 'es-419': 'Ventilador detenido',
+                 'pt-BR': 'Ventoinha parada',
+                 'en': 'Fan stopped'},
+ 'Function': {'es': 'Función',
+              'pt': 'Função',
+              'ru': 'Назначение',
+              'uk': 'Призначення',
+              'de': 'Funktion',
+              'pl': 'Funkcja',
+              'fr': 'Fonction',
+              'it': 'Funzione',
+              'nl': 'Functie',
+              'cs': 'Funkce',
+              'tr': 'İşlev',
+              'ro': 'Funcție',
+              'hu': 'Funkció',
+              'bg': 'Функция',
+              'da': 'Funktion',
+              'no': 'Funksjon',
+              'sv': 'Funktion',
+              'fi': 'Toiminto',
+              'el': 'Λειτουργία',
+              'zh-CN': '功能',
+              'zh-TW': '功能',
+              'ja': '機能',
+              'ko': '기능',
+              'id': 'Fungsi',
+              'ms': 'Fungsi',
+              'th': 'หน้าที่',
+              'vi': 'Chức năng',
+              'es-419': 'Función',
+              'pt-BR': 'Função',
+              'en': 'Function'},
+ 'Hottest chip': {'es': 'Chip más caliente',
+                  'pt': 'Chip mais quente',
+                  'ru': 'Самый горячий чип',
+                  'uk': 'Найгарячіший чип',
+                  'de': 'Heißester Chip',
+                  'pl': 'Najgorętszy układ',
+                  'fr': 'Puce la plus chaude',
+                  'it': 'Chip più caldo',
+                  'nl': 'Heetste chip',
+                  'cs': 'Nejteplejší čip',
+                  'tr': 'En sıcak yonga',
+                  'ro': 'Cel mai fierbinte cip',
+                  'hu': 'Legforróbb lapka',
+                  'bg': 'Най-горещ чип',
+                  'da': 'Varmeste chip',
+                  'no': 'Varmeste brikke',
+                  'sv': 'Varmaste krets',
+                  'fi': 'Kuumin piiri',
+                  'el': 'Θερμότερο τσιπ',
+                  'zh-CN': '最热芯片',
+                  'zh-TW': '最熱晶片',
+                  'ja': '最も熱いチップ',
+                  'ko': '가장 뜨거운 칩',
+                  'id': 'Chip terpanas',
+                  'ms': 'Cip paling panas',
+                  'th': 'ชิปที่ร้อนที่สุด',
+                  'vi': 'Chip nóng nhất',
+                  'es-419': 'Chip más caliente',
+                  'pt-BR': 'Chip mais quente',
+                  'en': 'Hottest chip'},
+ 'Largest step down': {'es': 'Paso máximo de bajada',
+                       'pt': 'Passo máximo de descida',
+                       'ru': 'Максимальный шаг снижения',
+                       'uk': 'Максимальний крок зниження',
+                       'de': 'Maximaler Absenkungsschritt',
+                       'pl': 'Maksymalny krok zmniejszania',
+                       'fr': 'Pas maximal de descente',
+                       'it': 'Passo massimo di discesa',
+                       'nl': 'Maximale verlagingsstap',
+                       'cs': 'Maximální krok snížení',
+                       'tr': 'En büyük azalış adımı',
+                       'ro': 'Pas maxim de scădere',
+                       'hu': 'Legnagyobb csökkentési lépés',
+                       'bg': 'Максимална стъпка надолу',
+                       'da': 'Maksimalt nedadgående trin',
+                       'no': 'Maksimalt trinn ned',
+                       'sv': 'Största steg nedåt',
+                       'fi': 'Suurin laskuvaihe',
+                       'el': 'Μέγιστο βήμα μείωσης',
+                       'zh-CN': '最大下降步长',
+                       'zh-TW': '最大下降步長',
+                       'ja': '最大下降ステップ',
+                       'ko': '최대 하강 단계',
+                       'id': 'Langkah turun maksimum',
+                       'ms': 'Langkah turun maksimum',
+                       'th': 'ขั้นลดสูงสุด',
+                       'vi': 'Bước giảm tối đa',
+                       'es-419': 'Paso máximo de bajada',
+                       'pt-BR': 'Passo máximo de descida',
+                       'en': 'Largest step down'},
+ 'Largest step up': {'es': 'Paso máximo de subida',
+                     'pt': 'Passo máximo de subida',
+                     'ru': 'Максимальный шаг повышения',
+                     'uk': 'Максимальний крок підвищення',
+                     'de': 'Maximaler Erhöhungsschritt',
+                     'pl': 'Maksymalny krok zwiększania',
+                     'fr': 'Pas maximal de montée',
+                     'it': 'Passo massimo di salita',
+                     'nl': 'Maximale verhogingsstap',
+                     'cs': 'Maximální krok zvýšení',
+                     'tr': 'En büyük artış adımı',
+                     'ro': 'Pas maxim de creștere',
+                     'hu': 'Legnagyobb növelési lépés',
+                     'bg': 'Максимална стъпка нагоре',
+                     'da': 'Maksimalt opadgående trin',
+                     'no': 'Maksimalt trinn opp',
+                     'sv': 'Största steg uppåt',
+                     'fi': 'Suurin nostovaihe',
+                     'el': 'Μέγιστο βήμα αύξησης',
+                     'zh-CN': '最大上升步长',
+                     'zh-TW': '最大上升步長',
+                     'ja': '最大上昇ステップ',
+                     'ko': '최대 상승 단계',
+                     'id': 'Langkah naik maksimum',
+                     'ms': 'Langkah naik maksimum',
+                     'th': 'ขั้นเพิ่มสูงสุด',
+                     'vi': 'Bước tăng tối đa',
+                     'es-419': 'Paso máximo de subida',
+                     'pt-BR': 'Passo máximo de subida',
+                     'en': 'Largest step up'},
+ 'Maximum PWM': {'es': 'Máximo PWM',
+                 'pt': 'Máximo PWM',
+                 'ru': 'Максимум PWM',
+                 'uk': 'Максимум PWM',
+                 'de': 'Maximal PWM',
+                 'pl': 'Maksimum PWM',
+                 'fr': 'Maximale PWM',
+                 'it': 'Massimo PWM',
+                 'nl': 'Maximaal PWM',
+                 'cs': 'Maximální PWM',
+                 'tr': 'Maksimum PWM',
+                 'ro': 'Maxim PWM',
+                 'hu': 'Maximum PWM',
+                 'bg': 'Максимум PWM',
+                 'da': 'Maksimum PWM',
+                 'no': 'Maksimum PWM',
+                 'sv': 'Max PWM',
+                 'fi': 'Maksimi PWM',
+                 'el': 'Μέγιστο PWM',
+                 'zh-CN': '最大 PWM',
+                 'zh-TW': '最大 PWM',
+                 'ja': '最大値 PWM',
+                 'ko': '최대 PWM',
+                 'id': 'Maksimal PWM',
+                 'ms': 'Maksimum PWM',
+                 'th': 'สูงสุด PWM',
+                 'vi': 'Tối đa PWM',
+                 'es-419': 'Máximo PWM',
+                 'pt-BR': 'Máximo PWM',
+                 'en': 'Maximum PWM'},
+ 'Minimum PWM': {'es': 'Mínimo PWM',
+                 'pt': 'Mínimo PWM',
+                 'ru': 'Минимум PWM',
+                 'uk': 'Мінімум PWM',
+                 'de': 'Mindestens PWM',
+                 'pl': 'Minimalne PWM',
+                 'fr': 'Minimum PWM',
+                 'it': 'Minimo PWM',
+                 'nl': 'Minimaal PWM',
+                 'cs': 'Minimální PWM',
+                 'tr': 'Asgari PWM',
+                 'ro': 'Minimum PWM',
+                 'hu': 'Minimum PWM',
+                 'bg': 'Минимум PWM',
+                 'da': 'Minimum PWM',
+                 'no': 'Minimum PWM',
+                 'sv': 'Minimum PWM',
+                 'fi': 'Minimi PWM',
+                 'el': 'Ελάχιστο PWM',
+                 'zh-CN': '最低 PWM',
+                 'zh-TW': '最低 PWM',
+                 'ja': '最小値 PWM',
+                 'ko': '최소 PWM',
+                 'id': 'Minimal PWM',
+                 'ms': 'minimum PWM',
+                 'th': 'ขั้นต่ำ PWM',
+                 'vi': 'Tối thiểu PWM',
+                 'es-419': 'Mínimo PWM',
+                 'pt-BR': 'Mínimo PWM',
+                 'en': 'Minimum PWM'},
+ 'Name this fan': {'es': 'Ponle nombre a este ventilador',
+                   'pt': 'Dê um nome a esta ventoinha',
+                   'ru': 'Назовите этот вентилятор',
+                   'uk': 'Назвіть цей вентилятор',
+                   'de': 'Diesen Lüfter benennen',
+                   'pl': 'Nazwij ten wentylator',
+                   'fr': 'Nommez ce ventilateur',
+                   'it': 'Assegna un nome alla ventola',
+                   'nl': 'Geef deze ventilator een naam',
+                   'cs': 'Pojmenujte tento ventilátor',
+                   'tr': 'Bu fana ad verin',
+                   'ro': 'Numește acest ventilator',
+                   'hu': 'Adjon nevet a ventilátornak',
+                   'bg': 'Дайте име на този вентилатор',
+                   'da': 'Navngiv denne blæser',
+                   'no': 'Gi viften et navn',
+                   'sv': 'Namnge fläkten',
+                   'fi': 'Nimeä tuuletin',
+                   'el': 'Ονομάστε αυτόν τον ανεμιστήρα',
+                   'zh-CN': '为此风扇命名',
+                   'zh-TW': '為此風扇命名',
+                   'ja': 'このファンに名前を付ける',
+                   'ko': '이 팬의 이름 지정',
+                   'id': 'Beri nama kipas ini',
+                   'ms': 'Namakan kipas ini',
+                   'th': 'ตั้งชื่อพัดลมนี้',
+                   'vi': 'Đặt tên quạt này',
+                   'es-419': 'Ponle nombre a este ventilador',
+                   'pt-BR': 'Dê um nome a esta ventoinha',
+                   'en': 'Name this fan'},
+ 'No NCT fan controller was found. Prepare the PWM driver to read and control the fans.': {'es': 'No se encontró '
+                                                                                                 'ningún controlador '
+                                                                                                 'de ventiladores NCT. '
+                                                                                                 'Prepara el '
+                                                                                                 'controlador PWM para '
+                                                                                                 'leer y controlar los '
+                                                                                                 'ventiladores.',
+                                                                                           'pt': 'Não foi encontrado '
+                                                                                                 'um controlador de '
+                                                                                                 'ventoinhas NCT. '
+                                                                                                 'Prepare o '
+                                                                                                 'controlador PWM para '
+                                                                                                 'ler e controlar as '
+                                                                                                 'ventoinhas.',
+                                                                                           'ru': 'Контроллер '
+                                                                                                 'вентиляторов NCT не '
+                                                                                                 'найден. Подготовьте '
+                                                                                                 'драйвер PWM для '
+                                                                                                 'чтения и управления '
+                                                                                                 'вентиляторами.',
+                                                                                           'uk': 'Контролер '
+                                                                                                 'вентиляторів NCT не '
+                                                                                                 'знайдено. Підготуйте '
+                                                                                                 'драйвер PWM для '
+                                                                                                 'читання та керування '
+                                                                                                 'вентиляторами.',
+                                                                                           'de': 'Kein '
+                                                                                                 'NCT-Lüftercontroller '
+                                                                                                 'gefunden. Bereiten '
+                                                                                                 'Sie den PWM-Treiber '
+                                                                                                 'vor, um die Lüfter '
+                                                                                                 'auszulesen und zu '
+                                                                                                 'steuern.',
+                                                                                           'pl': 'Nie znaleziono '
+                                                                                                 'kontrolera '
+                                                                                                 'wentylatorów NCT. '
+                                                                                                 'Przygotuj sterownik '
+                                                                                                 'PWM do odczytu i '
+                                                                                                 'sterowania '
+                                                                                                 'wentylatorami.',
+                                                                                           'fr': 'Aucun contrôleur de '
+                                                                                                 'ventilateurs NCT '
+                                                                                                 'trouvé. Préparez le '
+                                                                                                 'pilote PWM pour lire '
+                                                                                                 'et contrôler les '
+                                                                                                 'ventilateurs.',
+                                                                                           'it': 'Nessun controller '
+                                                                                                 'ventole NCT trovato. '
+                                                                                                 'Prepara il driver '
+                                                                                                 'PWM per leggere e '
+                                                                                                 'controllare le '
+                                                                                                 'ventole.',
+                                                                                           'nl': 'Geen '
+                                                                                                 'NCT-ventilatorcontroller '
+                                                                                                 'gevonden. Bereid het '
+                                                                                                 'PWM-stuurprogramma '
+                                                                                                 'voor om ventilatoren '
+                                                                                                 'uit te lezen en te '
+                                                                                                 'regelen.',
+                                                                                           'cs': 'Nebyl nalezen řadič '
+                                                                                                 'ventilátorů NCT. '
+                                                                                                 'Připravte ovladač '
+                                                                                                 'PWM pro čtení a '
+                                                                                                 'řízení ventilátorů.',
+                                                                                           'tr': 'NCT fan '
+                                                                                                 'denetleyicisi '
+                                                                                                 'bulunamadı. Fanları '
+                                                                                                 'okumak ve denetlemek '
+                                                                                                 'için PWM sürücüsünü '
+                                                                                                 'hazırlayın.',
+                                                                                           'ro': 'Nu s-a găsit un '
+                                                                                                 'controler de '
+                                                                                                 'ventilatoare NCT. '
+                                                                                                 'Pregătește driverul '
+                                                                                                 'PWM pentru citirea '
+                                                                                                 'și controlul '
+                                                                                                 'ventilatoarelor.',
+                                                                                           'hu': 'Nem található NCT '
+                                                                                                 'ventilátorvezérlő. '
+                                                                                                 'Készítse elő a '
+                                                                                                 'PWM-illesztőt a '
+                                                                                                 'ventilátorok '
+                                                                                                 'olvasásához és '
+                                                                                                 'vezérléséhez.',
+                                                                                           'bg': 'Не е намерен '
+                                                                                                 'контролер за '
+                                                                                                 'вентилатори NCT. '
+                                                                                                 'Подгответе драйвера '
+                                                                                                 'PWM за четене и '
+                                                                                                 'управление на '
+                                                                                                 'вентилаторите.',
+                                                                                           'da': 'Ingen '
+                                                                                                 'NCT-blæsercontroller '
+                                                                                                 'fundet. Klargør '
+                                                                                                 'PWM-driveren for at '
+                                                                                                 'aflæse og styre '
+                                                                                                 'blæserne.',
+                                                                                           'no': 'Ingen '
+                                                                                                 'NCT-viftekontroller '
+                                                                                                 'ble funnet. Klargjør '
+                                                                                                 'PWM-driveren for å '
+                                                                                                 'lese og styre '
+                                                                                                 'viftene.',
+                                                                                           'sv': 'Ingen '
+                                                                                                 'NCT-fläktkontroller '
+                                                                                                 'hittades. Förbered '
+                                                                                                 'PWM-drivrutinen för '
+                                                                                                 'att läsa och styra '
+                                                                                                 'fläktarna.',
+                                                                                           'fi': 'NCT-tuuletinohjainta '
+                                                                                                 'ei löytynyt. '
+                                                                                                 'Valmistele PWM-ajuri '
+                                                                                                 'tuulettimien '
+                                                                                                 'lukemista ja '
+                                                                                                 'ohjausta varten.',
+                                                                                           'el': 'Δεν βρέθηκε ελεγκτής '
+                                                                                                 'ανεμιστήρων NCT. '
+                                                                                                 'Προετοιμάστε το '
+                                                                                                 'πρόγραμμα οδήγησης '
+                                                                                                 'PWM για ανάγνωση και '
+                                                                                                 'έλεγχο των '
+                                                                                                 'ανεμιστήρων.',
+                                                                                           'zh-CN': '未找到 NCT 风扇控制器。请准备 '
+                                                                                                    'PWM 驱动以读取和控制风扇。',
+                                                                                           'zh-TW': '找不到 NCT 風扇控制器。請準備 '
+                                                                                                    'PWM 驅動程式以讀取和控制風扇。',
+                                                                                           'ja': 'NCT '
+                                                                                                 'ファンコントローラーが見つかりません。ファンの読み取りと制御には '
+                                                                                                 'PWM ドライバーを準備してください。',
+                                                                                           'ko': 'NCT 팬 컨트롤러를 찾을 수 '
+                                                                                                 '없습니다. 팬을 읽고 제어하려면 '
+                                                                                                 'PWM 드라이버를 준비하세요.',
+                                                                                           'id': 'Pengontrol kipas NCT '
+                                                                                                 'tidak ditemukan. '
+                                                                                                 'Siapkan driver PWM '
+                                                                                                 'untuk membaca dan '
+                                                                                                 'mengontrol kipas.',
+                                                                                           'ms': 'Pengawal kipas NCT '
+                                                                                                 'tidak ditemui. '
+                                                                                                 'Sediakan pemacu PWM '
+                                                                                                 'untuk membaca dan '
+                                                                                                 'mengawal kipas.',
+                                                                                           'th': 'ไม่พบตัวควบคุมพัดลม '
+                                                                                                 'NCT เตรียมไดรเวอร์ '
+                                                                                                 'PWM '
+                                                                                                 'เพื่ออ่านค่าและควบคุมพัดลม',
+                                                                                           'vi': 'Không tìm thấy bộ '
+                                                                                                 'điều khiển quạt NCT. '
+                                                                                                 'Chuẩn bị trình điều '
+                                                                                                 'khiển PWM để đọc và '
+                                                                                                 'điều khiển quạt.',
+                                                                                           'es-419': 'No se encontró '
+                                                                                                     'ningún '
+                                                                                                     'controlador de '
+                                                                                                     'ventiladores '
+                                                                                                     'NCT. Prepara el '
+                                                                                                     'controlador PWM '
+                                                                                                     'para leer y '
+                                                                                                     'controlar los '
+                                                                                                     'ventiladores.',
+                                                                                           'pt-BR': 'Não foi '
+                                                                                                    'encontrado um '
+                                                                                                    'controlador de '
+                                                                                                    'ventoinhas NCT. '
+                                                                                                    'Prepare o '
+                                                                                                    'controlador PWM '
+                                                                                                    'para ler e '
+                                                                                                    'controlar as '
+                                                                                                    'ventoinhas.',
+                                                                                           'en': 'No NCT fan '
+                                                                                                 'controller was '
+                                                                                                 'found. Prepare the '
+                                                                                                 'PWM driver to read '
+                                                                                                 'and control the '
+                                                                                                 'fans.'},
+ 'No channel': {'es': 'Sin canal',
+                'pt': 'Sem canal',
+                'ru': 'Нет канала',
+                'uk': 'Немає каналу',
+                'de': 'Kein Kanal',
+                'pl': 'Brak kanału',
+                'fr': 'Aucun canal',
+                'it': 'Nessun canale',
+                'nl': 'Geen kanaal',
+                'cs': 'Žádný kanál',
+                'tr': 'Kanal yok',
+                'ro': 'Niciun canal',
+                'hu': 'Nincs csatorna',
+                'bg': 'Няма канал',
+                'da': 'Ingen kanal',
+                'no': 'Ingen kanal',
+                'sv': 'Ingen kanal',
+                'fi': 'Ei kanavaa',
+                'el': 'Κανένα κανάλι',
+                'zh-CN': '无通道',
+                'zh-TW': '無通道',
+                'ja': 'チャンネルなし',
+                'ko': '채널 없음',
+                'id': 'Tidak ada kanal',
+                'ms': 'Tiada saluran',
+                'th': 'ไม่มีช่อง',
+                'vi': 'Không có kênh',
+                'es-419': 'Sin canal',
+                'pt-BR': 'Sem canal',
+                'en': 'No channel'},
+ 'Now °C': {'es': 'Actual °C',
+            'pt': 'Atual °C',
+            'ru': 'Сейчас °C',
+            'uk': 'Зараз °C',
+            'de': 'Aktuell °C',
+            'pl': 'Teraz °C',
+            'fr': 'Actuel °C',
+            'it': 'Attuale °C',
+            'nl': 'Nu °C',
+            'cs': 'Nyní °C',
+            'tr': 'Şimdi °C',
+            'ro': 'Acum °C',
+            'hu': 'Most °C',
+            'bg': 'Сега °C',
+            'da': 'Nu °C',
+            'no': 'Nå °C',
+            'sv': 'Nu °C',
+            'fi': 'Nyt °C',
+            'el': 'Τώρα °C',
+            'zh-CN': '当前 °C',
+            'zh-TW': '目前 °C',
+            'ja': '現在 °C',
+            'ko': '현재 °C',
+            'id': 'Kini °C',
+            'ms': 'Kini °C',
+            'th': 'ขณะนี้ °C',
+            'vi': 'Hiện tại °C',
+            'es-419': 'Actual °C',
+            'pt-BR': 'Atual °C',
+            'en': 'Now °C'},
+ 'Offset °C': {'es': 'Corrección °C',
+               'pt': 'Desvio °C',
+               'ru': 'Поправка °C',
+               'uk': 'Поправка °C',
+               'de': 'Versatz °C',
+               'pl': 'Korekta °C',
+               'fr': 'Correction °C',
+               'it': 'Correzione °C',
+               'nl': 'Correctie °C',
+               'cs': 'Korekce °C',
+               'tr': 'Düzeltme °C',
+               'ro': 'Corecție °C',
+               'hu': 'Korrekció °C',
+               'bg': 'Корекция °C',
+               'da': 'Korrektion °C',
+               'no': 'Korreksjon °C',
+               'sv': 'Korrigering °C',
+               'fi': 'Korjaus °C',
+               'el': 'Διόρθωση °C',
+               'zh-CN': '偏移 °C',
+               'zh-TW': '偏移 °C',
+               'ja': '補正 °C',
+               'ko': '보정 °C',
+               'id': 'Koreksi °C',
+               'ms': 'Pembetulan °C',
+               'th': 'ค่าชดเชย °C',
+               'vi': 'Hiệu chỉnh °C',
+               'es-419': 'Corrección °C',
+               'pt-BR': 'Desvio °C',
+               'en': 'Offset °C'},
+ 'PWM %': {'es': 'PWM %',
+           'pt': 'PWM %',
+           'ru': 'PWM %',
+           'uk': 'PWM %',
+           'de': 'PWM %',
+           'pl': 'PWM %',
+           'fr': 'PWM %',
+           'it': 'PWM %',
+           'nl': 'PWM %',
+           'cs': 'PWM %',
+           'tr': 'PWM %',
+           'ro': 'PWM %',
+           'hu': 'PWM %',
+           'bg': 'PWM %',
+           'da': 'PWM %',
+           'no': 'PWM %',
+           'sv': 'PWM %',
+           'fi': 'PWM %',
+           'el': 'PWM %',
+           'zh-CN': 'PWM %',
+           'zh-TW': 'PWM %',
+           'ja': 'PWM %',
+           'ko': 'PWM %',
+           'id': 'PWM %',
+           'ms': 'PWM %',
+           'th': 'PWM %',
+           'vi': 'PWM %',
+           'es-419': 'PWM %',
+           'pt-BR': 'PWM %',
+           'en': 'PWM %'},
+ 'PWM paths': {'es': 'Rutas PWM',
+               'pt': 'Caminhos PWM',
+               'ru': 'Пути PWM',
+               'uk': 'Шляхи PWM',
+               'de': 'PWM-Pfade',
+               'pl': 'Ścieżki PWM',
+               'fr': 'Chemins PWM',
+               'it': 'Percorsi PWM',
+               'nl': 'PWM-paden',
+               'cs': 'Cesty PWM',
+               'tr': 'PWM yolları',
+               'ro': 'Căi PWM',
+               'hu': 'PWM útvonalak',
+               'bg': 'Пътища PWM',
+               'da': 'PWM-stier',
+               'no': 'PWM-stier',
+               'sv': 'PWM-sökvägar',
+               'fi': 'PWM-polut',
+               'el': 'Διαδρομές PWM',
+               'zh-CN': 'PWM 路径',
+               'zh-TW': 'PWM 路徑',
+               'ja': 'PWM パス',
+               'ko': 'PWM 경로',
+               'id': 'Jalur PWM',
+               'ms': 'Laluan PWM',
+               'th': 'พาธ PWM',
+               'vi': 'Đường dẫn PWM',
+               'es-419': 'Rutas PWM',
+               'pt-BR': 'Caminhos PWM',
+               'en': 'PWM paths'},
+ 'PWM {pwm}': {'es': 'PWM {pwm}',
+               'pt': 'PWM {pwm}',
+               'ru': 'PWM {pwm}',
+               'uk': 'PWM {pwm}',
+               'de': 'PWM {pwm}',
+               'pl': 'PWM {pwm}',
+               'fr': 'PWM {pwm}',
+               'it': 'PWM {pwm}',
+               'nl': 'PWM {pwm}',
+               'cs': 'PWM {pwm}',
+               'tr': 'PWM {pwm}',
+               'ro': 'PWM {pwm}',
+               'hu': 'PWM {pwm}',
+               'bg': 'PWM {pwm}',
+               'da': 'PWM {pwm}',
+               'no': 'PWM {pwm}',
+               'sv': 'PWM {pwm}',
+               'fi': 'PWM {pwm}',
+               'el': 'PWM {pwm}',
+               'zh-CN': 'PWM {pwm}',
+               'zh-TW': 'PWM {pwm}',
+               'ja': 'PWM {pwm}',
+               'ko': 'PWM {pwm}',
+               'id': 'PWM {pwm}',
+               'ms': 'PWM {pwm}',
+               'th': 'PWM {pwm}',
+               'vi': 'PWM {pwm}',
+               'es-419': 'PWM {pwm}',
+               'pt-BR': 'PWM {pwm}',
+               'en': 'PWM {pwm}'},
+ 'Presets': {'es': 'Preajustes',
+             'pt': 'Predefinições',
+             'ru': 'Предустановки',
+             'uk': 'Попередні налаштування',
+             'de': 'Voreinstellungen',
+             'pl': 'Ustawienia wstępne',
+             'fr': 'Préréglages',
+             'it': 'Preimpostazioni',
+             'nl': 'Voorinstellingen',
+             'cs': 'Předvolby',
+             'tr': 'Ön ayarlar',
+             'ro': 'Presetări',
+             'hu': 'Előbeállítások',
+             'bg': 'Готови настройки',
+             'da': 'Forudindstillinger',
+             'no': 'Forhåndsinnstillinger',
+             'sv': 'Förinställningar',
+             'fi': 'Esiasetukset',
+             'el': 'Προεπιλογές',
+             'zh-CN': '预设',
+             'zh-TW': '預設',
+             'ja': 'プリセット',
+             'ko': '사전 설정',
+             'id': 'Prasetel',
+             'ms': 'Pratetap',
+             'th': 'ค่าที่ตั้งไว้',
+             'vi': 'Thiết lập sẵn',
+             'es-419': 'Preajustes',
+             'pt-BR': 'Predefinições',
+             'en': 'Presets'},
+ 'Pump stopped': {'es': 'Bomba detenida',
+                  'pt': 'Bomba parada',
+                  'ru': 'Помпа остановлена',
+                  'uk': 'Помпу зупинено',
+                  'de': 'Pumpe steht',
+                  'pl': 'Pompa zatrzymana',
+                  'fr': 'Pompe arrêtée',
+                  'it': 'Pompa ferma',
+                  'nl': 'Pomp gestopt',
+                  'cs': 'Čerpadlo zastaveno',
+                  'tr': 'Pompa durdu',
+                  'ro': 'Pompă oprită',
+                  'hu': 'Szivattyú leállt',
+                  'bg': 'Помпата е спряла',
+                  'da': 'Pumpe stoppet',
+                  'no': 'Pumpe stoppet',
+                  'sv': 'Pump stannad',
+                  'fi': 'Pumppu pysähtynyt',
+                  'el': 'Αντλία σταματημένη',
+                  'zh-CN': '水泵已停止',
+                  'zh-TW': '幫浦已停止',
+                  'ja': 'ポンプ停止',
+                  'ko': '펌프 정지',
+                  'id': 'Pompa berhenti',
+                  'ms': 'Pam berhenti',
+                  'th': 'ปั๊มหยุด',
+                  'vi': 'Bơm đã dừng',
+                  'es-419': 'Bomba detenida',
+                  'pt-BR': 'Bomba parada',
+                  'en': 'Pump stopped'},
+ 'Remove point {number}': {'es': 'Eliminar punto {number}',
+                           'pt': 'Remover ponto {number}',
+                           'ru': 'Удалить точку {number}',
+                           'uk': 'Видалити точку {number}',
+                           'de': 'Punkt {number} entfernen',
+                           'pl': 'Usuń punkt {number}',
+                           'fr': 'Supprimer le point {number}',
+                           'it': 'Rimuovi punto {number}',
+                           'nl': 'Punt {number} verwijderen',
+                           'cs': 'Odebrat bod {number}',
+                           'tr': '{number}. noktayı kaldır',
+                           'ro': 'Elimină punctul {number}',
+                           'hu': '{number}. pont eltávolítása',
+                           'bg': 'Премахване на точка {number}',
+                           'da': 'Fjern punkt {number}',
+                           'no': 'Fjern punkt {number}',
+                           'sv': 'Ta bort punkt {number}',
+                           'fi': 'Poista piste {number}',
+                           'el': 'Αφαίρεση σημείου {number}',
+                           'zh-CN': '移除点 {number}',
+                           'zh-TW': '移除點 {number}',
+                           'ja': 'ポイント {number} を削除',
+                           'ko': '점 {number} 제거',
+                           'id': 'Hapus titik {number}',
+                           'ms': 'Buang titik {number}',
+                           'th': 'ลบจุด {number}',
+                           'vi': 'Xóa điểm {number}',
+                           'es-419': 'Eliminar punto {number}',
+                           'pt-BR': 'Remover ponto {number}',
+                           'en': 'Remove point {number}'},
+ 'Revert': {'es': 'Revertir',
+            'pt': 'Reverter',
+            'ru': 'Вернуть',
+            'uk': 'Повернути',
+            'de': 'Zurücksetzen',
+            'pl': 'Przywróć',
+            'fr': 'Rétablir',
+            'it': 'Ripristina',
+            'nl': 'Terugzetten',
+            'cs': 'Vrátit',
+            'tr': 'Geri al',
+            'ro': 'Revino',
+            'hu': 'Visszaállítás',
+            'bg': 'Връщане',
+            'da': 'Gendan',
+            'no': 'Tilbakestill',
+            'sv': 'Återställ',
+            'fi': 'Palauta',
+            'el': 'Επαναφορά',
+            'zh-CN': '还原',
+            'zh-TW': '還原',
+            'ja': '元に戻す',
+            'ko': '되돌리기',
+            'id': 'Kembalikan',
+            'ms': 'Pulihkan',
+            'th': 'คืนค่า',
+            'vi': 'Hoàn nguyên',
+            'es-419': 'Revertir',
+            'pt-BR': 'Reverter',
+            'en': 'Revert'},
+ 'Spin-up kick': {'es': 'Impulso de arranque',
+                  'pt': 'Impulso de partida',
+                  'ru': 'Пусковой импульс',
+                  'uk': 'Пусковий імпульс',
+                  'de': 'Anlaufimpuls',
+                  'pl': 'Impuls rozruchowy',
+                  'fr': 'Impulsion de démarrage',
+                  'it': 'Impulso di avvio',
+                  'nl': 'Startimpuls',
+                  'cs': 'Rozběhový impulz',
+                  'tr': 'Başlatma darbesi',
+                  'ro': 'Impuls de pornire',
+                  'hu': 'Indítási impulzus',
+                  'bg': 'Пусков импулс',
+                  'da': 'Startimpuls',
+                  'no': 'Startimpuls',
+                  'sv': 'Startimpuls',
+                  'fi': 'Käynnistysimpulssi',
+                  'el': 'Παλμός εκκίνησης',
+                  'zh-CN': '启动助推',
+                  'zh-TW': '啟動助推',
+                  'ja': '起動ブースト',
+                  'ko': '시동 부스트',
+                  'id': 'Dorongan awal',
+                  'ms': 'Dorongan permulaan',
+                  'th': 'แรงกระตุ้นเริ่มต้น',
+                  'vi': 'Xung khởi động',
+                  'es-419': 'Impulso de arranque',
+                  'pt-BR': 'Impulso de partida',
+                  'en': 'Spin-up kick'},
+ 'Temperature °C': {'es': 'Temperatura (°C)',
+                    'pt': 'Temperatura (°C)',
+                    'ru': 'Температура (°C)',
+                    'uk': 'Температура (°C)',
+                    'de': 'Temperatur (°C)',
+                    'pl': 'Temperatura (°C)',
+                    'fr': 'Température (°C)',
+                    'it': 'Temperatura (°C)',
+                    'nl': 'Temperatuur (°C)',
+                    'cs': 'Teplota (°C)',
+                    'tr': 'Sıcaklık (°C)',
+                    'ro': 'Temperatură (°C)',
+                    'hu': 'Hőmérséklet (°C)',
+                    'bg': 'Температура (°C)',
+                    'da': 'Temperatur (°C)',
+                    'no': 'Temperatur (°C)',
+                    'sv': 'Temperatur (°C)',
+                    'fi': 'Lämpötila (°C)',
+                    'el': 'Θερμοκρασία (°C)',
+                    'zh-CN': '温度 (°C)',
+                    'zh-TW': '溫度 (°C)',
+                    'ja': '温度 (°C)',
+                    'ko': '온도 (°C)',
+                    'id': 'Suhu (°C)',
+                    'ms': 'Suhu (°C)',
+                    'th': 'อุณหภูมิ (°C)',
+                    'vi': 'Nhiệt độ (°C)',
+                    'es-419': 'Temperatura (°C)',
+                    'pt-BR': 'Temperatura (°C)',
+                    'en': 'Temperature °C'},
+ 'The BIOS fan curve drives this header. BC250 Control Center does not write to it.': {'es': 'La curva de ventilación '
+                                                                                             'del BIOS controla este '
+                                                                                             'conector. BC250 Control '
+                                                                                             'Center no escribe en él.',
+                                                                                       'pt': 'A curva de ventilação do '
+                                                                                             'BIOS controla este '
+                                                                                             'conector. BC250 Control '
+                                                                                             'Center não escreve nele.',
+                                                                                       'ru': 'Этим разъёмом управляет '
+                                                                                             'кривая вентилятора BIOS. '
+                                                                                             'BC250 Control Center не '
+                                                                                             'записывает в него.',
+                                                                                       'uk': 'Цим роз’ємом керує крива '
+                                                                                             'вентилятора BIOS. BC250 '
+                                                                                             'Control Center не '
+                                                                                             'записує в нього.',
+                                                                                       'de': 'Die BIOS-Lüfterkurve '
+                                                                                             'steuert diesen '
+                                                                                             'Anschluss. BC250 Control '
+                                                                                             'Center schreibt nicht '
+                                                                                             'darauf.',
+                                                                                       'pl': 'Tym złączem steruje '
+                                                                                             'krzywa wentylatora BIOS. '
+                                                                                             'BC250 Control Center do '
+                                                                                             'niego nie zapisuje.',
+                                                                                       'fr': 'La courbe de ventilation '
+                                                                                             'du BIOS contrôle ce '
+                                                                                             'connecteur. BC250 '
+                                                                                             'Control Center n’y écrit '
+                                                                                             'pas.',
+                                                                                       'it': 'La curva ventola del '
+                                                                                             'BIOS controlla questo '
+                                                                                             'connettore. BC250 '
+                                                                                             'Control Center non vi '
+                                                                                             'scrive.',
+                                                                                       'nl': 'De BIOS-ventilatorcurve '
+                                                                                             'regelt deze aansluiting. '
+                                                                                             'BC250 Control Center '
+                                                                                             'schrijft er niet naar.',
+                                                                                       'cs': 'Tento konektor řídí '
+                                                                                             'křivka ventilátoru BIOS. '
+                                                                                             'BC250 Control Center do '
+                                                                                             'něj nezapisuje.',
+                                                                                       'tr': 'Bu bağlantıyı BIOS fan '
+                                                                                             'eğrisi yönetir. BC250 '
+                                                                                             'Control Center buraya '
+                                                                                             'yazmaz.',
+                                                                                       'ro': 'Curba ventilatorului '
+                                                                                             'BIOS controlează acest '
+                                                                                             'conector. BC250 Control '
+                                                                                             'Center nu scrie în el.',
+                                                                                       'hu': 'Ezt a csatlakozót a BIOS '
+                                                                                             'ventilátorgörbéje '
+                                                                                             'vezérli. A BC250 Control '
+                                                                                             'Center nem ír rá.',
+                                                                                       'bg': 'Кривата на вентилатора в '
+                                                                                             'BIOS управлява този '
+                                                                                             'конектор. BC250 Control '
+                                                                                             'Center не записва в '
+                                                                                             'него.',
+                                                                                       'da': 'BIOS-blæserkurven styrer '
+                                                                                             'dette stik. BC250 '
+                                                                                             'Control Center skriver '
+                                                                                             'ikke til det.',
+                                                                                       'no': 'BIOS-viftekurven styrer '
+                                                                                             'denne kontakten. BC250 '
+                                                                                             'Control Center skriver '
+                                                                                             'ikke til den.',
+                                                                                       'sv': 'BIOS-fläktkurvan styr '
+                                                                                             'denna kontakt. BC250 '
+                                                                                             'Control Center skriver '
+                                                                                             'inte till den.',
+                                                                                       'fi': 'BIOS-tuulettimen käyrä '
+                                                                                             'ohjaa tätä liitintä. '
+                                                                                             'BC250 Control Center ei '
+                                                                                             'kirjoita siihen.',
+                                                                                       'el': 'Η καμπύλη ανεμιστήρα του '
+                                                                                             'BIOS ελέγχει αυτόν τον '
+                                                                                             'σύνδεσμο. Το BC250 '
+                                                                                             'Control Center δεν '
+                                                                                             'γράφει σε αυτόν.',
+                                                                                       'zh-CN': '此接口由 BIOS '
+                                                                                                '风扇曲线控制。BC250 Control '
+                                                                                                'Center 不会向其写入。',
+                                                                                       'zh-TW': '此接頭由 BIOS '
+                                                                                                '風扇曲線控制。BC250 Control '
+                                                                                                'Center 不會向其寫入。',
+                                                                                       'ja': 'この端子は BIOS '
+                                                                                             'のファンカーブが制御します。BC250 '
+                                                                                             'Control Center は書き込みません。',
+                                                                                       'ko': '이 헤더는 BIOS 팬 곡선으로 제어됩니다. '
+                                                                                             'BC250 Control Center는 '
+                                                                                             '여기에 쓰지 않습니다.',
+                                                                                       'id': 'Kurva kipas BIOS '
+                                                                                             'mengontrol konektor ini. '
+                                                                                             'BC250 Control Center '
+                                                                                             'tidak menulis ke sana.',
+                                                                                       'ms': 'Lengkung kipas BIOS '
+                                                                                             'mengawal penyambung ini. '
+                                                                                             'BC250 Control Center '
+                                                                                             'tidak menulis kepadanya.',
+                                                                                       'th': 'เส้นโค้งพัดลมใน BIOS '
+                                                                                             'ควบคุมขั้วต่อนี้ BC250 '
+                                                                                             'Control Center '
+                                                                                             'จะไม่เขียนค่าไปยังขั้วต่อนี้',
+                                                                                       'vi': 'Đường cong quạt BIOS '
+                                                                                             'điều khiển đầu cắm này. '
+                                                                                             'BC250 Control Center '
+                                                                                             'không ghi vào đó.',
+                                                                                       'es-419': 'La curva de '
+                                                                                                 'ventilación del BIOS '
+                                                                                                 'controla este '
+                                                                                                 'conector. BC250 '
+                                                                                                 'Control Center no '
+                                                                                                 'escribe en él.',
+                                                                                       'pt-BR': 'A curva de ventilação '
+                                                                                                'do BIOS controla este '
+                                                                                                'conector. BC250 '
+                                                                                                'Control Center não '
+                                                                                                'escreve nele.',
+                                                                                       'en': 'The BIOS fan curve '
+                                                                                             'drives this header. '
+                                                                                             'BC250 Control Center '
+                                                                                             'does not write to it.'},
+ 'The changes to this fan were not applied.': {'es': 'No se aplicaron los cambios de este ventilador.',
+                                               'pt': 'As alterações desta ventoinha não foram aplicadas.',
+                                               'ru': 'Изменения этого вентилятора не применены.',
+                                               'uk': 'Зміни цього вентилятора не застосовано.',
+                                               'de': 'Die Änderungen an diesem Lüfter wurden nicht angewendet.',
+                                               'pl': 'Zmiany tego wentylatora nie zostały zastosowane.',
+                                               'fr': 'Les modifications de ce ventilateur n’ont pas été appliquées.',
+                                               'it': 'Le modifiche a questa ventola non sono state applicate.',
+                                               'nl': 'De wijzigingen aan deze ventilator zijn niet toegepast.',
+                                               'cs': 'Změny tohoto ventilátoru nebyly použity.',
+                                               'tr': 'Bu fanın değişiklikleri uygulanmadı.',
+                                               'ro': 'Modificările acestui ventilator nu au fost aplicate.',
+                                               'hu': 'A ventilátor módosításai nem lettek alkalmazva.',
+                                               'bg': 'Промените на този вентилатор не са приложени.',
+                                               'da': 'Ændringerne til denne blæser blev ikke anvendt.',
+                                               'no': 'Endringene for denne viften ble ikke brukt.',
+                                               'sv': 'Ändringarna för denna fläkt tillämpades inte.',
+                                               'fi': 'Tämän tuulettimen muutoksia ei otettu käyttöön.',
+                                               'el': 'Οι αλλαγές αυτού του ανεμιστήρα δεν εφαρμόστηκαν.',
+                                               'zh-CN': '此风扇的更改尚未应用。',
+                                               'zh-TW': '此風扇的變更尚未套用。',
+                                               'ja': 'このファンの変更は適用されていません。',
+                                               'ko': '이 팬의 변경 사항이 적용되지 않았습니다.',
+                                               'id': 'Perubahan kipas ini belum diterapkan.',
+                                               'ms': 'Perubahan kipas ini belum digunakan.',
+                                               'th': 'ยังไม่ได้ใช้การเปลี่ยนแปลงของพัดลมนี้',
+                                               'vi': 'Các thay đổi của quạt này chưa được áp dụng.',
+                                               'es-419': 'No se aplicaron los cambios de este ventilador.',
+                                               'pt-BR': 'As alterações desta ventoinha não foram aplicadas.',
+                                               'en': 'The changes to this fan were not applied.'},
+ 'The fan takes the highest PWM of these curves, each on its own sensor.': {'es': 'El ventilador usa el PWM más alto '
+                                                                                  'de estas curvas, cada una con su '
+                                                                                  'propio sensor.',
+                                                                            'pt': 'A ventoinha usa o PWM mais alto '
+                                                                                  'destas curvas, cada uma com o seu '
+                                                                                  'sensor.',
+                                                                            'ru': 'Вентилятор использует наибольшее '
+                                                                                  'значение PWM этих кривых, каждая со '
+                                                                                  'своим датчиком.',
+                                                                            'uk': 'Вентилятор використовує найбільше '
+                                                                                  'значення PWM цих кривих, кожна зі '
+                                                                                  'своїм датчиком.',
+                                                                            'de': 'Der Lüfter verwendet den höchsten '
+                                                                                  'PWM-Wert dieser Kurven, jede mit '
+                                                                                  'ihrem eigenen Sensor.',
+                                                                            'pl': 'Wentylator używa najwyższego PWM z '
+                                                                                  'tych krzywych, każda z własnym '
+                                                                                  'czujnikiem.',
+                                                                            'fr': 'Le ventilateur utilise le PWM le '
+                                                                                  'plus élevé de ces courbes, chacune '
+                                                                                  'avec son propre capteur.',
+                                                                            'it': 'La ventola usa il PWM più alto di '
+                                                                                  'queste curve, ciascuna con il '
+                                                                                  'proprio sensore.',
+                                                                            'nl': 'De ventilator gebruikt de hoogste '
+                                                                                  'PWM van deze curves, elk met een '
+                                                                                  'eigen sensor.',
+                                                                            'cs': 'Ventilátor používá nejvyšší PWM z '
+                                                                                  'těchto křivek, každá s vlastním '
+                                                                                  'čidlem.',
+                                                                            'tr': 'Fan, her biri kendi sensörüne sahip '
+                                                                                  'bu eğrilerin en yüksek PWM değerini '
+                                                                                  'kullanır.',
+                                                                            'ro': 'Ventilatorul folosește cel mai mare '
+                                                                                  'PWM dintre aceste curbe, fiecare cu '
+                                                                                  'propriul senzor.',
+                                                                            'hu': 'A ventilátor a saját érzékelővel '
+                                                                                  'rendelkező görbék legnagyobb '
+                                                                                  'PWM-értékét használja.',
+                                                                            'bg': 'Вентилаторът използва най-високата '
+                                                                                  'PWM стойност от тези криви, всяка '
+                                                                                  'със собствен датчик.',
+                                                                            'da': 'Blæseren bruger den højeste PWM fra '
+                                                                                  'disse kurver, hver med sin egen '
+                                                                                  'sensor.',
+                                                                            'no': 'Viften bruker den høyeste '
+                                                                                  'PWM-verdien fra disse kurvene, hver '
+                                                                                  'med sin egen sensor.',
+                                                                            'sv': 'Fläkten använder högsta PWM från '
+                                                                                  'dessa kurvor, var och en med sin '
+                                                                                  'egen sensor.',
+                                                                            'fi': 'Tuuletin käyttää näiden käyrien '
+                                                                                  'suurinta PWM-arvoa, kullakin on oma '
+                                                                                  'anturinsa.',
+                                                                            'el': 'Ο ανεμιστήρας χρησιμοποιεί το '
+                                                                                  'υψηλότερο PWM αυτών των καμπυλών, '
+                                                                                  'καθεμία με τον δικό της αισθητήρα.',
+                                                                            'zh-CN': '风扇采用这些曲线中的最高 PWM 值，每条曲线使用各自的传感器。',
+                                                                            'zh-TW': '風扇採用這些曲線中的最高 PWM 值，每條曲線使用各自的感測器。',
+                                                                            'ja': 'ファンは、それぞれ独自のセンサーを持つこれらのカーブの最大 PWM '
+                                                                                  'を使用します。',
+                                                                            'ko': '팬은 각각 자체 센서를 사용하는 이 곡선들 중 가장 높은 '
+                                                                                  'PWM을 사용합니다.',
+                                                                            'id': 'Kipas menggunakan PWM tertinggi '
+                                                                                  'dari kurva-kurva ini, masing-masing '
+                                                                                  'dengan sensornya sendiri.',
+                                                                            'ms': 'Kipas menggunakan PWM tertinggi '
+                                                                                  'daripada lengkung ini, setiap satu '
+                                                                                  'dengan sensornya sendiri.',
+                                                                            'th': 'พัดลมใช้ค่า PWM '
+                                                                                  'สูงสุดจากเส้นโค้งเหล่านี้ '
+                                                                                  'โดยแต่ละเส้นใช้เซ็นเซอร์ของตนเอง',
+                                                                            'vi': 'Quạt dùng PWM cao nhất trong các '
+                                                                                  'đường cong này, mỗi đường có cảm '
+                                                                                  'biến riêng.',
+                                                                            'es-419': 'El ventilador usa el PWM más '
+                                                                                      'alto de estas curvas, cada una '
+                                                                                      'con su propio sensor.',
+                                                                            'pt-BR': 'A ventoinha usa o PWM mais alto '
+                                                                                     'destas curvas, cada uma com o '
+                                                                                     'seu sensor.',
+                                                                            'en': 'The fan takes the highest PWM of '
+                                                                                  'these curves, each on its own '
+                                                                                  'sensor.'},
+ 'The fans are shown read-only. Prepare the nct6687 PWM driver to control them.': {'es': 'Los ventiladores se muestran '
+                                                                                         'en modo de solo lectura. '
+                                                                                         'Prepara el controlador PWM '
+                                                                                         'nct6687 para controlarlos.',
+                                                                                   'pt': 'As ventoinhas são '
+                                                                                         'apresentadas apenas para '
+                                                                                         'leitura. Prepare o '
+                                                                                         'controlador PWM nct6687 para '
+                                                                                         'as controlar.',
+                                                                                   'ru': 'Вентиляторы доступны только '
+                                                                                         'для чтения. Подготовьте '
+                                                                                         'драйвер PWM nct6687 для '
+                                                                                         'управления ими.',
+                                                                                   'uk': 'Вентилятори доступні лише '
+                                                                                         'для читання. Підготуйте '
+                                                                                         'драйвер PWM nct6687 для '
+                                                                                         'керування ними.',
+                                                                                   'de': 'Die Lüfter werden '
+                                                                                         'schreibgeschützt angezeigt. '
+                                                                                         'Bereiten Sie den PWM-Treiber '
+                                                                                         'nct6687 vor, um sie zu '
+                                                                                         'steuern.',
+                                                                                   'pl': 'Wentylatory są widoczne '
+                                                                                         'tylko do odczytu. Przygotuj '
+                                                                                         'sterownik PWM nct6687, aby '
+                                                                                         'nimi sterować.',
+                                                                                   'fr': 'Les ventilateurs sont '
+                                                                                         'affichés en lecture seule. '
+                                                                                         'Préparez le pilote PWM '
+                                                                                         'nct6687 pour les contrôler.',
+                                                                                   'it': 'Le ventole sono mostrate in '
+                                                                                         'sola lettura. Prepara il '
+                                                                                         'driver PWM nct6687 per '
+                                                                                         'controllarle.',
+                                                                                   'nl': 'De ventilatoren worden '
+                                                                                         'alleen-lezen weergegeven. '
+                                                                                         'Bereid het '
+                                                                                         'PWM-stuurprogramma nct6687 '
+                                                                                         'voor om ze te regelen.',
+                                                                                   'cs': 'Ventilátory jsou zobrazeny '
+                                                                                         'pouze pro čtení. Připravte '
+                                                                                         'ovladač PWM nct6687 pro '
+                                                                                         'jejich řízení.',
+                                                                                   'tr': 'Fanlar salt okunur '
+                                                                                         'gösteriliyor. Denetlemek '
+                                                                                         'için nct6687 PWM sürücüsünü '
+                                                                                         'hazırlayın.',
+                                                                                   'ro': 'Ventilatoarele sunt afișate '
+                                                                                         'doar pentru citire. '
+                                                                                         'Pregătește driverul PWM '
+                                                                                         'nct6687 pentru a le '
+                                                                                         'controla.',
+                                                                                   'hu': 'A ventilátorok csak '
+                                                                                         'olvashatók. Készítse elő az '
+                                                                                         'nct6687 PWM-illesztőt a '
+                                                                                         'vezérlésükhöz.',
+                                                                                   'bg': 'Вентилаторите са показани '
+                                                                                         'само за четене. Подгответе '
+                                                                                         'драйвера PWM nct6687, за да '
+                                                                                         'ги управлявате.',
+                                                                                   'da': 'Blæserne vises '
+                                                                                         'skrivebeskyttet. Klargør '
+                                                                                         'PWM-driveren nct6687 for at '
+                                                                                         'styre dem.',
+                                                                                   'no': 'Viftene vises '
+                                                                                         'skrivebeskyttet. Klargjør '
+                                                                                         'PWM-driveren nct6687 for å '
+                                                                                         'styre dem.',
+                                                                                   'sv': 'Fläktarna visas '
+                                                                                         'skrivskyddade. Förbered '
+                                                                                         'PWM-drivrutinen nct6687 för '
+                                                                                         'att styra dem.',
+                                                                                   'fi': 'Tuulettimet näytetään vain '
+                                                                                         'luettavina. Valmistele '
+                                                                                         'nct6687 PWM-ajuri niiden '
+                                                                                         'ohjaamiseen.',
+                                                                                   'el': 'Οι ανεμιστήρες εμφανίζονται '
+                                                                                         'μόνο για ανάγνωση. '
+                                                                                         'Προετοιμάστε το πρόγραμμα '
+                                                                                         'οδήγησης PWM nct6687 για τον '
+                                                                                         'έλεγχό τους.',
+                                                                                   'zh-CN': '风扇以只读方式显示。请准备 nct6687 PWM '
+                                                                                            '驱动以控制风扇。',
+                                                                                   'zh-TW': '風扇以唯讀方式顯示。請準備 nct6687 PWM '
+                                                                                            '驅動程式以控制風扇。',
+                                                                                   'ja': 'ファンは読み取り専用で表示されています。制御するには '
+                                                                                         'nct6687 PWM ドライバーを準備してください。',
+                                                                                   'ko': '팬이 읽기 전용으로 표시됩니다. 제어하려면 '
+                                                                                         'nct6687 PWM 드라이버를 준비하세요.',
+                                                                                   'id': 'Kipas ditampilkan '
+                                                                                         'hanya-baca. Siapkan driver '
+                                                                                         'PWM nct6687 untuk '
+                                                                                         'mengontrolnya.',
+                                                                                   'ms': 'Kipas dipaparkan untuk baca '
+                                                                                         'sahaja. Sediakan pemacu PWM '
+                                                                                         'nct6687 untuk mengawalnya.',
+                                                                                   'th': 'แสดงพัดลมแบบอ่านอย่างเดียว '
+                                                                                         'เตรียมไดรเวอร์ PWM nct6687 '
+                                                                                         'เพื่อควบคุม',
+                                                                                   'vi': 'Quạt hiển thị ở chế độ chỉ '
+                                                                                         'đọc. Chuẩn bị trình điều '
+                                                                                         'khiển PWM nct6687 để điều '
+                                                                                         'khiển chúng.',
+                                                                                   'es-419': 'Los ventiladores se '
+                                                                                             'muestran en modo de solo '
+                                                                                             'lectura. Prepara el '
+                                                                                             'controlador PWM nct6687 '
+                                                                                             'para controlarlos.',
+                                                                                   'pt-BR': 'As ventoinhas são '
+                                                                                            'apresentadas apenas para '
+                                                                                            'leitura. Prepare o '
+                                                                                            'controlador PWM nct6687 '
+                                                                                            'para as controlar.',
+                                                                                   'en': 'The fans are shown '
+                                                                                         'read-only. Prepare the '
+                                                                                         'nct6687 PWM driver to '
+                                                                                         'control them.'},
+ 'The system service follows {channels}.': {'es': 'El servicio del sistema sigue {channels}.',
+                                            'pt': 'O serviço do sistema segue {channels}.',
+                                            'ru': 'Системная служба отслеживает {channels}.',
+                                            'uk': 'Системна служба відстежує {channels}.',
+                                            'de': 'Der Systemdienst folgt {channels}.',
+                                            'pl': 'Usługa systemowa śledzi {channels}.',
+                                            'fr': 'Le service système suit {channels}.',
+                                            'it': 'Il servizio di sistema segue {channels}.',
+                                            'nl': 'De systeemdienst volgt {channels}.',
+                                            'cs': 'Systémová služba sleduje {channels}.',
+                                            'tr': 'Sistem hizmeti {channels} izliyor.',
+                                            'ro': 'Serviciul de sistem urmărește {channels}.',
+                                            'hu': 'A rendszerszolgáltatás ezt követi: {channels}.',
+                                            'bg': 'Системната услуга следва {channels}.',
+                                            'da': 'Systemtjenesten følger {channels}.',
+                                            'no': 'Systemtjenesten følger {channels}.',
+                                            'sv': 'Systemtjänsten följer {channels}.',
+                                            'fi': 'Järjestelmäpalvelu seuraa kohteita {channels}.',
+                                            'el': 'Η υπηρεσία συστήματος ακολουθεί {channels}.',
+                                            'zh-CN': '系统服务正在跟随 {channels}。',
+                                            'zh-TW': '系統服務正在跟隨 {channels}。',
+                                            'ja': 'システムサービスは {channels} に追従しています。',
+                                            'ko': '시스템 서비스가 {channels}을(를) 따릅니다.',
+                                            'id': 'Layanan sistem mengikuti {channels}.',
+                                            'ms': 'Perkhidmatan sistem mengikuti {channels}.',
+                                            'th': 'บริการระบบกำลังติดตาม {channels}',
+                                            'vi': 'Dịch vụ hệ thống theo dõi {channels}.',
+                                            'es-419': 'El servicio del sistema sigue {channels}.',
+                                            'pt-BR': 'O serviço do sistema segue {channels}.',
+                                            'en': 'The system service follows {channels}.'},
+ 'This channel is read-only until the PWM driver is prepared.': {'es': 'Este canal es de solo lectura hasta preparar '
+                                                                       'el controlador PWM.',
+                                                                 'pt': 'Este canal é apenas de leitura até preparar o '
+                                                                       'controlador PWM.',
+                                                                 'ru': 'Этот канал доступен только для чтения до '
+                                                                       'подготовки драйвера PWM.',
+                                                                 'uk': 'Цей канал доступний лише для читання до '
+                                                                       'підготовки драйвера PWM.',
+                                                                 'de': 'Dieser Kanal ist schreibgeschützt, bis der '
+                                                                       'PWM-Treiber vorbereitet ist.',
+                                                                 'pl': 'Ten kanał jest tylko do odczytu do czasu '
+                                                                       'przygotowania sterownika PWM.',
+                                                                 'fr': 'Ce canal est en lecture seule jusqu’à la '
+                                                                       'préparation du pilote PWM.',
+                                                                 'it': 'Questo canale è in sola lettura finché il '
+                                                                       'driver PWM non è pronto.',
+                                                                 'nl': 'Dit kanaal is alleen-lezen tot het '
+                                                                       'PWM-stuurprogramma is voorbereid.',
+                                                                 'cs': 'Tento kanál je pouze pro čtení do přípravy '
+                                                                       'ovladače PWM.',
+                                                                 'tr': 'PWM sürücüsü hazırlanana kadar bu kanal salt '
+                                                                       'okunurdur.',
+                                                                 'ro': 'Acest canal este doar pentru citire până la '
+                                                                       'pregătirea driverului PWM.',
+                                                                 'hu': 'Ez a csatorna a PWM-illesztő előkészítéséig '
+                                                                       'csak olvasható.',
+                                                                 'bg': 'Този канал е само за четене, докато не се '
+                                                                       'подготви драйверът PWM.',
+                                                                 'da': 'Denne kanal er skrivebeskyttet, indtil '
+                                                                       'PWM-driveren er klargjort.',
+                                                                 'no': 'Denne kanalen er skrivebeskyttet til '
+                                                                       'PWM-driveren er klargjort.',
+                                                                 'sv': 'Denna kanal är skrivskyddad tills '
+                                                                       'PWM-drivrutinen är förberedd.',
+                                                                 'fi': 'Tämä kanava on vain luettavissa, kunnes '
+                                                                       'PWM-ajuri on valmisteltu.',
+                                                                 'el': 'Αυτό το κανάλι είναι μόνο για ανάγνωση μέχρι '
+                                                                       'να προετοιμαστεί το πρόγραμμα οδήγησης PWM.',
+                                                                 'zh-CN': '准备 PWM 驱动之前，此通道为只读。',
+                                                                 'zh-TW': '準備 PWM 驅動程式之前，此通道為唯讀。',
+                                                                 'ja': 'PWM ドライバーを準備するまで、このチャンネルは読み取り専用です。',
+                                                                 'ko': 'PWM 드라이버를 준비하기 전까지 이 채널은 읽기 전용입니다.',
+                                                                 'id': 'Kanal ini hanya-baca hingga driver PWM '
+                                                                       'disiapkan.',
+                                                                 'ms': 'Saluran ini untuk baca sahaja sehingga pemacu '
+                                                                       'PWM disediakan.',
+                                                                 'th': 'ช่องนี้อ่านได้อย่างเดียวจนกว่าจะเตรียมไดรเวอร์ '
+                                                                       'PWM',
+                                                                 'vi': 'Kênh này chỉ đọc cho đến khi trình điều khiển '
+                                                                       'PWM được chuẩn bị.',
+                                                                 'es-419': 'Este canal es de solo lectura hasta '
+                                                                           'preparar el controlador PWM.',
+                                                                 'pt-BR': 'Este canal é apenas de leitura até preparar '
+                                                                          'o controlador PWM.',
+                                                                 'en': 'This channel is read-only until the PWM driver '
+                                                                       'is prepared.'},
+ 'Warn when the fan stops while it should turn': {'es': 'Avisar si el ventilador se detiene cuando debería girar',
+                                                  'pt': 'Avisar se a ventoinha parar quando deveria rodar',
+                                                  'ru': 'Предупреждать, если вентилятор остановился, хотя должен '
+                                                        'вращаться',
+                                                  'uk': 'Попереджати, якщо вентилятор зупинився, хоча має обертатися',
+                                                  'de': 'Warnen, wenn der Lüfter steht, obwohl er sich drehen sollte',
+                                                  'pl': 'Ostrzegaj, gdy wentylator zatrzyma się, choć powinien się '
+                                                        'obracać',
+                                                  'fr': 'Avertir si le ventilateur s’arrête alors qu’il devrait '
+                                                        'tourner',
+                                                  'it': 'Avvisa se la ventola si ferma quando dovrebbe girare',
+                                                  'nl': 'Waarschuwen als de ventilator stopt terwijl deze moet draaien',
+                                                  'cs': 'Upozornit, když se ventilátor zastaví, přestože se má otáčet',
+                                                  'tr': 'Dönmesi gereken fan durduğunda uyar',
+                                                  'ro': 'Avertizează dacă ventilatorul se oprește când ar trebui să se '
+                                                        'rotească',
+                                                  'hu': 'Figyelmeztetés, ha a ventilátor leáll, pedig forognia kellene',
+                                                  'bg': 'Предупреждение, когато вентилаторът спре, а трябва да се '
+                                                        'върти',
+                                                  'da': 'Advar, når blæseren stopper, selvom den burde dreje',
+                                                  'no': 'Varsle når viften stopper selv om den skal rotere',
+                                                  'sv': 'Varna när fläkten stannar trots att den borde snurra',
+                                                  'fi': 'Varoita, jos tuuletin pysähtyy, vaikka sen pitäisi pyöriä',
+                                                  'el': 'Προειδοποίηση όταν ο ανεμιστήρας σταματά ενώ πρέπει να '
+                                                        'περιστρέφεται',
+                                                  'zh-CN': '风扇应当转动却停止时发出警告',
+                                                  'zh-TW': '風扇應當轉動卻停止時發出警告',
+                                                  'ja': '回転すべきファンが停止した場合に警告する',
+                                                  'ko': '돌아야 할 팬이 멈추면 경고',
+                                                  'id': 'Peringatkan saat kipas berhenti padahal seharusnya berputar',
+                                                  'ms': 'Beri amaran apabila kipas berhenti sedangkan ia sepatutnya '
+                                                        'berputar',
+                                                  'th': 'เตือนเมื่อพัดลมหยุดทั้งที่ควรหมุน',
+                                                  'vi': 'Cảnh báo khi quạt dừng dù đáng lẽ phải quay',
+                                                  'es-419': 'Avisar si el ventilador se detiene cuando debería girar',
+                                                  'pt-BR': 'Avisar se a ventoinha parar quando deveria rodar',
+                                                  'en': 'Warn when the fan stops while it should turn'},
+ '{count} channels': {'es': '{count} canales',
+                      'pt': '{count} canais',
+                      'ru': 'Каналов: {count}',
+                      'uk': 'Каналів: {count}',
+                      'de': '{count} Kanäle',
+                      'pl': 'Kanały: {count}',
+                      'fr': '{count} canaux',
+                      'it': '{count} canali',
+                      'nl': '{count} kanalen',
+                      'cs': 'Kanály: {count}',
+                      'tr': '{count} kanal',
+                      'ro': '{count} canale',
+                      'hu': '{count} csatorna',
+                      'bg': '{count} канала',
+                      'da': '{count} kanaler',
+                      'no': '{count} kanaler',
+                      'sv': '{count} kanaler',
+                      'fi': '{count} kanavaa',
+                      'el': '{count} κανάλια',
+                      'zh-CN': '{count} 个通道',
+                      'zh-TW': '{count} 個通道',
+                      'ja': '{count} チャンネル',
+                      'ko': '채널 {count}개',
+                      'id': '{count} kanal',
+                      'ms': '{count} saluran',
+                      'th': '{count} ช่อง',
+                      'vi': '{count} kênh',
+                      'es-419': '{count} canales',
+                      'pt-BR': '{count} canais',
+                      'en': '{count} channels'},
+ '{count} controlled': {'es': '{count} controlados',
+                        'pt': '{count} controlados',
+                        'ru': 'Под управлением: {count}',
+                        'uk': 'Під керуванням: {count}',
+                        'de': '{count} gesteuert',
+                        'pl': 'Sterowane: {count}',
+                        'fr': '{count} contrôlés',
+                        'it': '{count} controllati',
+                        'nl': '{count} geregeld',
+                        'cs': 'Řízené: {count}',
+                        'tr': '{count} denetlenen',
+                        'ro': '{count} controlate',
+                        'hu': '{count} vezérelt',
+                        'bg': '{count} управлявани',
+                        'da': '{count} styrede',
+                        'no': '{count} styrte',
+                        'sv': '{count} styrda',
+                        'fi': '{count} ohjattua',
+                        'el': '{count} ελεγχόμενα',
+                        'zh-CN': '{count} 个受控',
+                        'zh-TW': '{count} 個受控',
+                        'ja': '{count} 制御中',
+                        'ko': '제어 중 {count}개',
+                        'id': '{count} terkontrol',
+                        'ms': '{count} terkawal',
+                        'th': 'ควบคุม {count} ช่อง',
+                        'vi': '{count} được điều khiển',
+                        'es-419': '{count} controlados',
+                        'pt-BR': '{count} controlados',
+                        'en': '{count} controlled'},
+ '{count} curves': {'es': '{count} curvas',
+                    'pt': '{count} curvas',
+                    'ru': 'Кривых: {count}',
+                    'uk': 'Кривих: {count}',
+                    'de': '{count} Kurven',
+                    'pl': 'Krzywe: {count}',
+                    'fr': '{count} courbes',
+                    'it': '{count} curve',
+                    'nl': '{count} curves',
+                    'cs': 'Křivky: {count}',
+                    'tr': '{count} eğri',
+                    'ro': '{count} curbe',
+                    'hu': '{count} görbe',
+                    'bg': '{count} криви',
+                    'da': '{count} kurver',
+                    'no': '{count} kurver',
+                    'sv': '{count} kurvor',
+                    'fi': '{count} käyrää',
+                    'el': '{count} καμπύλες',
+                    'zh-CN': '{count} 条曲线',
+                    'zh-TW': '{count} 條曲線',
+                    'ja': '{count} カーブ',
+                    'ko': '곡선 {count}개',
+                    'id': '{count} kurva',
+                    'ms': '{count} lengkung',
+                    'th': '{count} เส้นโค้ง',
+                    'vi': '{count} đường cong',
+                    'es-419': '{count} curvas',
+                    'pt-BR': '{count} curvas',
+                    'en': '{count} curves'},
+ '{count} turning': {'es': '{count} girando',
+                     'pt': '{count} a rodar',
+                     'ru': 'Вращаются: {count}',
+                     'uk': 'Обертаються: {count}',
+                     'de': '{count} drehen sich',
+                     'pl': 'Obracające się: {count}',
+                     'fr': '{count} en rotation',
+                     'it': '{count} in rotazione',
+                     'nl': '{count} draaien',
+                     'cs': 'Otáčející se: {count}',
+                     'tr': '{count} dönen',
+                     'ro': '{count} în rotație',
+                     'hu': '{count} forog',
+                     'bg': '{count} въртящи се',
+                     'da': '{count} drejer',
+                     'no': '{count} roterer',
+                     'sv': '{count} snurrar',
+                     'fi': '{count} pyörii',
+                     'el': '{count} περιστρέφονται',
+                     'zh-CN': '{count} 个正在转动',
+                     'zh-TW': '{count} 個正在轉動',
+                     'ja': '{count} 回転中',
+                     'ko': '회전 중 {count}개',
+                     'id': '{count} berputar',
+                     'ms': '{count} berputar',
+                     'th': 'กำลังหมุน {count} ตัว',
+                     'vi': '{count} đang quay',
+                     'es-419': '{count} girando',
+                     'pt-BR': '{count} a rodar',
+                     'en': '{count} turning'},
+ '°C': {'es': '°C',
+        'pt': '°C',
+        'ru': '°C',
+        'uk': '°C',
+        'de': '°C',
+        'pl': '°C',
+        'fr': '°C',
+        'it': '°C',
+        'nl': '°C',
+        'cs': '°C',
+        'tr': '°C',
+        'ro': '°C',
+        'hu': '°C',
+        'bg': '°C',
+        'da': '°C',
+        'no': '°C',
+        'sv': '°C',
+        'fi': '°C',
+        'el': '°C',
+        'zh-CN': '°C',
+        'zh-TW': '°C',
+        'ja': '°C',
+        'ko': '°C',
+        'id': '°C',
+        'ms': '°C',
+        'th': '°C',
+        'vi': '°C',
+        'es-419': '°C',
+        'pt-BR': '°C',
+        'en': '°C'}}
+)
+
+# Offline reviewed copy for fan curve interaction and calibration.
+INTERFACE_TRANSLATIONS.update(
+{'Calibrate': {'en': 'Calibrate',
+               'es': 'Calibrar',
+               'es-419': 'Calibrar',
+               'pt': 'Calibrar',
+               'pt-BR': 'Calibrar',
+               'de': 'Kalibrieren',
+               'fr': 'Étalonner',
+               'it': 'Calibra',
+               'nl': 'Kalibreren',
+               'ru': 'Калибровать',
+               'uk': 'Калібрувати',
+               'pl': 'Kalibruj',
+               'cs': 'Kalibrovat',
+               'tr': 'Kalibre et',
+               'ro': 'Calibrează',
+               'hu': 'Kalibrálás',
+               'bg': 'Калибриране',
+               'da': 'Kalibrer',
+               'no': 'Kalibrer',
+               'sv': 'Kalibrera',
+               'fi': 'Kalibroi',
+               'el': 'Βαθμονόμηση',
+               'zh-CN': '校准',
+               'zh-TW': '校準',
+               'ja': '校正',
+               'ko': '보정',
+               'id': 'Kalibrasi',
+               'ms': 'Tentukur',
+               'th': 'ปรับเทียบ',
+               'vi': 'Hiệu chuẩn'},
+ 'Calibrate this fan': {'en': 'Calibrate this fan',
+                        'es': 'Calibrar este ventilador',
+                        'es-419': 'Calibrar este ventilador',
+                        'pt': 'Calibrar esta ventoinha',
+                        'pt-BR': 'Calibrar esta ventoinha',
+                        'de': 'Diesen Lüfter kalibrieren',
+                        'fr': 'Étalonner ce ventilateur',
+                        'it': 'Calibra questa ventola',
+                        'nl': 'Deze ventilator kalibreren',
+                        'ru': 'Калибровать этот вентилятор',
+                        'uk': 'Калібрувати цей вентилятор',
+                        'pl': 'Kalibruj ten wentylator',
+                        'cs': 'Kalibrovat tento ventilátor',
+                        'tr': 'Bu fanı kalibre et',
+                        'ro': 'Calibrează acest ventilator',
+                        'hu': 'Ventilátor kalibrálása',
+                        'bg': 'Калибриране на този вентилатор',
+                        'da': 'Kalibrer denne blæser',
+                        'no': 'Kalibrer denne viften',
+                        'sv': 'Kalibrera denna fläkt',
+                        'fi': 'Kalibroi tämä tuuletin',
+                        'el': 'Βαθμονόμηση αυτού του ανεμιστήρα',
+                        'zh-CN': '校准此风扇',
+                        'zh-TW': '校準此風扇',
+                        'ja': 'このファンを校正',
+                        'ko': '이 팬 보정',
+                        'id': 'Kalibrasi kipas ini',
+                        'ms': 'Tentukur kipas ini',
+                        'th': 'ปรับเทียบพัดลมนี้',
+                        'vi': 'Hiệu chuẩn quạt này'},
+ 'The fan goes to full speed, then down step by step until it stops, then up until it starts again. It takes one to two minutes and stops at once if the board reaches 80 °C. It ends at full speed; nothing is saved until you press Apply.': {'en': 'The '
+                                                                                                                                                                                                                                                      'fan '
+                                                                                                                                                                                                                                                      'goes '
+                                                                                                                                                                                                                                                      'to '
+                                                                                                                                                                                                                                                      'full '
+                                                                                                                                                                                                                                                      'speed, '
+                                                                                                                                                                                                                                                      'then '
+                                                                                                                                                                                                                                                      'down '
+                                                                                                                                                                                                                                                      'step '
+                                                                                                                                                                                                                                                      'by '
+                                                                                                                                                                                                                                                      'step '
+                                                                                                                                                                                                                                                      'until '
+                                                                                                                                                                                                                                                      'it '
+                                                                                                                                                                                                                                                      'stops, '
+                                                                                                                                                                                                                                                      'then '
+                                                                                                                                                                                                                                                      'up '
+                                                                                                                                                                                                                                                      'until '
+                                                                                                                                                                                                                                                      'it '
+                                                                                                                                                                                                                                                      'starts '
+                                                                                                                                                                                                                                                      'again. '
+                                                                                                                                                                                                                                                      'It '
+                                                                                                                                                                                                                                                      'takes '
+                                                                                                                                                                                                                                                      'one '
+                                                                                                                                                                                                                                                      'to '
+                                                                                                                                                                                                                                                      'two '
+                                                                                                                                                                                                                                                      'minutes '
+                                                                                                                                                                                                                                                      'and '
+                                                                                                                                                                                                                                                      'stops '
+                                                                                                                                                                                                                                                      'at '
+                                                                                                                                                                                                                                                      'once '
+                                                                                                                                                                                                                                                      'if '
+                                                                                                                                                                                                                                                      'the '
+                                                                                                                                                                                                                                                      'board '
+                                                                                                                                                                                                                                                      'reaches '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'It '
+                                                                                                                                                                                                                                                      'ends '
+                                                                                                                                                                                                                                                      'at '
+                                                                                                                                                                                                                                                      'full '
+                                                                                                                                                                                                                                                      'speed; '
+                                                                                                                                                                                                                                                      'nothing '
+                                                                                                                                                                                                                                                      'is '
+                                                                                                                                                                                                                                                      'saved '
+                                                                                                                                                                                                                                                      'until '
+                                                                                                                                                                                                                                                      'you '
+                                                                                                                                                                                                                                                      'press '
+                                                                                                                                                                                                                                                      'Apply.',
+                                                                                                                                                                                                                                                'es': 'El '
+                                                                                                                                                                                                                                                      'ventilador '
+                                                                                                                                                                                                                                                      'alcanza '
+                                                                                                                                                                                                                                                      'la '
+                                                                                                                                                                                                                                                      'velocidad '
+                                                                                                                                                                                                                                                      'máxima, '
+                                                                                                                                                                                                                                                      'baja '
+                                                                                                                                                                                                                                                      'por '
+                                                                                                                                                                                                                                                      'pasos '
+                                                                                                                                                                                                                                                      'hasta '
+                                                                                                                                                                                                                                                      'detenerse '
+                                                                                                                                                                                                                                                      'y '
+                                                                                                                                                                                                                                                      'luego '
+                                                                                                                                                                                                                                                      'sube '
+                                                                                                                                                                                                                                                      'hasta '
+                                                                                                                                                                                                                                                      'arrancar '
+                                                                                                                                                                                                                                                      'de '
+                                                                                                                                                                                                                                                      'nuevo. '
+                                                                                                                                                                                                                                                      'Tarda '
+                                                                                                                                                                                                                                                      'de '
+                                                                                                                                                                                                                                                      'uno '
+                                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                                      'dos '
+                                                                                                                                                                                                                                                      'minutos '
+                                                                                                                                                                                                                                                      'y '
+                                                                                                                                                                                                                                                      'se '
+                                                                                                                                                                                                                                                      'detiene '
+                                                                                                                                                                                                                                                      'de '
+                                                                                                                                                                                                                                                      'inmediato '
+                                                                                                                                                                                                                                                      'si '
+                                                                                                                                                                                                                                                      'la '
+                                                                                                                                                                                                                                                      'placa '
+                                                                                                                                                                                                                                                      'alcanza '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Termina '
+                                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                                      'máxima '
+                                                                                                                                                                                                                                                      'velocidad; '
+                                                                                                                                                                                                                                                      'no '
+                                                                                                                                                                                                                                                      'se '
+                                                                                                                                                                                                                                                      'guarda '
+                                                                                                                                                                                                                                                      'nada '
+                                                                                                                                                                                                                                                      'hasta '
+                                                                                                                                                                                                                                                      'pulsar '
+                                                                                                                                                                                                                                                      'Aplicar.',
+                                                                                                                                                                                                                                                'es-419': 'El '
+                                                                                                                                                                                                                                                          'ventilador '
+                                                                                                                                                                                                                                                          'alcanza '
+                                                                                                                                                                                                                                                          'la '
+                                                                                                                                                                                                                                                          'velocidad '
+                                                                                                                                                                                                                                                          'máxima, '
+                                                                                                                                                                                                                                                          'baja '
+                                                                                                                                                                                                                                                          'por '
+                                                                                                                                                                                                                                                          'pasos '
+                                                                                                                                                                                                                                                          'hasta '
+                                                                                                                                                                                                                                                          'detenerse '
+                                                                                                                                                                                                                                                          'y '
+                                                                                                                                                                                                                                                          'luego '
+                                                                                                                                                                                                                                                          'sube '
+                                                                                                                                                                                                                                                          'hasta '
+                                                                                                                                                                                                                                                          'arrancar '
+                                                                                                                                                                                                                                                          'de '
+                                                                                                                                                                                                                                                          'nuevo. '
+                                                                                                                                                                                                                                                          'Tarda '
+                                                                                                                                                                                                                                                          'de '
+                                                                                                                                                                                                                                                          'uno '
+                                                                                                                                                                                                                                                          'a '
+                                                                                                                                                                                                                                                          'dos '
+                                                                                                                                                                                                                                                          'minutos '
+                                                                                                                                                                                                                                                          'y '
+                                                                                                                                                                                                                                                          'se '
+                                                                                                                                                                                                                                                          'detiene '
+                                                                                                                                                                                                                                                          'de '
+                                                                                                                                                                                                                                                          'inmediato '
+                                                                                                                                                                                                                                                          'si '
+                                                                                                                                                                                                                                                          'la '
+                                                                                                                                                                                                                                                          'placa '
+                                                                                                                                                                                                                                                          'alcanza '
+                                                                                                                                                                                                                                                          '80 '
+                                                                                                                                                                                                                                                          '°C. '
+                                                                                                                                                                                                                                                          'Termina '
+                                                                                                                                                                                                                                                          'a '
+                                                                                                                                                                                                                                                          'máxima '
+                                                                                                                                                                                                                                                          'velocidad; '
+                                                                                                                                                                                                                                                          'no '
+                                                                                                                                                                                                                                                          'se '
+                                                                                                                                                                                                                                                          'guarda '
+                                                                                                                                                                                                                                                          'nada '
+                                                                                                                                                                                                                                                          'hasta '
+                                                                                                                                                                                                                                                          'pulsar '
+                                                                                                                                                                                                                                                          'Aplicar.',
+                                                                                                                                                                                                                                                'pt': 'A '
+                                                                                                                                                                                                                                                      'ventoinha '
+                                                                                                                                                                                                                                                      'atinge '
+                                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                                      'velocidade '
+                                                                                                                                                                                                                                                      'máxima, '
+                                                                                                                                                                                                                                                      'desce '
+                                                                                                                                                                                                                                                      'por '
+                                                                                                                                                                                                                                                      'etapas '
+                                                                                                                                                                                                                                                      'até '
+                                                                                                                                                                                                                                                      'parar '
+                                                                                                                                                                                                                                                      'e '
+                                                                                                                                                                                                                                                      'depois '
+                                                                                                                                                                                                                                                      'sobe '
+                                                                                                                                                                                                                                                      'até '
+                                                                                                                                                                                                                                                      'arrancar '
+                                                                                                                                                                                                                                                      'novamente. '
+                                                                                                                                                                                                                                                      'Demora '
+                                                                                                                                                                                                                                                      'um '
+                                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                                      'dois '
+                                                                                                                                                                                                                                                      'minutos '
+                                                                                                                                                                                                                                                      'e '
+                                                                                                                                                                                                                                                      'para '
+                                                                                                                                                                                                                                                      'imediatamente '
+                                                                                                                                                                                                                                                      'se '
+                                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                                      'placa '
+                                                                                                                                                                                                                                                      'atingir '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Termina '
+                                                                                                                                                                                                                                                      'à '
+                                                                                                                                                                                                                                                      'velocidade '
+                                                                                                                                                                                                                                                      'máxima; '
+                                                                                                                                                                                                                                                      'nada '
+                                                                                                                                                                                                                                                      'é '
+                                                                                                                                                                                                                                                      'guardado '
+                                                                                                                                                                                                                                                      'até '
+                                                                                                                                                                                                                                                      'premir '
+                                                                                                                                                                                                                                                      'Aplicar.',
+                                                                                                                                                                                                                                                'pt-BR': 'A '
+                                                                                                                                                                                                                                                         'ventoinha '
+                                                                                                                                                                                                                                                         'atinge '
+                                                                                                                                                                                                                                                         'a '
+                                                                                                                                                                                                                                                         'velocidade '
+                                                                                                                                                                                                                                                         'máxima, '
+                                                                                                                                                                                                                                                         'diminui '
+                                                                                                                                                                                                                                                         'em '
+                                                                                                                                                                                                                                                         'etapas '
+                                                                                                                                                                                                                                                         'até '
+                                                                                                                                                                                                                                                         'parar '
+                                                                                                                                                                                                                                                         'e '
+                                                                                                                                                                                                                                                         'depois '
+                                                                                                                                                                                                                                                         'aumenta '
+                                                                                                                                                                                                                                                         'até '
+                                                                                                                                                                                                                                                         'partir '
+                                                                                                                                                                                                                                                         'novamente. '
+                                                                                                                                                                                                                                                         'Leva '
+                                                                                                                                                                                                                                                         'de '
+                                                                                                                                                                                                                                                         'um '
+                                                                                                                                                                                                                                                         'a '
+                                                                                                                                                                                                                                                         'dois '
+                                                                                                                                                                                                                                                         'minutos '
+                                                                                                                                                                                                                                                         'e '
+                                                                                                                                                                                                                                                         'para '
+                                                                                                                                                                                                                                                         'imediatamente '
+                                                                                                                                                                                                                                                         'se '
+                                                                                                                                                                                                                                                         'a '
+                                                                                                                                                                                                                                                         'placa '
+                                                                                                                                                                                                                                                         'atingir '
+                                                                                                                                                                                                                                                         '80 '
+                                                                                                                                                                                                                                                         '°C. '
+                                                                                                                                                                                                                                                         'Termina '
+                                                                                                                                                                                                                                                         'na '
+                                                                                                                                                                                                                                                         'velocidade '
+                                                                                                                                                                                                                                                         'máxima; '
+                                                                                                                                                                                                                                                         'nada '
+                                                                                                                                                                                                                                                         'é '
+                                                                                                                                                                                                                                                         'salvo '
+                                                                                                                                                                                                                                                         'até '
+                                                                                                                                                                                                                                                         'pressionar '
+                                                                                                                                                                                                                                                         'Aplicar.',
+                                                                                                                                                                                                                                                'de': 'Der '
+                                                                                                                                                                                                                                                      'Lüfter '
+                                                                                                                                                                                                                                                      'läuft '
+                                                                                                                                                                                                                                                      'mit '
+                                                                                                                                                                                                                                                      'voller '
+                                                                                                                                                                                                                                                      'Drehzahl, '
+                                                                                                                                                                                                                                                      'wird '
+                                                                                                                                                                                                                                                      'schrittweise '
+                                                                                                                                                                                                                                                      'bis '
+                                                                                                                                                                                                                                                      'zum '
+                                                                                                                                                                                                                                                      'Stillstand '
+                                                                                                                                                                                                                                                      'gedrosselt '
+                                                                                                                                                                                                                                                      'und '
+                                                                                                                                                                                                                                                      'dann '
+                                                                                                                                                                                                                                                      'erhöht, '
+                                                                                                                                                                                                                                                      'bis '
+                                                                                                                                                                                                                                                      'er '
+                                                                                                                                                                                                                                                      'wieder '
+                                                                                                                                                                                                                                                      'anläuft. '
+                                                                                                                                                                                                                                                      'Das '
+                                                                                                                                                                                                                                                      'dauert '
+                                                                                                                                                                                                                                                      'ein '
+                                                                                                                                                                                                                                                      'bis '
+                                                                                                                                                                                                                                                      'zwei '
+                                                                                                                                                                                                                                                      'Minuten '
+                                                                                                                                                                                                                                                      'und '
+                                                                                                                                                                                                                                                      'stoppt '
+                                                                                                                                                                                                                                                      'sofort, '
+                                                                                                                                                                                                                                                      'wenn '
+                                                                                                                                                                                                                                                      'die '
+                                                                                                                                                                                                                                                      'Platine '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C '
+                                                                                                                                                                                                                                                      'erreicht. '
+                                                                                                                                                                                                                                                      'Zum '
+                                                                                                                                                                                                                                                      'Schluss '
+                                                                                                                                                                                                                                                      'läuft '
+                                                                                                                                                                                                                                                      'er '
+                                                                                                                                                                                                                                                      'mit '
+                                                                                                                                                                                                                                                      'voller '
+                                                                                                                                                                                                                                                      'Drehzahl; '
+                                                                                                                                                                                                                                                      'gespeichert '
+                                                                                                                                                                                                                                                      'wird '
+                                                                                                                                                                                                                                                      'erst '
+                                                                                                                                                                                                                                                      'nach '
+                                                                                                                                                                                                                                                      'einem '
+                                                                                                                                                                                                                                                      'Klick '
+                                                                                                                                                                                                                                                      'auf '
+                                                                                                                                                                                                                                                      'Anwenden.',
+                                                                                                                                                                                                                                                'fr': 'Le '
+                                                                                                                                                                                                                                                      'ventilateur '
+                                                                                                                                                                                                                                                      'passe '
+                                                                                                                                                                                                                                                      'à '
+                                                                                                                                                                                                                                                      'pleine '
+                                                                                                                                                                                                                                                      'vitesse, '
+                                                                                                                                                                                                                                                      'ralentit '
+                                                                                                                                                                                                                                                      'par '
+                                                                                                                                                                                                                                                      'paliers '
+                                                                                                                                                                                                                                                      'jusqu’à '
+                                                                                                                                                                                                                                                      'l’arrêt, '
+                                                                                                                                                                                                                                                      'puis '
+                                                                                                                                                                                                                                                      'accélère '
+                                                                                                                                                                                                                                                      'jusqu’à '
+                                                                                                                                                                                                                                                      'redémarrer. '
+                                                                                                                                                                                                                                                      'Cela '
+                                                                                                                                                                                                                                                      'prend '
+                                                                                                                                                                                                                                                      'une '
+                                                                                                                                                                                                                                                      'à '
+                                                                                                                                                                                                                                                      'deux '
+                                                                                                                                                                                                                                                      'minutes '
+                                                                                                                                                                                                                                                      'et '
+                                                                                                                                                                                                                                                      's’arrête '
+                                                                                                                                                                                                                                                      'immédiatement '
+                                                                                                                                                                                                                                                      'si '
+                                                                                                                                                                                                                                                      'la '
+                                                                                                                                                                                                                                                      'carte '
+                                                                                                                                                                                                                                                      'atteint '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Il '
+                                                                                                                                                                                                                                                      'termine '
+                                                                                                                                                                                                                                                      'à '
+                                                                                                                                                                                                                                                      'pleine '
+                                                                                                                                                                                                                                                      'vitesse '
+                                                                                                                                                                                                                                                      '; '
+                                                                                                                                                                                                                                                      'rien '
+                                                                                                                                                                                                                                                      'n’est '
+                                                                                                                                                                                                                                                      'enregistré '
+                                                                                                                                                                                                                                                      'avant '
+                                                                                                                                                                                                                                                      'd’appuyer '
+                                                                                                                                                                                                                                                      'sur '
+                                                                                                                                                                                                                                                      'Appliquer.',
+                                                                                                                                                                                                                                                'it': 'La '
+                                                                                                                                                                                                                                                      'ventola '
+                                                                                                                                                                                                                                                      'raggiunge '
+                                                                                                                                                                                                                                                      'la '
+                                                                                                                                                                                                                                                      'velocità '
+                                                                                                                                                                                                                                                      'massima, '
+                                                                                                                                                                                                                                                      'rallenta '
+                                                                                                                                                                                                                                                      'gradualmente '
+                                                                                                                                                                                                                                                      'fino '
+                                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                                      'fermarsi, '
+                                                                                                                                                                                                                                                      'poi '
+                                                                                                                                                                                                                                                      'accelera '
+                                                                                                                                                                                                                                                      'fino '
+                                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                                      'ripartire. '
+                                                                                                                                                                                                                                                      'Richiede '
+                                                                                                                                                                                                                                                      'uno '
+                                                                                                                                                                                                                                                      'o '
+                                                                                                                                                                                                                                                      'due '
+                                                                                                                                                                                                                                                      'minuti '
+                                                                                                                                                                                                                                                      'e '
+                                                                                                                                                                                                                                                      'si '
+                                                                                                                                                                                                                                                      'interrompe '
+                                                                                                                                                                                                                                                      'subito '
+                                                                                                                                                                                                                                                      'se '
+                                                                                                                                                                                                                                                      'la '
+                                                                                                                                                                                                                                                      'scheda '
+                                                                                                                                                                                                                                                      'raggiunge '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Termina '
+                                                                                                                                                                                                                                                      'alla '
+                                                                                                                                                                                                                                                      'massima '
+                                                                                                                                                                                                                                                      'velocità; '
+                                                                                                                                                                                                                                                      'nulla '
+                                                                                                                                                                                                                                                      'viene '
+                                                                                                                                                                                                                                                      'salvato '
+                                                                                                                                                                                                                                                      'finché '
+                                                                                                                                                                                                                                                      'non '
+                                                                                                                                                                                                                                                      'premi '
+                                                                                                                                                                                                                                                      'Applica.',
+                                                                                                                                                                                                                                                'nl': 'De '
+                                                                                                                                                                                                                                                      'ventilator '
+                                                                                                                                                                                                                                                      'draait '
+                                                                                                                                                                                                                                                      'op '
+                                                                                                                                                                                                                                                      'volle '
+                                                                                                                                                                                                                                                      'snelheid, '
+                                                                                                                                                                                                                                                      'vertraagt '
+                                                                                                                                                                                                                                                      'stapsgewijs '
+                                                                                                                                                                                                                                                      'tot '
+                                                                                                                                                                                                                                                      'hij '
+                                                                                                                                                                                                                                                      'stopt '
+                                                                                                                                                                                                                                                      'en '
+                                                                                                                                                                                                                                                      'versnelt '
+                                                                                                                                                                                                                                                      'dan '
+                                                                                                                                                                                                                                                      'tot '
+                                                                                                                                                                                                                                                      'hij '
+                                                                                                                                                                                                                                                      'weer '
+                                                                                                                                                                                                                                                      'start. '
+                                                                                                                                                                                                                                                      'Dit '
+                                                                                                                                                                                                                                                      'duurt '
+                                                                                                                                                                                                                                                      'één '
+                                                                                                                                                                                                                                                      'tot '
+                                                                                                                                                                                                                                                      'twee '
+                                                                                                                                                                                                                                                      'minuten '
+                                                                                                                                                                                                                                                      'en '
+                                                                                                                                                                                                                                                      'stopt '
+                                                                                                                                                                                                                                                      'direct '
+                                                                                                                                                                                                                                                      'als '
+                                                                                                                                                                                                                                                      'het '
+                                                                                                                                                                                                                                                      'bord '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C '
+                                                                                                                                                                                                                                                      'bereikt. '
+                                                                                                                                                                                                                                                      'Hij '
+                                                                                                                                                                                                                                                      'eindigt '
+                                                                                                                                                                                                                                                      'op '
+                                                                                                                                                                                                                                                      'volle '
+                                                                                                                                                                                                                                                      'snelheid; '
+                                                                                                                                                                                                                                                      'er '
+                                                                                                                                                                                                                                                      'wordt '
+                                                                                                                                                                                                                                                      'pas '
+                                                                                                                                                                                                                                                      'iets '
+                                                                                                                                                                                                                                                      'opgeslagen '
+                                                                                                                                                                                                                                                      'als '
+                                                                                                                                                                                                                                                      'u '
+                                                                                                                                                                                                                                                      'op '
+                                                                                                                                                                                                                                                      'Toepassen '
+                                                                                                                                                                                                                                                      'drukt.',
+                                                                                                                                                                                                                                                'ru': 'Вентилятор '
+                                                                                                                                                                                                                                                      'выходит '
+                                                                                                                                                                                                                                                      'на '
+                                                                                                                                                                                                                                                      'полную '
+                                                                                                                                                                                                                                                      'скорость, '
+                                                                                                                                                                                                                                                      'затем '
+                                                                                                                                                                                                                                                      'пошагово '
+                                                                                                                                                                                                                                                      'замедляется '
+                                                                                                                                                                                                                                                      'до '
+                                                                                                                                                                                                                                                      'остановки '
+                                                                                                                                                                                                                                                      'и '
+                                                                                                                                                                                                                                                      'ускоряется '
+                                                                                                                                                                                                                                                      'до '
+                                                                                                                                                                                                                                                      'повторного '
+                                                                                                                                                                                                                                                      'запуска. '
+                                                                                                                                                                                                                                                      'Это '
+                                                                                                                                                                                                                                                      'занимает '
+                                                                                                                                                                                                                                                      'одну-две '
+                                                                                                                                                                                                                                                      'минуты '
+                                                                                                                                                                                                                                                      'и '
+                                                                                                                                                                                                                                                      'немедленно '
+                                                                                                                                                                                                                                                      'прерывается, '
+                                                                                                                                                                                                                                                      'если '
+                                                                                                                                                                                                                                                      'плата '
+                                                                                                                                                                                                                                                      'нагреется '
+                                                                                                                                                                                                                                                      'до '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'В '
+                                                                                                                                                                                                                                                      'конце '
+                                                                                                                                                                                                                                                      'вентилятор '
+                                                                                                                                                                                                                                                      'работает '
+                                                                                                                                                                                                                                                      'на '
+                                                                                                                                                                                                                                                      'полной '
+                                                                                                                                                                                                                                                      'скорости; '
+                                                                                                                                                                                                                                                      'настройки '
+                                                                                                                                                                                                                                                      'сохраняются '
+                                                                                                                                                                                                                                                      'только '
+                                                                                                                                                                                                                                                      'после '
+                                                                                                                                                                                                                                                      'нажатия '
+                                                                                                                                                                                                                                                      '«Применить».',
+                                                                                                                                                                                                                                                'uk': 'Вентилятор '
+                                                                                                                                                                                                                                                      'виходить '
+                                                                                                                                                                                                                                                      'на '
+                                                                                                                                                                                                                                                      'повну '
+                                                                                                                                                                                                                                                      'швидкість, '
+                                                                                                                                                                                                                                                      'потім '
+                                                                                                                                                                                                                                                      'поступово '
+                                                                                                                                                                                                                                                      'сповільнюється '
+                                                                                                                                                                                                                                                      'до '
+                                                                                                                                                                                                                                                      'зупинки '
+                                                                                                                                                                                                                                                      'та '
+                                                                                                                                                                                                                                                      'прискорюється '
+                                                                                                                                                                                                                                                      'до '
+                                                                                                                                                                                                                                                      'повторного '
+                                                                                                                                                                                                                                                      'запуску. '
+                                                                                                                                                                                                                                                      'Це '
+                                                                                                                                                                                                                                                      'триває '
+                                                                                                                                                                                                                                                      'одну-дві '
+                                                                                                                                                                                                                                                      'хвилини '
+                                                                                                                                                                                                                                                      'й '
+                                                                                                                                                                                                                                                      'негайно '
+                                                                                                                                                                                                                                                      'припиняється, '
+                                                                                                                                                                                                                                                      'якщо '
+                                                                                                                                                                                                                                                      'плата '
+                                                                                                                                                                                                                                                      'нагріється '
+                                                                                                                                                                                                                                                      'до '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Наприкінці '
+                                                                                                                                                                                                                                                      'вентилятор '
+                                                                                                                                                                                                                                                      'працює '
+                                                                                                                                                                                                                                                      'на '
+                                                                                                                                                                                                                                                      'повній '
+                                                                                                                                                                                                                                                      'швидкості; '
+                                                                                                                                                                                                                                                      'налаштування '
+                                                                                                                                                                                                                                                      'зберігаються '
+                                                                                                                                                                                                                                                      'лише '
+                                                                                                                                                                                                                                                      'після '
+                                                                                                                                                                                                                                                      'натискання '
+                                                                                                                                                                                                                                                      '«Застосувати».',
+                                                                                                                                                                                                                                                'pl': 'Wentylator '
+                                                                                                                                                                                                                                                      'osiąga '
+                                                                                                                                                                                                                                                      'pełną '
+                                                                                                                                                                                                                                                      'prędkość, '
+                                                                                                                                                                                                                                                      'zwalnia '
+                                                                                                                                                                                                                                                      'stopniowo '
+                                                                                                                                                                                                                                                      'do '
+                                                                                                                                                                                                                                                      'zatrzymania, '
+                                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                                      'następnie '
+                                                                                                                                                                                                                                                      'przyspiesza '
+                                                                                                                                                                                                                                                      'do '
+                                                                                                                                                                                                                                                      'ponownego '
+                                                                                                                                                                                                                                                      'uruchomienia. '
+                                                                                                                                                                                                                                                      'Trwa '
+                                                                                                                                                                                                                                                      'to '
+                                                                                                                                                                                                                                                      'od '
+                                                                                                                                                                                                                                                      'jednej '
+                                                                                                                                                                                                                                                      'do '
+                                                                                                                                                                                                                                                      'dwóch '
+                                                                                                                                                                                                                                                      'minut '
+                                                                                                                                                                                                                                                      'i '
+                                                                                                                                                                                                                                                      'zatrzymuje '
+                                                                                                                                                                                                                                                      'się '
+                                                                                                                                                                                                                                                      'natychmiast, '
+                                                                                                                                                                                                                                                      'gdy '
+                                                                                                                                                                                                                                                      'płyta '
+                                                                                                                                                                                                                                                      'osiągnie '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Kończy '
+                                                                                                                                                                                                                                                      'na '
+                                                                                                                                                                                                                                                      'pełnej '
+                                                                                                                                                                                                                                                      'prędkości; '
+                                                                                                                                                                                                                                                      'nic '
+                                                                                                                                                                                                                                                      'nie '
+                                                                                                                                                                                                                                                      'jest '
+                                                                                                                                                                                                                                                      'zapisywane '
+                                                                                                                                                                                                                                                      'do '
+                                                                                                                                                                                                                                                      'naciśnięcia '
+                                                                                                                                                                                                                                                      'Zastosuj.',
+                                                                                                                                                                                                                                                'cs': 'Ventilátor '
+                                                                                                                                                                                                                                                      'dosáhne '
+                                                                                                                                                                                                                                                      'plné '
+                                                                                                                                                                                                                                                      'rychlosti, '
+                                                                                                                                                                                                                                                      'postupně '
+                                                                                                                                                                                                                                                      'zpomalí '
+                                                                                                                                                                                                                                                      'až '
+                                                                                                                                                                                                                                                      'do '
+                                                                                                                                                                                                                                                      'zastavení '
+                                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                                      'poté '
+                                                                                                                                                                                                                                                      'zrychlí, '
+                                                                                                                                                                                                                                                      'dokud '
+                                                                                                                                                                                                                                                      'se '
+                                                                                                                                                                                                                                                      'znovu '
+                                                                                                                                                                                                                                                      'nerozběhne. '
+                                                                                                                                                                                                                                                      'Trvá '
+                                                                                                                                                                                                                                                      'to '
+                                                                                                                                                                                                                                                      'jednu '
+                                                                                                                                                                                                                                                      'až '
+                                                                                                                                                                                                                                                      'dvě '
+                                                                                                                                                                                                                                                      'minuty '
+                                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                                      'okamžitě '
+                                                                                                                                                                                                                                                      'se '
+                                                                                                                                                                                                                                                      'přeruší, '
+                                                                                                                                                                                                                                                      'pokud '
+                                                                                                                                                                                                                                                      'deska '
+                                                                                                                                                                                                                                                      'dosáhne '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Končí '
+                                                                                                                                                                                                                                                      'na '
+                                                                                                                                                                                                                                                      'plné '
+                                                                                                                                                                                                                                                      'rychlosti; '
+                                                                                                                                                                                                                                                      'nic '
+                                                                                                                                                                                                                                                      'se '
+                                                                                                                                                                                                                                                      'neuloží, '
+                                                                                                                                                                                                                                                      'dokud '
+                                                                                                                                                                                                                                                      'nestisknete '
+                                                                                                                                                                                                                                                      'Použít.',
+                                                                                                                                                                                                                                                'tr': 'Fan '
+                                                                                                                                                                                                                                                      'tam '
+                                                                                                                                                                                                                                                      'hıza '
+                                                                                                                                                                                                                                                      'çıkar, '
+                                                                                                                                                                                                                                                      'durana '
+                                                                                                                                                                                                                                                      'kadar '
+                                                                                                                                                                                                                                                      'adım '
+                                                                                                                                                                                                                                                      'adım '
+                                                                                                                                                                                                                                                      'yavaşlar, '
+                                                                                                                                                                                                                                                      'ardından '
+                                                                                                                                                                                                                                                      'yeniden '
+                                                                                                                                                                                                                                                      'çalışana '
+                                                                                                                                                                                                                                                      'kadar '
+                                                                                                                                                                                                                                                      'hızlanır. '
+                                                                                                                                                                                                                                                      'Bir '
+                                                                                                                                                                                                                                                      'ila '
+                                                                                                                                                                                                                                                      'iki '
+                                                                                                                                                                                                                                                      'dakika '
+                                                                                                                                                                                                                                                      'sürer '
+                                                                                                                                                                                                                                                      've '
+                                                                                                                                                                                                                                                      'kart '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C '
+                                                                                                                                                                                                                                                      'sıcaklığa '
+                                                                                                                                                                                                                                                      'ulaşırsa '
+                                                                                                                                                                                                                                                      'hemen '
+                                                                                                                                                                                                                                                      'durur. '
+                                                                                                                                                                                                                                                      'Tam '
+                                                                                                                                                                                                                                                      'hızda '
+                                                                                                                                                                                                                                                      'sona '
+                                                                                                                                                                                                                                                      'erer; '
+                                                                                                                                                                                                                                                      'Uygula '
+                                                                                                                                                                                                                                                      'düğmesine '
+                                                                                                                                                                                                                                                      'basana '
+                                                                                                                                                                                                                                                      'kadar '
+                                                                                                                                                                                                                                                      'hiçbir '
+                                                                                                                                                                                                                                                      'şey '
+                                                                                                                                                                                                                                                      'kaydedilmez.',
+                                                                                                                                                                                                                                                'ro': 'Ventilatorul '
+                                                                                                                                                                                                                                                      'ajunge '
+                                                                                                                                                                                                                                                      'la '
+                                                                                                                                                                                                                                                      'viteza '
+                                                                                                                                                                                                                                                      'maximă, '
+                                                                                                                                                                                                                                                      'încetinește '
+                                                                                                                                                                                                                                                      'treptat '
+                                                                                                                                                                                                                                                      'până '
+                                                                                                                                                                                                                                                      'se '
+                                                                                                                                                                                                                                                      'oprește, '
+                                                                                                                                                                                                                                                      'apoi '
+                                                                                                                                                                                                                                                      'accelerează '
+                                                                                                                                                                                                                                                      'până '
+                                                                                                                                                                                                                                                      'pornește '
+                                                                                                                                                                                                                                                      'din '
+                                                                                                                                                                                                                                                      'nou. '
+                                                                                                                                                                                                                                                      'Durează '
+                                                                                                                                                                                                                                                      'unu-două '
+                                                                                                                                                                                                                                                      'minute '
+                                                                                                                                                                                                                                                      'și '
+                                                                                                                                                                                                                                                      'se '
+                                                                                                                                                                                                                                                      'întrerupe '
+                                                                                                                                                                                                                                                      'imediat '
+                                                                                                                                                                                                                                                      'dacă '
+                                                                                                                                                                                                                                                      'placa '
+                                                                                                                                                                                                                                                      'atinge '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Se '
+                                                                                                                                                                                                                                                      'termină '
+                                                                                                                                                                                                                                                      'la '
+                                                                                                                                                                                                                                                      'viteza '
+                                                                                                                                                                                                                                                      'maximă; '
+                                                                                                                                                                                                                                                      'nimic '
+                                                                                                                                                                                                                                                      'nu '
+                                                                                                                                                                                                                                                      'se '
+                                                                                                                                                                                                                                                      'salvează '
+                                                                                                                                                                                                                                                      'până '
+                                                                                                                                                                                                                                                      'nu '
+                                                                                                                                                                                                                                                      'apeși '
+                                                                                                                                                                                                                                                      'Aplică.',
+                                                                                                                                                                                                                                                'hu': 'A '
+                                                                                                                                                                                                                                                      'ventilátor '
+                                                                                                                                                                                                                                                      'teljes '
+                                                                                                                                                                                                                                                      'fordulatszámra '
+                                                                                                                                                                                                                                                      'gyorsul, '
+                                                                                                                                                                                                                                                      'majd '
+                                                                                                                                                                                                                                                      'lépésenként '
+                                                                                                                                                                                                                                                      'lelassul '
+                                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                                      'leállásig, '
+                                                                                                                                                                                                                                                      'ezután '
+                                                                                                                                                                                                                                                      'felgyorsul '
+                                                                                                                                                                                                                                                      'az '
+                                                                                                                                                                                                                                                      'újraindulásig. '
+                                                                                                                                                                                                                                                      'Ez '
+                                                                                                                                                                                                                                                      'egy-két '
+                                                                                                                                                                                                                                                      'percig '
+                                                                                                                                                                                                                                                      'tart, '
+                                                                                                                                                                                                                                                      'és '
+                                                                                                                                                                                                                                                      'azonnal '
+                                                                                                                                                                                                                                                      'megszakad, '
+                                                                                                                                                                                                                                                      'ha '
+                                                                                                                                                                                                                                                      'az '
+                                                                                                                                                                                                                                                      'alaplap '
+                                                                                                                                                                                                                                                      'eléri '
+                                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C-ot. '
+                                                                                                                                                                                                                                                      'Teljes '
+                                                                                                                                                                                                                                                      'fordulatszámon '
+                                                                                                                                                                                                                                                      'fejeződik '
+                                                                                                                                                                                                                                                      'be; '
+                                                                                                                                                                                                                                                      'az '
+                                                                                                                                                                                                                                                      'Alkalmaz '
+                                                                                                                                                                                                                                                      'megnyomásáig '
+                                                                                                                                                                                                                                                      'semmi '
+                                                                                                                                                                                                                                                      'sem '
+                                                                                                                                                                                                                                                      'mentődik.',
+                                                                                                                                                                                                                                                'bg': 'Вентилаторът '
+                                                                                                                                                                                                                                                      'достига '
+                                                                                                                                                                                                                                                      'пълна '
+                                                                                                                                                                                                                                                      'скорост, '
+                                                                                                                                                                                                                                                      'забавя '
+                                                                                                                                                                                                                                                      'се '
+                                                                                                                                                                                                                                                      'на '
+                                                                                                                                                                                                                                                      'стъпки '
+                                                                                                                                                                                                                                                      'до '
+                                                                                                                                                                                                                                                      'спиране, '
+                                                                                                                                                                                                                                                      'след '
+                                                                                                                                                                                                                                                      'което '
+                                                                                                                                                                                                                                                      'ускорява, '
+                                                                                                                                                                                                                                                      'докато '
+                                                                                                                                                                                                                                                      'тръгне '
+                                                                                                                                                                                                                                                      'отново. '
+                                                                                                                                                                                                                                                      'Това '
+                                                                                                                                                                                                                                                      'отнема '
+                                                                                                                                                                                                                                                      'една-две '
+                                                                                                                                                                                                                                                      'минути '
+                                                                                                                                                                                                                                                      'и '
+                                                                                                                                                                                                                                                      'се '
+                                                                                                                                                                                                                                                      'прекъсва '
+                                                                                                                                                                                                                                                      'веднага, '
+                                                                                                                                                                                                                                                      'ако '
+                                                                                                                                                                                                                                                      'платката '
+                                                                                                                                                                                                                                                      'достигне '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Завършва '
+                                                                                                                                                                                                                                                      'на '
+                                                                                                                                                                                                                                                      'пълна '
+                                                                                                                                                                                                                                                      'скорост; '
+                                                                                                                                                                                                                                                      'нищо '
+                                                                                                                                                                                                                                                      'не '
+                                                                                                                                                                                                                                                      'се '
+                                                                                                                                                                                                                                                      'запазва, '
+                                                                                                                                                                                                                                                      'докато '
+                                                                                                                                                                                                                                                      'не '
+                                                                                                                                                                                                                                                      'натиснете '
+                                                                                                                                                                                                                                                      'Прилагане.',
+                                                                                                                                                                                                                                                'da': 'Blæseren '
+                                                                                                                                                                                                                                                      'kører '
+                                                                                                                                                                                                                                                      'op '
+                                                                                                                                                                                                                                                      'på '
+                                                                                                                                                                                                                                                      'fuld '
+                                                                                                                                                                                                                                                      'hastighed, '
+                                                                                                                                                                                                                                                      'sænker '
+                                                                                                                                                                                                                                                      'farten '
+                                                                                                                                                                                                                                                      'trinvis, '
+                                                                                                                                                                                                                                                      'indtil '
+                                                                                                                                                                                                                                                      'den '
+                                                                                                                                                                                                                                                      'stopper, '
+                                                                                                                                                                                                                                                      'og '
+                                                                                                                                                                                                                                                      'øger '
+                                                                                                                                                                                                                                                      'den '
+                                                                                                                                                                                                                                                      'så, '
+                                                                                                                                                                                                                                                      'indtil '
+                                                                                                                                                                                                                                                      'den '
+                                                                                                                                                                                                                                                      'starter '
+                                                                                                                                                                                                                                                      'igen. '
+                                                                                                                                                                                                                                                      'Det '
+                                                                                                                                                                                                                                                      'tager '
+                                                                                                                                                                                                                                                      'et '
+                                                                                                                                                                                                                                                      'til '
+                                                                                                                                                                                                                                                      'to '
+                                                                                                                                                                                                                                                      'minutter '
+                                                                                                                                                                                                                                                      'og '
+                                                                                                                                                                                                                                                      'afbrydes '
+                                                                                                                                                                                                                                                      'straks, '
+                                                                                                                                                                                                                                                      'hvis '
+                                                                                                                                                                                                                                                      'kortet '
+                                                                                                                                                                                                                                                      'når '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Den '
+                                                                                                                                                                                                                                                      'slutter '
+                                                                                                                                                                                                                                                      'på '
+                                                                                                                                                                                                                                                      'fuld '
+                                                                                                                                                                                                                                                      'hastighed; '
+                                                                                                                                                                                                                                                      'intet '
+                                                                                                                                                                                                                                                      'gemmes, '
+                                                                                                                                                                                                                                                      'før '
+                                                                                                                                                                                                                                                      'du '
+                                                                                                                                                                                                                                                      'trykker '
+                                                                                                                                                                                                                                                      'Anvend.',
+                                                                                                                                                                                                                                                'no': 'Viften '
+                                                                                                                                                                                                                                                      'går '
+                                                                                                                                                                                                                                                      'opp '
+                                                                                                                                                                                                                                                      'til '
+                                                                                                                                                                                                                                                      'full '
+                                                                                                                                                                                                                                                      'hastighet, '
+                                                                                                                                                                                                                                                      'senker '
+                                                                                                                                                                                                                                                      'farten '
+                                                                                                                                                                                                                                                      'trinnvis '
+                                                                                                                                                                                                                                                      'til '
+                                                                                                                                                                                                                                                      'den '
+                                                                                                                                                                                                                                                      'stopper, '
+                                                                                                                                                                                                                                                      'og '
+                                                                                                                                                                                                                                                      'øker '
+                                                                                                                                                                                                                                                      'den '
+                                                                                                                                                                                                                                                      'til '
+                                                                                                                                                                                                                                                      'den '
+                                                                                                                                                                                                                                                      'starter '
+                                                                                                                                                                                                                                                      'igjen. '
+                                                                                                                                                                                                                                                      'Det '
+                                                                                                                                                                                                                                                      'tar '
+                                                                                                                                                                                                                                                      'ett '
+                                                                                                                                                                                                                                                      'til '
+                                                                                                                                                                                                                                                      'to '
+                                                                                                                                                                                                                                                      'minutter '
+                                                                                                                                                                                                                                                      'og '
+                                                                                                                                                                                                                                                      'avbrytes '
+                                                                                                                                                                                                                                                      'straks '
+                                                                                                                                                                                                                                                      'hvis '
+                                                                                                                                                                                                                                                      'kortet '
+                                                                                                                                                                                                                                                      'når '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Den '
+                                                                                                                                                                                                                                                      'avslutter '
+                                                                                                                                                                                                                                                      'på '
+                                                                                                                                                                                                                                                      'full '
+                                                                                                                                                                                                                                                      'hastighet; '
+                                                                                                                                                                                                                                                      'ingenting '
+                                                                                                                                                                                                                                                      'lagres '
+                                                                                                                                                                                                                                                      'før '
+                                                                                                                                                                                                                                                      'du '
+                                                                                                                                                                                                                                                      'trykker '
+                                                                                                                                                                                                                                                      'Bruk.',
+                                                                                                                                                                                                                                                'sv': 'Fläkten '
+                                                                                                                                                                                                                                                      'går '
+                                                                                                                                                                                                                                                      'upp '
+                                                                                                                                                                                                                                                      'till '
+                                                                                                                                                                                                                                                      'full '
+                                                                                                                                                                                                                                                      'hastighet, '
+                                                                                                                                                                                                                                                      'saktar '
+                                                                                                                                                                                                                                                      'ned '
+                                                                                                                                                                                                                                                      'stegvis '
+                                                                                                                                                                                                                                                      'tills '
+                                                                                                                                                                                                                                                      'den '
+                                                                                                                                                                                                                                                      'stannar '
+                                                                                                                                                                                                                                                      'och '
+                                                                                                                                                                                                                                                      'ökar '
+                                                                                                                                                                                                                                                      'sedan '
+                                                                                                                                                                                                                                                      'tills '
+                                                                                                                                                                                                                                                      'den '
+                                                                                                                                                                                                                                                      'startar '
+                                                                                                                                                                                                                                                      'igen. '
+                                                                                                                                                                                                                                                      'Det '
+                                                                                                                                                                                                                                                      'tar '
+                                                                                                                                                                                                                                                      'en '
+                                                                                                                                                                                                                                                      'till '
+                                                                                                                                                                                                                                                      'två '
+                                                                                                                                                                                                                                                      'minuter '
+                                                                                                                                                                                                                                                      'och '
+                                                                                                                                                                                                                                                      'avbryts '
+                                                                                                                                                                                                                                                      'direkt '
+                                                                                                                                                                                                                                                      'om '
+                                                                                                                                                                                                                                                      'kortet '
+                                                                                                                                                                                                                                                      'når '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Den '
+                                                                                                                                                                                                                                                      'avslutar '
+                                                                                                                                                                                                                                                      'på '
+                                                                                                                                                                                                                                                      'full '
+                                                                                                                                                                                                                                                      'hastighet; '
+                                                                                                                                                                                                                                                      'inget '
+                                                                                                                                                                                                                                                      'sparas '
+                                                                                                                                                                                                                                                      'förrän '
+                                                                                                                                                                                                                                                      'du '
+                                                                                                                                                                                                                                                      'trycker '
+                                                                                                                                                                                                                                                      'på '
+                                                                                                                                                                                                                                                      'Verkställ.',
+                                                                                                                                                                                                                                                'fi': 'Tuuletin '
+                                                                                                                                                                                                                                                      'kiihtyy '
+                                                                                                                                                                                                                                                      'täyteen '
+                                                                                                                                                                                                                                                      'nopeuteen, '
+                                                                                                                                                                                                                                                      'hidastuu '
+                                                                                                                                                                                                                                                      'vaiheittain '
+                                                                                                                                                                                                                                                      'pysähtymiseen '
+                                                                                                                                                                                                                                                      'asti '
+                                                                                                                                                                                                                                                      'ja '
+                                                                                                                                                                                                                                                      'kiihtyy '
+                                                                                                                                                                                                                                                      'sitten, '
+                                                                                                                                                                                                                                                      'kunnes '
+                                                                                                                                                                                                                                                      'käynnistyy '
+                                                                                                                                                                                                                                                      'uudelleen. '
+                                                                                                                                                                                                                                                      'Tämä '
+                                                                                                                                                                                                                                                      'kestää '
+                                                                                                                                                                                                                                                      'yhdestä '
+                                                                                                                                                                                                                                                      'kahteen '
+                                                                                                                                                                                                                                                      'minuuttia '
+                                                                                                                                                                                                                                                      'ja '
+                                                                                                                                                                                                                                                      'keskeytyy '
+                                                                                                                                                                                                                                                      'heti, '
+                                                                                                                                                                                                                                                      'jos '
+                                                                                                                                                                                                                                                      'piirilevy '
+                                                                                                                                                                                                                                                      'saavuttaa '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Lopuksi '
+                                                                                                                                                                                                                                                      'tuuletin '
+                                                                                                                                                                                                                                                      'käy '
+                                                                                                                                                                                                                                                      'täydellä '
+                                                                                                                                                                                                                                                      'nopeudella; '
+                                                                                                                                                                                                                                                      'mitään '
+                                                                                                                                                                                                                                                      'ei '
+                                                                                                                                                                                                                                                      'tallenneta '
+                                                                                                                                                                                                                                                      'ennen '
+                                                                                                                                                                                                                                                      'Käytä-painikkeen '
+                                                                                                                                                                                                                                                      'painamista.',
+                                                                                                                                                                                                                                                'el': 'Ο '
+                                                                                                                                                                                                                                                      'ανεμιστήρας '
+                                                                                                                                                                                                                                                      'φτάνει '
+                                                                                                                                                                                                                                                      'στη '
+                                                                                                                                                                                                                                                      'μέγιστη '
+                                                                                                                                                                                                                                                      'ταχύτητα, '
+                                                                                                                                                                                                                                                      'επιβραδύνει '
+                                                                                                                                                                                                                                                      'σταδιακά '
+                                                                                                                                                                                                                                                      'μέχρι '
+                                                                                                                                                                                                                                                      'να '
+                                                                                                                                                                                                                                                      'σταματήσει '
+                                                                                                                                                                                                                                                      'και '
+                                                                                                                                                                                                                                                      'μετά '
+                                                                                                                                                                                                                                                      'επιταχύνει '
+                                                                                                                                                                                                                                                      'μέχρι '
+                                                                                                                                                                                                                                                      'να '
+                                                                                                                                                                                                                                                      'ξεκινήσει '
+                                                                                                                                                                                                                                                      'ξανά. '
+                                                                                                                                                                                                                                                      'Διαρκεί '
+                                                                                                                                                                                                                                                      'ένα '
+                                                                                                                                                                                                                                                      'με '
+                                                                                                                                                                                                                                                      'δύο '
+                                                                                                                                                                                                                                                      'λεπτά '
+                                                                                                                                                                                                                                                      'και '
+                                                                                                                                                                                                                                                      'διακόπτεται '
+                                                                                                                                                                                                                                                      'αμέσως '
+                                                                                                                                                                                                                                                      'αν '
+                                                                                                                                                                                                                                                      'η '
+                                                                                                                                                                                                                                                      'πλακέτα '
+                                                                                                                                                                                                                                                      'φτάσει '
+                                                                                                                                                                                                                                                      'τους '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Ολοκληρώνεται '
+                                                                                                                                                                                                                                                      'στη '
+                                                                                                                                                                                                                                                      'μέγιστη '
+                                                                                                                                                                                                                                                      'ταχύτητα· '
+                                                                                                                                                                                                                                                      'τίποτα '
+                                                                                                                                                                                                                                                      'δεν '
+                                                                                                                                                                                                                                                      'αποθηκεύεται '
+                                                                                                                                                                                                                                                      'μέχρι '
+                                                                                                                                                                                                                                                      'να '
+                                                                                                                                                                                                                                                      'πατήσετε '
+                                                                                                                                                                                                                                                      'Εφαρμογή.',
+                                                                                                                                                                                                                                                'zh-CN': '风扇先全速运转，再逐步减速直至停止，然后逐步加速直至重新启动。过程需要一到两分钟，主板达到 '
+                                                                                                                                                                                                                                                         '80 '
+                                                                                                                                                                                                                                                         '°C '
+                                                                                                                                                                                                                                                         '时会立即中止。结束时风扇以全速运转；按下“应用”之前不会保存任何设置。',
+                                                                                                                                                                                                                                                'zh-TW': '風扇先全速運轉，再逐步減速直到停止，然後逐步加速直到重新啟動。過程需要一到兩分鐘，主機板達到 '
+                                                                                                                                                                                                                                                         '80 '
+                                                                                                                                                                                                                                                         '°C '
+                                                                                                                                                                                                                                                         '時會立即中止。結束時風扇以全速運轉；按下「套用」之前不會儲存任何設定。',
+                                                                                                                                                                                                                                                'ja': 'ファンを全速で回転させ、停止するまで段階的に減速し、再び始動するまで加速します。1～2分かかり、基板が '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C '
+                                                                                                                                                                                                                                                      'に達すると直ちに中止します。終了時は全速で回転します。「適用」を押すまで設定は保存されません。',
+                                                                                                                                                                                                                                                'ko': '팬을 '
+                                                                                                                                                                                                                                                      '최고 '
+                                                                                                                                                                                                                                                      '속도로 '
+                                                                                                                                                                                                                                                      '돌린 '
+                                                                                                                                                                                                                                                      '다음 '
+                                                                                                                                                                                                                                                      '멈출 '
+                                                                                                                                                                                                                                                      '때까지 '
+                                                                                                                                                                                                                                                      '단계적으로 '
+                                                                                                                                                                                                                                                      '감속하고, '
+                                                                                                                                                                                                                                                      '다시 '
+                                                                                                                                                                                                                                                      '시작할 '
+                                                                                                                                                                                                                                                      '때까지 '
+                                                                                                                                                                                                                                                      '가속합니다. '
+                                                                                                                                                                                                                                                      '1~2분이 '
+                                                                                                                                                                                                                                                      '걸리며 '
+                                                                                                                                                                                                                                                      '보드 '
+                                                                                                                                                                                                                                                      '온도가 '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C에 '
+                                                                                                                                                                                                                                                      '도달하면 '
+                                                                                                                                                                                                                                                      '즉시 '
+                                                                                                                                                                                                                                                      '중단됩니다. '
+                                                                                                                                                                                                                                                      '최고 '
+                                                                                                                                                                                                                                                      '속도로 '
+                                                                                                                                                                                                                                                      '종료되며 '
+                                                                                                                                                                                                                                                      '적용을 '
+                                                                                                                                                                                                                                                      '누르기 '
+                                                                                                                                                                                                                                                      '전에는 '
+                                                                                                                                                                                                                                                      '아무 '
+                                                                                                                                                                                                                                                      '설정도 '
+                                                                                                                                                                                                                                                      '저장되지 '
+                                                                                                                                                                                                                                                      '않습니다.',
+                                                                                                                                                                                                                                                'id': 'Kipas '
+                                                                                                                                                                                                                                                      'berputar '
+                                                                                                                                                                                                                                                      'dengan '
+                                                                                                                                                                                                                                                      'kecepatan '
+                                                                                                                                                                                                                                                      'penuh, '
+                                                                                                                                                                                                                                                      'lalu '
+                                                                                                                                                                                                                                                      'melambat '
+                                                                                                                                                                                                                                                      'bertahap '
+                                                                                                                                                                                                                                                      'hingga '
+                                                                                                                                                                                                                                                      'berhenti, '
+                                                                                                                                                                                                                                                      'kemudian '
+                                                                                                                                                                                                                                                      'dipercepat '
+                                                                                                                                                                                                                                                      'hingga '
+                                                                                                                                                                                                                                                      'berputar '
+                                                                                                                                                                                                                                                      'lagi. '
+                                                                                                                                                                                                                                                      'Proses '
+                                                                                                                                                                                                                                                      'ini '
+                                                                                                                                                                                                                                                      'memerlukan '
+                                                                                                                                                                                                                                                      'satu '
+                                                                                                                                                                                                                                                      'hingga '
+                                                                                                                                                                                                                                                      'dua '
+                                                                                                                                                                                                                                                      'menit '
+                                                                                                                                                                                                                                                      'dan '
+                                                                                                                                                                                                                                                      'langsung '
+                                                                                                                                                                                                                                                      'dihentikan '
+                                                                                                                                                                                                                                                      'jika '
+                                                                                                                                                                                                                                                      'papan '
+                                                                                                                                                                                                                                                      'mencapai '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Proses '
+                                                                                                                                                                                                                                                      'berakhir '
+                                                                                                                                                                                                                                                      'pada '
+                                                                                                                                                                                                                                                      'kecepatan '
+                                                                                                                                                                                                                                                      'penuh; '
+                                                                                                                                                                                                                                                      'tidak '
+                                                                                                                                                                                                                                                      'ada '
+                                                                                                                                                                                                                                                      'yang '
+                                                                                                                                                                                                                                                      'disimpan '
+                                                                                                                                                                                                                                                      'sebelum '
+                                                                                                                                                                                                                                                      'Anda '
+                                                                                                                                                                                                                                                      'menekan '
+                                                                                                                                                                                                                                                      'Terapkan.',
+                                                                                                                                                                                                                                                'ms': 'Kipas '
+                                                                                                                                                                                                                                                      'berputar '
+                                                                                                                                                                                                                                                      'pada '
+                                                                                                                                                                                                                                                      'kelajuan '
+                                                                                                                                                                                                                                                      'penuh, '
+                                                                                                                                                                                                                                                      'kemudian '
+                                                                                                                                                                                                                                                      'diperlahankan '
+                                                                                                                                                                                                                                                      'berperingkat '
+                                                                                                                                                                                                                                                      'hingga '
+                                                                                                                                                                                                                                                      'berhenti, '
+                                                                                                                                                                                                                                                      'lalu '
+                                                                                                                                                                                                                                                      'dipercepat '
+                                                                                                                                                                                                                                                      'hingga '
+                                                                                                                                                                                                                                                      'berputar '
+                                                                                                                                                                                                                                                      'semula. '
+                                                                                                                                                                                                                                                      'Proses '
+                                                                                                                                                                                                                                                      'ini '
+                                                                                                                                                                                                                                                      'mengambil '
+                                                                                                                                                                                                                                                      'masa '
+                                                                                                                                                                                                                                                      'satu '
+                                                                                                                                                                                                                                                      'hingga '
+                                                                                                                                                                                                                                                      'dua '
+                                                                                                                                                                                                                                                      'minit '
+                                                                                                                                                                                                                                                      'dan '
+                                                                                                                                                                                                                                                      'dihentikan '
+                                                                                                                                                                                                                                                      'serta-merta '
+                                                                                                                                                                                                                                                      'jika '
+                                                                                                                                                                                                                                                      'papan '
+                                                                                                                                                                                                                                                      'mencapai '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Proses '
+                                                                                                                                                                                                                                                      'berakhir '
+                                                                                                                                                                                                                                                      'pada '
+                                                                                                                                                                                                                                                      'kelajuan '
+                                                                                                                                                                                                                                                      'penuh; '
+                                                                                                                                                                                                                                                      'tiada '
+                                                                                                                                                                                                                                                      'apa-apa '
+                                                                                                                                                                                                                                                      'disimpan '
+                                                                                                                                                                                                                                                      'sehingga '
+                                                                                                                                                                                                                                                      'anda '
+                                                                                                                                                                                                                                                      'menekan '
+                                                                                                                                                                                                                                                      'Gunakan.',
+                                                                                                                                                                                                                                                'th': 'พัดลมจะทำงานเต็มความเร็ว '
+                                                                                                                                                                                                                                                      'แล้วลดความเร็วทีละขั้นจนหยุด '
+                                                                                                                                                                                                                                                      'จากนั้นเพิ่มความเร็วจนเริ่มหมุนอีกครั้ง '
+                                                                                                                                                                                                                                                      'ใช้เวลาหนึ่งถึงสองนาทีและจะยุติทันทีหากบอร์ดมีอุณหภูมิถึง '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C '
+                                                                                                                                                                                                                                                      'เมื่อสิ้นสุดพัดลมจะทำงานเต็มความเร็ว '
+                                                                                                                                                                                                                                                      'โดยจะไม่บันทึกค่าจนกว่าคุณจะกดนำไปใช้',
+                                                                                                                                                                                                                                                'vi': 'Quạt '
+                                                                                                                                                                                                                                                      'chạy '
+                                                                                                                                                                                                                                                      'hết '
+                                                                                                                                                                                                                                                      'tốc '
+                                                                                                                                                                                                                                                      'độ, '
+                                                                                                                                                                                                                                                      'sau '
+                                                                                                                                                                                                                                                      'đó '
+                                                                                                                                                                                                                                                      'giảm '
+                                                                                                                                                                                                                                                      'từng '
+                                                                                                                                                                                                                                                      'bước '
+                                                                                                                                                                                                                                                      'đến '
+                                                                                                                                                                                                                                                      'khi '
+                                                                                                                                                                                                                                                      'dừng '
+                                                                                                                                                                                                                                                      'rồi '
+                                                                                                                                                                                                                                                      'tăng '
+                                                                                                                                                                                                                                                      'đến '
+                                                                                                                                                                                                                                                      'khi '
+                                                                                                                                                                                                                                                      'quay '
+                                                                                                                                                                                                                                                      'lại. '
+                                                                                                                                                                                                                                                      'Quá '
+                                                                                                                                                                                                                                                      'trình '
+                                                                                                                                                                                                                                                      'mất '
+                                                                                                                                                                                                                                                      'một '
+                                                                                                                                                                                                                                                      'đến '
+                                                                                                                                                                                                                                                      'hai '
+                                                                                                                                                                                                                                                      'phút '
+                                                                                                                                                                                                                                                      'và '
+                                                                                                                                                                                                                                                      'dừng '
+                                                                                                                                                                                                                                                      'ngay '
+                                                                                                                                                                                                                                                      'nếu '
+                                                                                                                                                                                                                                                      'bo '
+                                                                                                                                                                                                                                                      'mạch '
+                                                                                                                                                                                                                                                      'đạt '
+                                                                                                                                                                                                                                                      '80 '
+                                                                                                                                                                                                                                                      '°C. '
+                                                                                                                                                                                                                                                      'Khi '
+                                                                                                                                                                                                                                                      'kết '
+                                                                                                                                                                                                                                                      'thúc, '
+                                                                                                                                                                                                                                                      'quạt '
+                                                                                                                                                                                                                                                      'chạy '
+                                                                                                                                                                                                                                                      'hết '
+                                                                                                                                                                                                                                                      'tốc '
+                                                                                                                                                                                                                                                      'độ; '
+                                                                                                                                                                                                                                                      'không '
+                                                                                                                                                                                                                                                      'lưu '
+                                                                                                                                                                                                                                                      'gì '
+                                                                                                                                                                                                                                                      'cho '
+                                                                                                                                                                                                                                                      'đến '
+                                                                                                                                                                                                                                                      'khi '
+                                                                                                                                                                                                                                                      'bạn '
+                                                                                                                                                                                                                                                      'nhấn '
+                                                                                                                                                                                                                                                      'Áp '
+                                                                                                                                                                                                                                                      'dụng.'},
+ 'Measures the lowest PWM at which this fan keeps turning and the one at which it starts, and proposes them as its minimum and spin-up kick.': {'en': 'Measures '
+                                                                                                                                                      'the '
+                                                                                                                                                      'lowest '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'at '
+                                                                                                                                                      'which '
+                                                                                                                                                      'this '
+                                                                                                                                                      'fan '
+                                                                                                                                                      'keeps '
+                                                                                                                                                      'turning '
+                                                                                                                                                      'and '
+                                                                                                                                                      'the '
+                                                                                                                                                      'one '
+                                                                                                                                                      'at '
+                                                                                                                                                      'which '
+                                                                                                                                                      'it '
+                                                                                                                                                      'starts, '
+                                                                                                                                                      'and '
+                                                                                                                                                      'proposes '
+                                                                                                                                                      'them '
+                                                                                                                                                      'as '
+                                                                                                                                                      'its '
+                                                                                                                                                      'minimum '
+                                                                                                                                                      'and '
+                                                                                                                                                      'spin-up '
+                                                                                                                                                      'kick.',
+                                                                                                                                                'es': 'Mide '
+                                                                                                                                                      'el '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'mínimo '
+                                                                                                                                                      'al '
+                                                                                                                                                      'que '
+                                                                                                                                                      'este '
+                                                                                                                                                      'ventilador '
+                                                                                                                                                      'sigue '
+                                                                                                                                                      'girando '
+                                                                                                                                                      'y '
+                                                                                                                                                      'al '
+                                                                                                                                                      'que '
+                                                                                                                                                      'arranca, '
+                                                                                                                                                      'y '
+                                                                                                                                                      'los '
+                                                                                                                                                      'propone '
+                                                                                                                                                      'como '
+                                                                                                                                                      'mínimo '
+                                                                                                                                                      'e '
+                                                                                                                                                      'impulso '
+                                                                                                                                                      'de '
+                                                                                                                                                      'arranque.',
+                                                                                                                                                'es-419': 'Mide '
+                                                                                                                                                          'el '
+                                                                                                                                                          'PWM '
+                                                                                                                                                          'mínimo '
+                                                                                                                                                          'al '
+                                                                                                                                                          'que '
+                                                                                                                                                          'este '
+                                                                                                                                                          'ventilador '
+                                                                                                                                                          'sigue '
+                                                                                                                                                          'girando '
+                                                                                                                                                          'y '
+                                                                                                                                                          'al '
+                                                                                                                                                          'que '
+                                                                                                                                                          'arranca, '
+                                                                                                                                                          'y '
+                                                                                                                                                          'los '
+                                                                                                                                                          'propone '
+                                                                                                                                                          'como '
+                                                                                                                                                          'mínimo '
+                                                                                                                                                          'e '
+                                                                                                                                                          'impulso '
+                                                                                                                                                          'de '
+                                                                                                                                                          'arranque.',
+                                                                                                                                                'pt': 'Mede '
+                                                                                                                                                      'o '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'mínimo '
+                                                                                                                                                      'a '
+                                                                                                                                                      'que '
+                                                                                                                                                      'esta '
+                                                                                                                                                      'ventoinha '
+                                                                                                                                                      'continua '
+                                                                                                                                                      'a '
+                                                                                                                                                      'rodar '
+                                                                                                                                                      'e '
+                                                                                                                                                      'aquele '
+                                                                                                                                                      'a '
+                                                                                                                                                      'que '
+                                                                                                                                                      'arranca, '
+                                                                                                                                                      'propondo-os '
+                                                                                                                                                      'como '
+                                                                                                                                                      'mínimo '
+                                                                                                                                                      'e '
+                                                                                                                                                      'impulso '
+                                                                                                                                                      'de '
+                                                                                                                                                      'arranque.',
+                                                                                                                                                'pt-BR': 'Mede '
+                                                                                                                                                         'o '
+                                                                                                                                                         'PWM '
+                                                                                                                                                         'mínimo '
+                                                                                                                                                         'em '
+                                                                                                                                                         'que '
+                                                                                                                                                         'esta '
+                                                                                                                                                         'ventoinha '
+                                                                                                                                                         'continua '
+                                                                                                                                                         'girando '
+                                                                                                                                                         'e '
+                                                                                                                                                         'aquele '
+                                                                                                                                                         'em '
+                                                                                                                                                         'que '
+                                                                                                                                                         'parte, '
+                                                                                                                                                         'propondo-os '
+                                                                                                                                                         'como '
+                                                                                                                                                         'mínimo '
+                                                                                                                                                         'e '
+                                                                                                                                                         'impulso '
+                                                                                                                                                         'de '
+                                                                                                                                                         'partida.',
+                                                                                                                                                'de': 'Misst '
+                                                                                                                                                      'den '
+                                                                                                                                                      'niedrigsten '
+                                                                                                                                                      'PWM-Wert, '
+                                                                                                                                                      'bei '
+                                                                                                                                                      'dem '
+                                                                                                                                                      'dieser '
+                                                                                                                                                      'Lüfter '
+                                                                                                                                                      'weiterläuft, '
+                                                                                                                                                      'und '
+                                                                                                                                                      'den '
+                                                                                                                                                      'Anlaufwert '
+                                                                                                                                                      'und '
+                                                                                                                                                      'schlägt '
+                                                                                                                                                      'sie '
+                                                                                                                                                      'als '
+                                                                                                                                                      'Minimum '
+                                                                                                                                                      'und '
+                                                                                                                                                      'Anlaufimpuls '
+                                                                                                                                                      'vor.',
+                                                                                                                                                'fr': 'Mesure '
+                                                                                                                                                      'le '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'minimal '
+                                                                                                                                                      'auquel '
+                                                                                                                                                      'ce '
+                                                                                                                                                      'ventilateur '
+                                                                                                                                                      'continue '
+                                                                                                                                                      'de '
+                                                                                                                                                      'tourner '
+                                                                                                                                                      'et '
+                                                                                                                                                      'celui '
+                                                                                                                                                      'auquel '
+                                                                                                                                                      'il '
+                                                                                                                                                      'démarre, '
+                                                                                                                                                      'puis '
+                                                                                                                                                      'les '
+                                                                                                                                                      'propose '
+                                                                                                                                                      'comme '
+                                                                                                                                                      'minimum '
+                                                                                                                                                      'et '
+                                                                                                                                                      'impulsion '
+                                                                                                                                                      'de '
+                                                                                                                                                      'démarrage.',
+                                                                                                                                                'it': 'Misura '
+                                                                                                                                                      'il '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'minimo '
+                                                                                                                                                      'a '
+                                                                                                                                                      'cui '
+                                                                                                                                                      'questa '
+                                                                                                                                                      'ventola '
+                                                                                                                                                      'continua '
+                                                                                                                                                      'a '
+                                                                                                                                                      'girare '
+                                                                                                                                                      'e '
+                                                                                                                                                      'quello '
+                                                                                                                                                      'a '
+                                                                                                                                                      'cui '
+                                                                                                                                                      'si '
+                                                                                                                                                      'avvia, '
+                                                                                                                                                      'proponendoli '
+                                                                                                                                                      'come '
+                                                                                                                                                      'minimo '
+                                                                                                                                                      'e '
+                                                                                                                                                      'impulso '
+                                                                                                                                                      'di '
+                                                                                                                                                      'avvio.',
+                                                                                                                                                'nl': 'Meet '
+                                                                                                                                                      'de '
+                                                                                                                                                      'laagste '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'waarbij '
+                                                                                                                                                      'deze '
+                                                                                                                                                      'ventilator '
+                                                                                                                                                      'blijft '
+                                                                                                                                                      'draaien '
+                                                                                                                                                      'en '
+                                                                                                                                                      'die '
+                                                                                                                                                      'waarbij '
+                                                                                                                                                      'hij '
+                                                                                                                                                      'start '
+                                                                                                                                                      'en '
+                                                                                                                                                      'stelt '
+                                                                                                                                                      'deze '
+                                                                                                                                                      'voor '
+                                                                                                                                                      'als '
+                                                                                                                                                      'minimum '
+                                                                                                                                                      'en '
+                                                                                                                                                      'startimpuls.',
+                                                                                                                                                'ru': 'Измеряет '
+                                                                                                                                                      'минимальный '
+                                                                                                                                                      'PWM, '
+                                                                                                                                                      'при '
+                                                                                                                                                      'котором '
+                                                                                                                                                      'вентилятор '
+                                                                                                                                                      'продолжает '
+                                                                                                                                                      'вращаться, '
+                                                                                                                                                      'и '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'запуска, '
+                                                                                                                                                      'предлагая '
+                                                                                                                                                      'их '
+                                                                                                                                                      'как '
+                                                                                                                                                      'минимум '
+                                                                                                                                                      'и '
+                                                                                                                                                      'пусковой '
+                                                                                                                                                      'импульс.',
+                                                                                                                                                'uk': 'Вимірює '
+                                                                                                                                                      'найнижчий '
+                                                                                                                                                      'PWM, '
+                                                                                                                                                      'за '
+                                                                                                                                                      'якого '
+                                                                                                                                                      'вентилятор '
+                                                                                                                                                      'продовжує '
+                                                                                                                                                      'обертатися, '
+                                                                                                                                                      'і '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'запуску, '
+                                                                                                                                                      'пропонуючи '
+                                                                                                                                                      'їх '
+                                                                                                                                                      'як '
+                                                                                                                                                      'мінімум '
+                                                                                                                                                      'та '
+                                                                                                                                                      'пусковий '
+                                                                                                                                                      'імпульс.',
+                                                                                                                                                'pl': 'Mierzy '
+                                                                                                                                                      'najniższy '
+                                                                                                                                                      'PWM, '
+                                                                                                                                                      'przy '
+                                                                                                                                                      'którym '
+                                                                                                                                                      'wentylator '
+                                                                                                                                                      'nadal '
+                                                                                                                                                      'się '
+                                                                                                                                                      'obraca, '
+                                                                                                                                                      'oraz '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'rozruchu '
+                                                                                                                                                      'i '
+                                                                                                                                                      'proponuje '
+                                                                                                                                                      'je '
+                                                                                                                                                      'jako '
+                                                                                                                                                      'minimum '
+                                                                                                                                                      'oraz '
+                                                                                                                                                      'impuls '
+                                                                                                                                                      'rozruchowy.',
+                                                                                                                                                'cs': 'Změří '
+                                                                                                                                                      'nejnižší '
+                                                                                                                                                      'PWM, '
+                                                                                                                                                      'při '
+                                                                                                                                                      'kterém '
+                                                                                                                                                      'se '
+                                                                                                                                                      'ventilátor '
+                                                                                                                                                      'stále '
+                                                                                                                                                      'otáčí, '
+                                                                                                                                                      'a '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'rozběhu '
+                                                                                                                                                      'a '
+                                                                                                                                                      'navrhne '
+                                                                                                                                                      'je '
+                                                                                                                                                      'jako '
+                                                                                                                                                      'minimum '
+                                                                                                                                                      'a '
+                                                                                                                                                      'rozběhový '
+                                                                                                                                                      'impulz.',
+                                                                                                                                                'tr': 'Bu '
+                                                                                                                                                      'fanın '
+                                                                                                                                                      'dönmeye '
+                                                                                                                                                      'devam '
+                                                                                                                                                      'ettiği '
+                                                                                                                                                      'en '
+                                                                                                                                                      'düşük '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'değerini '
+                                                                                                                                                      've '
+                                                                                                                                                      'çalışmaya '
+                                                                                                                                                      'başladığı '
+                                                                                                                                                      'değeri '
+                                                                                                                                                      'ölçer; '
+                                                                                                                                                      'bunları '
+                                                                                                                                                      'minimum '
+                                                                                                                                                      've '
+                                                                                                                                                      'başlangıç '
+                                                                                                                                                      'darbesi '
+                                                                                                                                                      'olarak '
+                                                                                                                                                      'önerir.',
+                                                                                                                                                'ro': 'Măsoară '
+                                                                                                                                                      'cel '
+                                                                                                                                                      'mai '
+                                                                                                                                                      'mic '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'la '
+                                                                                                                                                      'care '
+                                                                                                                                                      'ventilatorul '
+                                                                                                                                                      'continuă '
+                                                                                                                                                      'să '
+                                                                                                                                                      'se '
+                                                                                                                                                      'rotească '
+                                                                                                                                                      'și '
+                                                                                                                                                      'valoarea '
+                                                                                                                                                      'la '
+                                                                                                                                                      'care '
+                                                                                                                                                      'pornește '
+                                                                                                                                                      'și '
+                                                                                                                                                      'le '
+                                                                                                                                                      'propune '
+                                                                                                                                                      'ca '
+                                                                                                                                                      'minim '
+                                                                                                                                                      'și '
+                                                                                                                                                      'impuls '
+                                                                                                                                                      'de '
+                                                                                                                                                      'pornire.',
+                                                                                                                                                'hu': 'Megméri '
+                                                                                                                                                      'a '
+                                                                                                                                                      'legkisebb '
+                                                                                                                                                      'PWM-értéket, '
+                                                                                                                                                      'amelynél '
+                                                                                                                                                      'a '
+                                                                                                                                                      'ventilátor '
+                                                                                                                                                      'még '
+                                                                                                                                                      'forog, '
+                                                                                                                                                      'és '
+                                                                                                                                                      'az '
+                                                                                                                                                      'indulási '
+                                                                                                                                                      'értéket, '
+                                                                                                                                                      'majd '
+                                                                                                                                                      'ezeket '
+                                                                                                                                                      'javasolja '
+                                                                                                                                                      'minimumként '
+                                                                                                                                                      'és '
+                                                                                                                                                      'indítási '
+                                                                                                                                                      'impulzusként.',
+                                                                                                                                                'bg': 'Измерва '
+                                                                                                                                                      'най-ниския '
+                                                                                                                                                      'PWM, '
+                                                                                                                                                      'при '
+                                                                                                                                                      'който '
+                                                                                                                                                      'вентилаторът '
+                                                                                                                                                      'продължава '
+                                                                                                                                                      'да '
+                                                                                                                                                      'се '
+                                                                                                                                                      'върти, '
+                                                                                                                                                      'и '
+                                                                                                                                                      'този '
+                                                                                                                                                      'за '
+                                                                                                                                                      'стартиране '
+                                                                                                                                                      'и '
+                                                                                                                                                      'ги '
+                                                                                                                                                      'предлага '
+                                                                                                                                                      'като '
+                                                                                                                                                      'минимум '
+                                                                                                                                                      'и '
+                                                                                                                                                      'стартов '
+                                                                                                                                                      'импулс.',
+                                                                                                                                                'da': 'Måler '
+                                                                                                                                                      'den '
+                                                                                                                                                      'laveste '
+                                                                                                                                                      'PWM, '
+                                                                                                                                                      'hvor '
+                                                                                                                                                      'denne '
+                                                                                                                                                      'blæser '
+                                                                                                                                                      'bliver '
+                                                                                                                                                      'ved '
+                                                                                                                                                      'med '
+                                                                                                                                                      'at '
+                                                                                                                                                      'dreje, '
+                                                                                                                                                      'og '
+                                                                                                                                                      'den, '
+                                                                                                                                                      'hvor '
+                                                                                                                                                      'den '
+                                                                                                                                                      'starter, '
+                                                                                                                                                      'og '
+                                                                                                                                                      'foreslår '
+                                                                                                                                                      'dem '
+                                                                                                                                                      'som '
+                                                                                                                                                      'minimum '
+                                                                                                                                                      'og '
+                                                                                                                                                      'startimpuls.',
+                                                                                                                                                'no': 'Måler '
+                                                                                                                                                      'laveste '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'der '
+                                                                                                                                                      'viften '
+                                                                                                                                                      'fortsetter '
+                                                                                                                                                      'å '
+                                                                                                                                                      'rotere, '
+                                                                                                                                                      'og '
+                                                                                                                                                      'verdien '
+                                                                                                                                                      'der '
+                                                                                                                                                      'den '
+                                                                                                                                                      'starter, '
+                                                                                                                                                      'og '
+                                                                                                                                                      'foreslår '
+                                                                                                                                                      'dem '
+                                                                                                                                                      'som '
+                                                                                                                                                      'minimum '
+                                                                                                                                                      'og '
+                                                                                                                                                      'startimpuls.',
+                                                                                                                                                'sv': 'Mäter '
+                                                                                                                                                      'lägsta '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'där '
+                                                                                                                                                      'fläkten '
+                                                                                                                                                      'fortsätter '
+                                                                                                                                                      'snurra '
+                                                                                                                                                      'och '
+                                                                                                                                                      'värdet '
+                                                                                                                                                      'där '
+                                                                                                                                                      'den '
+                                                                                                                                                      'startar '
+                                                                                                                                                      'och '
+                                                                                                                                                      'föreslår '
+                                                                                                                                                      'dem '
+                                                                                                                                                      'som '
+                                                                                                                                                      'minimum '
+                                                                                                                                                      'och '
+                                                                                                                                                      'startimpuls.',
+                                                                                                                                                'fi': 'Mittaa '
+                                                                                                                                                      'pienimmän '
+                                                                                                                                                      'PWM-arvon, '
+                                                                                                                                                      'jolla '
+                                                                                                                                                      'tuuletin '
+                                                                                                                                                      'jatkaa '
+                                                                                                                                                      'pyörimistä, '
+                                                                                                                                                      'sekä '
+                                                                                                                                                      'käynnistysarvon '
+                                                                                                                                                      'ja '
+                                                                                                                                                      'ehdottaa '
+                                                                                                                                                      'niitä '
+                                                                                                                                                      'vähimmäisarvoksi '
+                                                                                                                                                      'ja '
+                                                                                                                                                      'käynnistyspulssiksi.',
+                                                                                                                                                'el': 'Μετρά '
+                                                                                                                                                      'το '
+                                                                                                                                                      'χαμηλότερο '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'στο '
+                                                                                                                                                      'οποίο '
+                                                                                                                                                      'ο '
+                                                                                                                                                      'ανεμιστήρας '
+                                                                                                                                                      'συνεχίζει '
+                                                                                                                                                      'να '
+                                                                                                                                                      'περιστρέφεται '
+                                                                                                                                                      'και '
+                                                                                                                                                      'εκείνο '
+                                                                                                                                                      'στο '
+                                                                                                                                                      'οποίο '
+                                                                                                                                                      'ξεκινά '
+                                                                                                                                                      'και '
+                                                                                                                                                      'τα '
+                                                                                                                                                      'προτείνει '
+                                                                                                                                                      'ως '
+                                                                                                                                                      'ελάχιστο '
+                                                                                                                                                      'και '
+                                                                                                                                                      'παλμό '
+                                                                                                                                                      'εκκίνησης.',
+                                                                                                                                                'zh-CN': '测量此风扇维持转动的最低 '
+                                                                                                                                                         'PWM '
+                                                                                                                                                         '和启动时的 '
+                                                                                                                                                         'PWM，并将其建议为最低值和启动脉冲。',
+                                                                                                                                                'zh-TW': '測量此風扇維持轉動的最低 '
+                                                                                                                                                         'PWM '
+                                                                                                                                                         '和啟動時的 '
+                                                                                                                                                         'PWM，並將其建議為最低值和啟動脈衝。',
+                                                                                                                                                'ja': 'このファンが回り続ける最低 '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'と始動する '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'を測定し、最低値と始動パルスとして提案します。',
+                                                                                                                                                'ko': '이 '
+                                                                                                                                                      '팬이 '
+                                                                                                                                                      '계속 '
+                                                                                                                                                      '회전하는 '
+                                                                                                                                                      '최소 '
+                                                                                                                                                      'PWM과 '
+                                                                                                                                                      '시작하는 '
+                                                                                                                                                      'PWM을 '
+                                                                                                                                                      '측정하여 '
+                                                                                                                                                      '최솟값과 '
+                                                                                                                                                      '시동 '
+                                                                                                                                                      '펄스로 '
+                                                                                                                                                      '제안합니다.',
+                                                                                                                                                'id': 'Mengukur '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'terendah '
+                                                                                                                                                      'yang '
+                                                                                                                                                      'membuat '
+                                                                                                                                                      'kipas '
+                                                                                                                                                      'ini '
+                                                                                                                                                      'tetap '
+                                                                                                                                                      'berputar '
+                                                                                                                                                      'dan '
+                                                                                                                                                      'nilai '
+                                                                                                                                                      'untuk '
+                                                                                                                                                      'mulai '
+                                                                                                                                                      'berputar, '
+                                                                                                                                                      'lalu '
+                                                                                                                                                      'mengusulkannya '
+                                                                                                                                                      'sebagai '
+                                                                                                                                                      'minimum '
+                                                                                                                                                      'dan '
+                                                                                                                                                      'dorongan '
+                                                                                                                                                      'awal.',
+                                                                                                                                                'ms': 'Mengukur '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'terendah '
+                                                                                                                                                      'yang '
+                                                                                                                                                      'mengekalkan '
+                                                                                                                                                      'putaran '
+                                                                                                                                                      'kipas '
+                                                                                                                                                      'ini '
+                                                                                                                                                      'dan '
+                                                                                                                                                      'nilai '
+                                                                                                                                                      'yang '
+                                                                                                                                                      'memulakan '
+                                                                                                                                                      'putaran, '
+                                                                                                                                                      'lalu '
+                                                                                                                                                      'mencadangkannya '
+                                                                                                                                                      'sebagai '
+                                                                                                                                                      'minimum '
+                                                                                                                                                      'dan '
+                                                                                                                                                      'denyutan '
+                                                                                                                                                      'permulaan.',
+                                                                                                                                                'th': 'วัดค่า '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'ต่ำสุดที่พัดลมนี้ยังหมุนต่อได้และค่าที่เริ่มหมุน '
+                                                                                                                                                      'แล้วเสนอให้ใช้เป็นค่าต่ำสุดและแรงกระตุ้นเริ่มหมุน',
+                                                                                                                                                'vi': 'Đo '
+                                                                                                                                                      'PWM '
+                                                                                                                                                      'thấp '
+                                                                                                                                                      'nhất '
+                                                                                                                                                      'mà '
+                                                                                                                                                      'quạt '
+                                                                                                                                                      'vẫn '
+                                                                                                                                                      'quay '
+                                                                                                                                                      'và '
+                                                                                                                                                      'giá '
+                                                                                                                                                      'trị '
+                                                                                                                                                      'để '
+                                                                                                                                                      'quạt '
+                                                                                                                                                      'bắt '
+                                                                                                                                                      'đầu '
+                                                                                                                                                      'quay, '
+                                                                                                                                                      'rồi '
+                                                                                                                                                      'đề '
+                                                                                                                                                      'xuất '
+                                                                                                                                                      'chúng '
+                                                                                                                                                      'làm '
+                                                                                                                                                      'mức '
+                                                                                                                                                      'tối '
+                                                                                                                                                      'thiểu '
+                                                                                                                                                      'và '
+                                                                                                                                                      'xung '
+                                                                                                                                                      'khởi '
+                                                                                                                                                      'động.'},
+ 'Drag a point to move it.': {'en': 'Drag a point to move it.',
+                              'es': 'Arrastra un punto para moverlo.',
+                              'es-419': 'Arrastra un punto para moverlo.',
+                              'pt': 'Arraste um ponto para o mover.',
+                              'pt-BR': 'Arraste um ponto para movê-lo.',
+                              'de': 'Ziehen Sie einen Punkt, um ihn zu verschieben.',
+                              'fr': 'Faites glisser un point pour le déplacer.',
+                              'it': 'Trascina un punto per spostarlo.',
+                              'nl': 'Sleep een punt om het te verplaatsen.',
+                              'ru': 'Перетащите точку, чтобы переместить её.',
+                              'uk': 'Перетягніть точку, щоб перемістити її.',
+                              'pl': 'Przeciągnij punkt, aby go przesunąć.',
+                              'cs': 'Přetažením bod přesunete.',
+                              'tr': 'Bir noktayı taşımak için sürükleyin.',
+                              'ro': 'Trage un punct pentru a-l muta.',
+                              'hu': 'Húzzon el egy pontot az áthelyezéséhez.',
+                              'bg': 'Плъзнете точка, за да я преместите.',
+                              'da': 'Træk et punkt for at flytte det.',
+                              'no': 'Dra et punkt for å flytte det.',
+                              'sv': 'Dra en punkt för att flytta den.',
+                              'fi': 'Siirrä pistettä vetämällä.',
+                              'el': 'Σύρετε ένα σημείο για να το μετακινήσετε.',
+                              'zh-CN': '拖动一个点即可移动它。',
+                              'zh-TW': '拖曳一個點即可移動它。',
+                              'ja': '点をドラッグして移動します。',
+                              'ko': '점을 드래그하여 이동하세요.',
+                              'id': 'Seret titik untuk memindahkannya.',
+                              'ms': 'Seret titik untuk mengalihkannya.',
+                              'th': 'ลากจุดเพื่อย้ายตำแหน่ง',
+                              'vi': 'Kéo một điểm để di chuyển nó.'},
+ 'Calibration finished': {'en': 'Calibration finished',
+                          'es': 'Calibración terminada',
+                          'es-419': 'Calibración terminada',
+                          'pt': 'Calibração concluída',
+                          'pt-BR': 'Calibração concluída',
+                          'de': 'Kalibrierung abgeschlossen',
+                          'fr': 'Étalonnage terminé',
+                          'it': 'Calibrazione completata',
+                          'nl': 'Kalibratie voltooid',
+                          'ru': 'Калибровка завершена',
+                          'uk': 'Калібрування завершено',
+                          'pl': 'Kalibracja zakończona',
+                          'cs': 'Kalibrace dokončena',
+                          'tr': 'Kalibrasyon tamamlandı',
+                          'ro': 'Calibrare finalizată',
+                          'hu': 'Kalibrálás befejezve',
+                          'bg': 'Калибрирането завърши',
+                          'da': 'Kalibrering afsluttet',
+                          'no': 'Kalibrering fullført',
+                          'sv': 'Kalibrering slutförd',
+                          'fi': 'Kalibrointi valmis',
+                          'el': 'Η βαθμονόμηση ολοκληρώθηκε',
+                          'zh-CN': '校准完成',
+                          'zh-TW': '校準完成',
+                          'ja': '校正完了',
+                          'ko': '보정 완료',
+                          'id': 'Kalibrasi selesai',
+                          'ms': 'Penentukuran selesai',
+                          'th': 'ปรับเทียบเสร็จแล้ว',
+                          'vi': 'Hiệu chuẩn hoàn tất'},
+ 'Calibration stopped': {'en': 'Calibration stopped',
+                         'es': 'Calibración detenida',
+                         'es-419': 'Calibración detenida',
+                         'pt': 'Calibração interrompida',
+                         'pt-BR': 'Calibração interrompida',
+                         'de': 'Kalibrierung gestoppt',
+                         'fr': 'Étalonnage arrêté',
+                         'it': 'Calibrazione interrotta',
+                         'nl': 'Kalibratie gestopt',
+                         'ru': 'Калибровка остановлена',
+                         'uk': 'Калібрування зупинено',
+                         'pl': 'Kalibracja zatrzymana',
+                         'cs': 'Kalibrace zastavena',
+                         'tr': 'Kalibrasyon durduruldu',
+                         'ro': 'Calibrare oprită',
+                         'hu': 'Kalibrálás leállítva',
+                         'bg': 'Калибрирането е спряно',
+                         'da': 'Kalibrering stoppet',
+                         'no': 'Kalibrering stoppet',
+                         'sv': 'Kalibrering stoppad',
+                         'fi': 'Kalibrointi pysäytetty',
+                         'el': 'Η βαθμονόμηση σταμάτησε',
+                         'zh-CN': '校准已停止',
+                         'zh-TW': '校準已停止',
+                         'ja': '校正を停止しました',
+                         'ko': '보정 중단됨',
+                         'id': 'Kalibrasi dihentikan',
+                         'ms': 'Penentukuran dihentikan',
+                         'th': 'หยุดการปรับเทียบแล้ว',
+                         'vi': 'Đã dừng hiệu chuẩn'},
+ 'Keeps turning down to {stop}, starts at {start}. Review the proposal and press Apply.': {'en': 'Keeps '
+                                                                                                 'turning '
+                                                                                                 'down '
+                                                                                                 'to '
+                                                                                                 '{stop}, '
+                                                                                                 'starts '
+                                                                                                 'at '
+                                                                                                 '{start}. '
+                                                                                                 'Review '
+                                                                                                 'the '
+                                                                                                 'proposal '
+                                                                                                 'and '
+                                                                                                 'press '
+                                                                                                 'Apply.',
+                                                                                           'es': 'Sigue '
+                                                                                                 'girando '
+                                                                                                 'hasta '
+                                                                                                 '{stop} '
+                                                                                                 'y '
+                                                                                                 'arranca '
+                                                                                                 'a '
+                                                                                                 '{start}. '
+                                                                                                 'Revisa '
+                                                                                                 'la '
+                                                                                                 'propuesta '
+                                                                                                 'y '
+                                                                                                 'pulsa '
+                                                                                                 'Aplicar.',
+                                                                                           'es-419': 'Sigue '
+                                                                                                     'girando '
+                                                                                                     'hasta '
+                                                                                                     '{stop} '
+                                                                                                     'y '
+                                                                                                     'arranca '
+                                                                                                     'a '
+                                                                                                     '{start}. '
+                                                                                                     'Revisa '
+                                                                                                     'la '
+                                                                                                     'propuesta '
+                                                                                                     'y '
+                                                                                                     'pulsa '
+                                                                                                     'Aplicar.',
+                                                                                           'pt': 'Continua '
+                                                                                                 'a '
+                                                                                                 'rodar '
+                                                                                                 'até '
+                                                                                                 '{stop} '
+                                                                                                 'e '
+                                                                                                 'arranca '
+                                                                                                 'a '
+                                                                                                 '{start}. '
+                                                                                                 'Reveja '
+                                                                                                 'a '
+                                                                                                 'proposta '
+                                                                                                 'e '
+                                                                                                 'prima '
+                                                                                                 'Aplicar.',
+                                                                                           'pt-BR': 'Continua '
+                                                                                                    'girando '
+                                                                                                    'até '
+                                                                                                    '{stop} '
+                                                                                                    'e '
+                                                                                                    'parte '
+                                                                                                    'em '
+                                                                                                    '{start}. '
+                                                                                                    'Revise '
+                                                                                                    'a '
+                                                                                                    'proposta '
+                                                                                                    'e '
+                                                                                                    'pressione '
+                                                                                                    'Aplicar.',
+                                                                                           'de': 'Läuft '
+                                                                                                 'bis '
+                                                                                                 '{stop} '
+                                                                                                 'weiter '
+                                                                                                 'und '
+                                                                                                 'startet '
+                                                                                                 'bei '
+                                                                                                 '{start}. '
+                                                                                                 'Prüfen '
+                                                                                                 'Sie '
+                                                                                                 'den '
+                                                                                                 'Vorschlag '
+                                                                                                 'und '
+                                                                                                 'klicken '
+                                                                                                 'Sie '
+                                                                                                 'auf '
+                                                                                                 'Anwenden.',
+                                                                                           'fr': 'Continue '
+                                                                                                 'de '
+                                                                                                 'tourner '
+                                                                                                 'jusqu’à '
+                                                                                                 '{stop} '
+                                                                                                 'et '
+                                                                                                 'démarre '
+                                                                                                 'à '
+                                                                                                 '{start}. '
+                                                                                                 'Vérifiez '
+                                                                                                 'la '
+                                                                                                 'proposition '
+                                                                                                 'et '
+                                                                                                 'appuyez '
+                                                                                                 'sur '
+                                                                                                 'Appliquer.',
+                                                                                           'it': 'Continua '
+                                                                                                 'a '
+                                                                                                 'girare '
+                                                                                                 'fino '
+                                                                                                 'a '
+                                                                                                 '{stop} '
+                                                                                                 'e '
+                                                                                                 'si '
+                                                                                                 'avvia '
+                                                                                                 'a '
+                                                                                                 '{start}. '
+                                                                                                 'Controlla '
+                                                                                                 'la '
+                                                                                                 'proposta '
+                                                                                                 'e '
+                                                                                                 'premi '
+                                                                                                 'Applica.',
+                                                                                           'nl': 'Blijft '
+                                                                                                 'draaien '
+                                                                                                 'tot '
+                                                                                                 '{stop} '
+                                                                                                 'en '
+                                                                                                 'start '
+                                                                                                 'bij '
+                                                                                                 '{start}. '
+                                                                                                 'Controleer '
+                                                                                                 'het '
+                                                                                                 'voorstel '
+                                                                                                 'en '
+                                                                                                 'druk '
+                                                                                                 'op '
+                                                                                                 'Toepassen.',
+                                                                                           'ru': 'Продолжает '
+                                                                                                 'вращаться '
+                                                                                                 'до '
+                                                                                                 '{stop}, '
+                                                                                                 'запускается '
+                                                                                                 'при '
+                                                                                                 '{start}. '
+                                                                                                 'Проверьте '
+                                                                                                 'предложение '
+                                                                                                 'и '
+                                                                                                 'нажмите '
+                                                                                                 '«Применить».',
+                                                                                           'uk': 'Продовжує '
+                                                                                                 'обертатися '
+                                                                                                 'до '
+                                                                                                 '{stop}, '
+                                                                                                 'запускається '
+                                                                                                 'за '
+                                                                                                 '{start}. '
+                                                                                                 'Перевірте '
+                                                                                                 'пропозицію '
+                                                                                                 'й '
+                                                                                                 'натисніть '
+                                                                                                 '«Застосувати».',
+                                                                                           'pl': 'Obraca '
+                                                                                                 'się '
+                                                                                                 'do '
+                                                                                                 '{stop}, '
+                                                                                                 'uruchamia '
+                                                                                                 'się '
+                                                                                                 'przy '
+                                                                                                 '{start}. '
+                                                                                                 'Sprawdź '
+                                                                                                 'propozycję '
+                                                                                                 'i '
+                                                                                                 'naciśnij '
+                                                                                                 'Zastosuj.',
+                                                                                           'cs': 'Otáčí '
+                                                                                                 'se '
+                                                                                                 'až '
+                                                                                                 'do '
+                                                                                                 '{stop}, '
+                                                                                                 'rozbíhá '
+                                                                                                 'se '
+                                                                                                 'při '
+                                                                                                 '{start}. '
+                                                                                                 'Zkontrolujte '
+                                                                                                 'návrh '
+                                                                                                 'a '
+                                                                                                 'stiskněte '
+                                                                                                 'Použít.',
+                                                                                           'tr': '{stop} '
+                                                                                                 'değerine '
+                                                                                                 'kadar '
+                                                                                                 'döner, '
+                                                                                                 '{start} '
+                                                                                                 'değerinde '
+                                                                                                 'çalışmaya '
+                                                                                                 'başlar. '
+                                                                                                 'Öneriyi '
+                                                                                                 'inceleyip '
+                                                                                                 'Uygula '
+                                                                                                 'düğmesine '
+                                                                                                 'basın.',
+                                                                                           'ro': 'Continuă '
+                                                                                                 'să '
+                                                                                                 'se '
+                                                                                                 'rotească '
+                                                                                                 'până '
+                                                                                                 'la '
+                                                                                                 '{stop}, '
+                                                                                                 'pornește '
+                                                                                                 'la '
+                                                                                                 '{start}. '
+                                                                                                 'Verifică '
+                                                                                                 'propunerea '
+                                                                                                 'și '
+                                                                                                 'apasă '
+                                                                                                 'Aplică.',
+                                                                                           'hu': '{stop} '
+                                                                                                 'értékig '
+                                                                                                 'forog, '
+                                                                                                 '{start} '
+                                                                                                 'értéknél '
+                                                                                                 'indul '
+                                                                                                 'el. '
+                                                                                                 'Ellenőrizze '
+                                                                                                 'a '
+                                                                                                 'javaslatot, '
+                                                                                                 'és '
+                                                                                                 'nyomja '
+                                                                                                 'meg '
+                                                                                                 'az '
+                                                                                                 'Alkalmaz '
+                                                                                                 'gombot.',
+                                                                                           'bg': 'Продължава '
+                                                                                                 'да '
+                                                                                                 'се '
+                                                                                                 'върти '
+                                                                                                 'до '
+                                                                                                 '{stop}, '
+                                                                                                 'стартира '
+                                                                                                 'при '
+                                                                                                 '{start}. '
+                                                                                                 'Прегледайте '
+                                                                                                 'предложението '
+                                                                                                 'и '
+                                                                                                 'натиснете '
+                                                                                                 'Прилагане.',
+                                                                                           'da': 'Drejer '
+                                                                                                 'videre '
+                                                                                                 'ned '
+                                                                                                 'til '
+                                                                                                 '{stop}, '
+                                                                                                 'starter '
+                                                                                                 'ved '
+                                                                                                 '{start}. '
+                                                                                                 'Gennemgå '
+                                                                                                 'forslaget, '
+                                                                                                 'og '
+                                                                                                 'tryk '
+                                                                                                 'Anvend.',
+                                                                                           'no': 'Fortsetter '
+                                                                                                 'å '
+                                                                                                 'rotere '
+                                                                                                 'ned '
+                                                                                                 'til '
+                                                                                                 '{stop}, '
+                                                                                                 'starter '
+                                                                                                 'ved '
+                                                                                                 '{start}. '
+                                                                                                 'Se '
+                                                                                                 'gjennom '
+                                                                                                 'forslaget '
+                                                                                                 'og '
+                                                                                                 'trykk '
+                                                                                                 'Bruk.',
+                                                                                           'sv': 'Fortsätter '
+                                                                                                 'snurra '
+                                                                                                 'ned '
+                                                                                                 'till '
+                                                                                                 '{stop}, '
+                                                                                                 'startar '
+                                                                                                 'vid '
+                                                                                                 '{start}. '
+                                                                                                 'Granska '
+                                                                                                 'förslaget '
+                                                                                                 'och '
+                                                                                                 'tryck '
+                                                                                                 'på '
+                                                                                                 'Verkställ.',
+                                                                                           'fi': 'Pyörii '
+                                                                                                 'arvoon '
+                                                                                                 '{stop} '
+                                                                                                 'asti, '
+                                                                                                 'käynnistyy '
+                                                                                                 'arvolla '
+                                                                                                 '{start}. '
+                                                                                                 'Tarkista '
+                                                                                                 'ehdotus '
+                                                                                                 'ja '
+                                                                                                 'paina '
+                                                                                                 'Käytä.',
+                                                                                           'el': 'Συνεχίζει '
+                                                                                                 'να '
+                                                                                                 'περιστρέφεται '
+                                                                                                 'μέχρι '
+                                                                                                 '{stop}, '
+                                                                                                 'ξεκινά '
+                                                                                                 'στο '
+                                                                                                 '{start}. '
+                                                                                                 'Ελέγξτε '
+                                                                                                 'την '
+                                                                                                 'πρόταση '
+                                                                                                 'και '
+                                                                                                 'πατήστε '
+                                                                                                 'Εφαρμογή.',
+                                                                                           'zh-CN': '可持续转动至 '
+                                                                                                    '{stop}，在 '
+                                                                                                    '{start} '
+                                                                                                    '时启动。请检查建议值，然后按“应用”。',
+                                                                                           'zh-TW': '可持續轉動至 '
+                                                                                                    '{stop}，在 '
+                                                                                                    '{start} '
+                                                                                                    '時啟動。請檢查建議值，然後按「套用」。',
+                                                                                           'ja': '{stop} '
+                                                                                                 'まで回り続け、{start} '
+                                                                                                 'で始動します。提案を確認して「適用」を押してください。',
+                                                                                           'ko': '{stop}까지 '
+                                                                                                 '계속 '
+                                                                                                 '회전하고 '
+                                                                                                 '{start}에서 '
+                                                                                                 '시작합니다. '
+                                                                                                 '제안을 '
+                                                                                                 '확인한 '
+                                                                                                 '뒤 '
+                                                                                                 '적용을 '
+                                                                                                 '누르세요.',
+                                                                                           'id': 'Tetap '
+                                                                                                 'berputar '
+                                                                                                 'hingga '
+                                                                                                 '{stop}, '
+                                                                                                 'mulai '
+                                                                                                 'berputar '
+                                                                                                 'pada '
+                                                                                                 '{start}. '
+                                                                                                 'Tinjau '
+                                                                                                 'usulan '
+                                                                                                 'dan '
+                                                                                                 'tekan '
+                                                                                                 'Terapkan.',
+                                                                                           'ms': 'Terus '
+                                                                                                 'berputar '
+                                                                                                 'hingga '
+                                                                                                 '{stop}, '
+                                                                                                 'mula '
+                                                                                                 'berputar '
+                                                                                                 'pada '
+                                                                                                 '{start}. '
+                                                                                                 'Semak '
+                                                                                                 'cadangan '
+                                                                                                 'dan '
+                                                                                                 'tekan '
+                                                                                                 'Gunakan.',
+                                                                                           'th': 'ยังหมุนต่อได้ถึง '
+                                                                                                 '{stop} '
+                                                                                                 'และเริ่มหมุนที่ '
+                                                                                                 '{start} '
+                                                                                                 'ตรวจสอบค่าที่เสนอแล้วกดนำไปใช้',
+                                                                                           'vi': 'Vẫn '
+                                                                                                 'quay '
+                                                                                                 'đến '
+                                                                                                 '{stop}, '
+                                                                                                 'bắt '
+                                                                                                 'đầu '
+                                                                                                 'quay '
+                                                                                                 'ở '
+                                                                                                 '{start}. '
+                                                                                                 'Xem '
+                                                                                                 'lại '
+                                                                                                 'đề '
+                                                                                                 'xuất '
+                                                                                                 'rồi '
+                                                                                                 'nhấn '
+                                                                                                 'Áp '
+                                                                                                 'dụng.'},
+ 'The calibration returned no result.': {'en': 'The calibration returned no result.',
+                                         'es': 'La calibración no devolvió ningún resultado.',
+                                         'es-419': 'La calibración no devolvió ningún resultado.',
+                                         'pt': 'A calibração não devolveu nenhum resultado.',
+                                         'pt-BR': 'A calibração não retornou nenhum resultado.',
+                                         'de': 'Die Kalibrierung hat kein Ergebnis geliefert.',
+                                         'fr': 'L’étalonnage n’a renvoyé aucun résultat.',
+                                         'it': 'La calibrazione non ha restituito alcun risultato.',
+                                         'nl': 'De kalibratie heeft geen resultaat opgeleverd.',
+                                         'ru': 'Калибровка не вернула результат.',
+                                         'uk': 'Калібрування не повернуло результату.',
+                                         'pl': 'Kalibracja nie zwróciła wyniku.',
+                                         'cs': 'Kalibrace nevrátila žádný výsledek.',
+                                         'tr': 'Kalibrasyon sonuç döndürmedi.',
+                                         'ro': 'Calibrarea nu a returnat niciun rezultat.',
+                                         'hu': 'A kalibrálás nem adott eredményt.',
+                                         'bg': 'Калибрирането не върна резултат.',
+                                         'da': 'Kalibreringen gav intet resultat.',
+                                         'no': 'Kalibreringen ga ikke noe resultat.',
+                                         'sv': 'Kalibreringen gav inget resultat.',
+                                         'fi': 'Kalibrointi ei palauttanut tulosta.',
+                                         'el': 'Η βαθμονόμηση δεν επέστρεψε αποτέλεσμα.',
+                                         'zh-CN': '校准未返回结果。',
+                                         'zh-TW': '校準未傳回結果。',
+                                         'ja': '校正結果が返されませんでした。',
+                                         'ko': '보정 결과가 반환되지 않았습니다.',
+                                         'id': 'Kalibrasi tidak mengembalikan hasil.',
+                                         'ms': 'Penentukuran tidak mengembalikan hasil.',
+                                         'th': 'การปรับเทียบไม่ได้ส่งคืนผลลัพธ์',
+                                         'vi': 'Hiệu chuẩn không trả về kết quả.'},
+ 'Hottest allowed': {'en': 'Hottest allowed',
+                     'es': 'Temperatura máxima permitida',
+                     'es-419': 'Temperatura máxima permitida',
+                     'pt': 'Temperatura máxima permitida',
+                     'pt-BR': 'Temperatura máxima permitida',
+                     'de': 'Höchste zulässige Temperatur',
+                     'fr': 'Température maximale autorisée',
+                     'it': 'Temperatura massima consentita',
+                     'nl': 'Hoogst toegestane temperatuur',
+                     'ru': 'Максимально допустимая температура',
+                     'uk': 'Максимально дозволена температура',
+                     'pl': 'Najwyższa dozwolona temperatura',
+                     'cs': 'Nejvyšší povolená teplota',
+                     'tr': 'İzin verilen en yüksek sıcaklık',
+                     'ro': 'Temperatură maximă permisă',
+                     'hu': 'Legmagasabb megengedett hőmérséklet',
+                     'bg': 'Максимално допустима температура',
+                     'da': 'Højeste tilladte temperatur',
+                     'no': 'Høyeste tillatte temperatur',
+                     'sv': 'Högsta tillåtna temperatur',
+                     'fi': 'Suurin sallittu lämpötila',
+                     'el': 'Μέγιστη επιτρεπτή θερμοκρασία',
+                     'zh-CN': '允许的最高温度',
+                     'zh-TW': '允許的最高溫度',
+                     'ja': '許容最高温度',
+                     'ko': '허용 최고 온도',
+                     'id': 'Suhu maksimum yang diizinkan',
+                     'ms': 'Suhu maksimum dibenarkan',
+                     'th': 'อุณหภูมิสูงสุดที่อนุญาต',
+                     'vi': 'Nhiệt độ tối đa cho phép'},
+ 'Cancel calibration': {'en': 'Cancel calibration',
+                        'es': 'Cancelar calibración',
+                        'es-419': 'Cancelar calibración',
+                        'pt': 'Cancelar calibração',
+                        'pt-BR': 'Cancelar calibração',
+                        'de': 'Kalibrierung abbrechen',
+                        'fr': 'Annuler l’étalonnage',
+                        'it': 'Annulla calibrazione',
+                        'nl': 'Kalibratie annuleren',
+                        'ru': 'Отменить калибровку',
+                        'uk': 'Скасувати калібрування',
+                        'pl': 'Anuluj kalibrację',
+                        'cs': 'Zrušit kalibraci',
+                        'tr': 'Kalibrasyonu iptal et',
+                        'ro': 'Anulează calibrarea',
+                        'hu': 'Kalibrálás megszakítása',
+                        'bg': 'Отмяна на калибрирането',
+                        'da': 'Annuller kalibrering',
+                        'no': 'Avbryt kalibrering',
+                        'sv': 'Avbryt kalibrering',
+                        'fi': 'Peruuta kalibrointi',
+                        'el': 'Ακύρωση βαθμονόμησης',
+                        'zh-CN': '取消校准',
+                        'zh-TW': '取消校準',
+                        'ja': '校正をキャンセル',
+                        'ko': '보정 취소',
+                        'id': 'Batalkan kalibrasi',
+                        'ms': 'Batalkan penentukuran',
+                        'th': 'ยกเลิกการปรับเทียบ',
+                        'vi': 'Hủy hiệu chuẩn'},
+ 'cancelled': {'en': 'cancelled',
+               'es': 'cancelado',
+               'es-419': 'cancelado',
+               'pt': 'cancelado',
+               'pt-BR': 'cancelado',
+               'de': 'abgebrochen',
+               'fr': 'annulé',
+               'it': 'annullato',
+               'nl': 'geannuleerd',
+               'ru': 'отменено',
+               'uk': 'скасовано',
+               'pl': 'anulowano',
+               'cs': 'zrušeno',
+               'tr': 'iptal edildi',
+               'ro': 'anulat',
+               'hu': 'megszakítva',
+               'bg': 'отменено',
+               'da': 'annulleret',
+               'no': 'avbrutt',
+               'sv': 'avbruten',
+               'fi': 'peruutettu',
+               'el': 'ακυρώθηκε',
+               'zh-CN': '已取消',
+               'zh-TW': '已取消',
+               'ja': 'キャンセルされました',
+               'ko': '취소됨',
+               'id': 'dibatalkan',
+               'ms': 'dibatalkan',
+               'th': 'ยกเลิกแล้ว',
+               'vi': 'đã hủy'},
+ 'pumps are not calibrated: stopping a pump is unsafe': {'en': 'pumps are not calibrated: stopping '
+                                                               'a pump is unsafe',
+                                                         'es': 'las bombas no se calibran: detener '
+                                                               'una bomba no es seguro',
+                                                         'es-419': 'las bombas no se calibran: '
+                                                                   'detener una bomba no es seguro',
+                                                         'pt': 'as bombas não são calibradas: '
+                                                               'parar uma bomba não é seguro',
+                                                         'pt-BR': 'as bombas não são calibradas: '
+                                                                  'parar uma bomba não é seguro',
+                                                         'de': 'Pumpen werden nicht kalibriert: '
+                                                               'Das Anhalten einer Pumpe ist '
+                                                               'unsicher',
+                                                         'fr': 'les pompes ne sont pas étalonnées '
+                                                               ': arrêter une pompe est dangereux',
+                                                         'it': 'le pompe non vengono calibrate: '
+                                                               'fermare una pompa è pericoloso',
+                                                         'nl': 'pompen worden niet gekalibreerd: '
+                                                               'een pomp stoppen is onveilig',
+                                                         'ru': 'помпы не калибруются: '
+                                                               'останавливать помпу небезопасно',
+                                                         'uk': 'помпи не калібруються: зупиняти '
+                                                               'помпу небезпечно',
+                                                         'pl': 'pompy nie są kalibrowane: '
+                                                               'zatrzymanie pompy jest '
+                                                               'niebezpieczne',
+                                                         'cs': 'čerpadla se nekalibrují: zastavení '
+                                                               'čerpadla je nebezpečné',
+                                                         'tr': 'pompalar kalibre edilmez: pompayı '
+                                                               'durdurmak güvenli değildir',
+                                                         'ro': 'pompele nu se calibrează: oprirea '
+                                                               'unei pompe este nesigură',
+                                                         'hu': 'a szivattyúk nem kalibrálhatók: a '
+                                                               'szivattyú leállítása nem '
+                                                               'biztonságos',
+                                                         'bg': 'помпите не се калибрират: '
+                                                               'спирането на помпа е опасно',
+                                                         'da': 'pumper kalibreres ikke: det er '
+                                                               'usikkert at stoppe en pumpe',
+                                                         'no': 'pumper kalibreres ikke: det er '
+                                                               'utrygt å stoppe en pumpe',
+                                                         'sv': 'pumpar kalibreras inte: det är '
+                                                               'osäkert att stoppa en pump',
+                                                         'fi': 'pumppuja ei kalibroida: pumpun '
+                                                               'pysäyttäminen on vaarallista',
+                                                         'el': 'οι αντλίες δεν βαθμονομούνται: η '
+                                                               'διακοπή μιας αντλίας δεν είναι '
+                                                               'ασφαλής',
+                                                         'zh-CN': '不校准水泵：停止水泵不安全',
+                                                         'zh-TW': '不校準水泵：停止水泵不安全',
+                                                         'ja': 'ポンプは校正しません：ポンプの停止は危険です',
+                                                         'ko': '펌프는 보정하지 않습니다. 펌프를 멈추는 것은 안전하지 '
+                                                               '않습니다',
+                                                         'id': 'pompa tidak dikalibrasi: '
+                                                               'menghentikan pompa tidak aman',
+                                                         'ms': 'pam tidak ditentukur: menghentikan '
+                                                               'pam tidak selamat',
+                                                         'th': 'ไม่ปรับเทียบปั๊ม: '
+                                                               'การหยุดปั๊มไม่ปลอดภัย',
+                                                         'vi': 'không hiệu chuẩn bơm: dừng bơm là '
+                                                               'không an toàn'},
+ 'overheating: temperature at or above 80 C': {'en': 'overheating: temperature at or above 80 C',
+                                               'es': 'sobrecalentamiento: temperatura igual o '
+                                                     'superior a 80 C',
+                                               'es-419': 'sobrecalentamiento: temperatura igual o '
+                                                         'superior a 80 C',
+                                               'pt': 'sobreaquecimento: temperatura igual ou '
+                                                     'superior a 80 C',
+                                               'pt-BR': 'superaquecimento: temperatura igual ou '
+                                                        'superior a 80 C',
+                                               'de': 'Überhitzung: Temperatur bei oder über 80 C',
+                                               'fr': 'surchauffe : température égale ou supérieure '
+                                                     'à 80 C',
+                                               'it': 'surriscaldamento: temperatura pari o '
+                                                     'superiore a 80 C',
+                                               'nl': 'oververhitting: temperatuur op of boven 80 C',
+                                               'ru': 'перегрев: температура не ниже 80 C',
+                                               'uk': 'перегрів: температура не нижча за 80 C',
+                                               'pl': 'przegrzanie: temperatura co najmniej 80 C',
+                                               'cs': 'přehřátí: teplota alespoň 80 C',
+                                               'tr': 'aşırı ısınma: sıcaklık 80 C veya üzerinde',
+                                               'ro': 'supraîncălzire: temperatura este de cel '
+                                                     'puțin 80 C',
+                                               'hu': 'túlmelegedés: a hőmérséklet legalább 80 C',
+                                               'bg': 'прегряване: температура поне 80 C',
+                                               'da': 'overophedning: temperatur på eller over 80 C',
+                                               'no': 'overoppheting: temperatur på eller over 80 C',
+                                               'sv': 'överhettning: temperatur på eller över 80 C',
+                                               'fi': 'ylikuumeneminen: lämpötila vähintään 80 C',
+                                               'el': 'υπερθέρμανση: θερμοκρασία τουλάχιστον 80 C',
+                                               'zh-CN': '过热：温度达到或超过 80 C',
+                                               'zh-TW': '過熱：溫度達到或超過 80 C',
+                                               'ja': '過熱：温度が 80 C 以上です',
+                                               'ko': '과열: 온도가 80 C 이상입니다',
+                                               'id': 'panas berlebih: suhu mencapai atau melebihi '
+                                                     '80 C',
+                                               'ms': 'pemanasan lampau: suhu pada atau melebihi 80 '
+                                                     'C',
+                                               'th': 'ร้อนเกินไป: อุณหภูมิตั้งแต่ 80 C ขึ้นไป',
+                                               'vi': 'quá nhiệt: nhiệt độ bằng hoặc trên 80 C'},
+ 'no tachometer reading': {'en': 'no tachometer reading',
+                           'es': 'sin lectura del tacómetro',
+                           'es-419': 'sin lectura del tacómetro',
+                           'pt': 'sem leitura do tacómetro',
+                           'pt-BR': 'sem leitura do tacômetro',
+                           'de': 'kein Tachosignal',
+                           'fr': 'aucune mesure du tachymètre',
+                           'it': 'nessuna lettura del tachimetro',
+                           'nl': 'geen toerentellerwaarde',
+                           'ru': 'нет показаний тахометра',
+                           'uk': 'немає показників тахометра',
+                           'pl': 'brak odczytu obrotomierza',
+                           'cs': 'chybí údaj otáčkoměru',
+                           'tr': 'devir ölçer okuması yok',
+                           'ro': 'nicio citire a tahometrului',
+                           'hu': 'nincs fordulatszámmérő-adat',
+                           'bg': 'няма показание от тахометъра',
+                           'da': 'ingen omdrejningsmåling',
+                           'no': 'ingen turtallsmåling',
+                           'sv': 'ingen varvtalsavläsning',
+                           'fi': 'ei kierroslukumittausta',
+                           'el': 'καμία ένδειξη στροφόμετρου',
+                           'zh-CN': '无转速计读数',
+                           'zh-TW': '無轉速計讀值',
+                           'ja': '回転数の読み取り値がありません',
+                           'ko': '회전수 측정값이 없습니다',
+                           'id': 'tidak ada pembacaan takometer',
+                           'ms': 'tiada bacaan takometer',
+                           'th': 'ไม่มีค่าจากมาตรวัดรอบ',
+                           'vi': 'không có số đọc tốc độ quay'},
+ 'fan did not remain stopped at 0 percent': {'en': 'fan did not remain stopped at 0 percent',
+                                             'es': 'el ventilador no permaneció detenido al 0 por '
+                                                   'ciento',
+                                             'es-419': 'el ventilador no permaneció detenido al 0 '
+                                                       'por ciento',
+                                             'pt': 'a ventoinha não permaneceu parada a 0 por '
+                                                   'cento',
+                                             'pt-BR': 'a ventoinha não permaneceu parada em 0 por '
+                                                      'cento',
+                                             'de': 'Lüfter blieb bei 0 Prozent nicht stehen',
+                                             'fr': 'le ventilateur n’est pas resté arrêté à 0 pour '
+                                                   'cent',
+                                             'it': 'la ventola non è rimasta ferma allo 0 per '
+                                                   'cento',
+                                             'nl': 'ventilator bleef niet stilstaan bij 0 procent',
+                                             'ru': 'вентилятор не остался неподвижным при 0 '
+                                                   'процентах',
+                                             'uk': 'вентилятор не залишився нерухомим за 0 '
+                                                   'відсотків',
+                                             'pl': 'wentylator nie pozostał zatrzymany przy 0 '
+                                                   'procent',
+                                             'cs': 'ventilátor nezůstal zastavený při 0 procentech',
+                                             'tr': 'fan yüzde 0 değerinde durmuş halde kalmadı',
+                                             'ro': 'ventilatorul nu a rămas oprit la 0 la sută',
+                                             'hu': 'a ventilátor nem maradt állva 0 százaléknál',
+                                             'bg': 'вентилаторът не остана спрян при 0 процента',
+                                             'da': 'blæseren forblev ikke stoppet ved 0 procent',
+                                             'no': 'viften forble ikke stoppet ved 0 prosent',
+                                             'sv': 'fläkten förblev inte stoppad vid 0 procent',
+                                             'fi': 'tuuletin ei pysynyt pysähtyneenä 0 prosentissa',
+                                             'el': 'ο ανεμιστήρας δεν παρέμεινε σταματημένος στο 0 '
+                                                   'τοις εκατό',
+                                             'zh-CN': '风扇在百分之零时未保持停止',
+                                             'zh-TW': '風扇在百分之零時未保持停止',
+                                             'ja': '0 パーセントでファンが停止状態を維持しませんでした',
+                                             'ko': '팬이 0퍼센트에서 정지 상태를 유지하지 않았습니다',
+                                             'id': 'kipas tidak tetap berhenti pada 0 persen',
+                                             'ms': 'kipas tidak kekal berhenti pada 0 peratus',
+                                             'th': 'พัดลมไม่คงสถานะหยุดที่ 0 เปอร์เซ็นต์',
+                                             'vi': 'quạt không duy trì trạng thái dừng ở 0 phần '
+                                                   'trăm'},
+ 'fan did not restart at 100 percent': {'en': 'fan did not restart at 100 percent',
+                                        'es': 'el ventilador no arrancó al 100 por ciento',
+                                        'es-419': 'el ventilador no arrancó al 100 por ciento',
+                                        'pt': 'a ventoinha não arrancou a 100 por cento',
+                                        'pt-BR': 'a ventoinha não partiu em 100 por cento',
+                                        'de': 'Lüfter lief bei 100 Prozent nicht wieder an',
+                                        'fr': 'le ventilateur n’a pas redémarré à 100 pour cent',
+                                        'it': 'la ventola non è ripartita al 100 per cento',
+                                        'nl': 'ventilator startte niet opnieuw bij 100 procent',
+                                        'ru': 'вентилятор не запустился при 100 процентах',
+                                        'uk': 'вентилятор не запустився за 100 відсотків',
+                                        'pl': 'wentylator nie uruchomił się przy 100 procent',
+                                        'cs': 'ventilátor se nerozběhl při 100 procentech',
+                                        'tr': 'fan yüzde 100 değerinde yeniden çalışmadı',
+                                        'ro': 'ventilatorul nu a repornit la 100 la sută',
+                                        'hu': 'a ventilátor nem indult újra 100 százaléknál',
+                                        'bg': 'вентилаторът не стартира отново при 100 процента',
+                                        'da': 'blæseren startede ikke igen ved 100 procent',
+                                        'no': 'viften startet ikke igjen ved 100 prosent',
+                                        'sv': 'fläkten startade inte igen vid 100 procent',
+                                        'fi': 'tuuletin ei käynnistynyt uudelleen 100 prosentissa',
+                                        'el': 'ο ανεμιστήρας δεν ξεκίνησε ξανά στο 100 τοις εκατό',
+                                        'zh-CN': '风扇在百分之百时未重新启动',
+                                        'zh-TW': '風扇在百分之百時未重新啟動',
+                                        'ja': '100 パーセントでファンが再始動しませんでした',
+                                        'ko': '팬이 100퍼센트에서 다시 시작하지 않았습니다',
+                                        'id': 'kipas tidak mulai berputar lagi pada 100 persen',
+                                        'ms': 'kipas tidak berputar semula pada 100 peratus',
+                                        'th': 'พัดลมไม่เริ่มหมุนอีกครั้งที่ 100 เปอร์เซ็นต์',
+                                        'vi': 'quạt không quay lại ở 100 phần trăm'},
+ 'calibration failed: {error}': {'en': 'calibration failed: {error}',
+                                 'es': 'falló la calibración: {error}',
+                                 'es-419': 'falló la calibración: {error}',
+                                 'pt': 'a calibração falhou: {error}',
+                                 'pt-BR': 'a calibração falhou: {error}',
+                                 'de': 'Kalibrierung fehlgeschlagen: {error}',
+                                 'fr': 'échec de l’étalonnage : {error}',
+                                 'it': 'calibrazione non riuscita: {error}',
+                                 'nl': 'kalibratie mislukt: {error}',
+                                 'ru': 'ошибка калибровки: {error}',
+                                 'uk': 'помилка калібрування: {error}',
+                                 'pl': 'kalibracja nie powiodła się: {error}',
+                                 'cs': 'kalibrace selhala: {error}',
+                                 'tr': 'kalibrasyon başarısız: {error}',
+                                 'ro': 'calibrarea a eșuat: {error}',
+                                 'hu': 'a kalibrálás sikertelen: {error}',
+                                 'bg': 'калибрирането е неуспешно: {error}',
+                                 'da': 'kalibrering mislykkedes: {error}',
+                                 'no': 'kalibrering mislyktes: {error}',
+                                 'sv': 'kalibreringen misslyckades: {error}',
+                                 'fi': 'kalibrointi epäonnistui: {error}',
+                                 'el': 'η βαθμονόμηση απέτυχε: {error}',
+                                 'zh-CN': '校准失败：{error}',
+                                 'zh-TW': '校準失敗：{error}',
+                                 'ja': '校正に失敗しました：{error}',
+                                 'ko': '보정 실패: {error}',
+                                 'id': 'kalibrasi gagal: {error}',
+                                 'ms': 'penentukuran gagal: {error}',
+                                 'th': 'การปรับเทียบล้มเหลว: {error}',
+                                 'vi': 'hiệu chuẩn thất bại: {error}'},
+ 'final write of 100 percent failed: {error}': {'en': 'final write of 100 percent failed: {error}',
+                                                'es': 'falló la escritura final del 100 por '
+                                                      'ciento: {error}',
+                                                'es-419': 'falló la escritura final del 100 por '
+                                                          'ciento: {error}',
+                                                'pt': 'a escrita final de 100 por cento falhou: '
+                                                      '{error}',
+                                                'pt-BR': 'a gravação final de 100 por cento '
+                                                         'falhou: {error}',
+                                                'de': 'abschließendes Schreiben von 100 Prozent '
+                                                      'fehlgeschlagen: {error}',
+                                                'fr': 'échec de l’écriture finale de 100 pour cent '
+                                                      ': {error}',
+                                                'it': 'scrittura finale del 100 per cento non '
+                                                      'riuscita: {error}',
+                                                'nl': 'laatste schrijfactie van 100 procent '
+                                                      'mislukt: {error}',
+                                                'ru': 'не удалось выполнить финальную запись 100 '
+                                                      'процентов: {error}',
+                                                'uk': 'не вдалося виконати кінцевий запис 100 '
+                                                      'відсотків: {error}',
+                                                'pl': 'końcowy zapis 100 procent nie powiódł się: '
+                                                      '{error}',
+                                                'cs': 'závěrečný zápis 100 procent selhal: {error}',
+                                                'tr': 'yüzde 100 değerinin son yazımı başarısız: '
+                                                      '{error}',
+                                                'ro': 'scrierea finală a valorii de 100 la sută a '
+                                                      'eșuat: {error}',
+                                                'hu': 'a 100 százalék végső írása sikertelen: '
+                                                      '{error}',
+                                                'bg': 'последният запис на 100 процента е '
+                                                      'неуспешен: {error}',
+                                                'da': 'sidste skrivning af 100 procent '
+                                                      'mislykkedes: {error}',
+                                                'no': 'siste skriving av 100 prosent mislyktes: '
+                                                      '{error}',
+                                                'sv': 'sista skrivningen av 100 procent '
+                                                      'misslyckades: {error}',
+                                                'fi': 'viimeinen 100 prosentin kirjoitus '
+                                                      'epäonnistui: {error}',
+                                                'el': 'η τελική εγγραφή του 100 τοις εκατό '
+                                                      'απέτυχε: {error}',
+                                                'zh-CN': '最后写入百分之百失败：{error}',
+                                                'zh-TW': '最後寫入百分之百失敗：{error}',
+                                                'ja': '最後の 100 パーセントの書き込みに失敗しました：{error}',
+                                                'ko': '마지막 100퍼센트 쓰기 실패: {error}',
+                                                'id': 'penulisan akhir 100 persen gagal: {error}',
+                                                'ms': 'penulisan akhir 100 peratus gagal: {error}',
+                                                'th': 'การเขียนค่า 100 '
+                                                      'เปอร์เซ็นต์ครั้งสุดท้ายล้มเหลว: {error}',
+                                                'vi': 'ghi 100 phần trăm lần cuối thất bại: '
+                                                      '{error}'},
+ 'step must be an integer in 1..100': {'en': 'step must be an integer in 1..100',
+                                       'es': 'el paso debe ser un entero entre 1 y 100',
+                                       'es-419': 'el paso debe ser un entero entre 1 y 100',
+                                       'pt': 'o passo deve ser um inteiro entre 1 e 100',
+                                       'pt-BR': 'o passo deve ser um inteiro entre 1 e 100',
+                                       'de': 'Schritt muss eine ganze Zahl zwischen 1 und 100 sein',
+                                       'fr': 'le pas doit être un entier compris entre 1 et 100',
+                                       'it': 'il passo deve essere un intero tra 1 e 100',
+                                       'nl': 'stap moet een geheel getal tussen 1 en 100 zijn',
+                                       'ru': 'шаг должен быть целым числом от 1 до 100',
+                                       'uk': 'крок має бути цілим числом від 1 до 100',
+                                       'pl': 'krok musi być liczbą całkowitą od 1 do 100',
+                                       'cs': 'krok musí být celé číslo od 1 do 100',
+                                       'tr': 'adım 1 ile 100 arasında bir tam sayı olmalıdır',
+                                       'ro': 'pasul trebuie să fie un întreg între 1 și 100',
+                                       'hu': 'a lépésnek 1 és 100 közötti egész számnak kell '
+                                             'lennie',
+                                       'bg': 'стъпката трябва да е цяло число от 1 до 100',
+                                       'da': 'trin skal være et heltal mellem 1 og 100',
+                                       'no': 'trinn må være et heltall mellom 1 og 100',
+                                       'sv': 'steget måste vara ett heltal mellan 1 och 100',
+                                       'fi': 'askeleen on oltava kokonaisluku väliltä 1–100',
+                                       'el': 'το βήμα πρέπει να είναι ακέραιος από 1 έως 100',
+                                       'zh-CN': '步长必须为 1 到 100 之间的整数',
+                                       'zh-TW': '步長必須是 1 到 100 之間的整數',
+                                       'ja': 'ステップは 1～100 の整数である必要があります',
+                                       'ko': '단계는 1~100 사이의 정수여야 합니다',
+                                       'id': 'langkah harus berupa bilangan bulat dari 1 hingga '
+                                             '100',
+                                       'ms': 'langkah mestilah integer antara 1 hingga 100',
+                                       'th': 'ขั้นต้องเป็นจำนวนเต็มระหว่าง 1 ถึง 100',
+                                       'vi': 'bước phải là số nguyên từ 1 đến 100'},
+ 'margin must be an integer in 0..100': {'en': 'margin must be an integer in 0..100',
+                                         'es': 'el margen debe ser un entero entre 0 y 100',
+                                         'es-419': 'el margen debe ser un entero entre 0 y 100',
+                                         'pt': 'a margem deve ser um inteiro entre 0 e 100',
+                                         'pt-BR': 'a margem deve ser um inteiro entre 0 e 100',
+                                         'de': 'Reserve muss eine ganze Zahl zwischen 0 und 100 '
+                                               'sein',
+                                         'fr': 'la marge doit être un entier compris entre 0 et '
+                                               '100',
+                                         'it': 'il margine deve essere un intero tra 0 e 100',
+                                         'nl': 'marge moet een geheel getal tussen 0 en 100 zijn',
+                                         'ru': 'запас должен быть целым числом от 0 до 100',
+                                         'uk': 'запас має бути цілим числом від 0 до 100',
+                                         'pl': 'zapas musi być liczbą całkowitą od 0 do 100',
+                                         'cs': 'rezerva musí být celé číslo od 0 do 100',
+                                         'tr': 'pay 0 ile 100 arasında bir tam sayı olmalıdır',
+                                         'ro': 'marja trebuie să fie un întreg între 0 și 100',
+                                         'hu': 'a ráhagyásnak 0 és 100 közötti egész számnak kell '
+                                               'lennie',
+                                         'bg': 'запасът трябва да е цяло число от 0 до 100',
+                                         'da': 'margin skal være et heltal mellem 0 og 100',
+                                         'no': 'margin må være et heltall mellom 0 og 100',
+                                         'sv': 'marginalen måste vara ett heltal mellan 0 och 100',
+                                         'fi': 'marginaalin on oltava kokonaisluku väliltä 0–100',
+                                         'el': 'το περιθώριο πρέπει να είναι ακέραιος από 0 έως '
+                                               '100',
+                                         'zh-CN': '余量必须为 0 到 100 之间的整数',
+                                         'zh-TW': '餘裕必須是 0 到 100 之間的整數',
+                                         'ja': '余裕値は 0～100 の整数である必要があります',
+                                         'ko': '여유 값은 0~100 사이의 정수여야 합니다',
+                                         'id': 'margin harus berupa bilangan bulat dari 0 hingga '
+                                               '100',
+                                         'ms': 'margin mestilah integer antara 0 hingga 100',
+                                         'th': 'ระยะเผื่อต้องเป็นจำนวนเต็มระหว่าง 0 ถึง 100',
+                                         'vi': 'biên dự phòng phải là số nguyên từ 0 đến 100'},
+ 'settle_seconds must be finite and nonnegative': {'en': 'settle_seconds must be finite and '
+                                                         'nonnegative',
+                                                   'es': 'settle_seconds debe ser finito y no '
+                                                         'negativo',
+                                                   'es-419': 'settle_seconds debe ser finito y no '
+                                                             'negativo',
+                                                   'pt': 'settle_seconds deve ser finito e não '
+                                                         'negativo',
+                                                   'pt-BR': 'settle_seconds deve ser finito e não '
+                                                            'negativo',
+                                                   'de': 'settle_seconds muss endlich und nicht '
+                                                         'negativ sein',
+                                                   'fr': 'settle_seconds doit être fini et positif '
+                                                         'ou nul',
+                                                   'it': 'settle_seconds deve essere finito e non '
+                                                         'negativo',
+                                                   'nl': 'settle_seconds moet eindig en '
+                                                         'niet-negatief zijn',
+                                                   'ru': 'settle_seconds должен быть конечным и '
+                                                         'неотрицательным',
+                                                   'uk': 'settle_seconds має бути скінченним і '
+                                                         'невід’ємним',
+                                                   'pl': 'settle_seconds musi być skończone i '
+                                                         'nieujemne',
+                                                   'cs': 'settle_seconds musí být konečné a '
+                                                         'nezáporné',
+                                                   'tr': 'settle_seconds sonlu ve negatif olmayan '
+                                                         'bir sayı olmalıdır',
+                                                   'ro': 'settle_seconds trebuie să fie finit și '
+                                                         'nenegativ',
+                                                   'hu': 'a settle_seconds értékének végesnek és '
+                                                         'nemnegatívnak kell lennie',
+                                                   'bg': 'settle_seconds трябва да е крайно и '
+                                                         'неотрицателно',
+                                                   'da': 'settle_seconds skal være endelig og '
+                                                         'ikke-negativ',
+                                                   'no': 'settle_seconds må være endelig og '
+                                                         'ikke-negativ',
+                                                   'sv': 'settle_seconds måste vara ändligt och '
+                                                         'icke-negativt',
+                                                   'fi': 'settle_seconds-arvon on oltava '
+                                                         'äärellinen ja epänegatiivinen',
+                                                   'el': 'το settle_seconds πρέπει να είναι '
+                                                         'πεπερασμένο και μη αρνητικό',
+                                                   'zh-CN': 'settle_seconds 必须是有限的非负数',
+                                                   'zh-TW': 'settle_seconds 必須是有限的非負數',
+                                                   'ja': 'settle_seconds は有限の非負数である必要があります',
+                                                   'ko': 'settle_seconds는 유한한 음이 아닌 수여야 합니다',
+                                                   'id': 'settle_seconds harus berhingga dan tidak '
+                                                         'negatif',
+                                                   'ms': 'settle_seconds mestilah terhingga dan '
+                                                         'bukan negatif',
+                                                   'th': 'settle_seconds ต้องมีค่าจำกัดและไม่ติดลบ',
+                                                   'vi': 'settle_seconds phải hữu hạn và không âm'},
+ 'abort_c must be finite': {'en': 'abort_c must be finite',
+                            'es': 'abort_c debe ser finito',
+                            'es-419': 'abort_c debe ser finito',
+                            'pt': 'abort_c deve ser finito',
+                            'pt-BR': 'abort_c deve ser finito',
+                            'de': 'abort_c muss endlich sein',
+                            'fr': 'abort_c doit être fini',
+                            'it': 'abort_c deve essere finito',
+                            'nl': 'abort_c moet eindig zijn',
+                            'ru': 'abort_c должен быть конечным',
+                            'uk': 'abort_c має бути скінченним',
+                            'pl': 'abort_c musi być skończone',
+                            'cs': 'abort_c musí být konečné',
+                            'tr': 'abort_c sonlu olmalıdır',
+                            'ro': 'abort_c trebuie să fie finit',
+                            'hu': 'az abort_c értékének végesnek kell lennie',
+                            'bg': 'abort_c трябва да е крайно',
+                            'da': 'abort_c skal være endelig',
+                            'no': 'abort_c må være endelig',
+                            'sv': 'abort_c måste vara ändligt',
+                            'fi': 'abort_c-arvon on oltava äärellinen',
+                            'el': 'το abort_c πρέπει να είναι πεπερασμένο',
+                            'zh-CN': 'abort_c 必须是有限数',
+                            'zh-TW': 'abort_c 必須是有限數',
+                            'ja': 'abort_c は有限値である必要があります',
+                            'ko': 'abort_c는 유한해야 합니다',
+                            'id': 'abort_c harus berhingga',
+                            'ms': 'abort_c mestilah terhingga',
+                            'th': 'abort_c ต้องมีค่าจำกัด',
+                            'vi': 'abort_c phải hữu hạn'},
+ 'overheating: temperature at or above {temperature} C': {'en': 'overheating: temperature at or '
+                                                                'above {temperature} C',
+                                                          'es': 'sobrecalentamiento: temperatura '
+                                                                'igual o superior a {temperature} '
+                                                                'C',
+                                                          'es-419': 'sobrecalentamiento: '
+                                                                    'temperatura igual o superior '
+                                                                    'a {temperature} C',
+                                                          'pt': 'sobreaquecimento: temperatura '
+                                                                'igual ou superior a {temperature} '
+                                                                'C',
+                                                          'pt-BR': 'superaquecimento: temperatura '
+                                                                   'igual ou superior a '
+                                                                   '{temperature} C',
+                                                          'de': 'Überhitzung: Temperatur bei oder '
+                                                                'über {temperature} C',
+                                                          'fr': 'surchauffe : température égale ou '
+                                                                'supérieure à {temperature} C',
+                                                          'it': 'surriscaldamento: temperatura '
+                                                                'pari o superiore a {temperature} '
+                                                                'C',
+                                                          'nl': 'oververhitting: temperatuur op of '
+                                                                'boven {temperature} C',
+                                                          'ru': 'перегрев: температура не ниже '
+                                                                '{temperature} C',
+                                                          'uk': 'перегрів: температура не нижча за '
+                                                                '{temperature} C',
+                                                          'pl': 'przegrzanie: temperatura co '
+                                                                'najmniej {temperature} C',
+                                                          'cs': 'přehřátí: teplota alespoň '
+                                                                '{temperature} C',
+                                                          'tr': 'aşırı ısınma: sıcaklık '
+                                                                '{temperature} C veya üzerinde',
+                                                          'ro': 'supraîncălzire: temperatura este '
+                                                                'de cel puțin {temperature} C',
+                                                          'hu': 'túlmelegedés: a hőmérséklet '
+                                                                'legalább {temperature} C',
+                                                          'bg': 'прегряване: температура поне '
+                                                                '{temperature} C',
+                                                          'da': 'overophedning: temperatur på '
+                                                                'eller over {temperature} C',
+                                                          'no': 'overoppheting: temperatur på '
+                                                                'eller over {temperature} C',
+                                                          'sv': 'överhettning: temperatur på eller '
+                                                                'över {temperature} C',
+                                                          'fi': 'ylikuumeneminen: lämpötila '
+                                                                'vähintään {temperature} C',
+                                                          'el': 'υπερθέρμανση: θερμοκρασία '
+                                                                'τουλάχιστον {temperature} C',
+                                                          'zh-CN': '过热：温度达到或超过 {temperature} C',
+                                                          'zh-TW': '過熱：溫度達到或超過 {temperature} C',
+                                                          'ja': '過熱：温度が {temperature} C 以上です',
+                                                          'ko': '과열: 온도가 {temperature} C 이상입니다',
+                                                          'id': 'panas berlebih: suhu mencapai '
+                                                                'atau melebihi {temperature} C',
+                                                          'ms': 'pemanasan lampau: suhu pada atau '
+                                                                'melebihi {temperature} C',
+                                                          'th': 'ร้อนเกินไป: อุณหภูมิตั้งแต่ '
+                                                                '{temperature} C ขึ้นไป',
+                                                          'vi': 'quá nhiệt: nhiệt độ bằng hoặc '
+                                                                'trên {temperature} C'}}
+)
+
+
+# Fans: the row-switch dialog offers Apply, Discard or Cancel.
+INTERFACE_TRANSLATIONS.update(
+{'Unapplied changes': {'bg': 'Неприложени промени', 'cs': 'Nepoužité změny', 'da': 'Ikke anvendte ændringer', 'de': 'Nicht übernommene Änderungen', 'el': 'Μη εφαρμοσμένες αλλαγές', 'en': 'Unapplied changes', 'es': 'Cambios sin aplicar', 'es-419': 'Cambios sin aplicar', 'fi': 'Käyttämättömät muutokset', 'fr': 'Modifications non appliquées', 'hu': 'Nem alkalmazott módosítások', 'id': 'Perubahan belum diterapkan', 'it': 'Modifiche non applicate', 'ja': '未適用の変更', 'ko': '적용되지 않은 변경 사항', 'ms': 'Perubahan belum digunakan', 'nl': 'Niet toegepaste wijzigingen', 'no': 'Endringer som ikke er tatt i bruk', 'pl': 'Niezastosowane zmiany', 'pt': 'Alterações por aplicar', 'pt-BR': 'Alterações não aplicadas', 'ro': 'Modificări neaplicate', 'ru': 'Неприменённые изменения', 'sv': 'Ej tillämpade ändringar', 'th': 'การเปลี่ยนแปลงที่ยังไม่ได้ใช้', 'tr': 'Uygulanmamış değişiklikler', 'uk': 'Незастосовані зміни', 'vi': 'Thay đổi chưa áp dụng', 'zh-CN': '未应用的更改', 'zh-TW': '未套用的變更'}}
+)
+
+
+# Fan workspace review: persistence, recovery and calibration feedback.
+INTERFACE_TRANSLATIONS.update(
+{'Critical response': {'bg': 'Реакция при критична температура',
+                       'cs': 'Reakce na kritickou teplotu',
+                       'da': 'Reaktion ved kritisk temperatur',
+                       'de': 'Reaktion bei kritischer Temperatur',
+                       'el': 'Απόκριση σε κρίσιμη θερμοκρασία',
+                       'en': 'Critical response',
+                       'es': 'Respuesta ante temperatura crítica',
+                       'es-419': 'Respuesta ante temperatura crítica',
+                       'fi': 'Toiminta kriittisessä lämpötilassa',
+                       'fr': 'Réaction à une température critique',
+                       'hu': 'Reakció kritikus hőmérsékletre',
+                       'id': 'Respons suhu kritis',
+                       'it': 'Risposta alla temperatura critica',
+                       'ja': '危険温度での動作',
+                       'ko': '위험 온도 대응',
+                       'ms': 'Tindak balas suhu kritikal',
+                       'nl': 'Reactie bij kritieke temperatuur',
+                       'no': 'Reaksjon ved kritisk temperatur',
+                       'pl': 'Reakcja na temperaturę krytyczną',
+                       'pt': 'Resposta à temperatura crítica',
+                       'pt-BR': 'Resposta à temperatura crítica',
+                       'ro': 'Reacție la temperatura critică',
+                       'ru': 'Действие при критической температуре',
+                       'sv': 'Åtgärd vid kritisk temperatur',
+                       'th': 'การตอบสนองเมื่ออุณหภูมิวิกฤต',
+                       'tr': 'Kritik sıcaklık tepkisi',
+                       'uk': 'Дія за критичної температури',
+                       'vi': 'Ứng phó nhiệt độ tới hạn',
+                       'zh-CN': '临界温度响应',
+                       'zh-TW': '臨界溫度回應'},
+ 'Imported configuration': {'bg': 'Импортирана конфигурация',
+                            'cs': 'Importovaná konfigurace',
+                            'da': 'Importeret konfiguration',
+                            'de': 'Importierte Konfiguration',
+                            'el': 'Εισηγμένη ρύθμιση',
+                            'en': 'Imported configuration',
+                            'es': 'Configuración importada',
+                            'es-419': 'Configuración importada',
+                            'fi': 'Tuotu kokoonpano',
+                            'fr': 'Configuration importée',
+                            'hu': 'Importált beállítás',
+                            'id': 'Konfigurasi diimpor',
+                            'it': 'Configurazione importata',
+                            'ja': 'インポートした設定',
+                            'ko': '가져온 설정',
+                            'ms': 'Konfigurasi diimport',
+                            'nl': 'Geïmporteerde configuratie',
+                            'no': 'Importert konfigurasjon',
+                            'pl': 'Zaimportowana konfiguracja',
+                            'pt': 'Configuração importada',
+                            'pt-BR': 'Configuração importada',
+                            'ro': 'Configurație importată',
+                            'ru': 'Импортированная конфигурация',
+                            'sv': 'Importerad konfiguration',
+                            'th': 'การตั้งค่าที่นำเข้า',
+                            'tr': 'İçe aktarılan yapılandırma',
+                            'uk': 'Імпортована конфігурація',
+                            'vi': 'Cấu hình đã nhập',
+                            'zh-CN': '导入的配置',
+                            'zh-TW': '匯入的設定'},
+ 'Invalid fan channels': {'bg': 'Невалидни канали на вентилатори',
+                          'cs': 'Neplatné kanály ventilátorů',
+                          'da': 'Ugyldige blæserkanaler',
+                          'de': 'Ungültige Lüfterkanäle',
+                          'el': 'Μη έγκυρα κανάλια ανεμιστήρων',
+                          'en': 'Invalid fan channels',
+                          'es': 'Canales de ventilador no válidos',
+                          'es-419': 'Canales de ventilador no válidos',
+                          'fi': 'Virheelliset tuuletinkanavat',
+                          'fr': 'Canaux de ventilateurs invalides',
+                          'hu': 'Érvénytelen ventilátorcsatornák',
+                          'id': 'Kanal kipas tidak valid',
+                          'it': 'Canali delle ventole non validi',
+                          'ja': '無効なファンチャンネル',
+                          'ko': '잘못된 팬 채널',
+                          'ms': 'Saluran kipas tidak sah',
+                          'nl': 'Ongeldige ventilatorkanalen',
+                          'no': 'Ugyldige viftekanaler',
+                          'pl': 'Nieprawidłowe kanały wentylatorów',
+                          'pt': 'Canais de ventoinha inválidos',
+                          'pt-BR': 'Canais de ventoinha inválidos',
+                          'ro': 'Canale de ventilator nevalide',
+                          'ru': 'Недопустимые каналы вентиляторов',
+                          'sv': 'Ogiltiga fläktkanaler',
+                          'th': 'ช่องพัดลมไม่ถูกต้อง',
+                          'tr': 'Geçersiz fan kanalları',
+                          'uk': 'Недійсні канали вентиляторів',
+                          'vi': 'Kênh quạt không hợp lệ',
+                          'zh-CN': '无效的风扇通道',
+                          'zh-TW': '無效的風扇通道'},
+ 'Invalid fan labels': {'bg': 'Невалидни имена на вентилатори',
+                        'cs': 'Neplatné názvy ventilátorů',
+                        'da': 'Ugyldige blæsernavne',
+                        'de': 'Ungültige Lüfternamen',
+                        'el': 'Μη έγκυρα ονόματα ανεμιστήρων',
+                        'en': 'Invalid fan labels',
+                        'es': 'Nombres de ventilador no válidos',
+                        'es-419': 'Nombres de ventilador no válidos',
+                        'fi': 'Virheelliset tuulettimien nimet',
+                        'fr': 'Noms de ventilateurs invalides',
+                        'hu': 'Érvénytelen ventilátornevek',
+                        'id': 'Nama kipas tidak valid',
+                        'it': 'Nomi delle ventole non validi',
+                        'ja': '無効なファン名',
+                        'ko': '잘못된 팬 이름',
+                        'ms': 'Nama kipas tidak sah',
+                        'nl': 'Ongeldige ventilatornamen',
+                        'no': 'Ugyldige viftenavn',
+                        'pl': 'Nieprawidłowe nazwy wentylatorów',
+                        'pt': 'Nomes de ventoinha inválidos',
+                        'pt-BR': 'Nomes de ventoinha inválidos',
+                        'ro': 'Nume de ventilator nevalide',
+                        'ru': 'Недопустимые названия вентиляторов',
+                        'sv': 'Ogiltiga fläktnamn',
+                        'th': 'ชื่อพัดลมไม่ถูกต้อง',
+                        'tr': 'Geçersiz fan adları',
+                        'uk': 'Недійсні назви вентиляторів',
+                        'vi': 'Tên quạt không hợp lệ',
+                        'zh-CN': '无效的风扇名称',
+                        'zh-TW': '無效的風扇名稱'},
+ 'Invalid fan profiles': {'bg': 'Невалидни профили на вентилатори',
+                          'cs': 'Neplatné profily ventilátorů',
+                          'da': 'Ugyldige blæserprofiler',
+                          'de': 'Ungültige Lüfterprofile',
+                          'el': 'Μη έγκυρα προφίλ ανεμιστήρων',
+                          'en': 'Invalid fan profiles',
+                          'es': 'Perfiles de ventilador no válidos',
+                          'es-419': 'Perfiles de ventilador no válidos',
+                          'fi': 'Virheelliset tuuletinprofiilit',
+                          'fr': 'Profils de ventilateurs invalides',
+                          'hu': 'Érvénytelen ventilátorprofilok',
+                          'id': 'Profil kipas tidak valid',
+                          'it': 'Profili delle ventole non validi',
+                          'ja': '無効なファンプロファイル',
+                          'ko': '잘못된 팬 프로필',
+                          'ms': 'Profil kipas tidak sah',
+                          'nl': 'Ongeldige ventilatorprofielen',
+                          'no': 'Ugyldige vifteprofiler',
+                          'pl': 'Nieprawidłowe profile wentylatorów',
+                          'pt': 'Perfis de ventoinha inválidos',
+                          'pt-BR': 'Perfis de ventoinha inválidos',
+                          'ro': 'Profiluri de ventilator nevalide',
+                          'ru': 'Недопустимые профили вентиляторов',
+                          'sv': 'Ogiltiga fläktprofiler',
+                          'th': 'โปรไฟล์พัดลมไม่ถูกต้อง',
+                          'tr': 'Geçersiz fan profilleri',
+                          'uk': 'Недійсні профілі вентиляторів',
+                          'vi': 'Hồ sơ quạt không hợp lệ',
+                          'zh-CN': '无效的风扇配置',
+                          'zh-TW': '無效的風扇設定檔'},
+ 'Replace fan profile?': {'bg': 'Да се замени ли профилът на вентилатора?',
+                          'cs': 'Nahradit profil ventilátoru?',
+                          'da': 'Erstat blæserprofil?',
+                          'de': 'Lüfterprofil ersetzen?',
+                          'el': 'Αντικατάσταση προφίλ ανεμιστήρα;',
+                          'en': 'Replace fan profile?',
+                          'es': '¿Reemplazar el perfil de ventilador?',
+                          'es-419': '¿Reemplazar el perfil de ventilador?',
+                          'fi': 'Korvataanko tuuletinprofiili?',
+                          'fr': 'Remplacer le profil du ventilateur ?',
+                          'hu': 'Lecseréli a ventilátorprofilt?',
+                          'id': 'Ganti profil kipas?',
+                          'it': 'Sostituire il profilo della ventola?',
+                          'ja': 'ファンプロファイルを置き換えますか？',
+                          'ko': '팬 프로필을 바꾸시겠습니까?',
+                          'ms': 'Gantikan profil kipas?',
+                          'nl': 'Ventilatorprofiel vervangen?',
+                          'no': 'Erstatte vifteprofil?',
+                          'pl': 'Zastąpić profil wentylatora?',
+                          'pt': 'Substituir o perfil de ventoinha?',
+                          'pt-BR': 'Substituir o perfil de ventoinha?',
+                          'ro': 'Înlocuiți profilul ventilatorului?',
+                          'ru': 'Заменить профиль вентилятора?',
+                          'sv': 'Ersätta fläktprofil?',
+                          'th': 'แทนที่โปรไฟล์พัดลมหรือไม่?',
+                          'tr': 'Fan profili değiştirilsin mi?',
+                          'uk': 'Замінити профіль вентилятора?',
+                          'vi': 'Thay thế hồ sơ quạt?',
+                          'zh-CN': '替换风扇配置？',
+                          'zh-TW': '取代風扇設定檔？'},
+ 'Reserved profile name': {'bg': 'Запазено име на профил',
+                           'cs': 'Vyhrazený název profilu',
+                           'da': 'Reserveret profilnavn',
+                           'de': 'Reservierter Profilname',
+                           'el': 'Δεσμευμένο όνομα προφίλ',
+                           'en': 'Reserved profile name',
+                           'es': 'Nombre de perfil reservado',
+                           'es-419': 'Nombre de perfil reservado',
+                           'fi': 'Varattu profiilin nimi',
+                           'fr': 'Nom de profil réservé',
+                           'hu': 'Foglalt profilnév',
+                           'id': 'Nama profil dicadangkan',
+                           'it': 'Nome del profilo riservato',
+                           'ja': '予約済みのプロファイル名',
+                           'ko': '예약된 프로필 이름',
+                           'ms': 'Nama profil dikhaskan',
+                           'nl': 'Gereserveerde profielnaam',
+                           'no': 'Reservert profilnavn',
+                           'pl': 'Zastrzeżona nazwa profilu',
+                           'pt': 'Nome de perfil reservado',
+                           'pt-BR': 'Nome de perfil reservado',
+                           'ro': 'Nume de profil rezervat',
+                           'ru': 'Зарезервированное имя профиля',
+                           'sv': 'Reserverat profilnamn',
+                           'th': 'ชื่อโปรไฟล์ที่สงวนไว้',
+                           'tr': 'Ayrılmış profil adı',
+                           'uk': 'Зарезервована назва профілю',
+                           'vi': 'Tên hồ sơ dành riêng',
+                           'zh-CN': '保留的配置名称',
+                           'zh-TW': '保留的設定檔名稱'},
+ 'Retry': {'bg': 'Повторен опит',
+           'cs': 'Zkusit znovu',
+           'da': 'Prøv igen',
+           'de': 'Erneut versuchen',
+           'el': 'Επανάληψη',
+           'en': 'Retry',
+           'es': 'Reintentar',
+           'es-419': 'Reintentar',
+           'fi': 'Yritä uudelleen',
+           'fr': 'Réessayer',
+           'hu': 'Újrapróbálás',
+           'id': 'Coba lagi',
+           'it': 'Riprova',
+           'ja': '再試行',
+           'ko': '다시 시도',
+           'ms': 'Cuba lagi',
+           'nl': 'Opnieuw proberen',
+           'no': 'Prøv igjen',
+           'pl': 'Ponów',
+           'pt': 'Tentar novamente',
+           'pt-BR': 'Tentar novamente',
+           'ro': 'Reîncearcă',
+           'ru': 'Повторить',
+           'sv': 'Försök igen',
+           'th': 'ลองอีกครั้ง',
+           'tr': 'Yeniden dene',
+           'uk': 'Повторити',
+           'vi': 'Thử lại',
+           'zh-CN': '重试',
+           'zh-TW': '重試'},
+ 'Update fan helper': {'bg': 'Обновете помощника за вентилаторите',
+                       'cs': 'Aktualizujte pomocníka ventilátorů',
+                       'da': 'Opdater blæserhjælperen',
+                       'de': 'Installierten Lüfterhelfer aktualisieren',
+                       'el': 'Ενημερώστε τον βοηθό ανεμιστήρων',
+                       'en': 'Update fan helper',
+                       'es': 'Actualiza el asistente de ventiladores instalado',
+                       'es-419': 'Actualiza el asistente de ventiladores instalado',
+                       'fi': 'Päivitä tuulettimen apuohjelma',
+                       'fr': 'Mettez à jour l’assistant des ventilateurs',
+                       'hu': 'Frissítse a ventilátorsegédet',
+                       'id': 'Perbarui pembantu kipas',
+                       'it': 'Aggiorna l’assistente delle ventole',
+                       'ja': 'ファンヘルパーを更新してください',
+                       'ko': '팬 도우미를 업데이트하세요',
+                       'ms': 'Kemas kini pembantu kipas',
+                       'nl': 'Werk de ventilatorhelper bij',
+                       'no': 'Oppdater viftehjelperen',
+                       'pl': 'Zaktualizuj pomocnika wentylatorów',
+                       'pt': 'Atualize o assistente de ventoinhas instalado',
+                       'pt-BR': 'Atualize o assistente de ventoinhas instalado',
+                       'ro': 'Actualizați asistentul ventilatoarelor',
+                       'ru': 'Обновите помощник управления вентиляторами',
+                       'sv': 'Uppdatera fläkthjälparen',
+                       'th': 'อัปเดตตัวช่วยพัดลม',
+                       'tr': 'Fan yardımcısını güncelleyin',
+                       'uk': 'Оновіть помічник керування вентиляторами',
+                       'vi': 'Cập nhật trình hỗ trợ quạt',
+                       'zh-CN': '请更新风扇助手',
+                       'zh-TW': '請更新風扇助手'},
+ 'temperature reading unavailable': {'bg': 'няма данни за температурата',
+                                     'cs': 'údaj o teplotě není dostupný',
+                                     'da': 'temperaturmåling utilgængelig',
+                                     'de': 'Temperaturwert nicht verfügbar',
+                                     'el': 'μη διαθέσιμη ένδειξη θερμοκρασίας',
+                                     'en': 'temperature reading unavailable',
+                                     'es': 'lectura de temperatura no disponible',
+                                     'es-419': 'lectura de temperatura no disponible',
+                                     'fi': 'lämpötilatietoa ei ole saatavilla',
+                                     'fr': 'température indisponible',
+                                     'hu': 'hőmérsékleti adat nem érhető el',
+                                     'id': 'pembacaan suhu tidak tersedia',
+                                     'it': 'lettura della temperatura non disponibile',
+                                     'ja': '温度を読み取れません',
+                                     'ko': '온도 값을 읽을 수 없음',
+                                     'ms': 'bacaan suhu tidak tersedia',
+                                     'nl': 'temperatuurmeting niet beschikbaar',
+                                     'no': 'temperaturmåling utilgjengelig',
+                                     'pl': 'odczyt temperatury niedostępny',
+                                     'pt': 'leitura de temperatura indisponível',
+                                     'pt-BR': 'leitura de temperatura indisponível',
+                                     'ro': 'citirea temperaturii nu este disponibilă',
+                                     'ru': 'показания температуры недоступны',
+                                     'sv': 'temperaturavläsning saknas',
+                                     'th': 'ไม่สามารถอ่านอุณหภูมิได้',
+                                     'tr': 'sıcaklık verisi kullanılamıyor',
+                                     'uk': 'показники температури недоступні',
+                                     'vi': 'không đọc được nhiệt độ',
+                                     'zh-CN': '无法读取温度',
+                                     'zh-TW': '無法讀取溫度'}}
+)
+
+INTERFACE_TRANSLATIONS.update({'Apply profile': {'bg': 'Прилагане на профил',
+                   'cs': 'Použít profil',
+                   'da': 'Anvend profil',
+                   'de': 'Profil anwenden',
+                   'el': 'Εφαρμογή προφίλ',
+                   'en': 'Apply profile',
+                   'es': 'Aplicar perfil',
+                   'es-419': 'Aplicar perfil',
+                   'fi': 'Käytä profiilia',
+                   'fr': 'Appliquer le profil',
+                   'hu': 'Profil alkalmazása',
+                   'id': 'Terapkan profil',
+                   'it': 'Applica profilo',
+                   'ja': 'プロファイルを適用',
+                   'ko': '프로필 적용',
+                   'ms': 'Gunakan profil',
+                   'nl': 'Profiel toepassen',
+                   'no': 'Bruk profil',
+                   'pl': 'Zastosuj profil',
+                   'pt': 'Aplicar perfil',
+                   'pt-BR': 'Aplicar perfil',
+                   'ro': 'Aplică profilul',
+                   'ru': 'Применить профиль',
+                   'sv': 'Tillämpa profil',
+                   'th': 'ใช้โปรไฟล์',
+                   'tr': 'Profili uygula',
+                   'uk': 'Застосувати профіль',
+                   'vi': 'Áp dụng hồ sơ',
+                   'zh-CN': '应用配置',
+                   'zh-TW': '套用設定檔'}})

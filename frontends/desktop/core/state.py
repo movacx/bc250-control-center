@@ -436,6 +436,8 @@ class DashboardState:
     umr_ready: bool = False
 
     pwm_ready: bool = False
+    fan_rpm_known: bool = False
+    fan_duty_known: bool = False
     pump_fan_rpm: int = 0
     pump_fan_duty_percent: int = 0
     fan_mode: str = "Not detected"
@@ -870,6 +872,8 @@ class DashboardState:
             umr_ready=bool(tools.get("umr")),
             pwm_ready=fan_view.pwm_ready,
             pump_fan_rpm=fan_view.rpm,
+            fan_rpm_known=fan_view.rpm_known,
+            fan_duty_known=fan_view.duty_known,
             pump_fan_duty_percent=fan_view.duty_percent,
             fan_mode=fan_view.mode,
             fan_owner=_fan_owner(fan, cache) if fan else "",

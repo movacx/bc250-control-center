@@ -41,8 +41,8 @@ def _labels(page, key):
 def test_sections_keep_their_old_keys_and_gain_hardware_and_console(qtbot, tmp_path):
     page, _settings = _page(qtbot, tmp_path)
     assert page.section_order == [
-        "general", "appearance", "hardware", "console",
-        "telemetry", "security", "reports", "diagnostics", "about",
+        "general", "appearance", "console", "hardware",
+        "telemetry", "diagnostics", "reports", "about",
     ]
 
 

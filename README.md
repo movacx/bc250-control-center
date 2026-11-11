@@ -5,7 +5,7 @@ Set up, tune and monitor the AMD BC-250 on Linux from the desktop, a terminal or
 It covers the GPU governor, CPU tuning, Compute Units, fans, memory, BIOS update media, upscaling and system preparation for the supported distributions. The interfaces share application services, hardware limits and privileged helpers. An optional Decky plugin brings the everyday controls to Steam's Game Mode.
 
 <p align="center">
-  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard" width="100%"></a>
+  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="assets/screenshots/demo.gif" alt="BC250 Control Center dashboard" width="100%"></a>
 </p>
 
 <p align="center">

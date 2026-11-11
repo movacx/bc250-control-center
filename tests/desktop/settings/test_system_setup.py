@@ -1779,7 +1779,7 @@ def test_steamos_takes_mitigations_and_smt_but_not_the_cu_unlock(sandbox):
 
 def test_only_the_reviewed_arguments_exist(sandbox):
     sandbox.grub()
-    with pytest.raises(SetupError, match="Only mitigations=off, nosmt, loglevel=0 and amdgpu.bc250_cc_write_mode=3"):
+    with pytest.raises(SetupError, match="Only mitigations=off, nosmt, loglevel=0 and the BC-250 amdgpu switches"):
         kernel_args.apply(sandbox.host, ["init=/bin/sh"])
     with pytest.raises(SetupError, match="Only mitigations=off"):
         kernel_args.apply(sandbox.host, ["amdgpu.bc250_cc_write_mode=2"])
@@ -1879,6 +1879,78 @@ def test_taking_the_unlock_out_works_even_on_a_kernel_that_no_longer_has_the_par
     assert kernel_args.status(sandbox.host)["cu_unlock"]["supported"] is False
     kernel_args.apply(sandbox.host, [])  # removing is always allowed
     assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
+
+
+# ------------------------------------ the BC-250 kernel's other amdgpu switches
+
+GATED = (
+    ("amdgpu.bc250_hdmi21=0", "bc250_hdmi21"),
+    ("amdgpu.cs_relink_ms=0", "cs_relink_ms"),
+)
+
+
+def _put_parameter(sandbox, name, value="1"):
+    sandbox.put(kernel_args.PARAMETER_DIRECTORY + name, value + "\n")
+
+
+@pytest.mark.parametrize("argument,name", GATED)
+def test_a_kernel_without_the_switch_is_never_offered_it(sandbox, argument, name):
+    sandbox.grub()
+    status = kernel_args.status(sandbox.host)
+    assert status["parameters"][argument] == {"supported": False}
+    with pytest.raises(SetupError, match=f"no amdgpu.{name} parameter"):
+        kernel_args.apply(sandbox.host, [argument])
+    assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
+
+
+@pytest.mark.parametrize("argument,name", GATED)
+def test_a_kernel_with_the_switch_takes_it_and_gives_it_back(sandbox, argument, name):
+    sandbox.grub()
+    _put_parameter(sandbox, name)
+    assert kernel_args.status(sandbox.host)["parameters"][argument] == {"supported": True}
+    applied = kernel_args.apply(sandbox.host, [argument])
+    assert argument in sandbox.host.read(kernel_args.GRUB_DROPIN)
+    assert applied["arguments"][argument]["managed"] is True
+    kernel_args.apply(sandbox.host, [])
+    assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
+
+
+def test_the_scheduler_policy_needs_no_bc250_parameter(sandbox):
+    sandbox.grub()
+    applied = kernel_args.apply(sandbox.host, [kernel_args.SCHED_POLICY])
+    assert "amdgpu.sched_policy=2" in sandbox.host.read(kernel_args.GRUB_DROPIN)
+    assert applied["arguments"][kernel_args.SCHED_POLICY]["managed"] is True
+
+
+def test_a_scheduler_policy_the_owner_chose_is_never_overridden(sandbox):
+    sandbox.grub()
+    sandbox.put(
+        kernel_args.GRUB_CONFIG,
+        "GRUB_DEFAULT=0\nGRUB_CMDLINE_LINUX_DEFAULT='quiet amdgpu.sched_policy=0'\n",
+    )
+    assert kernel_args.status(sandbox.host)["arguments"][kernel_args.SCHED_POLICY]["external"] is True
+    with pytest.raises(SetupError, match="outside Control Center"):
+        kernel_args.apply(sandbox.host, [kernel_args.SCHED_POLICY])
+
+
+@pytest.mark.parametrize("argument", [kernel_args.SCHED_POLICY, *[a for a, _n in GATED]])
+def test_steamos_is_not_offered_the_bc250_kernel_switches(argument):
+    assert argument not in kernel_args.STEAMOS_ARGUMENTS
+    assert argument in kernel_args.ARGUMENTS
+
+
+def test_the_desktop_bridge_takes_the_new_switches_in_a_fixed_order():
+    from bc250cc.infrastructure.system_setup import command
+
+    text = command(
+        "kernel-options-set",
+        kernel_options=("amdgpu.cs_relink_ms=0", "amdgpu.sched_policy=2", "amdgpu.bc250_hdmi21=0", "nosmt"),
+    )
+    assert (
+        "--kernel-options nosmt,amdgpu.sched_policy=2,amdgpu.bc250_hdmi21=0,amdgpu.cs_relink_ms=0" in text
+    )
+    with pytest.raises(ValueError):
+        command("kernel-options-set", kernel_options=("amdgpu.sched_policy=0",))
 
 
 def test_the_desktop_bridge_passes_only_the_reviewed_options():

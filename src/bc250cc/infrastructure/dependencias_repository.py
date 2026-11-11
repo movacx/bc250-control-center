@@ -4,6 +4,7 @@ import shlex
 import shutil
 import subprocess
 import time
+from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from contextlib import suppress
 from copy import deepcopy
 from pathlib import Path
@@ -139,6 +140,11 @@ from bc250cc.infrastructure.governor_install_shell import (
     oberon_install_command,
 )
 from bc250cc.infrastructure.gpu_driver_probe import gpu_driver_state
+from bc250cc.infrastructure.directmesh import (
+    directmesh_state, select_directmesh_release, build_directmesh_install_command,
+    build_directmesh_check_command, build_directmesh_uninstall_command,
+    build_directmesh_releases_command,
+)
 from bc250cc.infrastructure.helixsr import (
     add_helixsr_folder,
     add_optiscaler_folder,
@@ -149,6 +155,11 @@ from bc250cc.infrastructure.helixsr import (
     build_helixsr_remove_command,
     forget_helixsr_folder,
     helixsr_state,
+    install_helixsr_bridge,
+    build_helixsr_upgrade_command,
+    forget_helixsr_bridge_games,
+    remove_helixsr_bridge,
+    rollback_helixsr_bridge,
     install_helixsr_game,
     install_helixsr_optiscaler,
     install_helixsr_scaler,
@@ -535,6 +546,9 @@ class DependenciasRepository(SteamosDependenciesMixin):
         for key in ('native', 'ge', 'slr'):
             labels[f'proton-{key}'] = 'Install BC-250 Proton for Arch/CachyOS'
             labels[f'remove-proton-{key}'] = 'Remove BC-250 Proton for Arch/CachyOS'
+        for key in ('fixes', 'paccache', 'ch7218'):
+            labels[f'extra-{key}'] = 'Install BC-250 extra for Arch/CachyOS'
+            labels[f'remove-extra-{key}'] = 'Remove BC-250 extra for Arch/CachyOS'
         if action not in labels:
             raise ValueError('Unsupported CachyOS BC-250 action.')
         return self._abrir_terminal(
@@ -636,6 +650,19 @@ class DependenciasRepository(SteamosDependenciesMixin):
         # case: OptiScaler Client names games added by hand "Manual_...".
         verb, separator, game = action.partition(':')
         action = verb.lower() + separator + game.strip()
+        if action.startswith('bridge_install:'):
+            parts = action.split(':')
+            if len(parts) != 3:
+                raise ValueError('Invalid HelixSR bridge action.')
+            result = install_helixsr_bridge(parts[1], parts[2])
+            self.estado_herramientas_cache = None
+            return result
+        for prefix, operation in (('bridge_remove:', remove_helixsr_bridge),
+                                  ('bridge_rollback:', rollback_helixsr_bridge)):
+            if action.startswith(prefix):
+                result = operation(action[len(prefix):])
+                self.estado_herramientas_cache = None
+                return result
         if action.startswith('forget_folder:'):
             result = forget_helixsr_folder(action.partition(':')[2])
             self.estado_herramientas_cache = None
@@ -646,6 +673,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             self.estado_herramientas_cache = None
             return result
         if action == 'scan':
+            forget_helixsr_bridge_games()
             result = scan_helixsr_games()
             self.estado_herramientas_cache = None
             return {'games': len(result)}
@@ -690,22 +718,27 @@ class DependenciasRepository(SteamosDependenciesMixin):
             self.estado_herramientas_cache = None
             return result
         if action.startswith('upgrade:'):
-            # The newer release in one step: picked, then installed in the terminal.
-            select_helixsr_release(action.partition(':')[2])
+            # The newer release in one step. The pick is written by the
+            # terminal once the release is installed: a cancelled or failed
+            # install leaves the installed release, and its games, in place.
+            if not helixsr_state().get('installer_available'):
+                raise RuntimeError("HelixSR's setup runs on x86_64 Linux only.")
+            command = build_helixsr_upgrade_command(action.partition(':')[2])
             self.estado_herramientas_cache = None
-            action = 'install'
+            return self._abrir_terminal(command, 'HelixSR · install')
         state = helixsr_state()
         if action == 'install':
             if not state.get('installer_available'):
                 raise RuntimeError("HelixSR's setup runs on x86_64 Linux only.")
             command, title = build_helixsr_install_command(), 'HelixSR · install'
-        elif action == 'network':
+        elif action == 'network' or action.startswith('network:'):
             if not state.get('current'):
                 raise RuntimeError('Install HelixSR first.')
-            command, title = build_helixsr_network_command(), 'HelixSR · network files'
+            options = tuple(filter(None, action.partition(':')[2].split(',')))
+            command, title = (build_helixsr_network_command(options=options) if options else build_helixsr_network_command()), 'HelixSR · network files'
         elif action == 'fg':
-            if not state.get('scaler_supported'):
-                raise ActionNeeded('Install HelixSR 2.0 or newer and build its network first.')
+            if not state.get('scaler_supported') or (state.get('layout') == '3' and not state.get('capabilities', {}).get('fg')):
+                raise ActionNeeded('Frame generation is not available for this release.')
             command, title = build_helixsr_fg_command(), 'HelixSR · frame generation'
         elif action == 'releases':
             command, title = build_helixsr_releases_command(), 'HelixSR · releases'
@@ -718,8 +751,39 @@ class DependenciasRepository(SteamosDependenciesMixin):
         self.estado_herramientas_cache = None
         return self._abrir_terminal(command, title)
 
+    def gestionar_directmesh(self, action: str) -> object:
+        info = self._os_repository().info
+        platform = dict(family=info.family, distro_id=info.distro_id,
+                        version_id=str(read_os_release().get('VERSION_ID', '')).strip())
+        if action.startswith('select:'):
+            result = select_directmesh_release(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('upgrade:'):
+            select_directmesh_release(action.partition(':')[2])
+            action = 'install'
+        state = directmesh_state(**platform)
+        if not state.get('supported'):
+            raise RuntimeError(state.get('reason') or 'DirectMesh is unsupported.')
+        if action == 'install':
+            command = build_directmesh_install_command(**platform)
+        elif action == 'releases':
+            command = build_directmesh_releases_command()
+        elif action == 'check':
+            command = build_directmesh_check_command()
+        elif action == 'uninstall':
+            command = build_directmesh_uninstall_command(family=info.family, distro_id=info.distro_id)
+        else:
+            raise ValueError('Unsupported DirectMesh action.')
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(command, 'DirectMesh · ' + action)
+
     def gestionar_gfx1013_fedora(self, action: str) -> object:
         """Run the official upstream GFX1013 lifecycle on mutable Fedora."""
+        # BC-250 hardware actions stop here on a computer without one;
+        # checking state and removing stay available.
+        if str(action or '').strip().lower() not in {'status', 'uninstall', 'remove', 'stop', 'disable'}:
+            require_bc250_hardware()
         os_repository = self._os_repository()
         state = self._gfx1013_compute_state(os_repository)
         action = str(action or '').strip().lower()
@@ -742,6 +806,10 @@ class DependenciasRepository(SteamosDependenciesMixin):
 
     def gestionar_gfx1013_bazzite(self, action: str) -> object:
         """Run the checksum-pinned Bazzite 44 async-compute release."""
+        # BC-250 hardware actions stop here on a computer without one;
+        # checking state and removing stay available.
+        if str(action or '').strip().lower() not in {'status', 'uninstall', 'remove', 'stop', 'disable'}:
+            require_bc250_hardware()
         os_repository = self._os_repository()
         state = self._gfx1013_compute_state(os_repository)
         action = str(action or '').strip().lower()
@@ -934,6 +1002,10 @@ class DependenciasRepository(SteamosDependenciesMixin):
 
     def gestionar_gfx1013_source(self, action: str) -> object:
         """Build, install, switch or remove the independent GFX1013 fix."""
+        # BC-250 hardware actions stop here on a computer without one;
+        # checking state and removing stay available.
+        if str(action or '').strip().lower() not in {'status', 'uninstall', 'remove', 'stop', 'disable'}:
+            require_bc250_hardware()
         os_repository = self._os_repository()
         info = os_repository.info
         action = str(action or '').strip().lower()
@@ -963,6 +1035,10 @@ class DependenciasRepository(SteamosDependenciesMixin):
 
     def gestionar_kernel_debian(self, action: str) -> object:
         """Install the newer kernel and Mesa still missing from the Debian backports, in the terminal."""
+        # BC-250 hardware actions stop here on a computer without one;
+        # checking state and removing stay available.
+        if str(action or '').strip().lower() not in {'status', 'uninstall', 'remove', 'stop', 'disable'}:
+            require_bc250_hardware()
         info = self._os_repository().info
         action = str(action or '').strip().lower()
         state = debian_kernel_upgrade_state(
@@ -1313,6 +1389,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'gfx1013_compute': gfx1013_compute,
             'fsr4': fsr4,
             'helixsr': helixsr,
+            'directmesh': repository_probe['directmesh'],
             'tools_dir': str(self._tool_dir()),
             'optional_dependencies': optional_dependencies,
             'prepare_components': component_capabilities,
@@ -1544,6 +1621,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
         )
         fsr4 = safe(opticlient_state, {'installed': False, 'installer_available': False})
         helixsr = safe(helixsr_state, {'installed': False, 'installer_available': False})
+        directmesh = safe(lambda: directmesh_state(family=getattr(getattr(os_repository, 'info', None), 'family', ''), distro_id=getattr(getattr(os_repository, 'info', None), 'distro_id', ''), version_id=str(read_os_release().get('VERSION_ID', '')).strip()), {'supported': False})
         return {
             'smu_path': smu_path,
             'smu_exists': bool(smu_path and safe(lambda: Path(smu_path).exists(), False)),
@@ -1560,6 +1638,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'gfx1013_compute': gfx1013_compute,
             'fsr4': fsr4,
             'helixsr': helixsr,
+            'directmesh': directmesh,
         }
 
     def _probe_platform_inventory(self, *, is_steamos, expected_steamos_repo):
@@ -1721,6 +1800,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
         desactivar_conflictos=False,
         governor_preference=None,
     ):
+        require_bc250_hardware()  # nothing to change on a computer without a BC-250
         governor_context = self._configured_gpu_governor(governor_preference)
         selected = str(governor_context['selected'])
         preflight = getattr(self, '_require_openrc_governor_preflight', None)
@@ -1754,6 +1834,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
         governor is prepared and finally its service is enabled and verified.
         A failure in any step aborts the script before the following step runs.
         """
+        require_bc250_hardware()  # nothing to change on a computer without a BC-250
         selected = normalize_governor_preference(governor)
         if selected not in {CYAN_GOVERNOR, OBERON_GOVERNOR}:
             raise ValueError('A supported GPU governor must be selected.')

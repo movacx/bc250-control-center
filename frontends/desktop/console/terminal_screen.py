@@ -201,6 +201,15 @@ class TerminalScreen:
                 elif len(line) > columns:
                     buffer.lines[index] = line[:columns]
             while len(buffer.lines) > rows:
+                # Blank rows below the cursor go first, as xterm does. Taking
+                # the top row instead pushed the prompt into the scrollback
+                # while a shell redrew it in place, so every step of a resize
+                # drag left one more copy of the prompt above it.
+                if len(buffer.lines) - 1 > buffer.cursor.y and not any(
+                    cell.text.strip() for cell in buffer.lines[-1]
+                ):
+                    buffer.lines.pop()
+                    continue
                 # Drop from the top so the most recent output stays visible,
                 # and keep it in the scrollback of the primary screen.
                 dropped = buffer.lines.pop(0)

@@ -2,6 +2,7 @@ import re
 import shlex
 import subprocess
 import time
+from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from pathlib import Path
 
 from bc250cc.domain.gpu.oberon import (
@@ -641,6 +642,10 @@ class GPURepository:
         desactivar_conflictos=False,
         reset_cyan_fix_flags=False,
     ):
+        # BC-250 hardware actions stop here on a computer without one;
+        # checking state and removing stay available.
+        if str(accion or '').strip().lower() not in {'status', 'uninstall', 'remove', 'stop', 'disable'}:
+            require_bc250_hardware()
         selected = self._selected_gpu_governor()
         init_manager = detect_init_manager()
         if not init_manager.persistence_supported:
@@ -827,16 +832,18 @@ class GPURepository:
                 f"sudo systemctl unmask {service};",
                 "sudo systemctl daemon-reload;",
                 f"sudo systemctl reset-failed {service} 2>/dev/null || true;",
-                f"sudo systemctl enable --now {service};",
+                "activation_status=0;",
+                f"sudo systemctl enable --now {service} || activation_status=$?;",
             )
         )
         if selected == CYAN_GOVERNOR:
-            steps.append(f"sudo systemctl restart {service};")
+            steps.append(f'if [ "$activation_status" -eq 0 ]; then sudo systemctl restart {service} || activation_status=$?; fi;')
         steps.extend(
             (
-                f"if ! systemctl is-active --quiet {service}; then",
+                f'if [ "$activation_status" -ne 0 ] || ! systemctl is-active --quiet {service}; then',
                 f"  systemctl status {service} --no-pager --full || true;",
                 f"  journalctl -b -u {service} -n 80 --no-pager || true;",
+                '  if [ "$activation_status" -ne 0 ]; then exit "$activation_status"; fi;',
                 "  exit 1;",
                 "fi;",
             )
@@ -1465,6 +1472,7 @@ class GPURepository:
 
     def _apply_cyan_voltage_edit(self, action, *arguments):
         """Edit Cyan through the root-owned helper and preserve its live range."""
+        require_bc250_hardware()  # nothing to change on a computer without a BC-250
         service = self._GOVERNOR_SERVICE
         if not self._service_is_active(service):
             raise RuntimeError(

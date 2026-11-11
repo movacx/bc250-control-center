@@ -52,7 +52,8 @@ def test_dashboard_fan_rejects_nonfinite_rpm_pwm_and_fallback():
 
     assert view.rpm == 0
     assert view.duty_percent == 0
-    assert view.label == "fallback"
+    assert view.label == "Pump Fan"
+    assert not view.rpm_known
 
 
 def test_dashboard_activity_normalization_ignores_invalid_rows_and_truncates():
@@ -66,3 +67,34 @@ def test_dashboard_activity_normalization_ignores_invalid_rows_and_truncates():
     assert len(result) == 2
     assert result[0] == ("A" * 78, "12:34:56", "warning")
     assert result[1][0] == "System event"
+
+
+def test_stopped_pump_does_not_inherit_another_fans_rpm():
+    fan = {"sensores": {"fans": [{"label": "Pump Fan", "rpm": 0, "pwm": 128}]}}
+    view = present_dashboard_fan(fan, performance_rpm=2003)
+    assert (view.label, view.rpm, view.duty_percent) == ("Pump Fan", 0, 50)
+    assert view.rpm_known and not view.needs_fallback
+
+
+def test_legacy_pump_duty_alone_does_not_claim_an_unrelated_speed():
+    view = present_dashboard_fan({"pwm2": 128}, performance_rpm=2003)
+    assert view.duty_known and view.duty_percent == 50
+    assert not view.rpm_known
+
+
+def test_dashboard_fan_reads_the_pump_header_not_the_first_j4003_one():
+    fan = {"sensores": {"fans": [
+        {"label": "J4003 Fan 5 · BIOS Fan 5", "rpm": 0, "pwm": 127},
+        {"label": "CPU_FAN1 / J4003 Fan 1 · BIOS Fan 1", "rpm": 2090, "pwm": 166},
+    ]}}
+    view = present_dashboard_fan(fan, performance_rpm=None)
+    assert view.rpm == 2090
+    assert "CPU_FAN1" in view.label
+
+
+def test_dashboard_fan_prefers_a_spinning_j4003_header_when_no_pump_is_named():
+    fan = {"sensores": {"fans": [
+        {"label": "J4003 Fan 5", "rpm": 0, "pwm": 127},
+        {"label": "J4003 Fan 2", "rpm": 1800, "pwm": 120},
+    ]}}
+    assert present_dashboard_fan(fan, performance_rpm=None).rpm == 1800

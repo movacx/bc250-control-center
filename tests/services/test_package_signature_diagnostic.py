@@ -32,7 +32,9 @@ class PackageSignatureDiagnostic(unittest.TestCase):
 
     def test_real_404_and_busy_database_keep_their_diagnoses(self):
         for detail, expected in (
-            ('error: The requested URL returned error: 404\n'
+            # Only the GitHub-hosted repository is an upstream rebuild; a 404
+            # with no host named is nothing the catalog can place.
+            ("error: failed retrieving file 'bc250.db' from github.com : The requested URL returned error: 404\n"
              'error: failed to synchronize all databases', 'BC250-UPSTREAM-404'),
             ('error: failed to synchronize all databases (unable to lock database)', 'BC250-PKG-001'),
         ):

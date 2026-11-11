@@ -113,7 +113,7 @@ def test_each_workflow_starts_from_a_clean_screen(qtbot, panel):
 def test_a_successful_workflow_reports_completion(qtbot, panel):
     panel.set_auto_hide(False)
     assert run_and_wait(qtbot, panel, "exit 0") == 0
-    assert "·" in panel.state_label.text()
+    # The tab shows the outcome as its tone, not as a word.
     assert panel.state_label.property("tone") == "ok"
 
 
@@ -126,7 +126,6 @@ def test_a_successful_workflow_withdraws_on_its_own(qtbot, panel):
 def test_a_failed_workflow_stays_open_with_its_exit_code(qtbot, panel):
     panel.set_auto_hide(True)
     assert run_and_wait(qtbot, panel, "echo se rompio; exit 23") == 23
-    assert "23" in panel.state_label.text()
     assert panel.state_label.property("tone") == "failed"
     # Give the auto-hide the time it would have had on success.
     qtbot.wait(AUTO_HIDE_DELAY_MS + 400)
@@ -310,7 +309,6 @@ def test_a_failure_in_a_background_tab_says_so_without_stealing_the_screen(qtbot
 
     assert panel.active_tab is foreground
     assert background.property("tone") == "failed"
-    assert "9" in background.state_label.text()
     panel.shutdown()
 
 
@@ -365,7 +363,8 @@ def test_retranslating_relabels_the_header(panel):
     """Stop keeps a word; the icon-only actions carry theirs in the tooltip."""
     panel.retranslate()
 
-    assert panel.stop_button.text().strip()
+    assert panel.stop_button.toolTip().strip()
+    assert not panel.stop_button.icon().isNull()
     for button in (panel.copy_button, panel.external_button, panel.hide_button):
         assert button.toolTip().strip()
         assert not button.icon().isNull()
@@ -473,7 +472,28 @@ def test_the_report_button_sends_the_output_and_the_code(qtbot, panel, monkeypat
     )
     run_and_wait(qtbot, panel, "echo 'Código de diagnóstico: BC250-TEST-001'; exit 3", title="Prueba")
     panel.report_button.click()
+    assert sent["workflow_details"]["exit_status"] == 3
+    assert sent["workflow_details"]["duration_seconds"] >= 0
     assert sent["opened_from"] == "Terminal"
     assert sent["code"] == "BC250-TEST-001"
     assert "BC250-TEST-001" in sent["terminal"]
     assert "Prueba" in sent["summary"]
+
+@pytest.mark.parametrize("outcome", ["stopped", "window_closed"])
+def test_interrupted_run_keeps_one_context_in_the_log(qtbot, panel, tmp_path, outcome):
+    import json
+
+    log = tmp_path / "workflow.log"
+    panel.window().current_page_key = "fans"
+    assert panel.run(["/bin/sleep", "30"], title="Check fan", log_file=str(log))
+    if outcome == "stopped":
+        with qtbot.waitSignal(panel.workflow_finished, timeout=5000):
+            panel._stop_workflow()
+    else:
+        panel.shutdown()
+    entries = [json.loads(row.removeprefix("BC250_CONTEXT ")) for row in log.read_text().splitlines()
+               if row.startswith("BC250_CONTEXT ")]
+    assert len(entries) == 1
+    assert (entries[0]["outcome"], entries[0]["page"]) == (outcome, "fans")
+    assert entries[0]["exit_status"] != 0 and entries[0]["duration_seconds"] >= 0
+    assert not panel.report_button.isVisibleTo(panel)

@@ -193,3 +193,20 @@ def test_the_terminal_says_up_front_what_is_already_there():
         'echo "    To prepare now: cpu_oc";',
     ]
     assert _presence_notes(frozenset({"umr"}), frozenset()) == ['echo "    To prepare now: umr";']
+
+
+@pytest.mark.parametrize(("component", "tool", "flag"), [("stress", "stress", "--version"), ("sensors", "sensors", "-v")])
+@pytest.mark.parametrize("family", ["debian", "arch", "steamos", "fedora", "alpine", "gentoo", "bazzite"])
+def test_working_tool_skips_package_manager_even_with_a_broken_package(tmp_path, component, tool, flag, family):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    calls = tmp_path / "package-manager-called"
+    _tool(bin_dir, tool, f'test "$1" = "{flag}"')
+    for name in ("apt-get", "sudo", "pacman", "dnf", "emerge", "apk", "rpm-ostree", "steamos-readonly"):
+        _tool(bin_dir, name, f'touch "{calls}"; exit 100')
+    result = subprocess.run(
+        ["bash", str(SCRIPTS / family / "prepare-dependencies.sh"), "--component", component],
+        env=_env(bin_dir, tmp_path), capture_output=True, text=True, timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+    assert not calls.exists()

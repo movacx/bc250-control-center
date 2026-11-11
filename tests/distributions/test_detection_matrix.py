@@ -34,7 +34,7 @@ FAMILY = {
     "opensuse_tumbleweed_latest": "unsupported", "oraclelinux_9": "fedora", "parrotsec_core_latest": "debian",
     "photon_5.0": "unsupported", "rockylinux_9": "fedora", "rockylinux_rockylinux_10": "fedora",
     "ubuntu_22.04": "ubuntu", "ubuntu_24.04": "ubuntu", "ubuntu_25.10": "ubuntu", "ubuntu_26.04": "ubuntu",
-    "voidlinux_voidlinux_latest": "unsupported",
+    "voidlinux_voidlinux_latest": "unsupported", "winux_11.26.11": "ubuntu",
 }
 
 
@@ -60,6 +60,9 @@ def test_ubuntu_and_its_derivatives_are_offered_the_ppa_with_their_ubuntu_releas
     state = mesa_desktop_state(
         family=info.family, distro_id=info.distro_id, mesa_version="25.2.8-0ubuntu0.24.04.4", fields=raw
     )
+    if name == "winux_11.26.11":
+        assert not state["offered"]
+        return
     assert (state["route"], state["action"]) == ("ppa", "mesa_ppa_install"), name
     assert state["codename"] == (raw.get("UBUNTU_CODENAME") or raw["VERSION_CODENAME"]), name
 

@@ -149,10 +149,69 @@ from PyQt6.QtGui import QImageReader
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtSvg import QSvgRenderer
 import psutil, pip, venv, ssl
-assert ssl.create_default_context().cert_store_stats()["x509_ca"] > 0, "CA certificates are missing"
+def _certificates_present():
+    # Python 3.14 on Fedora reads a hashed directory lazily, so the store
+    # reports 0 even though verification works: look at the files instead.
+    import os
+    if ssl.create_default_context().cert_store_stats()["x509_ca"] > 0:
+        return True
+    paths = ssl.get_default_verify_paths()
+    files = (paths.cafile, paths.openssl_cafile)
+    if any(item and os.path.isfile(item) and os.path.getsize(item) > 0 for item in files):
+        return True
+    directory = paths.capath or paths.openssl_capath
+    return bool(directory and os.path.isdir(directory) and any(os.scandir(directory)))
+assert _certificates_present(), "CA certificates are missing"
 assert tuple(map(int, pip.__version__.split(".")[:2])) >= (22, 3), "pip >=22.3 is required"
 formats = {bytes(fmt).decode("ascii", "ignore").lower() for fmt in QImageReader.supportedImageFormats()}
 assert "svg" in formats, "Qt SVG image plugin is missing"
+PY
+}
+
+# The same probes one by one, naming each that fails. The aggregate check
+# above once reported "the GUI runtime is still incomplete" on a Fedora whose
+# packages were all installed (R-1aad1216), and nothing said which import or
+# plugin was the one missing.
+explain_python_gui_runtime() {
+  python3 - <<'PY' 2>/dev/null
+import importlib
+
+failed = []
+def probe(name, check):
+    try:
+        check()
+    except Exception as exc:  # noqa: BLE001 - every failure is reported, none hidden
+        failed.append(f"{name}: {type(exc).__name__}: {exc}")
+
+probe("PyQt6.QtWidgets", lambda: importlib.import_module("PyQt6.QtWidgets"))
+probe("PyQt6.QtGui", lambda: importlib.import_module("PyQt6.QtGui"))
+probe("PyQt6.QtSvg", lambda: importlib.import_module("PyQt6.QtSvg"))
+for module in ("psutil", "pip", "venv"):
+    probe(module, lambda module=module: importlib.import_module(module))
+def certificates():
+    import ssl
+    import os
+    if ssl.create_default_context().cert_store_stats()["x509_ca"] > 0:
+        return
+    paths = ssl.get_default_verify_paths()
+    # A hashed directory is read lazily (Python 3.14 on Fedora): count files.
+    present = any(item and os.path.isfile(item) and os.path.getsize(item) > 0
+                  for item in (paths.cafile, paths.openssl_cafile))
+    directory = paths.capath or paths.openssl_capath
+    present = present or bool(directory and os.path.isdir(directory) and any(os.scandir(directory)))
+    assert present, "CA certificates are missing"
+probe("ssl", certificates)
+def pip_version():
+    import pip
+    assert tuple(map(int, pip.__version__.split(".")[:2])) >= (22, 3), f"pip {pip.__version__} is older than 22.3"
+probe("pip", pip_version)
+def svg_plugin():
+    from PyQt6.QtGui import QImageReader
+    formats = {bytes(fmt).decode("ascii", "ignore").lower() for fmt in QImageReader.supportedImageFormats()}
+    assert "svg" in formats, "Qt SVG image plugin is missing (qt6-svg / qt6-qtsvg / libqt6svg6)"
+probe("Qt SVG plugin", svg_plugin)
+for line in failed:
+    print(f"[ERROR]   {line}")
 PY
 }
 
@@ -296,12 +355,18 @@ fi
 if [[ "${BC250_SKIP_DEPENDENCY_INSTALL:-0}" != "1" && "$missing_python_deps_reboot_notice" -eq 0 ]]; then
   if [[ "$INSTALL_PROFILE" == "desktop" ]]; then
     if ! check_python_gui_runtime; then
-      echo "Error: the GUI runtime is still incomplete after dependency installation (PyQt6 QtSvg, SVG plugin, psutil, pip or venv)." >&2
-      echo "No installed application code was replaced. Repair the native packages and retry." >&2
+      # [ERROR] lines are the terminal's own explanation; "Error:" was not,
+      # so the installer's exit 2 read as a helper version mismatch.
+      echo "[ERROR] The GUI runtime is still incomplete after dependency installation. Probes that failed:" >&2
+      # The explainer must never abort this path (set -e): the closing line
+      # and the exit status matter more than the detail.
+      explain_python_gui_runtime >&2 || true
+      echo "[ERROR] No installed application code was replaced. Repair the native packages named above and run the installer again." >&2
       exit 2
     fi
   elif ! python3 -c 'import curses, psutil' >/dev/null 2>&1; then
-    echo "Error: the terminal runtime is still incomplete after dependency installation (curses or psutil)." >&2
+    echo "[ERROR] The terminal runtime is still incomplete after dependency installation (Python curses or psutil)." >&2
+    echo "[ERROR] No installed application code was replaced. Install those packages and run the installer again." >&2
     exit 2
   fi
   missing_python_deps=0
@@ -321,7 +386,7 @@ APP_BACKUP="${APP_DIR}.tree.previous.$$"
 VERSION_BACKUP="${APP_DIR}.VERSION.previous.$$"
 APP_SWAP_COMPLETE=0
 APP_HAD_VERSION=0
-APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations requirements-web.txt)
+APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations requirements-web.txt BUILD_REVISION BUILD_TYPE)
 LEGACY_COMPONENTS=(mvc)
 cleanup_application_swap() {
   local status=$?
@@ -399,6 +464,8 @@ for decky_runtime in plugin.json package.json main.py dist/index.js \
     "$APP_STAGE/integrations/decky/bc250-quick-access/$decky_runtime"
 done
 install -m644 "$ROOT_DIR/VERSION" "$APP_STAGE/VERSION"
+bash "$ROOT_DIR/packaging/scripts/build-revision.sh" "$ROOT_DIR" > "$APP_STAGE/BUILD_REVISION"
+bash "$ROOT_DIR/packaging/scripts/build-revision.sh" "$ROOT_DIR" --type > "$APP_STAGE/BUILD_TYPE"
 install -m644 "$ROOT_DIR/requirements-web.txt" "$APP_STAGE/requirements-web.txt"
 PYTHONPYCACHEPREFIX="$APP_STAGE/pycache" python3 -m compileall -q \
   "$APP_STAGE/src" "$APP_STAGE/frontends" "$APP_STAGE/privileged"
@@ -457,6 +524,7 @@ install_privileged_pwm_components() {
   local cyan_overlay_preflight_source="$ROOT_DIR/privileged/helpers/bc250-cyan-overlay-preflight"
   local cpu_smu_vendor_source="$ROOT_DIR/privileged/lib/bc250_smu_oc_vendor.zip"
   local governor_toml_source="$ROOT_DIR/privileged/lib/governor_toml.py"
+  local fan_engine_source="$ROOT_DIR/privileged/lib/bc250_fan_engine.py"
   local policy_source="$ROOT_DIR/privileged/policies/io.github.movacx.bc250-control-center.policy"
   local -a elevate=()
 
@@ -505,6 +573,7 @@ install_privileged_pwm_components() {
     "/usr/libexec/bc250-control-center/lib/system_setup_vram.py"
     "/usr/libexec/bc250-control-center/lib/acpi_payload.py"
     "/usr/libexec/bc250-control-center/lib/bc250_contract.py"
+    "/usr/libexec/bc250-control-center/lib/bc250_fan_engine.py"
     "$cu_helper_target"
     "$SYSTEM_PRIV_HELPER"
     "$SYSTEM_STEAMOS_GAME_HELPER"
@@ -556,7 +625,7 @@ install_privileged_pwm_components() {
     # by the group, causing every hardened helper to reject its own imports.
     "${elevate[@]}" install -d -m0755 /usr/libexec/bc250-control-center /usr/libexec/bc250-control-center/lib
     "${elevate[@]}" install -Dm755 "$system_setup_helper_source" /usr/libexec/bc250-control-center/bc250-system-setup-helper
-    for setup_module in system_setup_web_firewall.py system_setup_mdns.py system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py bc250_contract.py; do
+    for setup_module in system_setup_web_firewall.py system_setup_mdns.py system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py bc250_contract.py bc250_fan_engine.py; do
       "${elevate[@]}" install -Dm644 "$ROOT_DIR/privileged/lib/$setup_module" "/usr/libexec/bc250-control-center/lib/$setup_module"
     done
     "${elevate[@]}" install -Dm755 "$helper_source" "$SYSTEM_PRIV_HELPER"
@@ -627,6 +696,7 @@ install_privileged_pwm_components() {
     done
     for implementation_pair in \
       "$governor_toml_source:$SYSTEM_GOVERNOR_TOML_IMPLEMENTATION" \
+      "$fan_engine_source:/usr/libexec/bc250-control-center/lib/bc250_fan_engine.py" \
       "$cpu_smu_vendor_source:$SYSTEM_CPU_SMU_VENDOR"; do
       implementation_source_path="${implementation_pair%%:*}"
       implementation_installed_path="${implementation_pair#*:}"

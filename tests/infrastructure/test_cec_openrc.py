@@ -23,7 +23,11 @@ class CecOpenrcTests(unittest.TestCase):
                      'touch "$bc250_stage/out/LICENSE" "$bc250_stage/out/LICENSE.linux-cec-sys"']
             env = {**os.environ, 'XDG_CONFIG_HOME': str(config), 'XDG_DATA_HOME': str(root / 'data'),
                    'XDG_RUNTIME_DIR': str(root / 'run'), 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/fake'}
-            mocks = '''sudo() { :; }
+            # Every tool the scripts look for (cargo, gdbus, cec-ctl, ...) is
+            # taken as present: the test is about the OpenRC path, not about
+            # what this machine happens to have installed.
+            mocks = '''command() { if [ "${1:-}" = -v ]; then return 0; fi; builtin command "$@"; }
+sudo() { :; }
 rc-service() { echo "rc-service $*"; }
 rc-update() { echo "rc-update $*"; }
 systemctl() { echo 'UNEXPECTED SYSTEMD' >&2; return 99; }

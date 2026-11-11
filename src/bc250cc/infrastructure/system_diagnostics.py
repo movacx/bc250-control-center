@@ -414,6 +414,8 @@ def _steamos() -> str:
 
 def _graphics_stack() -> str:
     lines = [f"VK_ICD_FILENAMES: {os.environ.get('VK_ICD_FILENAMES') or '(not set)'}"]
+    for name in ("VK_DRIVER_FILES", "VK_ADD_DRIVER_FILES"):
+        lines.append(f"{name}: {os.environ.get(name) or '(not set)'}")
     manifests = sorted(glob.glob("/usr/share/vulkan/icd.d/*.json"))
     # Only an AMD driver can run on the BC-250: the others (asahi, broadcom,
     # intel...) filled half the section in every report, so they are named.

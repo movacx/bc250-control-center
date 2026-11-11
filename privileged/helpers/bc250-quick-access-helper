@@ -331,8 +331,9 @@ FAN_SYSTEM_PRESETS = {
     "boost": 204,
     "automatic": None,
 }
-SYSTEM_FAN_CHANNELS = tuple(range(3, 9))
-QAM_FAN_CHANNELS = (2, 3, 4, 5)
+QAM_FAN_CHANNELS = (1, 2, 3, 4, 5)
+# PWM2 may drive the main fan or an AIO pump; group presets leave it alone.
+SYSTEM_FAN_CHANNELS = (1, 3, 4, 5)
 QAM_FAN_MIN_PERCENT = 20
 QAM_FAN_MAX_PERCENT = 100
 # The shared contract's ladder, checked against it in load_contract() before
@@ -3260,7 +3261,7 @@ def _nct_sensor_score(sensor: pathlib.Path) -> tuple[int, int, int, str]:
     A machine can expose more than one NCT-compatible hwmon device.  Returning
     the lexically first directory could then control an unrelated Super-I/O.
     The board still needs a physical RPM-identification pass, but this ranking
-    selects the richest PWM 2–5 surface instead of trusting enumeration order.
+    selects the richest PWM 1–5 surface instead of trusting enumeration order.
     """
     try:
         selectable = sum(
@@ -3415,8 +3416,8 @@ def system_fan_channels(sensor: pathlib.Path | None = None) -> list[int]:
     # On the known BC-250 NCT layout, pwm6..8 often exist even when no fan is
     # wired to them and remain at zero/manual.  Touching those pseudo-channels
     # made one group operation fail and left the real system fans unchanged.
-    # Only expose channels currently driven by the controller.  Never include
-    # pwm2 (the pump), regardless of the hardware state.
+    # Only expose physical BC-250 channels currently driven by the controller.
+    # PWM2 (CPU_FAN1/J4003 F1) requires an explicit per-channel action.
     active: list[int] = []
     for channel in candidates:
         try:
@@ -3472,7 +3473,7 @@ def system_fan_preset_state(sensor: pathlib.Path | None = None) -> tuple[str | N
 
 
 def qam_fan_channel_state(sensor: pathlib.Path | None = None) -> list[dict[str, object]]:
-    """Return read-only state for the four explicitly selectable QAM channels.
+    """Return read-only state for the five explicitly selectable QAM channels.
 
     PWM2 was previously labelled as a pump from one observed wiring layout,
     but community BC-250 conversions are not wired uniformly.  The user has
@@ -3569,8 +3570,8 @@ def wait_for_sysfs_value(
 
 
 def _qam_fan_channel(channel_raw: str) -> int:
-    if re.fullmatch(r"[2-5]", str(channel_raw)) is None:
-        raise ValueError("channel must be PWM 2, 3, 4, or 5")
+    if re.fullmatch(r"[1-5]", str(channel_raw)) is None:
+        raise ValueError("channel must be PWM 1, 2, 3, 4, or 5")
     return int(channel_raw)
 
 
@@ -4403,7 +4404,7 @@ def main(argv: Sequence[str]) -> int:
         or (len(argv) == 6 and argv[1] in {"cu-table", "cu-save"})
     )
     if not valid_arity:
-        return fail("Usage: status | cpu-telemetry | qam-sensors | gddr6-sensors | gddr6-patch | gpu-profile <name> | gpu-safe-point <toml-mhz> | gpu-high-points <0|1> | gpu-service <enable|disable> | gpu-voltage-level <0-3> | gpu-voltage-custom <mhz=mv>... | gpu-compat <smu|kernel> <busy-flag|process|kernel> <0|1> <0|1> [drm|sysfs] | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-resume | fan-channel <2-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> [<temperature>] | cpu-scale <frequency> <scale> | cpu-service <install|remove> | vram-apply <mb> | ttm-status | ttm-apply <8|10|12|default>", 2)
+        return fail("Usage: status | cpu-telemetry | qam-sensors | gddr6-sensors | gddr6-patch | gpu-profile <name> | gpu-safe-point <toml-mhz> | gpu-high-points <0|1> | gpu-service <enable|disable> | gpu-voltage-level <0-3> | gpu-voltage-custom <mhz=mv>... | gpu-compat <smu|kernel> <busy-flag|process|kernel> <0|1> <0|1> [drm|sysfs] | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-resume | fan-channel <1-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> [<temperature>] | cpu-scale <frequency> <scale> | cpu-service <install|remove> | vram-apply <mb> | ttm-status | ttm-apply <8|10|12|default>", 2)
     action = argv[1]
     if action == "status" and len(argv) == 2:
         return status()

@@ -37,11 +37,22 @@ CACHYOS_BC250_PROTON_PACKAGES = {
     "ge": "protonge-latest-bc250",
     "slr": "proton-cachyos-slr-bc250",
 }
+#: Small optional packages of the same repository: corrections for other
+#: packages, and a pacman cache cleanup after every update. Fixed names, too.
+CACHYOS_BC250_EXTRA_PACKAGES = {
+    "fixes": "bc250-fixes",
+    "paccache": "bc250-paccache-cleanup",
+    # Only the updater and its firmware images: flashing the UGREEN adapter
+    # stays a manual command, as upstream documents it.
+    "ch7218": "bc250-ch7218-fw",
+}
 CACHYOS_BC250_KERNEL_ACTIONS = {"kernel", "mesa", "full"}
 CACHYOS_BC250_ACTIONS = (
     CACHYOS_BC250_KERNEL_ACTIONS
     | {f"proton-{key}" for key in CACHYOS_BC250_PROTON_PACKAGES}
     | {f"remove-proton-{key}" for key in CACHYOS_BC250_PROTON_PACKAGES}
+    | {f"extra-{key}" for key in CACHYOS_BC250_EXTRA_PACKAGES}
+    | {f"remove-extra-{key}" for key in CACHYOS_BC250_EXTRA_PACKAGES}
 )
 MASTA_BC250_SUPPORTED_IDS = frozenset({"arch", "cachyos", "cachy"})
 
@@ -168,6 +179,10 @@ def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
             key: installed(package)
             for key, package in CACHYOS_BC250_PROTON_PACKAGES.items()
         },
+        "extras_installed": {
+            key: installed(package)
+            for key, package in CACHYOS_BC250_EXTRA_PACKAGES.items()
+        },
         "kernel_installed": bool(installed_variants),
         "kernel_active": running_variant in installed_variants,
         "kernel_variant": running_variant if running_variant in installed_variants
@@ -215,19 +230,26 @@ def build_cachyos_bc250_kernel_command(action: str = "kernel") -> str:
         raise ValueError("Unsupported CachyOS BC-250 action.")
     if action.startswith("remove-proton-"):
         return _build_proton_removal_command(action.removeprefix("remove-proton-"))
+    if action.startswith("remove-extra-"):
+        return _build_proton_removal_command(
+            action.removeprefix("remove-extra-"), CACHYOS_BC250_EXTRA_PACKAGES,
+            "Remove BC-250 extra", "The package is removed; what it changed in other packages stays as it is.",
+        )
     proton_package = CACHYOS_BC250_PROTON_PACKAGES.get(action.removeprefix("proton-")) if action.startswith("proton-") else None
+    extra_package = CACHYOS_BC250_EXTRA_PACKAGES.get(action.removeprefix("extra-")) if action.startswith("extra-") else None
+    single_package = proton_package or extra_package
     include = CACHYOS_BC250_INCLUDE
     repository = CACHYOS_BC250_PACMAN_REPOSITORY
     selected = []
-    if proton_package:
-        selected.append(proton_package)
+    if single_package:
+        selected.append(single_package)
     if action in {"kernel", "full"}:
         selected.extend(CACHYOS_BC250_PACKAGES)
     if action in {"mesa", "full"}:
         selected.extend(CACHYOS_BC250_MESA_PACKAGES)
     targets = " ".join(f"{repository}/{name}" for name in selected)
-    if proton_package:
-        # Only the chosen Proton: neither the BC-250 kernel nor the patched
+    if single_package:
+        # Only the chosen package: neither the BC-250 kernel nor the patched
         # Mesa of this repository is touched as a side effect.
         scope_guard = (
             "bc250_scope_guard=(--ignore 'linux-cachyos-bc250*,linux-cachyos-rc-bc250*,"
@@ -267,6 +289,9 @@ echo "BC250_REBOOT_REQUIRED=1"'''
         f'''pacman -Q {proton_package}
 echo "[INFO] Restart Steam; pick this Proton in a game's Compatibility settings."'''
         if proton_package
+        else f'''pacman -Q {extra_package}
+echo "[INFO] {extra_package} is installed; nothing else was changed."'''
+        if extra_package
         else ""
     )
     mesa_step = (
@@ -378,7 +403,11 @@ for bc250_target in "${{bc250_packages[@]}}"; do
   pacman -Sl '{repository}' | awk -v package="$bc250_name" '
     $1 == "{repository}" && $2 == package && $NF == "[installed]" {{ found=1 }}
     END {{ exit(found ? 0 : 1) }}
-  ' || {{ echo "ERROR: $bc250_name was not verified as the installed {repository} build."; exit 74; }}
+  ' || {{ echo "ERROR: $bc250_name was not verified as the installed {repository} build."
+  # R-b47961ba: pacman offered to skip it over an unresolved dependency and
+  # the answer was yes. Say so, and what to do; the previous kernel still boots.
+  echo "ERROR: pacman may have skipped it because one of its dependencies could not be resolved. Answer N (the default) to a skip question, update the system, then run this again. The previous kernel still boots."
+  exit 74; }}
 done
 {kernel_step}
 {mesa_step}
@@ -387,16 +416,21 @@ done
 echo "OK: Arch/CachyOS BC-250 {action} workflow completed. Review package output before rebooting."'''
 
 
-def _build_proton_removal_command(key: str) -> str:
-    """Remove one BC-250 Proton package; the repository stays configured."""
-    package = CACHYOS_BC250_PROTON_PACKAGES.get(key)
+def _build_proton_removal_command(
+    key: str,
+    packages: dict[str, str] | None = None,
+    title: str = "Remove BC-250 Proton",
+    done: str = "Restart Steam; games that used it will ask for another Proton.",
+) -> str:
+    """Remove one BC-250 package; the repository stays configured."""
+    package = (CACHYOS_BC250_PROTON_PACKAGES if packages is None else packages).get(key)
     if package is None:
         raise ValueError("Unsupported CachyOS BC-250 action.")
     return f'''set -euo pipefail
 export LANG=C LC_ALL=C
 echo
 echo "=========================================================================="
-echo "  Remove BC-250 Proton - Arch/CachyOS"
+echo "  {title} - Arch/CachyOS"
 echo "=========================================================================="
 test -r /etc/os-release || {{ echo "ERROR: /etc/os-release is unavailable."; exit 64; }}
 . /etc/os-release
@@ -411,4 +445,4 @@ if ! pacman -Qq {package} >/dev/null 2>&1; then
 fi
 sudo pacman -Rns {package}
 ! pacman -Qq {package} >/dev/null 2>&1 || {{ echo "ERROR: {package} is still installed."; exit 74; }}
-echo "OK: {package} removed. Restart Steam; games that used it will ask for another Proton."'''
+echo "OK: {package} removed. {done}"'''

@@ -140,12 +140,13 @@ def test_r_on_a_failed_workflow_opens_the_report_with_its_log(screen, monkeypatc
     from types import SimpleNamespace
 
     reported = []
-    monkeypatch.setattr("frontends.tui.screen.report", lambda ui, title="", log="": reported.append((title, log)))
+    monkeypatch.setattr("frontends.tui.screen.report", lambda ui, title="", log="", workflow_details=None: reported.append((title, log, workflow_details)))
     window = screen.stdscr
     window.getch = lambda: (time.sleep(0.02), ord("r") if screen.active_console.done.is_set() else -1)[1]
     request = SimpleNamespace(argv=("bash", "-c", "echo E: broken package; exit 1"), title="x", status_file="",
                               log_file="")
     ok, _result = screen.run("Prepare", lambda: screen.launch_workflow(request))
+    assert reported[0][2]["exit_status"] == 1 and reported[0][2]["duration_seconds"] >= 0
     assert not ok and reported and reported[0][0] == "Prepare" and "broken package" in reported[0][1]
 
 

@@ -218,3 +218,13 @@ def _no_real_disk_access(monkeypatch):
     monkeypatch.setattr(subprocess.Popen, "__init__", guarded_popen)
     monkeypatch.setattr(builtins, "open", guarded_open)
     monkeypatch.setattr(os, "open", guarded_os_open)
+
+
+@pytest.fixture(autouse=True)
+def _bc250_identity_unknown_by_default(monkeypatch):
+    """The hardware gate must not depend on the machine running the tests:
+    ``unknown`` lets every workflow through, as on a sandboxed BC-250.
+    Tests of the gate itself patch ``bc250_identity`` on their own."""
+    from bc250cc.infrastructure import hardware_identity
+
+    monkeypatch.setattr(hardware_identity, "bc250_identity", lambda *args, **kwargs: "unknown")

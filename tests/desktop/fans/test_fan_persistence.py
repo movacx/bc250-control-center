@@ -543,3 +543,109 @@ def test_the_curve_is_a_line_between_points_and_flat_outside_them():
     speeds = [interpolate_fan_curve(points, t / 10) for t in range(300, 900)]
     assert speeds == sorted(speeds), "never slower when hotter"
     assert max(b - a for a, b in zip(speeds, speeds[1:])) <= 1, "no jumps"
+
+
+def test_failed_or_unverified_write_never_becomes_engine_baseline(monkeypatch):
+    from bc250cc.domain.fan.engine import ChannelMemory
+
+    for failure in ("raise", "mismatch", "unverified"):
+        writes = []
+        daemon = _daemon_for_write_tests(writes)
+        daemon.ultimo_fan_target = (3, 40, "curve")
+        daemon.ultimo_fan_curve_percent = 40
+        baseline = ChannelMemory(
+            percent=40, source="curve", goal_percent=40,
+            reference_temperature=40, changed_at=10,
+        )
+        daemon.fan_channel_memory = baseline
+        daemon._write_health = lambda **kwargs: None
+        daemon.activity_service = type("Activity", (), {"record": lambda *a, **k: None})()
+        ticks = iter((15.0, 20.0, 25.0))
+        monkeypatch.setattr("bc250cc.infrastructure.daemon.time.monotonic", lambda: next(ticks))
+        config = {"fan_channels": {"3": {
+            "mode": "curve", "source": "gpu", "points": [[40, 40], [80, 100]],
+            "max_up_step_percent": 20,
+        }}}
+
+        def fail(pwm, value):
+            writes.append((pwm, value))
+            if failure == "raise":
+                raise RuntimeError("write failed")
+            if failure == "mismatch":
+                return {"verified": {"value": 1}}
+            return None
+
+        daemon.servicio.aplicar_pwm_fan = fail
+        for _ in range(2):
+            daemon.aplicar_ventilador_persistente_si_corresponde({"gpu_temp": 80}, config)
+            assert daemon.fan_channel_memory == baseline
+            assert daemon.ultimo_fan_target == (3, 40, "curve")
+        assert writes == [(3, 153), (3, 153)]
+
+        def succeed(pwm, value):
+            writes.append((pwm, value))
+            return {"verified": {"value": value}}
+
+        daemon.servicio.aplicar_pwm_fan = succeed
+        daemon.aplicar_ventilador_persistente_si_corresponde({"gpu_temp": 80}, config)
+        assert daemon.fan_channel_memory.percent == 60
+        assert daemon.fan_channel_memory.changed_at == 25
+
+
+def test_daemon_refuses_multiple_channels_and_reports_root_service_requirement(monkeypatch):
+    writes = []
+    health = []
+    daemon = _daemon_for_write_tests(writes)
+    daemon._write_health = lambda **kwargs: health.append(kwargs)
+    monkeypatch.setattr(daemon, "_system_fan_control_snapshot", lambda: {})
+    daemon.aplicar_ventilador_persistente_si_corresponde({}, {"fan_channels": {
+        "2": {"mode": "fixed", "percent": 70},
+        "3": {"mode": "fixed", "percent": 70},
+    }})
+    assert writes == []
+    assert "Root fan service required" in health[-1]["fan_error"]
+
+
+def test_matching_readback_commits_engine_memory_without_a_write(monkeypatch):
+    writes = []
+    daemon = _daemon_for_write_tests(writes, lambda pwm: {"value": 102})
+    daemon._write_health = lambda **kwargs: None
+    monkeypatch.setattr("bc250cc.infrastructure.daemon.time.monotonic", lambda: 10)
+    daemon.aplicar_ventilador_persistente_si_corresponde({"gpu_temp": 40}, {
+        "fan_curve": {"enabled": True, "points": [[40, 40], [60, 70], [80, 100]]},
+    })
+    assert writes == []
+    assert daemon.fan_channel_memory.percent == 40
+    assert daemon.fan_channel_memory.changed_at == 10
+
+
+def test_unchanged_verified_duty_carries_response_delay_memory(monkeypatch):
+    from bc250cc.domain.fan.engine import ChannelMemory
+
+    writes = []
+    daemon = _daemon_for_write_tests(writes, lambda pwm: {"value": 102})
+    daemon.ultimo_fan_target = (3, 40, "curve")
+    daemon.ultimo_fan_verify = 10
+    daemon.fan_channel_memory = ChannelMemory(
+        percent=40, source="curve", goal_percent=40,
+        reference_temperature=40, changed_at=10,
+    )
+    daemon._write_health = lambda **kwargs: None
+    daemon.activity_service = type("Activity", (), {"record": lambda *a, **k: None})()
+    ticks = iter((15, 19, 20))
+    monkeypatch.setattr("bc250cc.infrastructure.daemon.time.monotonic", lambda: next(ticks))
+    config = {"fan_channels": {"3": {
+        "mode": "curve", "source": "gpu", "points": [[40, 40], [80, 100]],
+        "response_delay_seconds": 5, "max_up_step_percent": 20,
+    }}}
+    for _ in range(2):
+        daemon.aplicar_ventilador_persistente_si_corresponde({"gpu_temp": 80}, config)
+        assert writes == []
+        assert daemon.fan_channel_memory.pending_since == 15
+
+    daemon.servicio.aplicar_pwm_fan = lambda pwm, value: (
+        writes.append((pwm, value)) or {"verified": {"value": value}}
+    )
+    daemon.aplicar_ventilador_persistente_si_corresponde({"gpu_temp": 80}, config)
+    assert writes == [(3, 153)]
+    assert daemon.fan_channel_memory.percent == 60

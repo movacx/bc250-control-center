@@ -80,19 +80,25 @@ def test_success_never_reports_an_exit_code(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("status", "code"),
     (
-        (22, "BC250-DBUS-001"),
-        (51, "BC250-CPU-001"),
+        # Defined by bash and coreutils, the same for every program.
+        (127, "BC250-CMD-001"),
         (124, "BC250-TIMEOUT-001"),
-        # The status that prompted this whole refactor: it means "CPU
-        # frequency must be between 3500 and 4200 MHz", and used to reach the
-        # user as the bare number 43.
-        (43, "BC250-RANGE-001"),
+        # A helper's numbers (22 is Cyan D-Bus, 51 CPU, 43 range) are read by
+        # the helper's caller, not by the terminal: a workflow's status is the
+        # status of whatever ran last. ``make`` exits 2 and ``curl --fail``
+        # 22, and the terminal once called an Oberon build failure a helper
+        # version mismatch (R-bb33f44b) and an HTTP 504 "Cyan is stopped"
+        # (R-530bd5f6). With no words to read, the code is the neutral one.
+        (22, "BC250-GENERAL-001"),
+        (51, "BC250-GENERAL-001"),
+        (43, "BC250-GENERAL-001"),
+        (2, "BC250-GENERAL-001"),
+        (3, "BC250-GENERAL-001"),
     ),
 )
-def test_helper_statuses_resolve_to_their_diagnostic(
+def test_a_silent_status_is_explained_only_when_the_shell_defines_it(
     tmp_path: Path, status: int, code: str
 ) -> None:
-    """Statuses the helpers really emit explain themselves in the terminal."""
     wrapped = workflow_wrapper(f"exit {status}", tmp_path / "s", tmp_path / "l")
     result = subprocess.run(
         ["/usr/bin/bash", "-c", wrapped],
@@ -102,6 +108,15 @@ def test_helper_statuses_resolve_to_their_diagnostic(
     assert f"Diagnostic code: {code}" in result.stdout
     assert "What happened:" in result.stdout
     assert "How to fix it:" in result.stdout
+    for borrowed in ("BC250-DBUS-001", "BC250-CPU-001", "BC250-RANGE-001", "BC250-PROTOCOL-001"):
+        assert borrowed not in result.stdout
+
+
+def test_helper_statuses_still_resolve_for_the_helpers_callers() -> None:
+    """The table stays for ``describe_failure``; only the terminal stopped reading it."""
+    assert error_catalog.for_exit_status(22).code == "BC250-DBUS-001"
+    assert error_catalog.for_exit_status(43).code == "BC250-RANGE-001"
+    assert error_catalog.for_exit_status(51).code == "BC250-CPU-001"
 
 
 def test_catalog_identifiers_are_unique_and_well_formed() -> None:

@@ -35,23 +35,30 @@ class DashboardFanPresentation:
     duty_percent: int
     mode: str
     label: str
+    channel_selected: bool = False
+    rpm_known: bool = False
+    duty_known: bool = False
 
     @property
     def needs_fallback(self) -> bool:
-        return self.rpm <= 0
+        return self.rpm <= 0 and not self.channel_selected
 
     def with_fallback(self, rpm: int, label: str) -> "DashboardFanPresentation":
-        fallback_rpm = _integer(rpm)
-        available = self.available or fallback_rpm > 0
+        if self.channel_selected:
+            return self
+        fallback_rpm = _integer(rpm, -1)
+        measured = fallback_rpm >= 0 and bool(label)
+        available = self.available or measured
         mode = self.mode
         if available and mode.lower() in {"unavailable", "unknown", "not detected", ""}:
             mode = "manual" if self.pwm_ready else "read only"
         return replace(
             self,
             available=available,
-            rpm=fallback_rpm if fallback_rpm > 0 else self.rpm,
+            rpm=fallback_rpm if measured else self.rpm,
             label=str(label or self.label),
             mode=mode,
+            rpm_known=measured or self.rpm_known,
         )
 
 
@@ -60,13 +67,24 @@ def _pump_row(fan: Mapping[str, object]) -> Mapping[str, object]:
     rows = sensors.get("fans") if isinstance(sensors, Mapping) else ()
     if not isinstance(rows, (list, tuple)):
         return {}
+    # The pump header is CPU_FAN1 (Linux fan2). The five J4003 headers all
+    # carry "j4003" in their label, and the first one listed is Fan 5, so a
+    # bare "j4003" match picked an empty header and the card read 0 RPM.
+    # Prefer the pump by name, then any J4003 header that is actually
+    # spinning, and only then the first J4003 header.
+    candidates = []
     for row in rows:
         if not isinstance(row, Mapping):
             continue
-        label = str(row.get("label") or row.get("canal") or row.get("name") or "")
-        if any(token in label.lower() for token in ("pump", "j4003", "fan2")):
+        label = str(row.get("label") or row.get("canal") or row.get("name") or "").lower()
+        if any(token in label for token in ("pump", "cpu_fan1", "fan2")):
             return row
-    return {}
+        if "j4003" in label:
+            candidates.append(row)
+    for row in candidates:
+        if _integer(row.get("rpm", row.get("input")), 0) > 0:
+            return row
+    return candidates[0] if candidates else {}
 
 
 def _pwm_percent(value: object, default: int = 0) -> int:
@@ -135,7 +153,6 @@ def present_dashboard_fan(
     performance_rpm: object,
 ) -> DashboardFanPresentation:
     available = bool(fan)
-    rpm = _integer(performance_rpm)
     pwm_ready = bool(fan) and bool(
         fan.get("control_disponible")
         or fan.get("pwm_writable")
@@ -143,20 +160,29 @@ def present_dashboard_fan(
         or fan.get("nct6687_loaded")
     )
     mode = str(fan.get("modo") or fan.get("mode") or ("manual" if pwm_ready else "read only")) if fan else "Not detected"
-    rpm = _integer(fan.get("fan2_rpm") or fan.get("pump_fan_rpm") or rpm, rpm)
-    raw_pwm = fan.get("pwm2") or fan.get("pump_fan_pwm")
-    duty = _pwm_percent(raw_pwm)
     row = _pump_row(fan)
     label = str(row.get("label") or row.get("canal") or row.get("name") or "Not detected").replace(" / ", " · ")
+    selected = bool(row)
     if row:
-        rpm = _integer(row.get("rpm") or row.get("input") or rpm, rpm)
-        duty = _pwm_percent(row.get("pwm"), duty)
+        rpm = _integer(row.get("rpm", row.get("input")), -1)
+        raw_pwm = row.get("pwm")
+    else:
+        raw_rpm = fan.get("fan2_rpm", fan.get("pump_fan_rpm"))
+        raw_pwm = fan.get("pwm2", fan.get("pump_fan_pwm"))
+        selected = raw_rpm is not None or raw_pwm is not None
+        rpm = _integer(raw_rpm if selected else performance_rpm, -1)
+        if selected:
+            label = "Pump Fan"
+    duty = _pwm_percent(raw_pwm)
     if available and mode.lower() in {"unavailable", "unknown", "not detected", ""}:
         mode = "manual" if pwm_ready else "read only"
     return DashboardFanPresentation(
         available=available,
         pwm_ready=pwm_ready,
-        rpm=rpm,
+        rpm=max(0, rpm),
+        channel_selected=selected,
+        rpm_known=rpm >= 0 and (selected or rpm > 0),
+        duty_known=_integer(raw_pwm, -1) >= 0,
         duty_percent=max(0, min(100, duty)),
         mode=mode,
         label=label,

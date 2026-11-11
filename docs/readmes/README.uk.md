@@ -5,7 +5,7 @@
 Він охоплює регулятор GPU, налаштування CPU, обчислювальні блоки, вентилятори, пам’ять, носії оновлення BIOS, масштабування та підготовку системи для підтримуваних дистрибутивів. Інтерфейси спільно використовують служби додатків, апаратні обмеження та привілейовані помічники. Додатковий плагін Decky переносить щоденні елементи керування в ігровий режим Steam.
 
 <p align="center">
-  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard" width="100%"></a>
+  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/demo.gif" alt="BC250 Control Center dashboard" width="100%"></a>
 </p>
 
 <p align="center">
