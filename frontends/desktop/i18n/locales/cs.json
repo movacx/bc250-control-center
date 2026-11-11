@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Otevřít terminál instalace",
   "Not required": "Není potřeba",
   "Install UGREEN adapter firmware files": "Nainstalovat soubory firmwaru adaptéru UGREEN",
-  "Remove UGREEN adapter firmware files": "Odebrat soubory firmwaru adaptéru UGREEN"
+  "Remove UGREEN adapter firmware files": "Odebrat soubory firmwaru adaptéru UGREEN",
+  "Full stack installed": "Celý balík nainstalován",
+  "Update / repair kernel": "Aktualizovat / opravit jádro",
+  "Update / repair Mesa": "Aktualizovat / opravit Mesa",
+  "Update / repair full stack": "Aktualizovat / opravit celý balík",
+  "Installed · reboot required": "Nainstalováno · nutný restart",
+  "Partially installed": "Nainstalováno částečně"
 }

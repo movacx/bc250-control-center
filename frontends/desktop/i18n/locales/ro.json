@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Deschide terminalul de instalare",
   "Not required": "Nu este necesar",
   "Install UGREEN adapter firmware files": "Instalează fișierele firmware ale adaptorului UGREEN",
-  "Remove UGREEN adapter firmware files": "Elimină fișierele firmware ale adaptorului UGREEN"
+  "Remove UGREEN adapter firmware files": "Elimină fișierele firmware ale adaptorului UGREEN",
+  "Full stack installed": "Stiva completă instalată",
+  "Update / repair kernel": "Actualizează / repară nucleul",
+  "Update / repair Mesa": "Actualizează / repară Mesa",
+  "Update / repair full stack": "Actualizează / repară stiva completă",
+  "Installed · reboot required": "Instalat · repornire necesară",
+  "Partially installed": "Instalat parțial"
 }

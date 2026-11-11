@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Открыть терминал установки",
   "Not required": "Не требуется",
   "Install UGREEN adapter firmware files": "Установить файлы прошивки адаптера UGREEN",
-  "Remove UGREEN adapter firmware files": "Удалить файлы прошивки адаптера UGREEN"
+  "Remove UGREEN adapter firmware files": "Удалить файлы прошивки адаптера UGREEN",
+  "Full stack installed": "Полный набор установлен",
+  "Update / repair kernel": "Обновить / восстановить ядро",
+  "Update / repair Mesa": "Обновить / восстановить Mesa",
+  "Update / repair full stack": "Обновить / восстановить весь набор",
+  "Installed · reboot required": "Установлено · нужна перезагрузка",
+  "Partially installed": "Установлено частично"
 }

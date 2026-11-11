@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Åpne installasjonsterminal",
   "Not required": "Ikke nødvendig",
   "Install UGREEN adapter firmware files": "Installer fastvarefiler for UGREEN-adapteren",
-  "Remove UGREEN adapter firmware files": "Fjern fastvarefiler for UGREEN-adapteren"
+  "Remove UGREEN adapter firmware files": "Fjern fastvarefiler for UGREEN-adapteren",
+  "Full stack installed": "Full stack installert",
+  "Update / repair kernel": "Oppdater / reparer kjernen",
+  "Update / repair Mesa": "Oppdater / reparer Mesa",
+  "Update / repair full stack": "Oppdater / reparer hele stacken",
+  "Installed · reboot required": "Installert · krever omstart",
+  "Partially installed": "Delvis installert"
 }

@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Open installation terminal",
   "Not required": "Not required",
   "Install UGREEN adapter firmware files": "Install UGREEN adapter firmware files",
-  "Remove UGREEN adapter firmware files": "Remove UGREEN adapter firmware files"
+  "Remove UGREEN adapter firmware files": "Remove UGREEN adapter firmware files",
+  "Full stack installed": "Full stack installed",
+  "Update / repair kernel": "Update / repair kernel",
+  "Update / repair Mesa": "Update / repair Mesa",
+  "Update / repair full stack": "Update / repair full stack",
+  "Installed · reboot required": "Installed · reboot required",
+  "Partially installed": "Partially installed"
 }

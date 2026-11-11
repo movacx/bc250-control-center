@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Buka terminal instalasi",
   "Not required": "Tidak diperlukan",
   "Install UGREEN adapter firmware files": "Instal berkas firmware adaptor UGREEN",
-  "Remove UGREEN adapter firmware files": "Hapus berkas firmware adaptor UGREEN"
+  "Remove UGREEN adapter firmware files": "Hapus berkas firmware adaptor UGREEN",
+  "Full stack installed": "Tumpukan lengkap terpasang",
+  "Update / repair kernel": "Perbarui / perbaiki kernel",
+  "Update / repair Mesa": "Perbarui / perbaiki Mesa",
+  "Update / repair full stack": "Perbarui / perbaiki seluruh tumpukan",
+  "Installed · reboot required": "Terpasang · perlu restart",
+  "Partially installed": "Terpasang sebagian"
 }

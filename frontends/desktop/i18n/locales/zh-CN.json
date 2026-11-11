@@ -6037,5 +6037,11 @@
   "Open installation terminal": "打开安装终端",
   "Not required": "无需",
   "Install UGREEN adapter firmware files": "安装 UGREEN 适配器固件文件",
-  "Remove UGREEN adapter firmware files": "移除 UGREEN 适配器固件文件"
+  "Remove UGREEN adapter firmware files": "移除 UGREEN 适配器固件文件",
+  "Full stack installed": "完整套件已安装",
+  "Update / repair kernel": "更新 / 修复内核",
+  "Update / repair Mesa": "更新 / 修复 Mesa",
+  "Update / repair full stack": "更新 / 修复完整套件",
+  "Installed · reboot required": "已安装 · 需要重启",
+  "Partially installed": "部分安装"
 }

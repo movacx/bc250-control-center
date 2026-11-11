@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Abrir terminal de instalação",
   "Not required": "Não é necessário",
   "Install UGREEN adapter firmware files": "Instalar ficheiros de firmware do adaptador UGREEN",
-  "Remove UGREEN adapter firmware files": "Remover ficheiros de firmware do adaptador UGREEN"
+  "Remove UGREEN adapter firmware files": "Remover ficheiros de firmware do adaptador UGREEN",
+  "Full stack installed": "Pilha completa instalada",
+  "Update / repair kernel": "Atualizar / reparar kernel",
+  "Update / repair Mesa": "Atualizar / reparar Mesa",
+  "Update / repair full stack": "Atualizar / reparar a pilha completa",
+  "Installed · reboot required": "Instalado · requer reinício",
+  "Partially installed": "Instalado parcialmente"
 }

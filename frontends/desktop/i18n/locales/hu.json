@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Telepítési terminál megnyitása",
   "Not required": "Nem szükséges",
   "Install UGREEN adapter firmware files": "UGREEN adapter firmware-fájljainak telepítése",
-  "Remove UGREEN adapter firmware files": "UGREEN adapter firmware-fájljainak eltávolítása"
+  "Remove UGREEN adapter firmware files": "UGREEN adapter firmware-fájljainak eltávolítása",
+  "Full stack installed": "Teljes csomag telepítve",
+  "Update / repair kernel": "Kernel frissítése / javítása",
+  "Update / repair Mesa": "Mesa frissítése / javítása",
+  "Update / repair full stack": "Teljes csomag frissítése / javítása",
+  "Installed · reboot required": "Telepítve · újraindítás szükséges",
+  "Partially installed": "Részben telepítve"
 }

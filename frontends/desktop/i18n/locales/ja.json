@@ -6037,5 +6037,11 @@
   "Open installation terminal": "インストール用ターミナルを開く",
   "Not required": "不要",
   "Install UGREEN adapter firmware files": "UGREEN アダプターのファームウェアファイルをインストール",
-  "Remove UGREEN adapter firmware files": "UGREEN アダプターのファームウェアファイルを削除"
+  "Remove UGREEN adapter firmware files": "UGREEN アダプターのファームウェアファイルを削除",
+  "Full stack installed": "フルスタックをインストール済み",
+  "Update / repair kernel": "カーネルを更新 / 修復",
+  "Update / repair Mesa": "Mesa を更新 / 修復",
+  "Update / repair full stack": "フルスタックを更新 / 修復",
+  "Installed · reboot required": "インストール済み · 再起動が必要",
+  "Partially installed": "一部のみインストール済み"
 }

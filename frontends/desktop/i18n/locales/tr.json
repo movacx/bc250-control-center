@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Kurulum terminalini aç",
   "Not required": "Gerekmez",
   "Install UGREEN adapter firmware files": "UGREEN adaptörü ürün yazılımı dosyalarını kur",
-  "Remove UGREEN adapter firmware files": "UGREEN adaptörü ürün yazılımı dosyalarını kaldır"
+  "Remove UGREEN adapter firmware files": "UGREEN adaptörü ürün yazılımı dosyalarını kaldır",
+  "Full stack installed": "Tam yığın kurulu",
+  "Update / repair kernel": "Çekirdeği güncelle / onar",
+  "Update / repair Mesa": "Mesa’yı güncelle / onar",
+  "Update / repair full stack": "Tüm yığını güncelle / onar",
+  "Installed · reboot required": "Kurulu · yeniden başlatma gerekli",
+  "Partially installed": "Kısmen kurulu"
 }

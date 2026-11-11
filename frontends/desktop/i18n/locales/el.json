@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Άνοιγμα τερματικού εγκατάστασης",
   "Not required": "Δεν απαιτείται",
   "Install UGREEN adapter firmware files": "Εγκατάσταση αρχείων υλικολογισμικού του προσαρμογέα UGREEN",
-  "Remove UGREEN adapter firmware files": "Αφαίρεση αρχείων υλικολογισμικού του προσαρμογέα UGREEN"
+  "Remove UGREEN adapter firmware files": "Αφαίρεση αρχείων υλικολογισμικού του προσαρμογέα UGREEN",
+  "Full stack installed": "Η πλήρης στοίβα εγκαταστάθηκε",
+  "Update / repair kernel": "Ενημέρωση / επισκευή πυρήνα",
+  "Update / repair Mesa": "Ενημέρωση / επισκευή Mesa",
+  "Update / repair full stack": "Ενημέρωση / επισκευή ολόκληρης της στοίβας",
+  "Installed · reboot required": "Εγκαταστάθηκε · απαιτείται επανεκκίνηση",
+  "Partially installed": "Μερικώς εγκατεστημένο"
 }

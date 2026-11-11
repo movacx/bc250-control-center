@@ -6037,5 +6037,11 @@
   "Open installation terminal": "설치 터미널 열기",
   "Not required": "필요 없음",
   "Install UGREEN adapter firmware files": "UGREEN 어댑터 펌웨어 파일 설치",
-  "Remove UGREEN adapter firmware files": "UGREEN 어댑터 펌웨어 파일 제거"
+  "Remove UGREEN adapter firmware files": "UGREEN 어댑터 펌웨어 파일 제거",
+  "Full stack installed": "전체 스택 설치됨",
+  "Update / repair kernel": "커널 업데이트 / 복구",
+  "Update / repair Mesa": "Mesa 업데이트 / 복구",
+  "Update / repair full stack": "전체 스택 업데이트 / 복구",
+  "Installed · reboot required": "설치됨 · 재부팅 필요",
+  "Partially installed": "일부만 설치됨"
 }

@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Avaa asennuspääte",
   "Not required": "Ei tarvita",
   "Install UGREEN adapter firmware files": "Asenna UGREEN-sovittimen laiteohjelmistotiedostot",
-  "Remove UGREEN adapter firmware files": "Poista UGREEN-sovittimen laiteohjelmistotiedostot"
+  "Remove UGREEN adapter firmware files": "Poista UGREEN-sovittimen laiteohjelmistotiedostot",
+  "Full stack installed": "Koko pino asennettu",
+  "Update / repair kernel": "Päivitä / korjaa ydin",
+  "Update / repair Mesa": "Päivitä / korjaa Mesa",
+  "Update / repair full stack": "Päivitä / korjaa koko pino",
+  "Installed · reboot required": "Asennettu · vaatii uudelleenkäynnistyksen",
+  "Partially installed": "Asennettu osittain"
 }

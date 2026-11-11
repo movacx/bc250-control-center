@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Mở terminal cài đặt",
   "Not required": "Không cần",
   "Install UGREEN adapter firmware files": "Cài tệp firmware của bộ chuyển UGREEN",
-  "Remove UGREEN adapter firmware files": "Gỡ tệp firmware của bộ chuyển UGREEN"
+  "Remove UGREEN adapter firmware files": "Gỡ tệp firmware của bộ chuyển UGREEN",
+  "Full stack installed": "Đã cài đủ bộ",
+  "Update / repair kernel": "Cập nhật / sửa nhân hệ điều hành",
+  "Update / repair Mesa": "Cập nhật / sửa Mesa",
+  "Update / repair full stack": "Cập nhật / sửa toàn bộ",
+  "Installed · reboot required": "Đã cài · cần khởi động lại",
+  "Partially installed": "Đã cài một phần"
 }

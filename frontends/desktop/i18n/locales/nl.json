@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Installatieterminal openen",
   "Not required": "Niet nodig",
   "Install UGREEN adapter firmware files": "Firmwarebestanden van de UGREEN-adapter installeren",
-  "Remove UGREEN adapter firmware files": "Firmwarebestanden van de UGREEN-adapter verwijderen"
+  "Remove UGREEN adapter firmware files": "Firmwarebestanden van de UGREEN-adapter verwijderen",
+  "Full stack installed": "Volledige stack geïnstalleerd",
+  "Update / repair kernel": "Kernel bijwerken / herstellen",
+  "Update / repair Mesa": "Mesa bijwerken / herstellen",
+  "Update / repair full stack": "Volledige stack bijwerken / herstellen",
+  "Installed · reboot required": "Geïnstalleerd · herstart nodig",
+  "Partially installed": "Gedeeltelijk geïnstalleerd"
 }

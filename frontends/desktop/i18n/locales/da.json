@@ -6037,5 +6037,11 @@
   "Open installation terminal": "Åbn installationsterminal",
   "Not required": "Ikke nødvendigt",
   "Install UGREEN adapter firmware files": "Installer firmwarefiler til UGREEN-adapteren",
-  "Remove UGREEN adapter firmware files": "Fjern firmwarefiler til UGREEN-adapteren"
+  "Remove UGREEN adapter firmware files": "Fjern firmwarefiler til UGREEN-adapteren",
+  "Full stack installed": "Fuld stak installeret",
+  "Update / repair kernel": "Opdater / reparer kerne",
+  "Update / repair Mesa": "Opdater / reparer Mesa",
+  "Update / repair full stack": "Opdater / reparer hele staken",
+  "Installed · reboot required": "Installeret · genstart påkrævet",
+  "Partially installed": "Delvist installeret"
 }
