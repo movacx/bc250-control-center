@@ -334,6 +334,47 @@ def _installer_url(tag: str) -> str:
     return f"{DIRECTMESH_REPOSITORY}/releases/download/{tag}/{DIRECTMESH_INSTALLER}"
 
 
+# Upstream's installer wraps its package lists over two lines inside one pair of
+# quotes and then runs them with ``eval "$cmd"``. The newline ends the command,
+# so the package manager installs only the first line and the second line runs
+# as a program: "install.sh: line 96: libxshmfence-devel: command not found"
+# on Bazzite, "systemd-libs: command not found" on CachyOS (R-006daa34,
+# R-a51b4e18). The installer must stay unchanged, so Control Center installs
+# the packages itself, from the list in the installer it just verified. With
+# nothing left to install, the installer never reaches that line.
+_PACKAGE_LIST = r"""bc250_packages() {
+  python3 -I - "$bc250_installer" "$1" <<'BC250_PACKAGES'
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+found = re.search(r'^' + re.escape(sys.argv[2]) + r'="([^"]*)"', text, re.M)
+names = found.group(1).split() if found else []
+if not names or not all(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9+._-]*", name) for name in names):
+    sys.exit(1)
+print(" ".join(names))
+BC250_PACKAGES
+}"""
+
+_HOST_PACKAGES = _PACKAGE_LIST + r"""
+bc250_wanted="$(bc250_packages PKG_ARCH)" || bc250_wanted=""
+if test -n "$bc250_wanted"; then
+  bc250_absent="$(pacman -T $bc250_wanted || true)"
+  if test -n "$bc250_absent"; then
+    echo "Installing DirectMesh's build packages first: $bc250_absent"
+    sudo pacman -S --needed $bc250_absent
+  fi
+fi"""
+
+_CONTAINER_PACKAGES = _PACKAGE_LIST + r"""
+bc250_wanted="$(bc250_packages PKG_FED)" || bc250_wanted=""
+if test -n "$bc250_wanted"; then
+  bc250_absent="$(bc250_in_container sh -c 'for name in "$@"; do rpm -q --quiet "$name" || echo "$name"; done' sh $bc250_wanted || true)"
+  if test -n "$bc250_absent"; then
+    echo "Installing DirectMesh's build packages in the container first: $bc250_absent"
+    bc250_in_container sudo dnf install $bc250_absent
+  fi
+fi"""
+
+
 def _container_lines(release_id: str, environment: str) -> str:
     """Run the verified installer inside a Fedora container (Bazzite)."""
     name = shlex.quote(DIRECTMESH_CONTAINER)
@@ -360,6 +401,7 @@ fi
 if bc250_in_container test -e /run/ostree-booted; then
   echo "ERROR: the container looks like the immutable host to DirectMesh's installer; it would refuse to run."; exit 69
 fi
+{_CONTAINER_PACKAGES}
 bc250_in_container env {environment} bash "$bc250_installer"'''
 
 
@@ -387,7 +429,7 @@ def build_directmesh_install_command(*, family: str, distro_id: str, version_id:
     if platform == "container":
         run = _container_lines(str(version_id).strip(), environment)
     else:
-        run = f'env {environment} bash "$bc250_installer"'
+        run = f'{_HOST_PACKAGES}\nenv {environment} bash "$bc250_installer"'
     source = "reviewed by Control Center" if release.get("reviewed") else "published by GitHub"
     return f'''set -Eeuo pipefail
 echo "== DirectMesh {tag} =="

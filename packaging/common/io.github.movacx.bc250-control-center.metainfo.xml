@@ -32,6 +32,11 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
+    <release version="1.22.5" date="2026-11-11">
+      <description>
+        <p>Corrección de la instalación de DirectMesh en Bazzite y CachyOS, que se detenía con «command not found» por un error del instalador de upstream: Control Center instala ahora por su cuenta los paquetes de compilación antes de ejecutarlo. Las notas incluyen el resumen de la 1.22.4.</p>
+      </description>
+    </release>
     <release version="1.22.4" date="2026-11-11">
       <description>
         <p>Ajustes rediseñados al estilo de un panel lateral, con temas para la terminal integrada, Memoria y swap con tabla y rieles de TTM y VRAM, Compatibilidad y Controladores por categorías, DirectMesh y HelixSR 3.3, Limine en Arch, temperaturas GDDR6 desde el módulo bc250_memory del kernel y varias correcciones de reportes.</p>
