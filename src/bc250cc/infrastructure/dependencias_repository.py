@@ -333,7 +333,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             raise RuntimeError('The read-only switch is available only on SteamOS.')
         return self._abrir_terminal(
             build_steamos_readonly_command(action),
-            'SteamOS read-only mode',
+            'Free /var space' if str(action or '').strip().lower() == 'free-var' else 'SteamOS read-only mode',
         )
 
     def gestionar_opciones_kernel(self, options):

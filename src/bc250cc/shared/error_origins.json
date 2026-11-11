@@ -2282,6 +2282,7 @@
   },
   "bc250cc/infrastructure/steamos_readonly.py": {
    "_state_from": "DIST-0047",
+   "_var_free_mb": "DIST-0141",
    "probe_steamos_readonly": "DIST-0048",
    "build_steamos_readonly_command": "DIST-0049"
   },
@@ -3277,6 +3278,7 @@
    "PreparationSidebar._request_kernel_option": "DASH-0172",
    "PreparationSidebar._update_kernel_options_control": "DASH-0173",
    "PreparationSidebar._request_steamos_readonly": "DASH-0174",
+   "PreparationSidebar._request_steamos_free_var": "DASH-0318",
    "PreparationSidebar._update_steamos_readonly_control": "DASH-0175",
    "PreparationSidebar._adopt": "DASH-0176",
    "PreparationSidebar._organise_compatibility": "DASH-0177",

@@ -150,7 +150,8 @@ def test_the_read_only_state_is_read_without_root():
     def runner(argv, **_kw):
         return subprocess.CompletedProcess(argv, 0, stdout="disabled\n", stderr="")
 
-    assert probe_steamos_readonly(which=lambda _n: "/usr/bin/steamos-readonly", runner=runner) == {
+    result = probe_steamos_readonly(which=lambda _n: "/usr/bin/steamos-readonly", runner=runner)
+    assert {key: result[key] for key in ("available", "state")} == {
         "available": True, "state": "disabled",
     }
     assert probe_steamos_readonly(which=lambda _n: None)["available"] is False

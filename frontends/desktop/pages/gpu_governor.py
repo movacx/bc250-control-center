@@ -1289,8 +1289,23 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         self, action: str, *, dialog_parent: QWidget | None
     ) -> None:
         action = str(action or "").strip().lower()
-        if action not in {"disable", "enable"}:
+        if action not in {"disable", "enable", "free-var"}:
             raise ValueError("Unsupported SteamOS read-only action.")
+        if action == "free-var":
+            confirmation = ConfirmDialog(
+                tr("Free /var space"),
+                tr(
+                    "SteamOS keeps /var small, and package installs stop when it is full. This removes pacman's downloaded packages and fwupd's firmware metadata, and trims the system logs to 20 MB. UMR's data in /var/lib/umr is kept: Compute Units tools use it."
+                ),
+                summary=(
+                    (tr("Platform"), "SteamOS"),
+                    (tr("Folders"), "/var/cache/pacman/pkg, /var/cache/fwupd, /var/log/journal"),
+                ),
+                confirm_text=tr("Free /var space"),
+                parent=dialog_parent or self,
+            )
+            if confirmation.exec() != QDialog.DialogCode.Accepted:
+                return
         if action == "disable":
             # Turning the protection back on is always safe and needs no
             # question; taking it off is the step worth one.
@@ -1313,10 +1328,10 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             lambda: self.controller.gestionar_solo_lectura_steamos(action),
             lambda _result: GpuGovernorPage._record_preparation_result(
                 self,
-                tr("SteamOS read-only mode"),
+                tr("Free /var space" if action == "free-var" else "SteamOS read-only mode"),
                 tr("The terminal shows the new state."),
             ),
-            tr("Could not change SteamOS read-only mode"),
+            tr("Could not free /var space" if action == "free-var" else "Could not change SteamOS read-only mode"),
             controls=(),
             error_parent=dialog_parent,
         )

@@ -6043,5 +6043,10 @@
   "Update / repair Mesa": "Ενημέρωση / επισκευή Mesa",
   "Update / repair full stack": "Ενημέρωση / επισκευή ολόκληρης της στοίβας",
   "Installed · reboot required": "Εγκαταστάθηκε · απαιτείται επανεκκίνηση",
-  "Partially installed": "Μερικώς εγκατεστημένο"
+  "Partially installed": "Μερικώς εγκατεστημένο",
+  "Free /var space": "Απελευθέρωση χώρου στο /var",
+  "/var: {free} MB free": "/var: {free} MB ελεύθερα",
+  "SteamOS keeps /var small, and package installs stop when it is full. This removes pacman's downloaded packages and fwupd's firmware metadata, and trims the system logs to 20 MB. UMR's data in /var/lib/umr is kept: Compute Units tools use it.": "Το SteamOS κρατά το /var μικρό, και οι εγκαταστάσεις πακέτων σταματούν όταν γεμίσει. Αυτό αφαιρεί τα ληφθέντα πακέτα του pacman και τα μεταδεδομένα υλικολογισμικού του fwupd, και περιορίζει τα αρχεία καταγραφής συστήματος στα 20 MB. Τα δεδομένα του UMR στο /var/lib/umr διατηρούνται: τα χρησιμοποιούν τα εργαλεία Compute Units.",
+  "Folders": "Φάκελοι",
+  "Could not free /var space": "Δεν ήταν δυνατή η απελευθέρωση χώρου στο /var"
 }

@@ -16,9 +16,17 @@ BC250_STEAMOS_PACMAN_PREPARED=0
 cleanup_steamos_dependencies() {
   local status=$?
   trap - EXIT
+  bc250_steamos_drop_pacman_cache
   if bc250_steamos_restore_root "$status"; then exit 0; else exit $?; fi
 }
 trap cleanup_steamos_dependencies EXIT
+
+# Downloads go to a temporary cache, not SteamOS' small /var.
+steamos_pacman() {
+  # Not in $(...): the cache's path has to outlive the call for the cleanup.
+  bc250_steamos_pacman_cache >/dev/null || return 1
+  as_root pacman --cachedir "$BC250_STEAMOS_PACMAN_CACHE" "$@"
+}
 
 prepare_steamos_pacman() {
   [[ "$BC250_STEAMOS_PACMAN_PREPARED" == "1" ]] && return 0
@@ -35,7 +43,7 @@ prepare_steamos_pacman() {
 
 install_runtime() {
   prepare_steamos_pacman
-  as_root pacman -S --needed --noconfirm "${runtime_packages[@]}"
+  steamos_pacman -S --needed --noconfirm "${runtime_packages[@]}"
   verify_command makepkg
   verify_command fakeroot
 }
@@ -51,12 +59,12 @@ install_governor() {
     info "SteamOS: Cyan will be installed from the verified official upstream release"
   fi
 }
-install_stress() { prepare_steamos_pacman; as_root pacman -S --needed --noconfirm stress; verify_command stress; }
-install_sensors() { prepare_steamos_pacman; as_root pacman -S --needed --noconfirm lm_sensors; verify_command sensors; }
+install_stress() { prepare_steamos_pacman; steamos_pacman -S --needed --noconfirm stress; verify_command stress; }
+install_sensors() { prepare_steamos_pacman; steamos_pacman -S --needed --noconfirm lm_sensors; verify_command sensors; }
 install_umr() {
   if [[ "${BC250_FORCE_UMR_FALLBACK:-0}" != "1" ]] && have umr; then info "UMR already installed"; return 0; fi
   prepare_steamos_pacman
-  if ! as_root pacman -S --needed --noconfirm umr; then
+  if ! steamos_pacman -S --needed --noconfirm umr; then
     if ! install_aur_package umr; then
       warn "AUR installation did not provide UMR; trying the SteamOS BC250 live-manager fallback"
     fi

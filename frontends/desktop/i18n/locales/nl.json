@@ -6043,5 +6043,10 @@
   "Update / repair Mesa": "Mesa bijwerken / herstellen",
   "Update / repair full stack": "Volledige stack bijwerken / herstellen",
   "Installed · reboot required": "Geïnstalleerd · herstart nodig",
-  "Partially installed": "Gedeeltelijk geïnstalleerd"
+  "Partially installed": "Gedeeltelijk geïnstalleerd",
+  "Free /var space": "Ruimte vrijmaken in /var",
+  "/var: {free} MB free": "/var: {free} MB vrij",
+  "SteamOS keeps /var small, and package installs stop when it is full. This removes pacman's downloaded packages and fwupd's firmware metadata, and trims the system logs to 20 MB. UMR's data in /var/lib/umr is kept: Compute Units tools use it.": "SteamOS houdt /var klein, en pakketinstallaties stoppen wanneer het vol is. Dit verwijdert de gedownloade pakketten van pacman en de firmwaremetadata van fwupd, en beperkt de systeemlogboeken tot 20 MB. De gegevens van UMR in /var/lib/umr blijven behouden: de Compute Units-hulpmiddelen gebruiken ze.",
+  "Folders": "Mappen",
+  "Could not free /var space": "Kon geen ruimte vrijmaken in /var"
 }
