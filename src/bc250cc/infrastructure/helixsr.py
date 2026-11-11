@@ -41,6 +41,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -2548,7 +2549,7 @@ def _run_bridge(*arguments: str) -> dict:
         payload = json.loads(answers[-1]) if answers else {}
     except ValueError:
         payload = {}
-    if not isinstance(payload, dict) or not payload.get("ok"):
+    if result.returncode or not isinstance(payload, dict) or not payload.get("ok"):
         error = payload.get("error") if isinstance(payload, dict) else ""
         raise RuntimeError(str(error or result.stderr.strip() or "HelixSR's bridge failed."))
     return payload
@@ -2638,6 +2639,57 @@ def _bridge_save(appid: str, name: str, folder: Path, way: str, payload: dict) -
     return record
 
 
+def _migrate_native_game(appid, legacy, args, name, folder, way):
+    """Keep the old integration and the original game DLL until install succeeds."""
+    paths = set()
+    for entry in legacy["files"]:
+        target = Path(entry["path"])
+        paths.update((target, Path(entry.get("backup") or _backup_for(target))))
+        for name in (*entry.get("created", ()), HELIXSR_LOG):
+            if name in (*HELIXSR_NETWORK_FILES, HELIXSR_LOG, HELIXSR_INI):
+                paths.add(target.parent / name)
+    stash = Path(tempfile.mkdtemp(prefix="helixsr-migration-", dir=_records_path().parent))
+    copies = {}
+    try:
+        for path in paths:
+            if path.is_file():
+                saved = stash / str(len(copies))
+                shutil.copy2(path, saved)
+                copies[path] = saved
+        _write_json(stash / "recovery.json", {
+            "appid": appid, "record": legacy,
+            "files": {saved.name: str(path) for path, saved in copies.items()},
+        })
+    except OSError:
+        shutil.rmtree(stash)
+        raise
+    try:
+        result = remove_helixsr_game(appid)
+        if result.get("kept"):
+            raise ActionNeeded("The original backup was kept; inspect it before installing HelixSR.")
+        payload = _run_bridge(*args)
+        try:
+            record = _bridge_save(appid, name, folder, way, payload)
+        except OSError:
+            # The bridge completed the install. Let it undo its own files first.
+            _run_bridge("remove", "--game", str(folder))
+            raise
+    except Exception:
+        try:
+            for path, saved in copies.items():
+                _replace_file(saved, path)
+                shutil.copystat(saved, path)
+            records = _records()
+            records[appid] = legacy
+            _write_json(_records_path(), records)
+        except OSError as recovery_error:
+            raise RuntimeError(f"HelixSR recovery was interrupted. The previous files and their paths are in {stash}.") from recovery_error
+        shutil.rmtree(stash)
+        raise
+    shutil.rmtree(stash)
+    return payload, record
+
+
 def install_helixsr_bridge(appid: str, way: str) -> dict:
     appid = str(appid).strip()
     if way not in ("scaler", "fsr") or not _layout3():
@@ -2673,9 +2725,6 @@ def install_helixsr_bridge(appid: str, way: str) -> dict:
         # game it does not list keeps the working install.
         if row is None or way not in (row.get("ways") or ()):
             raise ActionNeeded("HelixSR cannot go into this game that way; its current HelixSR was kept.")
-        result = remove_helixsr_game(appid)
-        if result.get("kept"):
-            raise ActionNeeded("The original backup was kept; inspect it before installing HelixSR.")
     args = ["install", "--game", str(folder), "--way", way]
     if way == "scaler":
         directory = helixsr_directory()
@@ -2683,12 +2732,16 @@ def install_helixsr_bridge(appid: str, way: str) -> dict:
         version = _bundled_scaler_version(directory)
         if version:
             args += ["--scaler-version", version]
-    payload = _run_bridge(*args)
+    legacy = _records().get(appid)
+    if legacy:
+        payload, record = _migrate_native_game(appid, legacy, args, str(game["name"]), folder, way)
+    else:
+        payload = _run_bridge(*args)
+        try:
+            record = _bridge_save(appid, str(game["name"]), folder, way, payload)
+        except OSError as error:
+            raise RuntimeError(f"Bridge installed HelixSR in {folder}, but its record could not be saved; use the HelixSR bridge to inspect or remove it: {error}") from error
     _forget_bridge_games()
-    try:
-        record = _bridge_save(appid, str(game["name"]), folder, way, payload)
-    except OSError as error:
-        raise RuntimeError(f"Bridge installed HelixSR in {folder}, but its record could not be saved; use the HelixSR bridge to inspect or remove it: {error}") from error
     if appid in old_scaler:
         del old_scaler[appid]
         _write_json(_scaler_records_path(), old_scaler)

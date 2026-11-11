@@ -86,6 +86,10 @@ def _is_steamos_gamemode_session() -> bool:
     return False
 
 
+#: How long the scale choice must hold still before the window is re-laid out.
+SCALE_SETTLE_MS = 250
+
+
 class ControlCenterWindow(QMainWindow):
     """Definitive BC250 interface backed by the application controller."""
 
@@ -129,7 +133,8 @@ class ControlCenterWindow(QMainWindow):
         app_icon = Path(__file__).resolve().parents[2] / "assets" / "icons" / "bc250-control-center.png"
         if app_icon.exists():
             self.setWindowIcon(QIcon(str(app_icon)))
-        self.resize(1460, 880)
+        available = self.screen().availableGeometry()
+        self.resize(min(1460, available.width()), min(880, available.height()))
         # 720×520 is the smallest useful shell. Below this point the pages still
         # remain intact through vertical scrolling, while the desktop window
         # manager retains a realistic resize target.
@@ -299,7 +304,7 @@ class ControlCenterWindow(QMainWindow):
             parent=self,
         )
         self.alert_monitor.alert_triggered.connect(self._show_safety_alert)
-        self._gamepad_navigation_enabled = self.preferences.bool_value("settings/gamepad_navigation", True)
+        self._gamepad_navigation_enabled = self.preferences.bool_value("settings/gamepad_navigation", False)
         keypad_enabled = self.preferences.bool_value("settings/gamepad_onscreen_keypad", True)
         self.gamepad.set_onscreen_keypad_enabled(keypad_enabled)
         self.gamepad.set_onscreen_keypad_auto_show(keypad_enabled)
@@ -619,24 +624,28 @@ class ControlCenterWindow(QMainWindow):
             accent=str(self.settings.value("settings/accent", "blue")),
             density=str(self.settings.value("settings/density", "comfortable")),
             collapsed=self.sidebar.collapsed,
+            gamepad_enabled=self._gamepad_navigation_enabled,
             system_mode=self._system_theme(),
             style=self.preferences.style(),
+            scale=self.preferences.scale(),
         )
         overlay.language_chosen.connect(self._welcome_language)
-        overlay.appearance_chosen.connect(self._welcome_appearance)
+        # Live, behind the panel: the shell is restyled as the options are
+        # picked, coalesced so a palette switch (style and accent together)
+        # or a run of scale steps repaints once.
+        overlay.appearance_chosen.connect(self._queue_appearance)
         overlay.style_chosen.connect(self._welcome_style)
+        overlay.scale_chosen.connect(self._welcome_scale)
+        overlay.gamepad_chosen.connect(self._welcome_gamepad)
         overlay.sidebar_chosen.connect(self._welcome_sidebar)
         overlay.prepare_requested.connect(self._welcome_prepare)
         overlay.dependencies_reached.connect(self._welcome_tools_probe)
         overlay.preparation_completed.connect(self._welcome_tools_probe)
         overlay.finished.connect(self._welcome_finished)
         overlay.setGeometry(self.rect())
-        overlay.set_backdrop_source(shell)
         self._clear_floating_widgets()
         self.welcome = overlay
-        # The shell keeps its pixels — the glass is a photograph of it — but
-        # stops taking input, so a keyboard cannot tab behind the panel into
-        # controls that write to the hardware.
+        # Keep keyboard focus away from hardware controls during setup.
         if shell is not None:
             shell.setEnabled(False)
         overlay.reveal()
@@ -657,22 +666,13 @@ class ControlCenterWindow(QMainWindow):
         self._apply_language(language)
         if self.welcome is not None:
             self.welcome.retranslate()
-            self.welcome.refresh_backdrop()
-
-    def _welcome_appearance(self, mode: str, accent: str, density: str) -> None:
-        self._apply_appearance(mode, accent, density)
-        if self.welcome is not None:
-            # The whole point of applying it live: the glass shows the choice.
-            self.welcome.refresh_backdrop()
-
-    def _welcome_style(self, style: str) -> None:
-        self._apply_style(style)
-        if self.welcome is not None:
-            self.welcome.refresh_backdrop()
 
     def _apply_style(self, style: str) -> None:
         """Store the style and repaint with it, keeping theme and accent."""
         self.settings.setValue("settings/style", self.preferences.normalize_style(style))
+        self._apply_saved_appearance()
+
+    def _apply_saved_appearance(self) -> None:
         self._apply_appearance(
             str(self.settings.value("settings/appearance", "system")),
             str(self.settings.value("settings/accent", "blue")),
@@ -680,10 +680,33 @@ class ControlCenterWindow(QMainWindow):
             persist=False,
         )
 
+    def _welcome_style(self, style: str) -> None:
+        self.settings.setValue("settings/style", self.preferences.normalize_style(style))
+        self._queue_saved_appearance()
+
+    def _welcome_scale(self, scale: int) -> None:
+        self.settings.setValue("settings/scale", self._normalized_scale(scale))
+        self._queue_saved_appearance()
+        # A new size re-lays out every widget (about 1.5 s here, all of it
+        # inside Qt), so wait for the wheel or the arrow keys to settle.
+        self._appearance_timer.start(SCALE_SETTLE_MS)
+
+    def _queue_saved_appearance(self) -> None:
+        pending = getattr(self, "_pending_appearance", None)
+        if pending is None:
+            pending = (
+                str(self.settings.value("settings/appearance", "system")),
+                str(self.settings.value("settings/accent", "blue")),
+                str(self.settings.value("settings/density", "comfortable")),
+            )
+        self._queue_appearance(*pending)
+
+    def _welcome_gamepad(self, enabled: bool) -> None:
+        self.settings.setValue("settings/gamepad_navigation", "true" if enabled else "false")
+        self._set_gamepad_navigation_enabled(enabled)
+
     def _welcome_sidebar(self, collapsed: bool) -> None:
         self.sidebar.set_collapsed(bool(collapsed))
-        if self.welcome is not None:
-            self.welcome.refresh_backdrop()
 
     def _welcome_prepare(self) -> None:
         """Install the chosen components in the panel's own terminal.
@@ -774,7 +797,9 @@ class ControlCenterWindow(QMainWindow):
                     title=tr("Prepare BC250 system"),
                     transcript=transcript,
                 )
+            overlay.hide()
             overlay.deleteLater()
+            self._apply_saved_appearance()
         mark_first_run_done(self.settings)
         if wants_tour:
             self.start_tour()
@@ -954,7 +979,11 @@ class ControlCenterWindow(QMainWindow):
         pending = getattr(self, "_pending_appearance", None)
         self._pending_appearance = None
         if pending is not None:
-            self._apply_appearance(*pending)
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            try:
+                self._apply_appearance(*pending)
+            finally:
+                QApplication.restoreOverrideCursor()
 
     def _persist_appearance(self, requested_mode: str, accent: str, density: str, resolved_mode: str) -> None:
         self.settings.setValue("settings/appearance", requested_mode)
@@ -1008,17 +1037,19 @@ class ControlCenterWindow(QMainWindow):
         gamepad = getattr(self, "gamepad", None)
         if gamepad is not None:
             gamepad.refresh_appearance()
+        overlay = getattr(self, "welcome", None)
+        if overlay is not None:
+            # The panel inherits the window's sheet; only its painted
+            # previews and the scrollbar keep colours of their own.
+            overlay.refresh_appearance()
 
+    @staticmethod
+    def _normalized_scale(scale: int) -> int:
+        return max(70, min(150, round(int(scale) / 10) * 10))
 
     def _apply_scale(self, scale: int) -> None:
-        normalized = max(70, min(150, round(int(scale) / 10) * 10))
-        self.settings.setValue("settings/scale", normalized)
-        self._apply_appearance(
-            str(self.settings.value("settings/appearance", "system")),
-            str(self.settings.value("settings/accent", "blue")),
-            str(self.settings.value("settings/density", "comfortable")),
-            persist=False,
-        )
+        self.settings.setValue("settings/scale", self._normalized_scale(scale))
+        self._apply_saved_appearance()
 
     def _set_detailed_diagnostics(self, enabled: bool) -> None:
         enabled = bool(enabled)
@@ -1091,7 +1122,7 @@ class ControlCenterWindow(QMainWindow):
         else:
             self.navigate("dashboard")
             if start == "settings":
-                QTimer.singleShot(0, lambda: self._open_settings_dialog("general"))
+                QTimer.singleShot(0, lambda: self._open_settings_dialog("home"))
 
     def _save_sidebar_state(self, collapsed: bool) -> None:
         if getattr(self, "_sidebar_change_is_automatic", False):
@@ -1211,7 +1242,7 @@ class ControlCenterWindow(QMainWindow):
             return
 
         if key in {"history", "settings"}:
-            section = "reports" if key == "history" else "general"
+            section = "reports" if key == "history" else "home"
             self._open_settings_dialog(section)
             return
 
@@ -1230,7 +1261,7 @@ class ControlCenterWindow(QMainWindow):
         self.sidebar.buttons[self.current_page_key].setChecked(True)
         self.stack.setCurrentWidget(self.pages[self.current_page_key])
 
-    def _open_settings_dialog(self, section: str = "general", then=None) -> None:
+    def _open_settings_dialog(self, section: str = "home", then=None) -> None:
         previous_key = self.current_page_key if self.current_page_key in self.sidebar.buttons else "dashboard"
         previous_page = self.pages.get(previous_key)
         self._set_page_updates(previous_page, False)
@@ -1302,6 +1333,9 @@ class ControlCenterWindow(QMainWindow):
 
     def gamepad_focus_scope(self) -> QWidget:
         """Return the active page as the preferred first-focus area."""
+        welcome = getattr(self, "welcome", None)
+        if welcome is not None and welcome.isVisible():
+            return welcome
         console = getattr(self, "console", None)
         if console is not None and console.is_open:
             # A workflow on screen is the thing being waited on; entering the
@@ -1319,6 +1353,13 @@ class ControlCenterWindow(QMainWindow):
 
     def gamepad_back(self) -> None:
         """Steam-style B behavior: visit history, then fall back to Dashboard."""
+        welcome = getattr(self, "welcome", None)
+        if welcome is not None and welcome.isVisible():
+            if welcome.steps.currentIndex():
+                welcome.back_button.click()
+            else:
+                welcome.skip_button.click()
+            return
         console = getattr(self, "console", None)
         if console is not None and console.is_open and not console.busy:
             # In Game Mode there is no pointer, and the console's header
@@ -1350,6 +1391,11 @@ class ControlCenterWindow(QMainWindow):
         Dashboard stopped the walk behind a modal. A module the sidebar is
         not showing is not a stop either.
         """
+        welcome = getattr(self, "welcome", None)
+        if welcome is not None and welcome.isVisible():
+            index = max(0, min(welcome.steps.currentIndex() + delta, len(welcome.step_rows) - 1))
+            welcome.step_rows[index].click()
+            return
         order = [
             key for key, button in self.sidebar.buttons.items()
             if key in self.pages and not button.isHidden()
@@ -1362,6 +1408,9 @@ class ControlCenterWindow(QMainWindow):
 
     def gamepad_toggle_sidebar(self) -> None:
         """Toggle the sidebar from the controller View/Select button."""
+        welcome = getattr(self, "welcome", None)
+        if welcome is not None and welcome.isVisible():
+            return
         if not hasattr(self, "sidebar"):
             return
         self._sidebar_auto_collapsed = False
@@ -1369,10 +1418,16 @@ class ControlCenterWindow(QMainWindow):
 
     def gamepad_open_settings(self) -> None:
         """Open Settings from the controller Menu/Start button."""
-        self._open_settings_dialog("general")
+        welcome = getattr(self, "welcome", None)
+        if welcome is not None and welcome.isVisible():
+            return
+        self._open_settings_dialog("home")
 
     def gamepad_go_dashboard(self) -> None:
         """Jump directly to the Dashboard from the controller guide/home button."""
+        welcome = getattr(self, "welcome", None)
+        if welcome is not None and welcome.isVisible():
+            return
         if self.current_page_key != "dashboard":
             self.navigate("dashboard")
         else:

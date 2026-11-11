@@ -200,3 +200,27 @@ def test_helper_acknowledgement_does_not_claim_success_on_stale_duty(tmp_path, m
 
     assert result["verified"] is None
     assert "did not settle" in result["verification_error"]
+
+
+@pytest.mark.parametrize("initial_mode", [1, 2])
+def test_helper_preserves_mode_after_duty_write_error(tmp_path, monkeypatch, initial_mode):
+    import runpy
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[3] / "privileged/helpers/bc250-fan-pwm-helper"
+    apply = runpy.run_path(str(path))["apply_pwm"]
+    mode = tmp_path / "pwm2_enable"
+    mode.write_text(str(initial_mode))
+    duty = tmp_path / "pwm2"
+    duty.write_text("128")
+
+    def write(attribute, value):
+        if attribute == duty:
+            raise OSError("simulated PWM write failure")
+        attribute.write_text(str(value))
+
+    monkeypatch.setitem(apply.__globals__, "find_sensor", lambda: tmp_path)
+    monkeypatch.setitem(apply.__globals__, "write_sysfs", write)
+    assert apply(2, 180).startswith("ERR simulated PWM")
+    assert int(mode.read_text()) == initial_mode
+    assert duty.read_text() == "128"

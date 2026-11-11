@@ -832,16 +832,18 @@ class GPURepository:
                 f"sudo systemctl unmask {service};",
                 "sudo systemctl daemon-reload;",
                 f"sudo systemctl reset-failed {service} 2>/dev/null || true;",
-                f"sudo systemctl enable --now {service};",
+                "activation_status=0;",
+                f"sudo systemctl enable --now {service} || activation_status=$?;",
             )
         )
         if selected == CYAN_GOVERNOR:
-            steps.append(f"sudo systemctl restart {service};")
+            steps.append(f'if [ "$activation_status" -eq 0 ]; then sudo systemctl restart {service} || activation_status=$?; fi;')
         steps.extend(
             (
-                f"if ! systemctl is-active --quiet {service}; then",
+                f'if [ "$activation_status" -ne 0 ] || ! systemctl is-active --quiet {service}; then',
                 f"  systemctl status {service} --no-pager --full || true;",
                 f"  journalctl -b -u {service} -n 80 --no-pager || true;",
+                '  if [ "$activation_status" -ne 0 ]; then exit "$activation_status"; fi;',
                 "  exit 1;",
                 "fi;",
             )

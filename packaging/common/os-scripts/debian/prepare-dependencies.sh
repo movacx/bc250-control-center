@@ -98,10 +98,19 @@ install_governor() (
   fi
   hash -r
   verify_command cyan-skillfish-governor-smu
+  printf 'BC250_UPSTREAM cyan-skillfish-governor v%s\n' "$version"
 )
 
-install_stress() { as_root apt-get update; as_root apt-get install -y stress; verify_command stress; }
-install_sensors() { as_root apt-get update; as_root apt-get install -y lm-sensors; verify_command sensors; }
+install_stress() {
+  as_root apt-get update
+  as_root apt-get install -y stress
+  run stress --version
+}
+install_sensors() {
+  as_root apt-get update
+  as_root apt-get install -y lm-sensors
+  run sensors -v
+}
 install_umr() {
   if have umr; then info "UMR already installed"; return 0; fi
   as_root apt-get update

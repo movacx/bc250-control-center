@@ -85,7 +85,8 @@ def test_failed_bridge_does_not_create_record(release):
     assert h._bridge_records() == {}
 
 
-def test_native_migration_restores_original_before_bridge_install(release, monkeypatch):
+@pytest.mark.parametrize("record_fails", [False, True])
+def test_native_migration_restores_original_before_bridge_install(release, monkeypatch, record_fails):
     directory, game = release
     target = game / 'amd_fidelityfx_dx12.dll'
     backup = game / 'original.dll'
@@ -98,6 +99,17 @@ def test_native_migration_restores_original_before_bridge_install(release, monke
         'print(json.dumps(dict(ok=True, games=[])))',
         f'print(json.dumps(dict(ok=True, games=[dict(folder={str(game)!r}, ways=["scaler", "fsr"])])))'))
     script.write_text(script.read_text().replace('cmd = args[0]', 'cmd = args[0]\nif cmd == "install":\n assert (Path(args[args.index("--game") + 1]) / "amd_fidelityfx_dx12.dll").read_bytes() == b"original"'))
+    if record_fails:
+        def fail_to_save(*args):
+            raise OSError("simulated write failure")
+
+        monkeypatch.setattr(h, "_bridge_save", fail_to_save)
+        with pytest.raises(OSError, match="simulated write failure"):
+            h.install_helixsr_bridge('1', 'fsr')
+        assert target.read_bytes() == b'old helixsr'
+        assert backup.read_bytes() == b'original'
+        assert '1' in h._records()
+        return
     h.install_helixsr_bridge('1', 'fsr')
     assert target.read_bytes() == b'original'
     assert not h._records()
@@ -281,17 +293,7 @@ def test_steam_shortcuts_reach_the_bridge_scan(release, monkeypatch):
     assert calls[-1] == ['games', '--folder', str(game)]
 
 
-def test_a_bridge_refusal_after_a_helixsr_2_migration_has_already_removed_the_old_files(release, monkeypatch):
-    """Pins what is left after B8: once the bridge has listed the way (the
-    affirmative preflight), the HelixSR 2 integration is removed and the
-    bridge's own install can still refuse.
-
-    R-c6ab33f2's anti-cheat refusal arrives from the bridge's ``install``, after
-    ``remove_helixsr_game`` restored the game's own file. Nothing is lost (the
-    original is back), but the old integration is gone, which is why UPSCALE-002
-    does not promise an untouched folder. B8 reorders this; when it does, flip
-    the last assertion.
-    """
+def test_bridge_install_refusal_restores_old_integration_and_backup(release, monkeypatch):
     directory, game = release
     target = game / 'amd_fidelityfx_dx12.dll'
     backup = game / 'original.dll'
@@ -308,10 +310,10 @@ def test_a_bridge_refusal_after_a_helixsr_2_migration_has_already_removed_the_ol
         'cmd = args[0]\nif cmd == "install":\n print(json.dumps(dict(ok=False, error="Game has anti-cheat (EasyAntiCheat): only with --anticheat-ok yes")))\n sys.exit(0)'))
     with pytest.raises(RuntimeError, match='anti-cheat'):
         h.install_helixsr_bridge('1', 'fsr')
-    assert target.read_bytes() == b'original'
+    assert target.read_bytes() == b'old helixsr'
+    assert backup.read_bytes() == b'original'
     assert h._bridge_records() == {}
-    # Current behaviour, pinned: the HelixSR 2 record is already gone.
-    assert not h._records()
+    assert '1' in h._records()
 
 
 def test_a_refused_way_keeps_the_helixsr2_install(release, monkeypatch):

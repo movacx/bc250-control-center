@@ -119,7 +119,10 @@ def mesa_desktop_state(
     elif not old:
         reason = "Mesa is already new enough."
     elif distro_id in UBUNTU_IDS or "ubuntu" in id_like.split():
-        route, action = "ppa", "mesa_ppa_install"
+        if re.fullmatch(r"[a-z]+", ubuntu_codename(fields)):
+            route, action = "ppa", "mesa_ppa_install"
+        else:
+            reason = "The Ubuntu release codename could not be identified."
     elif distro_id == "fedora":
         route = "release"
     elif distro_id == "debian" or (family == "debian" and not distro_id):

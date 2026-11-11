@@ -77,9 +77,10 @@ def test_a_report_sends_the_answers_with_the_system_facts(monkeypatch):
     monkeypatch.setattr(form, "submit", lambda report: sent.append(report) or report.id)
     monkeypatch.setattr("frontends.desktop.core.report_facts.read_report_facts",
                         lambda: {"version": "1.2.3", "distribution": "Bazzite", "system": {"OS": "x"}})
-    ui = Asking(["The fan stops", "@me"], choices=[form.KIND_PROBLEM])
+    ui = Asking(["The fan stops", "It keeps spinning", "@me"], choices=[form.KIND_PROBLEM])
     support.report(ui)
     assert sent and sent[0].summary == "The fan stops" and sent[0].contact == "@me"
+    assert sent[0].expected == "It keeps spinning"
     assert sent[0].distribution == "Bazzite" and sent[0].opened_from == "tui"
     assert ui.notes[-1][1] == "ok"
 

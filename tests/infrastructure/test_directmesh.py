@@ -200,3 +200,62 @@ def test_install_paths_never_reach_shell_source_unquoted(data_home):
     assert "bc250_icd=" in command
     assert 'ERROR: the installer finished but {' not in command
     assert '"$bc250_icd"' in command
+
+
+def test_failed_update_restores_driver_runner_and_record(tmp_path, monkeypatch):
+    import hashlib
+    import os
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    _install_driver()
+    prefix = directmesh.directmesh_prefix()
+    driver = prefix / "lib/libvulkan_radeon.so"
+    previous = (directmesh.directmesh_root() / "installed.json").read_bytes()
+    runner = tmp_path / ".local/bin/directmesh-run"
+    runner.parent.mkdir(parents=True)
+    runner.write_text("old runner")
+    installer = tmp_path / "installer"
+    installer.write_text('rm -rf "$DIRECTMESH_PREFIX"; echo partial > "$HOME/.local/bin/directmesh-run"; exit 27')
+    digest = hashlib.sha256(installer.read_bytes()).hexdigest()
+    monkeypatch.setattr(directmesh, "directmesh_release", lambda: {"tag": "directmesh-v1.5", "installer_sha256": digest})
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    for name, script in {"vulkaninfo": "exit 1", "curl": 'while [ "$1" != -o ]; do shift; done; cp "$INSTALLER" "$2"'}.items():
+        executable = fake_bin / name
+        executable.write_text("#!/bin/sh\n" + script)
+        executable.chmod(0o755)
+    result = subprocess.run(
+        ["bash", "-c", directmesh.build_directmesh_install_command(family="arch", distro_id="arch")],
+        env=os.environ | {"INSTALLER": str(installer), "PATH": f"{fake_bin}:{os.environ['PATH']}"},
+        capture_output=True, text=True, timeout=10,
+    )
+    assert result.returncode == 27, result.stderr
+    assert driver.read_bytes() == b"\x7fELF"
+    assert runner.read_text() == "old runner"
+    assert (directmesh.directmesh_root() / "installed.json").read_bytes() == previous
+
+
+def test_matching_container_is_required_before_upstream_installer_runs(tmp_path, monkeypatch):
+    import os
+
+    commands = tmp_path / "container-commands"
+    distrobox = tmp_path / "distrobox"
+    distrobox.write_text("""#!/bin/sh
+case "$1" in
+    list) echo '123 | bc250-directmesh | running' ;;
+    enter)
+        shift 3
+        case "$1" in
+            sh) echo "43" ;;
+            *) echo "$*" >> "$COMMANDS" ;;
+        esac ;;
+    *) exit 1 ;;
+esac
+""")
+    distrobox.chmod(0o755)
+    result = subprocess.run(["bash", "-ec", directmesh._container_lines("44", "")],
+                            env=os.environ | {"PATH": f"{tmp_path}:{os.environ['PATH']}", "COMMANDS": str(commands)},
+                            text=True, capture_output=True)
+    assert result.returncode == 69
+    assert "Fedora 43; Fedora 44 is required" in result.stdout
+    assert not commands.exists()

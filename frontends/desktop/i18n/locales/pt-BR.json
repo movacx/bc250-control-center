@@ -6003,5 +6003,8 @@
   "In Steam, verify the files of the Proton version in use, or install Wine for this system. Inside a container, install the libraries Wine needs there, then run this action again.": "No Steam, verifique os arquivos da versão do Proton em uso, ou instale o Wine para este sistema. Dentro de um contêiner, instale lá as bibliotecas de que o Wine precisa e execute a ação de novo.",
   "This action changes BC-250 hardware, and no BC-250 (PCI 1002:13fe) was found in this computer. Nothing was changed.": "Esta ação altera hardware da BC-250 e nenhuma BC-250 (PCI 1002:13fe) foi encontrada neste computador. Nada foi alterado.",
   "Cancelled: you answered no. Steps before this question may already have changed the system.": "Cancelado: você respondeu não. As etapas antes desta pergunta podem já ter alterado o sistema.",
-  "The Bazzite async-compute workflow started in the terminal. Games use it once their Steam launch option sets VK_DRIVER_FILES.": "O processo de computação assíncrona do Bazzite começou no terminal. Os jogos o usam quando a opção de inicialização do Steam define VK_DRIVER_FILES."
+  "The Bazzite async-compute workflow started in the terminal. Games use it once their Steam launch option sets VK_DRIVER_FILES.": "O processo de computação assíncrona do Bazzite começou no terminal. Os jogos o usam quando a opção de inicialização do Steam define VK_DRIVER_FILES.",
+  "Briefly describe what happened (at least 4 characters).": "Descreva brevemente o que aconteceu (pelo menos 4 caracteres).",
+  "Changes are saved and applied as you make them.": "As alterações são salvas e aplicadas na hora.",
+  "Navigation": "Navegação"
 }

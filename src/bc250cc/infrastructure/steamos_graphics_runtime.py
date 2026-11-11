@@ -324,6 +324,7 @@ def build_steamos_graphics_command(
         'exit 0; fi'
     )
     steps = [
+        "set -eo pipefail",
         'echo "== SteamOS BC-250 graphics stack =="',
         'grep -Eiq "steamos|steamdeck|holo" /etc/os-release || { echo "ERROR: this workflow is available only on SteamOS"; exit 39; }',
     ]
@@ -333,6 +334,7 @@ def build_steamos_graphics_command(
         steps.append(unstaged_status)
     steps.extend((
         f'{guard} || {{ echo "[ERROR] the reviewed root-owned SteamOS graphics backend is unavailable or changed"; exit 38; }}',
+        f'if read -r revision 2>/dev/null < {shlex.quote(str(script.parent / ".bc250-control-center-reviewed-revision"))}; then echo "BC250_UPSTREAM SteamOS-toolkit $revision"; fi',
         command,
     ))
     if mutation:

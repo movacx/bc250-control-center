@@ -473,7 +473,28 @@ def test_the_report_button_sends_the_output_and_the_code(qtbot, panel, monkeypat
     )
     run_and_wait(qtbot, panel, "echo 'Código de diagnóstico: BC250-TEST-001'; exit 3", title="Prueba")
     panel.report_button.click()
+    assert sent["workflow_details"]["exit_status"] == 3
+    assert sent["workflow_details"]["duration_seconds"] >= 0
     assert sent["opened_from"] == "Terminal"
     assert sent["code"] == "BC250-TEST-001"
     assert "BC250-TEST-001" in sent["terminal"]
     assert "Prueba" in sent["summary"]
+
+@pytest.mark.parametrize("outcome", ["stopped", "window_closed"])
+def test_interrupted_run_keeps_one_context_in_the_log(qtbot, panel, tmp_path, outcome):
+    import json
+
+    log = tmp_path / "workflow.log"
+    panel.window().current_page_key = "fans"
+    assert panel.run(["/bin/sleep", "30"], title="Check fan", log_file=str(log))
+    if outcome == "stopped":
+        with qtbot.waitSignal(panel.workflow_finished, timeout=5000):
+            panel._stop_workflow()
+    else:
+        panel.shutdown()
+    entries = [json.loads(row.removeprefix("BC250_CONTEXT ")) for row in log.read_text().splitlines()
+               if row.startswith("BC250_CONTEXT ")]
+    assert len(entries) == 1
+    assert (entries[0]["outcome"], entries[0]["page"]) == (outcome, "fans")
+    assert entries[0]["exit_status"] != 0 and entries[0]["duration_seconds"] >= 0
+    assert not panel.report_button.isVisibleTo(panel)

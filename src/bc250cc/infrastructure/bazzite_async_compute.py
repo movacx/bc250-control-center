@@ -183,6 +183,7 @@ def build_bazzite_async_compute_command(action: str) -> str:
         'tar --zstd -xf "$bc250_archive" -C "$bc250_stage"',
         f'bc250_source="$bc250_stage/{source_dir}"',
         'test -d "$bc250_source" && test ! -L "$bc250_source" || { echo "ERROR: invalid release archive root."; exit 29; }',
+        f'echo "BC250_UPSTREAM bc250-async-compute {BAZZITE_ASYNC_COMPUTE_COMMIT}"',
         f'test "$(cat "$bc250_source/VERSION" 2>/dev/null)" = {BAZZITE_ASYNC_COMPUTE_VERSION} || {{ echo "ERROR: unexpected release version."; exit 29; }}',
         'test -x "$bc250_source/install.sh" && test -x "$bc250_source/uninstall.sh" || { echo "ERROR: release lifecycle scripts are missing."; exit 29; }',
     ))

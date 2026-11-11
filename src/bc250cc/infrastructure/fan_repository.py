@@ -344,53 +344,36 @@ class FanRepository:
 
     def _apply_direct_pwm(self, sensor, pwm, value):
         enable = sensor / f'pwm{pwm}_enable'
-        was_automatic = False
-        if enable.is_file() and os.access(enable, os.W_OK):
-            was_automatic = self._leer_entero(enable) == 2
-            self._write_pwm_attribute(enable, '1\n')
-            # Do not send a duty value while the controller is still in its
-            # automatic-to-manual transition.
-            time.sleep(PWM_MODE_SETTLE_SECONDS)
-            try:
+        control_mode = enable.is_file() and os.access(enable, os.W_OK)
+        was_automatic = control_mode and self._leer_entero(enable) == 2
+        try:
+            if control_mode:
+                self._write_pwm_attribute(enable, '1\n')
+                time.sleep(PWM_MODE_SETTLE_SECONDS)
                 self._wait_for_pwm_state(pwm, enable=1)
-            except RuntimeError as error:
-                rollback = ''
-                if was_automatic:
-                    try:
-                        self._write_pwm_attribute(enable, '2\n')
-                        self._wait_for_pwm_state(pwm, enable=2)
-                        rollback = ' Previous automatic mode was restored.'
-                    except (OSError, RuntimeError) as rollback_error:
-                        rollback = f' Previous automatic-mode rollback failed: {rollback_error}.'
-                raise RuntimeError(f'{error}{rollback}') from error
-
-        # Re-write between bounded readbacks: on NCT6687 a duty sent during
-        # the transition may be ignored even though the attribute write
-        # returned successfully.
-        started = time.monotonic()
-        confirmed = None
-        for attempt in range(1, PWM_DUTY_VERIFY_ATTEMPTS + 1):
-            self._write_pwm_attribute(sensor / f'pwm{pwm}', f'{value}\n')
-            time.sleep(PWM_DUTY_VERIFY_INTERVAL_SECONDS)
-            confirmed = self.leer_pwm_fan(pwm)
-            if confirmed.get('value') == value:
-                confirmed['verification_attempts'] = attempt
-                confirmed['verification_elapsed_ms'] = round((time.monotonic() - started) * 1000, 1)
-                break
-        else:
-            rollback = ''
-            if was_automatic:
-                try:
-                    self._write_pwm_attribute(enable, '2\n')
-                    self._wait_for_pwm_state(pwm, enable=2)
-                    rollback = ' Previous automatic mode was restored.'
-                except (OSError, RuntimeError) as error:
-                    rollback = f' Previous automatic-mode rollback failed: {error}.'
-            raise RuntimeError(
-                f'PWM {pwm} did not retain duty {value} after {PWM_DUTY_VERIFY_ATTEMPTS} '
-                f'attempts/{(time.monotonic() - started) * 1000:.1f} ms '
-                f'(readback was {confirmed.get("value") if confirmed else None!r}).{rollback}'
-            )
+            started = time.monotonic()
+            for attempt in range(1, PWM_DUTY_VERIFY_ATTEMPTS + 1):
+                self._write_pwm_attribute(sensor / f'pwm{pwm}', f'{value}\n')
+                time.sleep(PWM_DUTY_VERIFY_INTERVAL_SECONDS)
+                confirmed = self.leer_pwm_fan(pwm)
+                if confirmed.get('value') == value:
+                    confirmed['verification_attempts'] = attempt
+                    confirmed['verification_elapsed_ms'] = round((time.monotonic() - started) * 1000, 1)
+                    break
+            else:
+                raise RuntimeError(
+                    f'PWM {pwm} did not retain duty {value} after {PWM_DUTY_VERIFY_ATTEMPTS} attempts '
+                    f'(readback was {confirmed.get("value")!r}).'
+                )
+        except (OSError, RuntimeError) as error:
+            if not was_automatic:
+                raise
+            try:
+                self._write_pwm_attribute(enable, '2\n')
+                self._wait_for_pwm_state(pwm, enable=2)
+            except (OSError, RuntimeError) as rollback_error:
+                raise RuntimeError(f'{error} Previous automatic-mode rollback failed: {rollback_error}.') from error
+            raise RuntimeError(f'{error} Previous automatic mode was restored.') from error
         return {
             'pwm': pwm, 'valor': value, 'salida': f'OK PWM {pwm} {value}',
             'verified': confirmed,
@@ -869,7 +852,7 @@ def apply_pwm(pwm, value):
             )
         return 'OK PWM %s %s' % (pwm, value)
     except Exception as exc:
-        return 'ERR ' + str(exc)
+        return 'ERR ' + str(exc) + restore_previous_automatic(enable_path, was_automatic)
 
 
 def restore_auto(pwm):

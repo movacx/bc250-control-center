@@ -803,7 +803,7 @@ class ConsolePanel(QFrame):
         # Offered for the last run only; a success or a new run takes it back.
         # Stopped by the user, or declined at a prompt (exit 130): not a
         # failure, so nothing to report.
-        cancelled = bool(getattr(tab, "stop_requested", False)) or code == 130
+        cancelled = tab.closing_window or bool(getattr(tab, "stop_requested", False)) or code == 130
         self._failed_tab = tab if code != 0 and not cancelled else None
         self.report_button.setVisible(code != 0 and not cancelled and tab is self._active)
         if code == 0 and self._auto_hide and not self.busy:
@@ -831,12 +831,14 @@ class ConsolePanel(QFrame):
     def _report_failure(self) -> None:
         """Open the report form with this run's whole output and its code."""
         tab = self._failed_tab or self.active_tab
-        text = tab.view.screen.full_text() or ""
-        if not text and tab.log_file:
+        text = ""
+        if tab.log_file:
             try:
                 text = Path(tab.log_file).read_text(encoding="utf-8", errors="replace")
             except OSError:
-                text = ""
+                pass
+        if not text:
+            text = tab.view.screen.full_text() or ""
         found = _DIAGNOSTIC_CODE.search(text)
         from ..components.feedback_dialog import open_feedback
 
@@ -845,6 +847,9 @@ class ConsolePanel(QFrame):
         open_feedback(
             self.window(),
             opened_from="Terminal",
+            workflow_details={"exit_status": tab.exit_code, "duration_seconds": tab.duration_seconds,
+                              "page": tab.origin_page, "action": title,
+                              "outcome": "timeout" if tab.exit_code == 124 else "failed"},
             summary=f"{title} failed",
             terminal=text,
             code=found.group(1) if found else "",

@@ -17,7 +17,9 @@ mkdir -p -- "$OUTPUT_DIR"
 bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
 target="$OUTPUT_DIR/bc250-control-center-$VERSION.tar.gz"
 temporary="$target.tmp.$$"
-trap 'rm -f -- "$temporary"' EXIT
+stage="$(mktemp -d)"
+trap 'rm -f -- "$temporary"; rm -rf -- "$stage"' EXIT
+bash "$SCRIPT_DIR/build-revision.sh" "$ROOT_DIR" > "$stage/BUILD_REVISION"
 # --format=gnu: openSUSE builds GNU tar with posix (pax) as its default,
 # and pax headers record atime and ctime, so two builds of the same tree
 # differed byte for byte there and nowhere else. --mode: a file left 0600 in
@@ -31,9 +33,10 @@ tar --create --file - --format=gnu \
   --transform "s,^,bc250-control-center-$VERSION/," \
   -C "$ROOT_DIR" \
   VERSION README.md LICENSE SECURITY.md pyproject.toml requirements-web.txt run.sh docs/THIRD_PARTY_NOTICES.md \
-  assets integrations src frontends privileged scripts packaging \
+  assets integrations src frontends privileged scripts packaging -C "$stage" BUILD_REVISION \
   | gzip -n -9 > "$temporary"
 mv -- "$temporary" "$target"
+rm -rf -- "$stage"
 trap - EXIT
 target_name="${target##*/}"
 (

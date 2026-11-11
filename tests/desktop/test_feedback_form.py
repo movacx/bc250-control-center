@@ -117,7 +117,7 @@ def test_the_current_error_is_not_repeated_in_the_history():
     ]
     items = form.history_items(entries, exclude_raw="RuntimeError: kernel")
     assert [item["code"] for item in items] == ["BC250-FAN-001", "BC250-NET-001"]
-    assert len(items[1]["detail"]) <= 300
+    assert items[1]["detail"].startswith("x" * 900)
 
 
 def test_workflow_logs_lose_terminal_strings_and_the_credits():
@@ -151,9 +151,9 @@ def test_a_report_the_service_did_not_take_is_saved_on_disk(tmp_path):
 
 def test_a_second_press_right_after_does_not_send_twice():
     posted = []
-    form.submit(form.Report(summary="a"), post=posted.append, clock=lambda: 100.0)
+    form.submit(form.Report(summary="GPU froze"), post=posted.append, clock=lambda: 100.0)
     with pytest.raises(form.ReportError):
-        form.submit(form.Report(summary="b"), post=posted.append, clock=lambda: 110.0)
+        form.submit(form.Report(summary="Fan stopped"), post=posted.append, clock=lambda: 110.0)
     assert len(posted) == 1
 
 
@@ -402,3 +402,21 @@ def test_the_contact_the_owner_typed_is_never_redacted(monkeypatch):
     document = form.payload(form.Report(summary="x", contact="@alice", steps="/home/alice/game"))
     assert document["contact"] == "@alice"
     assert "alice" not in document["problem"]["steps"]
+
+
+def test_workflow_report_preserves_raw_status_and_reviewed_sources():
+    report = form.Report(summary="Package install failed", workflow_log=(
+        "BC250_UPSTREAM example abcdef123456\nBC250_WORKFLOW exit_status=100 duration_seconds=3"
+    ), workflow_details={"action": "Prepare", "page": "dashboard", "duration_seconds": 3.42})
+    workflow = form.payload(report)["workflow"]
+    assert workflow["exit_status"] == 100 and workflow["duration_seconds"] == 3.42
+    assert workflow["upstreams"] == {"example": "abcdef123456"}
+
+
+def test_installation_id_is_local_stable_and_independent_of_hardware(tmp_path, monkeypatch):
+    from bc250cc.infrastructure.report_identity import _installation_id
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "first"))
+    first = _installation_id()
+    assert len(first) == 32 and _installation_id() == first
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "second"))
+    assert _installation_id() != first

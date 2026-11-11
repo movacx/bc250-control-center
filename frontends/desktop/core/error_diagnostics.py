@@ -400,7 +400,7 @@ _RULES = (
     # (a Toolbx, an incomplete Proton; R-a45942d4).
     _Rule(
         "BC250-WINE-002",
-        (r"wine[^\n]*cannot execute: required file not found", r"cannot be executed here"),
+        (r"wine[^\n]*cannot execute: required file not found", r"wine[^\n]*cannot be executed here"),
         "Wine or Proton cannot run in this environment.",
         "The Wine program that HelixSR uses to compile its shaders exists, but Linux cannot execute it here: a loader or library it depends on is missing, which happens inside a Toolbx or Distrobox container or with an incomplete Proton.",
         "In Steam, verify the files of the Proton version in use, or install Wine for this system. Inside a container, install the libraries Wine needs there, then run this action again.",

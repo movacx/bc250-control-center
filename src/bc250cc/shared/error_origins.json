@@ -1669,6 +1669,7 @@
    "_bundled_scaler_version": "UPS-0282",
    "_bridge_game_rows": "UPS-0283",
    "_bridge_save": "UPS-0284",
+   "_migrate_native_game": "UPS-0293",
    "install_helixsr_bridge": "UPS-0285",
    "remove_helixsr_bridge": "UPS-0286",
    "rollback_helixsr_bridge": "UPS-0287",
@@ -2068,6 +2069,10 @@
    "split_sections": "DIAG-0171",
    "collect_attachments": "CORE-0099",
    "collect_readonly_attachments": "DIAG-0177"
+  },
+  "bc250cc/infrastructure/report_identity.py": {
+   "_installation_id": "CORE-0278",
+   "report_identity": "CORE-0279"
   },
   "bc250cc/infrastructure/script_presentation.py": {
    "banner": "SYS-0079",
@@ -2865,6 +2870,7 @@
    "ControlCenterWindow._welcome_appearance": "UI-0025",
    "ControlCenterWindow._welcome_style": "UI-0026",
    "ControlCenterWindow._apply_style": "UI-0027",
+   "ControlCenterWindow._welcome_gamepad": "UI-0712",
    "ControlCenterWindow._welcome_sidebar": "UI-0028",
    "ControlCenterWindow._welcome_prepare": "UI-0029",
    "ControlCenterWindow._welcome_tools_probe": "UI-0030",
@@ -3827,6 +3833,7 @@
    "ConsoleTab._send_input": "CON-0103",
    "ConsoleTab._resize_session": "CON-0104",
    "ConsoleTab._on_failed": "CON-0105",
+   "ConsoleTab._record_workflow": "CON-0264",
    "ConsoleTab._on_finished": "CON-0106",
    "ConsoleTab._release_session": "CON-0107",
    "ConsoleTab.shutdown": "CON-0108",
@@ -4740,11 +4747,8 @@
    "WelcomeOverlay._sync_language": "ONB-0159",
    "WelcomeOverlay._sync_appearance": "ONB-0160",
    "WelcomeOverlay._sync_sidebar": "ONB-0161",
-   "WelcomeOverlay.set_backdrop_source": "ONB-0162",
-   "WelcomeOverlay.refresh_backdrop": "ONB-0163",
    "WelcomeOverlay.retranslate": "ONB-0164",
    "WelcomeOverlay.reveal": "ONB-0165",
-   "WelcomeOverlay.resizeEvent": "ONB-0166",
    "WelcomeOverlay.keyPressEvent": "ONB-0167",
    "WelcomeOverlay.paintEvent": "ONB-0168",
    "WelcomeOverlay.terminal_open": "ONB-0169"
@@ -6402,6 +6406,9 @@
   "FAN-0418",
   "FAN-0456",
   "FAN-0470",
+  "ONB-0162",
+  "ONB-0163",
+  "ONB-0166",
   "SET-0256",
   "TEL-0109",
   "TEL-0113",

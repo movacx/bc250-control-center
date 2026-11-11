@@ -641,18 +641,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     upscaling_line, upscaling_line_strong = c['border_soft'], c['border']
     upscaling_outline = c['border'] if light else c['border_soft']
     upscaling_head = c['panel_alt'] if light else _blend(c['panel_alt'], c['window'], 0.5)
-    # Glass, for the first-run panel: the card has to be translucent for the
-    # frosted portrait behind it to mean anything, and Qt takes that as an
-    # rgba() rather than as a palette entry. Light glass on a light palette,
-    # dark glass on a dark one — a translucent white over a dark shell reads
-    # as fog rather than as a pane.
-    _glass_rgb = "255, 255, 255" if ACTIVE_MODE == "light" else "26, 30, 38"
-    glass_card = f"rgba({_glass_rgb}, 0.90)"
-    glass_rail = f"rgba({_glass_rgb}, 0.55)"
-    glass_edge = (
-        "rgba(255, 255, 255, 0.75)" if ACTIVE_MODE == "light"
-        else "rgba(255, 255, 255, 0.14)"
-    )
     base = f"""
     * {{
         font-family: Inter, 'Noto Sans', 'Segoe UI', sans-serif;
@@ -2406,6 +2394,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-radius: 11px;
         padding: 9px 11px;
         min-height: 20px;
+        /* Stated, not inherited: the platform's default font is outside
+           the sheet, so the interface scale never reached these fields. */
+        font-size: 12px;
         font-weight: 710;
         selection-background-color: {c['blue_soft']};
     }}
@@ -2423,27 +2414,42 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         selection-background-color: {c['selection']};
     }}
     /* ------------------------------------------------------------------
-       The first-run panel. Glass: the card is translucent so the frosted
-       portrait of the application shows through it, and it carries a light
-       edge rather than a drawn border because that is what reads as a pane
-       of glass lit from above. Everything inside it is the application's own
-       vocabulary — the same radii, the same accent, the same type scale —
-       because this is the first thing anyone sees of it.
+       First-run preferences.
        ------------------------------------------------------------------ */
+    QComboBox#onboardingScale {{
+        min-width: 64px;
+        padding: 6px 10px;
+    }}
+    QComboBox#onboardingScale::drop-down {{
+        border: none;
+        background: transparent;
+        width: 24px;
+    }}
+    QComboBox#onboardingScale::down-arrow {{
+        image: url({icon_dir}/chevron_down_gray.svg);
+        width: 12px;
+        height: 12px;
+    }}
     QWidget#onboardingOverlay {{
         background: transparent;
     }}
     QFrame#onboardingCard {{
-        background: {glass_card};
-        border: 1px solid {glass_edge};
-        border-radius: 18px;
+        background: {c['panel']};
+        border: 1px solid {c['border_strong']};
+        border-radius: 12px;
     }}
     QWidget#onboardingRail {{
-        background: {glass_rail};
-        border-right: 1px solid {c['border_soft']};
-        border-top-left-radius: 18px;
-        border-bottom-left-radius: 18px;
+        background: {_blend(c['panel_alt'], c['border_strong'], 0.20) if light else c['panel_alt']};
+        border-right: 1px solid {c['border_strong']};
+        border-top-left-radius: 12px;
+        border-bottom-left-radius: 12px;
     }}
+    QFrame#onboardingOptions {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border']};
+        border-radius: 9px;
+    }}
+    QFrame#onboardingDivider {{ background: {c['border']}; border: none; }}
     QWidget#onboardingContent {{ background: transparent; }}
     QLabel#onboardingBrand {{
         color: {c['text']};
@@ -2557,8 +2563,8 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 680;
     }}
     QPushButton#onboardingChip {{
-        background: {c['control']};
-        border: 1px solid {c['border_soft']};
+        background: {c['panel_alt'] if light else c['control']};
+        border: 1px solid {c['border']};
         border-radius: 9px;
         padding: 7px 12px;
         color: {c['text']};

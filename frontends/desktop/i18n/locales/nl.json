@@ -6003,5 +6003,8 @@
   "In Steam, verify the files of the Proton version in use, or install Wine for this system. Inside a container, install the libraries Wine needs there, then run this action again.": "Controleer in Steam de bestanden van de gebruikte Proton-versie, of installeer Wine voor dit systeem. Installeer in een container daar de bibliotheken die Wine nodig heeft en voer de actie opnieuw uit.",
   "This action changes BC-250 hardware, and no BC-250 (PCI 1002:13fe) was found in this computer. Nothing was changed.": "Deze actie wijzigt BC-250-hardware en er is geen BC-250 (PCI 1002:13fe) in deze computer gevonden. Er is niets gewijzigd.",
   "Cancelled: you answered no. Steps before this question may already have changed the system.": "Geannuleerd: je antwoordde nee. Stappen vóór deze vraag kunnen het systeem al hebben gewijzigd.",
-  "The Bazzite async-compute workflow started in the terminal. Games use it once their Steam launch option sets VK_DRIVER_FILES.": "Het Bazzite async-compute-proces is in de terminal gestart. Games gebruiken het zodra hun Steam-startoptie VK_DRIVER_FILES instelt."
+  "The Bazzite async-compute workflow started in the terminal. Games use it once their Steam launch option sets VK_DRIVER_FILES.": "Het Bazzite async-compute-proces is in de terminal gestart. Games gebruiken het zodra hun Steam-startoptie VK_DRIVER_FILES instelt.",
+  "Briefly describe what happened (at least 4 characters).": "Beschrijf kort wat er gebeurde (minstens 4 tekens).",
+  "Changes are saved and applied as you make them.": "Wijzigingen worden direct opgeslagen en toegepast.",
+  "Navigation": "Navigatie"
 }

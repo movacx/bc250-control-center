@@ -6003,5 +6003,8 @@
   "In Steam, verify the files of the Proton version in use, or install Wine for this system. Inside a container, install the libraries Wine needs there, then run this action again.": "Steam で使用中の Proton バージョンのファイルを検証するか、このシステムに Wine をインストールしてください。コンテナ内では、Wine が必要とするライブラリをそこにインストールしてから、操作をもう一度実行してください。",
   "This action changes BC-250 hardware, and no BC-250 (PCI 1002:13fe) was found in this computer. Nothing was changed.": "この操作は BC-250 のハードウェアを変更しますが、このコンピューターに BC-250（PCI 1002:13fe）が見つかりませんでした。何も変更されていません。",
   "Cancelled: you answered no. Steps before this question may already have changed the system.": "キャンセルしました: 「いいえ」と答えました。この質問より前の手順で、すでにシステムが変更されている場合があります。",
-  "The Bazzite async-compute workflow started in the terminal. Games use it once their Steam launch option sets VK_DRIVER_FILES.": "Bazzite の非同期コンピュートの処理をターミナルで開始しました。Steam の起動オプションで VK_DRIVER_FILES を設定したゲームで使われます。"
+  "The Bazzite async-compute workflow started in the terminal. Games use it once their Steam launch option sets VK_DRIVER_FILES.": "Bazzite の非同期コンピュートの処理をターミナルで開始しました。Steam の起動オプションで VK_DRIVER_FILES を設定したゲームで使われます。",
+  "Briefly describe what happened (at least 4 characters).": "何が起きたかを簡潔に入力してください（4文字以上）。",
+  "Changes are saved and applied as you make them.": "変更はその場で保存され、適用されます。",
+  "Navigation": "ナビゲーション"
 }

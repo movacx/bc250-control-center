@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 JOURNAL_NAME = "diagnostics.jsonl"
 MAX_ENTRIES = 300
 #: Detail kept per entry; the terminal log keeps the rest.
-MAX_DETAIL = 1500
+MAX_DETAIL = 4000
 #: The end of a traceback is where it failed; the start is kept out.
 MAX_RAW = 4000
 #: The same error shown twice this close together is one event.
@@ -107,6 +107,9 @@ def record(
 ) -> DiagnosticEntry | None:
     """Append one entry; ``None`` when it was a repeat or could not be saved."""
     path = path or journal_path()
+    detail = str(detail)
+    if len(detail) > MAX_DETAIL:
+        detail = detail[:1000] + "…" + detail[-(MAX_DETAIL - 1001):]
     entry = DiagnosticEntry(
         at=time.time() if now is None else now,
         code=str(code),
@@ -115,7 +118,7 @@ def record(
         summary=str(summary),
         cause=str(cause),
         action=str(action),
-        detail=str(detail)[:MAX_DETAIL],
+        detail=detail,
         origin=str(origin)[:300],
         raised=str(raised)[:300],
         raw=str(raw)[-MAX_RAW:],

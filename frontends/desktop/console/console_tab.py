@@ -14,6 +14,10 @@ which grid is on top.
 
 from __future__ import annotations
 
+import json
+import time
+from pathlib import Path
+
 from PyQt6.QtCore import QPointF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPen, QPolygonF
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
@@ -79,6 +83,10 @@ class ConsoleTab(QWidget):
         self.title = ""
         self.log_file = ""
         self.launch_path = ""
+        self.closing_window = False
+        self.started_at = None
+        self.duration_seconds = None
+        self.origin_page = ""
         self.exit_code: int | None = None
         #: The user's own shell, opened with F4 the way Dolphin opens its
         #: terminal panel. It is not a workflow: it never makes the panel
@@ -236,6 +244,9 @@ class ConsoleTab(QWidget):
         self.log_file = str(log_file or "")
         self.launch_path = str(launch_path or "")
         self.exit_code = None
+        self.started_at = time.monotonic()
+        self.duration_seconds = None
+        self.origin_page = getattr(self.window(), "current_page_key", "")
         self.interactive = bool(interactive)
         if grid_height > 0:
             # Size the grid for the open panel, not for the closed one it
@@ -272,6 +283,7 @@ class ConsoleTab(QWidget):
             self.set_state("", "plain")
             self.interactive = False
             return False
+        session.workflow_context = (self.started_at, self.origin_page, self.log_file)
         self._session = session
         self.stop_requested = False
         self._sync_close_button()
@@ -340,6 +352,8 @@ class ConsoleTab(QWidget):
             self.view.feed(
                 transcript.replace("\r\n", "\n").replace("\n", "\r\n").encode()
             )
+        self.started_at, self.origin_page, self.log_file = getattr(session, "workflow_context", (None, "", ""))
+        self.duration_seconds = None
         session.setParent(self)
         session.output.connect(self.view.feed)
         session.finished.connect(self._on_finished)
@@ -379,6 +393,18 @@ class ConsoleTab(QWidget):
         self._sync_close_button()
         self.failed.emit(message)
 
+    def _record_workflow(self, outcome: str, code: int | None) -> None:
+        if self.started_at is not None:
+            self.duration_seconds = round(time.monotonic() - self.started_at, 2)
+        if self.log_file:
+            context = {"action": self.title, "page": self.origin_page, "outcome": outcome,
+                       "duration_seconds": self.duration_seconds, "exit_status": code}
+            try:
+                with Path(self.log_file).open("a", encoding="utf-8") as log:
+                    log.write("\nBC250_CONTEXT " + json.dumps(context, ensure_ascii=False) + "\n")
+            except OSError:
+                pass
+
     def _on_finished(self, code: int) -> None:
         if self.interactive:
             # ``exit`` in the user's shell is a way of closing it, not a
@@ -394,6 +420,12 @@ class ConsoleTab(QWidget):
             self.shell_exited.emit()
             return
         self.exit_code = int(code)
+        if getattr(self, "stop_requested", False):
+            outcome = "stopped"
+        else:
+            outcome = {0: "completed", 124: "timeout", 130: "cancelled"}.get(code, "failed")
+        if not self.closing_window:
+            self._record_workflow(outcome, code)
         if code == 0:
             self.set_state(tr("Completed"), "ok")
             self.view.feed(b"\r\n")
@@ -422,8 +454,13 @@ class ConsoleTab(QWidget):
     def shutdown(self) -> None:
         self.view.shutdown()
         if self._session is not None:
+            was_running = self.running_workflow
+            self.closing_window = True
             self._session.shutdown()
+            if was_running:
+                self._record_workflow("window_closed", self._session.exit_code)
             self._session = None
+            self.closing_window = False
 
     def retranslate(self) -> None:
         self.close_button.setToolTip(tr("Close"))

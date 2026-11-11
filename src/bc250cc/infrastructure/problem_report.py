@@ -47,6 +47,7 @@ MIN_SECONDS_BETWEEN = 30
 
 KIND_PROBLEM = "problem"
 KIND_IDEA = "idea"
+SUMMARY_HINT = "Briefly describe what happened (at least 4 characters)."
 
 #: The choice that opens a box to type the answer.
 OTHER = "Other (not listed)"
@@ -183,6 +184,8 @@ class Report:
     #: The failed workflow's title and its whole log.
     workflow_title: str = ""
     workflow_log: str = ""
+    workflow_details: dict = field(default_factory=dict)
+    identity: dict = field(default_factory=dict)
     #: Detected facts, in display order: {"Operating system": "Fedora Linux 44", …}.
     system: dict[str, str] = field(default_factory=dict)
     #: ``/etc/os-release`` keys that tell distributions apart.
@@ -200,7 +203,7 @@ class Report:
 
     def missing(self) -> str:
         """The one required answer still empty, or an empty string."""
-        if self.is_problem and not self.summary.strip():
+        if self.is_problem and len(self.summary.strip()) < 4:
             return "What went wrong?"
         if not self.is_problem and not self.notes.strip():
             return "Suggestions and ideas"
@@ -257,6 +260,7 @@ def payload(report: Report, *, now: datetime | None = None) -> dict:
     if not report.is_problem:
         document["idea"] = _long(report.notes)
         return _with_contact(_clean(document), contact)
+    document["app"].update(report.identity)
     document["problem"] = {
         "area": _short(report.area),
         "seen": [_short(item) for item in report.seen],
@@ -278,7 +282,22 @@ def payload(report: Report, *, now: datetime | None = None) -> dict:
         "where": _long(error.where),
         "raw": _long(error.raw, keep_end=True),
     }
+    workflow_details = dict(report.workflow_details)
+    revisions = {}
+    for line in report.workflow_log.splitlines():
+        timing = re.fullmatch(r"BC250_WORKFLOW exit_status=(\d{1,3}) duration_seconds=(\d+)", line.strip())
+        if timing:
+            workflow_details["exit_status"] = int(timing[1])
+            workflow_details.setdefault("duration_seconds", int(timing[2]))
+        marker = re.fullmatch(r"BC250_UPSTREAM ([\w.-]{1,100}) ([\w.@+-]{1,150})", line.strip())
+        if marker:
+            revisions[marker[1]] = marker[2]
+        reviewed = re.fullmatch(r"\[INFO\] (?:Reviewed source|Current upstream source): https://github\.com/([\w.-]+/[\w.-]+) @ ([a-f0-9]{7,64})", line.strip())
+        if reviewed:
+            revisions[reviewed[1]] = reviewed[2]
     document["workflow"] = {
+        "upstreams": revisions,
+        **workflow_details,
         "title": _short(report.workflow_title),
         "log": _long(report.workflow_log, keep_end=True),
     }
@@ -294,7 +313,8 @@ def payload(report: Report, *, now: datetime | None = None) -> dict:
         "other_tools": [_short(item) for item in report.other_tools],
     }
     document["history"] = [
-        {key: _short(entry.get(key, "")) for key in ("at", "code", "source", "title", "detail")}
+        {**{key: _short(entry.get(key, "")) for key in ("at", "code", "source", "title")},
+         "detail": str(entry.get("detail", ""))[:_HISTORY_DETAIL]}
         for entry in report.history
     ]
     document["attachments"] = [
@@ -492,7 +512,7 @@ def suggested_cores(physical_cores: int) -> str:
     return CORES[0] if physical_cores == 6 else ""
 
 
-_HISTORY_DETAIL = 300
+_HISTORY_DETAIL = 4000
 
 
 def history_items(entries, *, exclude_raw: str = "", exclude_title: str = "", limit: int = 10) -> list[dict[str, str]]:
@@ -509,6 +529,8 @@ def history_items(entries, *, exclude_raw: str = "", exclude_title: str = "", li
         if (exclude_raw and raw and raw.strip() == exclude_raw.strip()) or (exclude_title and title == exclude_title):
             continue
         detail = " ".join(str(getattr(entry, "detail", "") or "").split())
+        if raw and raw not in detail:
+            detail += "\n" + raw
         key = (getattr(entry, "code", ""), title, detail)
         if key == previous:
             continue
@@ -518,7 +540,7 @@ def history_items(entries, *, exclude_raw: str = "", exclude_title: str = "", li
             "code": str(getattr(entry, "code", "") or ""),
             "source": str(getattr(entry, "source", "") or ""),
             "title": title,
-            "detail": detail if len(detail) <= _HISTORY_DETAIL else detail[: _HISTORY_DETAIL - 1] + "…",
+            "detail": detail if len(detail) <= _HISTORY_DETAIL else detail[:1000] + "…" + detail[-(_HISTORY_DETAIL - 1001):],
         })
         if len(items) >= limit:
             break

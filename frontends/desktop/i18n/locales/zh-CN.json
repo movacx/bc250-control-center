@@ -6003,5 +6003,8 @@
   "In Steam, verify the files of the Proton version in use, or install Wine for this system. Inside a container, install the libraries Wine needs there, then run this action again.": "在 Steam 中验证所用 Proton 版本的文件，或为此系统安装 Wine。在容器内，请在容器中安装 Wine 所需的库，然后再次运行该操作。",
   "This action changes BC-250 hardware, and no BC-250 (PCI 1002:13fe) was found in this computer. Nothing was changed.": "此操作会更改 BC-250 硬件，但在此计算机中未找到 BC-250（PCI 1002:13fe）。未做任何更改。",
   "Cancelled: you answered no. Steps before this question may already have changed the system.": "已取消：你回答了否。此问题之前的步骤可能已经更改了系统。",
-  "The Bazzite async-compute workflow started in the terminal. Games use it once their Steam launch option sets VK_DRIVER_FILES.": "Bazzite 异步计算流程已在终端中启动。当游戏的 Steam 启动选项设置了 VK_DRIVER_FILES 时，游戏才会使用它。"
+  "The Bazzite async-compute workflow started in the terminal. Games use it once their Steam launch option sets VK_DRIVER_FILES.": "Bazzite 异步计算流程已在终端中启动。当游戏的 Steam 启动选项设置了 VK_DRIVER_FILES 时，游戏才会使用它。",
+  "Briefly describe what happened (at least 4 characters).": "请简要说明发生了什么（至少 4 个字符）。",
+  "Changes are saved and applied as you make them.": "更改会立即保存并生效。",
+  "Navigation": "导航"
 }

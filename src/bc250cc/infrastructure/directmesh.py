@@ -352,6 +352,11 @@ elif command -v toolbox >/dev/null 2>&1; then
 else
   echo "ERROR: distrobox or toolbox is required to build DirectMesh on Bazzite."; exit 69
 fi
+bc250_container_release="$(bc250_in_container sh -c '. /etc/os-release && printf "%s" "$VERSION_ID"')"
+if test "$bc250_container_release" != {shlex.quote(release_id)}; then
+  echo "ERROR: container {DIRECTMESH_CONTAINER} uses Fedora $bc250_container_release; Fedora {release_id} is required. Recreate the build container before retrying."
+  exit 69
+fi
 if bc250_in_container test -e /run/ostree-booted; then
   echo "ERROR: the container looks like the immutable host to DirectMesh's installer; it would refuse to run."; exit 69
 fi
@@ -389,6 +394,9 @@ echo "== DirectMesh {tag} =="
 echo "Source: {DIRECTMESH_REPOSITORY} (upstream installer, unchanged)"
 test "$(uname -m)" = x86_64 || {{ echo "ERROR: DirectMesh needs an x86_64 system."; exit 64; }}
 {_fetch_check()}
+for required in flock ldd vulkaninfo; do
+  command -v "$required" >/dev/null || {{ echo "ERROR: $required is required to install and verify DirectMesh."; exit 69; }}
+done
 mkdir -p "$HOME/.cache"
 bc250_work="$(mktemp -d "$HOME/.cache/bc250-directmesh.XXXXXX")"
 trap 'rm -rf -- "$bc250_work"' EXIT
@@ -401,15 +409,43 @@ if test "$bc250_actual" != {digest}; then
   exit 29
 fi
 echo "Installer verified ({source})."
+echo "BC250_UPSTREAM DirectMesh {tag}@{digest}"
+mkdir -p {root}
+exec 9>{root}/install.lock
+flock -n 9 || {{ echo "ERROR: Another DirectMesh change is running."; exit 1; }}
+bc250_prefix={shlex.quote(prefix)}
+bc250_paths=("$bc250_prefix" "${{DIRECTMESH_BIN:-$HOME/.local/bin}}/directmesh-run" {root}/install.sh {root}/installed.json)
+for index in "${{!bc250_paths[@]}}"; do
+  path="${{bc250_paths[index]}}"
+  if [[ -e "$path" || -L "$path" ]]; then cp -a --reflink=auto -- "$path" "$bc250_work/old-$index"; fi
+done
+bc250_finish() {{
+  local status=$?
+  trap - EXIT
+  if (( status != 0 )); then
+    for index in "${{!bc250_paths[@]}}"; do
+      path="${{bc250_paths[index]}}"
+      rm -rf -- "$path"
+      if [[ -e "$bc250_work/old-$index" || -L "$bc250_work/old-$index" ]]; then
+        mv -- "$bc250_work/old-$index" "$path" || {{ echo "ERROR: Backup retained in $bc250_work"; exit 1; }}
+      fi
+    done
+  fi
+  rm -rf -- "$bc250_work"
+  exit "$status"
+}}
+trap bc250_finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 {run}
 bc250_icd={icd}
 test -f "$bc250_icd" || {{ printf 'ERROR: the installer finished but %s is missing.\n' "$bc250_icd"; exit 29; }}
 bc250_library="$(dirname "$bc250_icd")/../../../lib/libvulkan_radeon.so"
-if command -v ldd >/dev/null 2>&1 && test -f "$bc250_library" && ldd "$bc250_library" | grep -q 'not found'; then
-  ldd "$bc250_library" | grep 'not found' || true
-  echo "ERROR: this system lacks libraries the driver was built against. Remove DirectMesh and report it upstream."
-  exit 29
-fi
+test -f "$bc250_library" || {{ echo "ERROR: DirectMesh driver library is missing."; exit 29; }}
+ldd "$bc250_library" > "$bc250_work/ldd.log" 2>&1
+if grep -F 'not found' "$bc250_work/ldd.log"; then exit 29; fi
+VK_DRIVER_FILES="$bc250_icd" vulkaninfo > "$bc250_work/vulkan.log"
+grep -Eq 'meshShader *= *true' "$bc250_work/vulkan.log" || {{ echo "ERROR: Mesh shaders are unavailable."; exit 29; }}
 mkdir -p {root}
 install -m 0644 "$bc250_installer" {root}/install.sh
 printf '{{"tag": "%s", "installer_sha256": "%s", "platform": "%s"}}\\n' {shlex.quote(tag)} {digest} {platform} > {root}/installed.json
@@ -454,14 +490,17 @@ def build_directmesh_uninstall_command(*, family: str = "", distro_id: str = "")
 elif command -v toolbox >/dev/null 2>&1 && toolbox list --containers 2>/dev/null | grep -qw {name}; then
   toolbox rm --force {name} || echo "Note: the container {DIRECTMESH_CONTAINER} could not be removed."
 fi'''
-    return f'''set -Euo pipefail
+    return f'''set -Eeuo pipefail
 echo "== DirectMesh · remove =="
+mkdir -p {root}
+exec 9>{root}/install.lock
+flock -n 9 || exit 1
 bc250_saved={root}/install.sh
 if test -f "$bc250_saved" && test "$(sha256sum "$bc250_saved" | awk '{{print $1}}')" = {shlex.quote(digest)}; then
   DIRECTMESH_PREFIX={prefix} bash "$bc250_saved" --uninstall
 else
   echo "Removing the files DirectMesh's installer puts in place."
-  rm -rf -- {prefix} "${{XDG_CACHE_HOME:-$HOME/.cache}}/directmesh-build" "$HOME/.local/bin/directmesh-run" \\
+  rm -rf -- {prefix} "${{XDG_CACHE_HOME:-$HOME/.cache}}/directmesh-build" "${{DIRECTMESH_BIN:-$HOME/.local/bin}}/directmesh-run" \\
     "${{XDG_CONFIG_HOME:-$HOME/.config}}/environment.d/90-directmesh.conf"
 fi
 {container}

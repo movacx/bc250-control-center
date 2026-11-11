@@ -159,6 +159,7 @@ clone_or_update_commit() {
     error "Reviewed source revision could not be checked out"
     return 22
   }
+  printf 'BC250_UPSTREAM %s %s\n' "${url##*/}" "$revision"
 }
 
 bc250_stage_reviewed_git_tree() {
@@ -204,6 +205,7 @@ bc250_stage_reviewed_git_tree() {
     error "Could not archive the reviewed source commit"
     return 22
   fi
+  printf 'BC250_UPSTREAM %s %s\n' "${url##*/}" "$revision"
   printf -v "$output_variable" '%s' "$stage"
 }
 
@@ -484,12 +486,26 @@ parse_component() {
   esac
 }
 
+working_component_tool() {
+  case "$1" in
+    stress) stress --version >/dev/null 2>&1 ;;
+    sensors) sensors -v >/dev/null 2>&1 ;;
+    *) return 1 ;;
+  esac
+}
+
 component_action() {
   local component="$1" apply_function="$2" check_function="$3" plan_function="$4"
   component_is "$component" || return 0
   BC250_ACTIVE_COMPONENT="$component"
   case "$BC250_MODE" in
-    apply) "$apply_function" ;;
+    apply)
+      if working_component_tool "$component"; then
+        info "$component already works"
+      else
+        "$apply_function"
+      fi
+      ;;
     check) "$check_function" ;;
     plan) "$plan_function" ;;
   esac

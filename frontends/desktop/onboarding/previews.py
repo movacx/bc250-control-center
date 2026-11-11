@@ -14,6 +14,7 @@ from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QSizePolicy, QWidget
 
 from .. import theme as theme_module
+from ..i18n import tr
 
 
 def palette_for(mode: str, accent: str, style: str | None = None) -> dict[str, str]:
@@ -232,17 +233,20 @@ class SidebarPreview(_Card):
         rail = QRectF(inner.left(), inner.top(), rail_width, inner.height())
         painter.fillRect(rail, QColor(colors["panel"]))
 
-        row_height = max(4.0, inner.height() * 0.115)
-        gap = row_height * 0.55
+        row_height = inner.height() * 0.105
+        gap = row_height * 0.45
         y = inner.top() + gap
-        for index in range(5):
-            if self._collapsed:
-                # Collapsed, a row is its icon and nothing else — square, and
-                # the same square whatever the label used to say.
-                row = QRectF(rail.left() + 3.0, y, rail.width() - 6.0, row_height)
-            else:
-                row = QRectF(rail.left() + 4.0, y, rail.width() - 8.0, row_height)
-            painter.fillRect(row, QColor(colors["blue"] if index == 1 else colors["border_soft"]))
+        for index in range(6):
+            tint = colors["blue"] if index == 1 else colors["subtle"]
+            icon_size = min(row_height * 0.50, rail.width() * 0.52)
+            icon_x = rail.center().x() - icon_size / 2 if self._collapsed else rail.left() + 5
+            icon_y = y + (row_height - icon_size) / 2
+            painter.setBrush(QColor(tint))
+            painter.drawRoundedRect(QRectF(icon_x, icon_y, icon_size, icon_size), 2, 2)
+            if not self._collapsed:
+                start = icon_x + icon_size + 4
+                painter.fillRect(QRectF(start, y + row_height / 2 - 1.5,
+                                        max(1, rail.right() - start - 4), 3), QColor(tint))
             y += row_height + gap
 
         # The width the rail gives back is the whole point, so the page has to
@@ -268,18 +272,26 @@ class SidebarPreview(_Card):
 class AccentDot(_Card):
     """One accent, as the colour itself. Nothing else says it as directly."""
 
-    DIAMETER = 30
+    DIAMETER = 24
 
-    def __init__(self, accent: str, parent: QWidget | None = None) -> None:
+    def __init__(self, accent: str, parent: QWidget | None = None, *, style: str = "standard") -> None:
         super().__init__(accent, parent)
+        self._style = style
+        self.retranslate()
         self.setFixedSize(QSize(self.DIAMETER + 10, self.DIAMETER + 10))
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+
+    def retranslate(self) -> None:
+        style = tr("Formal") if self._style == "formal" else tr("Standard")
+        label = f"{style} · {tr(self.value.capitalize())}"
+        self.setAccessibleName(label)
+        self.setToolTip(label)
 
     def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
         del event
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        colors = palette_for(theme_module.ACTIVE_THEME, self.value)
+        colors = palette_for(theme_module.ACTIVE_THEME, self.value, self._style)
         centre = QRectF(self.rect()).center()
         radius = self.DIAMETER / 2.0
         body = QRectF(centre.x() - radius, centre.y() - radius, self.DIAMETER, self.DIAMETER)

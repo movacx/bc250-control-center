@@ -382,7 +382,8 @@ def apply_pwm(channel: int, value: int, *, remember: bool = True) -> str:
             interval=PWM_DUTY_VERIFY_INTERVAL_SECONDS,
         )
     except OSError as exc:
-        return f'ERR {exc}'
+        rollback = restore_previous_automatic_mode(enable_path, was_automatic)
+        return f'ERR {exc}{rollback}'
     if not duty_ready:
         rollback = restore_previous_automatic_mode(
             enable_path if enable_path.is_file() else None,

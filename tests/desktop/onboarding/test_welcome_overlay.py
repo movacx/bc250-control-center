@@ -219,40 +219,11 @@ def test_the_itinerary_names_the_stops_the_tour_will_make(overlay):
     assert overlay.stop_chips[-1].property("tourTitles") == [tour_stops()[-1].title]
 
 
-# ------------------------------------------------------------------ the glass
-
-
-def test_the_panel_survives_having_nothing_to_photograph(overlay):
-    overlay.set_backdrop_source(None)
-
-    assert overlay._backdrop.isNull()
-
-
-def test_the_portrait_follows_the_shell_it_was_given(overlay, qtbot):
-    from PyQt6.QtWidgets import QWidget
-
-    shell = QWidget(overlay.parentWidget())
-    shell.resize(600, 400)
-
-    overlay.set_backdrop_source(shell)
-
-    assert not overlay._backdrop.isNull()
-    assert overlay._backdrop.size() == shell.size()
-
-
-def test_a_resize_does_not_re_photograph_inside_its_own_handler(overlay, qtbot):
-    """Grabbing the shell flushes its layout, which comes back as a resize.
-
-    Done synchronously the two called each other until the stack ran out, and
-    PyQt turns that into an abort rather than an exception.
-    """
-    from PyQt6.QtWidgets import QWidget
-
-    shell = QWidget(overlay.parentWidget())
-    shell.resize(600, 400)
-    overlay.set_backdrop_source(shell)
-
-    overlay.resize(700, 500)
-
-    assert overlay._regrab.isActive()
-    assert overlay._refreshing is False
+def test_gamepad_navigation_is_opt_in_and_reports_both_choices(overlay):
+    overlay._reach(2)
+    assert not overlay.gamepad_switch.isChecked()
+    seen = []
+    overlay.gamepad_chosen.connect(seen.append)
+    overlay.gamepad_switch.click()
+    overlay.gamepad_switch.click()
+    assert seen == [True, False]

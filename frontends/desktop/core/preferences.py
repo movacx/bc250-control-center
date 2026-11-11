@@ -221,7 +221,7 @@ class UiPreferences:
             # machine has every reason to decline.
             self.settings.setValue("settings/update_check", "true")
         if not self.settings.contains("settings/gamepad_navigation"):
-            self.settings.setValue("settings/gamepad_navigation", "true")
+            self.settings.setValue("settings/gamepad_navigation", "false")
         if not self.settings.contains("settings/gamepad_onscreen_keypad"):
             self.settings.setValue("settings/gamepad_onscreen_keypad", "true")
         # The keypad is now one coherent feature: when enabled for a gamepad it

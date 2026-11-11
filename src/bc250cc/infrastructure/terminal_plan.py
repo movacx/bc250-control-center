@@ -237,6 +237,8 @@ def _first_error_shell(translate=None) -> str:
         "END { for (i = 1; i <= n; i++) print lines[i] }' || true); "
         # Its first line: what happened.
         'first_error=$(printf "%s\\n" "$error_block" | head -n 1); '
+        'if [ "$status" -eq 100 ] && [ -z "$first_error" ]; then '
+        'first_error=$(printf "%s\\n" "$error_scan" | grep -E "^dpkg: error processing package " | tail -1); fi; '
         # The rest: the script's own remediation steps.
         'error_hints=$(printf "%s\\n" "$error_block" | tail -n +2 | sed "s/^/  /"); '
         'fi'
@@ -330,8 +332,9 @@ def workflow_wrapper(
         # Diagnosis reads the tools' own words, and a sudo or pacman speaking
         # Polish or French matched no rule (R-e1eaa882, R-8db5f5cd). This changes
         # the language of messages only, not the character set.
-        "export LANGUAGE=en; "
+        "export LANGUAGE=en; bc250_start=$SECONDS; "
         f"{run}"
+        'bc250_raw_status=$status; bc250_elapsed=$((SECONDS - bc250_start)); '
         f"{wait_for_log}"
         f"{_evidence_capture_shell(log_path)}; "
         # R-097a4530: answering "n" to the package manager is a choice, not a
@@ -348,6 +351,7 @@ def workflow_wrapper(
         f"{_first_error_shell(translate)}; "
         f"{exit_explanation_shell(translate)}; "
         f"{_evidence_render_shell(translate)}; "
+        'printf "BC250_WORKFLOW exit_status=%d duration_seconds=%d\\n" "$bc250_raw_status" "$bc250_elapsed"; '
         f"echo \"{saved_log}: {log_path!s}\"; "
         f"echo \"{share_hint}\"; }} "
         f"{summary_sink}; "

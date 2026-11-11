@@ -1129,13 +1129,13 @@ class DashboardPage(QWidget):
             else "gray",
         )
         self.fan_card.headline.set_value(
-            "rpm", str(state.pump_fan_rpm) if state.pump_fan_rpm > 0 else "--"
+            "rpm", str(state.pump_fan_rpm) if state.fan_rpm_known else "--"
         )
 
         details = self.fan_card.details
         details["duty"].set_value(
             self._format_percent(state.pump_fan_duty_percent)
-            if state.fan_state_available
+            if state.fan_duty_known
             else "Not detected"
         )
         details["board"].set_value(

@@ -24,7 +24,7 @@ def test_local_installer_stages_and_rolls_back_application_code():
     assert "python3 -m compileall" in installer
     assert "APP_BACKUP" in installer
     assert "rolling back the application code" in installer
-    assert 'APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations requirements-web.txt)' in installer
+    assert 'APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations requirements-web.txt BUILD_REVISION BUILD_TYPE)' in installer
     assert 'LEGACY_COMPONENTS=(mvc)' in installer
     assert 'cp -a -- "$APP_DIR/$component" "$APP_BACKUP/$component"' in installer
     assert 'install -Dm755 "$ROOT_DIR/scripts/maintenance/update-local.sh"' in installer

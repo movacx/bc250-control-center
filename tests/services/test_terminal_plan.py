@@ -204,3 +204,9 @@ def test_web_workflow_logs_and_keeps_the_parent_authorization_tty(tmp_path):
     assert "same tty: True" in log.read_text()
     assert status.read_text().strip() == "7"
     assert "Diagnostic code:" in log.read_text()
+
+
+def test_dpkg_names_the_pending_package_that_stopped_apt(tmp_path):
+    result = _run_wrapper(tmp_path, "echo 'dpkg: error processing package kuninstaller (--configure):'; exit 100")
+    assert result.returncode == 100
+    assert "What happened: dpkg: error processing package kuninstaller" in result.stdout

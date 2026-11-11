@@ -67,7 +67,7 @@ def clone_or_update_branch(repository_url, destination, branch) -> str:
         f"git clone --depth 1 --branch {qbranch} {qurl} {qdest}; fi; "
         f'test "$(git -C {qdest} remote get-url origin)" = {qurl} || '
         f'{{ echo "ERROR: upstream origin mismatch: {_url}"; exit 29; }}; '
-        f'echo "[INFO] Current upstream source: {_url} @ $(git -C {qdest} rev-parse --short=12 HEAD)"'
+        f'echo "[INFO] Current upstream source: {_url} @ $(git -C {qdest} rev-parse HEAD)"'
     )
 
 
@@ -92,7 +92,7 @@ def clone_or_update_commit(repository_url, destination, commit) -> str:
         f"git -C {qdest} checkout --detach --force FETCH_HEAD; "
         f'test "$(git -C {qdest} rev-parse HEAD)" = {qcommit} || '
         f'{{ echo "ERROR: reviewed source revision was not checked out: {url}"; exit 29; }}; '
-        f'echo "[INFO] Reviewed source: {url} @ {commit[:12]}"'
+        f'echo "[INFO] Reviewed source: {url} @ {commit}"'
     )
 
 
@@ -133,6 +133,7 @@ def clone_or_update_commit_with_archive(repository_url, destination, commit) -> 
         f"if mv -- \"$stage\" {qdest}; then rm -rf -- \"$previous\"; "
         f"else rm -rf -- {qdest}; if [ -e \"$previous\" ] || [ -L \"$previous\" ]; then mv -- \"$previous\" {qdest}; fi; exit 29; fi; "
         f"rm -rf -- \"$tmpdir\"; trap - EXIT; "
+        f'echo "[INFO] Reviewed source: {url} @ {commit}"; '
         f"else echo \"ERROR: git or tar with curl/python3 is required to fetch reviewed source: {url}\"; exit 29; fi"
     )
 

@@ -14,11 +14,13 @@ from bc250cc.infrastructure.firmware.board import (
     read_installed_bios,
 )
 from bc250cc.infrastructure.report_attachments import collect_attachments
+from bc250cc.infrastructure.report_identity import report_identity
 from bc250cc.infrastructure.system_diagnostics import kernel_log_needs_password
 from bc250cc.infrastructure.system_snapshot import _os_release as os_release
 from bc250cc.infrastructure.system_snapshot import system_snapshot
 
 __all__ = [
+    "report_identity",
     "collect_attachments", "kernel_log_needs_password", "os_release", "read_board_firmware",
     "read_installed_bios", "reports", "system_snapshot",
 ]

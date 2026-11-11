@@ -52,7 +52,8 @@ def test_dashboard_fan_rejects_nonfinite_rpm_pwm_and_fallback():
 
     assert view.rpm == 0
     assert view.duty_percent == 0
-    assert view.label == "fallback"
+    assert view.label == "Pump Fan"
+    assert not view.rpm_known
 
 
 def test_dashboard_activity_normalization_ignores_invalid_rows_and_truncates():
@@ -66,3 +67,16 @@ def test_dashboard_activity_normalization_ignores_invalid_rows_and_truncates():
     assert len(result) == 2
     assert result[0] == ("A" * 78, "12:34:56", "warning")
     assert result[1][0] == "System event"
+
+
+def test_stopped_pump_does_not_inherit_another_fans_rpm():
+    fan = {"sensores": {"fans": [{"label": "Pump Fan", "rpm": 0, "pwm": 128}]}}
+    view = present_dashboard_fan(fan, performance_rpm=2003)
+    assert (view.label, view.rpm, view.duty_percent) == ("Pump Fan", 0, 50)
+    assert view.rpm_known and not view.needs_fallback
+
+
+def test_legacy_pump_duty_alone_does_not_claim_an_unrelated_speed():
+    view = present_dashboard_fan({"pwm2": 128}, performance_rpm=2003)
+    assert view.duty_known and view.duty_percent == 50
+    assert not view.rpm_known

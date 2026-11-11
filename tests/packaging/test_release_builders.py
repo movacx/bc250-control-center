@@ -164,6 +164,9 @@ def test_source_tarball_carries_every_file_its_installers_copy(tmp_path):
     unpacked = tmp_path / "unpacked" / f"bc250-control-center-{VERSION}"
     # A 0600 file in the builder's tree broke root installs from the tarball.
     assert not unreadable, unreadable
+    if (ROOT / ".git").exists():
+        assert (unpacked / "BUILD_REVISION").read_text().strip() == _run("git", "rev-parse", "HEAD").stdout.strip()
+        assert _run("bash", unpacked / "packaging/scripts/build-revision.sh", unpacked, "--type").stdout.strip() == "release"
 
     for installer in ("scripts/install-local.sh", "packaging/scripts/stage-package-root.sh"):
         text = (ROOT / installer).read_text(encoding="utf-8")

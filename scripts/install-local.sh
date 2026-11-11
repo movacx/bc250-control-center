@@ -366,7 +366,7 @@ APP_BACKUP="${APP_DIR}.tree.previous.$$"
 VERSION_BACKUP="${APP_DIR}.VERSION.previous.$$"
 APP_SWAP_COMPLETE=0
 APP_HAD_VERSION=0
-APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations requirements-web.txt)
+APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations requirements-web.txt BUILD_REVISION BUILD_TYPE)
 LEGACY_COMPONENTS=(mvc)
 cleanup_application_swap() {
   local status=$?
@@ -444,6 +444,8 @@ for decky_runtime in plugin.json package.json main.py dist/index.js \
     "$APP_STAGE/integrations/decky/bc250-quick-access/$decky_runtime"
 done
 install -m644 "$ROOT_DIR/VERSION" "$APP_STAGE/VERSION"
+bash "$ROOT_DIR/packaging/scripts/build-revision.sh" "$ROOT_DIR" > "$APP_STAGE/BUILD_REVISION"
+bash "$ROOT_DIR/packaging/scripts/build-revision.sh" "$ROOT_DIR" --type > "$APP_STAGE/BUILD_TYPE"
 install -m644 "$ROOT_DIR/requirements-web.txt" "$APP_STAGE/requirements-web.txt"
 PYTHONPYCACHEPREFIX="$APP_STAGE/pycache" python3 -m compileall -q \
   "$APP_STAGE/src" "$APP_STAGE/frontends" "$APP_STAGE/privileged"
