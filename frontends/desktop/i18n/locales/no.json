@@ -6043,5 +6043,10 @@
   "Update / repair Mesa": "Oppdater / reparer Mesa",
   "Update / repair full stack": "Oppdater / reparer hele stacken",
   "Installed · reboot required": "Installert · krever omstart",
-  "Partially installed": "Delvis installert"
+  "Partially installed": "Delvis installert",
+  "Free /var space": "Frigjør plass i /var",
+  "/var: {free} MB free": "/var: {free} MB ledig",
+  "SteamOS keeps /var small, and package installs stop when it is full. This removes pacman's downloaded packages and fwupd's firmware metadata, and trims the system logs to 20 MB. UMR's data in /var/lib/umr is kept: Compute Units tools use it.": "SteamOS holder /var lite, og pakkeinstallasjoner stopper når det er fullt. Dette fjerner pacmans nedlastede pakker og fwupds fastvaremetadata, og kutter systemloggene ned til 20 MB. UMR-dataene i /var/lib/umr beholdes: Compute Units-verktøyene bruker dem.",
+  "Folders": "Mapper",
+  "Could not free /var space": "Kunne ikke frigjøre plass i /var"
 }

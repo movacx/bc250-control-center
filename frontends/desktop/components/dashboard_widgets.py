@@ -2971,7 +2971,19 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         self.readonly_button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.readonly_button.clicked.connect(self._request_steamos_readonly)
         self._readonly_action = "disable"
-        root.addWidget(self.readonly_button)
+        actions = QVBoxLayout()
+        actions.setSpacing(6)
+        actions.addWidget(self.readonly_button)
+        # SteamOS' /var is about 230 MB and fills with caches; when it is full,
+        # package installs stop. This clears the caches, never UMR's data.
+        self.var_space_button = QPushButton(tr("Free /var space"))
+        self.var_space_button.setProperty("dashboardCardAction", True)
+        self.var_space_button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        self.var_space_button.clicked.connect(self._request_steamos_free_var)
+        actions.addWidget(self.var_space_button)
+        root.addLayout(actions)
+        self.var_space_note = _label("", "dashboardMemoryDetail", wrap=False)
+        copy.addWidget(self.var_space_note)
         panel.hide()
         return panel
 
@@ -3112,6 +3124,15 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
             }
         )
 
+    def _request_steamos_free_var(self) -> None:
+        self.dependency_action_requested.emit(
+            {
+                "action": "steamos_readonly_free-var",
+                "governor": "",
+                "selected_components": self.selected_components,
+            }
+        )
+
     def _update_steamos_readonly_control(self, tools: Mapping[str, object]) -> None:
         state = _mapping(tools.get("steamos_readonly"))
         available = bool(state.get("available"))
@@ -3133,6 +3154,12 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
             tr("Turn read-only back on" if self._readonly_action == "enable" else "Disable read-only mode")
         )
         self.readonly_button.setEnabled(mode in {"enabled", "disabled"})
+        free = state.get("var_free_mb")
+        if isinstance(free, int) and not isinstance(free, bool):
+            self.var_space_note.setText(tr("/var: {free} MB free").format(free=free))
+            self.var_space_note.setVisible(True)
+        else:
+            self.var_space_note.setVisible(False)
 
 
 

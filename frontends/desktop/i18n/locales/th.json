@@ -6043,5 +6043,10 @@
   "Update / repair Mesa": "อัปเดต / ซ่อมแซม Mesa",
   "Update / repair full stack": "อัปเดต / ซ่อมแซมทั้งชุด",
   "Installed · reboot required": "ติดตั้งแล้ว · ต้องรีสตาร์ต",
-  "Partially installed": "ติดตั้งบางส่วน"
+  "Partially installed": "ติดตั้งบางส่วน",
+  "Free /var space": "เพิ่มพื้นที่ว่างใน /var",
+  "/var: {free} MB free": "/var: ว่าง {free} MB",
+  "SteamOS keeps /var small, and package installs stop when it is full. This removes pacman's downloaded packages and fwupd's firmware metadata, and trims the system logs to 20 MB. UMR's data in /var/lib/umr is kept: Compute Units tools use it.": "SteamOS เก็บ /var ให้มีขนาดเล็ก และการติดตั้งแพ็กเกจจะหยุดเมื่อเต็ม การทำงานนี้จะลบแพ็กเกจที่ pacman ดาวน์โหลดไว้และเมทาดาทาเฟิร์มแวร์ของ fwupd และลดบันทึกระบบเหลือ 20 MB ข้อมูลของ UMR ใน /var/lib/umr จะถูกเก็บไว้ เพราะเครื่องมือ Compute Units ใช้งานอยู่",
+  "Folders": "โฟลเดอร์",
+  "Could not free /var space": "ไม่สามารถเพิ่มพื้นที่ว่างใน /var ได้"
 }

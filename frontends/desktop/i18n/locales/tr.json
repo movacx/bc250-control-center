@@ -6043,5 +6043,10 @@
   "Update / repair Mesa": "Mesa’yı güncelle / onar",
   "Update / repair full stack": "Tüm yığını güncelle / onar",
   "Installed · reboot required": "Kurulu · yeniden başlatma gerekli",
-  "Partially installed": "Kısmen kurulu"
+  "Partially installed": "Kısmen kurulu",
+  "Free /var space": "/var alanını boşalt",
+  "/var: {free} MB free": "/var: {free} MB boş",
+  "SteamOS keeps /var small, and package installs stop when it is full. This removes pacman's downloaded packages and fwupd's firmware metadata, and trims the system logs to 20 MB. UMR's data in /var/lib/umr is kept: Compute Units tools use it.": "SteamOS /var'ı küçük tutar ve dolduğunda paket kurulumları durur. Bu, pacman'in indirdiği paketleri ve fwupd'nin donanım yazılımı meta verilerini kaldırır ve sistem günlüklerini 20 MB'a indirir. /var/lib/umr içindeki UMR verileri korunur: Compute Units araçları bunları kullanır.",
+  "Folders": "Klasörler",
+  "Could not free /var space": "/var alanı boşaltılamadı"
 }

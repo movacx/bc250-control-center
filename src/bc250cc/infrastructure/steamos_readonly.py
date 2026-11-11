@@ -19,7 +19,7 @@ import shutil
 import subprocess
 from typing import Callable
 
-_ACTIONS = frozenset({"disable", "enable", "status"})
+_ACTIONS = frozenset({"disable", "enable", "status", "free-var"})
 
 # Before the first sudo on SteamOS: the deck account has no password until the
 # owner sets one, and sudo then fails every prompt without saying why. An
@@ -38,17 +38,24 @@ STEAMOS_PASSWORD_GUARD = r"""bc250_require_password() {
 
 # SteamOS' /var is a small partition (about 230 MB) that also backs the overlay of
 # /etc. When it fills up, pacman dies half way and blames "/etc too full". This
-# stops before anything is written, names what takes the room, and says how much
-# the work needs. ``bc250_require_var_space MEGABYTES`` is the call.
+# stops before anything is written, names what takes the room, gives the command
+# that frees each part, and says how much the work needs. Package downloads go
+# to a temporary cache (STEAMOS_PACMAN_INSTALL), so the work itself needs little.
+# ``bc250_require_var_space MEGABYTES`` is the call.
 STEAMOS_VAR_SPACE_GUARD = r"""bc250_require_var_space() {
-  bc250_need="${1:-100}"
+  bc250_need="${1:-40}"
   bc250_free="$(df -Pm /var 2>/dev/null | awk 'NR==2 {print $4}')"
   case "$bc250_free" in ''|*[!0-9]*) return 0 ;; esac
   if [ "$bc250_free" -lt "$bc250_need" ]; then
     echo "ERROR: /var has only ${bc250_free} MB free and this needs about ${bc250_need} MB."
     echo "SteamOS keeps /var small, and a full /var breaks package installs half way. What takes the room:"
     du -xh --max-depth=2 /var 2>/dev/null | sort -rh | head -6
-    echo "Free some space (journalctl --vacuum-size=50M, pacman -Sc) and try again."
+    echo "To free space:"
+    echo "  sudo pacman -Scc                     # downloaded packages; answer y"
+    echo "  sudo rm -rf /var/cache/fwupd/*       # firmware metadata; fwupd downloads it again"
+    echo "  sudo journalctl --vacuum-size=20M    # system logs"
+    echo "/var/lib/umr is UMR, which Compute Units tools use; keep it."
+    echo "Control Center does the same with Free /var space, under SteamOS read-only mode in Preparation. Then try again."
     exit 75
   fi
   if [ "$bc250_free" -lt 250 ]; then
@@ -82,7 +89,12 @@ STEAMOS_PACMAN_INSTALL = r"""bc250_pacman_install() (
   fi
   sudo pacman-key --init
   sudo pacman-key --populate archlinux holo 2>/dev/null || sudo pacman-key --populate
-  sudo pacman -S "$@" || { echo "[INFO] Refreshing the package databases (a SteamOS update resets them) and trying once more."; sudo pacman -Syy --noconfirm && sudo pacman -S "$@"; }
+  # Downloads go to a temporary cache, not SteamOS' small /var.
+  bc250_cache="$(mktemp -d "${TMPDIR:-/tmp}/bc250-pacman-cache.XXXXXX")" || exit 73
+  bc250_pacman_status=0
+  sudo pacman --cachedir "$bc250_cache" -S "$@" || { echo "[INFO] Refreshing the package databases (a SteamOS update resets them) and trying once more."; sudo pacman -Syy --noconfirm && sudo pacman --cachedir "$bc250_cache" -S "$@"; } || bc250_pacman_status=$?
+  sudo rm -rf -- "$bc250_cache" 2>/dev/null || rm -rf -- "$bc250_cache" 2>/dev/null || true
+  exit "$bc250_pacman_status"
 )"""
 
 
@@ -95,14 +107,25 @@ def _state_from(output: str) -> str:
     return "unknown"
 
 
+def _var_free_mb(statvfs: Callable[[str], os.statvfs_result]) -> int | None:
+    try:
+        stats = statvfs("/var")
+    except OSError:
+        return None
+    return int(stats.f_bavail * stats.f_frsize // (1024 * 1024))
+
+
 def probe_steamos_readonly(
     *,
     which: Callable[[str], str | None] = shutil.which,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    statvfs: Callable[[str], os.statvfs_result] = os.statvfs,
 ) -> dict[str, object]:
-    """``enabled`` (protected), ``disabled`` (writable) or ``unknown``."""
+    """``enabled`` (protected), ``disabled`` (writable) or ``unknown``, and the
+    free space on SteamOS' small /var (``var_free_mb``, None when unreadable)."""
     if not which("steamos-readonly"):
         return {"available": False, "state": "unavailable"}
+    var_free_mb = _var_free_mb(statvfs)
     try:
         result = runner(
             ("steamos-readonly", "status"),
@@ -113,8 +136,12 @@ def probe_steamos_readonly(
             env={**os.environ, "LANG": "C", "LC_ALL": "C"},
         )
     except (OSError, subprocess.SubprocessError):
-        return {"available": True, "state": "unknown"}
-    return {"available": True, "state": _state_from(f"{result.stdout}\n{result.stderr}")}
+        return {"available": True, "state": "unknown", "var_free_mb": var_free_mb}
+    return {
+        "available": True,
+        "state": _state_from(f"{result.stdout}\n{result.stderr}"),
+        "var_free_mb": var_free_mb,
+    }
 
 
 def build_steamos_readonly_command(action: str) -> str:
@@ -131,6 +158,20 @@ def build_steamos_readonly_command(action: str) -> str:
         return "\n".join(commands)
     commands.append(STEAMOS_PASSWORD_GUARD)
     commands.append("bc250_require_password")
+    if action == "free-var":
+        # Caches only: pacman's downloads, fwupd's metadata (it downloads it
+        # again) and the journal beyond 20 MB. UMR's data in /var/lib/umr is
+        # what Compute Units tools use and is left alone. The read-only switch
+        # is not touched: /var is writable either way.
+        commands.extend((
+            'echo "Before:"; df -h /var',
+            "sudo find /var/cache/pacman/pkg -mindepth 1 -delete 2>/dev/null || true",
+            "sudo find /var/cache/fwupd -mindepth 1 -delete 2>/dev/null || true",
+            "sudo journalctl --vacuum-size=20M || true",
+            'echo "After:"; df -h /var',
+            'echo "OK: /var caches were cleared. /var/lib/umr is UMR, which Compute Units tools use, and was kept."',
+        ))
+        return "\n".join(commands)
     if action == "disable":
         commands.extend((
             "sudo steamos-readonly disable || exit $?",

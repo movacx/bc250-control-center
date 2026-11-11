@@ -84,11 +84,14 @@ bc250_steamos_verify_usr_writable() {
 }
 
 # SteamOS' /var is a small partition (about 230 MB) that backs the overlay of
-# /etc and holds pacman's cache. When it fills up pacman dies half way and
-# blames "/etc too full". Refuse before anything is written, and say what takes
-# the room. BC250_STEAMOS_MIN_VAR_MB and BC250_STEAMOS_VAR_DIR exist for tests.
+# /etc and, unless told otherwise, holds pacman's download cache. When it fills
+# up pacman dies half way and blames "/etc too full". Package downloads go to a
+# temporary cache instead (bc250_steamos_pacman_cache), so the work itself only
+# needs room for the /etc overlay and the logs. Refuse before anything is
+# written, and say what takes the room and how to get it back.
+# BC250_STEAMOS_MIN_VAR_MB and BC250_STEAMOS_VAR_DIR exist for tests.
 bc250_steamos_require_var_space() {
-  local need="${BC250_STEAMOS_MIN_VAR_MB:-100}" directory="${BC250_STEAMOS_VAR_DIR:-/var}" free
+  local need="${BC250_STEAMOS_MIN_VAR_MB:-40}" directory="${BC250_STEAMOS_VAR_DIR:-/var}" free
   command -v df >/dev/null 2>&1 || return 0
   free="$(df -Pm "$directory" 2>/dev/null | awk 'NR==2 {print $4}')"
   [[ "$free" =~ ^[0-9]+$ ]] || return 0
@@ -97,12 +100,60 @@ bc250_steamos_require_var_space() {
     printf '[ERROR] SteamOS keeps /var small, and a full /var breaks package installs half way. What takes the room:\n' >&2
     # Prefixed so the whole explanation stays one [ERROR] block for the terminal.
     du -xh --max-depth=2 "$directory" 2>/dev/null | sort -rh | head -6 | sed 's/^/[ERROR]   /' >&2 || true
-    printf '[ERROR] Free some space (journalctl --vacuum-size=50M, pacman -Sc) and try again.\n' >&2
+    bc250_steamos_var_hints "$directory" >&2
     return 75
   fi
   if (( free < 250 )); then
     printf '[WARN] %s has only %s MB free; this works now, but keep an eye on it.\n' "$directory" "$free" >&2
   fi
+}
+
+# What can be given back, measured, with the command for each. Caches are
+# rebuilt on demand; UMR's data is named so nobody deletes it by mistake.
+bc250_steamos_var_size_mb() {
+  [[ -d "$1" ]] || { printf '0\n'; return 0; }
+  du -sxm "$1" 2>/dev/null | awk '{print $1+0; found=1} END {if (!found) print 0}'
+}
+
+bc250_steamos_var_hints() {
+  local directory="${1:-/var}" size offered=0
+  printf '[ERROR] To free space:\n'
+  size="$(bc250_steamos_var_size_mb "$directory/cache/pacman")"
+  if (( size >= 2 )); then
+    printf '[ERROR]   sudo pacman -Scc                     # downloaded packages, %s MB; answer y\n' "$size"; offered=1
+  fi
+  size="$(bc250_steamos_var_size_mb "$directory/cache/fwupd")"
+  if (( size >= 2 )); then
+    printf '[ERROR]   sudo rm -rf /var/cache/fwupd/*       # firmware metadata, %s MB; fwupd downloads it again\n' "$size"; offered=1
+  fi
+  size="$(bc250_steamos_var_size_mb "$directory/log/journal")"
+  if (( size >= 10 )); then
+    printf '[ERROR]   sudo journalctl --vacuum-size=20M    # system logs, %s MB\n' "$size"; offered=1
+  fi
+  if (( offered == 0 )); then
+    printf '[ERROR]   sudo journalctl --vacuum-size=20M\n'
+  fi
+  size="$(bc250_steamos_var_size_mb "$directory/lib/umr")"
+  if (( size >= 10 )); then
+    printf '[ERROR]   /var/lib/umr (%s MB) is UMR, which Compute Units tools use; keep it.\n' "$size"
+  fi
+  printf '[ERROR] Control Center does the same with Free /var space, under SteamOS read-only mode in Preparation. Then try again.\n'
+}
+
+# Package downloads land here instead of /var/cache/pacman: /tmp is not on the
+# small /var partition, and SteamOS drops the packages at the next update anyway.
+bc250_steamos_pacman_cache() {
+  if [[ -z "${BC250_STEAMOS_PACMAN_CACHE:-}" || ! -d "$BC250_STEAMOS_PACMAN_CACHE" ]]; then
+    BC250_STEAMOS_PACMAN_CACHE="$(mktemp -d "${TMPDIR:-/tmp}/bc250-pacman-cache.XXXXXX")" || return 1
+  fi
+  printf '%s\n' "$BC250_STEAMOS_PACMAN_CACHE"
+}
+
+bc250_steamos_drop_pacman_cache() {
+  if [[ -n "${BC250_STEAMOS_PACMAN_CACHE:-}" && "$BC250_STEAMOS_PACMAN_CACHE" == */bc250-pacman-cache.* ]]; then
+    bc250_steamos_root_command rm -rf -- "$BC250_STEAMOS_PACMAN_CACHE" 2>/dev/null || rm -rf -- "$BC250_STEAMOS_PACMAN_CACHE" 2>/dev/null || true
+  fi
+  BC250_STEAMOS_PACMAN_CACHE=""
 }
 
 bc250_steamos_unlock_root() {
