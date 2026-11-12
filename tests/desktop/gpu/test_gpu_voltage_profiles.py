@@ -77,7 +77,10 @@ def test_profile_updates_commented_high_points_without_uncommenting_them(tmp_pat
     assert "\nfrequency = 2000\nvoltage = 990" in updated
 
 
-def test_missing_packaged_point_aborts_without_partial_write(tmp_path):
+def test_a_missing_packaged_point_is_added_before_the_profile(tmp_path):
+    """R-c310d1a4: a TOML without some packaged points used to refuse every
+    profile. The missing point is added with its packaged voltage (commented,
+    as upstream ships the ones above 2000 MHz) and the profile is applied."""
     path = tmp_path / "config.toml"
     original = _packaged_config().replace(
         "# [[safe-points]]\n# frequency = 2230\n# voltage = 1085\n\n",
@@ -85,10 +88,10 @@ def test_missing_packaged_point_aborts_without_partial_write(tmp_path):
     )
     path.write_text(original, encoding="utf-8")
 
-    with pytest.raises(GovernorTomlError, match="2230"):
-        GovernorTomlEditor(path).set_voltage_profile(3)
+    GovernorTomlEditor(path).set_voltage_profile(3)
 
-    assert path.read_text(encoding="utf-8") == original
+    text = path.read_text(encoding="utf-8")
+    assert "# frequency = 2230\n# voltage = 1115" in text
 
 
 def test_high_oc_range_validation_warns_for_partial_curve_without_blocking(qtbot, monkeypatch):

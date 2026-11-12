@@ -203,6 +203,41 @@ def _parsed_safe_point_blocks(lines: list[str]) -> tuple[_SafePointBlock, ...]:
     return tuple(parsed)
 
 
+def _with_packaged_safe_points(text: str) -> str:
+    """Add the packaged safe-points a TOML lacks, in frequency order.
+
+    The voltage profiles work on the packaged curve. A TOML written by hand or by another guide can stop below it (one
+    ended at 1750 MHz, R-c310d1a4), and every profile was then refused. The
+    missing points get the packaged voltages: up to 2000 MHz active, above it
+    commented, as upstream ships them. Points already there, active or
+    commented, and any point of the owner's own are left as they are.
+    """
+    lines = text.splitlines(keepends=True)
+    blocks = sorted(_parsed_safe_point_blocks(lines), key=lambda block: block.frequency)
+    if not blocks:
+        return text
+    present = {block.frequency for block in blocks}
+    newline = "\r\n" if lines and lines[0].endswith("\r\n") else "\n"
+    insertions: dict[int, list[str]] = {}
+    for frequency, voltage in GOVERNOR_DEFAULT_SAFE_POINTS:
+        if frequency in present:
+            continue
+        below = [block for block in blocks if block.frequency < frequency]
+        position = below[-1].end if below else blocks[0].start
+        prefix = "# " if frequency > 2000 else ""
+        insertions.setdefault(position, []).append(
+            f"{prefix}[[safe-points]]{newline}{prefix}frequency = {frequency}{newline}"
+            f"{prefix}voltage = {voltage}{newline}"
+        )
+    if not insertions:
+        return text
+    if lines and not lines[-1].endswith(("\n", "\r")):
+        lines[-1] += newline
+    for position in sorted(insertions, reverse=True):
+        lines[position:position] = insertions[position]
+    return "".join(lines)
+
+
 def _replace_block_voltage(
     lines: list[str],
     start: int,
@@ -1222,14 +1257,22 @@ class GovernorTomlEditor:
             tuple(sorted(set(changed_frequencies))),
         )
 
+    def _complete_packaged_safe_points(self) -> bool:
+        """Write the packaged safe-points the TOML lacks; True when it changed."""
+        original = self._read()
+        self._validate(original)
+        return self._write(original, _with_packaged_safe_points(original))
+
     def set_voltage_profile(self, level: int) -> TomlEditResult:
         values = voltage_profile(level)
-        return self._set_voltage_values(
+        completed = self._complete_packaged_safe_points()
+        result = self._set_voltage_values(
             values,
             include_commented=True,
             require_frequencies=set(GOVERNOR_DEFAULT_VOLTAGES),
             high_points_enabled=False if int(level) == 0 else None,
         )
+        return TomlEditResult(result.changed or completed, result.frequencies)
 
     def set_custom_voltages(self, values: dict[int, int]) -> TomlEditResult:
         normalized = {
