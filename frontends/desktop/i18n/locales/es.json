@@ -6049,5 +6049,7 @@
   "SteamOS keeps /var small, and package installs stop when it is full. This removes pacman's downloaded packages and fwupd's firmware metadata, and trims the system logs to 20 MB. UMR's data in /var/lib/umr is kept: Compute Units tools use it.": "SteamOS mantiene /var pequeño, y las instalaciones de paquetes se detienen cuando se llena. Esto elimina los paquetes descargados de pacman y los metadatos de firmware de fwupd, y reduce los registros del sistema a 20 MB. Los datos de UMR en /var/lib/umr se conservan: los usan las herramientas de Compute Units.",
   "Folders": "Carpetas",
   "Could not free /var space": "No se pudo liberar espacio en /var",
-  "This HelixSR release does not build Vulkan kernels. Use Build network files, or choose HelixSR 3.3 or newer for Vulkan.": "Esta versión de HelixSR no construye kernels Vulkan. Usa Construir archivos de red, o elige HelixSR 3.3 o posterior para Vulkan."
+  "This HelixSR release does not build Vulkan kernels. Use Build network files, or choose HelixSR 3.3 or newer for Vulkan.": "Esta versión de HelixSR no construye kernels Vulkan. Usa Construir archivos de red, o elige HelixSR 3.3 o posterior para Vulkan.",
+  "No package manager is running, so /var/lib/pacman/db.lck was left behind by an update that was interrupted.": "No hay ningún gestor de paquetes en ejecución, así que /var/lib/pacman/db.lck quedó de una actualización que se interrumpió.",
+  "Remove it, then run the action again:": "Elimínalo y vuelve a ejecutar la acción:"
 }
