@@ -40,6 +40,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from bc250cc.infrastructure.install_source import detect_install_source
 from bc250cc.infrastructure.self_update import (
     ReleaseInfo,
     UpdateError,
@@ -625,7 +626,17 @@ class UpdateDialog(QDialog):
             watch.finished.connect(self._workflow_finished)
 
         localize_widget_tree(self)
-        self._background.start("update-release", fetch_latest_release, self._release_ready, self._release_failed)
+        self._background.start("update-release", self._fetch_release, self._release_ready, self._release_failed)
+
+    def _fetch_release(self) -> ReleaseInfo:
+        """The latest release, and how this copy was installed when the window
+        has not learnt it yet: opened before the dashboard's first snapshot,
+        the plan was built from no source and failed with "'NoneType' object
+        has no attribute 'channel'"."""
+        release = fetch_latest_release()
+        if self._source is None:
+            self._source = detect_install_source()
+        return release
 
     # ---------------------------------------------------------------- phase 1
 
