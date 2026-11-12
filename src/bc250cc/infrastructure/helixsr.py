@@ -1269,14 +1269,17 @@ def helixsr_state(*, machine: str | None = None) -> dict:
     except OSError:
         marker = ""
     installed = directory.exists()
-    # A release from GitHub's list has no reviewed DLL digest: the terminal
-    # recorded the one it unpacked, from the archive it checked.
-    expected = release["dll_sha256"] or _recorded_digest(directory)
+    # The terminal records the DLL it unpacked, from the archive it checked.
+    # A release from GitHub's list has no reviewed DLL digest, and a reviewed
+    # release the author re-published under the same tag carries another DLL
+    # (3.3.0, R-84a7093e): either is accepted, so a good install is not shown
+    # as "Repair required" (the repair would only reinstall the same files).
+    expected = frozenset(digest for digest in (release["dll_sha256"], _recorded_digest(directory)) if digest)
     current = bool(
         marker == release["sha256"]
         and expected
         and (directory / HELIXSR_SETUP).is_file()
-        and _is_helixsr(_release_dll(directory), frozenset({expected}))
+        and _is_helixsr(_release_dll(directory), expected)
     )
     status, status_error = {}, ""
     if current and _layout3():

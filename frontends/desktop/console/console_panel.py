@@ -41,7 +41,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..components.widgets import ReportButton, icon
+from ..components.widgets import ReportButton
 from ..i18n import canonical_source, tr
 from .console_tab import ConsoleTab
 from .user_shell import shell_environment, user_shell

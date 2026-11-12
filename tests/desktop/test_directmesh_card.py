@@ -2,8 +2,8 @@ from types import SimpleNamespace
 
 from PyQt6.QtWidgets import QApplication
 
-from frontends.desktop.components.dashboard_widgets import PreparationSidebar
 from bc250cc.infrastructure import dependencias_repository as repo_module
+from frontends.desktop.components.dashboard_widgets import PreparationSidebar
 
 _APP = QApplication.instance() or QApplication([])
 

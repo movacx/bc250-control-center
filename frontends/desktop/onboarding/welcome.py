@@ -9,7 +9,6 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import (
     QButtonGroup,
-    QComboBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -23,13 +22,14 @@ from PyQt6.QtWidgets import (
 )
 
 from .. import theme as theme_module
-from ..i18n import LANGUAGE_OPTIONS, language_name, system_language, tr, tr_format
 from ..components.toggle_switch import ToggleSwitch
 from ..components.wheel_guard import GuardedComboBox
+from ..i18n import LANGUAGE_OPTIONS, language_name, system_language, tr, tr_format
 from .components import ComponentPicker, component_specs
 from .mini_console import MiniConsole
 from .previews import AccentDot, SidebarPreview, ThemePreview
 from .script import tour_stops
+
 
 class _StepRow(QPushButton):
     """One entry in the rail: a number, a name, and where the user is."""
@@ -458,18 +458,23 @@ class WelcomeOverlay(QWidget):
         self.terminal_heading = QLabel(tr("Terminal theme"), page)
         self.terminal_heading.setObjectName("onboardingSectionLabel")
         layout.addWidget(self.terminal_heading)
-        terminals = QHBoxLayout()
-        terminals.setSpacing(8)
+        # Ten small cards: two rows of five, so each still shows its colours.
+        terminals = QGridLayout()
+        terminals.setHorizontalSpacing(8)
+        terminals.setVerticalSpacing(8)
         self.terminal_cards: dict[str, TerminalThemeCard] = {}
         choices = [("app", tr("Automatic"))] + [
             (key, entry["name"]) for key, entry in theme_module.TERMINAL_THEMES.items()
         ]
-        for key, name in choices:
+        columns = 5
+        for index, (key, name) in enumerate(choices):
             card = TerminalThemeCard(key, name, page, compact=True)
             card.selected = key == self._terminal_theme
             card.chosen.connect(self._choose_terminal_theme)
             self.terminal_cards[key] = card
-            terminals.addWidget(card, 1)
+            terminals.addWidget(card, index // columns, index % columns)
+        for column in range(columns):
+            terminals.setColumnStretch(column, 1)
         layout.addLayout(terminals)
         layout.addStretch(1)
         return page

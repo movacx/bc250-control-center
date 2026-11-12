@@ -3709,6 +3709,7 @@
    "_DownloadThread.cancel": "UPD-0020",
    "_DownloadThread.run": "UPD-0021",
    "UpdateDialog.__init__": "UPD-0022",
+   "UpdateDialog._fetch_release": "UPD-0086",
    "UpdateDialog._release_ready": "UPD-0023",
    "UpdateDialog._release_failed": "UPD-0024",
    "UpdateDialog._primary_clicked": "UPD-0025",

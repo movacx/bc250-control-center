@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from PyQt6.QtWidgets import QApplication
 
-from frontends.desktop.components.dashboard_widgets import PreparationSidebar, game_matrix_rows
+from frontends.desktop.components.dashboard_widgets import (
+    PreparationSidebar,
+    game_matrix_rows,
+)
 
 _APP = QApplication.instance() or QApplication([])
 

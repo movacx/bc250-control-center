@@ -12,7 +12,6 @@ from PyQt6.QtCore import (
     QEvent,
     QRect,
     QSettings,
-    QSize,
     QSignalBlocker,
     Qt,
     QThread,
@@ -44,6 +43,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from PyQt6.QtWidgets import QPushButton as _PlainButton
 
 from bc250cc.infrastructure import SystemdUserService
 from bc250cc.infrastructure.apu_telemetry_service import apu_telemetry_state
@@ -62,8 +62,7 @@ from bc250cc.platform.packages.strategies.detector import detect_os_info
 from bc250cc.shared.failure_text import describe_failure
 from bc250cc.shared.version import __version__
 
-from PyQt6.QtWidgets import QPushButton as _PlainButton
-
+from .. import theme as _theme
 from ..components.buttons import WrappingButton as QPushButton
 from ..components.density import apply_layout_density
 from ..components.dialogs import center_dialog, enable_adaptive_dialog
@@ -99,7 +98,6 @@ from ..i18n import (
     translate_history_event,
 )
 from ..theme import COLORS, application_stylesheet, scale_stylesheet
-from .. import theme as _theme
 
 DAEMON_SERVICE = "bc250-control-centerd.service"
 OFFICIAL_REPOSITORIES = (
@@ -152,13 +150,9 @@ def settings_stylesheet() -> str:
     """Settings-specific styling evaluated after the active palette is selected."""
     c = COLORS
     hover = c["control_hover"]
-    selected = c["blue_soft"]
-    control = c["control"]
     switch_off = c["control_pressed"]
     switch_border = c["border_strong"]
     table_selection = c["blue_soft"]
-    # The rail of the first-run panel, so the two read as one family.
-    rail = _theme._blend(c["panel_alt"], c["border_strong"], 0.20) if _theme.ACTIVE_MODE == "light" else c["panel_alt"]
     # A step between the sidebar and the page, and descriptions a little
     # nearer the text than the plain muted grey, so nothing reads washed out.
     nav_ground = c["window"] if _theme.ACTIVE_MODE != "light" else c["panel_alt"]
@@ -220,6 +214,9 @@ def settings_stylesheet() -> str:
     QWidget[settingsPage='true'] QFrame[settingsFooter='true'] {{
         background:{band}; border:none; border-top:1px solid {c['border']};
         border-bottom-left-radius:12px; border-bottom-right-radius:12px;
+    }}
+    QWidget[settingsPage='true'] QLabel[terminalThemeGroup='true'] {{
+        color:{row_note}; font-weight:600; padding-top:6px; background:transparent;
     }}
     QWidget[settingsPage='true'] QLabel[settingsFooterNote='true'] {{
         color:{c['muted']}; font-size:10px;
@@ -1675,8 +1672,9 @@ class SettingsPage(QWidget):
             shortcut,
         ))
         layout.addWidget(terminal)
-        layout.addWidget(self._terminal_theme_group())
 
+        # The controller switches sit right under the terminal ones; the
+        # theme grid, much taller, comes last so it does not push them down.
         controller = SettingsGroup("Game controller")
         controller.add_row(SettingRow(
             "Gamepad navigation",
@@ -1693,6 +1691,7 @@ class SettingsPage(QWidget):
             ),
         ))
         layout.addWidget(controller)
+        layout.addWidget(self._terminal_theme_group())
         layout.addStretch(1)
         return page
 
@@ -1705,16 +1704,29 @@ class SettingsPage(QWidget):
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(12)
         current = str(self.app_settings.value("settings/console_theme", "app") or "app")
-        choices = [("app", tr("Same as the application"))] + [
-            (key, theme["name"]) for key, theme in _theme.TERMINAL_THEMES.items()
-        ]
         self.terminal_theme_cards: dict[str, TerminalThemeCard] = {}
-        for index, (key, name) in enumerate(choices):
+
+        def add_card(key: str, name: str, row: int, column: int) -> None:
             card = TerminalThemeCard(key, name, host)
             card.selected = key == current
             card.chosen.connect(self._terminal_theme_chosen)
-            grid.addWidget(card, index // 3, index % 3)
+            grid.addWidget(card, row, column)
             self.terminal_theme_cards[key] = card
+
+        # One row per kind (dark, light, distinctive) under its caption, three
+        # themes each. A saved "app" (the application's own colours) stays
+        # valid; it only has no card here.
+        row = 0
+        for kind, caption in _theme.TERMINAL_THEME_GROUPS:
+            members = [(key, theme["name"]) for key, theme in _theme.TERMINAL_THEMES.items() if theme.get("group") == kind]
+            if not members:
+                continue
+            label = QLabel(tr(caption), host)
+            label.setProperty("terminalThemeGroup", True)
+            grid.addWidget(label, row, 0, 1, 3)
+            for column, (key, name) in enumerate(members):
+                add_card(key, name, row + 1, column)
+            row += 2
         for column in range(3):
             grid.setColumnStretch(column, 1)
         group.body.addWidget(host)

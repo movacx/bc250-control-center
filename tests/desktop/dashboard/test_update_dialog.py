@@ -269,3 +269,19 @@ def test_the_window_reopens_a_resumable_update_instead_of_starting_over(monkeypa
     fake = type("W", (), {"update_dialog": kept})()
     ControlCenterWindow.open_update_dialog(fake)
     assert kept.shown == 1 and created == []
+
+
+def test_a_window_opened_before_the_install_source_is_known_finds_it(qtbot, window, monkeypatch):
+    """Opened before the dashboard's first snapshot, the dialog had no source
+    and showed "'NoneType' object has no attribute 'channel'"."""
+    seen = []
+    detected = InstallSource(UpdateChannel.PACKAGE, manager="pacman")
+    monkeypatch.setattr(module, "detect_install_source", lambda: detected)
+    monkeypatch.setattr(module, "plan_update", lambda release, source, **_kw: seen.append(source) or module.UpdatePlan(
+        "package", asset=ASSET, manager="pacman", summary=ASSET.name,
+    ))
+    dialog = UpdateDialog(window, installed="1.19.3", source=None)
+    qtbot.addWidget(dialog)
+    qtbot.waitUntil(lambda: dialog.primary.isEnabled(), timeout=5000)
+    assert seen == [detected]
+    assert ASSET.name in dialog.package_line.text()

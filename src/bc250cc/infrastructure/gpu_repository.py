@@ -2,7 +2,6 @@ import re
 import shlex
 import subprocess
 import time
-from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from pathlib import Path
 
 from bc250cc.domain.gpu.oberon import (
@@ -49,6 +48,7 @@ from bc250cc.infrastructure.gpu_state import (
     GpuGovernorEvidence,
     build_gpu_state_snapshot,
 )
+from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from bc250cc.infrastructure.polkit_session import pkexec_argv
 from bc250cc.infrastructure.telemetry_policy import (
     daemon_governor_probe_budget,

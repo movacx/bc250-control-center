@@ -11,12 +11,18 @@ disables and fills, so nothing behind the page changed.
 from __future__ import annotations
 
 from collections.abc import Mapping
-
 from pathlib import Path
 
 from PyQt6.QtCore import QEvent, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QIcon, QPainter, QPen
-from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 from ..i18n import tr
 from ..theme import COLORS

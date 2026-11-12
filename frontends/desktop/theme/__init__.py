@@ -484,38 +484,66 @@ def theme_palette(theme: str, accent: str, style: str = "standard") -> dict[str,
 #: colours; the others set the ground, the text and the sixteen ANSI slots.
 #: Warm ones after the clay-and-cream look of Anthropic's own apps, cool ones
 #: for the rest of the application's palette.
+#: Three dark, three light and three distinctive looks, each with a ground
+#: that reads apart from the others at a glance. The keys of the first five
+#: stay as they were, so a saved choice keeps working.
 TERMINAL_THEMES: dict[str, dict] = {
     "clay-dark": {
-        "name": "Clay Dark", "bg": "#262624", "text": "#E8E6DC", "border": "#3A3936", "muted": "#A6A39A",
-        "accent": "#D97757",
-        "ansi": ("#3A3936", "#E5826B", "#8FBF7F", "#E0B866", "#7BA7D6", "#C79BD1", "#79BFB8", "#D9D6CC",
-                 "#6B6962", "#F09A85", "#A8D598", "#EDCB85", "#98BEE6", "#D9B3E0", "#97D3CC", "#FAF9F5"),
-    },
-    "clay-light": {
-        "name": "Clay Light", "bg": "#FAF9F5", "text": "#3D3929", "border": "#E3DFD3", "muted": "#7A7568",
-        "accent": "#C15F3C",
-        "ansi": ("#3D3929", "#B3412F", "#3F7A3A", "#8A6A12", "#2F5E9E", "#8A4C93", "#2C7A73", "#6B6658",
-                 "#8F8A7C", "#C9553F", "#4E8F48", "#A07E1C", "#3B6FB3", "#9E5CA8", "#368B83", "#1F1E1D"),
+        "name": "Clay Dark", "group": "dark", "bg": "#2B2018", "text": "#EFE3D0", "border": "#3E2F23", "muted": "#B9A48A",
+        "accent": "#E8894E",
+        "ansi": ("#3E2F23", "#E86A4E", "#A5C46B", "#E8B04E", "#7FA9C9", "#C98FB0", "#7FC2B4", "#D9CBB4",
+                 "#6B5A48", "#F28A70", "#BCD98A", "#F2C66E", "#9CC0DC", "#DCAAC8", "#9AD6C9", "#FBF3E6"),
     },
     "midnight": {
-        "name": "Midnight", "bg": "#0B1020", "text": "#D6DEEB", "border": "#1E2A44", "muted": "#8793A8",
-        "accent": "#6FA8FF",
-        "ansi": ("#26324A", "#F1707A", "#5BD08A", "#E2C275", "#6FA8FF", "#C89BF0", "#5CCFD6", "#D3DCEC",
-                 "#56637A", "#FF9098", "#7EE7A6", "#F5D98C", "#93C1FF", "#DDB6FF", "#7FE4EA", "#FFFFFF"),
+        "name": "Midnight", "group": "dark", "bg": "#0D1B3A", "text": "#D2E1FF", "border": "#1F3364", "muted": "#7F96C8",
+        "accent": "#4FC3F7",
+        "ansi": ("#1F3364", "#FB7185", "#6EE7B7", "#FCD34D", "#60A5FA", "#C4B5FD", "#4FC3F7", "#CBD5F0",
+                 "#3E5488", "#FDA4AF", "#A7F3D0", "#FDE68A", "#93C5FD", "#DDD6FE", "#81D4FA", "#FFFFFF"),
     },
     "graphite": {
-        "name": "Graphite", "bg": "#1B1B1B", "text": "#E4E4E4", "border": "#333333", "muted": "#9A9A9A",
-        "accent": "#8AB4F8",
-        "ansi": ("#3A3A3A", "#F28B82", "#81C995", "#FDD663", "#8AB4F8", "#D7AEFB", "#78D9EC", "#DADADA",
-                 "#6A6A6A", "#F6AEA9", "#A8DAB5", "#FDE293", "#AECBFA", "#E9D2FD", "#A1E4F2", "#FFFFFF"),
+        "name": "Graphite", "group": "dark", "bg": "#3A3D44", "text": "#ECEDEF", "border": "#50545D", "muted": "#B0B4BC",
+        "accent": "#E0E2E6",
+        "ansi": ("#50545D", "#FF9C9C", "#9FE0A8", "#F5D88A", "#9CC4FF", "#D7B4F8", "#8FDDE0", "#D5D7DB",
+                 "#6E737D", "#FFB8B8", "#BDEBC3", "#FAE6AE", "#BBD7FF", "#E6CCFB", "#B0E9EB", "#FFFFFF"),
+    },
+    "clay-light": {
+        "name": "Clay Light", "group": "light", "bg": "#F1E4CC", "text": "#3B2E1E", "border": "#DCC9A6", "muted": "#7A6447",
+        "accent": "#B5562C",
+        "ansi": ("#3B2E1E", "#B23A24", "#4E7A23", "#9A6A08", "#2F5E8A", "#8A4A7A", "#2B7268", "#6E5C44",
+                 "#8C7656", "#C9502F", "#5E8F2E", "#B07C10", "#3A71A3", "#A05A90", "#358579", "#21180E"),
     },
     "paper": {
-        "name": "Paper", "bg": "#FFFFFF", "text": "#1A1A1A", "border": "#DADCE0", "muted": "#5F6368",
-        "accent": "#1A73E8",
-        "ansi": ("#1A1A1A", "#C5221F", "#188038", "#B06000", "#1A73E8", "#9334E6", "#007B83", "#5F6368",
-                 "#80868B", "#D93025", "#1E8E3E", "#E37400", "#4285F4", "#A142F4", "#12A4AF", "#202124"),
+        "name": "Paper", "group": "light", "bg": "#FFFFFF", "text": "#111827", "border": "#D6DCE5", "muted": "#5B6474",
+        "accent": "#2563EB",
+        "ansi": ("#111827", "#DC2626", "#15803D", "#B45309", "#2563EB", "#7C3AED", "#0E7490", "#4B5563",
+                 "#6B7280", "#EF4444", "#16A34A", "#D97706", "#3B82F6", "#8B5CF6", "#0891B2", "#030712"),
+    },
+    "rose": {
+        "name": "Rose", "group": "light", "bg": "#FBEAF0", "text": "#4B1D2E", "border": "#EFCAD8", "muted": "#8C5A6E",
+        "accent": "#C2185B",
+        "ansi": ("#4B1D2E", "#C0263B", "#2E7D4F", "#A35F00", "#3559A8", "#A3226E", "#1F7A7A", "#7A5263",
+                 "#9C7385", "#D93C52", "#3C9662", "#BF7410", "#4A6FC2", "#BE3787", "#2C9494", "#2A0F1A"),
+    },
+    "lagoon": {
+        "name": "Lagoon", "group": "distinctive", "bg": "#00313B", "text": "#C8D7D6", "border": "#0E4A57", "muted": "#7FA3A6",
+        "accent": "#2AA198",
+        "ansi": ("#0E4A57", "#DC322F", "#859900", "#B58900", "#268BD2", "#D33682", "#2AA198", "#C8D7D6",
+                 "#3B6B75", "#F0574F", "#A2B82A", "#D4A82A", "#4FA3E3", "#E45C9B", "#4CC2B8", "#F2F7F6"),
+    },
+    "phosphor": {
+        "name": "Phosphor", "group": "distinctive", "bg": "#0A0F0A", "text": "#5CF07A", "border": "#1A2E1A", "muted": "#3FA555",
+        "accent": "#5CF07A",
+        "ansi": ("#1A2E1A", "#FF7A6B", "#5CF07A", "#E8F07A", "#7AD9F0", "#C8A0F0", "#7AF0D2", "#A8E8B4",
+                 "#2F4F2F", "#FF9C90", "#8CFFA2", "#F4FAA0", "#A0E6F7", "#DCC0F7", "#A0F7E2", "#E6FFEA"),
+    },
+    "dusk": {
+        "name": "Dusk", "group": "distinctive", "bg": "#241734", "text": "#F3E8FF", "border": "#3A2654", "muted": "#A98BC9",
+        "accent": "#FF79C6",
+        "ansi": ("#3A2654", "#FF6B8A", "#7CF2B8", "#FFD479", "#7AA2FF", "#FF79C6", "#6FE3F0", "#E4D6F5",
+                 "#5C4580", "#FF93AA", "#A3F7CF", "#FFE3A3", "#A3BFFF", "#FFA3D9", "#9DEEF6", "#FFFFFF"),
     },
 }
+TERMINAL_THEME_GROUPS = (("dark", "Dark"), ("light", "Light"), ("distinctive", "Distinctive"))
 TERMINAL_THEME = "app"
 
 

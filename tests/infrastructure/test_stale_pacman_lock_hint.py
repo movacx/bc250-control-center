@@ -6,7 +6,10 @@ from __future__ import annotations
 import os
 import subprocess
 
-from bc250cc.infrastructure.terminal_plan import STALE_PACMAN_LOCK_MESSAGE, _stale_pacman_lock_shell
+from bc250cc.infrastructure.terminal_plan import (
+    STALE_PACMAN_LOCK_MESSAGE,
+    _stale_pacman_lock_shell,
+)
 
 EVIDENCE = "error: failed to init transaction (unable to lock database)\nerror: could not lock database: File exists"
 

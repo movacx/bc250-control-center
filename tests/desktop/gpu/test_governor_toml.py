@@ -749,7 +749,10 @@ def test_oberon_yaml_edit_preserves_comments_and_validates_safe_bounds(tmp_path)
 def test_a_commented_copy_beside_the_active_key_is_not_a_duplicate():
     """R-2942b02f: Cyan's own default config ships ` #fix-freq = false` above
     ` fix-freq = true`; TOML accepts it and so must the editor."""
-    from bc250cc.infrastructure.gpu.governor_toml import GovernorTomlEditor, GovernorTomlError
+    from bc250cc.infrastructure.gpu.governor_toml import (
+        GovernorTomlEditor,
+        GovernorTomlError,
+    )
 
     lines = ["[gpu-usage]\n", " #fix-freq = false\n", " fix-freq = true\n", "[other]\n"]
     keys, _insertion = GovernorTomlEditor._gpu_usage_layout(lines)

@@ -19,10 +19,10 @@ def read_report_facts() -> dict[str, object]:
     """
     from bc250cc.application.system.feedback import (
         collect_attachments,
-        report_identity,
         os_release,
         read_board_firmware,
         read_installed_bios,
+        report_identity,
         system_snapshot,
     )
 

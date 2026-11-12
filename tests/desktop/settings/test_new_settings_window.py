@@ -1,7 +1,6 @@
 """The redesigned Settings window: its sections, the terminal themes and the subpages."""
 
 from PyQt6.QtCore import QSettings
-from PyQt6.QtWidgets import QPushButton
 
 from frontends.desktop import theme
 from frontends.desktop.pages.settings import SettingsPage, TerminalThemeCard
@@ -45,10 +44,19 @@ def test_every_section_builds_without_error(qtbot, tmp_path):
         assert page._ensure_section(key) is not None
 
 
-def test_the_terminal_theme_list_offers_the_app_colours_and_every_built_in_theme(qtbot, tmp_path):
+def test_the_terminal_theme_list_offers_every_built_in_theme(qtbot, tmp_path):
     page, _ = _page(qtbot, tmp_path)
     page._ensure_section("console")
-    assert list(page.terminal_theme_cards) == ["app", *theme.TERMINAL_THEMES]
+    assert list(page.terminal_theme_cards) == list(theme.TERMINAL_THEMES)
+
+
+def test_the_controller_options_come_before_the_theme_grid(qtbot, tmp_path):
+    page, _ = _page(qtbot, tmp_path)
+    page._ensure_section("console")
+    from PyQt6.QtWidgets import QLabel
+    titles = [label.text() for label in page.findChildren(QLabel) if label.property("groupTitle")]
+    from frontends.desktop.i18n import tr
+    assert titles.index(tr("Game controller")) < titles.index(tr("Terminal theme"))
 
 
 def test_choosing_a_terminal_theme_is_saved_and_announced(qtbot, tmp_path):
@@ -59,7 +67,7 @@ def test_choosing_a_terminal_theme_is_saved_and_announced(qtbot, tmp_path):
     assert signal.args == ["midnight"]
     assert settings.value("settings/console_theme") == "midnight"
     assert page.terminal_theme_cards["midnight"].selected
-    assert not page.terminal_theme_cards["app"].selected
+    assert not page.terminal_theme_cards["paper"].selected
 
 
 def test_a_theme_card_paints_in_both_sizes(qtbot):

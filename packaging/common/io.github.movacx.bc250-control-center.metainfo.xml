@@ -32,6 +32,11 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
+    <release version="1.22.8" date="2026-11-12">
+      <description>
+        <p>HelixSR 3.3.0 ya no aparece como «Reparación requerida» después de instalarlo, y la ventana de actualización ya no falla con «'NoneType' object has no attribute 'channel'» al abrirla recién iniciada la aplicación. Los temas de la terminal se rehicieron para que cada uno se vea distinto: tres oscuros, tres claros y tres distintivos, con Rose, Lagoon, Phosphor y Dusk nuevos. Incluye limpieza de código para las revisiones automáticas.</p>
+      </description>
+    </release>
     <release version="1.22.7" date="2026-11-12">
       <description>
         <p>HelixSR 3.3.0 vuelve a instalarse: el autor volvió a subir el archivo con la misma versión y ahora se acepta si coincide con la huella que publica GitHub. «Construir kernels Vulkan» solo se ofrece con versiones de HelixSR que lo soportan. La curva de voltaje de Cyan ya no se rechaza cuando la configuración no trae todos los puntos de Cyan, y en Arch/CachyOS se explica cómo quitar un bloqueo de pacman que dejó una actualización interrumpida.</p>

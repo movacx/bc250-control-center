@@ -1,8 +1,18 @@
 """The main kernel boot options are managed end to end: the helper's list, the
 request builder and a row in Additional settings for each of them."""
 
-from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION, KERNEL_OPTIONS
+import pytest
+
+from bc250cc.infrastructure.system_setup import (
+    CU_UNLOCK_OPTION,
+    HDMI21_OFF_OPTION,
+    HIDE_BOOT_MESSAGES_OPTION,
+    KERNEL_OPTIONS,
+    RELINK_OFF_OPTION,
+    SCHED_POLICY_OPTION,
+)
 from frontends.desktop.components.dashboard_widgets import PreparationSidebar
+from frontends.desktop.pages.additional_settings import AdditionalSettingsPage
 
 MAIN = ("mitigations=off", "nosmt", CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION)
 
@@ -24,11 +34,6 @@ def test_each_row_names_what_it_does_and_what_undoes_it():
 
 
 # ------------------------------------------- the BC-250 kernel's amdgpu switches
-
-import pytest
-
-from bc250cc.infrastructure.system_setup import HDMI21_OFF_OPTION, RELINK_OFF_OPTION, SCHED_POLICY_OPTION
-from frontends.desktop.pages.additional_settings import AdditionalSettingsPage
 
 OFF = {"managed": False, "configured": False, "active": False, "external": False}
 NEW = (SCHED_POLICY_OPTION, HDMI21_OFF_OPTION, RELINK_OFF_OPTION)
@@ -138,9 +143,10 @@ def _stack_state(extras):
 
 
 def _sidebar(qtbot):
-    from PyQt6.QtCore import QSettings
-    from tempfile import TemporaryDirectory
     from pathlib import Path
+    from tempfile import TemporaryDirectory
+
+    from PyQt6.QtCore import QSettings
 
     temporary = TemporaryDirectory()
     _KEEP.append(temporary)
@@ -179,7 +185,9 @@ def test_the_adapter_firmware_files_are_offered_and_flashing_is_not(qtbot):
     button = sidebar.cachyos_ch7218_button
     assert not button.isHidden() and sidebar.cachyos_ch7218_remove_button.isHidden()
     assert button.request_payload["action"] == "cachyos_bc250_extra-ch7218"
-    from bc250cc.infrastructure.cachyos_bc250_kernel import build_cachyos_bc250_kernel_command
+    from bc250cc.infrastructure.cachyos_bc250_kernel import (
+        build_cachyos_bc250_kernel_command,
+    )
 
     script = build_cachyos_bc250_kernel_command("extra-ch7218")
     assert "bc250-cachyos/bc250-ch7218-fw" in script
