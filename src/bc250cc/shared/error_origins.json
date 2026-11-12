@@ -1094,6 +1094,7 @@
    "_fetch_check": "CORE-0271",
    "_installer_url": "CORE-0272",
    "_container_lines": "CORE-0273",
+   "_damaged_source_check": "CORE-0280",
    "build_directmesh_install_command": "CORE-0274",
    "build_directmesh_check_command": "CORE-0275",
    "build_directmesh_uninstall_command": "CORE-0276",
