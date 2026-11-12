@@ -32,6 +32,11 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
+    <release version="1.22.6" date="2026-11-12">
+      <description>
+        <p>Corrección de la instalación de DirectMesh, que fallaba al instante con «Missing sections in … DirectX-Headers.wrap» cuando reutilizaba una copia dañada del código descargada en un intento anterior: Control Center la revisa antes de instalar y la vuelve a descargar si está dañada.</p>
+      </description>
+    </release>
     <release version="1.22.5" date="2026-11-11">
       <description>
         <p>Corrección de la instalación de DirectMesh en Bazzite y CachyOS, que se detenía con «command not found» por un error del instalador de upstream: Control Center instala ahora por su cuenta los paquetes de compilación antes de ejecutarlo. Las notas incluyen el resumen de la 1.22.4.</p>
