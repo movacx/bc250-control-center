@@ -6048,5 +6048,6 @@
   "/var: {free} MB free": "/var: {free} MB boş",
   "SteamOS keeps /var small, and package installs stop when it is full. This removes pacman's downloaded packages and fwupd's firmware metadata, and trims the system logs to 20 MB. UMR's data in /var/lib/umr is kept: Compute Units tools use it.": "SteamOS /var'ı küçük tutar ve dolduğunda paket kurulumları durur. Bu, pacman'in indirdiği paketleri ve fwupd'nin donanım yazılımı meta verilerini kaldırır ve sistem günlüklerini 20 MB'a indirir. /var/lib/umr içindeki UMR verileri korunur: Compute Units araçları bunları kullanır.",
   "Folders": "Klasörler",
-  "Could not free /var space": "/var alanı boşaltılamadı"
+  "Could not free /var space": "/var alanı boşaltılamadı",
+  "This HelixSR release does not build Vulkan kernels. Use Build network files, or choose HelixSR 3.3 or newer for Vulkan.": "Bu HelixSR sürümü Vulkan çekirdekleri derlemez. Ağ dosyalarını derle seçeneğini kullanın veya Vulkan için HelixSR 3.3 ya da daha yenisini seçin."
 }

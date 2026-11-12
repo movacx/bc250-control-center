@@ -57,6 +57,8 @@ def test_fsr_ready_without_network_and_lifecycle(release):
 def test_scaler_version_and_options(release):
     directory, _ = release
     assert h._bundled_scaler_version(directory) == '2.3.0'
+    # 3.3's setup knows --vulkan; older 3.x setups do not (R-84a7093e).
+    (directory / h.HELIXSR_SETUP).write_text('# --dlss --preset-k --vulkan --rebuild\n')
     command = h.build_helixsr_network_command(options=('preset_k', 'vulkan', 'rebuild'))
     assert '--preset-k --vulkan --rebuild' in command
     with pytest.raises(ValueError):

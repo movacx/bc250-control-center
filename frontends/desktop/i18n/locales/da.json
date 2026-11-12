@@ -6048,5 +6048,6 @@
   "/var: {free} MB free": "/var: {free} MB ledig",
   "SteamOS keeps /var small, and package installs stop when it is full. This removes pacman's downloaded packages and fwupd's firmware metadata, and trims the system logs to 20 MB. UMR's data in /var/lib/umr is kept: Compute Units tools use it.": "SteamOS holder /var lille, og pakkeinstallationer stopper, når den er fuld. Dette fjerner pacmans downloadede pakker og fwupds firmware-metadata og skærer systemlogfilerne ned til 20 MB. UMR's data i /var/lib/umr bevares: Compute Units-værktøjerne bruger dem.",
   "Folders": "Mapper",
-  "Could not free /var space": "Kunne ikke frigøre plads i /var"
+  "Could not free /var space": "Kunne ikke frigøre plads i /var",
+  "This HelixSR release does not build Vulkan kernels. Use Build network files, or choose HelixSR 3.3 or newer for Vulkan.": "Denne HelixSR-version bygger ikke Vulkan-kerner. Brug Byg netværksfiler, eller vælg HelixSR 3.3 eller nyere til Vulkan."
 }

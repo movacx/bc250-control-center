@@ -130,6 +130,7 @@ HELIXSR_DLL_DIGESTS = frozenset({
     "d9fc3ad6b3e3a47cf7ecbe8e8e7ad11c6c320ae295e8feed79303aabd0bed993",  # v1.9.0
 })
 HELIXSR_RELEASES_API = "https://api.github.com/repos/lonewolf0622/HelixSR/releases?per_page=50"
+HELIXSR_RELEASE_API_BY_TAG = "https://api.github.com/repos/lonewolf0622/HelixSR/releases/tags/{tag}"
 #: GitHub's answer for 50 releases with their notes is well under this.
 _RELEASES_LIMIT = 4 * 1024 * 1024
 #: The release archive: ``HelixSR-1.9.3.zip``, ``HelixSR-1.9.0.2.zip``. A
@@ -255,8 +256,9 @@ def helixsr_releases() -> list[dict]:
     """The releases on offer, newest first.
 
     The reviewed ones always; the ones Check for new releases found on
-    GitHub on top. A release reviewed here keeps its reviewed digests: if
-    GitHub now lists another archive under its tag, the download is refused.
+    GitHub on top. A release reviewed here keeps its reviewed digests; if
+    the author re-published it under the same tag, the install accepts the
+    archive on the digest GitHub lists for it at that moment.
     A release GitHub no longer lists (withdrawn) is not offered.
     """
     releases = {tag: {"tag": tag, **entry, "prerelease": False, "reviewed": True}
@@ -331,6 +333,18 @@ def helixsr_dll_folder(directory: Path | None = None) -> Path:
         return directory / "HelixSR"
     built = directory / HELIXSR_BUILD_FOLDER
     return built if (built / HELIXSR_DLL).is_file() else directory
+
+
+def _setup_offers(directory: Path, option: str) -> bool:
+    """Whether the installed release's setup script knows ``option``.
+
+    Options arrived over the 3.x releases (``--vulkan`` with 3.3); passing one
+    to an older setup stops it with "unknown option" (R-84a7093e).
+    """
+    try:
+        return option in (directory / HELIXSR_SETUP).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
 
 
 def _layout3() -> bool:
@@ -1308,7 +1322,7 @@ def helixsr_state(*, machine: str | None = None) -> dict:
     return {
         "layout": "3" if _layout3() else "2",
         "status_error": status_error,
-        "capabilities": {"fg": bool(status.get("fg_available")) if _layout3() else bool(current and helixsr_scaler_supported(directory)), "preset_k": bool(status.get("k_available")), "vulkan": bool(current and _layout3())},
+        "capabilities": {"fg": bool(status.get("fg_available")) if _layout3() else bool(current and helixsr_scaler_supported(directory)), "preset_k": bool(status.get("k_available")), "vulkan": bool(current and _layout3() and _setup_offers(directory, "--vulkan"))},
         "ready": {"network": bool(network_ready), "hlx": bool(status.get("hlx_ready")), "preset_k": bool(status.get("k_ready")), "fg": bool(status.get("fg_ready")) if _layout3() else bool(current and helixsr_fg_ready(directory))},
         "scaler_version": _bundled_scaler_version(directory) if _layout3() else "",
         "bridge_games": bridge_games,
@@ -2077,8 +2091,14 @@ def build_helixsr_install_command(*, commit_selection: str | None = None) -> str
     python = shlex.quote(sys.executable or "python3")
     label = " (pre-release)" if release["prerelease"] else ""
     if release["reviewed"]:
-        check = f'''printf '%s  %s\\n' {release['dll_sha256']} "$bc250_dll" | sha256sum -c - >/dev/null || {{
-  echo "ERROR: the HelixSR DLL in the archive is not the reviewed one."; exit 29; }}'''
+        # A re-published archive (the author replaces files under the same
+        # tag) is accepted on GitHub's digest; its DLL is then the new one.
+        check = f'''if [ "$bc250_republished" = 1 ]; then
+  test -f "$bc250_dll" || {{ echo "ERROR: the archive has no {HELIXSR_DLL}."; exit 29; }}
+else
+  printf '%s  %s\\n' {release['dll_sha256']} "$bc250_dll" | sha256sum -c - >/dev/null || {{
+    echo "ERROR: the HelixSR DLL in the archive is not the reviewed one."; exit 29; }}
+fi'''
         source = "Checking the reviewed SHA-256..."
     else:
         # Not reviewed here: the archive is the one GitHub lists for the
@@ -2103,11 +2123,24 @@ bc250_fetch "$bc250_archive" {shlex.quote(helixsr_url(release))}
 echo "{source}"
 # A mismatch on a complete download is not the network: the file published
 # under this version is no longer the one checked here (it was re-uploaded).
-printf '%s  %s\\n' {release['sha256']} "$bc250_archive" | sha256sum -c --status - || {{
-  echo "ERROR: HelixSR-{release['tag'].removeprefix('v')}.zip as published now is not the archive Control Center checked."
-  echo "The author replaced the file under the same version. Nothing was installed."
-  echo "Update Control Center, or choose another HelixSR version."
-  exit 30; }}
+bc250_republished=0
+if ! printf '%s  %s\\n' {release['sha256']} "$bc250_archive" | sha256sum -c --status -; then
+  # The author re-publishes files under the same version. Instead of refusing,
+  # ask GitHub for the digest it lists now and accept a download that matches it.
+  bc250_actual="$(sha256sum "$bc250_archive" | awk '{{print $1}}')"
+  bc250_listed="$(bc250_fetch "$bc250_work/release.json" {shlex.quote(HELIXSR_RELEASE_API_BY_TAG.format(tag=release['tag']))} >/dev/null 2>&1 &&
+    "$bc250_python" -I -c 'import json, sys
+release = json.load(open(sys.argv[1]))
+print(next((str(a.get("digest") or "").removeprefix("sha256:") for a in release.get("assets", []) if a.get("name") == sys.argv[2]), ""))' "$bc250_work/release.json" {shlex.quote(release['archive'])} || true)"
+  if [ -n "$bc250_listed" ] && [ "$bc250_listed" = "$bc250_actual" ]; then
+    echo "The author re-published HelixSR {release['version']} under the same version; the download matches the SHA-256 GitHub lists for it now."
+    bc250_republished=1
+  else
+    echo "ERROR: the download of {release['archive']} does not match the SHA-256 GitHub lists for it. Nothing was installed."
+    echo "Try again in a few minutes, or choose another HelixSR version."
+    exit 30
+  fi
+fi
 echo "Archive verified."
 echo "Checking the archive layout and unpacking..."
 # Every entry sits in one HelixSR-* folder (1.9.0.2's archive holds
@@ -2171,6 +2204,11 @@ def build_helixsr_network_command(*, options: tuple[str, ...] = ()) -> str:
         raise ValueError("Invalid network build option.")
     if options and not _layout3():
         raise ValueError("Build options require HelixSR 3.x.")
+    if "vulkan" in options and not _setup_offers(helixsr_directory(), "--vulkan"):
+        raise ActionNeeded(
+            "This HelixSR release does not build Vulkan kernels. "
+            "Use Build network files, or choose HelixSR 3.3 or newer for Vulkan."
+        )
     if "vulkan" in options and "rebuild" not in options and (helixsr_directory() / HELIXSR_BRIDGE).is_file():
         if _run_bridge("status").get("network_ready"):
             raise ActionNeeded("Adding Vulkan to a built network requires rebuild.")
