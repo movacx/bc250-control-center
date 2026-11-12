@@ -1672,8 +1672,9 @@ class SettingsPage(QWidget):
             shortcut,
         ))
         layout.addWidget(terminal)
-        layout.addWidget(self._terminal_theme_group())
 
+        # The controller switches sit right under the terminal ones; the
+        # theme grid, much taller, comes last so it does not push them down.
         controller = SettingsGroup("Game controller")
         controller.add_row(SettingRow(
             "Gamepad navigation",
@@ -1690,6 +1691,7 @@ class SettingsPage(QWidget):
             ),
         ))
         layout.addWidget(controller)
+        layout.addWidget(self._terminal_theme_group())
         layout.addStretch(1)
         return page
 
@@ -1711,10 +1713,10 @@ class SettingsPage(QWidget):
             grid.addWidget(card, row, column)
             self.terminal_theme_cards[key] = card
 
-        # "Same as the application" first, then one row per kind (dark, light,
-        # distinctive) under its caption, three themes each.
-        add_card("app", tr("Same as the application"), 0, 0)
-        row = 1
+        # One row per kind (dark, light, distinctive) under its caption, three
+        # themes each. A saved "app" (the application's own colours) stays
+        # valid; it only has no card here.
+        row = 0
         for kind, caption in _theme.TERMINAL_THEME_GROUPS:
             members = [(key, theme["name"]) for key, theme in _theme.TERMINAL_THEMES.items() if theme.get("group") == kind]
             if not members:
