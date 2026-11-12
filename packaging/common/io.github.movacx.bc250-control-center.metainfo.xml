@@ -32,6 +32,11 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
+    <release version="1.22.7" date="2026-11-12">
+      <description>
+        <p>HelixSR 3.3.0 vuelve a instalarse: el autor volvió a subir el archivo con la misma versión y ahora se acepta si coincide con la huella que publica GitHub. «Construir kernels Vulkan» solo se ofrece con versiones de HelixSR que lo soportan. La curva de voltaje de Cyan ya no se rechaza cuando la configuración no trae todos los puntos de Cyan, y en Arch/CachyOS se explica cómo quitar un bloqueo de pacman que dejó una actualización interrumpida.</p>
+      </description>
+    </release>
     <release version="1.22.6" date="2026-11-12">
       <description>
         <p>Corrección de la instalación de DirectMesh, que fallaba al instante con «Missing sections in … DirectX-Headers.wrap» cuando reutilizaba una copia dañada del código descargada en un intento anterior: Control Center la revisa antes de instalar y la vuelve a descargar si está dañada.</p>

@@ -257,6 +257,36 @@ def _evidence_render_shell(translate=None) -> str:
     )
 
 
+#: A lock pacman left behind when an update was interrupted (power cut, closed
+#: terminal). It blocks every later transaction with "unable to lock
+#: database", and the catalog's advice to wait never ends (R-1bf75324 kept
+#: failing a day later; R-d8d8dc3d).
+STALE_PACMAN_LOCK_MESSAGE = (
+    "No package manager is running, so /var/lib/pacman/db.lck was left behind by an update that was interrupted."
+)
+STALE_PACMAN_LOCK_FIX = "Remove it, then run the action again:"
+
+
+def _stale_pacman_lock_shell(translate=None) -> str:
+    """On a pacman lock failure, say whether the lock is a leftover.
+
+    Only when the lock file is there and no package manager runs: then it is
+    not a busy system but an interrupted update, and the exact command is
+    given. Nothing is removed here; it is a root file.
+    """
+    translate = translate if callable(translate) else _TRANSLATOR
+    message = shlex.quote(translate(STALE_PACMAN_LOCK_MESSAGE))
+    fix = shlex.quote(translate(STALE_PACMAN_LOCK_FIX))
+    return (
+        'if [ "$status" -ne 0 ] && [ "$status" -ne 130 ] && [ -e "${BC250_PACMAN_LOCK:-/var/lib/pacman/db.lck}" ] '
+        '&& command -v pgrep >/dev/null 2>&1 '
+        '&& printf "%s\\n" "$evidence" | grep -qiE "unable to lock database|could not lock database" '
+        '&& ! pgrep -x "pacman|pamac|pamac-daemon|yay|paru|packagekitd|octopi|pikaur|trizen|aura" >/dev/null 2>&1; then '
+        f'printf "\\n%s\\n%s\\n  sudo rm /var/lib/pacman/db.lck\\n" {message} {fix}; '
+        'fi'
+    )
+
+
 def workflow_wrapper(
     command: object,
     status_path: Path,
@@ -350,6 +380,7 @@ def workflow_wrapper(
         f"else echo \"{finished_failed}\"; fi; "
         f"{_first_error_shell(translate)}; "
         f"{exit_explanation_shell(translate)}; "
+        f"{_stale_pacman_lock_shell(translate)}; "
         f"{_evidence_render_shell(translate)}; "
         'printf "BC250_WORKFLOW exit_status=%d duration_seconds=%d\\n" "$bc250_raw_status" "$bc250_elapsed"; '
         f"echo \"{saved_log}: {log_path!s}\"; "
