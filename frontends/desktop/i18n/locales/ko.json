@@ -6051,5 +6051,6 @@
   "Could not free /var space": "/var 공간을 확보하지 못했습니다",
   "This HelixSR release does not build Vulkan kernels. Use Build network files, or choose HelixSR 3.3 or newer for Vulkan.": "이 HelixSR 릴리스는 Vulkan 커널을 빌드하지 않습니다. 네트워크 파일 빌드를 사용하거나 Vulkan을 위해 HelixSR 3.3 이상을 선택하세요.",
   "No package manager is running, so /var/lib/pacman/db.lck was left behind by an update that was interrupted.": "실행 중인 패키지 관리자가 없으므로 /var/lib/pacman/db.lck는 중단된 업데이트가 남긴 파일입니다.",
-  "Remove it, then run the action again:": "삭제한 뒤 작업을 다시 실행하세요:"
+  "Remove it, then run the action again:": "삭제한 뒤 작업을 다시 실행하세요:",
+  "Distinctive": "개성 있는"
 }

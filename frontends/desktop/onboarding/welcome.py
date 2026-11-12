@@ -458,18 +458,23 @@ class WelcomeOverlay(QWidget):
         self.terminal_heading = QLabel(tr("Terminal theme"), page)
         self.terminal_heading.setObjectName("onboardingSectionLabel")
         layout.addWidget(self.terminal_heading)
-        terminals = QHBoxLayout()
-        terminals.setSpacing(8)
+        # Ten small cards: two rows of five, so each still shows its colours.
+        terminals = QGridLayout()
+        terminals.setHorizontalSpacing(8)
+        terminals.setVerticalSpacing(8)
         self.terminal_cards: dict[str, TerminalThemeCard] = {}
         choices = [("app", tr("Automatic"))] + [
             (key, entry["name"]) for key, entry in theme_module.TERMINAL_THEMES.items()
         ]
-        for key, name in choices:
+        columns = 5
+        for index, (key, name) in enumerate(choices):
             card = TerminalThemeCard(key, name, page, compact=True)
             card.selected = key == self._terminal_theme
             card.chosen.connect(self._choose_terminal_theme)
             self.terminal_cards[key] = card
-            terminals.addWidget(card, 1)
+            terminals.addWidget(card, index // columns, index % columns)
+        for column in range(columns):
+            terminals.setColumnStretch(column, 1)
         layout.addLayout(terminals)
         layout.addStretch(1)
         return page

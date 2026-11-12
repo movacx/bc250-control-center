@@ -215,6 +215,9 @@ def settings_stylesheet() -> str:
         background:{band}; border:none; border-top:1px solid {c['border']};
         border-bottom-left-radius:12px; border-bottom-right-radius:12px;
     }}
+    QWidget[settingsPage='true'] QLabel[terminalThemeGroup='true'] {{
+        color:{row_note}; font-weight:600; padding-top:6px; background:transparent;
+    }}
     QWidget[settingsPage='true'] QLabel[settingsFooterNote='true'] {{
         color:{c['muted']}; font-size:10px;
     }}
@@ -1699,16 +1702,29 @@ class SettingsPage(QWidget):
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(12)
         current = str(self.app_settings.value("settings/console_theme", "app") or "app")
-        choices = [("app", tr("Same as the application"))] + [
-            (key, theme["name"]) for key, theme in _theme.TERMINAL_THEMES.items()
-        ]
         self.terminal_theme_cards: dict[str, TerminalThemeCard] = {}
-        for index, (key, name) in enumerate(choices):
+
+        def add_card(key: str, name: str, row: int, column: int) -> None:
             card = TerminalThemeCard(key, name, host)
             card.selected = key == current
             card.chosen.connect(self._terminal_theme_chosen)
-            grid.addWidget(card, index // 3, index % 3)
+            grid.addWidget(card, row, column)
             self.terminal_theme_cards[key] = card
+
+        # "Same as the application" first, then one row per kind (dark, light,
+        # distinctive) under its caption, three themes each.
+        add_card("app", tr("Same as the application"), 0, 0)
+        row = 1
+        for kind, caption in _theme.TERMINAL_THEME_GROUPS:
+            members = [(key, theme["name"]) for key, theme in _theme.TERMINAL_THEMES.items() if theme.get("group") == kind]
+            if not members:
+                continue
+            label = QLabel(tr(caption), host)
+            label.setProperty("terminalThemeGroup", True)
+            grid.addWidget(label, row, 0, 1, 3)
+            for column, (key, name) in enumerate(members):
+                add_card(key, name, row + 1, column)
+            row += 2
         for column in range(3):
             grid.setColumnStretch(column, 1)
         group.body.addWidget(host)
