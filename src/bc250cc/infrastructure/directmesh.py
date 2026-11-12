@@ -405,6 +405,43 @@ fi
 bc250_in_container env {environment} bash "$bc250_installer"'''
 
 
+def _damaged_source_check(tag: str) -> str:
+    """Remove a damaged copy of the source the installer would reuse.
+
+    The installer downloads the source only when meson.build is missing, so a
+    copy left damaged by an earlier run (a .wrap file that is gone, unreadable
+    or empty) made every later install fail at once with Meson's "Missing
+    sections in ... .wrap" (R-576f65ba). The copy is checked first and, when
+    damaged, removed so the installer downloads it again; a failure that still
+    names a damaged .wrap removes it too, so the next try starts clean.
+    """
+    source = f'"${{XDG_CACHE_HOME:-$HOME/.cache}}/directmesh-build/src-"{shlex.quote(tag)}'
+    return f'''bc250_source={source}
+bc250_source_damaged() {{
+  [[ -d "$bc250_source" ]] || return 1
+  [[ -r "$bc250_source/meson.build" ]] || return 0
+  [[ -d "$bc250_source/subprojects" ]] || return 0
+  local wrap
+  for wrap in "$bc250_source"/subprojects/*.wrap; do
+    [[ -e "$wrap" || -L "$wrap" ]] || continue
+    [[ -f "$wrap" && -r "$wrap" ]] || return 0
+    grep -Eq '^[[:space:]]*\\[[^]]+\\]' "$wrap" || return 0
+  done
+  return 1
+}}
+if bc250_source_damaged; then
+  echo "The DirectMesh source downloaded earlier is damaged; removing it so it is downloaded again."
+  rm -rf -- "$bc250_source"
+fi
+bc250_forget_damaged_source() {{
+  local log="${{XDG_CACHE_HOME:-$HOME/.cache}}/directmesh-build/setup.log"
+  if [[ -f "$log" ]] && grep -q 'Missing sections in' "$log"; then
+    rm -rf -- "$bc250_source"
+    echo "The downloaded DirectMesh source was damaged and has been removed. Press Install again to download it fresh."
+  fi
+}}'''
+
+
 def build_directmesh_install_command(*, family: str, distro_id: str, version_id: str = "") -> str:
     """Download and verify the picked release's installer, then run it."""
     platform, reason = directmesh_platform(
@@ -465,6 +502,7 @@ bc250_finish() {{
   local status=$?
   trap - EXIT
   if (( status != 0 )); then
+    declare -F bc250_forget_damaged_source >/dev/null && bc250_forget_damaged_source
     for index in "${{!bc250_paths[@]}}"; do
       path="${{bc250_paths[index]}}"
       rm -rf -- "$path"
@@ -479,6 +517,7 @@ bc250_finish() {{
 trap bc250_finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+{_damaged_source_check(tag)}
 {run}
 bc250_icd={icd}
 test -f "$bc250_icd" || {{ printf 'ERROR: the installer finished but %s is missing.\n' "$bc250_icd"; exit 29; }}
