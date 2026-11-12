@@ -8,7 +8,6 @@ from bc250cc.infrastructure import hardware_identity
 from bc250cc.shared.errors import ActionNeeded
 
 
-
 def _device(root: Path, name: str, vendor: str, device: str) -> None:
     folder = root / name
     folder.mkdir(parents=True)

@@ -83,6 +83,7 @@ def test_settings_dialog_uses_the_settings_shell_as_its_window_boundary(qtbot, t
 
 def test_welcome_and_settings_share_the_gamepad_choice_across_launches(tmp_path, qtbot):
     from types import SimpleNamespace
+
     from frontends.desktop.app import ControlCenterWindow
 
     settings = _settings(tmp_path)

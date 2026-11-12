@@ -65,7 +65,7 @@ from .system_setup_controls import (
     update_memory_controls,
 )
 from .wheel_guard import GuardedComboBox
-from .widgets import IconBadge, InfoDialog, PillLabel
+from .widgets import InfoDialog, PillLabel
 from .widgets import icon as theme_icon
 
 

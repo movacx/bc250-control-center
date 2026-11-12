@@ -1,7 +1,6 @@
 """SteamOS compute-unit backend and compatibility commands of the dependency repository."""
 
 import shlex
-from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from pathlib import Path
 
 from bc250cc.infrastructure.cu_privileged_backend import (
@@ -23,6 +22,7 @@ from bc250cc.infrastructure.governor_conflicts import (
     GOVERNOR_SPECS,
     OBERON_GOVERNOR,
 )
+from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from bc250cc.infrastructure.steamos_amdgpu import (
     build_steamos_amdgpu_diagnostic_command,
     build_steamos_compatibility_command,

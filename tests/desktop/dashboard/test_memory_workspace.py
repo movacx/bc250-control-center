@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
-from PyQt6.QtCore import QPoint, QPointF, QSettings, Qt
+from PyQt6.QtCore import QPointF, QSettings, Qt
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import QApplication, QComboBox
 

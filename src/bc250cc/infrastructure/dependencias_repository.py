@@ -4,7 +4,6 @@ import shlex
 import shutil
 import subprocess
 import time
-from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from contextlib import suppress
 from copy import deepcopy
 from pathlib import Path
@@ -100,6 +99,14 @@ from bc250cc.infrastructure.dependencias_constants import (  # noqa: F401  (re-e
     STEAMOS_SMU_OC_REVIEWED_COMMIT,
 )
 from bc250cc.infrastructure.dependencias_steamos import SteamosDependenciesMixin
+from bc250cc.infrastructure.directmesh import (
+    build_directmesh_check_command,
+    build_directmesh_install_command,
+    build_directmesh_releases_command,
+    build_directmesh_uninstall_command,
+    directmesh_state,
+    select_directmesh_release,
+)
 from bc250cc.infrastructure.external_tools.catalog import (
     EXTERNAL_TOOL_DIRECTORIES,
     EXTERNAL_TOOLS,
@@ -140,11 +147,7 @@ from bc250cc.infrastructure.governor_install_shell import (
     oberon_install_command,
 )
 from bc250cc.infrastructure.gpu_driver_probe import gpu_driver_state
-from bc250cc.infrastructure.directmesh import (
-    directmesh_state, select_directmesh_release, build_directmesh_install_command,
-    build_directmesh_check_command, build_directmesh_uninstall_command,
-    build_directmesh_releases_command,
-)
+from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from bc250cc.infrastructure.helixsr import (
     add_helixsr_folder,
     add_optiscaler_folder,
@@ -153,19 +156,19 @@ from bc250cc.infrastructure.helixsr import (
     build_helixsr_network_command,
     build_helixsr_releases_command,
     build_helixsr_remove_command,
+    build_helixsr_upgrade_command,
+    forget_helixsr_bridge_games,
     forget_helixsr_folder,
     helixsr_state,
     install_helixsr_bridge,
-    build_helixsr_upgrade_command,
-    forget_helixsr_bridge_games,
-    remove_helixsr_bridge,
-    rollback_helixsr_bridge,
     install_helixsr_game,
     install_helixsr_optiscaler,
     install_helixsr_scaler,
+    remove_helixsr_bridge,
     remove_helixsr_game,
     remove_helixsr_optiscaler,
     remove_helixsr_scaler,
+    rollback_helixsr_bridge,
     rollback_helixsr_scaler,
     save_helixsr_settings,
     scan_helixsr_games,

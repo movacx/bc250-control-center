@@ -9,7 +9,6 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import (
     QButtonGroup,
-    QComboBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -23,13 +22,14 @@ from PyQt6.QtWidgets import (
 )
 
 from .. import theme as theme_module
-from ..i18n import LANGUAGE_OPTIONS, language_name, system_language, tr, tr_format
 from ..components.toggle_switch import ToggleSwitch
 from ..components.wheel_guard import GuardedComboBox
+from ..i18n import LANGUAGE_OPTIONS, language_name, system_language, tr, tr_format
 from .components import ComponentPicker, component_specs
 from .mini_console import MiniConsole
 from .previews import AccentDot, SidebarPreview, ThemePreview
 from .script import tour_stops
+
 
 class _StepRow(QPushButton):
     """One entry in the rail: a number, a name, and where the user is."""

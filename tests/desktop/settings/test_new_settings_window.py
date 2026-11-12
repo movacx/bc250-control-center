@@ -1,7 +1,6 @@
 """The redesigned Settings window: its sections, the terminal themes and the subpages."""
 
 from PyQt6.QtCore import QSettings
-from PyQt6.QtWidgets import QPushButton
 
 from frontends.desktop import theme
 from frontends.desktop.pages.settings import SettingsPage, TerminalThemeCard
