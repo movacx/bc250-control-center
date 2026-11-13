@@ -137,9 +137,9 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         key="cyan_smu",
         upstream="https://github.com/filippor/cyan-skillfish-governor",
         license="MIT",
-        # v0.4.14, installed as upstream publishes it: the official release
+        # v0.4.15, installed as upstream publishes it: the official release
         # binary, or this commit built unmodified where its glibc is too old.
-        reviewed_revision="7b08fdcf542d1edd82f3a9077c902038019c9842",
+        reviewed_revision="34cea69cdf617d1ad05edc71c4c61df501a13c8e",
         privilege_class="service-config",
         hardware_writes=True,
         automated=True,

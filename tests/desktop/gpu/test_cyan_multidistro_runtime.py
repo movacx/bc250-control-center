@@ -13,9 +13,9 @@ def test_cyan_is_installed_as_upstream_publishes_it():
     source = INSTALLER.read_text()
     assert not PATCHER.exists()
     assert "BC250CC_RUNTIME_REVISION" not in source and "patched_runtime" not in source
-    assert 'REVIEWED_RELEASE_TAG="v0.4.14"' in source
-    assert 'REVIEWED_COMMIT="7b08fdcf542d1edd82f3a9077c902038019c9842"' in source
-    assert 'REVIEWED_ARCHIVE_SHA256="57fda5438d5f1856e9638300a60ba8c54c39f356ada749381275b836e8b1c787"' in source
+    assert 'REVIEWED_RELEASE_TAG="v0.4.15"' in source
+    assert 'REVIEWED_COMMIT="34cea69cdf617d1ad05edc71c4c61df501a13c8e"' in source
+    assert 'REVIEWED_ARCHIVE_SHA256="69e6a9eb485cce7db98a7e03189d68c30b987dbcac6e810c428ea170778f0822"' in source
     main = source.split('target_family="${BC250_CYAN_TARGET_FAMILY:-unknown}"', 1)[1]
     assert main.index("elif release_runs_here; then") < main.index("install_release")
     assert main.index("install_release") < main.index("build_upstream_source")

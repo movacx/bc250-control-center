@@ -6052,5 +6052,8 @@
   "This HelixSR release does not build Vulkan kernels. Use Build network files, or choose HelixSR 3.3 or newer for Vulkan.": "Αυτή η έκδοση του HelixSR δεν δημιουργεί πυρήνες Vulkan. Χρησιμοποιήστε τη Δημιουργία αρχείων δικτύου ή επιλέξτε HelixSR 3.3 ή νεότερο για Vulkan.",
   "No package manager is running, so /var/lib/pacman/db.lck was left behind by an update that was interrupted.": "Δεν εκτελείται κανένας διαχειριστής πακέτων, άρα το /var/lib/pacman/db.lck έμεινε από μια ενημέρωση που διακόπηκε.",
   "Remove it, then run the action again:": "Διαγράψτε το και εκτελέστε ξανά την ενέργεια:",
-  "Distinctive": "Ξεχωριστά"
+  "Distinctive": "Ξεχωριστά",
+  "Rootless Podman has no subordinate user IDs for this user.": "Το Podman χωρίς root δεν έχει δευτερεύοντα αναγνωριστικά χρήστη για αυτόν τον χρήστη.",
+  "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Το Podman δημιουργεί αυτό το στοιχείο σε ένα κοντέινερ ως ο χρήστης σας, κάτι που απαιτεί ένα εύρος δευτερευόντων αναγνωριστικών χρήστη και ομάδας στα /etc/subuid και /etc/subgid. Ο χρήστης σας δεν έχει κανένα ή το Podman δεν έχει λάβει ακόμη υπόψη ένα εύρος που προστέθηκε, οπότε η εικόνα του κοντέινερ δεν ήταν δυνατό να αποσυμπιεστεί.",
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Εκτελέστε τις εντολές που εμφανίζονται ακριβώς πάνω από το σφάλμα: προσθέτουν το εύρος για τον χρήστη σας και επιτρέπουν στο Podman να το λάβει υπόψη. Στη συνέχεια εκτελέστε ξανά αυτή την ενέργεια."
 }

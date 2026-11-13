@@ -6052,5 +6052,8 @@
   "This HelixSR release does not build Vulkan kernels. Use Build network files, or choose HelixSR 3.3 or newer for Vulkan.": "이 HelixSR 릴리스는 Vulkan 커널을 빌드하지 않습니다. 네트워크 파일 빌드를 사용하거나 Vulkan을 위해 HelixSR 3.3 이상을 선택하세요.",
   "No package manager is running, so /var/lib/pacman/db.lck was left behind by an update that was interrupted.": "실행 중인 패키지 관리자가 없으므로 /var/lib/pacman/db.lck는 중단된 업데이트가 남긴 파일입니다.",
   "Remove it, then run the action again:": "삭제한 뒤 작업을 다시 실행하세요:",
-  "Distinctive": "개성 있는"
+  "Distinctive": "개성 있는",
+  "Rootless Podman has no subordinate user IDs for this user.": "루트리스 Podman에 이 사용자의 하위 사용자 ID가 없습니다.",
+  "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman은 이 구성 요소를 사용자 계정으로 컨테이너 안에서 빌드하며, 이를 위해 /etc/subuid와 /etc/subgid에 하위 사용자 및 그룹 ID 범위가 필요합니다. 사용자에게 범위가 없거나 추가된 범위를 Podman이 아직 반영하지 않아 컨테이너 이미지를 풀 수 없었습니다.",
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "오류 바로 위에 표시된 명령을 실행하세요. 사용자에게 범위를 추가하고 Podman이 이를 반영하게 합니다. 그런 다음 이 작업을 다시 실행하세요."
 }

@@ -1509,18 +1509,19 @@ class GpuGovernorView(QWidget):
 
         range_panel, range_box = _subpanel("Frequency range")
         self._range_panel = range_panel
+        # One row: the subtitle on the left, the locked-points notice on the
+        # right. The range itself is already in the two fields below the rail.
         header = QHBoxLayout()
+        header.setSpacing(12)
         self._range_subtitle = _caption("")
         header.addWidget(self._range_subtitle, 1)
-        self._range_readout = QLabel("")
-        self._range_readout.setProperty("bigReadout", True)
-        header.addWidget(self._range_readout, 0, Qt.AlignmentFlag.AlignRight)
-        range_box.addLayout(header)
-
         self._locked_label = QLabel("")
-        self._locked_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self._locked_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
         self._locked_label.setProperty("railLegend", True)
-        range_box.addWidget(self._locked_label)
+        header.addWidget(self._locked_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        range_box.addLayout(header)
 
         self._rail = SafePointRail()
         self._rail.range_changed.connect(self._on_rail_changed)
@@ -2212,9 +2213,6 @@ class GpuGovernorView(QWidget):
         self._selected_minimum = min(self._selected_minimum, self._selected_maximum)
 
         self._rail.set_range(self._selected_minimum, self._selected_maximum)
-        self._range_readout.setText(
-            f"{self._selected_minimum} – {self._selected_maximum} MHz"
-        )
         subtitle = tr_format(
             "Fine-tune over the TOML points · current ceiling {ceiling} MHz.",
             ceiling=ceiling,

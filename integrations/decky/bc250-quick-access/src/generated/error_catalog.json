@@ -11,6 +11,15 @@
       "retryable": false
     },
     {
+      "code": "BC250-CONTAINER-001",
+      "markers": [
+        "insufficient UIDs or GIDs available in user namespace",
+        "has no subordinate user and group IDs"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
       "code": "BC250-BUILD-001",
       "markers": [
         "STEAMOS_BUILD_RUNTIME_INCOMPATIBLE"
@@ -645,6 +654,7 @@
     "reviewed root-owned SteamOS graphics backend is unavailable or changed",
     "per-game install unexpectedly enabled the driver system-wide",
     "Error executing command as another user: Not authorized",
+    "insufficient UIDs or GIDs available in user namespace",
     "another BC250 system preparation is already running",
     "shared contract is not a protected root-owned file",
     "Manual scale must reuse the detected thermal limit",
@@ -670,6 +680,7 @@
     "cannot execute: required file not found",
     "Another git process seems to be running",
     "fork: Resource temporarily unavailable",
+    "has no subordinate user and group IDs",
     "The GPU driver (amdgpu) did not start",
     "invalid ip discovery binary signature",
     "matching kernel-devel is unavailable",

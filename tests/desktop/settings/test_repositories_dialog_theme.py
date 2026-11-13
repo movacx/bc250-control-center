@@ -49,3 +49,24 @@ def test_an_archived_repository_says_so_and_can_be_searched_for(qtbot):
     dialog.repositories.search.setText("archived")
     shown = [index for index, (row, _text) in enumerate(dialog.repositories._rows) if row.isVisible()]
     assert [OFFICIAL_REPOSITORIES[index][1] for index in shown] == sorted(ARCHIVED_REPOSITORIES)
+
+
+def test_every_upstream_the_application_uses_is_credited():
+    """HelixSR, DirectMesh and others were installed but not listed (Discord)."""
+    import re
+    from pathlib import Path
+
+    from frontends.desktop.pages.settings import OFFICIAL_REPOSITORIES
+
+    root = Path(__file__).resolve().parents[3]
+    listed = {repository.split("/tree/")[0].lower() for _name, repository, _url in OFFICIAL_REPOSITORIES}
+    # Sources the application only reads or links to, not tools it installs.
+    not_tools = {"nvidia/dlss", "resurrecting-open-source-projects/stress"}
+    pattern = re.compile(r"https://(?:github|gitlab)\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)")
+    used = set()
+    for folder in ("src", "privileged"):
+        for path in (root / folder).rglob("*.py"):
+            for slug in pattern.findall(path.read_text(encoding="utf-8", errors="replace")):
+                used.add(slug.removesuffix(".git").lower())
+    missing = sorted(used - listed - not_tools)
+    assert not missing, missing

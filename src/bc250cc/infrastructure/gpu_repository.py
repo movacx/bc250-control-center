@@ -63,6 +63,9 @@ from bc250cc.platform.init.services import (
 from bc250cc.shared.errors import ActionNeeded
 from bc250cc.shared.failure_text import describe_failure
 
+#: The device upstream's v0.4.15 Cyan unit is bound to (its udev rule's alias).
+CYAN_GPU_DEVICE_UNIT = "dev-cyan_skillfish_gpu.device"
+
 
 class GPURepository:
     _GOVERNOR_CONFIG = Path("/etc/cyan-skillfish-governor-smu/config.toml")
@@ -520,6 +523,26 @@ class GPURepository:
             f"{restored[0]}-{restored[1]} MHz after the Cyan restart."
         )
 
+    @staticmethod
+    def _cyan_gpu_device_command(service):
+        """Let udev register the GPU device a v0.4.15 Cyan unit is bound to.
+
+        Upstream's unit has ``BindsTo=dev-cyan_skillfish_gpu.device``; the
+        device exists only once udev has seen the GPU with upstream's rule in
+        place. pacman runs no trigger, so after an AUR update the start failed
+        with "Dependency failed" until the next boot. Re-sending the DRM
+        change event is harmless; a unit without BindsTo skips this.
+        """
+        return (
+            f"if systemctl show {service} -p BindsTo --value 2>/dev/null | grep -qw {CYAN_GPU_DEVICE_UNIT} "
+            f"&& ! systemctl is-active --quiet {CYAN_GPU_DEVICE_UNIT}; then "
+            "sudo udevadm trigger --action=change --subsystem-match=drm || true; "
+            "sudo udevadm settle --timeout=30 || true; "
+            f"systemctl is-active --quiet {CYAN_GPU_DEVICE_UNIT} || "
+            "echo 'WARNING: The BC-250 GPU device is not registered by amdgpu yet; Cyan cannot start until it is.'; "
+            "fi;"
+        )
+
     def _cyan_activation_dbus_repair_command(self):
         """Repair/reload the system-bus policy before starting Cyan.
 
@@ -827,6 +850,7 @@ class GPURepository:
         if selected == CYAN_GOVERNOR:
             steps.append(self._cyan_metrics_overlay_preflight_command())
             steps.append(self._cyan_activation_dbus_repair_command() + ";")
+            steps.append(self._cyan_gpu_device_command(service))
         steps.extend(
             (
                 f"sudo systemctl unmask {service};",
@@ -893,6 +917,7 @@ class GPURepository:
             "set -e;",
             self._cyan_metrics_overlay_preflight_command(),
             self._cyan_activation_dbus_repair_command() + ";",
+            self._cyan_gpu_device_command(service),
             f"sudo systemctl restart {service};",
             *self._cyan_dbus_wait_steps(
                 service,

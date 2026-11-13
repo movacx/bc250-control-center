@@ -155,7 +155,7 @@ def test_prepare_command_clones_smu_and_uses_checksummed_upstream_installer(tmp_
     )
 
     assert "filippor/cyan-skillfish-governor" in command
-    assert "7b08fdcf542d1edd82f3a9077c902038019c9842" in command
+    assert "34cea69cdf617d1ad05edc71c4c61df501a13c8e" in command
     assert "--branch smu" not in command
     assert "src/gpu_frequency_fix.rs" in command
     assert "DryhoppedIPA" not in command
@@ -235,7 +235,7 @@ def test_cyan_upstream_installer_preserves_switches_across_core_unlock():
     assert "if (( logical_cpus < 16 )); then" not in script
     assert "preserving the selected Cyan compatibility switches" in script
     assert "install_release" in script
-    assert 'REVIEWED_RELEASE_TAG="v0.4.14"' in script
+    assert 'REVIEWED_RELEASE_TAG="v0.4.15"' in script
     assert 'release_tag="$REVIEWED_RELEASE_TAG"' in script
 
 
@@ -442,9 +442,9 @@ def _identity_for(monkeypatch, tmp_path, *, version, release=None, legacy=False,
 
 
 def test_the_reviewed_upstream_release_needs_nothing(monkeypatch, tmp_path):
-    identity = _identity_for(monkeypatch, tmp_path, version="v0.4.14", release="v0.4.14")
+    identity = _identity_for(monkeypatch, tmp_path, version="v0.4.15", release="v0.4.15")
     assert identity["runtime_managed"] is True
-    assert identity["runtime_release"] == "v0.4.14"
+    assert identity["runtime_release"] == "v0.4.15"
     assert identity["runtime_update_available"] is False
 
 
@@ -476,14 +476,14 @@ def test_the_snapshot_flag_reads_only_the_files_prepare_leaves(tmp_path):
     state.mkdir()
     assert managed_runtime_update_available(state, binary) is False
     binary.write_bytes(b"x")
-    (state / "release").write_text("v0.4.14\n", encoding="utf-8")
+    (state / "release").write_text("v0.4.15\n", encoding="utf-8")
     assert managed_runtime_update_available(state, binary) is False
-    (state / "release").write_text("v0.4.13\n", encoding="utf-8")
+    (state / "release").write_text("v0.4.14\n", encoding="utf-8")
     assert managed_runtime_update_available(state, binary) is True
     # A newer release built by hand is never "updated" back to the reviewed one.
     (state / "release").write_text("v0.5.0\n", encoding="utf-8")
     assert managed_runtime_update_available(state, binary) is False
-    (state / "release").write_text("v0.4.14\n", encoding="utf-8")
+    (state / "release").write_text("v0.4.15\n", encoding="utf-8")
     (state / "runtime-revision").write_text("bc250cc.2\n", encoding="utf-8")
     assert managed_runtime_update_available(state, binary) is True
 

@@ -6052,5 +6052,8 @@
   "This HelixSR release does not build Vulkan kernels. Use Build network files, or choose HelixSR 3.3 or newer for Vulkan.": "Ця версія HelixSR не збирає ядра Vulkan. Скористайтеся «Зібрати файли мережі» або виберіть HelixSR 3.3 чи новішу для Vulkan.",
   "No package manager is running, so /var/lib/pacman/db.lck was left behind by an update that was interrupted.": "Жоден менеджер пакетів не запущений, отже /var/lib/pacman/db.lck залишився від перерваного оновлення.",
   "Remove it, then run the action again:": "Видаліть його та запустіть дію знову:",
-  "Distinctive": "Особливі"
+  "Distinctive": "Особливі",
+  "Rootless Podman has no subordinate user IDs for this user.": "Podman без root не має підлеглих ідентифікаторів користувача для цього користувача.",
+  "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman збирає цей компонент у контейнері від імені вашого користувача, а для цього потрібен діапазон підлеглих ідентифікаторів користувачів і груп у /etc/subuid та /etc/subgid. У вашого користувача його немає, або Podman ще не підхопив доданий діапазон, тому образ контейнера не вдалося розпакувати.",
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Виконайте команди, показані просто над помилкою: вони додають діапазон для вашого користувача й дозволяють Podman його підхопити. Потім знову запустіть цю дію."
 }

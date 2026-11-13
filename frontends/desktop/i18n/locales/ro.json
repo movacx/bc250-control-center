@@ -6052,5 +6052,8 @@
   "This HelixSR release does not build Vulkan kernels. Use Build network files, or choose HelixSR 3.3 or newer for Vulkan.": "Această versiune HelixSR nu compilează kerneluri Vulkan. Folosește Compilează fișierele de rețea sau alege HelixSR 3.3 ori mai nou pentru Vulkan.",
   "No package manager is running, so /var/lib/pacman/db.lck was left behind by an update that was interrupted.": "Nu rulează niciun manager de pachete, deci /var/lib/pacman/db.lck a rămas de la o actualizare întreruptă.",
   "Remove it, then run the action again:": "Șterge-l, apoi rulează din nou acțiunea:",
-  "Distinctive": "Distinctive"
+  "Distinctive": "Distinctive",
+  "Rootless Podman has no subordinate user IDs for this user.": "Podman fără root nu are ID-uri de utilizator subordonate pentru acest utilizator.",
+  "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman construiește această componentă într-un container ca utilizatorul tău, ceea ce necesită un interval de ID-uri de utilizator și de grup subordonate în /etc/subuid și /etc/subgid. Utilizatorul tău nu are niciunul sau Podman nu a preluat încă un interval adăugat, așa că imaginea containerului nu a putut fi despachetată.",
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Rulează comenzile afișate chiar deasupra erorii: adaugă intervalul pentru utilizatorul tău și permit ca Podman să îl preia. Apoi rulează din nou această acțiune."
 }

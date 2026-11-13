@@ -32,11 +32,18 @@ FALLBACK_UNIT="/usr/local/lib/systemd/system/${SERVICE}"
 FALLBACK_UNIT_MARKER="${STATE_DIR}/managed-fallback-unit"
 DBUS_POLICY="/etc/dbus-1/system.d/com.cyanskillfish.Governor.conf"
 PERFORMANCE_MODE="/usr/local/bin/cyan-skillfish-performance-mode"
+# v0.4.15: upstream's unit binds Cyan to this device, which only its udev rule
+# creates once amdgpu has registered the GPU.
+GPU_DEVICE_UNIT="dev-cyan_skillfish_gpu.device"
+UDEV_RULE_NAME="70-cyan-skillfish-governor.rules"
+# Where udev reads rules; the first one is where a missing rule is added.
+UDEV_RULE_DIRS=(/etc/udev/rules.d /run/udev/rules.d /usr/lib/udev/rules.d /lib/udev/rules.d)
+UDEV_RULE="${UDEV_RULE_DIRS[0]}/${UDEV_RULE_NAME}"
 REPOSITORY="https://github.com/filippor/cyan-skillfish-governor"
 MARKER="GPU frequency fix enabled"
-REVIEWED_RELEASE_TAG="v0.4.14"
-REVIEWED_COMMIT="7b08fdcf542d1edd82f3a9077c902038019c9842"
-REVIEWED_ARCHIVE_SHA256="57fda5438d5f1856e9638300a60ba8c54c39f356ada749381275b836e8b1c787"
+REVIEWED_RELEASE_TAG="v0.4.15"
+REVIEWED_COMMIT="34cea69cdf617d1ad05edc71c4c61df501a13c8e"
+REVIEWED_ARCHIVE_SHA256="69e6a9eb485cce7db98a7e03189d68c30b987dbcac6e810c428ea170778f0822"
 # The official release binary needs this C library or newer (GLIBC_2.39 is the
 # newest symbol version it imports): Debian 12 and Ubuntu 22.04 are older.
 RELEASE_MIN_GLIBC="2.39"
@@ -433,7 +440,11 @@ ensure_base_installation() (
   else
     die "busctl is required to reload the Cyan D-Bus policy"
   fi
-  if [[ ! -x "$PERFORMANCE_MODE" && -f "$SOURCE_DIR/scripts/cyan-skillfish-performance-mode" ]]; then
+  # Refreshed, not only added: /usr/local/bin shadows a package's /usr/bin
+  # copy, and v0.4.15 fixed performance mode staying on after a wrapped
+  # command exits.
+  if [[ -f "$SOURCE_DIR/scripts/cyan-skillfish-performance-mode" ]] &&
+     ! cmp -s "$SOURCE_DIR/scripts/cyan-skillfish-performance-mode" "$PERFORMANCE_MODE"; then
     as_root install -D -m 0755 "$SOURCE_DIR/scripts/cyan-skillfish-performance-mode" "$PERFORMANCE_MODE"
   fi
 
@@ -493,7 +504,40 @@ ensure_base_installation() (
 
   systemctl cat "$SERVICE" >/dev/null 2>&1 ||
     die "The Cyan systemd service is still unavailable after repair"
+  ensure_gpu_device_unit
 )
+
+ensure_gpu_device_unit() {
+  # Upstream's v0.4.15 unit (Debian package, AUR, COPR, its install.sh) has
+  # BindsTo=dev-cyan_skillfish_gpu.device. That device exists only through
+  # upstream's udev rule, and only after udev has seen the GPU with the rule
+  # in place: pacman runs no trigger, so an AUR update leaves Cyan unable to
+  # start until the next boot. Control Center's own fallback unit has no
+  # BindsTo, and then nothing here runs.
+  local candidate found=0
+  systemctl show "$SERVICE" -p BindsTo --value 2>/dev/null | grep -qw "$GPU_DEVICE_UNIT" || return 0
+  for candidate in "${UDEV_RULE_DIRS[@]}"; do
+    [[ -f "$candidate/$UDEV_RULE_NAME" ]] && found=1
+  done
+  if ! have udevadm; then
+    info "udevadm is unavailable; Cyan starts once the GPU device appears at the next boot"
+    return 0
+  fi
+  if [[ "$found" -eq 0 ]]; then
+    [[ -f "$SOURCE_DIR/$UDEV_RULE_NAME" ]] ||
+      die "The Cyan service needs ${UDEV_RULE_NAME}, and the reviewed checkout does not contain it"
+    info "Installing the official Cyan udev rule its service depends on"
+    as_root install -D -m 0644 "$SOURCE_DIR/$UDEV_RULE_NAME" "$UDEV_RULE"
+    as_root udevadm control --reload-rules
+  fi
+  if ! systemctl is-active --quiet "$GPU_DEVICE_UNIT"; then
+    as_root udevadm trigger --action=change --subsystem-match=drm || true
+    as_root udevadm settle --timeout=30 || true
+  fi
+  systemctl is-active --quiet "$GPU_DEVICE_UNIT" ||
+    info "The BC-250 GPU device is not registered yet; Cyan starts once amdgpu has registered it"
+  return 0
+}
 
 install_release() (
   local release_tag="$1"
@@ -534,6 +578,25 @@ require_source_checkout
 if have steamos-readonly; then
   bc250_steamos_unlock_root
 fi
+
+restore_config_read_access() {
+  # Upstream ships the TOML 0644 in a 0755 directory, and this script, the
+  # runtime check and the GPU page all read it as the desktop user. A
+  # root-only copy (R-7f9500f0) stopped the install at its first read with
+  # "Permission denied". Only read access is added back; nothing else changes.
+  local directory
+  directory="$(dirname -- "$CONFIG")"
+  if [[ -d "$directory" && ! -x "$directory" ]]; then
+    info "The Cyan configuration folder was not readable by your user; restoring read access"
+    as_root chmod go+rx -- "$directory"
+  fi
+  if [[ -f "$CONFIG" && ! -r "$CONFIG" ]]; then
+    info "The Cyan configuration was readable by root only; restoring read access (0644 as upstream ships it)"
+    as_root chmod go+r -- "$CONFIG"
+  fi
+  return 0
+}
+restore_config_read_access
 
 logical_cpus="$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf '0')"
 [[ "$logical_cpus" =~ ^[0-9]+$ ]] || logical_cpus=0

@@ -3808,12 +3808,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 800;
         background: transparent;
     }}
-    QWidget[redesignedModule='true'] QLabel[bigReadout='true'] {{
-        color: {c['text']};
-        font-size: 21px;
-        font-weight: 830;
-        background: transparent;
-    }}
     QWidget[redesignedModule='true'] QLabel[panelHeadline='true'] {{
         color: {c['text']};
         font-size: 15px;

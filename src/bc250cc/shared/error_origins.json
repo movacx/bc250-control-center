@@ -1485,6 +1485,7 @@
    "GPURepository._cyan_kernel_set_method_available": "GPU-0560",
    "GPURepository._current_cyan_compatibility": "GPU-0561",
    "GPURepository.configurar_compatibilidad_gpu_cyan": "GPU-0562",
+   "GPURepository._cyan_gpu_device_command": "GPU-0644",
    "GPURepository._cyan_activation_dbus_repair_command": "GPU-0563",
    "GPURepository._cyan_metrics_overlay_preflight_command": "GPU-0564",
    "GPURepository.controlar_governor": "GPU-0565",
@@ -4528,7 +4529,6 @@
    "UiPreferences.normalize_accent": "SET-0012",
    "UiPreferences.normalize_density": "SET-0013",
    "UiPreferences._migrate_legacy_safety_preferences": "SET-0014",
-   "UiPreferences._apply_formal_default_once": "SET-0255",
    "UiPreferences._normalize_stored_codes": "SET-0015",
    "report_glow_enabled": "SET-0016"
   },
@@ -6531,6 +6531,7 @@
   "SET-0048",
   "SET-0049",
   "SET-0076",
+  "SET-0255",
   "SET-0256",
   "TEL-0109",
   "TEL-0113",

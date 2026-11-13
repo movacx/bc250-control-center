@@ -19,6 +19,7 @@ from __future__ import annotations
 
 FUNCTION_NAME = "bc250_container_network"
 VARIABLE = "bc250_net"
+SUBID_FUNCTION_NAME = "bc250_podman_subids"
 
 #: Shell function: prints the network option a rootless container needs, if any.
 #: Only rootless Podman (the command is exactly ``podman``) is subject to the check:
@@ -37,11 +38,54 @@ FUNCTION = f"""{FUNCTION_NAME}() {{
   rmdir "$probe" 2>/dev/null || true
 }}"""
 
+#: Shell function: stops a rootless build, with the commands that fix it, when
+#: the user has no subordinate IDs. R-32e499fb: ``podman info`` and the image
+#: download both succeeded, and only unpacking the first layer failed, with
+#: "potentially insufficient UIDs or GIDs available in user namespace". Podman's
+#: own mapping is read (``podman unshare``), so IDs that come from sssd or LDAP
+#: instead of /etc/subuid count too. Only a user with no range at all (Podman
+#: maps just the user's own ID) is stopped: a small range may still be enough
+#: for an image, and when it is not, Podman's own error names the same code.
+SUBID_FUNCTION = f"""{SUBID_FUNCTION_NAME}() {{
+  [ "$1" = podman ] || return 0
+  [ "$(id -u)" -ne 0 ] || return 0
+  local kind map mapped user start listed=1
+  for kind in uid gid; do
+    map="$(podman unshare cat "/proc/self/${{kind}}_map" 2>/dev/null)" || return 0
+    mapped="$(printf '%s\\n' "$map" | awk '{{n += $3}} END {{print n + 0}}')"
+    [ "$mapped" -gt 1 ] && continue
+    user="$(id -un)"
+    grep -qE "^($user|$(id -u)):" /etc/subuid 2>/dev/null || listed=0
+    grep -qE "^($user|$(id -u)):" /etc/subgid 2>/dev/null || listed=0
+    echo "ERROR: Rootless Podman has no subordinate user and group IDs for $user, so it cannot unpack container images (insufficient UIDs or GIDs available in user namespace)."
+    if [ "$listed" -eq 1 ]; then
+      echo "They are listed in /etc/subuid and /etc/subgid, but Podman has not picked them up yet. Run this, then start the action again:"
+      echo "  podman system migrate"
+    else
+      start="$(awk -F: '{{e = $2 + $3; if (e > m) m = e}} END {{print (m > 100000 ? m : 100000)}}' /etc/subuid /etc/subgid 2>/dev/null)"
+      echo "Run these two commands, then start the action again:"
+      echo "  sudo usermod --add-subuids $start-$((start + 65535)) --add-subgids $start-$((start + 65535)) $user"
+      echo "  podman system migrate"
+    fi
+    return 1
+  done
+  return 0
+}}"""
+
+
+#: Both functions; ``setup_lines`` uses them, and a caller that inlines the
+#: definitions takes this.
+FUNCTIONS = FUNCTION + "\n" + SUBID_FUNCTION
+
 
 def setup_lines(podman: str = "podman") -> tuple[str, str]:
-    """The function and the line that sets ``$bc250_net`` for the Podman command in ``podman``.
+    """The functions, and the line that checks Podman and sets ``$bc250_net``.
 
     ``podman`` is shell text: a command (``podman``) or a variable that holds
-    one (``"$bc250_podman"``).
+    one (``"$bc250_podman"``). The line stops the script when rootless Podman
+    has no subordinate IDs, before any image is downloaded.
     """
-    return FUNCTION, f'{VARIABLE}="$({FUNCTION_NAME} {podman})"'
+    return FUNCTIONS, (
+        f"{SUBID_FUNCTION_NAME} {podman} || exit 1; "
+        f'{VARIABLE}="$({FUNCTION_NAME} {podman})"'
+    )

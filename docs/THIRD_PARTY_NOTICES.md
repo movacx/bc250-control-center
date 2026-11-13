@@ -42,7 +42,7 @@ None of these components is redistributed with BC250 Control Center. Each is fet
 
 ### GPU
 
-**[cyan-skillfish-governor](https://github.com/filippor/cyan-skillfish-governor/tree/smu)** (MIT). The GPU governor. Installed as upstream publishes it: the official `v0.4.14` release binary, checked by SHA-256, or the same commit (`7b08fdc`) built unmodified where the C library is older than glibc 2.39. Up to 1.21.1 Control Center built it with a patch of its own; Prepare BC250 system now replaces that build.
+**[cyan-skillfish-governor](https://github.com/filippor/cyan-skillfish-governor/tree/smu)** (MIT). The GPU governor. Installed as upstream publishes it: the official `v0.4.15` release binary, checked by SHA-256, or the same commit (`34cea69`) built unmodified where the C library is older than glibc 2.39. Up to 1.21.1 Control Center built it with a patch of its own; Prepare BC250 system now replaces that build. Where the service unit is bound to the GPU device (upstream's v0.4.15 unit), its official udev rule is added if no package installed it.
 
 **[Oberon Governor](https://gitlab.com/mothenjoyer69/oberon-governor)** (MIT). Alternative GPU governor, installed when the user selects it.
 

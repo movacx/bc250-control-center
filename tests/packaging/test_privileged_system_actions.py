@@ -81,10 +81,44 @@ def test_service_helper_accepts_only_fixed_governor_restarts(monkeypatch):
     )
 
     assert namespace["main"](["restart", "cyan-skillfish-governor-smu"]) == 0
-    assert calls == [[
-        "/usr/bin/systemctl", "restart", "cyan-skillfish-governor-smu.service"
-    ]]
+    # A Cyan unit without BindsTo (the app's own, v0.4.14 and older) only restarts.
+    assert calls == [
+        ["/usr/bin/systemctl", "show", "cyan-skillfish-governor-smu.service", "-p", "BindsTo", "--value"],
+        ["/usr/bin/systemctl", "restart", "cyan-skillfish-governor-smu.service"],
+    ]
+    calls.clear()
+    assert namespace["main"](["restart", "oberon-governor"]) == 0
+    assert calls == [["/usr/bin/systemctl", "restart", "oberon-governor.service"]]
     assert namespace["main"](["shell", "anything"]) == 70
+
+
+def test_service_helper_registers_the_gpu_device_a_v0_4_15_unit_waits_for(monkeypatch):
+    """After an AUR update pacman runs no udev trigger: the device was missing until reboot."""
+    namespace = runpy.run_path(str(HELPERS / "bc250-service-helper"))
+    globals_ = namespace["main"].__globals__
+    monkeypatch.setitem(globals_, "_trusted_self", lambda: True)
+    monkeypatch.setitem(globals_, "_restart_command", lambda service: [
+        "/usr/bin/systemctl", "restart", f"{service}.service"
+    ])
+    monkeypatch.setitem(globals_, "_first_executable", lambda _paths: "/usr/bin/udevadm")
+    monkeypatch.setattr(namespace["os"], "geteuid", lambda: 0)
+    calls = []
+
+    def run(command, **_kwargs):
+        calls.append(command)
+        if command[1] == "show":
+            return SimpleNamespace(returncode=0, stdout="dev-cyan_skillfish_gpu.device sys-devices.device\n", stderr="")
+        if command[1] == "is-active":
+            return SimpleNamespace(returncode=3, stdout="", stderr="")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(namespace["subprocess"], "run", run)
+    assert namespace["main"](["restart", "cyan-skillfish-governor-smu"]) == 0
+    assert calls[2:] == [
+        ["/usr/bin/udevadm", "trigger", "--action=change", "--subsystem-match=drm"],
+        ["/usr/bin/udevadm", "settle", "--timeout=10"],
+        ["/usr/bin/systemctl", "restart", "cyan-skillfish-governor-smu.service"],
+    ]
 
 
 def test_maintenance_helper_writes_only_the_fixed_drop_caches_target(tmp_path, monkeypatch):

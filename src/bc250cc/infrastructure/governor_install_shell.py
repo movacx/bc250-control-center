@@ -253,7 +253,7 @@ def oberon_install_command(
         # libstdc++ (GLIBCXX_3.4.35) than the fc43 host had. Build in the
         # host's own Fedora release, and start over when that changes.
         build_command = (
-            container_network.FUNCTION
+            container_network.FUNCTIONS
             + "\n"
             + container_network.setup_lines("podman")[1]
             + "\n"

@@ -6052,5 +6052,8 @@
   "This HelixSR release does not build Vulkan kernels. Use Build network files, or choose HelixSR 3.3 or newer for Vulkan.": "Tato verze HelixSR nesestavuje jádra Vulkan. Použijte Sestavit síťové soubory nebo zvolte HelixSR 3.3 či novější pro Vulkan.",
   "No package manager is running, so /var/lib/pacman/db.lck was left behind by an update that was interrupted.": "Neběží žádný správce balíčků, takže /var/lib/pacman/db.lck zůstal po přerušené aktualizaci.",
   "Remove it, then run the action again:": "Odstraňte jej a spusťte akci znovu:",
-  "Distinctive": "Výrazné"
+  "Distinctive": "Výrazné",
+  "Rootless Podman has no subordinate user IDs for this user.": "Podman bez oprávnění roota nemá pro tohoto uživatele podřízená ID uživatelů.",
+  "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman sestavuje tuto komponentu v kontejneru pod vaším uživatelem, což vyžaduje rozsah podřízených ID uživatelů a skupin v /etc/subuid a /etc/subgid. Váš uživatel žádný nemá, nebo Podman ještě nepřevzal přidaný rozsah, takže obraz kontejneru nebylo možné rozbalit.",
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Spusťte příkazy vypsané přímo nad chybou: přidají rozsah pro vašeho uživatele a nechají ho Podman převzít. Poté tuto akci spusťte znovu."
 }

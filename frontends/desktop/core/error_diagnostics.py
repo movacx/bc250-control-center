@@ -268,6 +268,16 @@ _RULES = (
         "BC250 Control Center needs Polkit for protected changes, but pkexec is not installed or cannot be found.",
         "Install the Polkit package for this distribution, sign out and back in, then retry the action.",
     ),
+    # Rootless Podman without subordinate IDs (R-32e499fb): its lchown error
+    # reads like a permission problem. Before PERM-001.
+    _Rule(
+        "BC250-CONTAINER-001",
+        (r"insufficient uids or gids available in user namespace",
+         r"has no subordinate user and group ids"),
+        "Rootless Podman has no subordinate user IDs for this user.",
+        "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.",
+        "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.",
+    ),
     # SteamOS said the root was writable, yet pacman could not write its
     # database (R-fc1cfbe2). Before PERM-001, whose words it shares.
     _Rule(

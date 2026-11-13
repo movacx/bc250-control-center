@@ -26,7 +26,7 @@ CYAN_STATE_DIR = Path("/var/lib/bc250-control-center/cyan-governor")
 #: install-cyan-upstream-release.sh). Releases before 1.21.2 built it with a
 #: Control Center patch and left these files behind; their presence marks
 #: that runtime.
-CYAN_REVIEWED_RELEASE = "v0.4.14"
+CYAN_REVIEWED_RELEASE = "v0.4.15"
 CYAN_LEGACY_STATE_FILES = ("runtime-revision", "upstream-commit", "patcher-sha256", "binary-sha256")
 
 

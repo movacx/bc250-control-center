@@ -174,6 +174,19 @@ _CODES: tuple[ErrorCode, ...] = (
         ),
         requires="wine",
     ),
+    # Rootless Podman with no subordinate IDs: the image downloads, then its
+    # first layer cannot be unpacked (R-32e499fb). container_network stops the
+    # build earlier with the second marker and the commands that fix it.
+    ErrorCode(
+        "BC250-CONTAINER-001",
+        "Rootless Podman has no subordinate user IDs for this user.",
+        "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.",
+        "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.",
+        markers=(
+            "insufficient UIDs or GIDs available in user namespace",
+            "has no subordinate user and group IDs",
+        ),
+    ),
     # HelixSR's bridge refuses a game with an anti-cheat unless told
     # ``--anticheat-ok yes``, which Control Center never passes (R-c6ab33f2).
     ErrorCode(

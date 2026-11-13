@@ -6052,5 +6052,8 @@
   "This HelixSR release does not build Vulkan kernels. Use Build network files, or choose HelixSR 3.3 or newer for Vulkan.": "此 HelixSR 版本不會建置 Vulkan 核心。請使用「建置網路檔案」，或為 Vulkan 選擇 HelixSR 3.3 或更新版本。",
   "No package manager is running, so /var/lib/pacman/db.lck was left behind by an update that was interrupted.": "沒有正在執行的套件管理員，因此 /var/lib/pacman/db.lck 是被中斷的更新留下的。",
   "Remove it, then run the action again:": "請刪除它，然後重新執行該動作：",
-  "Distinctive": "特色"
+  "Distinctive": "特色",
+  "Rootless Podman has no subordinate user IDs for this user.": "無 root 的 Podman 沒有此使用者的從屬使用者 ID。",
+  "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman 以你的使用者身分在容器中建置此元件，這需要 /etc/subuid 和 /etc/subgid 中有一段從屬使用者與群組 ID 範圍。你的使用者沒有這樣的範圍，或 Podman 尚未採用新加入的範圍，因此無法解壓縮容器映像檔。",
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "請執行錯誤上方顯示的命令：它們會為你的使用者加入範圍並讓 Podman 採用它。然後重新執行此操作。"
 }
