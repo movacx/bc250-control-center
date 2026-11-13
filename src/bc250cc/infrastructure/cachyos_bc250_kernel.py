@@ -45,8 +45,16 @@ CACHYOS_BC250_EXTRA_PACKAGES = {
     # Only the updater and its firmware images: flashing the UGREEN adapter
     # stays a manual command, as upstream documents it.
     "ch7218": "bc250-ch7218-fw",
+    # A permanent Dolby Digital 5.1 output beside native HDMI (WirePlumber
+    # policy). The same job as Control Center's own 5.1 output: never both.
+    "dual-audio": "bc250-dual-audio",
 }
-CACHYOS_BC250_KERNEL_ACTIONS = {"kernel", "mesa", "full"}
+#: Upstream's recommended set in one package: stable kernel and headers, dual
+#: audio, bc250-cec, bc250-fixes and all three Proton builds (about 4.5 GB).
+CACHYOS_BC250_META_PACKAGE = "linux-cachyos-bc250-meta"
+#: The RC and BORE kernels, installed beside the stable one (each with headers).
+CACHYOS_BC250_VARIANT_ACTIONS = {"kernel-rc": "rc", "kernel-bore": "bore"}
+CACHYOS_BC250_KERNEL_ACTIONS = {"kernel", "mesa", "full", "meta", *CACHYOS_BC250_VARIANT_ACTIONS}
 CACHYOS_BC250_ACTIONS = (
     CACHYOS_BC250_KERNEL_ACTIONS
     | {f"proton-{key}" for key in CACHYOS_BC250_PROTON_PACKAGES}
@@ -183,6 +191,12 @@ def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
             key: installed(package)
             for key, package in CACHYOS_BC250_EXTRA_PACKAGES.items()
         },
+        "variants_installed": {
+            variant: variant in installed_variants for variant in CACHYOS_BC250_KERNEL_VARIANTS
+        },
+        "meta_installed": installed(CACHYOS_BC250_META_PACKAGE),
+        # MastaG's own CEC daemon, which the bundle pulls in.
+        "cec_package_installed": installed("bc250-cec"),
         "kernel_installed": bool(installed_variants),
         "kernel_active": running_variant in installed_variants,
         "kernel_variant": running_variant if running_variant in installed_variants
@@ -243,8 +257,14 @@ def build_cachyos_bc250_kernel_command(action: str = "kernel") -> str:
     selected = []
     if single_package:
         selected.append(single_package)
-    if action in {"kernel", "full"}:
-        selected.extend(CACHYOS_BC250_PACKAGES)
+    variant = CACHYOS_BC250_VARIANT_ACTIONS.get(action, "stable")
+    kernel_package = CACHYOS_BC250_KERNEL_VARIANTS[variant]
+    kernel_packages = (kernel_package, f"{kernel_package}-headers")
+    installs_kernel = action in {"kernel", "full", "meta", *CACHYOS_BC250_VARIANT_ACTIONS}
+    if action == "meta":
+        selected.append(CACHYOS_BC250_META_PACKAGE)
+    if installs_kernel:
+        selected.extend(kernel_packages)
     if action in {"mesa", "full"}:
         selected.extend(CACHYOS_BC250_MESA_PACKAGES)
     targets = " ".join(f"{repository}/{name}" for name in selected)
@@ -256,7 +276,7 @@ def build_cachyos_bc250_kernel_command(action: str = "kernel") -> str:
             "linux-cachyos-bore-bc250*,mesa*,lib32-mesa*,vulkan-*,lib32-vulkan-*,"
             "opencl-mesa,lib32-opencl-mesa')"
         )
-    elif action == "kernel":
+    elif action in {"kernel", "meta", *CACHYOS_BC250_VARIANT_ACTIONS}:
         # This repository also has higher-priority Mesa split packages.  Keep
         # the explicit kernel-only action honest while still performing the
         # full Arch system upgrade required by pacman.
@@ -279,16 +299,25 @@ fi'''
         if action in {"mesa", "full"} else ""
     )
     kernel_step = (
-        '''pacman -Q linux-cachyos-bc250 linux-cachyos-bc250-headers
+        f'''pacman -Q {" ".join(kernel_packages)}
 printf '%s\\n' nct6687 | sudo tee /etc/modules-load.d/nct6687.conf >/dev/null
 echo "BC250_REBOOT_REQUIRED=1"'''
-        if action in {"kernel", "full"}
+        if installs_kernel
         else ""
     )
+    if action == "meta":
+        kernel_step += (
+            "\necho \"[INFO] The bundle also installed dual audio, bc250-cec, bc250-fixes and the three "
+            "BC-250 Proton builds. Restart Steam to see the Proton builds.\""
+        )
     proton_step = (
         f'''pacman -Q {proton_package}
 echo "[INFO] Restart Steam; pick this Proton in a game's Compatibility settings."'''
         if proton_package
+        else f'''pacman -Q {extra_package}
+systemctl --user restart pipewire pipewire-pulse wireplumber || echo "[WARN] Restart the session so the audio change applies."
+echo "[INFO] Pick Dolby Digital 5.1 (AC3 Encoder) as the output; check it with /usr/share/bc250-dual-audio/check.sh"'''
+        if extra_package == "bc250-dual-audio"
         else f'''pacman -Q {extra_package}
 echo "[INFO] {extra_package} is installed; nothing else was changed."'''
         if extra_package
@@ -300,11 +329,12 @@ echo "[INFO] Log out/restart games after Mesa changes; reboot is recommended whe
         if action in {"mesa", "full"}
         else ""
     )
+    kernel_suffix = kernel_package.removeprefix("linux-")
     kernel_notice = (
-        '''echo "[INFO] Booted kernel now: $(uname -r)"
+        f'''echo "[INFO] Booted kernel now: $(uname -r)"
 echo "[INFO] CachyOS Kernel Manager only lists kernels from CachyOS's own repositories, so the BC-250 kernel (from MastaG's repository) does not appear there."
-echo "[INFO] After rebooting, verify with: uname -r  (it must end in -cachyos-bc250). Your previous kernel stays as a boot fallback."'''
-        if action in {"kernel", "full"}
+echo "[INFO] After rebooting, verify with: uname -r  (it must end in -{kernel_suffix}). Your previous kernel stays as a boot fallback."'''
+        if installs_kernel
         else ""
     )
     return f'''set -euo pipefail

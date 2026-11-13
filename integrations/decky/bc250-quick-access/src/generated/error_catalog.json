@@ -278,19 +278,6 @@
       "retryable": false
     },
     {
-      "code": "BC250-PKG-001",
-      "markers": [
-        "unable to lock database",
-        "could not lock database",
-        "Could not get lock",
-        "database is locked",
-        "Waiting for cache lock",
-        "System management is locked by the application"
-      ],
-      "exit_statuses": [],
-      "retryable": false
-    },
-    {
       "code": "BC250-WORKFLOW-001",
       "markers": [
         "per-game install unexpectedly enabled the driver system-wide",
@@ -317,6 +304,20 @@
       "code": "BC250-VRAM-001",
       "markers": [
         "QUICK_ACCESS_VRAM"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
+      "code": "BC250-PKG-001",
+      "markers": [
+        "unable to lock database",
+        "could not lock database",
+        "Could not get lock",
+        "database is locked",
+        "Waiting for cache lock",
+        "System management is locked by the application",
+        "so pacman is busy"
       ],
       "exit_statuses": [],
       "retryable": false
@@ -824,6 +825,7 @@
     "QUICK_ACCESS_GDDR6",
     "HELPER_UNTRUSTED:",
     "QUICK_ACCESS_VRAM",
+    "so pacman is busy",
     "Cyan D-Bus policy",
     "QUICK_ACCESS_AUTH",
     "CU_HELPER_MISSING",

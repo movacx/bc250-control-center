@@ -536,6 +536,7 @@
    "config_path": "DRV-0066",
    "adapters": "DRV-0067",
    "kernel_support": "DRV-0068",
+   "foreign_cec": "DRV-0151",
    "system_cecd": "DRV-0069",
    "supported": "DRV-0070",
    "inventory": "DRV-0071",
@@ -996,6 +997,7 @@
    "DependenciasRepository.gestionar_opciones_kernel": "PREP-0029",
    "DependenciasRepository.gestionar_smt_vivo": "PREP-0030",
    "DependenciasRepository.gestionar_acpi": "PREP-0031",
+   "DependenciasRepository.liberar_bloqueo_pacman": "PREP-0128",
    "DependenciasRepository.reparar_telemetria_8core": "PREP-0032",
    "DependenciasRepository._hardware_source_checkout_command": "PREP-0033",
    "DependenciasRepository._configured_gpu_governor": "PREP-0034",
@@ -1788,6 +1790,13 @@
    "_remove_empty_tree": "UPS-0237",
    "restore_opticlient_backup": "UPS-0238"
   },
+  "bc250cc/infrastructure/pacman_lock.py": {
+   "lock_path": "CORE-0281",
+   "running_package_managers": "CORE-0282",
+   "boot_time": "CORE-0283",
+   "lock_state": "CORE-0284",
+   "release_command": "CORE-0285"
+  },
   "bc250cc/infrastructure/persistence/activity_journal.py": {
    "activity_journal_path": "SET-0165",
    "activity_journal": "SET-0166"
@@ -2406,6 +2415,7 @@
    "SistemaService.gestionar_opciones_kernel": "SYS-0182",
    "SistemaService.gestionar_smt_vivo": "SYS-0183",
    "SistemaService.gestionar_acpi": "SYS-0184",
+   "SistemaService.liberar_bloqueo_pacman": "SYS-0331",
    "SistemaService.reparar_telemetria_8core": "SYS-0185",
    "SistemaService.preparar_compatibilidad_steamos": "SYS-0186",
    "SistemaService.gestionar_graficos_steamos": "SYS-0187",
@@ -3049,6 +3059,7 @@
    "_ComponentRow.refresh": "UI-0729",
    "CompatibilityBrowser.__init__": "UI-0730",
    "CompatibilityBrowser.cards": "UI-0731",
+   "CompatibilityBrowser.show_details": "UI-0740",
    "CompatibilityBrowser._schedule": "UI-0732",
    "CompatibilityBrowser.eventFilter": "UI-0733",
    "CompatibilityBrowser.refresh": "UI-0734"
@@ -3568,7 +3579,11 @@
    "PreparationPagesMixin._decky_page": "UPS-0015",
    "PreparationPagesMixin._drivers_page": "UPS-0016",
    "PreparationPagesMixin._organise_drivers": "UPS-0295",
-   "PreparationPagesMixin._build_accessory_cards": "UPS-0017"
+   "PreparationPagesMixin._build_accessory_cards": "UPS-0017",
+   "_pacman_lock_probe": "UPS-0297",
+   "PacmanLockCardMixin._build_pacman_lock_card": "UPS-0298",
+   "PacmanLockCardMixin._pacman_lock_action": "UPS-0299",
+   "PacmanLockCardMixin.refresh_pacman_lock": "UPS-0300"
   },
   "frontends/desktop/components/preparation_render.py": {
    "_directmesh_version": "UPS-0276",
@@ -4858,6 +4873,9 @@
    "AdditionalSettingsPage.apply_state": "PREP-0010",
    "AdditionalSettingsPage.showEvent": "PREP-0011",
    "AdditionalSettingsPage._render_pending_state": "PREP-0012",
+   "AdditionalSettingsPage._on_compatibility": "PREP-0125",
+   "AdditionalSettingsPage._tab_selected": "PREP-0126",
+   "AdditionalSettingsPage._notify_pacman_lock": "PREP-0127",
    "AdditionalSettingsPage.set_updates_active": "PREP-0013",
    "AdditionalSettingsPage.retranslate_dynamic_copy": "PREP-0014"
   },
@@ -5078,6 +5096,8 @@
    "CpuControlView.retranslate_dynamic_copy": "CPU-0122",
    "CpuControlView.showEvent": "CPU-0123",
    "CpuControlView.resizeEvent": "CPU-0124",
+   "CpuControlView.eventFilter": "CPU-0314",
+   "CpuControlView._place_mode_switch": "CPU-0315",
    "CpuControlView._reflow": "CPU-0125"
   },
   "frontends/desktop/pages/cpu_smu.py": {
@@ -5626,6 +5646,7 @@
    "GpuGovernorPage._manage_kernel_options": "GPU-0070",
    "GpuGovernorPage._manage_smt_live": "GPU-0071",
    "GpuGovernorPage._manage_steamos_readonly": "GPU-0072",
+   "GpuGovernorPage._release_pacman_lock": "GPU-0645",
    "GpuGovernorPage._manage_acpi": "GPU-0073",
    "GpuGovernorPage._prepare_steamos_quick_access": "GPU-0074",
    "GpuGovernorPage._prepare_cachyos_bc250": "GPU-0075",
@@ -5846,6 +5867,7 @@
    "_ContractLine._refresh_palette": "GPU-0276",
    "ContractPanel.__init__": "GPU-0277",
    "ContractPanel.set_rows": "GPU-0278",
+   "_running_bc250_kernel": "GPU-0646",
    "GpuViewState.from_backend": "GPU-0279",
    "GpuGovernorView.__init__": "GPU-0280",
    "GpuGovernorView._build_configuration_card": "GPU-0281",
@@ -5857,6 +5879,8 @@
    "GpuGovernorView._sync_service_toggle": "GPU-0287",
    "GpuGovernorView._sync_safe_mode": "GPU-0288",
    "GpuGovernorView._sync_process_method_warning": "GPU-0289",
+   "GpuGovernorView._bc250_kernel_settings_differ": "GPU-0647",
+   "GpuGovernorView._stage_bc250_kernel_settings": "GPU-0648",
    "GpuGovernorView._mark_compatibility_dirty": "GPU-0290",
    "GpuGovernorView.compatibility_options": "GPU-0291",
    "GpuGovernorView._sync_compatibility": "GPU-0292",

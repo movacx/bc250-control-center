@@ -137,6 +137,8 @@ _CODES: tuple[ErrorCode, ...] = (
         markers=(
             "unable to lock database", "could not lock database", "Could not get lock", "database is locked",
             "Waiting for cache lock", "System management is locked by the application",
+            # The pacman lock release refusing while a package manager runs.
+            "so pacman is busy",
         ),
     ),
     # dnf "nothing provides", apt "unmet dependencies", pacman "target not

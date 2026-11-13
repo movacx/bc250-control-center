@@ -1262,6 +1262,23 @@ class ContractPanel(QWidget):
 # State that drives the screen
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _running_bc250_kernel() -> bool:
+    import platform
+
+    from bc250cc.infrastructure.cachyos_bc250_kernel import running_bc250_kernel_variant
+
+    return bool(running_bc250_kernel_variant(platform.release()))
+
+
+#: What MastaG's README recommends for Cyan on his kernel: the kernel already
+#: fixes the telemetry the two bind-mounts correct, and its widened SCLK range
+#: makes setting the clock through the kernel work end to end.
+BC250_KERNEL_CYAN = {
+    "set_method": "kernel", "usage_method": "kernel", "temp_read": "sysfs",
+    "fix_metrics": False, "fix_frequency": False,
+}
+
+
 @dataclass
 class GpuViewState:
     core_clock: int = 0
@@ -1288,6 +1305,8 @@ class GpuViewState:
     temp_read: str = "drm"
     #: None: unknown (no binary found); False: this Cyan ignores temp-read.
     temp_read_supported: bool | None = None
+    #: Running MastaG's BC-250 kernel, whose recommended Cyan settings differ.
+    bc250_kernel: bool = False
     frequency_ceiling_mhz: int | None = None
     frequency_ceiling_reason: str = ""
 
@@ -1352,6 +1371,7 @@ class GpuViewState:
             fix_frequency=bool(cyan.get("fix_frequency", False)),
             temp_read=str(cyan.get("temp_read") or "drm"),
             temp_read_supported=cyan.get("temp_read_supported"),
+            bc250_kernel=_running_bc250_kernel(),
             frequency_ceiling_mhz=integer(high_points.get("ceiling_mhz")) or None,
             frequency_ceiling_reason=str(high_points.get("ceiling_reason") or ""),
         )
@@ -1589,6 +1609,24 @@ class GpuGovernorView(QWidget):
         compat_box.addWidget(self._process_method_warning)
         self.usage_method_combo.currentIndexChanged.connect(self._sync_process_method_warning)
         self._sync_process_method_warning()
+
+        # On MastaG's kernel the recommended settings differ from the stock ones.
+        self._bc250_kernel_row = QWidget()
+        kernel_row = QHBoxLayout(self._bc250_kernel_row)
+        kernel_row.setContentsMargins(0, 0, 0, 0)
+        kernel_row.setSpacing(10)
+        kernel_note = caption(
+            "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, "
+            "kernel usage reading, sysfs temperature, both fixes off."
+        )
+        kernel_row.addWidget(kernel_note, 1)
+        self._bc250_kernel_button = QPushButton(tr("Use the BC-250 kernel settings"))
+        self._bc250_kernel_button.setProperty("ghostButton", True)
+        self._bc250_kernel_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._bc250_kernel_button.clicked.connect(self._stage_bc250_kernel_settings)
+        kernel_row.addWidget(self._bc250_kernel_button, 0)
+        self._bc250_kernel_row.hide()
+        compat_box.addWidget(self._bc250_kernel_row)
 
         toggles = QHBoxLayout()
         toggles.setSpacing(16)
@@ -1895,6 +1933,35 @@ class GpuGovernorView(QWidget):
             self.usage_method_combo.currentData() == "process"
         )
 
+    def _bc250_kernel_settings_differ(self) -> bool:
+        wanted = dict(BC250_KERNEL_CYAN)
+        if self.temp_read_combo.isEnabled() is False:
+            wanted.pop("temp_read")
+        current = {
+            "set_method": self.set_method_combo.currentData(),
+            "usage_method": self.usage_method_combo.currentData(),
+            "temp_read": self.temp_read_combo.currentData(),
+            "fix_metrics": self._metrics_toggle.isChecked(),
+            "fix_frequency": self._frequencies_toggle.isChecked(),
+        }
+        return any(current[key] != value for key, value in wanted.items())
+
+    def _stage_bc250_kernel_settings(self) -> None:
+        """Set the pickers to the kernel's recommendation; Apply compatibility sends them."""
+        settings = BC250_KERNEL_CYAN
+        for combo, value in (
+            (self.set_method_combo, settings["set_method"]),
+            (self.usage_method_combo, settings["usage_method"]),
+            (self.temp_read_combo, settings["temp_read"]),
+        ):
+            if combo is self.temp_read_combo and not combo.isEnabled():
+                continue
+            combo.setCurrentIndex(max(0, combo.findData(value)))
+        self._metrics_toggle.setChecked(settings["fix_metrics"])
+        self._frequencies_toggle.setChecked(settings["fix_frequency"])
+        self._mark_compatibility_dirty()
+        self._bc250_kernel_row.setVisible(False)
+
     def _mark_compatibility_dirty(self, *_args) -> None:
         """Stops refresh() from overwriting a choice the user just made.
 
@@ -1943,6 +2010,10 @@ class GpuGovernorView(QWidget):
             for widget, previous in zip(widgets, blocked, strict=True):
                 widget.blockSignals(previous)
         self._sync_process_method_warning()
+        self._bc250_kernel_row.setVisible(
+            bool(state.bc250_kernel) and state.backend == "cyan-skillfish-governor-smu"
+            and self._bc250_kernel_settings_differ()
+        )
         # An older Cyan ignores temp-read: shown, so the option is known, but
         # not sent. Unknown (no binary found) is left usable.
         supported = state.temp_read_supported is not False

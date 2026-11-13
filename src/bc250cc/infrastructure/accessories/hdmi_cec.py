@@ -186,6 +186,19 @@ def kernel_support(config_gz: Path = Path("/proc/config.gz")) -> bool | None:
     return any(option in lines for option in KERNEL_OPTIONS)
 
 
+#: MastaG's bc250-cec package (also pulled in by linux-cachyos-bc250-meta): its
+#: own root daemon on the same CEC adapter. Two daemons on one adapter claim
+#: it in turn and answer the TV twice, so only one of them is kept.
+FOREIGN_CEC = (
+    Path("/etc/bc250-cec.conf"),
+    Path("/usr/lib/systemd/system/bc250-cec.service"),
+)
+
+
+def foreign_cec() -> bool:
+    return any(path.exists() for path in FOREIGN_CEC)
+
+
 def system_cecd() -> bool:
     """cecd from the system image or a distribution package, not built here."""
     return SYSTEM_BINARY.is_file()
@@ -209,10 +222,13 @@ def inventory(family: str, tool_dir: Path) -> dict:
         "device": bool(adapters()), "adapters": adapters(),
         "mode": "system" if family == "steamos" or (system_cecd() and not _openrc_active()) else "bundled",
         "automation": automation_state(),
+        "foreign": foreign_cec(),
     }
     if not ok:
         return {**base, "state": "unsupported"}
     configured = MARKER in _read(config_path())
+    if base["foreign"] and not configured and not (Path(tool_dir) / FOLDER / VERSION_MARKER).is_file():
+        return {**base, "state": "managed-elsewhere"}
     if base["mode"] == "system":
         if not configured:
             return {**base, "state": "not-installed"}

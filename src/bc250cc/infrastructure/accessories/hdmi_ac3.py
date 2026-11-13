@@ -51,7 +51,11 @@ A52_PLUGIN_DIRS = ("/usr/lib/alsa-lib", "/usr/lib64/alsa-lib", "/usr/lib/x86_64-
 A52_PLUGIN = "libasound_module_pcm_a52.so"
 AUDIO_VENDOR, AUDIO_DEVICE = "0x1002", "0x13ff"
 #: keyboardspecialist's toolkit switches the same profile on; never both.
-FOREIGN_SYSTEM = (Path("/etc/udev/rules.d/91-bc250-hdmi-ac3.rules"),)
+FOREIGN_SYSTEM = (
+    Path("/etc/udev/rules.d/91-bc250-hdmi-ac3.rules"),
+    # MastaG's bc250-dual-audio package: its own permanent 5.1 output.
+    Path("/usr/share/bc250-dual-audio"),
+)
 FOREIGN_USER_NAME = "90-bc250-hdmi-ac3.conf"
 #: The encoder and the FFmpeg library it encodes with, per distribution.
 #: Fedora ships the plugin on its own; Debian folds it into the plugins

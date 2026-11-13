@@ -371,6 +371,19 @@ class DependenciasRepository(SteamosDependenciesMixin):
         )
         return self._abrir_terminal(command, 'BC250 ACPI')
 
+    def liberar_bloqueo_pacman(self):
+        """Remove pacman's stale db.lck in a terminal, after checking again as root.
+
+        On SteamOS the database sits in the read-only root
+        (/usr/lib/holo/pacmandb), so the guard unlocks it for this command only.
+        """
+        from bc250cc.infrastructure.pacman_lock import release_command
+
+        command = wrap_steamos_writable_command(
+            release_command(), family=self._os_repository().family
+        )
+        return self._abrir_terminal(command, 'pacman lock')
+
     def reparar_telemetria_8core(self, action: str = "telemetry-fix"):
         if action not in {"telemetry-fix", "telemetry-restore"}:
             raise ValueError("Unsupported eight-core telemetry action")

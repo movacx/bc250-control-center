@@ -287,6 +287,12 @@ class CompatibilityBrowser(QWidget):
     def cards(self):
         return [card for _title, cards in self._groups for card in cards]
 
+    def show_details(self, card) -> None:
+        """Open a row's details: for a state whose next step is in them."""
+        row = self._rows.get(id(card))
+        if row is not None:
+            row.details.show()
+
     def _schedule(self) -> None:
         if not self._pending:
             self._pending = True

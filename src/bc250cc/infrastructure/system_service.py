@@ -539,6 +539,9 @@ class SistemaService:
     def gestionar_acpi(self, action: str):
         return self.repo.gestionar_acpi(action)
 
+    def liberar_bloqueo_pacman(self):
+        return self.repo.liberar_bloqueo_pacman()
+
     def reparar_telemetria_8core(self, action: str = "telemetry-fix"):
         return self.repo.reparar_telemetria_8core(action)
 

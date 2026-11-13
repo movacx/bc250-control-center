@@ -166,6 +166,8 @@ class PreparationRenderMixin:
                 note = "The connected display does not list Dolby Digital. Connect a receiver or soundbar that decodes AC-3."
             elif state in {"installed", "active"} and not info.get("device"):
                 note = "Nothing is plugged in right now; it starts by itself when the device is connected."
+            elif key == "hdmi_cec" and installed and info.get("foreign"):
+                note = "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one."
             elif key == "hdmi_cec" and state == "not-installed" and not info.get("device"):
                 note = "No CEC adapter is connected. CEC needs a DisplayPort-to-HDMI adapter that passes it, such as a Club3D CAC-1080 or CAC-1085."
             card.update_action(
@@ -1309,15 +1311,39 @@ class PreparationRenderMixin:
              self.cachyos_paccache_button, self.cachyos_paccache_remove_button),
             ("ch7218", "Install UGREEN adapter firmware files", "Remove UGREEN adapter firmware files",
              self.cachyos_ch7218_button, self.cachyos_ch7218_remove_button),
+            ("dual-audio", "Install dual audio output (Dolby 5.1)", "Remove dual audio output",
+             self.cachyos_dual_audio_button, self.cachyos_dual_audio_remove_button),
         ):
             have = bool(extras.get(key))
+            # Control Center's own 5.1 output does the same job: never both.
+            own_ac3 = key == "dual-audio" and str(
+                _mapping(_mapping(tools.get("accessories")).get("hdmi_ac3")).get("state") or ""
+            ) in {"installed", "active", "reboot-required"}
             self.cachyos_stack_card.update_action(
-                install_button, text=install_text, enabled=masta_supported and not have,
-                visible=not have, tooltip="" if masta_supported else unsupported_tip,
+                install_button, text=install_text, enabled=masta_supported and not have and not own_ac3,
+                visible=not have,
+                tooltip=(
+                    "Control Center's own Dolby Digital 5.1 output is set up. Remove it first; two 5.1 outputs get in each other's way."
+                    if own_ac3 else "" if masta_supported else unsupported_tip
+                ),
             )
             self.cachyos_stack_card.update_action(
                 remove_button, text=remove_text, enabled=masta_supported and have, visible=have,
             )
+        variants = _mapping(masta.get("variants_installed"))
+        for variant, button, install_text, update_text in (
+            ("rc", self.cachyos_rc_button, "Install RC kernel", "Update / repair RC kernel"),
+            ("bore", self.cachyos_bore_button, "Install BORE kernel", "Update / repair BORE kernel"),
+        ):
+            self.cachyos_stack_card.update_action(
+                button, text=update_text if variants.get(variant) else install_text,
+                enabled=masta_supported, tooltip="" if masta_supported else unsupported_tip,
+            )
+        self.cachyos_stack_card.update_action(
+            self.cachyos_meta_button,
+            text="Update / repair the BC-250 bundle" if masta.get("meta_installed") else "Install the full BC-250 bundle",
+            enabled=masta_supported, tooltip="" if masta_supported else unsupported_tip,
+        )
         self.cachyos_stack_card.update_action(
             self.cachyos_kernel_button,
             text="Update / repair kernel" if kernel_installed else "Install kernel",

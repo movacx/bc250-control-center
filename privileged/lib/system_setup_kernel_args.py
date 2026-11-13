@@ -75,6 +75,14 @@ HIDE_BOOT_MESSAGES = "loglevel=0"
 SCHED_POLICY = "amdgpu.sched_policy=2"
 HDMI21_OFF = "amdgpu.bc250_hdmi21=0"
 RELINK_OFF = "amdgpu.cs_relink_ms=0"
+#: Opt-in fixes the same kernel documents, each for one symptom: the CH7218
+#: adapter that misreports itself (black 4K90/120), VRR with its 07.00.69
+#: firmware, DSC forced on an adapter that reports none (VMM7100, 4:2:2 at
+#: 4K120), and the picture re-detect also on the first screen of a boot.
+CH7218_QUIRK = "amdgpu.bc250_ch7218_quirk=1"
+CH7218_VRR = "amdgpu.bc250_ch7218_vrr=1"
+PCON_FORCE_DSC = "amdgpu.bc250_pcon_force_dsc=1"
+RELINK_AT_BOOT = "amdgpu.cs_relink_at_boot=1"
 PARAMETER_DIRECTORY = "/sys/module/amdgpu/parameters/"
 #: The options whose parameter only the BC-250 kernel has: without it the
 #: kernel ignores the argument, so it is neither offered nor written.
@@ -82,8 +90,15 @@ KERNEL_PARAMETERS = {
     CU_UNLOCK: "bc250_cc_write_mode",
     HDMI21_OFF: "bc250_hdmi21",
     RELINK_OFF: "cs_relink_ms",
+    CH7218_QUIRK: "bc250_ch7218_quirk",
+    CH7218_VRR: "bc250_ch7218_vrr",
+    PCON_FORCE_DSC: "bc250_pcon_force_dsc",
+    RELINK_AT_BOOT: "cs_relink_at_boot",
 }
-ARGUMENTS = ("mitigations=off", "nosmt", CU_UNLOCK, HIDE_BOOT_MESSAGES, SCHED_POLICY, HDMI21_OFF, RELINK_OFF)
+ARGUMENTS = (
+    "mitigations=off", "nosmt", CU_UNLOCK, HIDE_BOOT_MESSAGES, SCHED_POLICY, HDMI21_OFF, RELINK_OFF,
+    CH7218_QUIRK, CH7218_VRR, PCON_FORCE_DSC, RELINK_AT_BOOT,
+)
 #: What SteamOS's boot menu takes among the switches.
 STEAMOS_ARGUMENTS = ("mitigations=off", "nosmt", HIDE_BOOT_MESSAGES)
 #: Arguments that carry a value, and the only values each may have.
