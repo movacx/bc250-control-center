@@ -169,6 +169,23 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         rollback="Full power removal restores the factory core mask; physical recovery gate remains mandatory.",
         validation_level="code-reviewed-mocked-hardware-gate-pending",
     ),
+    # The boot service that re-applies the same unlock on every cold boot.
+    # Maintained alongside Control Center; still pinned like any other tool,
+    # because it installs a unit that runs as root before sysinit.target.
+    "core_unlock_persistent": ExternalToolSpec(
+        key="core_unlock_persistent",
+        upstream="https://github.com/movacx/core_unlock_bc250",
+        license="MIT",
+        reviewed_revision="a915dd63ad3419354499e6031390cc9ac585a74d",
+        privilege_class="boot-service-hardware-reboot",
+        hardware_writes=True,
+        automated=True,
+        rollback=(
+            "Uninstall removes the boot service; the next full power-off restores the "
+            "factory core mask. bc250.core_unlock=0 on the kernel command line skips it."
+        ),
+        validation_level="hardware-validated-warm-reboot-cold-boot-pending",
+    ),
     "cu_manager_standard": ExternalToolSpec(
         key="cu_manager_standard",
         upstream="https://github.com/WinnieLV/bc250-cu-live-manager",
@@ -456,6 +473,14 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
         vocabulary="Temporary CPU core unlock",
         actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.APPLY, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
     ),
+    "core_unlock_persistent": _lifecycle(
+        "Prepare the exact reviewed revision beside the temporary unlock; the helper installs its boot service from a root-only staged copy.",
+        "Verify origin, pinned revision and payload digest; report the boot service's enabled state and its last recorded result.",
+        "Remove the boot service (no clone needed); the next full power-off restores the factory cores.",
+        conflicts=("Hexxeh/bc250-efi-core-unlock", "BIOS DXE core-unlock mods"),
+        vocabulary="Persistent CPU core unlock (boot service)",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.UNINSTALL),
+    ),
     "cu_manager_standard": _lifecycle(
         "Stage the exact reviewed userspace manager; privileged actions remain locked in Control Center.",
         "Verify exact source revision; live status remains unavailable until a root-owned backend exists.",
@@ -658,6 +683,7 @@ EXTERNAL_TOOL_DIRECTORIES = {
     "cyan_smu": "cyan-skillfish-governor-smu",
     "cpu_smu_oc": "bc250_smu_oc",
     "core_unlock": "bc250-core-unlock",
+    "core_unlock_persistent": "core_unlock_bc250",
     "cu_manager_standard": "bc250-cu-live-manager",
     "cu_manager_steamos": "bc250-cu-live-manager-steamos",
     "steamos_amdgpu": "bc250-steamos",

@@ -6055,5 +6055,22 @@
   "Distinctive": "Výrazné",
   "Rootless Podman has no subordinate user IDs for this user.": "Podman bez oprávnění roota nemá pro tohoto uživatele podřízená ID uživatelů.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman sestavuje tuto komponentu v kontejneru pod vaším uživatelem, což vyžaduje rozsah podřízených ID uživatelů a skupin v /etc/subuid a /etc/subgid. Váš uživatel žádný nemá, nebo Podman ještě nepřevzal přidaný rozsah, takže obraz kontejneru nebylo možné rozbalit.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Spusťte příkazy vypsané přímo nad chybou: přidají rozsah pro vašeho uživatele a nechají ho Podman převzít. Poté tuto akci spusťte znovu."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Spusťte příkazy vypsané přímo nad chybou: přidají rozsah pro vašeho uživatele a nechají ho Podman převzít. Poté tuto akci spusťte znovu.",
+  "Remove persistence": "Odebrat trvalost",
+  "Persistence active": "Trvalost aktivní",
+  "Install persistence again": "Znovu nainstalovat trvalost",
+  "Make the unlock permanent": "Udělat odemčení trvalým",
+  "Install persistence and restart": "Nainstalovat trvalost a restartovat",
+  "The boot service stopped itself: {note}": "Spouštěcí služba se sama zastavila: {note}",
+  "Persistence needs a BC-250 running systemd.": "Trvalost vyžaduje BC-250 se systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Spusťte Připravit závislosti s vybraným CPU Core Unlock, aby se stáhl nástroj pro trvalost.",
+  "Make the core unlock permanent": "Udělat odemčení jader trvalým",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Tím se nainstaluje malá spouštěcí služba, která na začátku každého studeného startu znovu odemkne dvě další jádra, bez flashování BIOSu. Každý studený start se pak jednou sám restartuje, asi 30 sekund. Pokud deska odemčení neudrží, služba se po dvou restartech sama zastaví. Chcete-li ji pro jeden start přeskočit, přidejte bc250.core_unlock=0 do příkazového řádku jádra.",
+  "Every cold boot": "Každý studený start",
+  "One automatic restart": "Jeden automatický restart",
+  "Left as it is": "Zůstává beze změny",
+  "Remove core unlock persistence": "Odebrat trvalé odemčení jader",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Spouštěcí služba se odebere. Nic se nerestartuje: jádra zůstanou odemčená do příštího úplného vypnutí, po kterém má deska opět 6 jader.",
+  "Could not install the persistent core unlock": "Trvalé odemčení jader se nepodařilo nainstalovat",
+  "Could not remove the persistent core unlock": "Trvalé odemčení jader se nepodařilo odebrat"
 }

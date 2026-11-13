@@ -6055,5 +6055,22 @@
   "Distinctive": "Markant",
   "Rootless Podman has no subordinate user IDs for this user.": "Rootless Podman hat für diesen Benutzer keine untergeordneten Benutzer-IDs.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman baut diese Komponente in einem Container mit Ihrem Benutzer, und dafür ist ein Bereich untergeordneter Benutzer- und Gruppen-IDs in /etc/subuid und /etc/subgid nötig. Ihr Benutzer hat keinen, oder Podman hat einen hinzugefügten Bereich noch nicht übernommen, daher konnte das Container-Image nicht entpackt werden.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Führen Sie die direkt über dem Fehler angezeigten Befehle aus: Sie fügen den Bereich für Ihren Benutzer hinzu und lassen Podman ihn übernehmen. Führen Sie die Aktion danach erneut aus."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Führen Sie die direkt über dem Fehler angezeigten Befehle aus: Sie fügen den Bereich für Ihren Benutzer hinzu und lassen Podman ihn übernehmen. Führen Sie die Aktion danach erneut aus.",
+  "Remove persistence": "Persistenz entfernen",
+  "Persistence active": "Persistenz aktiv",
+  "Install persistence again": "Persistenz erneut installieren",
+  "Make the unlock permanent": "Freischaltung dauerhaft machen",
+  "Install persistence and restart": "Persistenz installieren und neu starten",
+  "The boot service stopped itself: {note}": "Der Startdienst hat sich selbst beendet: {note}",
+  "Persistence needs a BC-250 running systemd.": "Persistenz erfordert eine BC-250 mit systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Führen Sie „Abhängigkeiten vorbereiten“ mit ausgewähltem CPU Core Unlock aus, um das Persistenz-Werkzeug zu laden.",
+  "Make the core unlock permanent": "Kern-Freischaltung dauerhaft machen",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Dies installiert einen kleinen Startdienst, der die zwei zusätzlichen Kerne bei jedem Kaltstart früh wieder freischaltet, ohne das BIOS zu flashen. Jeder Kaltstart startet dann einmal von selbst neu, etwa 30 Sekunden. Kann die Platine die Freischaltung nicht halten, beendet sich der Dienst nach zwei Neustarts selbst. Um ihn für einen Start zu überspringen, fügen Sie bc250.core_unlock=0 zur Kernel-Befehlszeile hinzu.",
+  "Every cold boot": "Jeder Kaltstart",
+  "One automatic restart": "Ein automatischer Neustart",
+  "Left as it is": "Bleibt unverändert",
+  "Remove core unlock persistence": "Persistenz der Kern-Freischaltung entfernen",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Der Startdienst wird entfernt. Nichts startet neu: Die Kerne bleiben bis zum nächsten vollständigen Ausschalten freigeschaltet, danach hat die Platine wieder 6 Kerne.",
+  "Could not install the persistent core unlock": "Die dauerhafte Kern-Freischaltung konnte nicht installiert werden",
+  "Could not remove the persistent core unlock": "Die dauerhafte Kern-Freischaltung konnte nicht entfernt werden"
 }

@@ -13,6 +13,12 @@ from bc250cc.infrastructure.core_unlock_persistence import (
     detect_core_unlock_persistence,
 )
 from bc250cc.infrastructure.core_unlock_trust import (
+    PERSISTENT_REVIEWED_REVISION as CORE_UNLOCK_PERSISTENT_REVIEWED_REVISION,
+)
+from bc250cc.infrastructure.core_unlock_trust import (
+    PERSISTENT_REVIEWED_SCRIPT_SHA256 as CORE_UNLOCK_PERSISTENT_REVIEWED_SCRIPT_SHA256,
+)
+from bc250cc.infrastructure.core_unlock_trust import (
     REVIEWED_REVISION as CORE_UNLOCK_REVIEWED_REVISION,
 )
 from bc250cc.infrastructure.core_unlock_trust import (
@@ -53,6 +59,14 @@ CORE_UNLOCK_SCRIPT = 'bc250-unlock-cores.py'
 CORE_UNLOCK_ORIGINS = {
     CORE_UNLOCK_REPOSITORY,
     f'{CORE_UNLOCK_REPOSITORY}.git',
+}
+# The boot service that keeps the unlock across cold boots.
+CORE_UNLOCK_PERSISTENT_REPOSITORY = EXTERNAL_TOOLS['core_unlock_persistent'].upstream
+CORE_UNLOCK_PERSISTENT_DIRECTORY = 'core_unlock_bc250'
+CORE_UNLOCK_PERSISTENT_SCRIPT = 'bc250-core-unlock'
+CORE_UNLOCK_PERSISTENT_ORIGINS = {
+    CORE_UNLOCK_PERSISTENT_REPOSITORY,
+    f'{CORE_UNLOCK_PERSISTENT_REPOSITORY}.git',
 }
 
 
@@ -588,8 +602,17 @@ class CPURepository:
             scale_override, frequency_override, temperature_override
         )
 
-    def _core_unlock_repository_state(self, repository):
-        script = repository / CORE_UNLOCK_SCRIPT
+    def _core_unlock_repository_state(
+        self,
+        repository,
+        script_name=CORE_UNLOCK_SCRIPT,
+        revision=None,
+        script_sha256=None,
+    ):
+        """(origin, clean, revision_matches); defaults are the temporary tool."""
+        revision = revision or CORE_UNLOCK_REVIEWED_REVISION
+        script_sha256 = script_sha256 or CORE_UNLOCK_REVIEWED_SCRIPT_SHA256
+        script = repository / script_name
         if not (repository / '.git').is_dir() or not script.is_file():
             return '', False, False
         rc, out, _err = self._ejecutar(
@@ -612,10 +635,18 @@ class CPURepository:
             script_hash = ''
         revision_matches = (
             rc_head == 0
-            and head.strip() == CORE_UNLOCK_REVIEWED_REVISION
-            and script_hash == CORE_UNLOCK_REVIEWED_SCRIPT_SHA256
+            and head.strip() == revision
+            and script_hash == script_sha256
         )
         return origin, clean, revision_matches
+
+    def _core_unlock_persistent_repository_state(self, repository):
+        return self._core_unlock_repository_state(
+            repository,
+            CORE_UNLOCK_PERSISTENT_SCRIPT,
+            CORE_UNLOCK_PERSISTENT_REVIEWED_REVISION,
+            CORE_UNLOCK_PERSISTENT_REVIEWED_SCRIPT_SHA256,
+        )
 
     def _cpu_smu_helper_path(self):
         """Return the installed root-owned CPU/SMU execution boundary."""
@@ -700,6 +731,13 @@ class CPURepository:
             and clean
             and revision_matches
         )
+        persistent_repository = self._tool_dir() / CORE_UNLOCK_PERSISTENT_DIRECTORY
+        p_origin, p_clean, p_matches = self._core_unlock_persistent_repository_state(
+            persistent_repository
+        )
+        persistent_repository_ready = bool(
+            p_origin in CORE_UNLOCK_PERSISTENT_ORIGINS and p_clean and p_matches
+        )
         try:
             cpuinfo_text = Path('/proc/cpuinfo').read_text(encoding='utf-8', errors='replace')
         except OSError:
@@ -748,6 +786,14 @@ class CPURepository:
                 logical_cpus=int(logical),
                 run_command=getattr(self, '_ejecutar', None),
             ),
+            # The boot service (Persistence mode of the card). Offered on
+            # systemd only: its OpenRC path is untested on hardware.
+            'persistent_repository_ready': persistent_repository_ready,
+            'persistent_repository_path': str(persistent_repository),
+            'persistent_reference_url': CORE_UNLOCK_PERSISTENT_REPOSITORY,
+            'persistent_supported': bool(
+                hardware_detected and init_manager.kind == 'systemd'
+            ),
         }
 
     def comando_desbloquear_nucleos_cpu(self, ignore_core_mask=False):
@@ -793,6 +839,61 @@ class CPURepository:
             raise RuntimeError('The upstream CPU core unlock script permissions could not be secured.')
         extra = ('--ignore-core-mask',) if ignore_core_mask else ()
         return pkexec_argv('pkexec', helper, '--repo', str(repository), '--reboot', *extra)
+
+    def _core_unlock_persistent_preflight(self):
+        init_manager = detect_init_manager()
+        if init_manager.kind != 'systemd':
+            raise RuntimeError(
+                f'The persistent core unlock is only offered on systemd for now '
+                f'(this system uses {init_manager.display_name}).'
+            )
+        helper = self._core_unlock_helper_path()
+        if not helper:
+            raise RuntimeError(
+                'The privileged CPU core unlock helper is not installed. '
+                'Reinstall BC250 Control Center before using this action.'
+            )
+        if not self._command_path('pkexec'):
+            raise RuntimeError('polkit/pkexec was not found. It is required for CPU core unlock.')
+        return helper
+
+    def comando_persistir_desbloqueo_nucleos_cpu(self, ignore_core_mask=False):
+        """Install the boot service that re-applies the unlock on every cold boot.
+
+        The helper reboots only when the board is still at its factory core
+        count; ``ignore_core_mask`` becomes the tool's ``--force-mask``.
+        """
+        helper = self._core_unlock_persistent_preflight()
+        repository = self._tool_dir() / CORE_UNLOCK_PERSISTENT_DIRECTORY
+        script = repository / CORE_UNLOCK_PERSISTENT_SCRIPT
+        if not (repository / '.git').is_dir() or not script.is_file():
+            raise RuntimeError(
+                'The persistent core unlock tool (movacx/core_unlock_bc250) is not prepared. '
+                'Run Prepare dependencies with CPU Core Unlock selected, then refresh this page.'
+            )
+        origin, clean, revision_matches = self._core_unlock_persistent_repository_state(repository)
+        if origin not in CORE_UNLOCK_PERSISTENT_ORIGINS or not clean or not revision_matches:
+            raise RuntimeError(
+                'The core_unlock_bc250 clone did not pass origin, revision, and integrity validation. '
+                'Prepare it again from Prepare dependencies.'
+            )
+        if script.is_symlink():
+            raise RuntimeError('The persistent core unlock script must not be a symbolic link.')
+        metadata = script.stat(follow_symlinks=False)
+        if metadata.st_uid != os.getuid():
+            raise RuntimeError('The persistent core unlock script does not belong to the desktop user.')
+        if metadata.st_mode & 0o022:
+            script.chmod(metadata.st_mode & ~0o022)
+            metadata = script.stat(follow_symlinks=False)
+        if metadata.st_mode & 0o022:
+            raise RuntimeError('The persistent core unlock script permissions could not be secured.')
+        extra = ('--ignore-core-mask',) if ignore_core_mask else ()
+        return pkexec_argv('pkexec', helper, '--persist-install', '--repo', str(repository), *extra)
+
+    def comando_quitar_persistencia_nucleos_cpu(self):
+        """Remove the boot service. Needs no clone; does not reboot."""
+        helper = self._core_unlock_persistent_preflight()
+        return pkexec_argv('pkexec', helper, '--persist-uninstall')
 
     def ejecutar_cpu_oc_temporal(self, frecuencia, vid, temp=90):
         """Launch the same protected detector path used by the embedded UI.

@@ -6055,5 +6055,22 @@
   "Distinctive": "Opvallend",
   "Rootless Podman has no subordinate user IDs for this user.": "Rootless Podman heeft geen ondergeschikte gebruikers-ID's voor deze gebruiker.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman bouwt dit onderdeel in een container met jouw gebruiker, en daarvoor is een bereik van ondergeschikte gebruikers- en groeps-ID's in /etc/subuid en /etc/subgid nodig. Je gebruiker heeft er geen, of Podman heeft een toegevoegd bereik nog niet overgenomen, dus de containerimage kon niet worden uitgepakt.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Voer de opdrachten uit die direct boven de fout staan: ze voegen het bereik voor je gebruiker toe en laten Podman het overnemen. Voer deze actie daarna opnieuw uit."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Voer de opdrachten uit die direct boven de fout staan: ze voegen het bereik voor je gebruiker toe en laten Podman het overnemen. Voer deze actie daarna opnieuw uit.",
+  "Remove persistence": "Persistentie verwijderen",
+  "Persistence active": "Persistentie actief",
+  "Install persistence again": "Persistentie opnieuw installeren",
+  "Make the unlock permanent": "Ontgrendeling permanent maken",
+  "Install persistence and restart": "Persistentie installeren en herstarten",
+  "The boot service stopped itself: {note}": "De opstartdienst is zelf gestopt: {note}",
+  "Persistence needs a BC-250 running systemd.": "Persistentie vereist een BC-250 met systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Voer Afhankelijkheden voorbereiden uit met CPU Core Unlock geselecteerd om het persistentiehulpmiddel op te halen.",
+  "Make the core unlock permanent": "Kernontgrendeling permanent maken",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Dit installeert een kleine opstartdienst die de twee extra kernen bij elke koude start vroeg opnieuw ontgrendelt, zonder het BIOS te flashen. Elke koude start herstart dan één keer vanzelf, ongeveer 30 seconden. Als het bord de ontgrendeling niet kan vasthouden, stopt de dienst zelf na twee herstarts. Om hem bij één start over te slaan, voeg bc250.core_unlock=0 toe aan de kernelopdrachtregel.",
+  "Every cold boot": "Elke koude start",
+  "One automatic restart": "Eén automatische herstart",
+  "Left as it is": "Blijft zoals het is",
+  "Remove core unlock persistence": "Persistentie van de kernontgrendeling verwijderen",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "De opstartdienst wordt verwijderd. Er herstart niets: de kernen blijven ontgrendeld tot de volgende volledige uitschakeling, waarna het bord weer 6 kernen heeft.",
+  "Could not install the persistent core unlock": "Kan de persistente kernontgrendeling niet installeren",
+  "Could not remove the persistent core unlock": "Kan de persistente kernontgrendeling niet verwijderen"
 }

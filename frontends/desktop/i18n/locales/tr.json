@@ -6055,5 +6055,22 @@
   "Distinctive": "Farklı",
   "Rootless Podman has no subordinate user IDs for this user.": "Root olmadan çalışan Podman'ın bu kullanıcı için alt kullanıcı kimlikleri yok.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman bu bileşeni kullanıcınız olarak bir kapsayıcıda derler ve bunun için /etc/subuid ile /etc/subgid içinde bir alt kullanıcı ve grup kimliği aralığı gerekir. Kullanıcınızın hiç aralığı yok ya da Podman eklenen bir aralığı henüz devralmadı, bu yüzden kapsayıcı görüntüsü açılamadı.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Hatanın hemen üstünde gösterilen komutları çalıştırın: kullanıcınız için aralığı eklerler ve Podman'ın onu devralmasını sağlarlar. Ardından bu işlemi yeniden çalıştırın."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Hatanın hemen üstünde gösterilen komutları çalıştırın: kullanıcınız için aralığı eklerler ve Podman'ın onu devralmasını sağlarlar. Ardından bu işlemi yeniden çalıştırın.",
+  "Remove persistence": "Kalıcılığı kaldır",
+  "Persistence active": "Kalıcılık etkin",
+  "Install persistence again": "Kalıcılığı yeniden kur",
+  "Make the unlock permanent": "Kilit açmayı kalıcı yap",
+  "Install persistence and restart": "Kalıcılığı kur ve yeniden başlat",
+  "The boot service stopped itself: {note}": "Önyükleme hizmeti kendi kendini durdurdu: {note}",
+  "Persistence needs a BC-250 running systemd.": "Kalıcılık için systemd çalıştıran bir BC-250 gerekir.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Kalıcılık aracını indirmek için CPU Core Unlock seçiliyken Bağımlılıkları hazırla'yı çalıştırın.",
+  "Make the core unlock permanent": "Çekirdek kilit açmayı kalıcı yap",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Bu, BIOS'u flaşlamadan, her soğuk açılışın başında iki ek çekirdeğin kilidini yeniden açan küçük bir önyükleme hizmeti kurar. Ardından her soğuk açılış kendi kendine bir kez yeniden başlar, yaklaşık 30 saniye. Kart kilit açmayı koruyamazsa hizmet iki yeniden başlatmadan sonra kendini durdurur. Bir açılışta atlamak için çekirdek komut satırına bc250.core_unlock=0 ekleyin.",
+  "Every cold boot": "Her soğuk açılış",
+  "One automatic restart": "Bir otomatik yeniden başlatma",
+  "Left as it is": "Olduğu gibi bırakılır",
+  "Remove core unlock persistence": "Çekirdek kilit açma kalıcılığını kaldır",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Önyükleme hizmeti kaldırılır. Hiçbir şey yeniden başlamaz: çekirdekler bir sonraki tam kapanışa kadar açık kalır, ardından kart yeniden 6 çekirdeğe döner.",
+  "Could not install the persistent core unlock": "Kalıcı çekirdek kilit açma kurulamadı",
+  "Could not remove the persistent core unlock": "Kalıcı çekirdek kilit açma kaldırılamadı"
 }

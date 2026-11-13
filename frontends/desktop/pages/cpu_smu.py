@@ -1739,6 +1739,91 @@ class CpuSmuPage(QWidget):
             "Could not start CPU core unlock",
         )
 
+    def _core_unlock_busy(self) -> bool:
+        return bool(
+            getattr(self, "_command_build_pending", False)
+            or (
+                self.process is not None
+                and self.process.state() != QProcess.ProcessState.NotRunning
+            )
+        )
+
+    def _request_core_persistence(self, ignore_core_mask: bool = False) -> None:
+        """Install the boot service that unlocks the cores on every cold boot."""
+        if self._core_unlock_busy():
+            self._show_info(
+                "CPU operation in progress",
+                "Wait for the current CPU operation to finish before unlocking cores.",
+                tone="orange", modal=False,
+            )
+            return
+        unlocked = bool(dict(getattr(self, "_last_core_unlock_snapshot", {}) or {}).get("unlocked"))
+        message = tr(
+            "This installs a small boot service that unlocks the two extra cores again "
+            "early on every cold boot, without flashing the BIOS. Each cold boot then "
+            "restarts once by itself, about 30 seconds. If the board cannot keep the "
+            "unlock, the service stops itself after two restarts. To skip it for one "
+            "boot, add bc250.core_unlock=0 to the kernel command line."
+        )
+        summary = [
+            ("Restart", "Not needed" if unlocked else "Required immediately"),
+            ("Every cold boot", "One automatic restart"),
+            ("GPU governor", "Left as it is"),
+        ]
+        if ignore_core_mask:
+            message += "\n\n" + tr(
+                "The core mask check is skipped (-f). If this board's mask is not 0x77, the "
+                "factory probably disabled cores that were defective, and they are enabled "
+                "anyway. Stress test for a few hours and check dmesg for MCE errors before "
+                "relying on them."
+            )
+            summary.insert(1, ("Core mask check", "Skipped (-f)"))
+        dialog = ConfirmDialog(
+            "Make the core unlock permanent",
+            message,
+            summary=tuple(summary),
+            confirm_text="Install" if unlocked else "Restart",
+            tone="red",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._build_and_start_process(
+            lambda: self.controller.comando_persistir_desbloqueo_nucleos_cpu(
+                ignore_core_mask=ignore_core_mask
+            ),
+            "Make the core unlock permanent",
+            "Could not install the persistent core unlock",
+        )
+
+    def _request_core_persistence_removal(self) -> None:
+        """Remove the boot service; the cores stay until the next power-off."""
+        if self._core_unlock_busy():
+            self._show_info(
+                "CPU operation in progress",
+                "Wait for the current CPU operation to finish before unlocking cores.",
+                tone="orange", modal=False,
+            )
+            return
+        dialog = ConfirmDialog(
+            "Remove core unlock persistence",
+            tr(
+                "The boot service is removed. Nothing restarts: the cores stay unlocked "
+                "until the next full power-off, which brings the board back to 6 cores."
+            ),
+            summary=(("Restart", "Not needed"),),
+            confirm_text="Remove",
+            tone="red",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._build_and_start_process(
+            lambda: self.controller.comando_quitar_persistencia_nucleos_cpu(),
+            "Remove core unlock persistence",
+            "Could not remove the persistent core unlock",
+        )
+
     def _retranslate_firmware_persistence_button(self) -> None:
         from ..i18n import firmware_persistence_label
 

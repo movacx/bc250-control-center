@@ -6055,5 +6055,22 @@
   "Distinctive": "Tersendiri",
   "Rootless Podman has no subordinate user IDs for this user.": "Podman tanpa root tidak mempunyai ID pengguna subordinat untuk pengguna ini.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman membina komponen ini dalam bekas sebagai pengguna anda, dan ini memerlukan julat ID pengguna dan kumpulan subordinat dalam /etc/subuid dan /etc/subgid. Pengguna anda tidak mempunyai sebarang julat, atau Podman belum menggunakan julat yang ditambah, jadi imej bekas tidak dapat dinyahmampat.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Jalankan arahan yang dipaparkan betul-betul di atas ralat: arahan itu menambah julat untuk pengguna anda dan membolehkan Podman menggunakannya. Kemudian jalankan tindakan ini semula."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Jalankan arahan yang dipaparkan betul-betul di atas ralat: arahan itu menambah julat untuk pengguna anda dan membolehkan Podman menggunakannya. Kemudian jalankan tindakan ini semula.",
+  "Remove persistence": "Buang kegigihan",
+  "Persistence active": "Kegigihan aktif",
+  "Install persistence again": "Pasang kegigihan semula",
+  "Make the unlock permanent": "Jadikan buka kunci kekal",
+  "Install persistence and restart": "Pasang kegigihan dan mula semula",
+  "The boot service stopped itself: {note}": "Perkhidmatan but berhenti sendiri: {note}",
+  "Persistence needs a BC-250 running systemd.": "Kegigihan memerlukan BC-250 dengan systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Jalankan Sediakan kebergantungan dengan CPU Core Unlock dipilih untuk mendapatkan alat kegigihan.",
+  "Make the core unlock permanent": "Jadikan buka kunci teras kekal",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Ini memasang perkhidmatan but kecil yang membuka kunci dua teras tambahan semula pada awal setiap but sejuk, tanpa memancarkan BIOS. Setiap but sejuk kemudian dimulakan semula sekali dengan sendirinya, kira-kira 30 saat. Jika papan tidak dapat mengekalkan buka kunci, perkhidmatan berhenti sendiri selepas dua kali mula semula. Untuk melangkaunya pada satu but, tambah bc250.core_unlock=0 pada baris arahan kernel.",
+  "Every cold boot": "Setiap but sejuk",
+  "One automatic restart": "Satu mula semula automatik",
+  "Left as it is": "Dibiarkan seperti sedia ada",
+  "Remove core unlock persistence": "Buang kegigihan buka kunci teras",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Perkhidmatan but dibuang. Tiada yang dimulakan semula: teras kekal tidak berkunci hingga penutupan penuh seterusnya, selepas itu papan kembali kepada 6 teras.",
+  "Could not install the persistent core unlock": "Tidak dapat memasang buka kunci teras yang kekal",
+  "Could not remove the persistent core unlock": "Tidak dapat membuang buka kunci teras yang kekal"
 }

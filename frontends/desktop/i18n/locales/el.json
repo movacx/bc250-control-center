@@ -6055,5 +6055,22 @@
   "Distinctive": "Ξεχωριστά",
   "Rootless Podman has no subordinate user IDs for this user.": "Το Podman χωρίς root δεν έχει δευτερεύοντα αναγνωριστικά χρήστη για αυτόν τον χρήστη.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Το Podman δημιουργεί αυτό το στοιχείο σε ένα κοντέινερ ως ο χρήστης σας, κάτι που απαιτεί ένα εύρος δευτερευόντων αναγνωριστικών χρήστη και ομάδας στα /etc/subuid και /etc/subgid. Ο χρήστης σας δεν έχει κανένα ή το Podman δεν έχει λάβει ακόμη υπόψη ένα εύρος που προστέθηκε, οπότε η εικόνα του κοντέινερ δεν ήταν δυνατό να αποσυμπιεστεί.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Εκτελέστε τις εντολές που εμφανίζονται ακριβώς πάνω από το σφάλμα: προσθέτουν το εύρος για τον χρήστη σας και επιτρέπουν στο Podman να το λάβει υπόψη. Στη συνέχεια εκτελέστε ξανά αυτή την ενέργεια."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Εκτελέστε τις εντολές που εμφανίζονται ακριβώς πάνω από το σφάλμα: προσθέτουν το εύρος για τον χρήστη σας και επιτρέπουν στο Podman να το λάβει υπόψη. Στη συνέχεια εκτελέστε ξανά αυτή την ενέργεια.",
+  "Remove persistence": "Κατάργηση μονιμότητας",
+  "Persistence active": "Η μονιμότητα είναι ενεργή",
+  "Install persistence again": "Επανεγκατάσταση μονιμότητας",
+  "Make the unlock permanent": "Μόνιμο ξεκλείδωμα",
+  "Install persistence and restart": "Εγκατάσταση μονιμότητας και επανεκκίνηση",
+  "The boot service stopped itself: {note}": "Η υπηρεσία εκκίνησης σταμάτησε μόνη της: {note}",
+  "Persistence needs a BC-250 running systemd.": "Η μονιμότητα απαιτεί BC-250 με systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Εκτελέστε την Προετοιμασία εξαρτήσεων με επιλεγμένο το CPU Core Unlock για να ληφθεί το εργαλείο μονιμότητας.",
+  "Make the core unlock permanent": "Μόνιμο ξεκλείδωμα πυρήνων",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Εγκαθίσταται μια μικρή υπηρεσία εκκίνησης που ξεκλειδώνει ξανά τους δύο επιπλέον πυρήνες νωρίς σε κάθε ψυχρή εκκίνηση, χωρίς εγγραφή του BIOS. Κάθε ψυχρή εκκίνηση επανεκκινείται στη συνέχεια μία φορά από μόνη της, περίπου 30 δευτερόλεπτα. Αν η πλακέτα δεν μπορεί να διατηρήσει το ξεκλείδωμα, η υπηρεσία σταματά μόνη της μετά από δύο επανεκκινήσεις. Για να την παραλείψετε σε μία εκκίνηση, προσθέστε bc250.core_unlock=0 στη γραμμή εντολών του πυρήνα.",
+  "Every cold boot": "Κάθε ψυχρή εκκίνηση",
+  "One automatic restart": "Μία αυτόματη επανεκκίνηση",
+  "Left as it is": "Μένει ως έχει",
+  "Remove core unlock persistence": "Κατάργηση μονιμότητας ξεκλειδώματος πυρήνων",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Η υπηρεσία εκκίνησης καταργείται. Τίποτα δεν επανεκκινείται: οι πυρήνες μένουν ξεκλείδωτοι μέχρι την επόμενη πλήρη απενεργοποίηση, μετά την οποία η πλακέτα έχει ξανά 6 πυρήνες.",
+  "Could not install the persistent core unlock": "Δεν ήταν δυνατή η εγκατάσταση του μόνιμου ξεκλειδώματος πυρήνων",
+  "Could not remove the persistent core unlock": "Δεν ήταν δυνατή η κατάργηση του μόνιμου ξεκλειδώματος πυρήνων"
 }

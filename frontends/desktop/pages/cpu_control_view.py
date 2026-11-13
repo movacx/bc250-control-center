@@ -49,6 +49,7 @@ from typing import Sequence
 
 from PyQt6.QtCore import QEvent, QSize, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
+    QButtonGroup,
     QCheckBox,
     QFrame,
     QGridLayout,
@@ -62,6 +63,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from PyQt6.QtWidgets import QPushButton as PlainPushButton
 
 from bc250cc.shared.contract import (
     CPU_FREQUENCY_RANGE,
@@ -127,6 +129,22 @@ class CoreUnlockState:
     governor_state: str = ""
     unlock_allowed: bool = False
     unlocked: bool = False
+    # Persistence mode: the boot service of movacx/core_unlock_bc250.
+    persistence_supported: bool = False
+    persistence_source_ready: bool = False
+    persistence_installed: bool = False
+    #: Installed, enabled and not stopped by its own loop guard.
+    persistence_active: bool = False
+    #: Last recorded run ("unlocked", "gave-up", "refused", ...) and its note.
+    persistence_status: str = ""
+    persistence_note: str = ""
+    persist_allowed: bool = False
+    remove_allowed: bool = False
+
+
+#: The two modes of the danger zone, in the order of its switch.
+UNLOCK_MODE_TEMPORARY = "temporary"
+UNLOCK_MODE_PERSISTENT = "persistent"
 
 
 @dataclass(frozen=True)
@@ -719,6 +737,8 @@ class CpuControlView(QWidget):
         persistence_requested(str)     # 'save' | 'remove' | 'review'
         unlock_cores_requested(bool ignore_core_mask)
         firmware_persistence_requested()
+        persist_unlock_requested(bool ignore_core_mask)
+        remove_persistence_requested()
 
     Inputs::
 
@@ -731,6 +751,8 @@ class CpuControlView(QWidget):
     persistence_requested = pyqtSignal(str)
     unlock_cores_requested = pyqtSignal(bool)
     firmware_persistence_requested = pyqtSignal()
+    persist_unlock_requested = pyqtSignal(bool)
+    remove_persistence_requested = pyqtSignal()
     export_to_decky_requested = pyqtSignal()
 
     IDENTITY_ROWS = (
@@ -1091,7 +1113,44 @@ class CpuControlView(QWidget):
         eyebrow.setProperty("eyebrow", True)
         eyebrow.setProperty("danger", True)
         risk_head.addWidget(eyebrow, 1)
+        # Temporary | Persistence. Lives in this row, at its height, so the
+        # card keeps its size; the rows below only change their text.
+        self._unlock_mode = UNLOCK_MODE_TEMPORARY
+        self._mode_chosen = False
+        self._mode_group = QButtonGroup(risk_panel)
+        self._mode_group.setExclusive(True)
+        self._mode_buttons: dict[str, PlainPushButton] = {}
+        self._mode_host = QWidget(risk_panel)
+        mode_row = QHBoxLayout(self._mode_host)
+        mode_row.setContentsMargins(0, 0, 0, 0)
+        mode_row.setSpacing(4)
+        for mode, label in (
+            (UNLOCK_MODE_TEMPORARY, "Temporary"),
+            (UNLOCK_MODE_PERSISTENT, "Persistence"),
+        ):
+            button = PlainPushButton(tr(label))
+            button.setProperty("riskSegment", True)
+            button.setCheckable(True)
+            button.setFixedHeight(16)
+            button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.clicked.connect(lambda _checked=False, chosen=mode: self._choose_mode(chosen))
+            self._mode_group.addButton(button)
+            self._mode_buttons[mode] = button
+            mode_row.addWidget(button)
+        self._mode_buttons[UNLOCK_MODE_TEMPORARY].setChecked(True)
+        self._mode_host.setFixedHeight(16)
+        risk_head.addWidget(self._mode_host, 0, Qt.AlignmentFlag.AlignVCenter)
         risk_box.addLayout(risk_head)
+        # Only where the eyebrow row is too narrow for the switch (a phone-
+        # width window) does it move onto this row of its own; at every
+        # desktop width this row stays empty and takes no space.
+        self._risk_head = risk_head
+        self._risk_eyebrow = eyebrow
+        self._mode_wrap_row = QHBoxLayout()
+        self._mode_wrap_row.setContentsMargins(0, 0, 0, 0)
+        risk_box.addLayout(self._mode_wrap_row)
+        risk_panel.installEventFilter(self)
 
         risk_title = QLabel(tr("Unlock hidden CPU cores"))
         risk_title.setProperty("panelHeadline", True)
@@ -1116,16 +1175,14 @@ class CpuControlView(QWidget):
         self.firmware_button.setProperty("linkButton", True)
         self.firmware_button.setProperty("flushLeft", True)
         self.firmware_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.firmware_button.clicked.connect(self.firmware_persistence_requested)
+        self.firmware_button.clicked.connect(self._link_clicked)
         risk_box.addWidget(self.firmware_button, 0, Qt.AlignmentFlag.AlignLeft)
 
         self.unlock_button = QPushButton(tr("Unlock cores and restart"))
         self.unlock_button.setProperty("dangerAction", True)
         self.unlock_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.unlock_button.setEnabled(False)
-        self.unlock_button.clicked.connect(
-            lambda: self.unlock_cores_requested.emit(self.ignore_mask_line.check.isChecked())
-        )
+        self.unlock_button.clicked.connect(self._action_clicked)
         risk_box.addWidget(self.unlock_button)
 
         # The GPU module leaves more air above its danger zone than between the
@@ -1294,7 +1351,59 @@ class CpuControlView(QWidget):
                 self._configuration_status.setText(tr("Temporary"))
                 self._configuration_status.set_tone("green")
 
+    # ── danger zone: Temporary | Persistence ───────────────────────────────
+    def unlock_mode(self) -> str:
+        return self._unlock_mode
+
+    def _choose_mode(self, mode: str) -> None:
+        self._mode_chosen = True
+        self._set_mode(mode)
+
+    def _set_mode(self, mode: str) -> None:
+        self._unlock_mode = mode
+        self._mode_buttons[mode].setChecked(True)
+        self._apply_unlock(self._state.core_unlock)
+
+    def _persistence_link(self, unlock: CoreUnlockState) -> bool:
+        """Persistence mode with a service to remove: the link removes it."""
+        return self._unlock_mode == UNLOCK_MODE_PERSISTENT and unlock.persistence_installed
+
+    def _link_clicked(self) -> None:
+        if self._persistence_link(self._state.core_unlock):
+            self.remove_persistence_requested.emit()
+        else:
+            self.firmware_persistence_requested.emit()
+
+    def _action_clicked(self) -> None:
+        force = self.ignore_mask_line.check.isChecked()
+        if self._unlock_mode == UNLOCK_MODE_PERSISTENT:
+            self.persist_unlock_requested.emit(force)
+        else:
+            self.unlock_cores_requested.emit(force)
+
     def _apply_unlock(self, unlock: CoreUnlockState) -> None:
+        # Open on Persistence once when a service is already installed, so its
+        # state is what the card shows; after that the owner's choice stands.
+        if (
+            not self._mode_chosen
+            and unlock.persistence_installed
+            and self._unlock_mode != UNLOCK_MODE_PERSISTENT
+        ):
+            self._unlock_mode = UNLOCK_MODE_PERSISTENT
+            self._mode_buttons[UNLOCK_MODE_PERSISTENT].setChecked(True)
+        persistence_offered = bool(unlock.persistence_supported or unlock.persistence_installed)
+        self._mode_buttons[UNLOCK_MODE_PERSISTENT].setEnabled(persistence_offered)
+        self._mode_buttons[UNLOCK_MODE_PERSISTENT].setToolTip(
+            "" if persistence_offered else tr("Persistence needs a BC-250 running systemd.")
+        )
+
+        if self._unlock_mode == UNLOCK_MODE_PERSISTENT:
+            self._apply_persistent_unlock(unlock)
+            return
+        self.firmware_button.setText(tr("Firmware persistence guide"))
+        self.firmware_button.setEnabled(True)
+        self.firmware_button.setToolTip("")
+        self.unlock_button.setText(tr("Unlock cores and restart"))
         self.unlock_button.setToolTip(
             tr_format(
                 "Unlock support: {state}",
@@ -1304,6 +1413,45 @@ class CpuControlView(QWidget):
         self.unlock_button.setEnabled(bool(unlock.unlock_allowed))
         # Unchecks itself whenever the unlock is not available.
         self.ignore_mask_line.setEnabled(bool(unlock.unlock_allowed))
+
+    def _apply_persistent_unlock(self, unlock: CoreUnlockState) -> None:
+        stopped = unlock.persistence_installed and not unlock.persistence_active
+        self.firmware_button.setToolTip("")
+        if unlock.persistence_installed:
+            self.firmware_button.setText(tr("Remove persistence"))
+            self.firmware_button.setEnabled(bool(unlock.remove_allowed))
+        else:
+            self.firmware_button.setText(tr("Firmware persistence guide"))
+            self.firmware_button.setEnabled(True)
+
+        tip = ""
+        if unlock.persistence_active:
+            text = tr("Persistence active")
+            allowed = False
+        elif stopped:
+            # The service's own note (English, from the tool) says why.
+            text = tr("Install persistence again")
+            tip = tr_format(
+                "The boot service stopped itself: {note}",
+                note=unlock.persistence_note or unlock.persistence_status,
+            )
+            allowed = unlock.persist_allowed
+        elif unlock.unlocked:
+            text = tr("Make the unlock permanent")
+            allowed = unlock.persist_allowed
+        else:
+            text = tr("Install persistence and restart")
+            allowed = unlock.persist_allowed
+        if not unlock.persistence_supported:
+            tip = tr("Persistence needs a BC-250 running systemd.")
+        elif not unlock.persistence_source_ready and not unlock.persistence_active:
+            tip = tr("Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.")
+        elif not unlock.helper_ready and not unlock.persistence_active:
+            tip = tr("Reinstall the local application package to install the privileged helper.")
+        self.unlock_button.setText(text)
+        self.unlock_button.setToolTip(tip)
+        self.unlock_button.setEnabled(bool(allowed))
+        self.ignore_mask_line.setEnabled(bool(allowed))
 
     def _select_profile_matching(
         self, frequency: int, vid: int, temperature: int
@@ -1330,6 +1478,8 @@ class CpuControlView(QWidget):
             self.runtime_cards[key].set_label(label)
         self.ignore_mask_line.retranslate()
         self.ignore_mask_line.setToolTip(tr(IGNORE_CORE_MASK_HINT))
+        self._mode_buttons[UNLOCK_MODE_TEMPORARY].setText(tr("Temporary"))
+        self._mode_buttons[UNLOCK_MODE_PERSISTENT].setText(tr("Persistence"))
         self._busy_badge.retranslate()
         for profile_card in self._profile_cards:
             profile_card.retranslate()
@@ -1346,6 +1496,28 @@ class CpuControlView(QWidget):
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt)
         super().resizeEvent(event)
         self._reflow(self.width())
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802 (Qt)
+        if watched is self._risk_panel and event.type() == QEvent.Type.Resize:
+            self._place_mode_switch(self._risk_panel.width())
+        return super().eventFilter(watched, event)
+
+    def _place_mode_switch(self, panel_width: int) -> None:
+        """Keep the switch in the eyebrow row unless that row cannot fit it."""
+        margins = self._risk_panel.layout().contentsMargins()
+        needed = (
+            margins.left() + margins.right()
+            + 14 + self._risk_head.spacing()  # the warning glyph
+            + self._risk_eyebrow.sizeHint().width() + self._risk_head.spacing()
+            + self._mode_host.sizeHint().width()
+        )
+        wrapped = self._mode_wrap_row.indexOf(self._mode_host) >= 0
+        if panel_width >= needed and wrapped:
+            self._mode_wrap_row.removeWidget(self._mode_host)
+            self._risk_head.addWidget(self._mode_host, 0, Qt.AlignmentFlag.AlignVCenter)
+        elif panel_width < needed and not wrapped:
+            self._risk_head.removeWidget(self._mode_host)
+            self._mode_wrap_row.addWidget(self._mode_host, 0, Qt.AlignmentFlag.AlignLeft)
 
     def _reflow(self, width: int) -> None:
         stacked = width < STACK_WIDTH

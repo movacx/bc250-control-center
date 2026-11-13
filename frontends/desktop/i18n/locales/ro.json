@@ -6055,5 +6055,22 @@
   "Distinctive": "Distinctive",
   "Rootless Podman has no subordinate user IDs for this user.": "Podman fără root nu are ID-uri de utilizator subordonate pentru acest utilizator.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman construiește această componentă într-un container ca utilizatorul tău, ceea ce necesită un interval de ID-uri de utilizator și de grup subordonate în /etc/subuid și /etc/subgid. Utilizatorul tău nu are niciunul sau Podman nu a preluat încă un interval adăugat, așa că imaginea containerului nu a putut fi despachetată.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Rulează comenzile afișate chiar deasupra erorii: adaugă intervalul pentru utilizatorul tău și permit ca Podman să îl preia. Apoi rulează din nou această acțiune."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Rulează comenzile afișate chiar deasupra erorii: adaugă intervalul pentru utilizatorul tău și permit ca Podman să îl preia. Apoi rulează din nou această acțiune.",
+  "Remove persistence": "Elimină persistența",
+  "Persistence active": "Persistență activă",
+  "Install persistence again": "Instalează din nou persistența",
+  "Make the unlock permanent": "Fă deblocarea permanentă",
+  "Install persistence and restart": "Instalează persistența și repornește",
+  "The boot service stopped itself: {note}": "Serviciul de pornire s-a oprit singur: {note}",
+  "Persistence needs a BC-250 running systemd.": "Persistența necesită o BC-250 cu systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Rulează Pregătește dependențele cu CPU Core Unlock selectat pentru a descărca instrumentul de persistență.",
+  "Make the core unlock permanent": "Fă permanentă deblocarea nucleelor",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Aceasta instalează un mic serviciu de pornire care deblochează din nou cele două nuclee suplimentare la începutul fiecărei porniri la rece, fără a scrie BIOS-ul. Fiecare pornire la rece repornește apoi o dată de la sine, aproximativ 30 de secunde. Dacă placa nu poate păstra deblocarea, serviciul se oprește singur după două reporniri. Pentru a-l sări la o pornire, adaugă bc250.core_unlock=0 la linia de comandă a nucleului.",
+  "Every cold boot": "Fiecare pornire la rece",
+  "One automatic restart": "O repornire automată",
+  "Left as it is": "Rămâne cum este",
+  "Remove core unlock persistence": "Elimină persistența deblocării nucleelor",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Serviciul de pornire este eliminat. Nimic nu repornește: nucleele rămân deblocate până la următoarea oprire completă, după care placa revine la 6 nuclee.",
+  "Could not install the persistent core unlock": "Deblocarea persistentă a nucleelor nu a putut fi instalată",
+  "Could not remove the persistent core unlock": "Deblocarea persistentă a nucleelor nu a putut fi eliminată"
 }

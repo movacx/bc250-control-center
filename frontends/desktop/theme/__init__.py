@@ -3802,6 +3802,31 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QWidget[redesignedModule='true'] QLabel[eyebrow='true'][danger='true'] {{
         color: {c['red']};
     }}
+    /* Temporary | Persistence switch in the CPU danger zone's eyebrow row.
+       Sized to that row (16 px) so choosing a mode never resizes the card. */
+    QWidget[redesignedModule='true'] QPushButton[riskSegment='true'] {{
+        background: transparent;
+        border: 1px solid {c['red_border']};
+        border-radius: 6px;
+        padding: 0px 9px;
+        min-height: 14px;
+        max-height: 14px;
+        color: {c['red']};
+        font-size: 10px;
+        font-weight: 700;
+    }}
+    QWidget[redesignedModule='true'] QPushButton[riskSegment='true']:hover {{
+        border-color: {c['red']};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[riskSegment='true']:checked {{
+        background: {c['red']};
+        border-color: {c['red']};
+        color: {c['on_accent']};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[riskSegment='true']:disabled {{
+        border-color: {c['border_soft']};
+        color: {c['muted']};
+    }}
     QWidget[redesignedModule='true'] QLabel[railLegend='true'] {{
         color: {c['red']};
         font-size: 10px;

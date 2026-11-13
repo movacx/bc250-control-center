@@ -6055,5 +6055,22 @@
   "Distinctive": "Særpregede",
   "Rootless Podman has no subordinate user IDs for this user.": "Rootless Podman har ingen underordnede bruker-ID-er for denne brukeren.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman bygger denne komponenten i en container som din bruker, og det krever et område med underordnede bruker- og gruppe-ID-er i /etc/subuid og /etc/subgid. Brukeren din har ingen, eller Podman har ikke tatt i bruk et område som ble lagt til, så containerbildet kunne ikke pakkes ut.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Kjør kommandoene som vises rett over feilen: de legger til området for brukeren din og får Podman til å ta det i bruk. Kjør deretter handlingen på nytt."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Kjør kommandoene som vises rett over feilen: de legger til området for brukeren din og får Podman til å ta det i bruk. Kjør deretter handlingen på nytt.",
+  "Remove persistence": "Fjern vedvarenhet",
+  "Persistence active": "Vedvarenhet aktiv",
+  "Install persistence again": "Installer vedvarenhet på nytt",
+  "Make the unlock permanent": "Gjør opplåsingen permanent",
+  "Install persistence and restart": "Installer vedvarenhet og start på nytt",
+  "The boot service stopped itself: {note}": "Oppstartstjenesten stoppet av seg selv: {note}",
+  "Persistence needs a BC-250 running systemd.": "Vedvarenhet krever en BC-250 med systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Kjør Forbered avhengigheter med CPU Core Unlock valgt for å hente vedvarenhetsverktøyet.",
+  "Make the core unlock permanent": "Gjør kjerneopplåsingen permanent",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Dette installerer en liten oppstartstjeneste som låser opp de to ekstra kjernene igjen tidlig ved hver kaldstart, uten å flashe BIOS. Hver kaldstart starter da på nytt én gang av seg selv, omtrent 30 sekunder. Hvis kortet ikke klarer å holde på opplåsingen, stopper tjenesten av seg selv etter to omstarter. For å hoppe over den ved én oppstart, legg til bc250.core_unlock=0 på kjernens kommandolinje.",
+  "Every cold boot": "Hver kaldstart",
+  "One automatic restart": "Én automatisk omstart",
+  "Left as it is": "Forblir som den er",
+  "Remove core unlock persistence": "Fjern vedvarenhet for kjerneopplåsing",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Oppstartstjenesten fjernes. Ingenting starter på nytt: kjernene forblir opplåst til neste fullstendige avslåing, deretter har kortet igjen 6 kjerner.",
+  "Could not install the persistent core unlock": "Kunne ikke installere den vedvarende kjerneopplåsingen",
+  "Could not remove the persistent core unlock": "Kunne ikke fjerne den vedvarende kjerneopplåsingen"
 }

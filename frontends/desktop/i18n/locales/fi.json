@@ -6055,5 +6055,22 @@
   "Distinctive": "Erottuvat",
   "Rootless Podman has no subordinate user IDs for this user.": "Rootless Podmanilla ei ole tälle käyttäjälle alisteisia käyttäjätunnisteita.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman rakentaa tämän komponentin säiliössä käyttäjänäsi, mikä edellyttää alisteisten käyttäjä- ja ryhmätunnisteiden aluetta tiedostoissa /etc/subuid ja /etc/subgid. Käyttäjälläsi ei ole sellaista, tai Podman ei ole vielä ottanut lisättyä aluetta käyttöön, joten säiliön levykuvaa ei voitu purkaa.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Suorita virheen yläpuolella näkyvät komennot: ne lisäävät alueen käyttäjällesi ja saavat Podmanin ottamaan sen käyttöön. Suorita tämä toiminto sitten uudelleen."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Suorita virheen yläpuolella näkyvät komennot: ne lisäävät alueen käyttäjällesi ja saavat Podmanin ottamaan sen käyttöön. Suorita tämä toiminto sitten uudelleen.",
+  "Remove persistence": "Poista pysyvyys",
+  "Persistence active": "Pysyvyys käytössä",
+  "Install persistence again": "Asenna pysyvyys uudelleen",
+  "Make the unlock permanent": "Tee avauksesta pysyvä",
+  "Install persistence and restart": "Asenna pysyvyys ja käynnistä uudelleen",
+  "The boot service stopped itself: {note}": "Käynnistyspalvelu pysähtyi itsestään: {note}",
+  "Persistence needs a BC-250 running systemd.": "Pysyvyys vaatii systemd:tä käyttävän BC-250:n.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Suorita Valmistele riippuvuudet CPU Core Unlock valittuna noutaaksesi pysyvyystyökalun.",
+  "Make the core unlock permanent": "Tee ydinten avauksesta pysyvä",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Tämä asentaa pienen käynnistyspalvelun, joka avaa kaksi lisäydintä uudelleen jokaisen kylmäkäynnistyksen alussa ilman BIOSin flashaamista. Jokainen kylmäkäynnistys käynnistyy sen jälkeen kerran uudelleen itsestään, noin 30 sekuntia. Jos kortti ei pysty säilyttämään avausta, palvelu pysähtyy itsestään kahden uudelleenkäynnistyksen jälkeen. Ohittaaksesi sen yhdellä käynnistyskerralla lisää bc250.core_unlock=0 ytimen komentoriville.",
+  "Every cold boot": "Jokainen kylmäkäynnistys",
+  "One automatic restart": "Yksi automaattinen uudelleenkäynnistys",
+  "Left as it is": "Jätetään ennalleen",
+  "Remove core unlock persistence": "Poista ydinten avauksen pysyvyys",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Käynnistyspalvelu poistetaan. Mitään ei käynnistetä uudelleen: ytimet pysyvät avattuina seuraavaan täydelliseen sammutukseen asti, jonka jälkeen kortissa on taas 6 ydintä.",
+  "Could not install the persistent core unlock": "Pysyvää ydinten avausta ei voitu asentaa",
+  "Could not remove the persistent core unlock": "Pysyvää ydinten avausta ei voitu poistaa"
 }

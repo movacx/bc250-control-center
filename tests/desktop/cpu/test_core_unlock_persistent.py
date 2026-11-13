@@ -1,0 +1,414 @@
+"""Persistence mode of the core unlock: the boot service of movacx/core_unlock_bc250.
+
+The temporary unlock is lost at every full power-off. The persistent one
+installs a boot service that writes the core mask again early in every cold
+boot (hardware-validated on the maintainer's board, 2026-11-13). Control
+Center clones the tool at a pinned revision, and its root helper installs it
+from a root-only staged copy, exactly like the temporary tool.
+
+The owner's one hard constraint for the card: choosing a mode must never
+change its size.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import runpy
+import subprocess
+import sys
+from dataclasses import replace
+from pathlib import Path
+
+import pytest
+
+from bc250cc.infrastructure import core_unlock_trust
+from bc250cc.infrastructure.core_unlock_persistence import (
+    BOOT_SERVICE_STATE,
+    BOOT_SERVICE_UNIT,
+    BOOT_SERVICE_WANTS_LINK,
+    detect_core_unlock_persistence,
+)
+from bc250cc.infrastructure.external_tools.catalog import (
+    EXTERNAL_TOOL_DIRECTORIES,
+    EXTERNAL_TOOL_LIFECYCLES,
+    EXTERNAL_TOOLS,
+)
+from bc250cc.infrastructure.preparation_workflow import core_unlock_persistent_commands
+from frontends.desktop.pages.cpu_control_view import (
+    UNLOCK_MODE_PERSISTENT,
+    UNLOCK_MODE_TEMPORARY,
+    CoreUnlockState,
+    CpuControlState,
+    CpuControlView,
+)
+
+HELPER = Path(__file__).resolve().parents[3] / "privileged" / "helpers" / "bc250-core-unlock-helper"
+GIT = Path("/usr/bin/git")
+PERSISTENT_URL = "https://github.com/movacx/core_unlock_bc250"
+
+# Stands in for the tool: says how it was run instead of installing anything.
+SCRIPT = (
+    b"import json, sys\n"
+    b"print(json.dumps({'file': __file__, 'argv': sys.argv[1:]}))\n"
+)
+
+
+# ------------------------------------------------------------------ pins
+
+
+def test_the_tool_is_pinned_once_and_the_helper_agrees_with_it():
+    spec = EXTERNAL_TOOLS["core_unlock_persistent"]
+    assert spec.upstream == PERSISTENT_URL
+    assert len(spec.reviewed_revision) == 40
+    assert spec.automated and spec.hardware_writes
+    assert "core_unlock_persistent" in EXTERNAL_TOOL_LIFECYCLES
+    assert EXTERNAL_TOOL_DIRECTORIES["core_unlock_persistent"] == "core_unlock_bc250"
+    assert core_unlock_trust.PERSISTENT_REVIEWED_REVISION == spec.reviewed_revision
+
+    helper = runpy.run_path(str(HELPER))
+    assert helper["PERSISTENT_REVIEWED_REVISION"] == spec.reviewed_revision
+    assert helper["PERSISTENT_REVIEWED_SCRIPT_SHA256"] == core_unlock_trust.PERSISTENT_REVIEWED_SCRIPT_SHA256
+    assert helper["PERSISTENT_OFFICIAL_ORIGINS"] == {PERSISTENT_URL, PERSISTENT_URL + ".git"}
+    assert helper["PERSISTENT_REPOSITORY_NAME"] == "core_unlock_bc250"
+
+
+def test_preparation_clones_it_at_the_pinned_revision_and_secures_the_executable(tmp_path):
+    from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
+
+    repository = DependenciasRepository.__new__(DependenciasRepository)
+    destination = tmp_path / "core_unlock_bc250"
+    script = "\n".join(core_unlock_persistent_commands(repository, PERSISTENT_URL, destination, None))
+    assert EXTERNAL_TOOLS["core_unlock_persistent"].reviewed_revision in script
+    assert PERSISTENT_URL in script
+    assert f"chmod 0755 {destination / 'bc250-core-unlock'}" in script
+
+
+# ------------------------------------------------------------------ helper
+
+
+def _git(repository: Path, *arguments: str) -> str:
+    return subprocess.run(
+        [str(GIT), "-C", str(repository), *arguments],
+        check=True, capture_output=True, text=True,
+        env={
+            "PATH": "/usr/bin:/bin", "HOME": str(repository),
+            "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_AUTHOR_NAME": "test", "GIT_AUTHOR_EMAIL": "test@example.invalid",
+            "GIT_COMMITTER_NAME": "test", "GIT_COMMITTER_EMAIL": "test@example.invalid",
+        },
+    ).stdout.strip()
+
+
+@pytest.fixture
+def persist(tmp_path, monkeypatch):
+    """main() against a real, clean clone of the tool, nothing reaching the system."""
+    if not GIT.is_file():
+        pytest.skip("git is needed to build a checkout the helper accepts")
+    home = (tmp_path / "home").resolve()
+    repository = home / "core_unlock_bc250"
+    repository.mkdir(parents=True)
+    home.chmod(0o755)
+    repository.chmod(0o755)
+    script = repository / "bc250-core-unlock"
+    script.write_bytes(SCRIPT)
+    script.chmod(0o755)
+    _git(repository, "init", "-q")
+    _git(repository, "add", "-A")
+    _git(repository, "commit", "-q", "-m", "reviewed")
+    _git(repository, "remote", "add", "origin", PERSISTENT_URL)
+
+    run = tmp_path / "run"
+    run.mkdir()
+    helper = runpy.run_path(str(HELPER))["main"].__globals__
+    state = {"threads": 12, "reboots": 0, "governors_touched": 0}
+
+    def touched_governors():
+        state["governors_touched"] += 1
+        return ()
+
+    for name, value in {
+        "PERSISTENT_REVIEWED_REVISION": _git(repository, "rev-parse", "HEAD"),
+        "PERSISTENT_REVIEWED_SCRIPT_SHA256": hashlib.sha256(SCRIPT).hexdigest(),
+        "STAGING_PARENT": str(run),
+        "_trusted_self": lambda: True,
+        "_bc250_identity_present": lambda: True,
+        "_systemd_running": lambda: True,
+        "_invoking_user": lambda: (os.getuid(), os.getgid(), home),
+        "_stop_gpu_governors": touched_governors,
+        "_threads_present": lambda: state["threads"],
+        "_reboot_after_core_unlock": lambda: state.__setitem__("reboots", state["reboots"] + 1),
+    }.items():
+        monkeypatch.setitem(helper, name, value)
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+
+    launched = []
+    real_run = subprocess.run
+
+    def run_tool_for_real(command, **kwargs):
+        if command[0] == "/usr/bin/python3":
+            launched.append(list(command))
+            command = [sys.executable, *command[1:]]
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", run_tool_for_real)
+    return helper, repository, run, launched, state
+
+
+def _ran(capsys) -> dict:
+    return next(
+        json.loads(line) for line in capsys.readouterr().out.splitlines() if line.startswith("{")
+    )
+
+
+def test_install_runs_the_staged_copy_and_restarts_a_stock_board(persist, capsys):
+    helper, repository, run, launched, state = persist
+    assert helper["main"](["helper", "--persist-install", "--repo", str(repository)]) == 0
+
+    report = _ran(capsys)
+    assert report["argv"] == ["install"]
+    # The verified bytes, staged where only root can reach, then removed.
+    assert Path(report["file"]).parent.parent == run
+    assert launched[-1][:2] == ["/usr/bin/python3", "-I"]
+    assert list(run.iterdir()) == []
+    assert state["reboots"] == 1
+    # The unit runs before the governors at boot: nothing to stop here.
+    assert state["governors_touched"] == 0
+
+
+def test_install_on_an_unlocked_board_does_not_restart(persist, capsys):
+    helper, repository, _run, _launched, state = persist
+    state["threads"] = 16
+    helper["main"](["helper", "--persist-install", "--repo", str(repository)])
+    assert state["reboots"] == 0
+
+
+def test_the_force_box_becomes_the_tool_force_mask(persist, capsys):
+    helper, repository, *_ = persist
+    helper["main"](["helper", "--persist-install", "--repo", str(repository), "--ignore-core-mask"])
+    assert _ran(capsys)["argv"] == ["install", "--force-mask"]
+
+
+def test_a_clone_at_another_revision_is_refused_before_anything_runs(persist, monkeypatch):
+    helper, repository, _run, launched, state = persist
+    monkeypatch.setitem(helper, "PERSISTENT_REVIEWED_REVISION", "0" * 40)
+    with pytest.raises(RuntimeError, match="reviewed immutable revision"):
+        helper["main"](["helper", "--persist-install", "--repo", str(repository)])
+    assert launched == [] and state["reboots"] == 0
+
+
+def test_the_temporary_tool_clone_cannot_be_installed_as_the_boot_service(persist, tmp_path):
+    helper, *_ = persist
+    other = (tmp_path / "home" / "bc250-core-unlock")
+    other.mkdir()
+    with pytest.raises(RuntimeError, match="not the expected"):
+        helper["main"](["helper", "--persist-install", "--repo", str(other)])
+
+
+def test_persistence_is_offered_on_systemd_only(persist, monkeypatch):
+    helper, repository, *_ = persist
+    monkeypatch.setitem(helper, "_systemd_running", lambda: False)
+    with pytest.raises(RuntimeError, match="only offered on systemd"):
+        helper["main"](["helper", "--persist-install", "--repo", str(repository)])
+
+
+@pytest.mark.parametrize("argv", [
+    ["--persist-uninstall", "--reboot"],
+    ["--persist-install", "--repo"],
+    ["--persist-install", "/tmp/x"],
+    ["--persist-uninstall", "--ignore-core-mask"],
+])
+def test_the_argument_grammar_stays_closed(persist, argv):
+    helper, *_ = persist
+    with pytest.raises(RuntimeError, match="Expected exactly"):
+        helper["main"](["helper", *argv])
+
+
+def test_uninstall_needs_no_clone_and_uses_the_installed_tool(persist, tmp_path, monkeypatch, capsys):
+    helper, *_ = persist
+    installed = tmp_path / "var" / "bc250-core-unlock"
+    installed.parent.mkdir()
+    installed.write_bytes(SCRIPT)
+    unit = tmp_path / "etc" / "bc250-core-unlock.service"
+    monkeypatch.setitem(helper, "PERSISTENT_INSTALLED_BIN", installed)
+    monkeypatch.setitem(helper, "PERSISTENT_SYSTEMD_UNIT", unit)
+    monkeypatch.setitem(helper, "_installed_tool_trusted", lambda path: True)
+    assert helper["main"](["helper", "--persist-uninstall"]) == 0
+    assert _ran(capsys)["argv"] == ["uninstall"]
+
+
+def test_an_untrusted_installed_copy_is_not_run_and_the_unit_is_removed_directly(
+    persist, tmp_path, monkeypatch
+):
+    helper, _repository, _run, launched, _state = persist
+    installed = tmp_path / "var" / "bc250-core-unlock"
+    installed.parent.mkdir()
+    installed.write_bytes(SCRIPT)
+    unit = tmp_path / "etc" / "bc250-core-unlock.service"
+    unit.parent.mkdir()
+    unit.write_text("[Unit]\n")
+    systemctl: list = []
+    real_run = subprocess.run
+
+    def record(command, **kwargs):
+        if command[0] == "/usr/bin/systemctl":
+            systemctl.append(command[1:])
+            return subprocess.CompletedProcess(command, 0, "", "")
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", record)
+    monkeypatch.setitem(helper, "PERSISTENT_INSTALLED_BIN", installed)
+    monkeypatch.setitem(helper, "PERSISTENT_SYSTEMD_UNIT", unit)
+    monkeypatch.setitem(helper, "_installed_tool_trusted", lambda path: False)
+    assert helper["main"](["helper", "--persist-uninstall"]) == 0
+    assert not unit.exists()
+    assert ["disable", "bc250-core-unlock.service"] in systemctl
+    assert launched == []
+
+
+# ------------------------------------------------------------------ detection
+
+
+def _install(root: Path, *, enabled: bool, status: str = "", note: str = "") -> None:
+    unit = root / BOOT_SERVICE_UNIT.lstrip("/")
+    unit.parent.mkdir(parents=True, exist_ok=True)
+    unit.write_text("[Unit]\n")
+    if enabled:
+        link = root / BOOT_SERVICE_WANTS_LINK.lstrip("/")
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(unit)
+    if status:
+        record = root / BOOT_SERVICE_STATE.lstrip("/")
+        record.parent.mkdir(parents=True, exist_ok=True)
+        record.write_text(json.dumps({"status": status, "note": note}))
+
+
+def test_an_enabled_boot_service_keeps_the_unlock_across_power_off(tmp_path):
+    _install(tmp_path, enabled=True, status="unlocked")
+    state = detect_core_unlock_persistence(physical_cores=8, logical_cpus=16, root=tmp_path)
+    assert state["mechanism"] == "boot-service"
+    assert state["survives_power_off"] is True
+    assert state["boot_service_active"] is True
+
+
+def test_a_service_that_disabled_itself_is_not_counted_and_says_why(tmp_path):
+    """Give-up disables the unit but leaves its file: the file alone is not persistence."""
+    _install(tmp_path, enabled=False, status="gave-up", note="Mask still 0x77 after 2 attempt(s)")
+    state = detect_core_unlock_persistence(physical_cores=8, logical_cpus=16, root=tmp_path)
+    assert state["mechanism"] == "volatile"
+    assert state["boot_service_installed"] is True
+    assert state["boot_service_active"] is False
+    assert state["boot_service_note"].startswith("Mask still 0x77")
+
+
+def test_an_enabled_unit_whose_last_run_gave_up_is_not_active(tmp_path):
+    _install(tmp_path, enabled=True, status="gave-up")
+    state = detect_core_unlock_persistence(physical_cores=8, logical_cpus=16, root=tmp_path)
+    assert state["boot_service_active"] is False
+    assert state["survives_power_off"] is False
+
+
+def test_a_stock_board_with_the_service_installed_reports_it(tmp_path):
+    _install(tmp_path, enabled=True, status="idle")
+    state = detect_core_unlock_persistence(physical_cores=6, logical_cpus=12, root=tmp_path)
+    assert state["mechanism"] == "stock"
+    assert state["boot_service_active"] is True
+
+
+# ------------------------------------------------------------------ card
+
+
+STATES = {
+    "temporary-ready": CoreUnlockState(helper_ready=True, unlock_allowed=True,
+                                       persistence_supported=True, persistence_source_ready=True,
+                                       persist_allowed=True),
+    "persistent-unlocked": CoreUnlockState(unlocked=True, helper_ready=True, persistence_supported=True,
+                                           persistence_source_ready=True, persist_allowed=True),
+    "persistent-active": CoreUnlockState(unlocked=True, helper_ready=True, persistence_supported=True,
+                                         persistence_installed=True, persistence_active=True,
+                                         remove_allowed=True),
+    "persistent-gave-up": CoreUnlockState(helper_ready=True, persistence_supported=True,
+                                          persistence_installed=True, persistence_status="gave-up",
+                                          persistence_note="Mask still 0x77", remove_allowed=True),
+    "unsupported": CoreUnlockState(),
+}
+
+
+def _view(qtbot, width=1440):
+    view = CpuControlView()
+    qtbot.addWidget(view)
+    view.resize(width, 900)
+    view.show()
+    qtbot.waitExposed(view)
+    return view
+
+
+@pytest.mark.parametrize("width", [1180, 1440])
+def test_choosing_a_mode_never_changes_the_size_of_the_card(qtbot, width):
+    view = _view(qtbot, width)
+    panel = view._risk_panel
+    heights = set()
+    for mode in (UNLOCK_MODE_TEMPORARY, UNLOCK_MODE_PERSISTENT):
+        view._choose_mode(mode)
+        for state in STATES.values():
+            view.apply_state(replace(CpuControlState(), core_unlock=state))
+            qtbot.wait(1)
+            heights.add(panel.height())
+    # And with the switch removed altogether, as the card was before it.
+    view._mode_host.hide()
+    qtbot.wait(1)
+    heights.add(panel.height())
+    assert len(heights) == 1, heights
+
+
+def test_a_board_with_the_service_installed_opens_on_persistence_until_the_owner_chooses(qtbot):
+    view = _view(qtbot)
+    assert view.unlock_mode() == UNLOCK_MODE_TEMPORARY
+    view.apply_state(replace(CpuControlState(), core_unlock=STATES["persistent-active"]))
+    assert view.unlock_mode() == UNLOCK_MODE_PERSISTENT
+    assert view.unlock_button.text() == "Persistence active"
+    assert not view.unlock_button.isEnabled()
+    assert view.firmware_button.text() == "Remove persistence"
+
+    view._choose_mode(UNLOCK_MODE_TEMPORARY)
+    view.apply_state(replace(CpuControlState(), core_unlock=STATES["persistent-active"]))
+    assert view.unlock_mode() == UNLOCK_MODE_TEMPORARY
+    assert view.firmware_button.text() == "Firmware persistence guide"
+
+
+def test_each_mode_sends_its_own_request(qtbot):
+    view = _view(qtbot)
+    sent: list = []
+    view.unlock_cores_requested.connect(lambda force: sent.append(("temporary", force)))
+    view.persist_unlock_requested.connect(lambda force: sent.append(("persist", force)))
+    view.remove_persistence_requested.connect(lambda: sent.append(("remove",)))
+    view.firmware_persistence_requested.connect(lambda: sent.append(("guide",)))
+
+    view.apply_state(replace(CpuControlState(), core_unlock=STATES["temporary-ready"]))
+    view.unlock_button.click()
+    view.firmware_button.click()
+    view._choose_mode(UNLOCK_MODE_PERSISTENT)
+    view.ignore_mask_line.check.setChecked(True)
+    view.unlock_button.click()
+    view.firmware_button.click()  # nothing installed yet: still the guide
+    view.apply_state(replace(CpuControlState(), core_unlock=STATES["persistent-gave-up"]))
+    view.firmware_button.click()
+
+    assert sent == [("temporary", False), ("guide",), ("persist", True), ("guide",), ("remove",)]
+
+
+def test_a_service_that_stopped_itself_offers_a_reinstall_and_shows_why(qtbot):
+    view = _view(qtbot)
+    view._choose_mode(UNLOCK_MODE_PERSISTENT)
+    state = replace(STATES["persistent-gave-up"], persist_allowed=True, persistence_source_ready=True)
+    view.apply_state(replace(CpuControlState(), core_unlock=state))
+    assert view.unlock_button.text() == "Install persistence again"
+    assert "Mask still 0x77" in view.unlock_button.toolTip()
+
+
+def test_persistence_is_unavailable_without_systemd(qtbot):
+    view = _view(qtbot)
+    view.apply_state(replace(CpuControlState(), core_unlock=STATES["unsupported"]))
+    assert not view._mode_buttons[UNLOCK_MODE_PERSISTENT].isEnabled()
+    assert "systemd" in view._mode_buttons[UNLOCK_MODE_PERSISTENT].toolTip()

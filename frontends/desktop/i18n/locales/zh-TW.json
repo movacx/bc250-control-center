@@ -6055,5 +6055,22 @@
   "Distinctive": "特色",
   "Rootless Podman has no subordinate user IDs for this user.": "無 root 的 Podman 沒有此使用者的從屬使用者 ID。",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman 以你的使用者身分在容器中建置此元件，這需要 /etc/subuid 和 /etc/subgid 中有一段從屬使用者與群組 ID 範圍。你的使用者沒有這樣的範圍，或 Podman 尚未採用新加入的範圍，因此無法解壓縮容器映像檔。",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "請執行錯誤上方顯示的命令：它們會為你的使用者加入範圍並讓 Podman 採用它。然後重新執行此操作。"
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "請執行錯誤上方顯示的命令：它們會為你的使用者加入範圍並讓 Podman 採用它。然後重新執行此操作。",
+  "Remove persistence": "移除持久化",
+  "Persistence active": "持久化已啟用",
+  "Install persistence again": "重新安裝持久化",
+  "Make the unlock permanent": "讓解鎖永久生效",
+  "Install persistence and restart": "安裝持久化並重新啟動",
+  "The boot service stopped itself: {note}": "開機服務已自行停止：{note}",
+  "Persistence needs a BC-250 running systemd.": "持久化需要執行 systemd 的 BC-250。",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "選取 CPU Core Unlock 後執行「準備相依元件」，以取得持久化工具。",
+  "Make the core unlock permanent": "讓核心解鎖永久生效",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "這會安裝一個小型開機服務，在每次冷開機的早期重新解鎖兩個額外核心，無須燒錄 BIOS。之後每次冷開機都會自動重新啟動一次，約 30 秒。如果主機板無法保持解鎖，該服務會在兩次重新啟動後自行停止。若要在某次開機時略過它，請在核心命令列中加入 bc250.core_unlock=0。",
+  "Every cold boot": "每次冷開機",
+  "One automatic restart": "自動重新啟動一次",
+  "Left as it is": "維持不變",
+  "Remove core unlock persistence": "移除核心解鎖持久化",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "開機服務將被移除。不會重新啟動：在下次完全關機之前核心保持解鎖，之後主機板恢復為 6 核心。",
+  "Could not install the persistent core unlock": "無法安裝持久化核心解鎖",
+  "Could not remove the persistent core unlock": "無法移除持久化核心解鎖"
 }

@@ -6055,5 +6055,22 @@
   "Distinctive": "Különleges",
   "Rootless Podman has no subordinate user IDs for this user.": "A root nélküli Podman nem rendelkezik alárendelt felhasználói azonosítókkal ehhez a felhasználóhoz.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "A Podman ezt az összetevőt egy konténerben, a te felhasználódként építi fel, ehhez pedig alárendelt felhasználói és csoportazonosítók tartományára van szükség az /etc/subuid és /etc/subgid fájlokban. A felhasználódnak nincs ilyen tartománya, vagy a Podman még nem vette át a hozzáadott tartományt, ezért a konténer képfájlját nem sikerült kicsomagolni.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Futtasd a közvetlenül a hiba felett megjelenő parancsokat: hozzáadják a tartományt a felhasználódhoz, és a Podman átveszi azt. Ezután futtasd újra ezt a műveletet."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Futtasd a közvetlenül a hiba felett megjelenő parancsokat: hozzáadják a tartományt a felhasználódhoz, és a Podman átveszi azt. Ezután futtasd újra ezt a műveletet.",
+  "Remove persistence": "Tartósság eltávolítása",
+  "Persistence active": "Tartósság aktív",
+  "Install persistence again": "Tartósság újratelepítése",
+  "Make the unlock permanent": "Feloldás tartóssá tétele",
+  "Install persistence and restart": "Tartósság telepítése és újraindítás",
+  "The boot service stopped itself: {note}": "A rendszerindító szolgáltatás magától leállt: {note}",
+  "Persistence needs a BC-250 running systemd.": "A tartóssághoz systemd-t futtató BC-250 szükséges.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Futtassa a Függőségek előkészítése lehetőséget a CPU Core Unlock kijelölésével a tartóssági eszköz letöltéséhez.",
+  "Make the core unlock permanent": "A magfeloldás tartóssá tétele",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Ez egy kis rendszerindító szolgáltatást telepít, amely minden hidegindítás elején újra feloldja a két extra magot, a BIOS flashelése nélkül. Ezután minden hidegindítás egyszer magától újraindul, körülbelül 30 másodperc. Ha a lap nem tudja megtartani a feloldást, a szolgáltatás két újraindítás után magától leáll. Egy indítás kihagyásához adja hozzá a bc250.core_unlock=0 paramétert a kernel parancssorához.",
+  "Every cold boot": "Minden hidegindítás",
+  "One automatic restart": "Egy automatikus újraindítás",
+  "Left as it is": "Változatlan marad",
+  "Remove core unlock persistence": "A magfeloldás tartósságának eltávolítása",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "A rendszerindító szolgáltatás eltávolításra kerül. Semmi sem indul újra: a magok a következő teljes kikapcsolásig feloldva maradnak, utána a lapon ismét 6 mag lesz.",
+  "Could not install the persistent core unlock": "A tartós magfeloldást nem sikerült telepíteni",
+  "Could not remove the persistent core unlock": "A tartós magfeloldást nem sikerült eltávolítani"
 }

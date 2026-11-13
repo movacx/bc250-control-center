@@ -15,6 +15,7 @@ recoverable only from the BIOS.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -41,18 +42,43 @@ CORE_MASK_UNLOCKED = 0xFF  # all 8 cores
 # efibootmgr labels the NVMe entry this way in the documented command.
 EFI_SHIM_BOOT_LABEL = "CoreUnlock"
 
+# The boot service of movacx/core_unlock_bc250, which Control Center installs.
+# Enabled means its WantedBy=sysinit.target link exists: that is exactly what
+# `systemctl enable` creates and what its give-up path removes, so a file alone
+# (left behind after a give-up) is not counted.
+BOOT_SERVICE_UNIT = "/etc/systemd/system/bc250-core-unlock.service"
+BOOT_SERVICE_WANTS_LINK = "/etc/systemd/system/sysinit.target.wants/bc250-core-unlock.service"
+# World-readable record of what the service did on its last run.
+BOOT_SERVICE_STATE = "/var/lib/bc250-core-unlock/state.json"
+# Statuses after which the service has disabled itself.
+BOOT_SERVICE_STOPPED = frozenset({"gave-up", "refused"})
+
 
 @dataclass(frozen=True)
 class CoreUnlockPersistence:
     """Read-only evidence about how an active unlock is being maintained."""
 
     unlocked: bool
-    # "efi-shim" persists by itself; "volatile" is lost on a full power off;
-    # "stock" means the board is running its factory core count.
+    # "boot-service" and "efi-shim" persist by themselves; "volatile" is lost
+    # on a full power off; "stock" means the factory core count.
     mechanism: str
     survives_power_off: bool
     shim_paths: tuple[str, ...] = ()
     boot_entry_present: bool = False
+    # The Control Center boot service: unit file present, enabled at boot,
+    # and what its last run recorded ("unlocked", "gave-up", ...).
+    boot_service_installed: bool = False
+    boot_service_enabled: bool = False
+    boot_service_status: str = ""
+    boot_service_note: str = ""
+
+    @property
+    def boot_service_active(self) -> bool:
+        return (
+            self.boot_service_installed
+            and self.boot_service_enabled
+            and self.boot_service_status not in BOOT_SERVICE_STOPPED
+        )
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -61,6 +87,11 @@ class CoreUnlockPersistence:
             "survives_power_off": self.survives_power_off,
             "shim_paths": list(self.shim_paths),
             "boot_entry_present": self.boot_entry_present,
+            "boot_service_installed": self.boot_service_installed,
+            "boot_service_enabled": self.boot_service_enabled,
+            "boot_service_active": self.boot_service_active,
+            "boot_service_status": self.boot_service_status,
+            "boot_service_note": self.boot_service_note,
             "reference_url": EFI_SHIM_UPSTREAM,
         }
 
@@ -88,6 +119,18 @@ def _boot_entry_present(run_command) -> bool:
     return code == 0 and EFI_SHIM_BOOT_LABEL.casefold() in (stdout or "").casefold()
 
 
+def _boot_service_record(base: Path) -> tuple[str, str]:
+    """(status, note) from the service's state file; ('', '') when unreadable."""
+    try:
+        raw = json.loads((base / BOOT_SERVICE_STATE.lstrip("/")).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return "", ""
+    if not isinstance(raw, dict):
+        return "", ""
+    status, note = raw.get("status"), raw.get("note")
+    return (status if isinstance(status, str) else ""), (note if isinstance(note, str) else "")
+
+
 def detect_core_unlock_persistence(
     *, physical_cores: int, logical_cpus: int, root: Path | str = "/", run_command=None,
 ) -> dict[str, object]:
@@ -97,9 +140,24 @@ def detect_core_unlock_persistence(
     shim_paths = _present(EFI_SHIM_PATHS, base)
     boot_entry = _boot_entry_present(run_command)
     has_shim = bool(shim_paths) or boot_entry
+    service_installed = bool(_present((BOOT_SERVICE_UNIT,), base))
+    wants_link = base / BOOT_SERVICE_WANTS_LINK.lstrip("/")
+    try:
+        service_enabled = wants_link.is_symlink() or wants_link.exists()
+    except OSError:
+        service_enabled = False
+    service_status, service_note = _boot_service_record(base)
+    record = CoreUnlockPersistence(
+        unlocked=unlocked, mechanism="", survives_power_off=False,
+        boot_service_installed=service_installed,
+        boot_service_enabled=service_enabled,
+        boot_service_status=service_status,
+    )
 
     if not unlocked:
         mechanism, survives = "stock", True
+    elif record.boot_service_active:
+        mechanism, survives = "boot-service", True
     elif has_shim:
         mechanism, survives = "efi-shim", True
     else:
@@ -113,4 +171,8 @@ def detect_core_unlock_persistence(
         survives_power_off=survives,
         shim_paths=shim_paths,
         boot_entry_present=boot_entry,
+        boot_service_installed=service_installed,
+        boot_service_enabled=service_enabled,
+        boot_service_status=service_status,
+        boot_service_note=service_note,
     ).to_dict()

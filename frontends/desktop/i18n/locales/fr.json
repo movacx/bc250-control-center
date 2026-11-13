@@ -6055,5 +6055,22 @@
   "Distinctive": "Originaux",
   "Rootless Podman has no subordinate user IDs for this user.": "Podman sans root n'a aucun identifiant d'utilisateur subordonné pour cet utilisateur.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman compile ce composant dans un conteneur avec votre utilisateur, ce qui nécessite une plage d'identifiants d'utilisateur et de groupe subordonnés dans /etc/subuid et /etc/subgid. Votre utilisateur n'en a aucune, ou Podman n'a pas encore pris en compte une plage ajoutée, donc l'image du conteneur n'a pas pu être décompressée.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Exécutez les commandes affichées juste au-dessus de l'erreur : elles ajoutent la plage pour votre utilisateur et la font prendre en compte par Podman. Relancez ensuite cette action."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Exécutez les commandes affichées juste au-dessus de l'erreur : elles ajoutent la plage pour votre utilisateur et la font prendre en compte par Podman. Relancez ensuite cette action.",
+  "Remove persistence": "Retirer la persistance",
+  "Persistence active": "Persistance active",
+  "Install persistence again": "Réinstaller la persistance",
+  "Make the unlock permanent": "Rendre le déverrouillage permanent",
+  "Install persistence and restart": "Installer la persistance et redémarrer",
+  "The boot service stopped itself: {note}": "Le service de démarrage s’est arrêté de lui-même : {note}",
+  "Persistence needs a BC-250 running systemd.": "La persistance nécessite une BC-250 sous systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Lancez Préparer les dépendances avec CPU Core Unlock sélectionné pour récupérer l’outil de persistance.",
+  "Make the core unlock permanent": "Rendre permanent le déverrouillage des cœurs",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Ceci installe un petit service de démarrage qui déverrouille à nouveau les deux cœurs supplémentaires au début de chaque démarrage à froid, sans flasher le BIOS. Chaque démarrage à froid redémarre alors une fois de lui-même, environ 30 secondes. Si la carte ne peut pas conserver le déverrouillage, le service s’arrête de lui-même après deux redémarrages. Pour l’ignorer lors d’un démarrage, ajoutez bc250.core_unlock=0 à la ligne de commande du noyau.",
+  "Every cold boot": "Chaque démarrage à froid",
+  "One automatic restart": "Un redémarrage automatique",
+  "Left as it is": "Laissé tel quel",
+  "Remove core unlock persistence": "Retirer la persistance du déverrouillage des cœurs",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Le service de démarrage est retiré. Rien ne redémarre : les cœurs restent déverrouillés jusqu’au prochain arrêt complet, qui ramène la carte à 6 cœurs.",
+  "Could not install the persistent core unlock": "Impossible d’installer le déverrouillage persistant des cœurs",
+  "Could not remove the persistent core unlock": "Impossible de retirer le déverrouillage persistant des cœurs"
 }

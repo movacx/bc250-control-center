@@ -9,6 +9,9 @@ from .cyan_governor_runtime import CYAN_REVIEWED_RELEASE  # noqa: F401 - re-expo
 CORE_UNLOCK_REPOSITORY = EXTERNAL_TOOLS["core_unlock"].upstream
 CORE_UNLOCK_DIRECTORY = "bc250-core-unlock"
 CORE_UNLOCK_SCRIPT = "bc250-unlock-cores.py"
+CORE_UNLOCK_PERSISTENT_REPOSITORY = EXTERNAL_TOOLS["core_unlock_persistent"].upstream
+CORE_UNLOCK_PERSISTENT_DIRECTORY = "core_unlock_bc250"
+CORE_UNLOCK_PERSISTENT_SCRIPT = "bc250-core-unlock"
 CYAN_GOVERNOR_REPOSITORY = EXTERNAL_TOOLS["cyan_smu"].upstream
 CYAN_GOVERNOR_DIRECTORY = "cyan-skillfish-governor-smu"
 CYAN_GOVERNOR_BRANCH = "smu"

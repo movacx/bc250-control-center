@@ -6055,5 +6055,22 @@
   "Distinctive": "個性的",
   "Rootless Podman has no subordinate user IDs for this user.": "rootless の Podman には、このユーザーの下位ユーザー ID がありません。",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman はこのコンポーネントをあなたのユーザーとしてコンテナー内でビルドします。そのためには /etc/subuid と /etc/subgid に下位ユーザー ID とグループ ID の範囲が必要です。あなたのユーザーには範囲がないか、追加された範囲を Podman がまだ反映していないため、コンテナーイメージを展開できませんでした。",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "エラーのすぐ上に表示されたコマンドを実行してください。ユーザーに範囲を追加し、Podman に反映させます。その後、この操作をもう一度実行してください。"
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "エラーのすぐ上に表示されたコマンドを実行してください。ユーザーに範囲を追加し、Podman に反映させます。その後、この操作をもう一度実行してください。",
+  "Remove persistence": "永続化を削除",
+  "Persistence active": "永続化は有効",
+  "Install persistence again": "永続化を再インストール",
+  "Make the unlock permanent": "アンロックを永続化",
+  "Install persistence and restart": "永続化をインストールして再起動",
+  "The boot service stopped itself: {note}": "起動サービスが自ら停止しました: {note}",
+  "Persistence needs a BC-250 running systemd.": "永続化には systemd を実行している BC-250 が必要です。",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "CPU Core Unlock を選択して「依存関係を準備」を実行し、永続化ツールを取得してください。",
+  "Make the core unlock permanent": "コアのアンロックを永続化",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "BIOS を書き換えずに、コールドブートのたびに起動直後に追加の 2 コアを再びアンロックする小さな起動サービスをインストールします。その後、コールドブートのたびに自動で 1 回再起動します（約 30 秒）。ボードがアンロックを保持できない場合、サービスは 2 回の再起動後に自ら停止します。1 回の起動だけスキップするには、カーネルコマンドラインに bc250.core_unlock=0 を追加してください。",
+  "Every cold boot": "コールドブートのたび",
+  "One automatic restart": "自動再起動 1 回",
+  "Left as it is": "そのまま",
+  "Remove core unlock persistence": "コアアンロックの永続化を削除",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "起動サービスを削除します。再起動はしません。次に完全に電源を切るまでコアはアンロックされたままで、その後ボードは 6 コアに戻ります。",
+  "Could not install the persistent core unlock": "永続的なコアアンロックをインストールできませんでした",
+  "Could not remove the persistent core unlock": "永続的なコアアンロックを削除できませんでした"
 }

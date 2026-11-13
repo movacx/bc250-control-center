@@ -6055,5 +6055,22 @@
   "Distinctive": "개성 있는",
   "Rootless Podman has no subordinate user IDs for this user.": "루트리스 Podman에 이 사용자의 하위 사용자 ID가 없습니다.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman은 이 구성 요소를 사용자 계정으로 컨테이너 안에서 빌드하며, 이를 위해 /etc/subuid와 /etc/subgid에 하위 사용자 및 그룹 ID 범위가 필요합니다. 사용자에게 범위가 없거나 추가된 범위를 Podman이 아직 반영하지 않아 컨테이너 이미지를 풀 수 없었습니다.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "오류 바로 위에 표시된 명령을 실행하세요. 사용자에게 범위를 추가하고 Podman이 이를 반영하게 합니다. 그런 다음 이 작업을 다시 실행하세요."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "오류 바로 위에 표시된 명령을 실행하세요. 사용자에게 범위를 추가하고 Podman이 이를 반영하게 합니다. 그런 다음 이 작업을 다시 실행하세요.",
+  "Remove persistence": "영구 설정 제거",
+  "Persistence active": "영구 설정 활성",
+  "Install persistence again": "영구 설정 다시 설치",
+  "Make the unlock permanent": "잠금 해제를 영구화",
+  "Install persistence and restart": "영구 설정 설치 후 다시 시작",
+  "The boot service stopped itself: {note}": "부팅 서비스가 스스로 멈췄습니다: {note}",
+  "Persistence needs a BC-250 running systemd.": "영구 설정에는 systemd를 사용하는 BC-250이 필요합니다.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "CPU Core Unlock을 선택한 상태로 종속성 준비를 실행하여 영구 설정 도구를 가져오세요.",
+  "Make the core unlock permanent": "코어 잠금 해제를 영구화",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "BIOS를 플래시하지 않고, 콜드 부팅 때마다 초기에 추가 코어 2개의 잠금을 다시 해제하는 작은 부팅 서비스를 설치합니다. 이후 콜드 부팅마다 한 번 스스로 다시 시작하며 약 30초가 걸립니다. 보드가 잠금 해제를 유지하지 못하면 서비스는 두 번 다시 시작한 뒤 스스로 멈춥니다. 한 번의 부팅에서 건너뛰려면 커널 명령줄에 bc250.core_unlock=0을 추가하세요.",
+  "Every cold boot": "콜드 부팅마다",
+  "One automatic restart": "자동 재시작 1회",
+  "Left as it is": "그대로 유지",
+  "Remove core unlock persistence": "코어 잠금 해제 영구 설정 제거",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "부팅 서비스를 제거합니다. 다시 시작하지 않습니다. 다음에 전원을 완전히 끌 때까지 코어는 잠금 해제된 상태로 유지되며, 그 후 보드는 6코어로 돌아갑니다.",
+  "Could not install the persistent core unlock": "영구 코어 잠금 해제를 설치할 수 없습니다",
+  "Could not remove the persistent core unlock": "영구 코어 잠금 해제를 제거할 수 없습니다"
 }

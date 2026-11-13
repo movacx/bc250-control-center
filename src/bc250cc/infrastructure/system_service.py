@@ -767,6 +767,12 @@ class SistemaService:
     def comando_desbloquear_nucleos_cpu(self, ignore_core_mask=False):
         return self.repo.comando_desbloquear_nucleos_cpu(ignore_core_mask=ignore_core_mask)
 
+    def comando_persistir_desbloqueo_nucleos_cpu(self, ignore_core_mask=False):
+        return self.repo.comando_persistir_desbloqueo_nucleos_cpu(ignore_core_mask=ignore_core_mask)
+
+    def comando_quitar_persistencia_nucleos_cpu(self):
+        return self.repo.comando_quitar_persistencia_nucleos_cpu()
+
     def estado_gddr6_memory_temp(self):
         return self.repo.estado_gddr6_memory_temp()
 

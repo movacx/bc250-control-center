@@ -191,6 +191,20 @@ def _core_readings(core_unlock: dict) -> tuple[CoreReading, ...]:
 
 def _core_unlock_state(page, core_unlock: dict) -> CoreUnlockState:
     governor_active = bool(core_unlock.get("governor_active"))
+    persistence = _dict(core_unlock.get("persistence"))
+    supported = bool(core_unlock.get("persistent_supported"))
+    installed = bool(persistence.get("boot_service_installed"))
+    active = bool(persistence.get("boot_service_active"))
+    helper_ready = bool(core_unlock.get("helper_ready"))
+    idle = not _is_running(page)
+    unlocked = bool(core_unlock.get("unlocked"))
+    # Install from the factory shape (it restarts) or from an unlock made
+    # earlier this power cycle (no restart); never over an active service.
+    persist_allowed = bool(
+        idle and supported and helper_ready and not active
+        and core_unlock.get("persistent_repository_ready")
+        and (unlocked or core_unlock.get("supported_stock_shape"))
+    )
     return CoreUnlockState(
         detected_shape=tr_format(
             "{cores} cores / {threads} threads",
@@ -201,7 +215,16 @@ def _core_unlock_state(page, core_unlock: dict) -> CoreUnlockState:
         helper_ready=bool(core_unlock.get("helper_ready")),
         governor_state=tr("Active now") if governor_active else tr("Inactive"),
         unlock_allowed=bool(page.core_unlock_button.isEnabled()),
-        unlocked=bool(core_unlock.get("unlocked")),
+        unlocked=unlocked,
+        persistence_supported=supported,
+        persistence_source_ready=bool(core_unlock.get("persistent_repository_ready")),
+        persistence_installed=installed,
+        persistence_active=active,
+        persistence_status=str(persistence.get("boot_service_status") or ""),
+        persistence_note=str(persistence.get("boot_service_note") or ""),
+        persist_allowed=persist_allowed,
+        # Removal never needs the clone, and is offered wherever a service is.
+        remove_allowed=bool(idle and installed and helper_ready),
     )
 
 
@@ -296,6 +319,8 @@ class CpuControlController:
         view.firmware_persistence_requested.connect(
             page._open_firmware_persistence_guide
         )
+        view.persist_unlock_requested.connect(page._request_core_persistence)
+        view.remove_persistence_requested.connect(page._request_core_persistence_removal)
         view.export_to_decky_requested.connect(self._export_profiles_to_decky)
 
     # ------------------------------------------------------------- intentions

@@ -6055,5 +6055,22 @@
   "Distinctive": "Особливі",
   "Rootless Podman has no subordinate user IDs for this user.": "Podman без root не має підлеглих ідентифікаторів користувача для цього користувача.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman збирає цей компонент у контейнері від імені вашого користувача, а для цього потрібен діапазон підлеглих ідентифікаторів користувачів і груп у /etc/subuid та /etc/subgid. У вашого користувача його немає, або Podman ще не підхопив доданий діапазон, тому образ контейнера не вдалося розпакувати.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Виконайте команди, показані просто над помилкою: вони додають діапазон для вашого користувача й дозволяють Podman його підхопити. Потім знову запустіть цю дію."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Виконайте команди, показані просто над помилкою: вони додають діапазон для вашого користувача й дозволяють Podman його підхопити. Потім знову запустіть цю дію.",
+  "Remove persistence": "Прибрати постійне налаштування",
+  "Persistence active": "Постійне налаштування активне",
+  "Install persistence again": "Встановити постійне налаштування знову",
+  "Make the unlock permanent": "Зробити розблокування постійним",
+  "Install persistence and restart": "Встановити постійне налаштування й перезавантажити",
+  "The boot service stopped itself: {note}": "Служба завантаження зупинилася сама: {note}",
+  "Persistence needs a BC-250 running systemd.": "Для постійного налаштування потрібна BC-250 із systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Запустіть «Підготувати залежності» з вибраним CPU Core Unlock, щоб завантажити інструмент постійного налаштування.",
+  "Make the core unlock permanent": "Зробити розблокування ядер постійним",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Буде встановлено невелику службу завантаження, яка знову розблоковує два додаткові ядра на початку кожного холодного завантаження, без прошивання BIOS. Після цього кожне холодне завантаження один раз перезавантажується саме, приблизно 30 секунд. Якщо плата не може зберегти розблокування, служба зупиняється сама після двох перезавантажень. Щоб пропустити її для одного завантаження, додайте bc250.core_unlock=0 до командного рядка ядра.",
+  "Every cold boot": "Кожне холодне завантаження",
+  "One automatic restart": "Одне автоматичне перезавантаження",
+  "Left as it is": "Залишається як є",
+  "Remove core unlock persistence": "Прибрати постійне розблокування ядер",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Службу завантаження видалено. Нічого не перезавантажується: ядра залишаються розблокованими до наступного повного вимкнення, після якого в плати знову 6 ядер.",
+  "Could not install the persistent core unlock": "Не вдалося встановити постійне розблокування ядер",
+  "Could not remove the persistent core unlock": "Не вдалося прибрати постійне розблокування ядер"
 }

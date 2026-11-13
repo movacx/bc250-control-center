@@ -6055,5 +6055,22 @@
   "Distinctive": "Nổi bật",
   "Rootless Podman has no subordinate user IDs for this user.": "Podman không cần root không có ID người dùng phụ cho người dùng này.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman xây dựng thành phần này trong một container dưới người dùng của bạn, việc này cần một dải ID người dùng và nhóm phụ trong /etc/subuid và /etc/subgid. Người dùng của bạn không có dải nào, hoặc Podman chưa nhận một dải đã được thêm, nên không thể giải nén image của container.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Hãy chạy các lệnh được hiển thị ngay phía trên lỗi: chúng thêm dải cho người dùng của bạn và để Podman nhận dải đó. Sau đó chạy lại thao tác này."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Hãy chạy các lệnh được hiển thị ngay phía trên lỗi: chúng thêm dải cho người dùng của bạn và để Podman nhận dải đó. Sau đó chạy lại thao tác này.",
+  "Remove persistence": "Gỡ duy trì",
+  "Persistence active": "Duy trì đang bật",
+  "Install persistence again": "Cài lại duy trì",
+  "Make the unlock permanent": "Mở khóa vĩnh viễn",
+  "Install persistence and restart": "Cài duy trì và khởi động lại",
+  "The boot service stopped itself: {note}": "Dịch vụ khởi động đã tự dừng: {note}",
+  "Persistence needs a BC-250 running systemd.": "Duy trì cần một BC-250 chạy systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Chạy Chuẩn bị phụ thuộc với CPU Core Unlock được chọn để tải công cụ duy trì.",
+  "Make the core unlock permanent": "Mở khóa nhân vĩnh viễn",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Thao tác này cài một dịch vụ khởi động nhỏ, mở khóa lại hai nhân bổ sung ngay đầu mỗi lần khởi động nguội, không cần nạp lại BIOS. Sau đó mỗi lần khởi động nguội sẽ tự khởi động lại một lần, khoảng 30 giây. Nếu bo mạch không giữ được việc mở khóa, dịch vụ tự dừng sau hai lần khởi động lại. Để bỏ qua nó trong một lần khởi động, thêm bc250.core_unlock=0 vào dòng lệnh kernel.",
+  "Every cold boot": "Mỗi lần khởi động nguội",
+  "One automatic restart": "Một lần khởi động lại tự động",
+  "Left as it is": "Giữ nguyên",
+  "Remove core unlock persistence": "Gỡ duy trì mở khóa nhân",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Dịch vụ khởi động bị gỡ. Không có gì khởi động lại: các nhân vẫn được mở khóa cho đến lần tắt máy hoàn toàn tiếp theo, sau đó bo mạch trở lại 6 nhân.",
+  "Could not install the persistent core unlock": "Không thể cài mở khóa nhân vĩnh viễn",
+  "Could not remove the persistent core unlock": "Không thể gỡ mở khóa nhân vĩnh viễn"
 }

@@ -6055,5 +6055,22 @@
   "Distinctive": "Distinctive",
   "Rootless Podman has no subordinate user IDs for this user.": "Rootless Podman has no subordinate user IDs for this user.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.",
+  "Remove persistence": "Remove persistence",
+  "Persistence active": "Persistence active",
+  "Install persistence again": "Install persistence again",
+  "Make the unlock permanent": "Make the unlock permanent",
+  "Install persistence and restart": "Install persistence and restart",
+  "The boot service stopped itself: {note}": "The boot service stopped itself: {note}",
+  "Persistence needs a BC-250 running systemd.": "Persistence needs a BC-250 running systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.",
+  "Make the core unlock permanent": "Make the core unlock permanent",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.",
+  "Every cold boot": "Every cold boot",
+  "One automatic restart": "One automatic restart",
+  "Left as it is": "Left as it is",
+  "Remove core unlock persistence": "Remove core unlock persistence",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.",
+  "Could not install the persistent core unlock": "Could not install the persistent core unlock",
+  "Could not remove the persistent core unlock": "Could not remove the persistent core unlock"
 }

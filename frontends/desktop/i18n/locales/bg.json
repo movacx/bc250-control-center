@@ -6055,5 +6055,22 @@
   "Distinctive": "Отличителни",
   "Rootless Podman has no subordinate user IDs for this user.": "Podman без root няма подчинени потребителски идентификатори за този потребител.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman изгражда този компонент в контейнер от името на вашия потребител, а това изисква диапазон от подчинени потребителски и групови идентификатори в /etc/subuid и /etc/subgid. Вашият потребител няма такъв или Podman още не е приел добавен диапазон, затова образът на контейнера не можа да бъде разархивиран.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Изпълнете командите, показани точно над грешката: те добавят диапазона за вашия потребител и позволяват на Podman да го приеме. След това изпълнете отново това действие."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Изпълнете командите, показани точно над грешката: те добавят диапазона за вашия потребител и позволяват на Podman да го приеме. След това изпълнете отново това действие.",
+  "Remove persistence": "Премахване на постоянството",
+  "Persistence active": "Постоянството е активно",
+  "Install persistence again": "Инсталиране на постоянството отново",
+  "Make the unlock permanent": "Отключването да стане постоянно",
+  "Install persistence and restart": "Инсталиране на постоянството и рестартиране",
+  "The boot service stopped itself: {note}": "Услугата при стартиране спря сама: {note}",
+  "Persistence needs a BC-250 running systemd.": "Постоянството изисква BC-250 със systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Изпълнете „Подготвяне на зависимостите“ с избран CPU Core Unlock, за да изтеглите инструмента за постоянство.",
+  "Make the core unlock permanent": "Отключването на ядрата да стане постоянно",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Това инсталира малка услуга при стартиране, която отново отключва двете допълнителни ядра в началото на всяко студено стартиране, без да се презаписва BIOS. След това всяко студено стартиране се рестартира веднъж само, около 30 секунди. Ако платката не може да запази отключването, услугата спира сама след два рестарта. За да я пропуснете при едно стартиране, добавете bc250.core_unlock=0 към командния ред на ядрото.",
+  "Every cold boot": "Всяко студено стартиране",
+  "One automatic restart": "Един автоматичен рестарт",
+  "Left as it is": "Остава както е",
+  "Remove core unlock persistence": "Премахване на постоянното отключване на ядрата",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Услугата при стартиране се премахва. Нищо не се рестартира: ядрата остават отключени до следващото пълно изключване, след което платката отново има 6 ядра.",
+  "Could not install the persistent core unlock": "Постоянното отключване на ядрата не можа да се инсталира",
+  "Could not remove the persistent core unlock": "Постоянното отключване на ядрата не можа да се премахне"
 }

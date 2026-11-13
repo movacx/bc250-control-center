@@ -6055,5 +6055,22 @@
   "Distinctive": "โดดเด่น",
   "Rootless Podman has no subordinate user IDs for this user.": "Podman แบบไม่ใช้ root ไม่มี ID ผู้ใช้รองสำหรับผู้ใช้นี้",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman สร้างคอมโพเนนต์นี้ในคอนเทนเนอร์ในนามผู้ใช้ของคุณ ซึ่งต้องมีช่วง ID ผู้ใช้และกลุ่มรองใน /etc/subuid และ /etc/subgid ผู้ใช้ของคุณไม่มีช่วงดังกล่าว หรือ Podman ยังไม่ได้รับช่วงที่เพิ่มเข้าไป จึงไม่สามารถแตกอิมเมจของคอนเทนเนอร์ได้",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "เรียกใช้คำสั่งที่แสดงอยู่เหนือข้อผิดพลาดโดยตรง: คำสั่งเหล่านั้นจะเพิ่มช่วงให้ผู้ใช้ของคุณและให้ Podman รับช่วงนั้น จากนั้นเรียกใช้การทำงานนี้อีกครั้ง"
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "เรียกใช้คำสั่งที่แสดงอยู่เหนือข้อผิดพลาดโดยตรง: คำสั่งเหล่านั้นจะเพิ่มช่วงให้ผู้ใช้ของคุณและให้ Podman รับช่วงนั้น จากนั้นเรียกใช้การทำงานนี้อีกครั้ง",
+  "Remove persistence": "ลบการคงค่า",
+  "Persistence active": "การคงค่าทำงานอยู่",
+  "Install persistence again": "ติดตั้งการคงค่าอีกครั้ง",
+  "Make the unlock permanent": "ทำให้การปลดล็อกถาวร",
+  "Install persistence and restart": "ติดตั้งการคงค่าและรีสตาร์ต",
+  "The boot service stopped itself: {note}": "บริการบูตหยุดตัวเอง: {note}",
+  "Persistence needs a BC-250 running systemd.": "การคงค่าต้องใช้ BC-250 ที่รัน systemd",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "เรียกใช้ เตรียม dependencies โดยเลือก CPU Core Unlock เพื่อดึงเครื่องมือการคงค่า",
+  "Make the core unlock permanent": "ทำให้การปลดล็อกคอร์ถาวร",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "การดำเนินการนี้จะติดตั้งบริการบูตขนาดเล็กที่ปลดล็อกคอร์เพิ่มเติมสองคอร์อีกครั้งตั้งแต่ช่วงต้นของการบูตเย็นทุกครั้ง โดยไม่ต้องแฟลช BIOS จากนั้นการบูตเย็นแต่ละครั้งจะรีสตาร์ตเองหนึ่งครั้ง ประมาณ 30 วินาที หากบอร์ดไม่สามารถคงการปลดล็อกไว้ได้ บริการจะหยุดตัวเองหลังรีสตาร์ตสองครั้ง หากต้องการข้ามในการบูตหนึ่งครั้ง ให้เพิ่ม bc250.core_unlock=0 ลงในบรรทัดคำสั่งของเคอร์เนล",
+  "Every cold boot": "การบูตเย็นทุกครั้ง",
+  "One automatic restart": "รีสตาร์ตอัตโนมัติหนึ่งครั้ง",
+  "Left as it is": "คงไว้ตามเดิม",
+  "Remove core unlock persistence": "ลบการคงค่าการปลดล็อกคอร์",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "บริการบูตถูกลบ ไม่มีการรีสตาร์ต: คอร์ยังคงปลดล็อกจนกว่าจะปิดเครื่องสนิทครั้งถัดไป หลังจากนั้นบอร์ดจะกลับเป็น 6 คอร์",
+  "Could not install the persistent core unlock": "ไม่สามารถติดตั้งการปลดล็อกคอร์แบบถาวรได้",
+  "Could not remove the persistent core unlock": "ไม่สามารถลบการปลดล็อกคอร์แบบถาวรได้"
 }

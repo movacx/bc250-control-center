@@ -6055,5 +6055,22 @@
   "Distinctive": "Distintivos",
   "Rootless Podman has no subordinate user IDs for this user.": "Podman sin root no tiene ID de usuario subordinados para este usuario.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman compila este componente en un contenedor con tu usuario, y eso necesita un rango de ID de usuario y de grupo subordinados en /etc/subuid y /etc/subgid. Tu usuario no tiene ninguno, o Podman todavía no ha tomado un rango que se añadió, así que no se pudo descomprimir la imagen del contenedor.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Ejecuta los comandos que aparecen justo encima del error: añaden el rango para tu usuario y hacen que Podman lo tome. Después vuelve a ejecutar esta acción."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Ejecuta los comandos que aparecen justo encima del error: añaden el rango para tu usuario y hacen que Podman lo tome. Después vuelve a ejecutar esta acción.",
+  "Remove persistence": "Quitar persistencia",
+  "Persistence active": "Persistencia activa",
+  "Install persistence again": "Instalar persistencia de nuevo",
+  "Make the unlock permanent": "Hacer permanente el desbloqueo",
+  "Install persistence and restart": "Instalar persistencia y reiniciar",
+  "The boot service stopped itself: {note}": "El servicio de arranque se detuvo solo: {note}",
+  "Persistence needs a BC-250 running systemd.": "La persistencia necesita una BC-250 con systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Ejecuta Preparar dependencias con CPU Core Unlock seleccionado para descargar la herramienta de persistencia.",
+  "Make the core unlock permanent": "Hacer permanente el desbloqueo de núcleos",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Esto instala un pequeño servicio de arranque que vuelve a desbloquear los dos núcleos extra al principio de cada arranque en frío, sin flashear la BIOS. Cada arranque en frío se reinicia entonces una vez por sí solo, unos 30 segundos. Si la placa no puede conservar el desbloqueo, el servicio se detiene solo tras dos reinicios. Para omitirlo en un arranque, añade bc250.core_unlock=0 a la línea de comandos del kernel.",
+  "Every cold boot": "Cada arranque en frío",
+  "One automatic restart": "Un reinicio automático",
+  "Left as it is": "Se deja como está",
+  "Remove core unlock persistence": "Quitar la persistencia del desbloqueo de núcleos",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Se quita el servicio de arranque. No se reinicia nada: los núcleos siguen desbloqueados hasta el próximo apagado completo, que devuelve la placa a 6 núcleos.",
+  "Could not install the persistent core unlock": "No se pudo instalar el desbloqueo de núcleos persistente",
+  "Could not remove the persistent core unlock": "No se pudo quitar el desbloqueo de núcleos persistente"
 }

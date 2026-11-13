@@ -6055,5 +6055,22 @@
   "Distinctive": "Khas",
   "Rootless Podman has no subordinate user IDs for this user.": "Podman tanpa root tidak memiliki ID pengguna subordinat untuk pengguna ini.",
   "Podman builds this component in a container as your user, which needs a range of subordinate user and group IDs in /etc/subuid and /etc/subgid. Your user has none, or Podman has not picked up a range that was added, so the container image could not be unpacked.": "Podman membangun komponen ini di dalam kontainer sebagai pengguna Anda, dan itu memerlukan rentang ID pengguna dan grup subordinat di /etc/subuid dan /etc/subgid. Pengguna Anda tidak memilikinya, atau Podman belum menerapkan rentang yang ditambahkan, sehingga image kontainer tidak dapat diekstrak.",
-  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Jalankan perintah yang ditampilkan tepat di atas galat: perintah itu menambahkan rentang untuk pengguna Anda dan membuat Podman menerapkannya. Lalu jalankan tindakan ini lagi."
+  "Run the commands printed just above the error: they add the range for your user and let Podman pick it up. Then run this action again.": "Jalankan perintah yang ditampilkan tepat di atas galat: perintah itu menambahkan rentang untuk pengguna Anda dan membuat Podman menerapkannya. Lalu jalankan tindakan ini lagi.",
+  "Remove persistence": "Hapus persistensi",
+  "Persistence active": "Persistensi aktif",
+  "Install persistence again": "Pasang persistensi lagi",
+  "Make the unlock permanent": "Jadikan pembukaan kunci permanen",
+  "Install persistence and restart": "Pasang persistensi dan mulai ulang",
+  "The boot service stopped itself: {note}": "Layanan boot berhenti sendiri: {note}",
+  "Persistence needs a BC-250 running systemd.": "Persistensi memerlukan BC-250 dengan systemd.",
+  "Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.": "Jalankan Siapkan dependensi dengan CPU Core Unlock dipilih untuk mengambil alat persistensi.",
+  "Make the core unlock permanent": "Jadikan pembukaan kunci inti permanen",
+  "This installs a small boot service that unlocks the two extra cores again early on every cold boot, without flashing the BIOS. Each cold boot then restarts once by itself, about 30 seconds. If the board cannot keep the unlock, the service stops itself after two restarts. To skip it for one boot, add bc250.core_unlock=0 to the kernel command line.": "Ini memasang layanan boot kecil yang membuka kunci dua inti tambahan lagi di awal setiap boot dingin, tanpa mem-flash BIOS. Setiap boot dingin kemudian memulai ulang sekali dengan sendirinya, sekitar 30 detik. Jika papan tidak dapat mempertahankan pembukaan kunci, layanan berhenti sendiri setelah dua kali mulai ulang. Untuk melewatinya pada satu boot, tambahkan bc250.core_unlock=0 ke baris perintah kernel.",
+  "Every cold boot": "Setiap boot dingin",
+  "One automatic restart": "Satu mulai ulang otomatis",
+  "Left as it is": "Dibiarkan apa adanya",
+  "Remove core unlock persistence": "Hapus persistensi pembukaan kunci inti",
+  "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, which brings the board back to 6 cores.": "Layanan boot dihapus. Tidak ada yang dimulai ulang: inti tetap terbuka hingga dimatikan sepenuhnya berikutnya, setelah itu papan kembali ke 6 inti.",
+  "Could not install the persistent core unlock": "Tidak dapat memasang pembukaan kunci inti persisten",
+  "Could not remove the persistent core unlock": "Tidak dapat menghapus pembukaan kunci inti persisten"
 }
