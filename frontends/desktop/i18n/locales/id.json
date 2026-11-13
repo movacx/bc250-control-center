@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "bc250-cec milik MastaG sudah berjalan di adaptor CEC ini, jadi dibiarkan apa adanya. Dua layanan CEC di satu adaptor saling mengganggu; hapus bc250-cec dulu untuk memakai yang ini.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "bc250-cec milik MastaG juga terinstal dan memakai adaptor CEC yang sama. Pertahankan satu saja: hapus bc250-cec, atau hapus yang ini.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "Kernel BC-250 sudah memperbaiki telemetri ini. Pengaturan yang disarankan: metode kernel, pembacaan beban kernel, suhu lewat sysfs, kedua perbaikan mati.",
-  "Use the BC-250 kernel settings": "Gunakan pengaturan kernel BC-250"
+  "Use the BC-250 kernel settings": "Gunakan pengaturan kernel BC-250",
+  "Until the next full power-off. Nothing is installed.": "Hingga dimatikan sepenuhnya berikutnya. Tidak ada yang dipasang.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Diterapkan lagi dengan sendirinya pada setiap boot dingin, tanpa mem-flash BIOS.",
+  "Service stopped": "Layanan berhenti",
+  "Resize the session console": "Ubah ukuran konsol sesi",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Akses jarak jauh tidak dapat dimulai, bahkan setelah Control Center mencoba memperbaikinya. Mulai ulang komputer lalu coba lagi. Jika masih tidak dapat dimulai, kirim laporan masalah dari Black Box: laporan itu berisi detailnya.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Akses jarak jauh tidak dapat dimulai karena program lain sedang memakai port-nya. Tutup program itu atau mulai ulang komputer, lalu coba lagi.",
+  "No changes": "Tanpa perubahan",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Tidak ada penyetelan CPU yang aktif: CPU berjalan dengan pengaturan normalnya."
 }

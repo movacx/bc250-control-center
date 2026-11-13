@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "Il bc250-cec di MastaG è già attivo su questo adattatore CEC, quindi viene lasciato com'è. Due servizi CEC sullo stesso adattatore si ostacolano; rimuovi prima bc250-cec per usare questo.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "Anche il bc250-cec di MastaG è installato e usa lo stesso adattatore CEC. Tienine solo uno: rimuovi bc250-cec oppure questo.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "Il kernel BC-250 corregge già questa telemetria. Impostazioni consigliate: metodo kernel, lettura del carico kernel, temperatura da sysfs, entrambe le correzioni spente.",
-  "Use the BC-250 kernel settings": "Usa le impostazioni del kernel BC-250"
+  "Use the BC-250 kernel settings": "Usa le impostazioni del kernel BC-250",
+  "Until the next full power-off. Nothing is installed.": "Fino al prossimo spegnimento completo. Non viene installato nulla.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Riapplicato da solo a ogni avvio a freddo, senza flashare il BIOS.",
+  "Service stopped": "Servizio fermato",
+  "Resize the session console": "Ridimensiona la console di sessione",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "L’accesso remoto non è riuscito ad avviarsi, nemmeno dopo il tentativo di riparazione di Control Center. Riavvia il computer e riprova. Se ancora non si avvia, invia una segnalazione di problema da Black Box: contiene i dettagli.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "L’accesso remoto non è riuscito ad avviarsi perché un altro programma sta usando la sua porta. Chiudi quel programma o riavvia il computer, poi riprova.",
+  "No changes": "Nessuna modifica",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Nessuna regolazione della CPU è attiva: la CPU funziona con le impostazioni normali."
 }

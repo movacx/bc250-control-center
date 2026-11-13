@@ -122,7 +122,9 @@ def test_historical_live_test_is_never_presented_as_current():
 
     assert view.active_source == ""
     assert view.live_value.template == "Not live"
-    assert view.applied_value.template == "3750 MHz"
+    # No tuning is confirmed as active: the last frequency sent is the "Last
+    # operation" tile's, not a standing adjustment.
+    assert view.applied_value.template == "No changes"
 
 
 def test_stale_detection_and_absent_tuning_remain_explicit():
@@ -136,7 +138,7 @@ def test_stale_detection_and_absent_tuning_remain_explicit():
 
     assert view.detection_value.template == "Stale"
     assert view.live_value.template == "Unknown"
-    assert view.applied_value.template == "None"
+    assert view.applied_value.template == "No changes"
     assert view.override_status is None
 
 
@@ -244,3 +246,12 @@ def test_direct_manual_session_never_recommends_boot_persistence():
     assert view.recommended_next_step.template.startswith(
         "Keep testing this temporary manual OC"
     )
+
+
+def test_without_a_confirmed_overclock_the_applied_tuning_says_no_changes():
+    for last in (None, 3850):
+        view = present_cpu_tuning(
+            {}, {}, {}, last_applied_frequency=last, scale_override_enabled=False
+        )
+        assert view.applied_value.template == "No changes"
+        assert "MHz" not in view.applied_value.template

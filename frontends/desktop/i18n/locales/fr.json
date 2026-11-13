@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "Le bc250-cec de MastaG tourne déjà sur cet adaptateur CEC, il est donc laissé tel quel. Deux services CEC sur un même adaptateur se gênent ; supprimez d'abord bc250-cec pour utiliser celui-ci.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "Le bc250-cec de MastaG est aussi installé et utilise le même adaptateur CEC. N'en gardez qu'un : supprimez bc250-cec, ou supprimez celui-ci.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "Le noyau BC-250 corrige déjà cette télémétrie. Ses réglages recommandés : méthode kernel, lecture de charge kernel, température par sysfs, les deux corrections désactivées.",
-  "Use the BC-250 kernel settings": "Utiliser les réglages du noyau BC-250"
+  "Use the BC-250 kernel settings": "Utiliser les réglages du noyau BC-250",
+  "Until the next full power-off. Nothing is installed.": "Jusqu’au prochain arrêt complet. Rien n’est installé.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Réappliqué de lui-même à chaque démarrage à froid, sans flasher le BIOS.",
+  "Service stopped": "Service arrêté",
+  "Resize the session console": "Redimensionner la console de session",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "L’accès à distance n’a pas pu démarrer, même après la tentative de réparation de Control Center. Redémarrez l’ordinateur et réessayez. S’il ne démarre toujours pas, envoyez un rapport de problème depuis Black Box : il contient les détails.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "L’accès à distance n’a pas pu démarrer car un autre programme utilise son port. Fermez ce programme ou redémarrez l’ordinateur, puis réessayez.",
+  "No changes": "Aucun changement",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Aucun réglage du CPU n’est actif : le CPU fonctionne avec ses réglages normaux."
 }

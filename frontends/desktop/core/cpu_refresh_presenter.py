@@ -286,14 +286,12 @@ def _cpu_applied_text(
     frequency: object,
     temperature: object,
     estimated_vid: object,
-    last_applied_frequency: int | None,
 ) -> tuple[CpuText, CpuText]:
     if frequency is None or scale is None:
-        if last_applied_frequency is not None:
-            return _literal(f"{last_applied_frequency} MHz"), _text(
-                "Latest applied CPU frequency; active scale could not be confirmed"
-            )
-        return _text("None"), _text("No CPU tuning has been applied yet")
+        # No overclock is confirmed as active. The last frequency that was
+        # sent belongs to "Last operation"; repeating it here showed a
+        # frequency as if it were a standing adjustment.
+        return _text("No changes"), _text("No CPU tuning is active: the CPU runs at its normal settings.")
 
     value = _text("{frequency} MHz · scale {scale}", frequency=frequency, scale=scale)
     detail_values = {
@@ -379,7 +377,6 @@ def present_cpu_tuning(
         frequency=frequency,
         temperature=temperature,
         estimated_vid=estimated_vid,
-        last_applied_frequency=last_applied_frequency,
     )
     override_status = _cpu_override_status(
         enabled=scale_override_enabled,

@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "MastaG의 bc250-cec가 이미 이 CEC 어댑터에서 실행 중이므로 그대로 둡니다. 한 어댑터에서 CEC 서비스 두 개는 서로 방해합니다. 이것을 쓰려면 먼저 bc250-cec를 제거하세요.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "MastaG의 bc250-cec도 설치되어 있으며 같은 CEC 어댑터를 사용합니다. 하나만 남기세요: bc250-cec를 제거하거나 이것을 제거하세요.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "BC-250 커널은 이미 이 원격 측정을 수정합니다. 권장 설정: kernel 방식, kernel 부하 읽기, sysfs 온도, 두 수정 모두 끄기.",
-  "Use the BC-250 kernel settings": "BC-250 커널 설정 사용"
+  "Use the BC-250 kernel settings": "BC-250 커널 설정 사용",
+  "Until the next full power-off. Nothing is installed.": "다음에 전원을 완전히 끌 때까지. 아무것도 설치하지 않습니다.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "BIOS를 플래시하지 않고 콜드 부팅마다 스스로 다시 적용합니다.",
+  "Service stopped": "서비스 중지됨",
+  "Resize the session console": "세션 콘솔 크기 조정",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Control Center가 복구를 시도했지만 원격 액세스를 시작할 수 없습니다. 컴퓨터를 다시 시작한 뒤 다시 시도하세요. 그래도 시작되지 않으면 Black Box에서 문제 보고서를 보내세요. 자세한 내용이 포함되어 있습니다.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "다른 프로그램이 포트를 사용 중이어서 원격 액세스를 시작할 수 없습니다. 그 프로그램을 닫거나 컴퓨터를 다시 시작한 뒤 다시 시도하세요.",
+  "No changes": "변경 없음",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "활성화된 CPU 튜닝이 없습니다. CPU가 일반 설정으로 동작 중입니다."
 }

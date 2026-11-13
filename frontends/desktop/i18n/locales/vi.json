@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "bc250-cec của MastaG đã chạy trên bộ chuyển CEC này, nên được giữ nguyên. Hai dịch vụ CEC trên cùng một bộ chuyển sẽ cản trở nhau; hãy gỡ bc250-cec trước để dùng cái này.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "bc250-cec của MastaG cũng đã được cài và dùng cùng bộ chuyển CEC. Chỉ giữ một: gỡ bc250-cec, hoặc gỡ cái này.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "Kernel BC-250 đã sửa dữ liệu đo này. Thiết lập khuyến nghị: phương thức kernel, đọc tải kernel, nhiệt độ qua sysfs, tắt cả hai bản sửa.",
-  "Use the BC-250 kernel settings": "Dùng thiết lập của kernel BC-250"
+  "Use the BC-250 kernel settings": "Dùng thiết lập của kernel BC-250",
+  "Until the next full power-off. Nothing is installed.": "Cho đến lần tắt máy hoàn toàn tiếp theo. Không cài gì cả.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Tự áp dụng lại ở mỗi lần khởi động nguội, không cần nạp lại BIOS.",
+  "Service stopped": "Dịch vụ đã dừng",
+  "Resize the session console": "Đổi kích thước bảng điều khiển phiên",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Không thể khởi động truy cập từ xa, kể cả sau khi Control Center đã thử sửa. Hãy khởi động lại máy tính rồi thử lại. Nếu vẫn không khởi động được, hãy gửi báo cáo sự cố từ Black Box: báo cáo có các chi tiết.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Không thể khởi động truy cập từ xa vì một chương trình khác đang dùng cổng của nó. Hãy đóng chương trình đó hoặc khởi động lại máy tính rồi thử lại.",
+  "No changes": "Không thay đổi",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Không có tinh chỉnh CPU nào đang hoạt động: CPU chạy với cài đặt bình thường."
 }

@@ -218,24 +218,14 @@
 }
 
 @media (min-width: 821px) {
-  .desktop-fan-columns { display: grid; grid-template-columns: minmax(0,1.6fr) minmax(320px,1fr); gap: 12px; align-items: start; }
-  .desktop-fan-board > .body { display: grid; gap: 14px; }
-  .desktop-fan-editor { position: sticky; top: 12px; }
-  .desktop-fan-board .fan-profiles { grid-template-columns: minmax(180px,1fr) auto; align-items: end; }
+  .fan-desktop > .body { display: grid; gap: 12px; }
+  .fan-columns { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(360px,1fr); gap: 14px; align-items: start; }
+  .fan-columns .fan-table-wrap { min-height: 420px; }
+  .fan-side { position: sticky; top: 12px; }
 }
 @media (min-width: 821px) and (max-width: 1200px) {
-  .desktop-fan-columns { grid-template-columns: minmax(0,1fr); }
-  .desktop-fan-editor { position: static; }
-}
-
-@media (min-width: 821px) {
-  .desktop-fan-side { display: grid; grid-template-rows: auto minmax(0,1fr); gap: 12px; min-width: 0; }
-  .desktop-fan-tuning > .body { justify-content: space-between; }
-  .desktop-fan-thermal { display: flex; flex-direction: column; }
-  .desktop-fan-thermal > .body { flex: 1; justify-content: center; }
-  .desktop-fan-thermal .read { min-width: 0; font-size: 11px; }
-  .desktop-fan-points .field > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .desktop-fan-points-head { font-size: 9px; color: var(--c-muted); font-weight: 600; }
+  .fan-columns { grid-template-columns: minmax(0,1fr); }
+  .fan-side { position: static; }
 }
 
 @media (min-width: 821px) {

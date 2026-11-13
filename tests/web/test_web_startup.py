@@ -48,12 +48,13 @@ def test_failed_restart_restores_previous_network_and_restarts_it(monkeypatch):
     assert web_control.options()["lan"] is True
 
 
-def test_start_does_not_report_success_when_child_exits_before_listening(monkeypatch):
+def test_start_does_not_report_success_when_child_exits_before_listening(monkeypatch, tmp_path):
+    monkeypatch.setattr(web_control, "server_log_path", lambda: tmp_path / "web-server.log")
     monkeypatch.setattr(web_control, "_listening", lambda _port: False)
     monkeypatch.setattr(web_control, "_command", lambda: ["python"])
     monkeypatch.setattr(web_control, "autostart_state", lambda: {"enabled": False})
     monkeypatch.setattr(web_control.subprocess, "Popen", lambda *a, **k: SimpleNamespace(poll=lambda: 1))
-    with pytest.raises(ActionNeeded, match="did not start"):
+    with pytest.raises(ActionNeeded, match="could not start"):
         web_control.start()
 
 

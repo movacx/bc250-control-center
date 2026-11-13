@@ -15,6 +15,7 @@ from bc250cc.domain.fan.headers import BC250_FAN_HEADERS
 from bc250cc.infrastructure.system_fan_control import (
     downgrade_policy_to_v1,
     policy_digest,
+    system_fan_control_owns_fan,
 )
 
 #: The five fan signals of a BC-250 (J4003 F1..F5 / CPU_FAN1) are always
@@ -363,6 +364,7 @@ def board_rows(board, fans_state: object, snapshot: object, *, pending=(), verif
             "follows": follow,
             "follows_values": follow_values,
             "temperature": finite_number(status.get("temperature")),
+            "sensor": str(status.get("sensor") or ""),
             "target": status.get("percent") if isinstance(status.get("percent"), (int, float)) else None,
             "duty": pwm_to_percent(fan.get("pwm")) if fan.get("pwm") is not None else None,
             "rpm": integer(fan.get("rpm")) if fan.get("rpm") is not None else None,
@@ -373,3 +375,48 @@ def board_rows(board, fans_state: object, snapshot: object, *, pending=(), verif
             "fault": str(status.get("fault") or status.get("error") or ""),
         })
     return out
+
+
+def followed_channels(snapshot: object) -> list[int]:
+    """The channels the root service drives right now, in its own order."""
+    status = service_status(snapshot)
+    controlled = status.get("controlled")
+    if isinstance(controlled, list):
+        return [integer(pwm, -1) for pwm in controlled if integer(pwm, -1) > 0]
+    pwm = integer(status.get("pwm"), -1)
+    return [pwm] if pwm > 0 else []
+
+
+def dashboard_fan(fans_state: object, snapshot: object, config: dict | None = None) -> dict:
+    """The one fan a dashboard's Cooling card shows: the channel the root
+    service follows, else one that is turning (BIOS order, so CPU_FAN1 /
+    J4003 F1 first), else PWM 2, else the first header. Never an empty
+    header just because it is listed first.
+
+    Returns ``{}`` without fans, else the hwmon row plus ``pwm_channel``, ``name``
+    (the user's label or the header) and ``owner`` (a ``FAN_OWNER_LABELS``
+    key: system, daemon, firmware, manual or external).
+    """
+    rows = fan_rows(fans_state)
+    if not rows:
+        return {}
+    snapshot = as_dict(snapshot)
+    board = board_from_config(config or {})
+    order = [pwm for pwm in channel_numbers(rows, board.channels) if pwm in rows]
+    order += [pwm for pwm in sorted(rows) if pwm not in order]
+    followed = [pwm for pwm in followed_channels(snapshot) if pwm in rows] if snapshot.get("enabled") else []
+    turning = [pwm for pwm in order if integer(rows[pwm].get("rpm")) > 0]
+    pwm = (followed or turning or [pwm for pwm in order if pwm == 2] or order)[0]
+    row = rows[pwm]
+    if snapshot.get("external"):
+        owner = "external"
+    elif system_fan_control_owns_fan(snapshot) and (pwm in followed or not followed_channels(snapshot)):
+        owner = "system"
+    elif integer(row.get("pwm_enable"), -1) == 2:
+        owner = "firmware"
+    elif str(pwm) in board.channels:
+        owner = "daemon"
+    else:
+        owner = "manual"
+    name = board.labels.get(str(pwm)) or f"{header_text(pwm)} · PWM {pwm}"
+    return {**row, "pwm_channel": pwm, "name": name, "owner": owner}

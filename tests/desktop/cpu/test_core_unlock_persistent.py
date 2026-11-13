@@ -345,21 +345,47 @@ def _view(qtbot, width=1440):
 
 
 @pytest.mark.parametrize("width", [1180, 1440])
-def test_choosing_a_mode_never_changes_the_size_of_the_card(qtbot, width):
+def test_switching_mode_does_not_make_the_card_jump(qtbot, width):
+    """The card may grow for a stopped service's note, never on a mode click."""
     view = _view(qtbot, width)
     panel = view._risk_panel
-    heights = set()
-    for mode in (UNLOCK_MODE_TEMPORARY, UNLOCK_MODE_PERSISTENT):
-        view._choose_mode(mode)
-        for state in STATES.values():
-            view.apply_state(replace(CpuControlState(), core_unlock=state))
+    for state in STATES.values():
+        view.apply_state(replace(CpuControlState(), core_unlock=state))
+        heights = set()
+        for mode in (UNLOCK_MODE_TEMPORARY, UNLOCK_MODE_PERSISTENT, UNLOCK_MODE_TEMPORARY):
+            view._choose_mode(mode)
             qtbot.wait(1)
             heights.add(panel.height())
-    # And with the switch removed altogether, as the card was before it.
-    view._mode_host.hide()
-    qtbot.wait(1)
-    heights.add(panel.height())
-    assert len(heights) == 1, heights
+        assert len(heights) == 1, (state, heights)
+
+
+def test_clicking_anywhere_on_an_option_selects_it(qtbot):
+    from PyQt6.QtCore import QPoint
+    from PyQt6.QtCore import Qt as QtCore
+
+    view = _view(qtbot)
+    view.apply_state(replace(CpuControlState(), core_unlock=STATES["temporary-ready"]))
+    option = view._mode_buttons[UNLOCK_MODE_PERSISTENT]
+    qtbot.mouseClick(option.description, QtCore.MouseButton.LeftButton, pos=QPoint(4, 4))
+    assert view.unlock_mode() == UNLOCK_MODE_PERSISTENT
+    assert option.is_selected()
+    assert not view._mode_buttons[UNLOCK_MODE_TEMPORARY].is_selected()
+    assert view.unlock_button.text() == "Install persistence and restart"
+    # Nothing installed: no removal link next to the button.
+    assert not view.firmware_button.isVisible()
+
+
+def test_each_option_says_whether_it_is_the_one_in_use(qtbot):
+    view = _view(qtbot)
+    view.apply_state(replace(CpuControlState(), core_unlock=STATES["persistent-unlocked"]))
+    assert view._mode_buttons[UNLOCK_MODE_TEMPORARY].tag.text() == "In use"
+    assert view._mode_buttons[UNLOCK_MODE_PERSISTENT].tag.isHidden()
+    view.apply_state(replace(CpuControlState(), core_unlock=STATES["persistent-active"]))
+    assert view._mode_buttons[UNLOCK_MODE_TEMPORARY].tag.isHidden()
+    assert view._mode_buttons[UNLOCK_MODE_PERSISTENT].tag.text() == "In use"
+    view.apply_state(replace(CpuControlState(), core_unlock=STATES["persistent-gave-up"]))
+    assert view._mode_buttons[UNLOCK_MODE_PERSISTENT].tag.text() == "Service stopped"
+    assert view._mode_buttons[UNLOCK_MODE_PERSISTENT].tag.property("tone") == "orange"
 
 
 def test_a_board_with_the_service_installed_opens_on_persistence_until_the_owner_chooses(qtbot):
@@ -391,11 +417,11 @@ def test_each_mode_sends_its_own_request(qtbot):
     view._choose_mode(UNLOCK_MODE_PERSISTENT)
     view.ignore_mask_line.check.setChecked(True)
     view.unlock_button.click()
-    view.firmware_button.click()  # nothing installed yet: still the guide
+    assert not view.firmware_button.isVisible()  # nothing installed yet: no link
     view.apply_state(replace(CpuControlState(), core_unlock=STATES["persistent-gave-up"]))
     view.firmware_button.click()
 
-    assert sent == [("temporary", False), ("guide",), ("persist", True), ("guide",), ("remove",)]
+    assert sent == [("temporary", False), ("guide",), ("persist", True), ("remove",)]
 
 
 def test_a_service_that_stopped_itself_offers_a_reinstall_and_shows_why(qtbot):
@@ -404,7 +430,11 @@ def test_a_service_that_stopped_itself_offers_a_reinstall_and_shows_why(qtbot):
     state = replace(STATES["persistent-gave-up"], persist_allowed=True, persistence_source_ready=True)
     view.apply_state(replace(CpuControlState(), core_unlock=state))
     assert view.unlock_button.text() == "Install persistence again"
-    assert "Mask still 0x77" in view.unlock_button.toolTip()
+    # Said in plain sight, not in a tooltip.
+    assert view._unlock_note.isVisible()
+    assert "Mask still 0x77" in view._unlock_note.text()
+    view._choose_mode(UNLOCK_MODE_TEMPORARY)
+    assert view._unlock_note.isVisible()
 
 
 def test_persistence_is_unavailable_without_systemd(qtbot):
@@ -412,3 +442,71 @@ def test_persistence_is_unavailable_without_systemd(qtbot):
     view.apply_state(replace(CpuControlState(), core_unlock=STATES["unsupported"]))
     assert not view._mode_buttons[UNLOCK_MODE_PERSISTENT].isEnabled()
     assert "systemd" in view._mode_buttons[UNLOCK_MODE_PERSISTENT].toolTip()
+
+
+# ------------------------------------------------------------------ session console
+
+
+def _console_view(qtbot, settings):
+    from PyQt6.QtWidgets import QPlainTextEdit
+
+    view = CpuControlView(settings=settings)
+    qtbot.addWidget(view)
+    console = QPlainTextEdit("\n".join(f"line {index}" for index in range(60)))
+    view.mount_console(console)
+    view.resize(1440, 1600)
+    view.show()
+    qtbot.waitExposed(view)
+    return view
+
+
+def test_the_console_keeps_the_height_it_was_last_dragged_to(qtbot, tmp_path):
+    from PyQt6.QtCore import QSettings
+
+    from frontends.desktop.pages.cpu_control_view import (
+        CONSOLE_DEFAULT_HEIGHT,
+        CONSOLE_HEIGHT_KEY,
+    )
+
+    path = str(tmp_path / "ui.ini")
+    view = _console_view(qtbot, QSettings(path, QSettings.Format.IniFormat))
+    assert view.console_height() == CONSOLE_DEFAULT_HEIGHT
+    view.console_grip.pressed.emit()
+    view.console_grip.dragged.emit(150)
+    assert view.console_height() == CONSOLE_DEFAULT_HEIGHT + 150
+    view._console_save_timer.timeout.emit()
+    view.close()
+
+    reopened = _console_view(qtbot, QSettings(path, QSettings.Format.IniFormat))
+    assert reopened.console_height() == CONSOLE_DEFAULT_HEIGHT + 150
+    assert int(QSettings(path, QSettings.Format.IniFormat).value(CONSOLE_HEIGHT_KEY)) == CONSOLE_DEFAULT_HEIGHT + 150
+
+
+def test_the_console_grip_sits_below_it_and_double_click_fits_the_text(qtbot, tmp_path):
+    from PyQt6.QtCore import QSettings
+
+    from frontends.desktop.pages.cpu_control_view import CONSOLE_DEFAULT_HEIGHT
+
+    view = _console_view(qtbot, QSettings(str(tmp_path / "ui.ini"), QSettings.Format.IniFormat))
+    console, grip = view._console, view.console_grip
+    assert grip.geometry().top() >= console.geometry().bottom()
+    grip.double_clicked.emit()
+    assert view.console_height() > CONSOLE_DEFAULT_HEIGHT
+    grip.double_clicked.emit()
+    assert view.console_height() == CONSOLE_DEFAULT_HEIGHT
+
+
+def test_a_broken_saved_height_falls_back_and_is_clamped(qtbot, tmp_path):
+    from PyQt6.QtCore import QSettings
+
+    from frontends.desktop.pages.cpu_control_view import (
+        CONSOLE_DEFAULT_HEIGHT,
+        CONSOLE_HEIGHT_KEY,
+        CONSOLE_MIN_HEIGHT,
+    )
+
+    settings = QSettings(str(tmp_path / "ui.ini"), QSettings.Format.IniFormat)
+    settings.setValue(CONSOLE_HEIGHT_KEY, "tall")
+    assert _console_view(qtbot, settings).console_height() == CONSOLE_DEFAULT_HEIGHT
+    settings.setValue(CONSOLE_HEIGHT_KEY, 5)
+    assert _console_view(qtbot, settings).console_height() == CONSOLE_MIN_HEIGHT

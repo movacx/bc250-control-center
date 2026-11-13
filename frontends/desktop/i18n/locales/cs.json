@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "bc250-cec od MastaG už na tomto adaptéru CEC běží, takže zůstává, jak je. Dvě služby CEC na jednom adaptéru si překážejí; nejprve odeberte bc250-cec, chcete-li použít tuto.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "bc250-cec od MastaG je také nainstalovaný a používá stejný adaptér CEC. Ponechte jen jeden: odeberte bc250-cec, nebo tento.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "Jádro BC-250 tuto telemetrii už opravuje. Doporučené nastavení: metoda kernel, čtení zátěže kernel, teplota přes sysfs, obě opravy vypnuté.",
-  "Use the BC-250 kernel settings": "Použít nastavení jádra BC-250"
+  "Use the BC-250 kernel settings": "Použít nastavení jádra BC-250",
+  "Until the next full power-off. Nothing is installed.": "Do příštího úplného vypnutí. Nic se neinstaluje.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Znovu se použije samo při každém studeném startu, bez flashování BIOSu.",
+  "Service stopped": "Služba zastavena",
+  "Resize the session console": "Změnit velikost konzole relace",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Vzdálený přístup se nepodařilo spustit ani poté, co se ho Control Center pokusil opravit. Restartujte počítač a zkuste to znovu. Pokud se stále nespustí, odešlete hlášení o problému z Black Box: obsahuje podrobnosti.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Vzdálený přístup se nepodařilo spustit, protože jeho port používá jiný program. Zavřete tento program nebo restartujte počítač a zkuste to znovu.",
+  "No changes": "Beze změn",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Není aktivní žádné ladění CPU: procesor běží s běžným nastavením."
 }

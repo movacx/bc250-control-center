@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.",
-  "Use the BC-250 kernel settings": "Use the BC-250 kernel settings"
+  "Use the BC-250 kernel settings": "Use the BC-250 kernel settings",
+  "Until the next full power-off. Nothing is installed.": "Until the next full power-off. Nothing is installed.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Applied again by itself on every cold boot, without flashing the BIOS.",
+  "Service stopped": "Service stopped",
+  "Resize the session console": "Resize the session console",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.",
+  "No changes": "No changes",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "No CPU tuning is active: the CPU runs at its normal settings."
 }

@@ -3390,17 +3390,40 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QLabel[runtimeStatLabel='true'] {{
         color: {c['muted']};
-        font-size: 9px;
+        font-size: 10px;
         font-weight: 760;
     }}
     QLabel[runtimeStatValue='true'] {{
         color: {c['text']};
-        font-size: 13px;
+        font-size: 15px;
         font-weight: 830;
     }}
     QLabel[runtimeStatDetail='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+    }}
+    /* Per-core monitor rows. Coloured here, not inline: an inline sheet keeps
+       the palette it was written with, and after a switch to the dark theme
+       the rows stayed light-theme ink on a dark panel until the next reading. */
+    QFrame[coreRow='true'] {{
+        background: transparent;
+        border: none;
+    }}
+    QFrame[coreRow='true'][ruled='true'] {{
+        border-top: 1px solid {c['border_soft']};
+    }}
+    QLabel[coreName='true'], QLabel[coreClock='true'], QLabel[coreLoad='true'] {{
+        background: transparent;
+        border: none;
+    }}
+    QLabel[coreName='true'] {{ color: {c['muted']}; font-size: 11px; font-weight: 800; }}
+    QLabel[coreClock='true'] {{ color: {c['text']}; font-size: 12px; font-weight: 750; }}
+    QLabel[coreLoad='true'] {{ color: {c['muted']}; font-size: 11px; font-weight: 700; }}
+    QLabel[coreName='true'][offline='true'],
+    QLabel[coreClock='true'][offline='true'],
+    QLabel[coreLoad='true'][offline='true'] {{
         color: {c['subtle']};
-        font-size: 8px;
+        font-weight: 700;
     }}
     QFrame[sliderControl='true'] {{
         background: {c['panel_alt']};
@@ -3590,6 +3613,27 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QWidget[redesignedModule='true'] QCheckBox::indicator:disabled {{
         background: transparent;
         border-color: {c['border_soft']};
+    }}
+    /* On the red danger panel the hairline vanished into the tint: a firm
+       border and a white well keep the box findable, enabled or not. */
+    QWidget[redesignedModule='true'] QFrame[riskPanel='true'] QCheckBox::indicator {{
+        width: 18px;
+        height: 18px;
+        border: 2px solid {c['red_border']};
+        border-radius: 6px;
+        background: {c['panel']};
+    }}
+    QWidget[redesignedModule='true'] QFrame[riskPanel='true'] QCheckBox::indicator:hover {{
+        border-color: {c['red']};
+    }}
+    QWidget[redesignedModule='true'] QFrame[riskPanel='true'] QCheckBox::indicator:checked {{
+        background: {c['red']};
+        border-color: {c['red']};
+        image: url({icon_dir}/check_white.svg);
+    }}
+    QWidget[redesignedModule='true'] QFrame[riskPanel='true'] QCheckBox::indicator:disabled {{
+        background: {c['panel']};
+        border: 2px solid {c['red_border']};
     }}
     QWidget[redesignedModule='true'] QLabel[cardTitle='true'] {{
         color: {c['text']};
@@ -3802,30 +3846,71 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QWidget[redesignedModule='true'] QLabel[eyebrow='true'][danger='true'] {{
         color: {c['red']};
     }}
-    /* Temporary | Persistence switch in the CPU danger zone's eyebrow row.
-       Sized to that row (16 px) so choosing a mode never resizes the card. */
-    QWidget[redesignedModule='true'] QPushButton[riskSegment='true'] {{
-        background: transparent;
+    /* CPU danger zone: the two ways to unlock, as selectable rows. */
+    QWidget[redesignedModule='true'] QFrame[unlockOption='true'] {{
+        background: {c['panel']};
         border: 1px solid {c['red_border']};
-        border-radius: 6px;
-        padding: 0px 9px;
-        min-height: 14px;
-        max-height: 14px;
-        color: {c['red']};
-        font-size: 10px;
-        font-weight: 700;
+        border-radius: 10px;
     }}
-    QWidget[redesignedModule='true'] QPushButton[riskSegment='true']:hover {{
+    QWidget[redesignedModule='true'] QFrame[unlockOption='true']:hover {{
         border-color: {c['red']};
     }}
-    QWidget[redesignedModule='true'] QPushButton[riskSegment='true']:checked {{
-        background: {c['red']};
-        border-color: {c['red']};
-        color: {c['on_accent']};
+    QWidget[redesignedModule='true'] QFrame[unlockOption='true'][selected='true'] {{
+        border: 1px solid {c['red']};
+        background: {c['panel']};
     }}
-    QWidget[redesignedModule='true'] QPushButton[riskSegment='true']:disabled {{
+    QWidget[redesignedModule='true'] QFrame[unlockOption='true']:disabled {{
         border-color: {c['border_soft']};
+        background: transparent;
+    }}
+    QWidget[redesignedModule='true'] QLabel[unlockOptionTitle='true'] {{
+        color: {c['text']};
+        font-size: 13px;
+        font-weight: 700;
+        background: transparent;
+    }}
+    QWidget[redesignedModule='true'] QLabel[unlockOptionHint='true'] {{
         color: {c['muted']};
+        font-size: 11px;
+        background: transparent;
+    }}
+    QWidget[redesignedModule='true'] QFrame[unlockOption='true'] QLabel:disabled {{
+        color: {c['disabled_text']};
+    }}
+    QWidget[redesignedModule='true'] QLabel[unlockOptionTag='true'] {{
+        color: {c['muted']};
+        font-size: 11px;
+        font-weight: 700;
+        background: transparent;
+    }}
+    QWidget[redesignedModule='true'] QLabel[unlockOptionTag='true'][tone='green'] {{
+        color: {c['green']};
+    }}
+    QWidget[redesignedModule='true'] QLabel[unlockOptionTag='true'][tone='orange'] {{
+        color: {c['orange']};
+    }}
+    QWidget[redesignedModule='true'] QRadioButton[unlockRadio='true'] {{
+        background: transparent;
+        spacing: 0px;
+    }}
+    QWidget[redesignedModule='true'] QRadioButton[unlockRadio='true']::indicator {{
+        width: 12px;
+        height: 12px;
+        border-radius: 8px;
+        border: 2px solid {c['border_strong']};
+        background: {c['panel']};
+    }}
+    QWidget[redesignedModule='true'] QRadioButton[unlockRadio='true']::indicator:checked {{
+        border: 5px solid {c['red']};
+        width: 6px;
+        height: 6px;
+    }}
+    QWidget[redesignedModule='true'] QLabel[unlockNote='true'] {{
+        background: {c['orange_soft']};
+        color: {c['orange']};
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 11px;
     }}
     QWidget[redesignedModule='true'] QLabel[railLegend='true'] {{
         color: {c['red']};

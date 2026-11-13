@@ -248,3 +248,25 @@ def test_web_state_without_a_driver_says_what_is_missing():
     data = _fans({"fans": {"sensores": {"fans": []}}, "system": {}, "config": {}}, ctx)
     assert data["driver"].startswith("No NCT fan controller")
     assert all(row["state"] == "Not detected" for row in data["channels"])
+
+
+def _board_fans(*turning):
+    rows = [{"index": i, "label": f"J4003 Fan {i}", "rpm": 1572 if i in turning else 0, "pwm": 115, "pwm_enable": 1,
+             "pwm_path": f"/x/pwm{i}", "pwm_root_writable": True} for i in (1, 2, 3, 4, 5)]
+    return {"driver_control": True, "sensores": {"fans": rows}}
+
+
+def test_the_cooling_card_shows_the_fan_the_service_follows_not_the_first_listed():
+    from bc250cc.application.fan.board_view import dashboard_fan
+    system = {"enabled": True, "policy": {"schema": 2}, "status": {"controlled": [2]}}
+    fan = dashboard_fan(_board_fans(2), system, {"fan_channels": {"2": CURVE}})
+    assert fan["pwm_channel"] == 2 and fan["rpm"] == 1572 and fan["owner"] == "system"
+    assert fan["name"] == "CPU_FAN1 / J4003 Fan 1 · PWM 2"
+
+
+def test_the_cooling_card_falls_back_to_a_turning_fan_then_to_cpu_fan1():
+    from bc250cc.application.fan.board_view import dashboard_fan
+    assert dashboard_fan(_board_fans(4), {}, {})["pwm_channel"] == 4  # turning beats an idle PWM 2
+    idle = dashboard_fan(_board_fans(), {}, {"fan_channel_labels": {"2": "Front"}})
+    assert idle["pwm_channel"] == 2 and idle["name"] == "Front" and idle["owner"] == "manual"
+    assert dashboard_fan({"sensores": {"fans": []}}, {}, {}) == {}

@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "MastaG 的 bc250-cec 已在此 CEC 适配器上运行，因此保持不变。同一适配器上的两个 CEC 服务会互相干扰；要使用这个，请先移除 bc250-cec。",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "MastaG 的 bc250-cec 也已安装，并使用同一个 CEC 适配器。只保留一个：移除 bc250-cec，或移除这个。",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "BC-250 内核已经修正了这项遥测。推荐设置：kernel 方式、kernel 负载读取、通过 sysfs 读取温度、两项修正都关闭。",
-  "Use the BC-250 kernel settings": "使用 BC-250 内核设置"
+  "Use the BC-250 kernel settings": "使用 BC-250 内核设置",
+  "Until the next full power-off. Nothing is installed.": "直到下次完全断电。不安装任何内容。",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "每次冷启动时自动重新应用，无需刷写 BIOS。",
+  "Service stopped": "服务已停止",
+  "Resize the session console": "调整会话控制台大小",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "即使 Control Center 尝试修复后，远程访问仍无法启动。请重启电脑后重试。如果仍无法启动，请从 Black Box 发送问题报告：其中包含详细信息。",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "远程访问无法启动，因为另一个程序正在使用其端口。请关闭该程序或重启电脑，然后重试。",
+  "No changes": "无更改",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "当前没有生效的 CPU 调优：CPU 以正常设置运行。"
 }

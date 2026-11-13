@@ -131,7 +131,9 @@
    "service_summary": "FAN-0554",
    "service_out_of_date": "FAN-0555",
    "follows": "FAN-0556",
-   "board_rows": "FAN-0557"
+   "board_rows": "FAN-0557",
+   "followed_channels": "FAN-0558",
+   "dashboard_fan": "FAN-0559"
   },
   "bc250cc/application/fan/calibration.py": {
    "calibrate": "FAN-0502"
@@ -3129,6 +3131,7 @@
    "CoreRow.resizeEvent": "CPU-0007",
    "CoreRow.set_first": "CPU-0008",
    "CoreRow._refresh_border": "CPU-0009",
+   "CoreRow._set_offline_state": "CPU-0328",
    "CoreRow.set_reading": "CPU-0010",
    "CoreRow.set_offline": "CPU-0011",
    "CoreGrid.__init__": "CPU-0012",

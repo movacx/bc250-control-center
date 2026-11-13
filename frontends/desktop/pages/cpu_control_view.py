@@ -47,7 +47,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Sequence
 
-from PyQt6.QtCore import QEvent, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -56,6 +56,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QRadioButton,
     QScrollArea,
     QSizePolicy,
     QSpacerItem,
@@ -63,7 +64,6 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from PyQt6.QtWidgets import QPushButton as PlainPushButton
 
 from bc250cc.shared.contract import (
     CPU_FREQUENCY_RANGE,
@@ -79,8 +79,10 @@ from ..components.buttons import WrappingButton as QPushButton
 from ..components.card_navigation import EditableCardNavigation
 from ..components.core_monitor import CoreGrid, CoreReading
 from ..components.page_widgets import SectionCard, caption, subpanel
+from ..components.resize_grip import ResizeGrip
 from ..components.style_state import set_style_property
 from ..components.widgets import icon
+from ..core.preferences import application_settings
 from ..i18n import shipped_name, tr, tr_format
 from ..theme import COLORS
 
@@ -142,9 +144,19 @@ class CoreUnlockState:
     remove_allowed: bool = False
 
 
-#: The two modes of the danger zone, in the order of its switch.
+#: The two modes of the danger zone, in the order of its options.
 UNLOCK_MODE_TEMPORARY = "temporary"
 UNLOCK_MODE_PERSISTENT = "persistent"
+#: The session console's height: where the owner last dragged it, kept in the
+#: UI settings, between these bounds.
+CONSOLE_HEIGHT_KEY = "cpu/session_console_height"
+CONSOLE_DEFAULT_HEIGHT = 219
+CONSOLE_MIN_HEIGHT = 120
+CONSOLE_MAX_HEIGHT = 3000
+TEMPORARY_OPTION_HINT = "Until the next full power-off. Nothing is installed."
+PERSISTENT_OPTION_HINT = (
+    "Applied again by itself on every cold boot, without flashing the BIOS."
+)
 
 
 @dataclass(frozen=True)
@@ -332,9 +344,9 @@ class StatCard(QFrame):
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding
         )
-        self.setMinimumHeight(78)
+        self.setMinimumHeight(66)
         box = QVBoxLayout(self)
-        box.setContentsMargins(10, 8, 10, 9)
+        box.setContentsMargins(12, 10, 12, 10)
         box.setSpacing(1)
         self.label = QLabel(tr(label))
         self.label.setWordWrap(True)
@@ -342,15 +354,14 @@ class StatCard(QFrame):
         self.value = QLabel("--")
         self.value.setWordWrap(True)
         self.value.setProperty("runtimeStatValue", True)
-        self.detail = QLabel("")
-        self.detail.setWordWrap(True)
-        self.detail.setProperty("runtimeStatDetail", True)
-        for widget in (self.label, self.value, self.detail):
+        for widget in (self.label, self.value):
             box.addWidget(widget)
 
     def set_values(self, value: str, detail: str = "") -> None:
         self.value.setText(value or "--")
-        self.detail.setText(detail)
+        # The explanation is no longer printed under every reading: it stays
+        # one hover away, so the tile reads as a label and a number.
+        self.setToolTip(detail)
 
     def set_label(self, label: str) -> None:
         self.label.setText(tr(label))
@@ -490,6 +501,81 @@ class CheckLine(QWidget):
             self.check.toggle()
             return True
         return super().eventFilter(watched, event)
+
+
+class UnlockOption(QFrame):
+    """One way to unlock the cores: a radio, its name, one line on what it does,
+    and its state on the right ("In use", "Active", "Stopped").
+
+    The whole row is the click target; the radio carries keyboard focus and
+    belongs to the panel's exclusive group.
+    """
+
+    chosen = pyqtSignal()
+
+    def __init__(self, title: str, description: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._title_source, self._description_source = title, description
+        self._tag_source = ""
+        self.setProperty("unlockOption", True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        # Never squeezed below its own height when the card is short of room.
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
+        row = QHBoxLayout(self)
+        row.setContentsMargins(12, 10, 12, 10)
+        row.setSpacing(10)
+        self.radio = QRadioButton()
+        self.radio.setProperty("unlockRadio", True)
+        self.radio.clicked.connect(self._pick)
+        row.addWidget(self.radio, 0, Qt.AlignmentFlag.AlignTop)
+        text = QVBoxLayout()
+        text.setContentsMargins(0, 0, 0, 0)
+        text.setSpacing(2)
+        head = QHBoxLayout()
+        head.setSpacing(8)
+        self.title = QLabel(tr(title))
+        self.title.setProperty("unlockOptionTitle", True)
+        head.addWidget(self.title, 1)
+        self.tag = QLabel("")
+        self.tag.setProperty("unlockOptionTag", True)
+        self.tag.hide()
+        head.addWidget(self.tag, 0, Qt.AlignmentFlag.AlignRight)
+        text.addLayout(head)
+        self.description = QLabel(tr(description))
+        self.description.setProperty("unlockOptionHint", True)
+        self.description.setWordWrap(True)
+        text.addWidget(self.description)
+        row.addLayout(text, 1)
+
+    def _pick(self) -> None:
+        if self.isEnabled():
+            self.chosen.emit()
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt)
+        if event.button() == Qt.MouseButton.LeftButton and self.isEnabled():
+            self.chosen.emit()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+    def set_selected(self, selected: bool) -> None:
+        self.radio.setChecked(bool(selected))
+        set_style_property(self, "selected", bool(selected))
+
+    def is_selected(self) -> bool:
+        return self.radio.isChecked()
+
+    def set_tag(self, text: str, tone: str = "") -> None:
+        """``text`` is an English source; ``tone`` is green, orange or empty."""
+        self._tag_source = text
+        self.tag.setText(tr(text) if text else "")
+        self.tag.setVisible(bool(text))
+        set_style_property(self.tag, "tone", tone)
+
+    def retranslate(self) -> None:
+        self.title.setText(tr(self._title_source))
+        self.description.setText(tr(self._description_source))
+        self.set_tag(self._tag_source, str(self.tag.property("tone") or ""))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -776,12 +862,20 @@ class CpuControlView(QWidget):
         ("live", "Live CPU status"),
     )
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None, *, settings=None):
         super().__init__(parent)
         # Opts into the shared redesigned-module stylesheet block.
         self.setProperty("redesignedModule", True)
         self.setProperty("cpuControlPage", True)
         self._state = CpuControlState()
+        # Where the console's last height is kept (the app's UI settings
+        # unless a test hands its own in). Read only once a console mounts.
+        self._settings = settings
+        self._console: QWidget | None = None
+        self._console_save_timer = QTimer(self)
+        self._console_save_timer.setSingleShot(True)
+        self._console_save_timer.setInterval(250)
+        self._console_save_timer.timeout.connect(lambda: self._view_settings().sync())
         self._selected_profile_key = DEFAULT_CPU_PROFILES[0].key
         # A refresh must never move a profile the user just picked. Selection
         # re-syncs with the hardware when the screen is entered again, not on
@@ -1015,24 +1109,67 @@ class CpuControlView(QWidget):
         card.setVisible(False)
         return card
 
+    def _view_settings(self):
+        if self._settings is None:
+            self._settings = application_settings()
+        return self._settings
+
     def mount_console(self, console: QWidget) -> None:
-        """Adopt the host page's session console into this workspace."""
+        """Adopt the host page's session console into this workspace.
+
+        It keeps the height its owner last dragged it to, with the same
+        "• • •" bar the full diagnosis uses under each log: drag to resize,
+        double-click to fit the text and back.
+        """
         console.setParent(None)
-        console.setMinimumHeight(120)
-        console.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        console.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._console = console
+        try:
+            saved = self._view_settings().value(CONSOLE_HEIGHT_KEY)
+            height = int(saved) if saved is not None else CONSOLE_DEFAULT_HEIGHT
+        except (TypeError, ValueError):
+            height = CONSOLE_DEFAULT_HEIGHT
+        self._set_console_height(height, save=False)
         # Inserted ahead of the processor-identity rows already in this box,
         # so the console stays on top of them.
-        self._console_box.insertWidget(0, console, 1)
+        self._console_box.insertWidget(0, console, 0)
+        self.console_grip = ResizeGrip()
+        self.console_grip.setAccessibleName(tr("Resize the session console"))
+        self._console_drag_start = 0
+        self.console_grip.pressed.connect(
+            lambda: setattr(self, "_console_drag_start", console.height())
+        )
+        self.console_grip.dragged.connect(
+            lambda delta: self._set_console_height(self._console_drag_start + delta)
+        )
+        self.console_grip.double_clicked.connect(self._toggle_console_fit)
+        self._console_box.insertWidget(1, self.console_grip, 0)
         self._console_card.setVisible(True)
-        # The console is what absorbs the leftover height now, so the spacer
-        # that used to hold the two columns level steps aside.
-        self._left_column_box.removeItem(self._left_spacer)
-        self._left_column_box.setStretch(
-            self._left_column_box.indexOf(self._console_card), 1
-        )
-        self._console_card.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
+
+    def console_height(self) -> int:
+        return self._console.height() if self._console is not None else 0
+
+    def _set_console_height(self, height: int, *, save: bool = True) -> None:
+        clamped = max(CONSOLE_MIN_HEIGHT, min(CONSOLE_MAX_HEIGHT, int(height)))
+        self._console.setFixedHeight(clamped)
+        if save:
+            settings = self._view_settings()
+            settings.setValue(CONSOLE_HEIGHT_KEY, clamped)
+            # Written once the drag settles, not on every pixel.
+            self._console_save_timer.start()
+
+    def _console_fit_height(self) -> int:
+        console = self._console
+        document = getattr(console, "document", None)
+        lines = max(1, document().blockCount()) if callable(document) else 1
+        chrome = 2 * console.frameWidth() + 24
+        return lines * console.fontMetrics().lineSpacing() + chrome
+
+    def _toggle_console_fit(self) -> None:
+        """Fit the console to its text; again, back to the usual height."""
+        fit = max(CONSOLE_MIN_HEIGHT, min(CONSOLE_MAX_HEIGHT, self._console_fit_height()))
+        current = self._console.height()
+        self._set_console_height(CONSOLE_DEFAULT_HEIGHT if abs(current - fit) <= 2 else fit)
 
     # ── Live metrics ───────────────────────────────────────────────────────
     def _build_telemetry_card(self) -> SectionCard:
@@ -1066,12 +1203,6 @@ class CpuControlView(QWidget):
             )
         runtime_head.addWidget(self._busy_badge, 0, Qt.AlignmentFlag.AlignVCenter)
         runtime_box.addLayout(runtime_head)
-        runtime_box.addWidget(
-            caption(
-                "What will be used for this session and what will happen at "
-                "the next boot."
-            )
-        )
         self.runtime_cards: dict[str, StatCard] = {
             key: StatCard(label) for key, label in self.RUNTIME_ROWS
         }
@@ -1085,9 +1216,6 @@ class CpuControlView(QWidget):
         head = QHBoxLayout()
         head.setSpacing(8)
         head.addWidget(caption("Detected by the OS"), 1)
-        self._core_shape = QLabel("--")
-        self._core_shape.setProperty("rangeReadout", True)
-        head.addWidget(self._core_shape, 0, Qt.AlignmentFlag.AlignRight)
         cores_box.addLayout(head)
         self.core_grid = CoreGrid()
         cores_box.addWidget(self.core_grid)
@@ -1101,89 +1229,66 @@ class CpuControlView(QWidget):
         risk_panel.setProperty("riskPanel", True)
         # Tighter than the default subpanel: this box was leaving visible air
         # between its own text and buttons instead of using it as margin.
-        risk_box.setContentsMargins(14, 10, 14, 10)
-        risk_box.setSpacing(5)
+        risk_box.setContentsMargins(16, 14, 16, 14)
+        risk_box.setSpacing(8)
+        # The red panel says "careful" by itself: no eyebrow kicker above it.
         risk_head = QHBoxLayout()
-        risk_head.setSpacing(7)
-        risk_glyph = QLabel()
-        risk_glyph.setPixmap(icon("warning_orange").pixmap(QSize(14, 14)))
-        risk_glyph.setFixedSize(14, 16)
-        risk_head.addWidget(risk_glyph, 0)
-        eyebrow = QLabel(tr("DANGER ZONE"))
-        eyebrow.setProperty("eyebrow", True)
-        eyebrow.setProperty("danger", True)
-        risk_head.addWidget(eyebrow, 1)
-        # Temporary | Persistence. Lives in this row, at its height, so the
-        # card keeps its size; the rows below only change their text.
+        risk_head.setSpacing(10)
+        risk_title = QLabel(tr("Unlock hidden CPU cores"))
+        risk_title.setProperty("panelHeadline", True)
+        risk_title.setWordWrap(True)
+        risk_head.addWidget(risk_title, 1)
+        risk_box.addLayout(risk_head)
+
+        # The two ways to unlock, each said in one line; the selected one is
+        # what the button below does.
         self._unlock_mode = UNLOCK_MODE_TEMPORARY
         self._mode_chosen = False
         self._mode_group = QButtonGroup(risk_panel)
         self._mode_group.setExclusive(True)
-        self._mode_buttons: dict[str, PlainPushButton] = {}
-        self._mode_host = QWidget(risk_panel)
-        mode_row = QHBoxLayout(self._mode_host)
-        mode_row.setContentsMargins(0, 0, 0, 0)
-        mode_row.setSpacing(4)
-        for mode, label in (
-            (UNLOCK_MODE_TEMPORARY, "Temporary"),
-            (UNLOCK_MODE_PERSISTENT, "Persistence"),
+        self._mode_buttons: dict[str, UnlockOption] = {}
+        for mode, title, description in (
+            (UNLOCK_MODE_TEMPORARY, "Temporary", TEMPORARY_OPTION_HINT),
+            (UNLOCK_MODE_PERSISTENT, "Persistence", PERSISTENT_OPTION_HINT),
         ):
-            button = PlainPushButton(tr(label))
-            button.setProperty("riskSegment", True)
-            button.setCheckable(True)
-            button.setFixedHeight(16)
-            button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.clicked.connect(lambda _checked=False, chosen=mode: self._choose_mode(chosen))
-            self._mode_group.addButton(button)
-            self._mode_buttons[mode] = button
-            mode_row.addWidget(button)
-        self._mode_buttons[UNLOCK_MODE_TEMPORARY].setChecked(True)
-        self._mode_host.setFixedHeight(16)
-        risk_head.addWidget(self._mode_host, 0, Qt.AlignmentFlag.AlignVCenter)
-        risk_box.addLayout(risk_head)
-        # Only where the eyebrow row is too narrow for the switch (a phone-
-        # width window) does it move onto this row of its own; at every
-        # desktop width this row stays empty and takes no space.
-        self._risk_head = risk_head
-        self._risk_eyebrow = eyebrow
-        self._mode_wrap_row = QHBoxLayout()
-        self._mode_wrap_row.setContentsMargins(0, 0, 0, 0)
-        risk_box.addLayout(self._mode_wrap_row)
-        risk_panel.installEventFilter(self)
+            option = UnlockOption(title, description, risk_panel)
+            option.chosen.connect(lambda chosen=mode: self._choose_mode(chosen))
+            self._mode_group.addButton(option.radio)
+            self._mode_buttons[mode] = option
+            risk_box.addWidget(option)
+        self._mode_buttons[UNLOCK_MODE_TEMPORARY].set_selected(True)
 
-        risk_title = QLabel(tr("Unlock hidden CPU cores"))
-        risk_title.setProperty("panelHeadline", True)
-        risk_title.setWordWrap(True)
-        risk_box.addWidget(risk_title)
-        risk_box.addWidget(
-            caption(
-                "Experimental, restart-required action for supported BC-250 boards."
-            )
-        )
+        # Only when the boot service stopped itself: why, in plain sight.
+        self._unlock_note = QLabel("")
+        self._unlock_note.setProperty("unlockNote", True)
+        self._unlock_note.setWordWrap(True)
+        self._unlock_note.hide()
+        risk_box.addWidget(self._unlock_note)
 
-        # This row used to say "Unlock support: Ready", which the button's own
-        # state already said; that now lives in the button's tooltip. The row
-        # holds upstream's "-f" instead: its tool refuses a core mask other
-        # than 0x77, and some owners run boards that pass stress tests anyway.
+        # Upstream's "-f": its tool refuses a core mask other than 0x77, and
+        # some owners run boards that pass stress tests anyway.
         self.ignore_mask_line = CheckLine(IGNORE_CORE_MASK_LABEL, risk_panel)
         self.ignore_mask_line.setToolTip(tr(IGNORE_CORE_MASK_HINT))
         self.ignore_mask_line.setEnabled(False)
         risk_box.addWidget(self.ignore_mask_line)
 
-        self.firmware_button = QPushButton(tr("Firmware persistence guide"))
-        self.firmware_button.setProperty("linkButton", True)
-        self.firmware_button.setProperty("flushLeft", True)
-        self.firmware_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.firmware_button.clicked.connect(self._link_clicked)
-        risk_box.addWidget(self.firmware_button, 0, Qt.AlignmentFlag.AlignLeft)
-
+        actions = QHBoxLayout()
+        actions.setSpacing(8)
         self.unlock_button = QPushButton(tr("Unlock cores and restart"))
         self.unlock_button.setProperty("dangerAction", True)
         self.unlock_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.unlock_button.setEnabled(False)
         self.unlock_button.clicked.connect(self._action_clicked)
-        risk_box.addWidget(self.unlock_button)
+        actions.addWidget(self.unlock_button, 1)
+        self.firmware_button = QPushButton(tr("Firmware persistence guide"))
+        # Same look as the boot-persistence buttons above: equal width, the
+        # action in the red tone, the other one neutral. Hidden when there is
+        # nothing to offer, which gives the action the whole row.
+        self.firmware_button.setProperty("ghostButton", True)
+        self.firmware_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.firmware_button.clicked.connect(self._link_clicked)
+        actions.addWidget(self.firmware_button, 1)
+        risk_box.addLayout(actions)
 
         # The GPU module leaves more air above its danger zone than between the
         # neutral panels, so it reads as a separate class of control. The
@@ -1307,11 +1412,6 @@ class CpuControlView(QWidget):
 
     def _apply_cores(self, state: CpuControlState) -> None:
         self.core_grid.set_readings(state.cores)
-        # ``topology`` arrives from the backend already formatted in English;
-        # the shape the unlock workflow composes is the translated one.
-        self._core_shape.setText(
-            state.core_unlock.detected_shape or state.topology or tr("Not detected")
-        )
 
     def _apply_tuning(self, tuning: CpuTuningState) -> None:
         for key, _label in self.RUNTIME_ROWS:
@@ -1361,7 +1461,8 @@ class CpuControlView(QWidget):
 
     def _set_mode(self, mode: str) -> None:
         self._unlock_mode = mode
-        self._mode_buttons[mode].setChecked(True)
+        for key, option in self._mode_buttons.items():
+            option.set_selected(key == mode)
         self._apply_unlock(self._state.core_unlock)
 
     def _persistence_link(self, unlock: CoreUnlockState) -> bool:
@@ -1390,20 +1491,48 @@ class CpuControlView(QWidget):
             and self._unlock_mode != UNLOCK_MODE_PERSISTENT
         ):
             self._unlock_mode = UNLOCK_MODE_PERSISTENT
-            self._mode_buttons[UNLOCK_MODE_PERSISTENT].setChecked(True)
+        for key, option in self._mode_buttons.items():
+            option.set_selected(key == self._unlock_mode)
+
+        stopped = unlock.persistence_installed and not unlock.persistence_active
+        temporary = self._mode_buttons[UNLOCK_MODE_TEMPORARY]
+        persistent = self._mode_buttons[UNLOCK_MODE_PERSISTENT]
+        temporary.set_tag(
+            "In use" if unlock.unlocked and not unlock.persistence_active else "", "green"
+        )
+        if unlock.persistence_active:
+            persistent.set_tag("In use", "green")
+        elif stopped:
+            persistent.set_tag("Service stopped", "orange")
+        else:
+            persistent.set_tag("")
         persistence_offered = bool(unlock.persistence_supported or unlock.persistence_installed)
-        self._mode_buttons[UNLOCK_MODE_PERSISTENT].setEnabled(persistence_offered)
-        self._mode_buttons[UNLOCK_MODE_PERSISTENT].setToolTip(
+        persistent.setEnabled(persistence_offered)
+        persistent.setToolTip(
             "" if persistence_offered else tr("Persistence needs a BC-250 running systemd.")
         )
+
+        # Why a service stopped itself is said in plain sight, in both modes.
+        note = (
+            tr_format(
+                "The boot service stopped itself: {note}",
+                note=unlock.persistence_note or unlock.persistence_status,
+            )
+            if stopped
+            else ""
+        )
+        self._unlock_note.setText(note)
+        self._unlock_note.setVisible(bool(note))
 
         if self._unlock_mode == UNLOCK_MODE_PERSISTENT:
             self._apply_persistent_unlock(unlock)
             return
         self.firmware_button.setText(tr("Firmware persistence guide"))
+        self.firmware_button.setVisible(True)
         self.firmware_button.setEnabled(True)
-        self.firmware_button.setToolTip("")
-        self.unlock_button.setText(tr("Unlock cores and restart"))
+        self.unlock_button.setText(
+            tr("Already unlocked") if unlock.unlocked else tr("Unlock cores and restart")
+        )
         self.unlock_button.setToolTip(
             tr_format(
                 "Unlock support: {state}",
@@ -1416,25 +1545,16 @@ class CpuControlView(QWidget):
 
     def _apply_persistent_unlock(self, unlock: CoreUnlockState) -> None:
         stopped = unlock.persistence_installed and not unlock.persistence_active
-        self.firmware_button.setToolTip("")
-        if unlock.persistence_installed:
-            self.firmware_button.setText(tr("Remove persistence"))
-            self.firmware_button.setEnabled(bool(unlock.remove_allowed))
-        else:
-            self.firmware_button.setText(tr("Firmware persistence guide"))
-            self.firmware_button.setEnabled(True)
+        # Nothing to remove yet: the link only exists once a service does.
+        self.firmware_button.setText(tr("Remove persistence"))
+        self.firmware_button.setVisible(bool(unlock.persistence_installed))
+        self.firmware_button.setEnabled(bool(unlock.remove_allowed))
 
-        tip = ""
         if unlock.persistence_active:
             text = tr("Persistence active")
             allowed = False
         elif stopped:
-            # The service's own note (English, from the tool) says why.
             text = tr("Install persistence again")
-            tip = tr_format(
-                "The boot service stopped itself: {note}",
-                note=unlock.persistence_note or unlock.persistence_status,
-            )
             allowed = unlock.persist_allowed
         elif unlock.unlocked:
             text = tr("Make the unlock permanent")
@@ -1442,6 +1562,7 @@ class CpuControlView(QWidget):
         else:
             text = tr("Install persistence and restart")
             allowed = unlock.persist_allowed
+        tip = ""
         if not unlock.persistence_supported:
             tip = tr("Persistence needs a BC-250 running systemd.")
         elif not unlock.persistence_source_ready and not unlock.persistence_active:
@@ -1478,8 +1599,8 @@ class CpuControlView(QWidget):
             self.runtime_cards[key].set_label(label)
         self.ignore_mask_line.retranslate()
         self.ignore_mask_line.setToolTip(tr(IGNORE_CORE_MASK_HINT))
-        self._mode_buttons[UNLOCK_MODE_TEMPORARY].setText(tr("Temporary"))
-        self._mode_buttons[UNLOCK_MODE_PERSISTENT].setText(tr("Persistence"))
+        for option in self._mode_buttons.values():
+            option.retranslate()
         self._busy_badge.retranslate()
         for profile_card in self._profile_cards:
             profile_card.retranslate()
@@ -1496,28 +1617,6 @@ class CpuControlView(QWidget):
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt)
         super().resizeEvent(event)
         self._reflow(self.width())
-
-    def eventFilter(self, watched, event) -> bool:  # noqa: N802 (Qt)
-        if watched is self._risk_panel and event.type() == QEvent.Type.Resize:
-            self._place_mode_switch(self._risk_panel.width())
-        return super().eventFilter(watched, event)
-
-    def _place_mode_switch(self, panel_width: int) -> None:
-        """Keep the switch in the eyebrow row unless that row cannot fit it."""
-        margins = self._risk_panel.layout().contentsMargins()
-        needed = (
-            margins.left() + margins.right()
-            + 14 + self._risk_head.spacing()  # the warning glyph
-            + self._risk_eyebrow.sizeHint().width() + self._risk_head.spacing()
-            + self._mode_host.sizeHint().width()
-        )
-        wrapped = self._mode_wrap_row.indexOf(self._mode_host) >= 0
-        if panel_width >= needed and wrapped:
-            self._mode_wrap_row.removeWidget(self._mode_host)
-            self._risk_head.addWidget(self._mode_host, 0, Qt.AlignmentFlag.AlignVCenter)
-        elif panel_width < needed and not wrapped:
-            self._risk_head.removeWidget(self._mode_host)
-            self._mode_wrap_row.addWidget(self._mode_host, 0, Qt.AlignmentFlag.AlignLeft)
 
     def _reflow(self, width: int) -> None:
         stacked = width < STACK_WIDTH

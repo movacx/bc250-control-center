@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "MastaG'nin bc250-cec'i bu CEC adaptöründe zaten çalışıyor, bu yüzden olduğu gibi bırakıldı. Tek adaptörde iki CEC hizmeti birbirine engel olur; bunu kullanmak için önce bc250-cec'i kaldırın.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "MastaG'nin bc250-cec'i de kurulu ve aynı CEC adaptörünü kullanıyor. Yalnızca birini tutun: bc250-cec'i ya da bunu kaldırın.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "BC-250 çekirdeği bu telemetriyi zaten düzeltiyor. Önerilen ayarları: kernel yöntemi, kernel yük okuması, sysfs üzerinden sıcaklık, iki düzeltme de kapalı.",
-  "Use the BC-250 kernel settings": "BC-250 çekirdeğinin ayarlarını kullan"
+  "Use the BC-250 kernel settings": "BC-250 çekirdeğinin ayarlarını kullan",
+  "Until the next full power-off. Nothing is installed.": "Bir sonraki tam kapanışa kadar. Hiçbir şey kurulmaz.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "BIOS'u flaşlamadan her soğuk açılışta kendiliğinden yeniden uygulanır.",
+  "Service stopped": "Hizmet durduruldu",
+  "Resize the session console": "Oturum konsolunu yeniden boyutlandır",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Uzaktan erişim, Control Center onarmaya çalıştıktan sonra bile başlatılamadı. Bilgisayarı yeniden başlatıp tekrar deneyin. Hâlâ başlamazsa Black Box'tan bir sorun raporu gönderin: ayrıntılar içindedir.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Uzaktan erişim başlatılamadı çünkü bağlantı noktasını başka bir program kullanıyor. O programı kapatın veya bilgisayarı yeniden başlatıp tekrar deneyin.",
+  "No changes": "Değişiklik yok",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Etkin bir CPU ayarı yok: CPU normal ayarlarıyla çalışıyor."
 }

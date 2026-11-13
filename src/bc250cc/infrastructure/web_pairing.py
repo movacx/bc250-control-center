@@ -15,11 +15,11 @@ import hmac
 import json
 import os
 import secrets
-import tempfile
 import time
 from contextlib import contextmanager
 
 from bc250cc.infrastructure.persistence.config_paths import app_config_dir
+from bc250cc.infrastructure.web_devices import write_durably
 
 TTL_SECONDS = 10 * 60
 #: A token is replaced before it expires, so a QR left on screen never goes stale.
@@ -51,15 +51,9 @@ def _store():
             data = {k: v for k, v in data.items() if isinstance(v, dict) and float(v.get("expires") or 0) > now}
             yield data
             if json.dumps(data, sort_keys=True) != before or not path.exists():
-                with tempfile.NamedTemporaryFile(mode="w", dir=folder, delete=False, encoding="utf-8") as output:
-                    temporary = output.name
-                    os.chmod(temporary, 0o600)
-                    json.dump(data, output)
-                try:
-                    os.replace(temporary, path)
-                finally:
-                    if os.path.exists(temporary):
-                        os.unlink(temporary)
+                # Same durable replace as the session registry: a power cut
+                # must not leave an empty file behind.
+                write_durably(folder, path, data)
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
 

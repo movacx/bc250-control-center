@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "MastaGs bc250-cec kører allerede på denne CEC-adapter, så den lades, som den er. To CEC-tjenester på én adapter kommer i vejen for hinanden; fjern bc250-cec først for at bruge denne.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "MastaGs bc250-cec er også installeret og bruger den samme CEC-adapter. Behold kun én: fjern bc250-cec, eller fjern denne.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "BC-250-kernen retter allerede denne telemetri. Anbefalede indstillinger: metoden kernel, belastningsaflæsning kernel, temperatur via sysfs, begge rettelser slået fra.",
-  "Use the BC-250 kernel settings": "Brug BC-250-kernens indstillinger"
+  "Use the BC-250 kernel settings": "Brug BC-250-kernens indstillinger",
+  "Until the next full power-off. Nothing is installed.": "Indtil næste fulde slukning. Intet installeres.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Anvendes igen af sig selv ved hver kold start, uden at flashe BIOS.",
+  "Service stopped": "Tjeneste stoppet",
+  "Resize the session console": "Tilpas størrelsen på sessionskonsollen",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Fjernadgang kunne ikke starte, heller ikke efter at Control Center forsøgte at reparere den. Genstart computeren, og prøv igen. Hvis den stadig ikke starter, så send en problemrapport fra Black Box: den indeholder detaljerne.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Fjernadgang kunne ikke starte, fordi et andet program bruger dens port. Luk det program, eller genstart computeren, og prøv igen.",
+  "No changes": "Ingen ændringer",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Ingen CPU-tuning er aktiv: CPU'en kører med sine normale indstillinger."
 }

@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "bc250-cec на MastaG вече работи на този CEC адаптер, затова остава както е. Две CEC услуги на един адаптер си пречат; първо премахнете bc250-cec, за да използвате тази.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "bc250-cec на MastaG също е инсталиран и използва същия CEC адаптер. Запазете само един: премахнете bc250-cec или тази услуга.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "Ядрото BC-250 вече поправя тази телеметрия. Препоръчани настройки: метод kernel, отчитане на натоварването kernel, температура през sysfs, двете поправки изключени.",
-  "Use the BC-250 kernel settings": "Използване на настройките на ядрото BC-250"
+  "Use the BC-250 kernel settings": "Използване на настройките на ядрото BC-250",
+  "Until the next full power-off. Nothing is installed.": "До следващото пълно изключване. Нищо не се инсталира.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Прилага се отново само при всяко студено стартиране, без презаписване на BIOS.",
+  "Service stopped": "Услугата е спряна",
+  "Resize the session console": "Преоразмеряване на конзолата на сесията",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Отдалеченият достъп не можа да стартира дори след като Control Center опита да го поправи. Рестартирайте компютъра и опитайте отново. Ако пак не стартира, изпратете доклад за проблем от Black Box: той съдържа подробностите.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Отдалеченият достъп не можа да стартира, защото друга програма използва порта му. Затворете тази програма или рестартирайте компютъра и опитайте отново.",
+  "No changes": "Без промени",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Няма активна настройка на CPU: процесорът работи с обичайните си настройки."
 }

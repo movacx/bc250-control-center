@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "MastaGs bc250-cec läuft bereits auf diesem CEC-Adapter und bleibt daher, wie es ist. Zwei CEC-Dienste an einem Adapter kommen sich in die Quere; entfernen Sie zuerst bc250-cec, um diesen zu nutzen.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "MastaGs bc250-cec ist ebenfalls installiert und nutzt denselben CEC-Adapter. Behalten Sie nur einen: Entfernen Sie bc250-cec oder diesen hier.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "Der BC-250-Kernel korrigiert diese Telemetrie bereits. Seine empfohlenen Einstellungen: Methode kernel, Auslastung über kernel, Temperatur über sysfs, beide Korrekturen aus.",
-  "Use the BC-250 kernel settings": "Einstellungen des BC-250-Kernels verwenden"
+  "Use the BC-250 kernel settings": "Einstellungen des BC-250-Kernels verwenden",
+  "Until the next full power-off. Nothing is installed.": "Bis zum nächsten vollständigen Ausschalten. Es wird nichts installiert.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Wird bei jedem Kaltstart von selbst erneut angewendet, ohne das BIOS zu flashen.",
+  "Service stopped": "Dienst gestoppt",
+  "Resize the session console": "Größe der Sitzungskonsole ändern",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Der Fernzugriff konnte nicht starten, auch nicht nachdem Control Center versucht hat, ihn zu reparieren. Starten Sie den Computer neu und versuchen Sie es erneut. Startet er weiterhin nicht, senden Sie einen Problembericht aus Black Box: Er enthält die Details.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Der Fernzugriff konnte nicht starten, weil ein anderes Programm seinen Port verwendet. Schließen Sie dieses Programm oder starten Sie den Computer neu und versuchen Sie es erneut.",
+  "No changes": "Keine Änderungen",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Keine CPU-Abstimmung ist aktiv: Die CPU läuft mit ihren normalen Einstellungen."
 }

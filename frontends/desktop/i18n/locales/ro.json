@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "bc250-cec de la MastaG rulează deja pe acest adaptor CEC, așa că rămâne cum este. Două servicii CEC pe același adaptor se încurcă; elimină mai întâi bc250-cec ca să-l folosești pe acesta.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "bc250-cec de la MastaG este și el instalat și folosește același adaptor CEC. Păstrează doar unul: elimină bc250-cec sau elimină-l pe acesta.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "Kernelul BC-250 corectează deja această telemetrie. Setările recomandate: metoda kernel, citirea încărcării kernel, temperatura prin sysfs, ambele corecții oprite.",
-  "Use the BC-250 kernel settings": "Folosește setările kernelului BC-250"
+  "Use the BC-250 kernel settings": "Folosește setările kernelului BC-250",
+  "Until the next full power-off. Nothing is installed.": "Până la următoarea oprire completă. Nu se instalează nimic.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Se aplică din nou de la sine la fiecare pornire la rece, fără a scrie BIOS-ul.",
+  "Service stopped": "Serviciu oprit",
+  "Resize the session console": "Redimensionează consola sesiunii",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Accesul la distanță nu a putut porni, nici după ce Control Center a încercat să-l repare. Repornește calculatorul și încearcă din nou. Dacă tot nu pornește, trimite un raport de problemă din Black Box: conține detaliile.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Accesul la distanță nu a putut porni deoarece alt program îi folosește portul. Închide acel program sau repornește calculatorul, apoi încearcă din nou.",
+  "No changes": "Fără modificări",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Niciun reglaj al CPU nu este activ: CPU funcționează cu setările normale."
 }

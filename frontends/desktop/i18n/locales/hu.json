@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "MastaG bc250-cec szolgáltatása már fut ezen a CEC adapteren, ezért változatlanul marad. Két CEC szolgáltatás egy adapteren zavarja egymást; előbb távolítsd el a bc250-cec-et, ha ezt akarod használni.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "MastaG bc250-cec szolgáltatása is telepítve van, és ugyanazt a CEC adaptert használja. Csak az egyiket tartsd meg: távolítsd el a bc250-cec-et, vagy ezt.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "A BC-250 kernel már javítja ezt a telemetriát. Ajánlott beállításai: kernel módszer, kernel terheléskiolvasás, hőmérséklet sysfs-en át, mindkét javítás kikapcsolva.",
-  "Use the BC-250 kernel settings": "A BC-250 kernel beállításainak használata"
+  "Use the BC-250 kernel settings": "A BC-250 kernel beállításainak használata",
+  "Until the next full power-off. Nothing is installed.": "A következő teljes kikapcsolásig. Semmi sem települ.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Minden hidegindításkor magától újra érvényesül, a BIOS flashelése nélkül.",
+  "Service stopped": "Szolgáltatás leállítva",
+  "Resize the session console": "A munkamenet-konzol átméretezése",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "A távoli hozzáférés nem indult el, még azután sem, hogy a Control Center megpróbálta kijavítani. Indítsa újra a számítógépet, és próbálja újra. Ha továbbra sem indul el, küldjön hibajelentést a Black Box felületről: ez tartalmazza a részleteket.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "A távoli hozzáférés nem indult el, mert a portját egy másik program használja. Zárja be azt a programot, vagy indítsa újra a számítógépet, majd próbálja újra.",
+  "No changes": "Nincs változás",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Nincs aktív CPU-hangolás: a CPU a szokásos beállításaival működik."
 }

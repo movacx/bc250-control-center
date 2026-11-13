@@ -190,7 +190,21 @@ def test_fans_board_lists_every_header_in_bios_order_with_its_state():
                                  "fan_channel_labels": {"2": "AIO pump"}})
     shown = text_of(render(build_pages()["fans"], ctx, FakeUI(), "channels"))
     assert shown.index("AIO pump") < shown.index("J4003 F2") < shown.index("J4003 F5")
-    assert "Fixed · Pump" in shown and "Saved" in shown and "Not detected" in shown
+    assert "Fixed" in shown and "Saved" in shown and "Not detected" in shown
+
+
+def channel_table(layout):
+    return next(c.pad for c in layout.choices if c.pad is not None and "BIOS" in c.pad.headers)
+
+
+def test_fans_table_moves_with_the_arrows_and_the_editor_follows():
+    ctx, _service = fan_context()
+    page = build_pages()["fans"]
+    table = channel_table(render(page, ctx, FakeUI(), "channels"))
+    assert table.move(1, 0) and ctx.state("fans")["pwm"] == 3
+    assert not table.move(0, 1)  # sideways leaves the table
+    shown = text_of(render(page, ctx, FakeUI(), "channels"))
+    assert "PWM 3 · J4003 Fan 2" in shown
 
 
 def test_fans_fixed_speed_on_a_channel_writes_verifies_and_saves_only_that_channel():
@@ -245,17 +259,40 @@ def test_fans_switching_channels_with_a_draft_asks_first():
     ui = FakeUI(choices=["fixed", "cancel"])
     page = build_pages()["fans"]
     choice(render(page, ctx, ui, "channels"), "Mode").handler(ui)
-    choice(render(page, ctx, ui, "channels"), "  J4003 F2").handler(ui)  # Cancel keeps the draft
+    table = channel_table(render(page, ctx, ui, "channels"))
+    assert table.move(1, 0) and ctx.state("fans")["pwm"] == 2  # a draft keeps the editor where it is
+    table.toggle(ui)  # Enter on J4003 F2: Cancel keeps the draft
     assert ctx.state("fans")["pwm"] == 2 and ctx.state("fans")["draft"]["mode"] == "fixed"
     ui.choices = ["discard"]
-    choice(render(page, ctx, ui, "channels"), "  J4003 F2").handler(ui)
+    table = channel_table(render(page, ctx, ui, "channels"))
+    table.move(1, 0)
+    table.toggle(ui)
     assert ctx.state("fans")["pwm"] == 3 and "draft" not in ctx.state("fans") and not service.calls
+
+
+def test_fans_curve_points_are_a_grid_edited_with_enter():
+    ctx, _service = fan_context({"fan_channels": {"2": {"mode": "curve", "points": [[40, 30], [60, 50], [80, 100]]}}})
+    ui = FakeUI(ints=[55])
+    page = build_pages()["fans"]
+    grid = next(c.pad for c in render(page, ctx, ui, "channels").choices if c.pad is not None and "°C" not in c.pad.headers)
+    assert grid.move(0, 1)  # to the PWM % column of point #1
+    grid = next(c.pad for c in render(page, ctx, ui, "channels").choices if c.pad is not None and "°C" not in c.pad.headers)
+    grid.toggle(ui)  # Enter: type 55 %
+    assert ctx.state("fans")["draft"]["points"][0] == [40, 55]
+
+
+def test_the_dashboard_cooling_card_shows_the_followed_fan():
+    ctx, service = fan_context({"fan_channels": {"2": {"mode": "curve", "points": [[40, 30], [80, 100]]}}},
+                               system={"enabled": True, "available": True, "state": "active",
+                                       "policy": {"schema": 2}, "status": {"controlled": [2]}})
+    shown = text_of(render(build_pages()["dashboard"], ctx, FakeUI()))
+    assert "1700 RPM" in shown and "CPU_FAN1" in shown and "System service" in shown
 
 
 def test_fans_built_in_profile_goes_to_the_turning_headers():
     ctx, _service = fan_context()
     ui = FakeUI(choices=["Quiet"])
-    choice(render(build_pages()["fans"], ctx, ui, "channels"), "Profile").handler(ui)
+    choice(render(build_pages()["fans"], ctx, ui, "channels"), "Profile: Balanced").handler(ui)
     assert set(ctx.settings.config["fan_channels"]) == {"2", "3"}
     assert ctx.settings.config["fan_active_mode"] == "Quiet"
 

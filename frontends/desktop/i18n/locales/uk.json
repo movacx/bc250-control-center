@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "bc250-cec від MastaG уже працює на цьому адаптері CEC, тож його залишено як є. Дві служби CEC на одному адаптері заважають одна одній; спершу видаліть bc250-cec, щоб використовувати цю.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "bc250-cec від MastaG теж встановлено, і він використовує той самий адаптер CEC. Залиште лише один: видаліть bc250-cec або цю службу.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "Ядро BC-250 уже виправляє цю телеметрію. Рекомендовані налаштування: метод kernel, читання навантаження kernel, температура через sysfs, обидва виправлення вимкнено.",
-  "Use the BC-250 kernel settings": "Використати налаштування ядра BC-250"
+  "Use the BC-250 kernel settings": "Використати налаштування ядра BC-250",
+  "Until the next full power-off. Nothing is installed.": "До наступного повного вимкнення. Нічого не встановлюється.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Застосовується знову сама під час кожного холодного завантаження, без прошивання BIOS.",
+  "Service stopped": "Службу зупинено",
+  "Resize the session console": "Змінити розмір консолі сеансу",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Віддалений доступ не вдалося запустити, навіть після спроби Control Center його виправити. Перезавантажте комп’ютер і спробуйте знову. Якщо він усе одно не запускається, надішліть звіт про проблему з Black Box: у ньому є подробиці.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Віддалений доступ не вдалося запустити: його порт зайнятий іншою програмою. Закрийте цю програму або перезавантажте комп’ютер і спробуйте знову.",
+  "No changes": "Без змін",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Налаштування CPU не активне: процесор працює зі звичайними параметрами."
 }

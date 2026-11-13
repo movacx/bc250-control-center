@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "MastaG の bc250-cec がこの CEC アダプターですでに動作しているため、そのままにします。1 つのアダプターに CEC サービスが 2 つあると互いに干渉します。こちらを使うには先に bc250-cec を削除してください。",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "MastaG の bc250-cec もインストールされており、同じ CEC アダプターを使っています。どちらか 1 つだけ残してください: bc250-cec を削除するか、こちらを削除します。",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "BC-250 カーネルはこのテレメトリーをすでに修正しています。推奨設定: 方式 kernel、負荷の読み取り kernel、温度は sysfs、2 つの修正はオフ。",
-  "Use the BC-250 kernel settings": "BC-250 カーネルの設定を使う"
+  "Use the BC-250 kernel settings": "BC-250 カーネルの設定を使う",
+  "Until the next full power-off. Nothing is installed.": "次に完全に電源を切るまで。何もインストールしません。",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "BIOS を書き換えずに、コールドブートのたびに自動で再適用します。",
+  "Service stopped": "サービス停止",
+  "Resize the session console": "セッションコンソールのサイズを変更",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Control Center が修復を試みましたが、リモートアクセスを開始できませんでした。コンピューターを再起動してもう一度お試しください。それでも開始しない場合は、Black Box から問題レポートを送信してください。詳細が含まれています。",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "別のプログラムがポートを使用しているため、リモートアクセスを開始できませんでした。そのプログラムを閉じるか、コンピューターを再起動してからもう一度お試しください。",
+  "No changes": "変更なし",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "有効な CPU チューニングはありません。CPU は通常の設定で動作しています。"
 }

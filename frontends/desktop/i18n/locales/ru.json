@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "bc250-cec от MastaG уже работает на этом адаптере CEC, поэтому он оставлен как есть. Две службы CEC на одном адаптере мешают друг другу; сначала удалите bc250-cec, чтобы использовать эту.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "bc250-cec от MastaG тоже установлен и использует тот же адаптер CEC. Оставьте только один: удалите bc250-cec или эту службу.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "Ядро BC-250 уже исправляет эту телеметрию. Рекомендуемые настройки: метод kernel, чтение загрузки kernel, температура через sysfs, оба исправления выключены.",
-  "Use the BC-250 kernel settings": "Использовать настройки ядра BC-250"
+  "Use the BC-250 kernel settings": "Использовать настройки ядра BC-250",
+  "Until the next full power-off. Nothing is installed.": "До следующего полного выключения. Ничего не устанавливается.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Применяется снова сама при каждой холодной загрузке, без прошивки BIOS.",
+  "Service stopped": "Служба остановлена",
+  "Resize the session console": "Изменить размер консоли сеанса",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Удалённый доступ не удалось запустить, даже после попытки Control Center его исправить. Перезагрузите компьютер и попробуйте снова. Если он всё равно не запускается, отправьте отчёт о проблеме из Black Box: в нём есть подробности.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Удалённый доступ не удалось запустить: его порт занят другой программой. Закройте эту программу или перезагрузите компьютер и попробуйте снова.",
+  "No changes": "Без изменений",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Настройка CPU не активна: процессор работает с обычными параметрами."
 }

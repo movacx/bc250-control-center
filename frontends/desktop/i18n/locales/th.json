@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "bc250-cec ของ MastaG ทำงานบนอะแดปเตอร์ CEC นี้อยู่แล้ว จึงปล่อยไว้ตามเดิม บริการ CEC สองตัวบนอะแดปเตอร์เดียวจะรบกวนกัน ให้ลบ bc250-cec ก่อนเพื่อใช้ตัวนี้",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "bc250-cec ของ MastaG ติดตั้งอยู่ด้วยและใช้อะแดปเตอร์ CEC เดียวกัน ให้เก็บไว้เพียงตัวเดียว: ลบ bc250-cec หรือลบตัวนี้",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "เคอร์เนล BC-250 แก้ข้อมูลวัดนี้อยู่แล้ว ค่าที่แนะนำ: วิธี kernel, อ่านโหลดแบบ kernel, อุณหภูมิผ่าน sysfs และปิดการแก้ไขทั้งสอง",
-  "Use the BC-250 kernel settings": "ใช้การตั้งค่าของเคอร์เนล BC-250"
+  "Use the BC-250 kernel settings": "ใช้การตั้งค่าของเคอร์เนล BC-250",
+  "Until the next full power-off. Nothing is installed.": "จนกว่าจะปิดเครื่องสนิทครั้งถัดไป ไม่มีการติดตั้งอะไร",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "นำไปใช้อีกครั้งเองทุกครั้งที่บูตเย็น โดยไม่ต้องแฟลช BIOS",
+  "Service stopped": "บริการหยุดแล้ว",
+  "Resize the session console": "ปรับขนาดคอนโซลเซสชัน",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "ไม่สามารถเริ่มการเข้าถึงระยะไกลได้ แม้ Control Center จะพยายามซ่อมแล้ว รีสตาร์ตคอมพิวเตอร์แล้วลองอีกครั้ง หากยังเริ่มไม่ได้ ให้ส่งรายงานปัญหาจาก Black Box ซึ่งมีรายละเอียดอยู่",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "ไม่สามารถเริ่มการเข้าถึงระยะไกลได้ เพราะโปรแกรมอื่นกำลังใช้พอร์ตของมัน ปิดโปรแกรมนั้นหรือรีสตาร์ตคอมพิวเตอร์ แล้วลองอีกครั้ง",
+  "No changes": "ไม่มีการเปลี่ยนแปลง",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "ไม่มีการปรับแต่ง CPU ที่ใช้งานอยู่: CPU ทำงานด้วยการตั้งค่าปกติ"
 }

@@ -6124,5 +6124,13 @@
   "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.": "bc250-cec od MastaG działa już na tym adapterze CEC, więc zostaje bez zmian. Dwie usługi CEC na jednym adapterze przeszkadzają sobie; najpierw usuń bc250-cec, aby używać tej.",
   "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one.": "bc250-cec od MastaG też jest zainstalowany i używa tego samego adaptera CEC. Zostaw tylko jeden: usuń bc250-cec albo ten.",
   "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.": "Jądro BC-250 już poprawia tę telemetrię. Zalecane ustawienia: metoda kernel, odczyt obciążenia kernel, temperatura przez sysfs, obie poprawki wyłączone.",
-  "Use the BC-250 kernel settings": "Użyj ustawień jądra BC-250"
+  "Use the BC-250 kernel settings": "Użyj ustawień jądra BC-250",
+  "Until the next full power-off. Nothing is installed.": "Do następnego pełnego wyłączenia. Nic nie jest instalowane.",
+  "Applied again by itself on every cold boot, without flashing the BIOS.": "Stosowane ponownie samo przy każdym zimnym starcie, bez flashowania BIOS-u.",
+  "Service stopped": "Usługa zatrzymana",
+  "Resize the session console": "Zmień rozmiar konsoli sesji",
+  "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Nie udało się uruchomić dostępu zdalnego, nawet po próbie naprawy przez Control Center. Uruchom ponownie komputer i spróbuj jeszcze raz. Jeśli nadal się nie uruchamia, wyślij zgłoszenie problemu z Black Box: zawiera szczegóły.",
+  "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Nie udało się uruchomić dostępu zdalnego, ponieważ inny program używa jego portu. Zamknij ten program lub uruchom ponownie komputer i spróbuj jeszcze raz.",
+  "No changes": "Bez zmian",
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Żadne strojenie CPU nie jest aktywne: procesor pracuje z normalnymi ustawieniami."
 }
