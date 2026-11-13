@@ -92,7 +92,7 @@
   "fanGuidance": "Przywróć kanał do trybu automatycznego i spróbuj ponownie.",
   "fanOperationFailed": "Działanie wentylatora nie powiodło się.",
   "fanPresets": "Ustawienia wstępne",
-  "fanPresetsHint": "Każde ustawienie zmienia jednocześnie wszystkie aktywne wentylatory systemowe (PWM3–PWM8), nigdy PWM2. Prędkości zaczynają się od 20 %.",
+  "fanPresetsHint": "Każde ustawienie ustawia razem aktywne wentylatory systemowe, nigdy PWM2 ani złącza oznaczonego jako pompa. Prędkości zaczynają się od 20 %.",
   "fanQuiet": "Cichy",
   "fanRpmObserved": "RPMzauważony",
   "fanUnverified": "okablowanie niezweryfikowane",
@@ -322,5 +322,14 @@
   "copyDetails": "Kopiuj szczegóły",
   "copied": "Skopiowano szczegóły",
   "copyFailed": "Kopiowanie nie jest tu dostępne",
-  "pythonAction": "Pomocnik wymaga Pythona 3.11 lub nowszego; zaktualizuj system i zainstaluj ponownie z trybu pulpitu."
+  "pythonAction": "Pomocnik wymaga Pythona 3.11 lub nowszego; zaktualizuj system i zainstaluj ponownie z trybu pulpitu.",
+  "fanModeFirmware": "BIOS",
+  "fanModeFixed": "Stała",
+  "fanModeCurve": "Krzywa",
+  "fanModeMix": "Mieszanka",
+  "fanPump": "Pompa",
+  "fanStopped": "Wentylator zatrzymany",
+  "fanServiceDrives": "Tym złączem steruje usługa wentylatorów pulpitu. Prędkość ustawiona tutaj wstrzymuje ją, dopóki jej nie wznowisz.",
+  "fanPumpFloor": "To złącze zasila pompę: nigdy nie pracuje poniżej 30 %.",
+  "fanResume": "Wznów usługę wentylatorów"
 }

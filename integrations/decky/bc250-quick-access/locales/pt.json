@@ -92,7 +92,7 @@
   "fanGuidance": "Retorne o canal para Automático e tente novamente.",
   "fanOperationFailed": "A operação do ventilador falhou.",
   "fanPresets": "Predefinições",
-  "fanPresetsHint": "Cada predefinição ajusta ao mesmo tempo todos os ventiladores do sistema ativos (PWM3–PWM8) e nunca o PWM2. As velocidades começam em 20 %.",
+  "fanPresetsHint": "Cada predefinição ajusta em conjunto as ventoinhas do sistema ativas, nunca PWM2 nem um conector marcado como bomba. As velocidades começam em 20 %.",
   "fanQuiet": "Silencioso",
   "fanRpmObserved": "RPM observadas",
   "fanUnverified": "fiação não verificada",
@@ -322,5 +322,14 @@
   "copyDetails": "Copiar detalhes",
   "copied": "Detalhes copiados",
   "copyFailed": "Copiar não está disponível aqui",
-  "pythonAction": "O auxiliar precisa do Python 3.11 ou mais recente; atualize o sistema e reinstale no modo Desktop."
+  "pythonAction": "O auxiliar precisa do Python 3.11 ou mais recente; atualize o sistema e reinstale no modo Desktop.",
+  "fanModeFirmware": "BIOS",
+  "fanModeFixed": "Fixa",
+  "fanModeCurve": "Curva",
+  "fanModeMix": "Mistura",
+  "fanPump": "Bomba",
+  "fanStopped": "Ventoinha parada",
+  "fanServiceDrives": "O serviço de ventoinhas do ambiente de trabalho controla este conector. Uma velocidade definida aqui pausa-o até o retomares.",
+  "fanPumpFloor": "Este conector aciona uma bomba: nunca desce abaixo de 30 %.",
+  "fanResume": "Retomar serviço de ventoinhas"
 }

@@ -92,7 +92,7 @@
   "fanGuidance": "Setzen Sie den Kanal wieder auf „Automatisch“ und versuchen Sie es erneut.",
   "fanOperationFailed": "Der Lüfterbetrieb ist fehlgeschlagen.",
   "fanPresets": "Voreinstellungen",
-  "fanPresetsHint": "Jede Voreinstellung stellt alle aktiven Systemlüfter (PWM3–PWM8) gemeinsam ein, nie PWM2. Drehzahlen beginnen bei 20 %.",
+  "fanPresetsHint": "Jede Voreinstellung setzt die aktiven Systemlüfter gemeinsam, nie PWM2 oder einen als Pumpe markierten Anschluss. Drehzahlen beginnen bei 20 %.",
   "fanQuiet": "Leise",
   "fanRpmObserved": "RPMbeobachtet",
   "fanUnverified": "Verkabelung nicht überprüft",
@@ -322,5 +322,14 @@
   "copyDetails": "Details kopieren",
   "copied": "Details kopiert",
   "copyFailed": "Kopieren ist hier nicht verfügbar",
-  "pythonAction": "Der Helfer benötigt Python 3.11 oder neuer; aktualisieren Sie das System und installieren Sie im Desktop-Modus neu."
+  "pythonAction": "Der Helfer benötigt Python 3.11 oder neuer; aktualisieren Sie das System und installieren Sie im Desktop-Modus neu.",
+  "fanModeFirmware": "BIOS",
+  "fanModeFixed": "Fest",
+  "fanModeCurve": "Kurve",
+  "fanModeMix": "Mischung",
+  "fanPump": "Pumpe",
+  "fanStopped": "Lüfter steht",
+  "fanServiceDrives": "Der Lüfterdienst des Desktops steuert diesen Anschluss. Eine hier gesetzte Drehzahl pausiert ihn, bis du ihn fortsetzt.",
+  "fanPumpFloor": "Dieser Anschluss treibt eine Pumpe: sie läuft nie unter 30 %.",
+  "fanResume": "Lüfterdienst fortsetzen"
 }

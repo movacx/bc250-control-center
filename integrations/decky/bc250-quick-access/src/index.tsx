@@ -73,6 +73,15 @@ type FanOption = {
   rpm_observed?: boolean;
   wiring?: string;
   wiring_uncertain?: boolean;
+  // Fan control v2: the desktop's setting for this header and what its root
+  // fan service does with it (published by the helper from the service files).
+  header?: string | null;
+  bios_fan?: number | null;
+  policy_mode?: "firmware" | "fixed" | "curve" | "mix";
+  role?: "fan" | "pump";
+  service_state?: string | null;
+  service_fault?: string | null;
+  service_percent?: number | null;
 };
 // Every bound the controls use, published with the state by the helper so the
 // panel keeps none of its own.
@@ -280,6 +289,7 @@ const applyVramSize = callable<[sizeMb: number], Result>("apply_vram_size");
 const getTtmState = callable<[], Result & { ttm?: TtmState }>("ttm_state");
 const applyTtmLimit = callable<[value: string], Result & { ttm?: TtmState }>("apply_ttm_limit");
 const applySystemFanPreset = callable<[preset: string], Result>("apply_system_fan_preset");
+const resumeFanService = callable<[], Result>("resume_fan_service");
 const getGameProfiles = callable<[], GameStore>("game_profiles");
 const saveGameProfile = callable<[appId: string, name: string, gpu: string | null, fan: string | null], GameStore>("save_game_profile");
 const removeGameProfile = callable<[appId: string], GameStore>("remove_game_profile");
@@ -288,6 +298,18 @@ const gameStarted = callable<[appId: string, name: string, refresh: boolean], Ga
 const gameStopped = callable<[appId: string], GameEvent>("game_stopped");
 
 const fanChannels = [1, 2, 3, 4, 5] as const;
+const PUMP_FLOOR_PERCENT = 30;
+// The desktop's per-channel mode and role, the same words as its Fans page.
+function fanModeText(option?: FanOption): string {
+  const mode = option?.policy_mode ?? "firmware";
+  const name = mode === "fixed" ? text.fanModeFixed : mode === "curve" ? text.fanModeCurve : mode === "mix" ? text.fanModeMix : text.fanModeFirmware;
+  return option?.role === "pump" && mode !== "firmware" ? `${name} · ${text.fanPump}` : name;
+}
+function fanFault(option?: FanOption): string {
+  if (!option?.service_fault) return "";
+  return option.service_fault === "pump-stalled" || option.service_fault === "stalled" ? text.fanStopped : option.service_fault;
+}
+const fanTitle = (channel: number, option?: FanOption) => option?.bios_fan ? `PWM ${channel} · BIOS ${option.bios_fan}` : `PWM ${channel}`;
 const cuRows = ["SE0.SH0", "SE0.SH1", "SE1.SH0", "SE1.SH1"] as const;
 // Same ladder the desktop's own VRAM control offers; used only until the
 // first status() reply carries the contract-sourced list, so the dropdown
@@ -1339,8 +1361,8 @@ function FanCard({ state }: { state: Status }) {
       const percent = available ? option?.percent ?? null : null;
       return <div key={channel} style={{ borderTop: `1px solid ${tokens.colors.border}`, opacity: available ? 1 : .45, padding: "5px 0" }}>
         <div style={{ display: "flex", fontSize: 10, justifyContent: "space-between", marginBottom: 3 }}>
-          <span style={{ color: tokens.colors.subtle }}>{option?.label ?? `PWM ${channel}`}</span>
-          <span>{!available ? text.unavailable : `${percent ?? "—"}%${option?.rpm_observed && option.rpm != null ? ` · ${option.rpm} RPM` : ""}`}</span>
+          <span style={{ color: tokens.colors.subtle }}>{fanTitle(channel, option)} · {fanModeText(option)}</span>
+          <span style={{ color: fanFault(option) ? tokens.colors.red : undefined }}>{!available ? text.unavailable : fanFault(option) || `${percent ?? "—"}%${option?.rpm_observed && option.rpm != null ? ` · ${option.rpm} RPM` : ""}`}</span>
         </div>
         <div style={{ background: tokens.colors.panel, borderRadius: 2, height: 3, overflow: "hidden" }}><div style={{ background: tokens.colors.cyan, height: "100%", transition: "width .4s ease", width: `${Math.max(0, Math.min(100, percent ?? 0))}%` }} /></div>
       </div>;
@@ -1925,7 +1947,8 @@ function Content() {
   const vidStep = cpuBounds?.vid_step ?? 5;
   const scaleMin = cpuBounds?.scale_range?.[0] ?? -50;
   const scaleMax = cpuBounds?.scale_range?.[1] ?? 0;
-  const fanMin = limits?.fan?.percent_range?.[0] ?? 20;
+  const fanPump = liveFan?.role === "pump";
+  const fanMin = Math.max(limits?.fan?.percent_range?.[0] ?? 20, fanPump ? PUMP_FLOOR_PERCENT : 0);
   const fanMax = limits?.fan?.percent_range?.[1] ?? 100;
   const fanStep = limits?.fan?.percent_step ?? 5;
   const selectedEstimatedVid = estimateCpuVid(cpuFrequency, cpuScale, cpuBounds?.vid_model);
@@ -2069,11 +2092,15 @@ function Content() {
 
     {boardSection === "fan" ? <section style={{ marginBottom: 12 }}><SectionTitle kind="fan" title={text.fan} />
       <FanPresetRow state={state} busy={busy} execute={execute} />
-      <PadButton disabled={busy} onActivate={() => setFanOpen(!fanOpen)} style={{ alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }}><span>{liveFan?.label ?? `PWM ${fanChannel}`} · {fanDetected ? text.detected : text.unavailable}</span><span style={{ color: accent.focus }}>{fanOpen ? "▴" : "▾"}</span></PadButton>
-      {fanOpen ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }}>{fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return <PadButton key={channel} disabled={busy || !available} preferredFocus={channel === fanChannel} onActivate={() => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null) setFanDuty(percent); }} style={{ background: channel === fanChannel ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${channel === fanChannel ? accent.focus : tokens.colors.border}`, color: channel === fanChannel ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, width: "100%" }}>PWM {channel} · {available ? `${option?.percent ?? "—"}%` : text.unavailable}</PadButton>; })}</Focusable> : null}
-      {liveFan ? <div style={{ color: liveFan.rpm_observed ? tokens.colors.subtle : tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }}>{liveFan.rpm_observed ? `${text.fanRpmObserved}: ${liveFan.rpm} RPM` : `${text.fanUnverified}. ${fanChannel === 2 ? text.fanWiring : ""}`}</div> : null}
+      <PadButton disabled={busy} onActivate={() => setFanOpen(!fanOpen)} style={{ alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }}><span>{fanTitle(fanChannel, liveFan)} · {fanDetected ? fanModeText(liveFan) : text.unavailable}</span><span style={{ color: accent.focus }}>{fanOpen ? "▴" : "▾"}</span></PadButton>
+      {fanOpen ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }}>{fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return <PadButton key={channel} disabled={busy || !available} preferredFocus={channel === fanChannel} onActivate={() => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null) setFanDuty(percent); }} style={{ background: channel === fanChannel ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${channel === fanChannel ? accent.focus : tokens.colors.border}`, color: channel === fanChannel ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, width: "100%" }}>PWM {channel} · {available ? `${option?.percent ?? "—"}%${option?.role === "pump" ? ` · ${text.fanPump}` : ""}` : text.unavailable}</PadButton>; })}</Focusable> : null}
+      {liveFan ? <div style={{ color: liveFan.rpm_observed ? tokens.colors.subtle : tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }}>{liveFan.rpm_observed ? `${text.fanRpmObserved}: ${liveFan.rpm} RPM` : `${text.fanUnverified}. ${fanChannel === 2 && !fanPump ? text.fanWiring : ""}`}</div> : null}
+      {fanPump ? <div style={{ color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }}>{text.fanPumpFloor}</div> : null}
+      {fanFault(liveFan) ? <div style={{ color: tokens.colors.red, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }}>{fanFault(liveFan)}</div> : null}
+      {state.system_fan_policy && liveFan?.policy_mode && liveFan.policy_mode !== "firmware" ? <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }}>{text.fanServiceDrives}</div> : null}
       <SliderField label={text.speed} value={fanDuty} min={fanMin} max={fanMax} step={fanStep} minimumDpadGranularity={fanStep} showValue valueSuffix="%" disabled={busy || !fanDetected} onChange={(value: number) => { dirty.current.fan = true; setFanDuty(Math.max(fanMin, Math.min(fanMax, Math.round(value / fanStep) * fanStep))); }} />
-      <Focusable flow-children="grid" style={{ display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", marginTop: 6 }}><Action label={text.apply} primary disabled={busy || !fanDetected} onActivate={() => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, fanDuty), "fan")} /><Action label={text.automatic} disabled={busy || !fanDetected} onActivate={() => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, "automatic"), "fan")} /></Focusable>
+      <Focusable flow-children="grid" style={{ display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", marginTop: 6 }}><Action label={text.apply} primary disabled={busy || !fanDetected} onActivate={() => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, Math.max(fanMin, fanDuty)), "fan")} /><Action label={text.automatic} disabled={busy || !fanDetected} onActivate={() => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, "automatic"), "fan")} /></Focusable>
+      {state.system_fan_policy && state.system_fan_override ? <Focusable style={{ marginTop: 6 }}><Action label={text.fanResume} disabled={busy} onActivate={() => void execute(text.fanResume, () => resumeFanService(), "fan")} /></Focusable> : null}
     </section> : null}
     </> : null}
 

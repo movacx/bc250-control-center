@@ -92,7 +92,7 @@
   "fanGuidance": "Devuelve el canal a Automático y vuelve a intentarlo.",
   "fanOperationFailed": "Falló la operación del ventilador.",
   "fanPresets": "Preajustes",
-  "fanPresetsHint": "Cada preajuste ajusta a la vez todos los ventiladores del sistema activos (PWM3–PWM8) y nunca PWM2. Las velocidades empiezan en 20 %.",
+  "fanPresetsHint": "Cada preajuste ajusta a la vez los ventiladores del sistema activos, nunca PWM2 ni un conector marcado como bomba. Las velocidades empiezan en 20 %.",
   "fanQuiet": "Silencio",
   "fanRpmObserved": "RPM observadas",
   "fanUnverified": "cableado sin verificar",
@@ -322,5 +322,14 @@
   "copyDetails": "Copiar detalles",
   "copied": "Detalles copiados",
   "copyFailed": "Copiar no está disponible aquí",
-  "pythonAction": "El helper necesita Python 3.11 o posterior; actualiza el sistema y reinstala desde Modo Escritorio."
+  "pythonAction": "El helper necesita Python 3.11 o posterior; actualiza el sistema y reinstala desde Modo Escritorio.",
+  "fanModeFirmware": "BIOS",
+  "fanModeFixed": "Fija",
+  "fanModeCurve": "Curva",
+  "fanModeMix": "Mezcla",
+  "fanPump": "Bomba",
+  "fanStopped": "Ventilador detenido",
+  "fanServiceDrives": "El servicio de ventiladores del escritorio controla este conector. Una velocidad que pongas aquí lo pausa hasta que lo reanudes.",
+  "fanPumpFloor": "Este conector mueve una bomba: nunca baja del 30 %.",
+  "fanResume": "Reanudar servicio de ventiladores"
 }

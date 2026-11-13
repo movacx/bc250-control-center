@@ -45,7 +45,9 @@ def test_the_panel_says_which_fans_its_presets_drive():
     assert "{text.fanPresetsHint}" in panel
     for path in (ROOT / "integrations/decky/bc250-quick-access/locales").glob("*.json"):
         hint = json.loads(path.read_text(encoding="utf-8"))["fanPresetsHint"]
-        assert "PWM3–PWM8" in hint and "PWM2" in hint and "20 %" in hint, path.name
+        # Group presets drive PWM 1, 3, 4, 5 (SYSTEM_FAN_CHANNELS), never PWM2
+        # and never a header the desktop marked as a pump (fan control v2).
+        assert "PWM3–PWM8" not in hint and "PWM2" in hint and "20 %" in hint, path.name
 
 
 def test_exported_speeds_become_the_preset_duties(helper, monkeypatch):

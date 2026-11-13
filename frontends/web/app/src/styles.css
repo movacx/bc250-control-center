@@ -52,8 +52,41 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .cols.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cols.dash { grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1fr); }
 .cols.fan-split { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
-.fan-service { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--c-border-soft); display: grid; gap: 12px; }
-.fan-service h3, .fan-service p { margin: 0; }
+.fan-service { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--c-border-soft); display: grid; gap: 10px; }
+.fan-service p { margin: 0; }
+.note.bad { color: var(--c-red); }
+/* Fan control v2: the channel board, flat like the desktop Fans page. */
+.fan-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; background: var(--c-muted); opacity: .55; flex: none; }
+.fan-dot.green { background: var(--c-green); opacity: 1; } .fan-dot.blue { background: var(--c-blue); opacity: 1; }
+.fan-dot.orange { background: var(--c-orange); opacity: 1; } .fan-dot.red { background: var(--c-red); opacity: 1; }
+.fan-profiles { display: grid; gap: 8px; }
+.fan-profiles .row { flex-wrap: wrap; }
+.fan-list { display: grid; margin: 4px 0 8px; }
+.fan-list-row { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr) auto; gap: 10px; align-items: center; text-align: left; background: none; border: 0; border-top: 1px solid var(--c-border-soft); padding: 9px 4px; color: var(--c-text); font: inherit; cursor: pointer; }
+.fan-list-row.on { background: var(--c-blue-soft); }
+.fan-list-row small { display: block; color: var(--c-muted); font-size: 10px; font-weight: 400; }
+.fan-list-name { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; min-width: 0; }
+.fan-list-name small { flex-basis: 100%; padding-left: 16px; }
+.fan-list-mode { font-size: 12px; } .fan-list-num { text-align: right; font-size: 11px; color: var(--c-muted); }
+.fan-list-num b { color: var(--c-text); font-size: 14px; font-variant-numeric: tabular-nums; }
+.fan-table-wrap { overflow-x: auto; }
+.fan-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.fan-table th { text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--c-muted); padding: 6px 8px; border-bottom: 1px solid var(--c-border-soft); }
+.fan-table td { padding: 8px; border-bottom: 1px solid var(--c-border-soft); white-space: nowrap; }
+.fan-table .r { text-align: right; }
+.fan-table tbody tr { cursor: pointer; } .fan-table tbody tr:nth-child(even) { background: var(--c-panel-alt); }
+.fan-table tbody tr.on { background: var(--c-blue-soft); } .fan-table tbody tr:focus-visible { outline: 2px solid var(--c-blue); outline-offset: -2px; }
+.fan-editor { display: grid; gap: 12px; }
+.fan-editor-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; } .fan-editor-head h3 { margin: 0; font-size: 14px; }
+.fan-plot { width: 100%; max-height: 240px; }
+.fan-points { display: grid; gap: 6px; }
+.fan-points > .row { display: grid; grid-template-columns: 24px repeat(2,minmax(0,1fr)); gap: 8px; align-items: end; }
+.fan-points > .row > b { font-size: 10px; color: var(--c-muted); padding-bottom: 10px; }
+.fan-points .input.num { min-width: 0; width: 64px; }
+.fan-advanced summary { cursor: pointer; font-size: 12px; font-weight: 600; padding: 4px 0; }
+.fan-advanced-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 8px 12px; margin: 8px 0; }
+.fan-editor-actions { border-top: 1px solid var(--c-border-soft); padding-top: 12px; }
+.fan-unapplied { display: grid; gap: 6px; margin-bottom: 10px; }
 .tiles.t3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

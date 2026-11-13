@@ -11,14 +11,11 @@ import threading
 import time
 from dataclasses import asdict
 
-from bc250cc.application.fan.system_control import (
-    build_system_fan_policy,
-    policy_digest,
-    system_fan_control_owns_fan,
-)
+from bc250cc.application.fan import board_view
+from bc250cc.application.fan.system_control import build_system_fan_policy
 from bc250cc.application.gpu.voltage_lab_state import build_voltage_lab_state
 from bc250cc.domain.compute_units import WgpMaskTable
-from bc250cc.domain.fan.persistence import normalize_fan_curve, normalize_fan_preset
+from bc250cc.domain.fan.channels import BUILTIN_MODE_CURVES, BUILTIN_MODE_NAMES
 from bc250cc.domain.gpu.profiles import profiles_for_allowed_range
 from bc250cc.domain.gpu.voltage_profiles import (
     CUSTOM_VOLTAGE_MAX_MV,
@@ -26,7 +23,6 @@ from bc250cc.domain.gpu.voltage_profiles import (
     SUPPORTED_VOLTAGE_LEVELS,
     voltage_profile,
 )
-from bc250cc.shared.contract import DESKTOP_FAN_PRESET_PERCENT
 from frontends.desktop.components.chart_axes import (
     range_axis,
     value_axis,
@@ -37,7 +33,6 @@ from frontends.desktop.core.cpu_refresh_presenter import (
     present_cpu_tuning,
 )
 from frontends.desktop.core.cu_balance import engine_balance
-from frontends.desktop.core.dashboard_presenter import FAN_OWNER_LABELS, fan_owner
 from frontends.desktop.core.performance_model import (
     DEFAULT_PLOTTED,
     KIND_FILTERS,
@@ -186,20 +181,41 @@ def _cu(raw: dict, ctx: Context) -> dict:
 
 
 def _fans(raw: dict, ctx: Context) -> dict:
+    """The desktop Fans page's channel board, as plain data the web app
+    translates: the same rows, states and notices (``board_view``)."""
     fans, system, config = raw.get("fans") or {}, raw.get("system") or {}, raw.get("config") or {}
-    rows = [row for row in (fans.get("sensores") or {}).get("fans") or [] if isinstance(row, dict)]
-    curve, preset = normalize_fan_curve(config.get("fan_curve")), normalize_fan_preset(config.get("fan_preset"))
-    selected = next((row for row in rows if row.get("index") == curve.get("pwm")), rows[0] if rows else {})
-    owner = fan_owner(system_owned=system_fan_control_owns_fan(system), pwm_enable=selected.get("pwm_enable"),
-                      curve_enabled=bool(curve.get("enabled")), preset_enabled=bool(preset.get("enabled")),
-                      external=bool(system.get("external")))
+    board = board_view.board_from_config(config)
     policy = build_system_fan_policy(config)
-    boot = {"enabled": bool(system.get("enabled")), "available": bool(system.get("available")),
-            "state": str(system.get("state") or "stopped"), "has_policy": policy is not None,
-            "out_of_date": bool(system.get("enabled") and policy and system.get("policy_digest") != policy_digest(policy))}
-    return {"rows": rows, "owner": tr(FAN_OWNER_LABELS.get(owner, owner)), "curve": curve, "preset": preset,
-            "external": bool(system.get("external")), "boot": bool(system.get("enabled")), "service": boot,
-            "presets": DESKTOP_FAN_PRESET_PERCENT}
+    summary, values, tone = board_view.service_summary(system, policy)
+    sensors = fans.get("sensores") or {}
+    if not fans:
+        driver = ""
+    elif not sensors.get("chip"):
+        driver = "No NCT fan controller was found. Prepare the PWM driver to read and control the fans."
+    elif not board_view.control_available(fans):
+        driver = "The fans are shown read-only. Prepare the nct6687 PWM driver to control them."
+    else:
+        driver = ""
+    rows = board_view.board_rows(board, fans, system)
+    return {
+        "channels": rows,
+        "profiles": {"builtin": list(BUILTIN_MODE_NAMES.values()), "saved": [mode["name"] for mode in board.modes],
+                     "active": board.active_mode, "custom": bool(board.channels and not board.active_mode)},
+        "builtin_curves": {BUILTIN_MODE_NAMES[key]: points for key, points in BUILTIN_MODE_CURVES.items()},
+        "default_curve": board_view.DEFAULT_CURVE,
+        "needs_root_service": board.needs_root_service,
+        "external": bool(system.get("external")),
+        "service": {"enabled": bool(system.get("enabled")), "available": bool(system.get("available")),
+                    "state": str(system.get("state") or "stopped"), "has_policy": policy is not None,
+                    "out_of_date": board_view.service_out_of_date(system, policy),
+                    "supported": board_view.policy_supported(system, policy),
+                    "summary": summary, "summary_values": values, "tone": tone},
+        "driver": driver,
+        "chip": str(sensors.get("chip") or ""),
+        "counts": {"channels": len(rows), "turning": sum(1 for row in rows if (row["rpm"] or 0) > 0),
+                   "controlled": sum(1 for row in rows if row["mode"] != "firmware")},
+        "low_duty": board_view.LOW_DUTY_CONFIRM_PERCENT,
+    }
 
 
 # -- Performance ----------------------------------------------------------------------------------

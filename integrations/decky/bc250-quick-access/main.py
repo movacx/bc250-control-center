@@ -1553,6 +1553,12 @@ class Plugin:
         result = await self._run_single_operation("fan-system", preset, timeout=30)
         return self._record_action("fan", preset, result)
 
+    async def resume_fan_service(self) -> dict:
+        """Hand the headers this panel took back to the desktop's fan service
+        (protocol 19's "fan-resume"; a change made on the desktop stays)."""
+        result = await self._run_single_operation("fan-resume", timeout=30)
+        return self._record_action("fan", "resume", result)
+
     async def apply_fan_channel(self, channel: int, target: int | str) -> dict:
         """Apply one temporary setting without exposing a generic root argv."""
         if isinstance(channel, bool) or type(channel) not in {int, str}:

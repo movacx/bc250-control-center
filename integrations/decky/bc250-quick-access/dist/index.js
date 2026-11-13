@@ -177,6 +177,16 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-CONTAINER-001",
+		markers: [
+			"insufficient UIDs or GIDs available in user namespace",
+			"has no subordinate user and group IDs"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-BUILD-001",
 		markers: [
 			"STEAMOS_BUILD_RUNTIME_INCOMPATIBLE"
@@ -454,20 +464,6 @@ var codes = [
 		retryable: false
 	},
 	{
-		code: "BC250-PKG-001",
-		markers: [
-			"unable to lock database",
-			"could not lock database",
-			"Could not get lock",
-			"database is locked",
-			"Waiting for cache lock",
-			"System management is locked by the application"
-		],
-		exit_statuses: [
-		],
-		retryable: false
-	},
-	{
 		code: "BC250-WORKFLOW-001",
 		markers: [
 			"per-game install unexpectedly enabled the driver system-wide",
@@ -495,6 +491,21 @@ var codes = [
 		code: "BC250-VRAM-001",
 		markers: [
 			"QUICK_ACCESS_VRAM"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-PKG-001",
+		markers: [
+			"unable to lock database",
+			"could not lock database",
+			"Could not get lock",
+			"database is locked",
+			"Waiting for cache lock",
+			"System management is locked by the application",
+			"so pacman is busy"
 		],
 		exit_statuses: [
 		],
@@ -844,6 +855,7 @@ var markers_longest_first = [
 	"reviewed root-owned SteamOS graphics backend is unavailable or changed",
 	"per-game install unexpectedly enabled the driver system-wide",
 	"Error executing command as another user: Not authorized",
+	"insufficient UIDs or GIDs available in user namespace",
 	"another BC250 system preparation is already running",
 	"shared contract is not a protected root-owned file",
 	"Manual scale must reuse the detected thermal limit",
@@ -869,6 +881,7 @@ var markers_longest_first = [
 	"cannot execute: required file not found",
 	"Another git process seems to be running",
 	"fork: Resource temporarily unavailable",
+	"has no subordinate user and group IDs",
 	"The GPU driver (amdgpu) did not start",
 	"invalid ip discovery binary signature",
 	"matching kernel-devel is unavailable",
@@ -1012,6 +1025,7 @@ var markers_longest_first = [
 	"QUICK_ACCESS_GDDR6",
 	"HELPER_UNTRUSTED:",
 	"QUICK_ACCESS_VRAM",
+	"so pacman is busy",
 	"Cyan D-Bus policy",
 	"QUICK_ACCESS_AUTH",
 	"CU_HELPER_MISSING",
@@ -1145,7 +1159,7 @@ var fanCause$7 = "Der NCT-Treiber, die hwmon-Route, der PWM-Kanal oder das Schre
 var fanGuidance$7 = "Setzen Sie den Kanal wieder auf „Automatisch“ und versuchen Sie es erneut.";
 var fanOperationFailed$7 = "Der Lüfterbetrieb ist fehlgeschlagen.";
 var fanPresets$7 = "Voreinstellungen";
-var fanPresetsHint$7 = "Jede Voreinstellung stellt alle aktiven Systemlüfter (PWM3–PWM8) gemeinsam ein, nie PWM2. Drehzahlen beginnen bei 20 %.";
+var fanPresetsHint$7 = "Jede Voreinstellung setzt die aktiven Systemlüfter gemeinsam, nie PWM2 oder einen als Pumpe markierten Anschluss. Drehzahlen beginnen bei 20 %.";
 var fanQuiet$7 = "Leise";
 var fanRpmObserved$7 = "RPMbeobachtet";
 var fanUnverified$7 = "Verkabelung nicht überprüft";
@@ -1376,6 +1390,15 @@ var copyDetails$7 = "Details kopieren";
 var copied$7 = "Details kopiert";
 var copyFailed$7 = "Kopieren ist hier nicht verfügbar";
 var pythonAction$7 = "Der Helfer benötigt Python 3.11 oder neuer; aktualisieren Sie das System und installieren Sie im Desktop-Modus neu.";
+var fanModeFirmware$7 = "BIOS";
+var fanModeFixed$7 = "Fest";
+var fanModeCurve$7 = "Kurve";
+var fanModeMix$7 = "Mischung";
+var fanPump$7 = "Pumpe";
+var fanStopped$7 = "Lüfter steht";
+var fanServiceDrives$7 = "Der Lüfterdienst des Desktops steuert diesen Anschluss. Eine hier gesetzte Drehzahl pausiert ihn, bis du ihn fortsetzt.";
+var fanPumpFloor$7 = "Dieser Anschluss treibt eine Pumpe: sie läuft nie unter 30 %.";
+var fanResume$7 = "Lüfterdienst fortsetzen";
 var de = {
 	accentBlue: accentBlue$7,
 	accentColor: accentColor$7,
@@ -1700,7 +1723,16 @@ var de = {
 	copyDetails: copyDetails$7,
 	copied: copied$7,
 	copyFailed: copyFailed$7,
-	pythonAction: pythonAction$7
+	pythonAction: pythonAction$7,
+	fanModeFirmware: fanModeFirmware$7,
+	fanModeFixed: fanModeFixed$7,
+	fanModeCurve: fanModeCurve$7,
+	fanModeMix: fanModeMix$7,
+	fanPump: fanPump$7,
+	fanStopped: fanStopped$7,
+	fanServiceDrives: fanServiceDrives$7,
+	fanPumpFloor: fanPumpFloor$7,
+	fanResume: fanResume$7
 };
 
 var accentBlue$6 = "Blue";
@@ -1796,7 +1828,7 @@ var fanCause$6 = "The NCT driver, hwmon route, PWM channel, or write read-back i
 var fanGuidance$6 = "Return the channel to Automatic and retry.";
 var fanOperationFailed$6 = "The fan operation failed.";
 var fanPresets$6 = "Presets";
-var fanPresetsHint$6 = "Each preset sets every active system fan (PWM3–PWM8) together and never PWM2. Speeds start at 20 %.";
+var fanPresetsHint$6 = "Each preset sets the active system fans together, never PWM2 or a header marked as a pump. Speeds start at 20 %.";
 var fanQuiet$6 = "Quiet";
 var fanRpmObserved$6 = "RPM observed";
 var fanUnverified$6 = "wiring unverified";
@@ -2027,6 +2059,15 @@ var copyDetails$6 = "Copy details";
 var copied$6 = "Details copied";
 var copyFailed$6 = "Copying is not available here";
 var pythonAction$6 = "The helper needs Python 3.11 or newer; update the system, then reinstall from Desktop Mode.";
+var fanModeFirmware$6 = "BIOS";
+var fanModeFixed$6 = "Fixed";
+var fanModeCurve$6 = "Curve";
+var fanModeMix$6 = "Mix";
+var fanPump$6 = "Pump";
+var fanStopped$6 = "Fan stopped";
+var fanServiceDrives$6 = "The desktop's fan service drives this header. A speed set here pauses it until you resume it.";
+var fanPumpFloor$6 = "This header drives a pump: it never runs below 30 %.";
+var fanResume$6 = "Resume fan service";
 var en = {
 	accentBlue: accentBlue$6,
 	accentColor: accentColor$6,
@@ -2351,7 +2392,16 @@ var en = {
 	copyDetails: copyDetails$6,
 	copied: copied$6,
 	copyFailed: copyFailed$6,
-	pythonAction: pythonAction$6
+	pythonAction: pythonAction$6,
+	fanModeFirmware: fanModeFirmware$6,
+	fanModeFixed: fanModeFixed$6,
+	fanModeCurve: fanModeCurve$6,
+	fanModeMix: fanModeMix$6,
+	fanPump: fanPump$6,
+	fanStopped: fanStopped$6,
+	fanServiceDrives: fanServiceDrives$6,
+	fanPumpFloor: fanPumpFloor$6,
+	fanResume: fanResume$6
 };
 
 var accentBlue$5 = "Azul";
@@ -2447,7 +2497,7 @@ var fanCause$5 = "El driver NCT, la ruta hwmon, el canal PWM o la verificación 
 var fanGuidance$5 = "Devuelve el canal a Automático y vuelve a intentarlo.";
 var fanOperationFailed$5 = "Falló la operación del ventilador.";
 var fanPresets$5 = "Preajustes";
-var fanPresetsHint$5 = "Cada preajuste ajusta a la vez todos los ventiladores del sistema activos (PWM3–PWM8) y nunca PWM2. Las velocidades empiezan en 20 %.";
+var fanPresetsHint$5 = "Cada preajuste ajusta a la vez los ventiladores del sistema activos, nunca PWM2 ni un conector marcado como bomba. Las velocidades empiezan en 20 %.";
 var fanQuiet$5 = "Silencio";
 var fanRpmObserved$5 = "RPM observadas";
 var fanUnverified$5 = "cableado sin verificar";
@@ -2678,6 +2728,15 @@ var copyDetails$5 = "Copiar detalles";
 var copied$5 = "Detalles copiados";
 var copyFailed$5 = "Copiar no está disponible aquí";
 var pythonAction$5 = "El helper necesita Python 3.11 o posterior; actualiza el sistema y reinstala desde Modo Escritorio.";
+var fanModeFirmware$5 = "BIOS";
+var fanModeFixed$5 = "Fija";
+var fanModeCurve$5 = "Curva";
+var fanModeMix$5 = "Mezcla";
+var fanPump$5 = "Bomba";
+var fanStopped$5 = "Ventilador detenido";
+var fanServiceDrives$5 = "El servicio de ventiladores del escritorio controla este conector. Una velocidad puesta aquí lo pausa hasta que lo reanudes.";
+var fanPumpFloor$5 = "Este conector mueve una bomba: nunca baja del 30 %.";
+var fanResume$5 = "Reanudar servicio de ventiladores";
 var es = {
 	accentBlue: accentBlue$5,
 	accentColor: accentColor$5,
@@ -3002,7 +3061,16 @@ var es = {
 	copyDetails: copyDetails$5,
 	copied: copied$5,
 	copyFailed: copyFailed$5,
-	pythonAction: pythonAction$5
+	pythonAction: pythonAction$5,
+	fanModeFirmware: fanModeFirmware$5,
+	fanModeFixed: fanModeFixed$5,
+	fanModeCurve: fanModeCurve$5,
+	fanModeMix: fanModeMix$5,
+	fanPump: fanPump$5,
+	fanStopped: fanStopped$5,
+	fanServiceDrives: fanServiceDrives$5,
+	fanPumpFloor: fanPumpFloor$5,
+	fanResume: fanResume$5
 };
 
 var accentBlue$4 = "Azul";
@@ -3098,7 +3166,7 @@ var fanCause$4 = "El driver NCT, la ruta hwmon, el canal PWM o la verificación 
 var fanGuidance$4 = "Devuelve el canal a Automático y vuelve a intentarlo.";
 var fanOperationFailed$4 = "Falló la operación del ventilador.";
 var fanPresets$4 = "Preajustes";
-var fanPresetsHint$4 = "Cada preajuste ajusta a la vez todos los ventiladores del sistema activos (PWM3–PWM8) y nunca PWM2. Las velocidades empiezan en 20 %.";
+var fanPresetsHint$4 = "Cada preajuste ajusta a la vez los ventiladores del sistema activos, nunca PWM2 ni un conector marcado como bomba. Las velocidades empiezan en 20 %.";
 var fanQuiet$4 = "Silencio";
 var fanRpmObserved$4 = "RPM observadas";
 var fanUnverified$4 = "cableado sin verificar";
@@ -3329,6 +3397,15 @@ var copyDetails$4 = "Copiar detalles";
 var copied$4 = "Detalles copiados";
 var copyFailed$4 = "Copiar no está disponible aquí";
 var pythonAction$4 = "El helper necesita Python 3.11 o posterior; actualiza el sistema y reinstala desde Modo Escritorio.";
+var fanModeFirmware$4 = "BIOS";
+var fanModeFixed$4 = "Fija";
+var fanModeCurve$4 = "Curva";
+var fanModeMix$4 = "Mezcla";
+var fanPump$4 = "Bomba";
+var fanStopped$4 = "Ventilador detenido";
+var fanServiceDrives$4 = "El servicio de ventiladores del escritorio controla este conector. Una velocidad que pongas aquí lo pausa hasta que lo reanudes.";
+var fanPumpFloor$4 = "Este conector mueve una bomba: nunca baja del 30 %.";
+var fanResume$4 = "Reanudar servicio de ventiladores";
 var es419 = {
 	accentBlue: accentBlue$4,
 	accentColor: accentColor$4,
@@ -3653,7 +3730,16 @@ var es419 = {
 	copyDetails: copyDetails$4,
 	copied: copied$4,
 	copyFailed: copyFailed$4,
-	pythonAction: pythonAction$4
+	pythonAction: pythonAction$4,
+	fanModeFirmware: fanModeFirmware$4,
+	fanModeFixed: fanModeFixed$4,
+	fanModeCurve: fanModeCurve$4,
+	fanModeMix: fanModeMix$4,
+	fanPump: fanPump$4,
+	fanStopped: fanStopped$4,
+	fanServiceDrives: fanServiceDrives$4,
+	fanPumpFloor: fanPumpFloor$4,
+	fanResume: fanResume$4
 };
 
 var accentBlue$3 = "Niebieski";
@@ -3749,7 +3835,7 @@ var fanCause$3 = "Sterownik NCT, trasa hwmon, kanał PWM lub funkcja odczytu zap
 var fanGuidance$3 = "Przywróć kanał do trybu automatycznego i spróbuj ponownie.";
 var fanOperationFailed$3 = "Działanie wentylatora nie powiodło się.";
 var fanPresets$3 = "Ustawienia wstępne";
-var fanPresetsHint$3 = "Każde ustawienie zmienia jednocześnie wszystkie aktywne wentylatory systemowe (PWM3–PWM8), nigdy PWM2. Prędkości zaczynają się od 20 %.";
+var fanPresetsHint$3 = "Każde ustawienie ustawia razem aktywne wentylatory systemowe, nigdy PWM2 ani złącza oznaczonego jako pompa. Prędkości zaczynają się od 20 %.";
 var fanQuiet$3 = "Cichy";
 var fanRpmObserved$3 = "RPMzauważony";
 var fanUnverified$3 = "okablowanie niezweryfikowane";
@@ -3980,6 +4066,15 @@ var copyDetails$3 = "Kopiuj szczegóły";
 var copied$3 = "Skopiowano szczegóły";
 var copyFailed$3 = "Kopiowanie nie jest tu dostępne";
 var pythonAction$3 = "Pomocnik wymaga Pythona 3.11 lub nowszego; zaktualizuj system i zainstaluj ponownie z trybu pulpitu.";
+var fanModeFirmware$3 = "BIOS";
+var fanModeFixed$3 = "Stała";
+var fanModeCurve$3 = "Krzywa";
+var fanModeMix$3 = "Mieszanka";
+var fanPump$3 = "Pompa";
+var fanStopped$3 = "Wentylator zatrzymany";
+var fanServiceDrives$3 = "Tym złączem steruje usługa wentylatorów pulpitu. Prędkość ustawiona tutaj wstrzymuje ją, dopóki jej nie wznowisz.";
+var fanPumpFloor$3 = "To złącze zasila pompę: nigdy nie pracuje poniżej 30 %.";
+var fanResume$3 = "Wznów usługę wentylatorów";
 var pl = {
 	accentBlue: accentBlue$3,
 	accentColor: accentColor$3,
@@ -4304,7 +4399,16 @@ var pl = {
 	copyDetails: copyDetails$3,
 	copied: copied$3,
 	copyFailed: copyFailed$3,
-	pythonAction: pythonAction$3
+	pythonAction: pythonAction$3,
+	fanModeFirmware: fanModeFirmware$3,
+	fanModeFixed: fanModeFixed$3,
+	fanModeCurve: fanModeCurve$3,
+	fanModeMix: fanModeMix$3,
+	fanPump: fanPump$3,
+	fanStopped: fanStopped$3,
+	fanServiceDrives: fanServiceDrives$3,
+	fanPumpFloor: fanPumpFloor$3,
+	fanResume: fanResume$3
 };
 
 var accentBlue$2 = "Azul";
@@ -4400,7 +4504,7 @@ var fanCause$2 = "O driver NCT, a rota hwmon, o canal PWM ou a leitura de grava�
 var fanGuidance$2 = "Retorne o canal para Automático e tente novamente.";
 var fanOperationFailed$2 = "A operação do ventilador falhou.";
 var fanPresets$2 = "Predefinições";
-var fanPresetsHint$2 = "Cada predefinição ajusta ao mesmo tempo todos os ventiladores do sistema ativos (PWM3–PWM8) e nunca o PWM2. As velocidades começam em 20 %.";
+var fanPresetsHint$2 = "Cada predefinição ajusta em conjunto as ventoinhas do sistema ativas, nunca PWM2 nem um conector marcado como bomba. As velocidades começam em 20 %.";
 var fanQuiet$2 = "Silencioso";
 var fanRpmObserved$2 = "RPM observadas";
 var fanUnverified$2 = "fiação não verificada";
@@ -4631,6 +4735,15 @@ var copyDetails$2 = "Copiar detalhes";
 var copied$2 = "Detalhes copiados";
 var copyFailed$2 = "Copiar não está disponível aqui";
 var pythonAction$2 = "O auxiliar precisa do Python 3.11 ou mais recente; atualize o sistema e reinstale no modo Desktop.";
+var fanModeFirmware$2 = "BIOS";
+var fanModeFixed$2 = "Fixa";
+var fanModeCurve$2 = "Curva";
+var fanModeMix$2 = "Mistura";
+var fanPump$2 = "Bomba";
+var fanStopped$2 = "Ventoinha parada";
+var fanServiceDrives$2 = "O serviço de ventoinhas do ambiente de trabalho controla este conector. Uma velocidade definida aqui pausa-o até o retomares.";
+var fanPumpFloor$2 = "Este conector aciona uma bomba: nunca desce abaixo de 30 %.";
+var fanResume$2 = "Retomar serviço de ventoinhas";
 var pt = {
 	accentBlue: accentBlue$2,
 	accentColor: accentColor$2,
@@ -4955,7 +5068,16 @@ var pt = {
 	copyDetails: copyDetails$2,
 	copied: copied$2,
 	copyFailed: copyFailed$2,
-	pythonAction: pythonAction$2
+	pythonAction: pythonAction$2,
+	fanModeFirmware: fanModeFirmware$2,
+	fanModeFixed: fanModeFixed$2,
+	fanModeCurve: fanModeCurve$2,
+	fanModeMix: fanModeMix$2,
+	fanPump: fanPump$2,
+	fanStopped: fanStopped$2,
+	fanServiceDrives: fanServiceDrives$2,
+	fanPumpFloor: fanPumpFloor$2,
+	fanResume: fanResume$2
 };
 
 var accentBlue$1 = "Синий";
@@ -5051,7 +5173,7 @@ var fanCause$1 = "Драйвер NCT, маршрут hwmon, канал PWM ил�
 var fanGuidance$1 = "Верните канал в автоматический режим и повторите попытку.";
 var fanOperationFailed$1 = "Сбой в работе вентилятора.";
 var fanPresets$1 = "Пресеты";
-var fanPresetsHint$1 = "Каждый пресет задаёт сразу все активные системные вентиляторы (PWM3–PWM8) и никогда не трогает PWM2. Скорость — от 20 %.";
+var fanPresetsHint$1 = "Каждый пресет задаёт все активные системные вентиляторы вместе, но никогда PWM2 или разъём, отмеченный как помпа. Скорости начинаются с 20 %.";
 var fanQuiet$1 = "Тихий";
 var fanRpmObserved$1 = "RPMнаблюдал";
 var fanUnverified$1 = "проводка не проверена";
@@ -5282,6 +5404,15 @@ var copyDetails$1 = "Копировать подробности";
 var copied$1 = "Подробности скопированы";
 var copyFailed$1 = "Копирование здесь недоступно";
 var pythonAction$1 = "Помощнику нужен Python 3.11 или новее; обновите систему и переустановите из режима рабочего стола.";
+var fanModeFirmware$1 = "BIOS";
+var fanModeFixed$1 = "Фиксированная";
+var fanModeCurve$1 = "Кривая";
+var fanModeMix$1 = "Смесь";
+var fanPump$1 = "Помпа";
+var fanStopped$1 = "Вентилятор остановлен";
+var fanServiceDrives$1 = "Этим разъёмом управляет служба вентиляторов рабочего стола. Скорость, заданная здесь, приостанавливает её до возобновления.";
+var fanPumpFloor$1 = "Этот разъём питает помпу: она никогда не работает ниже 30 %.";
+var fanResume$1 = "Возобновить службу вентиляторов";
 var ru = {
 	accentBlue: accentBlue$1,
 	accentColor: accentColor$1,
@@ -5606,7 +5737,16 @@ var ru = {
 	copyDetails: copyDetails$1,
 	copied: copied$1,
 	copyFailed: copyFailed$1,
-	pythonAction: pythonAction$1
+	pythonAction: pythonAction$1,
+	fanModeFirmware: fanModeFirmware$1,
+	fanModeFixed: fanModeFixed$1,
+	fanModeCurve: fanModeCurve$1,
+	fanModeMix: fanModeMix$1,
+	fanPump: fanPump$1,
+	fanStopped: fanStopped$1,
+	fanServiceDrives: fanServiceDrives$1,
+	fanPumpFloor: fanPumpFloor$1,
+	fanResume: fanResume$1
 };
 
 var accentBlue = "Синій";
@@ -5702,7 +5842,7 @@ var fanCause = "Драйвер NCT, маршрут hwmon, канал PWM або 
 var fanGuidance = "Поверніть канал до автоматичного режиму та повторіть спробу.";
 var fanOperationFailed = "Помилка роботи вентилятора.";
 var fanPresets = "Пресети";
-var fanPresetsHint = "Кожен пресет задає одразу всі активні системні вентилятори (PWM3–PWM8) і ніколи не змінює PWM2. Швидкість — від 20 %.";
+var fanPresetsHint = "Кожен пресет задає всі активні системні вентилятори разом, але ніколи PWM2 чи роз'єм, позначений як помпа. Швидкості починаються з 20 %.";
 var fanQuiet = "Тихий";
 var fanRpmObserved = "RPMспостерігається";
 var fanUnverified = "проводка неперевірена";
@@ -5933,6 +6073,15 @@ var copyDetails = "Копіювати подробиці";
 var copied = "Подробиці скопійовано";
 var copyFailed = "Копіювання тут недоступне";
 var pythonAction = "Помічнику потрібен Python 3.11 або новіший; оновіть систему й перевстановіть із робочого режиму.";
+var fanModeFirmware = "BIOS";
+var fanModeFixed = "Фіксована";
+var fanModeCurve = "Крива";
+var fanModeMix = "Суміш";
+var fanPump = "Помпа";
+var fanStopped = "Вентилятор зупинено";
+var fanServiceDrives = "Цим роз'ємом керує служба вентиляторів робочого столу. Швидкість, задана тут, призупиняє її до відновлення.";
+var fanPumpFloor = "Цей роз'єм живить помпу: вона ніколи не працює нижче 30 %.";
+var fanResume = "Відновити службу вентиляторів";
 var uk = {
 	accentBlue: accentBlue,
 	accentColor: accentColor,
@@ -6257,7 +6406,16 @@ var uk = {
 	copyDetails: copyDetails,
 	copied: copied,
 	copyFailed: copyFailed,
-	pythonAction: pythonAction
+	pythonAction: pythonAction,
+	fanModeFirmware: fanModeFirmware,
+	fanModeFixed: fanModeFixed,
+	fanModeCurve: fanModeCurve,
+	fanModeMix: fanModeMix,
+	fanPump: fanPump,
+	fanStopped: fanStopped,
+	fanServiceDrives: fanServiceDrives,
+	fanPumpFloor: fanPumpFloor,
+	fanResume: fanResume
 };
 
 const catalogs = {
@@ -6315,6 +6473,7 @@ const applyVramSize = callable("apply_vram_size");
 const getTtmState = callable("ttm_state");
 const applyTtmLimit = callable("apply_ttm_limit");
 const applySystemFanPreset = callable("apply_system_fan_preset");
+const resumeFanService = callable("resume_fan_service");
 const getGameProfiles = callable("game_profiles");
 const saveGameProfile = callable("save_game_profile");
 const removeGameProfile = callable("remove_game_profile");
@@ -6322,6 +6481,19 @@ const setGameProfilesEnabled = callable("set_game_profiles_enabled");
 const gameStarted = callable("game_started");
 const gameStopped = callable("game_stopped");
 const fanChannels = [1, 2, 3, 4, 5];
+const PUMP_FLOOR_PERCENT = 30;
+// The desktop's per-channel mode and role, the same words as its Fans page.
+function fanModeText(option) {
+    const mode = option?.policy_mode ?? "firmware";
+    const name = mode === "fixed" ? text.fanModeFixed : mode === "curve" ? text.fanModeCurve : mode === "mix" ? text.fanModeMix : text.fanModeFirmware;
+    return option?.role === "pump" && mode !== "firmware" ? `${name} · ${text.fanPump}` : name;
+}
+function fanFault(option) {
+    if (!option?.service_fault)
+        return "";
+    return option.service_fault === "pump-stalled" || option.service_fault === "stalled" ? text.fanStopped : option.service_fault;
+}
+const fanTitle = (channel, option) => option?.bios_fan ? `PWM ${channel} · BIOS ${option.bios_fan}` : `PWM ${channel}`;
 const cuRows = ["SE0.SH0", "SE0.SH1", "SE1.SH0", "SE1.SH1"];
 // Same ladder the desktop's own VRAM control offers; used only until the
 // first status() reply carries the contract-sourced list, so the dropdown
@@ -7137,7 +7309,7 @@ function FanCard({ state }) {
                 const option = options.find((item) => item.channel === channel);
                 const available = Boolean(option?.available);
                 const percent = available ? option?.percent ?? null : null;
-                return SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, opacity: available ? 1 : .45, padding: "5px 0" }, children: [SP_JSX.jsxs("div", { style: { display: "flex", fontSize: 10, justifyContent: "space-between", marginBottom: 3 }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: option?.label ?? `PWM ${channel}` }), SP_JSX.jsx("span", { children: !available ? text.unavailable : `${percent ?? "—"}%${option?.rpm_observed && option.rpm != null ? ` · ${option.rpm} RPM` : ""}` })] }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, height: 3, overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.cyan, height: "100%", transition: "width .4s ease", width: `${Math.max(0, Math.min(100, percent ?? 0))}%` } }) })] }, channel);
+                return SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, opacity: available ? 1 : .45, padding: "5px 0" }, children: [SP_JSX.jsxs("div", { style: { display: "flex", fontSize: 10, justifyContent: "space-between", marginBottom: 3 }, children: [SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle }, children: [fanTitle(channel, option), " \u00B7 ", fanModeText(option)] }), SP_JSX.jsx("span", { style: { color: fanFault(option) ? tokens.colors.red : undefined }, children: !available ? text.unavailable : fanFault(option) || `${percent ?? "—"}%${option?.rpm_observed && option.rpm != null ? ` · ${option.rpm} RPM` : ""}` })] }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, height: 3, overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.cyan, height: "100%", transition: "width .4s ease", width: `${Math.max(0, Math.min(100, percent ?? 0))}%` } }) })] }, channel);
             })] });
 }
 // Board temperatures as rows, each coloured by heat like the CPU/GPU headlines.
@@ -7726,7 +7898,8 @@ function Content() {
     const vidStep = cpuBounds?.vid_step ?? 5;
     const scaleMin = cpuBounds?.scale_range?.[0] ?? -50;
     const scaleMax = cpuBounds?.scale_range?.[1] ?? 0;
-    const fanMin = limits?.fan?.percent_range?.[0] ?? 20;
+    const fanPump = liveFan?.role === "pump";
+    const fanMin = Math.max(limits?.fan?.percent_range?.[0] ?? 20, fanPump ? PUMP_FLOOR_PERCENT : 0);
     const fanMax = limits?.fan?.percent_range?.[1] ?? 100;
     const fanStep = limits?.fan?.percent_step ?? 5;
     const selectedEstimatedVid = estimateCpuVid(cpuFrequency, cpuScale, cpuBounds?.vid_model);
@@ -7771,8 +7944,8 @@ function Content() {
                                         return SP_JSX.jsx(ProfileCard, { title: cpuPresetName(preset), detail: `${ghz(preset.frequency)} GHz · ${presetTemperature}°C`, current: current, disabled: busy || !cpuReady, onActivate: () => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuTemperature(presetTemperature); setCpuManual(false); dirty.current.cpu = true; } }, preset.key);
                                     }) }) : null, detectedCpu?.ready ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: text.cpuDetected }), SP_JSX.jsx("b", { style: { color: tokens.colors.green }, children: detectedCpuSummary })] }) : null, SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border_soft}`, paddingTop: 7 }, children: [SP_JSX.jsx(CompactSlider, { label: text.cpuFrequency, value: cpuFrequency, suffix: " MHz", min: cpuMin, max: cpuMax, step: cpuStep, disabled: busy || !cpuReady, onChange: (value) => { setCpuFrequency(Math.max(cpuMin, Math.min(cpuMax, Math.round(value / cpuStep) * cpuStep))); dirty.current.cpu = true; } }), SP_JSX.jsx(CompactSlider, { label: text.cpuVoltage, value: cpuVid, suffix: " mV", min: vidMin, max: vidMax, step: vidStep, disabled: busy || !cpuReady || cpuManual, onChange: (value) => { setCpuVid(Math.max(vidMin, Math.min(vidMax, Math.round(value / vidStep) * vidStep))); dirty.current.cpu = true; } }), !cpuManual && cpuVid >= vidMax - 25 ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 8, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: text.cpuVidCeiling }) : null, SP_JSX.jsx("div", { title: manualScaleDescription, style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }, children: SP_JSX.jsx(SwitchRow, { label: text.cpuManual, checked: cpuManual, disabled: busy || !manualReady, onChange: (checked) => { setCpuManual(checked); if (checked && detectedCpu) {
                                                     setCpuScale(activeCpu?.frequency === detectedCpu.frequency ? (activeCpu.scale ?? detectedCpu.scale) : detectedCpu.scale);
-                                                } dirty.current.cpu = true; } }) }), cpuManual && detectedCpu && !manualFrequencyReady ? SP_JSX.jsxs("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: [text.cpuManualHelp, " \u00B7 ", detectedCpu.frequency, " MHz"] }) : null, SP_JSX.jsx(CompactSlider, { label: text.cpuScale, value: cpuScale, suffix: "", min: scaleMin, max: scaleMax, step: 1, disabled: busy || !cpuManual || !manualFrequencyReady, onChange: (value) => { setCpuScale(Math.max(scaleMin, Math.min(scaleMax, Math.round(value)))); dirty.current.cpu = true; } }), cpuManual ? SP_JSX.jsxs("div", { style: { color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }, children: [SP_JSX.jsx("span", { children: `${text.cpuScale}: ${scaleMin}…${scaleMax}` }), SP_JSX.jsx("span", { children: `~${selectedEstimatedVid ?? "—"} mV` })] }) : null, SP_JSX.jsx(ActionRow, { children: SP_JSX.jsx(Action, { label: cpuManual ? text.cpuApplyManual : text.cpuApplyAuto, primary: true, disabled: busy || !cpuReady || (cpuManual && (!manualFrequencyReady || (selectedEstimatedVid ?? 0) > vidMax)), onActivate: () => confirmCpu("detect") }) })] }), SP_JSX.jsx("div", { style: { marginTop: 6, minHeight: 36 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || !activeMatchesTarget || Boolean(state.cpu_service_enabled), onActivate: () => confirmCpu("install") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || (!state.cpu_service_installed && !state.cpu_service_enabled), onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.serviceRemovedBootProfile, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CPU", removeCpuService, "cpu") })) })] }) })] }) : null, boardSection === "fan" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanPresetRow, { state: state, busy: busy, execute: execute }), SP_JSX.jsxs(PadButton, { disabled: busy, onActivate: () => setFanOpen(!fanOpen), style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsxs("span", { children: [liveFan?.label ?? `PWM ${fanChannel}`, " \u00B7 ", fanDetected ? text.detected : text.unavailable] }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: fanOpen ? "▴" : "▾" })] }), fanOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }, children: fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return SP_JSX.jsxs(PadButton, { disabled: busy || !available, preferredFocus: channel === fanChannel, onActivate: () => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null)
-                                            setFanDuty(percent); }, style: { background: channel === fanChannel ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${channel === fanChannel ? accent.focus : tokens.colors.border}`, color: channel === fanChannel ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, width: "100%" }, children: ["PWM ", channel, " \u00B7 ", available ? `${option?.percent ?? "—"}%` : text.unavailable] }, channel); }) }) : null, liveFan ? SP_JSX.jsx("div", { style: { color: liveFan.rpm_observed ? tokens.colors.subtle : tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }, children: liveFan.rpm_observed ? `${text.fanRpmObserved}: ${liveFan.rpm} RPM` : `${text.fanUnverified}. ${fanChannel === 2 ? text.fanWiring : ""}` }) : null, SP_JSX.jsx(DFL.SliderField, { label: text.speed, value: fanDuty, min: fanMin, max: fanMax, step: fanStep, minimumDpadGranularity: fanStep, showValue: true, valueSuffix: "%", disabled: busy || !fanDetected, onChange: (value) => { dirty.current.fan = true; setFanDuty(Math.max(fanMin, Math.min(fanMax, Math.round(value / fanStep) * fanStep))); } }), SP_JSX.jsxs(DFL.Focusable, { "flow-children": "grid", style: { display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", marginTop: 6 }, children: [SP_JSX.jsx(Action, { label: text.apply, primary: true, disabled: busy || !fanDetected, onActivate: () => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, fanDuty), "fan") }), SP_JSX.jsx(Action, { label: text.automatic, disabled: busy || !fanDetected, onActivate: () => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, "automatic"), "fan") })] })] }) : null] }) : null] }) });
+                                                } dirty.current.cpu = true; } }) }), cpuManual && detectedCpu && !manualFrequencyReady ? SP_JSX.jsxs("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: [text.cpuManualHelp, " \u00B7 ", detectedCpu.frequency, " MHz"] }) : null, SP_JSX.jsx(CompactSlider, { label: text.cpuScale, value: cpuScale, suffix: "", min: scaleMin, max: scaleMax, step: 1, disabled: busy || !cpuManual || !manualFrequencyReady, onChange: (value) => { setCpuScale(Math.max(scaleMin, Math.min(scaleMax, Math.round(value)))); dirty.current.cpu = true; } }), cpuManual ? SP_JSX.jsxs("div", { style: { color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }, children: [SP_JSX.jsx("span", { children: `${text.cpuScale}: ${scaleMin}…${scaleMax}` }), SP_JSX.jsx("span", { children: `~${selectedEstimatedVid ?? "—"} mV` })] }) : null, SP_JSX.jsx(ActionRow, { children: SP_JSX.jsx(Action, { label: cpuManual ? text.cpuApplyManual : text.cpuApplyAuto, primary: true, disabled: busy || !cpuReady || (cpuManual && (!manualFrequencyReady || (selectedEstimatedVid ?? 0) > vidMax)), onActivate: () => confirmCpu("detect") }) })] }), SP_JSX.jsx("div", { style: { marginTop: 6, minHeight: 36 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || !activeMatchesTarget || Boolean(state.cpu_service_enabled), onActivate: () => confirmCpu("install") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || (!state.cpu_service_installed && !state.cpu_service_enabled), onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.serviceRemovedBootProfile, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CPU", removeCpuService, "cpu") })) })] }) })] }) : null, boardSection === "fan" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanPresetRow, { state: state, busy: busy, execute: execute }), SP_JSX.jsxs(PadButton, { disabled: busy, onActivate: () => setFanOpen(!fanOpen), style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsxs("span", { children: [fanTitle(fanChannel, liveFan), " \u00B7 ", fanDetected ? fanModeText(liveFan) : text.unavailable] }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: fanOpen ? "▴" : "▾" })] }), fanOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }, children: fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return SP_JSX.jsxs(PadButton, { disabled: busy || !available, preferredFocus: channel === fanChannel, onActivate: () => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null)
+                                            setFanDuty(percent); }, style: { background: channel === fanChannel ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${channel === fanChannel ? accent.focus : tokens.colors.border}`, color: channel === fanChannel ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, width: "100%" }, children: ["PWM ", channel, " \u00B7 ", available ? `${option?.percent ?? "—"}%${option?.role === "pump" ? ` · ${text.fanPump}` : ""}` : text.unavailable] }, channel); }) }) : null, liveFan ? SP_JSX.jsx("div", { style: { color: liveFan.rpm_observed ? tokens.colors.subtle : tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }, children: liveFan.rpm_observed ? `${text.fanRpmObserved}: ${liveFan.rpm} RPM` : `${text.fanUnverified}. ${fanChannel === 2 && !fanPump ? text.fanWiring : ""}` }) : null, fanPump ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }, children: text.fanPumpFloor }) : null, fanFault(liveFan) ? SP_JSX.jsx("div", { style: { color: tokens.colors.red, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }, children: fanFault(liveFan) }) : null, state.system_fan_policy && liveFan?.policy_mode && liveFan.policy_mode !== "firmware" ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }, children: text.fanServiceDrives }) : null, SP_JSX.jsx(DFL.SliderField, { label: text.speed, value: fanDuty, min: fanMin, max: fanMax, step: fanStep, minimumDpadGranularity: fanStep, showValue: true, valueSuffix: "%", disabled: busy || !fanDetected, onChange: (value) => { dirty.current.fan = true; setFanDuty(Math.max(fanMin, Math.min(fanMax, Math.round(value / fanStep) * fanStep))); } }), SP_JSX.jsxs(DFL.Focusable, { "flow-children": "grid", style: { display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", marginTop: 6 }, children: [SP_JSX.jsx(Action, { label: text.apply, primary: true, disabled: busy || !fanDetected, onActivate: () => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, Math.max(fanMin, fanDuty)), "fan") }), SP_JSX.jsx(Action, { label: text.automatic, disabled: busy || !fanDetected, onActivate: () => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, "automatic"), "fan") })] }), state.system_fan_policy && state.system_fan_override ? SP_JSX.jsx(DFL.Focusable, { style: { marginTop: 6 }, children: SP_JSX.jsx(Action, { label: text.fanResume, disabled: busy, onActivate: () => void execute(text.fanResume, () => resumeFanService(), "fan") }) }) : null] }) : null] }) : null] }) });
 }
 // Decky's system-fan presets, named and tuned from the desktop's Fans page
 // when the player exported them there. They never touch the pump channel.

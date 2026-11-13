@@ -50,6 +50,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from bc250cc.application.fan import board_view
 from bc250cc.application.fan.calibration import CalibrationResult, calibrate
 from bc250cc.application.fan.channels import ChannelBoard, FanChannelsService
 from bc250cc.domain.fan import engine
@@ -69,7 +70,6 @@ from bc250cc.domain.fan.profile_exchange import (
 )
 from bc250cc.infrastructure.system_fan_control import (
     build_system_fan_policy,
-    downgrade_policy_to_v1,
     policy_digest,
     policy_overview,
     system_fan_control_owns_fan,
@@ -113,7 +113,7 @@ from .fans_widgets import (  # noqa: F401  (re-exported: other modules and tests
 #: The five fan signals of a BC-250 (J4003 F1..F5 / CPU_FAN1) are always
 #: listed: 0 RPM does not prove a header is empty (a stopped fan, a pump with
 #: no tach wire). Other NCT channels show only once they are used.
-BOARD_CHANNELS = tuple(sorted(BC250_FAN_HEADERS))
+BOARD_CHANNELS = board_view.BOARD_CHANNELS
 #: Kept for callers of the previous page.
 VISIBLE_PWM_ORDER = (2, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
 #: exec() result of a ConfirmDialog's secondary button (fixed at import, so a
@@ -1439,19 +1439,7 @@ class FansPage(QWidget):
         return build_system_fan_policy(self._fan_root_config)
 
     def _channel_numbers(self) -> list[int]:
-        rows = self._fan_rows()
-        configured = {int(key) for key in (self._board.channels if self._board else {})}
-        numbers = set(BOARD_CHANNELS)
-        for pwm, row in rows.items():
-            if pwm in BOARD_CHANNELS or pwm < 1:
-                continue
-            if row.get("pwm_path") and (_integer(row.get("rpm")) > 0 or pwm in configured):
-                numbers.add(pwm)
-        def order(pwm: int) -> tuple[int, int]:
-            header = BC250_FAN_HEADERS.get(pwm)
-            return (header.bios_number, pwm) if header else (99, pwm)
-
-        return sorted(numbers | configured, key=order)
+        return board_view.channel_numbers(self._fan_rows(), self._board.channels if self._board else {})
 
     def _row(self, pwm: int) -> dict:
         board = self._board
@@ -1496,55 +1484,16 @@ class FansPage(QWidget):
         }
 
     def _channel_status(self, pwm: int) -> dict:
-        """The service's view of one channel. A root helper from before v2
-        publishes one channel at the top level only, with its state."""
-        service = self._service_status()
-        channels = _dict(service.get("channels"))
-        if channels:
-            return _dict(channels.get(str(pwm)))
-        if _integer(service.get("pwm"), -1) != pwm:
-            return {}
-        return {
-            "state": self._system_fan_control.get("state"),
-            "percent": service.get("percent"),
-            "source": service.get("source"),
-            "sensor": service.get("sensor"),
-            "temperature": service.get("temperature"),
-        }
+        """The service's view of one channel (shared with the web and the TUI)."""
+        return board_view.channel_status(self._system_fan_control, pwm)
 
     def _row_state(self, mode: str, fan: dict, status: dict, *, pwm: int | None = None) -> tuple[str, str]:
-        fault = str(status.get("fault") or "")
-        if fault == "pump-stalled":
-            return tr("Pump stopped"), "red"
-        if fault == "stalled":
-            return tr("Fan stopped"), "red"
-        if status.get("error"):
-            return tr("Error"), "red"
-        if self._fan_external():
-            return tr("Another program"), "blue"
-        if not fan:
-            return tr("Not detected"), ""
-        if pwm in self._pending_channels:
-            return tr("Pending"), "orange"
-        if mode == "firmware":
-            return tr("BIOS"), ""
-        if not self._system_fan_control.get("enabled"):
-            if mode == "fixed" and pwm in self._verified_channels:
-                return tr("Applied"), "green"
-            return tr("Saved"), "orange"
-        state = str(status.get("state") or "")
-        if state == "active":
-            source = str(status.get("source") or "")
-            if source == "critical":
-                return tr("Critical"), "red"
-            if source == "failsafe":
-                return tr("Failsafe"), "orange"
-            return tr("Active"), "green"
-        if state == "override":
-            return tr("Paused"), "orange"
-        if state == "waiting-sensor":
-            return tr("Waiting"), "blue"
-        return tr("Stopped"), "orange"
+        text, tone = board_view.row_state(
+            mode, fan, status, external=self._fan_external(),
+            service_enabled=bool(self._system_fan_control.get("enabled")),
+            pending=pwm in self._pending_channels, verified=pwm in self._verified_channels,
+        )
+        return tr(text), tone
 
     # ------------------------------------------------------------- render
 
@@ -1628,46 +1577,18 @@ class FansPage(QWidget):
         enabled = bool(snapshot.get("enabled"))
         available = bool(snapshot.get("available"))
         state = str(snapshot.get("state") or "")
-        status = self._service_status()
         desktop = self._desktop_fan_policy()
-        out_of_date = bool(enabled and desktop is not None and snapshot.get("policy_digest") != policy_digest(desktop))
+        out_of_date = board_view.service_out_of_date(snapshot, desktop)
         if self._busy:
             text, tone = tr("Applying selected action…"), "blue"
         elif self._system_fan_busy:
             text, tone = tr("Waiting for the administrator password…"), "blue"
         elif self._background.is_running("fan-system-sync"):
             text, tone = tr("Applying selected action…"), "blue"
-        elif snapshot.get("external"):
-            managers = self._fan_managers()
-            text = (tr_format("{program} controls the fan. Nothing here writes to it.", program=", ".join(managers))
-                    if managers else tr("The fan is handed to another program. Nothing here writes to it."))
-            tone = "blue"
-        elif not snapshot:
-            text, tone = tr("Checking the system fan service…"), ""
-        elif not enabled and not available:
-            text, tone = tr("Needs the installed BC250 Control Center package and systemd or OpenRC."), ""
-        elif not enabled:
-            text, tone = tr("Only the desktop follows the curve, and only after you log in."), ""
-        elif self._system_fan_sync_error:
-            text, tone = self._system_fan_sync_error, "red"
-        elif out_of_date:
-            text, tone = tr("The service still follows an older curve or preset. Sync it to use the one on screen."), "orange"
-        elif state == "active":
-            controlled = status.get("controlled") or ([status.get("pwm")] if status.get("pwm") else [])
-            text = tr_format("The system service follows {channels}.",
-                             channels=", ".join(f"PWM {pwm}" for pwm in controlled) or "—")
-            tone = "green"
-        elif state == "override":
-            text, tone = tr("A fan was changed by hand or from Quick Access. Apply its setting again to resume."), "orange"
-        elif state in {"waiting-driver", "waiting-sensor"}:
-            text = tr("Waiting for the NCT fan driver." if state == "waiting-driver" else "Waiting for temperature sensors.")
-            tone = "blue"
-        elif state == "error":
-            text, tone = str(status.get("error") or tr("The service reported an error.")), "red"
-        elif state == "idle":
-            text, tone = tr("No curve or preset to follow; the firmware drives the fan."), ""
         else:
-            text, tone = tr("The service is enabled but not running. The firmware drives the fan."), "orange"
+            template, values, tone = board_view.service_summary(
+                snapshot, desktop, sync_error=self._system_fan_sync_error)
+            text = tr_format(template, **values) if values else tr(template)
         self.status_line.setText(text)
         _restyle(self.status_line, "tone", tone)
         self.sync_button.setVisible(enabled and (out_of_date or state == "override" or bool(self._system_fan_sync_error)) and not self._system_fan_busy)
@@ -1741,17 +1662,10 @@ class FansPage(QWidget):
                 else "Only the desktop follows the curve, and only after you log in.")
 
     def _policy_supported(self, policy: dict | None) -> bool:
-        if policy is None:
+        if board_view.policy_supported(self._system_fan_control, policy):
             return True
-        snapshot = self._system_fan_control
-        status = self._service_status()
-        schemas = snapshot.get("policy_schemas") or status.get("policy_schemas")
-        if not schemas and status.get("schema") == 1:
-            schemas = [1]
-        if schemas == [1] and downgrade_policy_to_v1(policy) is None:
-            self._show_info("PWM control is not ready", "Update fan helper", tone="orange")
-            return False
-        return True
+        self._show_info("PWM control is not ready", "Update fan helper", tone="orange")
+        return False
 
     def _apply_channel(self, pwm: int, entry: dict | None) -> bool:
         if self._busy or self._channels_service is None or self._fan_external():
@@ -1838,17 +1752,8 @@ class FansPage(QWidget):
     def _profile_targets(self) -> list[int]:
         """Where a built-in profile goes when no channel is configured yet:
         the writable headers with a fan turning, else the selected one."""
-        rows = self._fan_rows()
-
-        def writable(pwm: int) -> bool:
-            fan = rows.get(pwm, {})
-            return bool(fan.get("pwm_path") and (fan.get("pwm_writable") or fan.get("pwm_root_writable")))
-
-        spinning = [pwm for pwm in self._channel_numbers() if writable(pwm) and _integer(rows[pwm].get("rpm")) > 0]
-        if spinning:
-            return spinning
         selected = self.editor.pwm if self.editor.pwm is not None else self._selected_pwm
-        return [selected] if selected is not None and writable(selected) else []
+        return board_view.profile_targets(self._fan_rows(), self._channel_numbers(), selected)
 
     def _save_profile(self) -> None:
         if self._channels_service is None:
@@ -2075,24 +1980,8 @@ class FansPage(QWidget):
     @staticmethod
     def _verify(result: object, *, pwm: int, raw: int | None = None, automatic: bool = False) -> str:
         """A helper acknowledgement without the promised read-back is a failure."""
-        if not isinstance(result, dict):
-            return tr("The PWM helper returned no verification result.")
-        verified = _dict(result.get("verified"))
-        if not verified:
-            detail = str(result.get("verification_error") or "").strip()
-            return detail or tr("The PWM change could not be verified from hwmon.")
-        if _integer(verified.get("pwm"), -1) != int(pwm):
-            return tr_format("PWM verification reported channel {actual}, expected PWM {expected}.",
-                             actual=verified.get("pwm", "--"), expected=int(pwm))
-        if automatic:
-            if _integer(verified.get("enable"), -1) != 2:
-                return tr_format("PWM {pwm} did not verify firmware automatic mode (read-back: {value}).",
-                                 pwm=int(pwm), value=verified.get("enable", "--"))
-            return ""
-        if _integer(verified.get("value"), -1) != int(raw):
-            return tr_format("PWM {pwm} read-back was {actual}, expected {expected}.",
-                             pwm=int(pwm), actual=verified.get("value", "--"), expected=int(raw))
-        return ""
+        template, values = board_view.verify_pwm_result(result, pwm=pwm, raw=raw, automatic=automatic)
+        return tr_format(template, **values) if template else ""
 
     # ------------------------------------------------- root service policy
 

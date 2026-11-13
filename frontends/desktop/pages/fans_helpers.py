@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import math
-
 from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -12,39 +10,14 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from bc250cc.application.fan import board_view
 
-def _dict(value) -> dict:
-    if hasattr(value, "to_dict"):
-        return value.to_dict()
-    try:
-        return dict(value or {})
-    except Exception:
-        return {}
-
-
-def _integer(value, default=0) -> int:
-    try:
-        return int(float(value))
-    except (TypeError, ValueError, OverflowError):
-        return int(default)
-
-
-def _finite_number(value: object) -> float | None:
-    try:
-        number = float(value)
-        return number if math.isfinite(number) else None
-    except (TypeError, ValueError):
-        return None
-
-
-def _pwm_to_percent(value) -> int | None:
-    if value is None:
-        return None
-    return max(0, min(100, round(_integer(value) * 100 / 255)))
-
-
-def _percent_to_pwm(value) -> int:
-    return max(0, min(255, round(_integer(value) * 255 / 100)))
+# The numeric helpers are shared with the web and the terminal interface.
+_dict = board_view.as_dict
+_integer = board_view.integer
+_finite_number = board_view.finite_number
+_pwm_to_percent = board_view.pwm_to_percent
+_percent_to_pwm = board_view.percent_to_pwm
 
 
 def _rpm_text(value: object) -> str:
