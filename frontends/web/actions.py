@@ -182,6 +182,11 @@ def cpu_unlock(ctx, p, shell):
     return 2, lambda: shell(ctx.service.comando_desbloquear_nucleos_cpu(ignore_core_mask=force))
 
 
+def cpu_unlock_persist(ctx, p, shell):
+    force = flag(p, "force_mask")
+    return 2, lambda: shell(ctx.service.comando_persistir_desbloqueo_nucleos_cpu(ignore_core_mask=force))
+
+
 # -- Compute units --------------------------------------------------------------------------------
 
 def cu_apply(ctx, p, shell):
@@ -328,6 +333,9 @@ ACTIONS = {
     "gpu.save_boot": lambda ctx, p, shell: (1, ctx.service.guardar_rango_gpu_arranque),
     "gpu.status": lambda ctx, p, shell: (0, ctx.service.status_governor),
     "cpu.apply": cpu_apply, "cpu.unlock": cpu_unlock,
+    "cpu.unlock_persist": cpu_unlock_persist,
+    "cpu.unlock_persist_off": lambda ctx, p, shell: (
+        2, lambda: shell(ctx.service.comando_quitar_persistencia_nucleos_cpu())),
     "cpu.persist": lambda ctx, p, shell: (1, lambda: shell(ctx.service.comando_cpu_oc_persistente_embebido())),
     "cpu.persist_off": lambda ctx, p, shell: (
         1, lambda: shell(ctx.service.comando_cpu_oc_desactivar_persistente_embebido())),

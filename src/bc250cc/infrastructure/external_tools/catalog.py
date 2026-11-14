@@ -174,7 +174,7 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
     # because it installs a unit that runs as root before sysinit.target.
     "core_unlock_persistent": ExternalToolSpec(
         key="core_unlock_persistent",
-        upstream="https://github.com/movacx/core_unlock_bc250",
+        upstream="https://github.com/movacx/core_unlock_bc250_boot_service",
         license="MIT",
         reviewed_revision="35db6d13ce8cee5c6b387d7eb7d1de07fcf6249d",
         privilege_class="boot-service-hardware-reboot",

@@ -40,8 +40,8 @@ GOVERNOR_SERVICES = (
 # bc250cc.infrastructure.core_unlock_trust (a packaging test compares them).
 PERSISTENT_REPOSITORY_NAME = "core_unlock_bc250"
 PERSISTENT_OFFICIAL_ORIGINS = frozenset({
-    "https://github.com/movacx/core_unlock_bc250",
-    "https://github.com/movacx/core_unlock_bc250.git",
+    "https://github.com/movacx/core_unlock_bc250_boot_service",
+    "https://github.com/movacx/core_unlock_bc250_boot_service.git",
 })
 PERSISTENT_SCRIPT = "bc250-core-unlock"
 PERSISTENT_REVIEWED_REVISION = "35db6d13ce8cee5c6b387d7eb7d1de07fcf6249d"
@@ -503,7 +503,7 @@ def _persist_install(raw_repository: str, *, force_mask: bool) -> int:
         raise RuntimeError(
             result.stderr.strip() or "The persistent core unlock could not be installed."
         )
-    print("Installed from: movacx/core_unlock_bc250 @ " + PERSISTENT_REVIEWED_REVISION[:12])
+    print("Installed from: movacx/core_unlock_bc250_boot_service @ " + PERSISTENT_REVIEWED_REVISION[:12])
     if _threads_present() >= UNLOCKED_THREADS:
         print("All 8 cores are already active. No restart is needed: the boot service "
               "unlocks them again after every full power-off.")

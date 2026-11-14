@@ -11,6 +11,7 @@ import threading
 import time
 from dataclasses import asdict
 
+from bc250cc.application.cpu.core_unlock import core_unlock_controls
 from bc250cc.application.fan import board_view
 from bc250cc.application.fan.system_control import build_system_fan_policy
 from bc250cc.application.gpu.voltage_lab_state import build_voltage_lab_state
@@ -141,7 +142,11 @@ def _cpu(raw: dict, ctx: Context) -> dict:
     tuning = present_cpu_tuning(persistent, raw.get("detection") or {}, raw.get("scale") or {}, raw.get("quick"),
                                 last_applied_frequency=config.get("cpu_oc_last_applied_frequency"),
                                 scale_override_enabled=False)
-    return {**raw, "persistence": {"enabled": stored.enabled, "value": said(stored.status_value),
+    unlock_controls = core_unlock_controls(raw.get("unlock") or {})
+    for key in ("status", "action", "note", "hint"):
+        unlock_controls[key] = tr(unlock_controls[key]) if unlock_controls[key] else ""
+    return {**raw, "unlock_controls": unlock_controls,
+            "persistence": {"enabled": stored.enabled, "value": said(stored.status_value),
                                    "detail": said(stored.status_detail)},
             "tuning": {name: said(getattr(tuning, name)) for name in (
                 "detection_value", "detection_detail", "live_value", "live_detail", "applied_value", "applied_detail")}}

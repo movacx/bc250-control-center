@@ -42,7 +42,7 @@ CORE_MASK_UNLOCKED = 0xFF  # all 8 cores
 # efibootmgr labels the NVMe entry this way in the documented command.
 EFI_SHIM_BOOT_LABEL = "CoreUnlock"
 
-# The boot service of movacx/core_unlock_bc250, which Control Center installs.
+# The boot service of movacx/core_unlock_bc250_boot_service, which Control Center installs.
 # Enabled means its WantedBy=sysinit.target link exists: that is exactly what
 # `systemctl enable` creates and what its give-up path removes, so a file alone
 # (left behind after a give-up) is not counted.

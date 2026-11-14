@@ -131,7 +131,7 @@ class CoreUnlockState:
     governor_state: str = ""
     unlock_allowed: bool = False
     unlocked: bool = False
-    # Persistence mode: the boot service of movacx/core_unlock_bc250.
+    # Persistence mode: the boot service of movacx/core_unlock_bc250_boot_service.
     persistence_supported: bool = False
     persistence_source_ready: bool = False
     persistence_installed: bool = False
@@ -1231,6 +1231,7 @@ class CpuControlView(QWidget):
         risk_panel, risk_box = subpanel("")
         self._risk_panel = risk_panel
         risk_panel.setProperty("riskPanel", True)
+        risk_panel.setObjectName("CpuCoreUnlockPanel")
         # Tighter than the default subpanel: this box was leaving visible air
         # between its own text and buttons instead of using it as margin.
         risk_box.setContentsMargins(16, 14, 16, 14)
@@ -1272,6 +1273,7 @@ class CpuControlView(QWidget):
         # Upstream's "-f": its tool refuses a core mask other than 0x77, and
         # some owners run boards that pass stress tests anyway.
         self.ignore_mask_line = CheckLine(IGNORE_CORE_MASK_LABEL, risk_panel)
+        self.ignore_mask_line.label.setProperty("unlockMaskLabel", True)
         self.ignore_mask_line.setToolTip(tr(IGNORE_CORE_MASK_HINT))
         self.ignore_mask_line.setEnabled(False)
         risk_box.addWidget(self.ignore_mask_line)

@@ -1,4 +1,4 @@
-"""Persistence mode of the core unlock: the boot service of movacx/core_unlock_bc250.
+"""Persistence mode of the core unlock: the boot service of movacx/core_unlock_bc250_boot_service.
 
 The temporary unlock is lost at every full power-off. The persistent one
 installs a boot service that writes the core mask again early in every cold
@@ -46,7 +46,7 @@ from frontends.desktop.pages.cpu_control_view import (
 
 HELPER = Path(__file__).resolve().parents[3] / "privileged" / "helpers" / "bc250-core-unlock-helper"
 GIT = Path("/usr/bin/git")
-PERSISTENT_URL = "https://github.com/movacx/core_unlock_bc250"
+PERSISTENT_URL = "https://github.com/movacx/core_unlock_bc250_boot_service"
 
 # Stands in for the tool: says how it was run instead of installing anything.
 SCRIPT = (
@@ -413,7 +413,7 @@ def test_a_missing_persistence_tool_is_fetched_before_the_install(monkeypatch, t
     assert command[:2] == ["/bin/sh", "-c"]
     script = command[2]
     assert script.startswith("set -e")
-    assert "git-checkout https://github.com/movacx/core_unlock_bc250" in script
+    assert "git-checkout https://github.com/movacx/core_unlock_bc250_boot_service" in script
     assert "chmod 0755" in script
     last = script.splitlines()[-1]
     assert last.startswith("exec ") and "--persist-install" in last and "pkexec" in last

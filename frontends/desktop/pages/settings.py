@@ -136,7 +136,7 @@ OFFICIAL_REPOSITORIES = (
     ("ASRock BIOS update kit mirror", "kenavru/BC-250", "https://github.com/kenavru/BC-250"),
     ("BC250 custom boot logo reference", "tmghd272/bc250-custom-bios-logo", "https://github.com/tmghd272/bc250-custom-bios-logo"),
     ("nct6687d fan driver", "Fred78290/nct6687d", "https://github.com/Fred78290/nct6687d"),
-    ("BC250 core unlock boot service", "movacx/core_unlock_bc250", "https://github.com/movacx/core_unlock_bc250"),
+    ("BC250 core unlock boot service", "movacx/core_unlock_bc250_boot_service", "https://github.com/movacx/core_unlock_bc250_boot_service"),
     ("OpenLinkHub (Corsair devices)", "jurkovic-nikola/OpenLinkHub", "https://github.com/jurkovic-nikola/OpenLinkHub"),
     ("Thermalright LCD coolers on Linux", "Lexonight1/thermalright-trcc-linux", "https://github.com/Lexonight1/thermalright-trcc-linux"),
     ("Decky Loader installer", "SteamDeckHomebrew/decky-installer", "https://github.com/SteamDeckHomebrew/decky-installer"),

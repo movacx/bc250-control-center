@@ -330,6 +330,7 @@ button, input, select { font-variant-numeric: tabular-nums; }
 .legend i.S { color: var(--c-cyan); background: var(--c-cyan-soft); border-color: var(--c-cyan-border); }
 .legend i.X { color: var(--c-red); background: var(--c-red-soft); border-color: var(--c-red-border); }
 .menu { right: 0; }
+.resource-controls .menu { left: 0; right: auto; }
 
 @media (min-width: 1101px) { .page-cpu > .cols, .page-gpu > .cols { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); } }
 @media (max-width: 1100px) { .profiles .tile strong { font-size: 17px; } }
@@ -823,3 +824,11 @@ button, input, select { font-variant-numeric: tabular-nums; }
   .side.slim .project-links a { min-height: 42px; }
   .side.slim .project-links span { display: none; }
 }
+
+.core-unlock-modes button { padding: 12px; text-align: left; }
+.core-unlock-modes strong, .core-unlock-modes span { display: block; }
+.core-unlock-modes span { margin-top: 5px; font-size: 11px; line-height: 1.5; }
+.core-unlock-modes button:disabled { opacity: .5; cursor: default; }
+
+.core-unlock-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.core-unlock-actions > .btn { flex: 1 1 180px; }
