@@ -6132,5 +6132,8 @@
   "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "即使 Control Center 嘗試修復後，遠端存取仍無法啟動。請重新啟動電腦後再試一次。如果仍無法啟動，請從 Black Box 傳送問題報告：其中包含詳細資訊。",
   "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "遠端存取無法啟動，因為另一個程式正在使用其連接埠。請關閉該程式或重新啟動電腦，然後再試一次。",
   "No changes": "無變更",
-  "No CPU tuning is active: the CPU runs at its normal settings.": "目前沒有生效的 CPU 調校：CPU 以正常設定運作。"
+  "No CPU tuning is active: the CPU runs at its normal settings.": "目前沒有生效的 CPU 調校：CPU 以正常設定運作。",
+  "Needs repair": "需要修復",
+  "Repair persistence": "修復持久化",
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "此系統啟動時開機服務沒有執行。修復會以此系統允許的方式重新安裝它。"
 }

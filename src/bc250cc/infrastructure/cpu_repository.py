@@ -43,7 +43,7 @@ from bc250cc.infrastructure.cpu_runtime_snapshot import read_cpu_runtime_snapsho
 from bc250cc.infrastructure.cpu_telemetry import build_cpu_telemetry
 from bc250cc.infrastructure.external_tools.catalog import EXTERNAL_TOOLS
 from bc250cc.infrastructure.governor_config_request import find_governor_config_helper
-from bc250cc.infrastructure.hardware_identity import is_bc250_platform
+from bc250cc.infrastructure.hardware_identity import cpu_threads_present, is_bc250_platform
 from bc250cc.infrastructure.polkit_session import pkexec_argv, pkexec_prefix
 from bc250cc.platform.init.services import (
     detect_init_manager,
@@ -720,8 +720,11 @@ class CPURepository:
         return ''
 
     def estado_desbloqueo_nucleos_cpu(self):
-        logical = os.cpu_count() or 0
-        physical = psutil.cpu_count(logical=False) or 0
+        # Present, not online: under nosmt (SteamOS) the online count halves.
+        # Every BC-250 core has two threads, so the core count follows.
+        present = cpu_threads_present()
+        logical = present or os.cpu_count() or 0
+        physical = present // 2 if present else (psutil.cpu_count(logical=False) or 0)
         hardware_detected = is_bc250_platform()
         repository = self._tool_dir() / CORE_UNLOCK_DIRECTORY
         script = repository / CORE_UNLOCK_SCRIPT

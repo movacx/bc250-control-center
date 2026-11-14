@@ -52,6 +52,16 @@ BOOT_SERVICE_WANTS_LINK = "/etc/systemd/system/sysinit.target.wants/bc250-core-u
 BOOT_SERVICE_STATE = "/var/lib/bc250-core-unlock/state.json"
 # Statuses after which the service has disabled itself.
 BOOT_SERVICE_STOPPED = frozenset({"gave-up", "refused"})
+# Why an installed, enabled service is not doing its job:
+#   "outdated": its unit executes the copy under /var/lib directly, which
+#       SELinux (Fedora, Bazzite) refuses, so it never ran a line (seen on the
+#       maintainer's Bazzite board, 2026-11-13: state.json still "idle");
+#   "not-run": the tool recorded neither this boot's run nor an install in it.
+BOOT_SERVICE_REPAIR_OUTDATED = "outdated"
+BOOT_SERVICE_REPAIR_NOT_RUN = "not-run"
+BOOT_ID_PATH = "/proc/sys/kernel/random/boot_id"
+CMDLINE_PATH = "/proc/cmdline"
+CMDLINE_DISABLE = "bc250.core_unlock=0"
 
 
 @dataclass(frozen=True)
@@ -71,6 +81,7 @@ class CoreUnlockPersistence:
     boot_service_enabled: bool = False
     boot_service_status: str = ""
     boot_service_note: str = ""
+    boot_service_repair: str = ""
 
     @property
     def boot_service_active(self) -> bool:
@@ -78,6 +89,7 @@ class CoreUnlockPersistence:
             self.boot_service_installed
             and self.boot_service_enabled
             and self.boot_service_status not in BOOT_SERVICE_STOPPED
+            and not self.boot_service_repair
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -92,6 +104,7 @@ class CoreUnlockPersistence:
             "boot_service_active": self.boot_service_active,
             "boot_service_status": self.boot_service_status,
             "boot_service_note": self.boot_service_note,
+            "boot_service_repair": self.boot_service_repair,
             "reference_url": EFI_SHIM_UPSTREAM,
         }
 
@@ -119,16 +132,44 @@ def _boot_entry_present(run_command) -> bool:
     return code == 0 and EFI_SHIM_BOOT_LABEL.casefold() in (stdout or "").casefold()
 
 
-def _boot_service_record(base: Path) -> tuple[str, str]:
-    """(status, note) from the service's state file; ('', '') when unreadable."""
+def _read(base: Path, path: str) -> str:
     try:
-        raw = json.loads((base / BOOT_SERVICE_STATE.lstrip("/")).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return "", ""
+        return (base / path.lstrip("/")).read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _boot_service_record(base: Path) -> dict[str, str]:
+    """String fields of the service's state file; {} when unreadable."""
+    try:
+        raw = json.loads(_read(base, BOOT_SERVICE_STATE) or "null")
+    except ValueError:
+        return {}
     if not isinstance(raw, dict):
-        return "", ""
-    status, note = raw.get("status"), raw.get("note")
-    return (status if isinstance(status, str) else ""), (note if isinstance(note, str) else "")
+        return {}
+    return {key: value for key, value in raw.items() if isinstance(value, str)}
+
+
+def _unit_runs_interpreter(unit_text: str) -> bool:
+    """The unit starts the tool through a Python interpreter (SELinux-safe)."""
+    for line in unit_text.splitlines():
+        if line.strip().startswith("ExecStart="):
+            command = line.split("=", 1)[1].split()
+            return bool(command) and Path(command[0].lstrip("-@!+:")).name.startswith("python")
+    return False
+
+
+def _boot_service_repair(base: Path, record: dict[str, str]) -> str:
+    """Which repair an installed, enabled service needs, or '' when none."""
+    if not _unit_runs_interpreter(_read(base, BOOT_SERVICE_UNIT)):
+        return BOOT_SERVICE_REPAIR_OUTDATED
+    if CMDLINE_DISABLE in _read(base, CMDLINE_PATH).split():
+        return ""  # skipped on purpose with the escape hatch
+    current = _read(base, BOOT_ID_PATH).strip()
+    served = {record.get("last_run_boot_id", ""), record.get("installed_boot_id", "")} - {""}
+    if current and served and current not in served:
+        return BOOT_SERVICE_REPAIR_NOT_RUN
+    return ""
 
 
 def detect_core_unlock_persistence(
@@ -146,12 +187,18 @@ def detect_core_unlock_persistence(
         service_enabled = wants_link.is_symlink() or wants_link.exists()
     except OSError:
         service_enabled = False
-    service_status, service_note = _boot_service_record(base)
+    state = _boot_service_record(base)
+    service_status, service_note = state.get("status", ""), state.get("note", "")
+    repair = ""
+    if (service_installed and service_enabled
+            and service_status not in BOOT_SERVICE_STOPPED):
+        repair = _boot_service_repair(base, state)
     record = CoreUnlockPersistence(
         unlocked=unlocked, mechanism="", survives_power_off=False,
         boot_service_installed=service_installed,
         boot_service_enabled=service_enabled,
         boot_service_status=service_status,
+        boot_service_repair=repair,
     )
 
     if not unlocked:
@@ -175,4 +222,5 @@ def detect_core_unlock_persistence(
         boot_service_enabled=service_enabled,
         boot_service_status=service_status,
         boot_service_note=service_note,
+        boot_service_repair=repair,
     ).to_dict()

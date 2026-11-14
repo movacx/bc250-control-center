@@ -6132,5 +6132,8 @@
   "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Η απομακρυσμένη πρόσβαση δεν μπόρεσε να ξεκινήσει, ακόμη και αφού το Control Center προσπάθησε να την επιδιορθώσει. Επανεκκινήστε τον υπολογιστή και δοκιμάστε ξανά. Αν εξακολουθεί να μην ξεκινά, στείλτε αναφορά προβλήματος από το Black Box: περιέχει τις λεπτομέρειες.",
   "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Η απομακρυσμένη πρόσβαση δεν μπόρεσε να ξεκινήσει επειδή άλλο πρόγραμμα χρησιμοποιεί τη θύρα της. Κλείστε αυτό το πρόγραμμα ή επανεκκινήστε τον υπολογιστή και δοκιμάστε ξανά.",
   "No changes": "Χωρίς αλλαγές",
-  "No CPU tuning is active: the CPU runs at its normal settings.": "Δεν είναι ενεργή καμία ρύθμιση CPU: η CPU λειτουργεί με τις κανονικές της ρυθμίσεις."
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Δεν είναι ενεργή καμία ρύθμιση CPU: η CPU λειτουργεί με τις κανονικές της ρυθμίσεις.",
+  "Needs repair": "Χρειάζεται επισκευή",
+  "Repair persistence": "Επισκευή μονιμότητας",
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Η υπηρεσία εκκίνησης δεν εκτελέστηκε κατά την εκκίνηση του συστήματος. Η επισκευή την εγκαθιστά ξανά με τρόπο που επιτρέπει το σύστημα."
 }

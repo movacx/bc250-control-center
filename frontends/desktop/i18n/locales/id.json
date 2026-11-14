@@ -6132,5 +6132,8 @@
   "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Akses jarak jauh tidak dapat dimulai, bahkan setelah Control Center mencoba memperbaikinya. Mulai ulang komputer lalu coba lagi. Jika masih tidak dapat dimulai, kirim laporan masalah dari Black Box: laporan itu berisi detailnya.",
   "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Akses jarak jauh tidak dapat dimulai karena program lain sedang memakai port-nya. Tutup program itu atau mulai ulang komputer, lalu coba lagi.",
   "No changes": "Tanpa perubahan",
-  "No CPU tuning is active: the CPU runs at its normal settings.": "Tidak ada penyetelan CPU yang aktif: CPU berjalan dengan pengaturan normalnya."
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Tidak ada penyetelan CPU yang aktif: CPU berjalan dengan pengaturan normalnya.",
+  "Needs repair": "Perlu diperbaiki",
+  "Repair persistence": "Perbaiki persistensi",
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Layanan boot tidak berjalan saat sistem ini dimulai. Perbaiki akan memasangnya lagi dengan cara yang diizinkan sistem ini."
 }

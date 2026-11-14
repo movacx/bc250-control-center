@@ -6132,5 +6132,8 @@
   "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "即使 Control Center 尝试修复后，远程访问仍无法启动。请重启电脑后重试。如果仍无法启动，请从 Black Box 发送问题报告：其中包含详细信息。",
   "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "远程访问无法启动，因为另一个程序正在使用其端口。请关闭该程序或重启电脑，然后重试。",
   "No changes": "无更改",
-  "No CPU tuning is active: the CPU runs at its normal settings.": "当前没有生效的 CPU 调优：CPU 以正常设置运行。"
+  "No CPU tuning is active: the CPU runs at its normal settings.": "当前没有生效的 CPU 调优：CPU 以正常设置运行。",
+  "Needs repair": "需要修复",
+  "Repair persistence": "修复持久化",
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "此系统启动时启动服务没有运行。修复会以此系统允许的方式重新安装它。"
 }

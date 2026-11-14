@@ -1483,6 +1483,8 @@ class GpuGovernorView(QWidget):
         # the Cyan compatibility heading below, with the ring that stands in
         # for it while hardware work runs.
         self._safe_pill = card.drop_header()
+        if self._safe_pill is not None:
+            self._safe_pill.set_plain()
         self._busy_badge = BusyBadge()
         self._operation_busy = False
 
@@ -1542,6 +1544,14 @@ class GpuGovernorView(QWidget):
         self._locked_label.setProperty("railLegend", True)
         header.addWidget(self._locked_label, 0, Qt.AlignmentFlag.AlignVCenter)
         range_box.addLayout(header)
+        # A kernel-imposed ceiling (the SteamOS BC-250 module) is a sentence,
+        # not a legend: on the header row it took the whole width and squeezed
+        # the subtitle into a one-word column. It gets its own wrapped line.
+        self._ceiling_notice = QLabel("")
+        self._ceiling_notice.setProperty("railLegend", True)
+        self._ceiling_notice.setWordWrap(True)
+        self._ceiling_notice.setVisible(False)
+        range_box.addWidget(self._ceiling_notice)
 
         self._rail = SafePointRail()
         self._rail.range_changed.connect(self._on_rail_changed)
@@ -2235,7 +2245,7 @@ class GpuGovernorView(QWidget):
             if unlocked
             else tr("Uncomment +2000 MHz points")
         )
-        self._locked_label.setText(
+        ceiling_notice = (
             tr_format(
                 "{reason} Maximum selectable frequency: {ceiling} MHz.",
                 reason=state.frequency_ceiling_reason,
@@ -2243,7 +2253,12 @@ class GpuGovernorView(QWidget):
             )
             if state.frequency_ceiling_mhz is not None
             else ""
-            if unlocked
+        )
+        self._ceiling_notice.setText(ceiling_notice)
+        self._ceiling_notice.setVisible(bool(ceiling_notice))
+        self._locked_label.setText(
+            ""
+            if ceiling_notice or unlocked
             else tr_format(
                 "{minimum}–{maximum} MHz COMMENTED IN THE TOML",
                 minimum=EXTRA_POINTS[0][0],
@@ -2288,12 +2303,7 @@ class GpuGovernorView(QWidget):
             "Fine-tune over the TOML points · current ceiling {ceiling} MHz.",
             ceiling=ceiling,
         )
-        if self._state.frequency_ceiling_mhz is not None:
-            subtitle = tr_format(
-                "{reason} Maximum selectable frequency: {ceiling} MHz.",
-                reason=self._state.frequency_ceiling_reason,
-                ceiling=ceiling,
-            ) + " " + subtitle
+        # The ceiling's reason is on its own line (``_ceiling_notice``).
         self._range_subtitle.setText(subtitle)
         self._minimum_line.set_values(str(self._selected_minimum))
         self._maximum_line.set_values(

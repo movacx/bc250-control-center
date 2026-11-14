@@ -6132,5 +6132,8 @@
   "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "L’accesso remoto non è riuscito ad avviarsi, nemmeno dopo il tentativo di riparazione di Control Center. Riavvia il computer e riprova. Se ancora non si avvia, invia una segnalazione di problema da Black Box: contiene i dettagli.",
   "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "L’accesso remoto non è riuscito ad avviarsi perché un altro programma sta usando la sua porta. Chiudi quel programma o riavvia il computer, poi riprova.",
   "No changes": "Nessuna modifica",
-  "No CPU tuning is active: the CPU runs at its normal settings.": "Nessuna regolazione della CPU è attiva: la CPU funziona con le impostazioni normali."
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Nessuna regolazione della CPU è attiva: la CPU funziona con le impostazioni normali.",
+  "Needs repair": "Da riparare",
+  "Repair persistence": "Ripara persistenza",
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Il servizio di avvio non è stato eseguito all'avvio di questo sistema. Ripara lo reinstalla in un modo consentito da questo sistema."
 }

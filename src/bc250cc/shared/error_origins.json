@@ -806,7 +806,10 @@
    "CoreUnlockPersistence.to_dict": "CPU-0212",
    "_present": "CPU-0213",
    "_boot_entry_present": "CPU-0214",
+   "_read": "CPU-0329",
    "_boot_service_record": "CPU-0309",
+   "_unit_runs_interpreter": "CPU-0330",
+   "_boot_service_repair": "CPU-0331",
    "detect_core_unlock_persistence": "CPU-0215"
   },
   "bc250cc/infrastructure/cpu_command_policy.py": {
@@ -1599,7 +1602,8 @@
   "bc250cc/infrastructure/hardware_identity.py": {
    "is_bc250_platform": "SYS-0041",
    "bc250_identity": "SYS-0326",
-   "require_bc250_hardware": "SYS-0327"
+   "require_bc250_hardware": "SYS-0327",
+   "cpu_threads_present": "SYS-0332"
   },
   "bc250cc/infrastructure/helixsr.py": {
    "_data_home": "UPS-0076",
@@ -3867,6 +3871,7 @@
    "PillLabel.__init__": "UI-0284",
    "PillLabel.setText": "UI-0285",
    "PillLabel.set_tone": "UI-0286",
+   "PillLabel.set_plain": "UI-0746",
    "PillLabel._refresh_palette": "UI-0287",
    "dialog_card": "UI-0288",
    "dialog_header": "UI-0289",

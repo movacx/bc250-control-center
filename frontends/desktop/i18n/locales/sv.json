@@ -6132,5 +6132,8 @@
   "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Fjärråtkomsten kunde inte starta, inte ens efter att Control Center försökt reparera den. Starta om datorn och försök igen. Om den fortfarande inte startar, skicka en problemrapport från Black Box: den innehåller detaljerna.",
   "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Fjärråtkomsten kunde inte starta eftersom ett annat program använder dess port. Stäng det programmet eller starta om datorn och försök igen.",
   "No changes": "Inga ändringar",
-  "No CPU tuning is active: the CPU runs at its normal settings.": "Ingen CPU-justering är aktiv: CPU:n körs med sina normala inställningar."
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Ingen CPU-justering är aktiv: CPU:n körs med sina normala inställningar.",
+  "Needs repair": "Behöver repareras",
+  "Repair persistence": "Reparera beständighet",
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Starttjänsten kördes inte när systemet startade. Reparera installerar den igen på ett sätt som systemet tillåter."
 }

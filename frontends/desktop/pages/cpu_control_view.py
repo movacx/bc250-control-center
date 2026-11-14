@@ -140,6 +140,8 @@ class CoreUnlockState:
     #: Last recorded run ("unlocked", "gave-up", "refused", ...) and its note.
     persistence_status: str = ""
     persistence_note: str = ""
+    #: Installed and enabled but not doing its job ("outdated", "not-run").
+    persistence_repair: str = ""
     persist_allowed: bool = False
     remove_allowed: bool = False
 
@@ -938,6 +940,8 @@ class CpuControlView(QWidget):
         # repeated the panel headings underneath. The pill is the part that
         # carried information, so it moves next to the runtime readings.
         self._configuration_status = card.drop_header()
+        if self._configuration_status is not None:
+            self._configuration_status.set_plain()
         # While an overclock is being applied, or any other task of this
         # screen runs, a turning ring takes the pill's place: a static
         # "Checking" was easy to miss while a privileged command was going.
@@ -1502,6 +1506,8 @@ class CpuControlView(QWidget):
         )
         if unlock.persistence_active:
             persistent.set_tag("In use", "green")
+        elif unlock.persistence_repair:
+            persistent.set_tag("Needs repair", "orange")
         elif stopped:
             persistent.set_tag("Service stopped", "orange")
         else:
@@ -1513,14 +1519,18 @@ class CpuControlView(QWidget):
         )
 
         # Why a service stopped itself is said in plain sight, in both modes.
-        note = (
-            tr_format(
+        if unlock.persistence_repair:
+            note = tr(
+                "The boot service did not run when this system started. "
+                "Repair installs it again in a way this system allows."
+            )
+        elif stopped:
+            note = tr_format(
                 "The boot service stopped itself: {note}",
                 note=unlock.persistence_note or unlock.persistence_status,
             )
-            if stopped
-            else ""
-        )
+        else:
+            note = ""
         self._unlock_note.setText(note)
         self._unlock_note.setVisible(bool(note))
 
@@ -1553,6 +1563,9 @@ class CpuControlView(QWidget):
         if unlock.persistence_active:
             text = tr("Persistence active")
             allowed = False
+        elif unlock.persistence_repair:
+            text = tr("Repair persistence")
+            allowed = unlock.persist_allowed
         elif stopped:
             text = tr("Install persistence again")
             allowed = unlock.persist_allowed

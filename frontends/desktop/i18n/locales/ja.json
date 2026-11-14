@@ -6132,5 +6132,8 @@
   "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Control Center が修復を試みましたが、リモートアクセスを開始できませんでした。コンピューターを再起動してもう一度お試しください。それでも開始しない場合は、Black Box から問題レポートを送信してください。詳細が含まれています。",
   "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "別のプログラムがポートを使用しているため、リモートアクセスを開始できませんでした。そのプログラムを閉じるか、コンピューターを再起動してからもう一度お試しください。",
   "No changes": "変更なし",
-  "No CPU tuning is active: the CPU runs at its normal settings.": "有効な CPU チューニングはありません。CPU は通常の設定で動作しています。"
+  "No CPU tuning is active: the CPU runs at its normal settings.": "有効な CPU チューニングはありません。CPU は通常の設定で動作しています。",
+  "Needs repair": "修復が必要",
+  "Repair persistence": "永続化を修復",
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "このシステムの起動時にブートサービスが実行されませんでした。修復すると、このシステムが許可する方法で再インストールします。"
 }

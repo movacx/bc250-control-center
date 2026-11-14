@@ -6132,5 +6132,8 @@
   "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Control Center가 복구를 시도했지만 원격 액세스를 시작할 수 없습니다. 컴퓨터를 다시 시작한 뒤 다시 시도하세요. 그래도 시작되지 않으면 Black Box에서 문제 보고서를 보내세요. 자세한 내용이 포함되어 있습니다.",
   "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "다른 프로그램이 포트를 사용 중이어서 원격 액세스를 시작할 수 없습니다. 그 프로그램을 닫거나 컴퓨터를 다시 시작한 뒤 다시 시도하세요.",
   "No changes": "변경 없음",
-  "No CPU tuning is active: the CPU runs at its normal settings.": "활성화된 CPU 튜닝이 없습니다. CPU가 일반 설정으로 동작 중입니다."
+  "No CPU tuning is active: the CPU runs at its normal settings.": "활성화된 CPU 튜닝이 없습니다. CPU가 일반 설정으로 동작 중입니다.",
+  "Needs repair": "복구 필요",
+  "Repair persistence": "영구 적용 복구",
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "이 시스템이 시작될 때 부팅 서비스가 실행되지 않았습니다. 복구하면 이 시스템이 허용하는 방식으로 다시 설치합니다."
 }

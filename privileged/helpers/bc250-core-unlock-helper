@@ -44,8 +44,8 @@ PERSISTENT_OFFICIAL_ORIGINS = frozenset({
     "https://github.com/movacx/core_unlock_bc250.git",
 })
 PERSISTENT_SCRIPT = "bc250-core-unlock"
-PERSISTENT_REVIEWED_REVISION = "a915dd63ad3419354499e6031390cc9ac585a74d"
-PERSISTENT_REVIEWED_SCRIPT_SHA256 = "f937350feaff53658b5f21f0709ca594d8f3625cf6f4a57c7e052c8d1fceea5f"
+PERSISTENT_REVIEWED_REVISION = "35db6d13ce8cee5c6b387d7eb7d1de07fcf6249d"
+PERSISTENT_REVIEWED_SCRIPT_SHA256 = "946e24d4452465c17e33c161d721d709e7b84953985e67a43fd403a6e93006c6"
 # Where the tool installs itself and its unit. Fixed by the tool, so removal
 # never needs the user's clone: a deleted tool folder must not leave a root
 # boot service that Control Center can no longer remove.

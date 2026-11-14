@@ -57,3 +57,29 @@ def test_on_oberon_the_status_moves_up_beside_the_profiles(qtbot):
     view.set_oberon_mode(False)
     assert view._compat_panel.isAncestorOf(view._safe_pill)
     assert view._compat_panel.isAncestorOf(view._busy_badge)
+
+
+def test_a_kernel_ceiling_warning_wraps_on_its_own_line_and_leaves_the_subtitle_wide(qtbot):
+    """SteamOS bug (2026-11-13): the module's 2230 MHz warning sat on the
+    header row, took its whole width and wrapped the subtitle one word per
+    line. It now has a wrapped line of its own and is said once."""
+    from dataclasses import replace
+
+    from frontends.desktop.pages.gpu_governor_view import GpuViewState
+
+    view = GpuGovernorView()
+    qtbot.addWidget(view)
+    view.resize(1500, 900)
+    view.show()
+    qtbot.waitExposed(view)
+    view.apply_state(replace(
+        GpuViewState(), frequency_ceiling_mhz=2230,
+        frequency_ceiling_reason="The SteamOS BC-250 kernel module reports the GPU clock only up to "
+        "2230 MHz; above it the GPU telemetry goes blank.",
+    ))
+    qtbot.wait(50)
+    notice, subtitle = view._ceiling_notice, view._range_subtitle
+    assert notice.isVisible() and notice.wordWrap() and "2230" in notice.text()
+    assert view._locked_label.text() == ""
+    assert "SteamOS" not in subtitle.text()
+    assert subtitle.width() > view._range_panel.width() // 2

@@ -6132,5 +6132,8 @@
   "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Accesul la distanță nu a putut porni, nici după ce Control Center a încercat să-l repare. Repornește calculatorul și încearcă din nou. Dacă tot nu pornește, trimite un raport de problemă din Black Box: conține detaliile.",
   "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Accesul la distanță nu a putut porni deoarece alt program îi folosește portul. Închide acel program sau repornește calculatorul, apoi încearcă din nou.",
   "No changes": "Fără modificări",
-  "No CPU tuning is active: the CPU runs at its normal settings.": "Niciun reglaj al CPU nu este activ: CPU funcționează cu setările normale."
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Niciun reglaj al CPU nu este activ: CPU funcționează cu setările normale.",
+  "Needs repair": "Necesită reparare",
+  "Repair persistence": "Repară persistența",
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Serviciul de pornire nu a rulat la pornirea sistemului. Repară îl reinstalează într-un mod permis de acest sistem."
 }

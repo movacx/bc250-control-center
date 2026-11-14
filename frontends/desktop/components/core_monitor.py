@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ..i18n import tr
+from .. import theme
 from ..theme import COLORS
 from .style_state import set_style_property
 
@@ -90,7 +91,10 @@ class UsageBar(QWidget):
             radius = self.height() / 2
             track = QPainterPath()
             track.addRoundedRect(QRectF(self.rect()), radius, radius)
-            painter.fillPath(track, QColor(COLORS["neutral_soft"]))
+            # The dark themes put the monitor on a solid grey group, where the
+            # soft neutral disappears; the border tone keeps the track visible.
+            dark = theme.ACTIVE_MODE != "light"
+            painter.fillPath(track, QColor(COLORS["border" if dark else "neutral_soft"]))
             if not self._active or self._ratio <= 0:
                 return
             width = max(float(self.height()), self.width() * self._ratio)

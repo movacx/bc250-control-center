@@ -735,6 +735,19 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     # outlined, with the title bands and table heads a faint tint. The dark
     # themes keep the Compatibility tab's greys, title bands a step darker.
     light = ACTIVE_MODE == "light"
+    # CPU / GPU pages in the dark themes follow Additional settings: solid
+    # grey groups with a visible border, and buttons that are either a solid
+    # colour or a plain outline. No tinted, see-through fills.
+    group_fill = c['panel_raised']
+    group_line = c['border']
+    risk_fill = c['red_soft'] if light else group_fill
+    risk_line = c['red_border'] if light else _blend(c['border'], c['red'], 0.55)
+    selected_fill = c['blue_soft'] if light else _blend(group_fill, c['blue'], 0.14)
+    # Solid action colours, darkened enough for white text to read.
+    danger_solid = _blend(c['red'], "#000000", 0.25)
+    success_solid = _blend(c['green'], "#000000", 0.32)
+    # Only the chosen unlock option is outlined in red; the other stays neutral.
+    option_line = c['red_border'] if light else group_line
     upscaling_card = c['panel'] if light else c['panel_alt']
     upscaling_field = c['control']
     upscaling_line, upscaling_line_strong = c['border_soft'], c['border']
@@ -3545,13 +3558,41 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
        builds carries one of these properties, so nothing falls back to the
        unstyled platform button. */
     QWidget[redesignedModule='true'] QFrame[subPanel='true'] {{
-        background: transparent;
-        border: 1px solid {c['border_soft']};
+        background: {'transparent' if light else group_fill};
+        border: 1px solid {c['border_soft'] if light else group_line};
         border-radius: 12px;
     }}
     QWidget[redesignedModule='true'] QFrame[subPanel='true'][riskPanel='true'] {{
-        background: {c['red_soft']};
-        border: 1px solid {c['red_border']};
+        background: {risk_fill};
+        border: 1px solid {risk_line};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[dangerAction='true'] {{
+        background: {c['red_soft'] if light else danger_solid};
+        border-color: {c['red_border'] if light else danger_solid};
+        color: {c['red'] if light else '#FFFFFF'};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[dangerAction='true']:hover {{
+        background: {c['red_soft'] if light else _blend(danger_solid, '#FFFFFF', 0.10)};
+        border-color: {c['red'] if light else _blend(danger_solid, '#FFFFFF', 0.10)};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[successAction='true'] {{
+        background: {c['green_soft'] if light else success_solid};
+        border-color: {c['green_border'] if light else success_solid};
+        color: {c['green'] if light else '#FFFFFF'};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[successAction='true']:hover {{
+        background: {c['green_soft'] if light else _blend(success_solid, '#FFFFFF', 0.10)};
+        border-color: {c['green'] if light else _blend(success_solid, '#FFFFFF', 0.10)};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[dangerAction='true']:disabled,
+    QWidget[redesignedModule='true'] QPushButton[successAction='true']:disabled {{
+        background: {c['disabled_bg'] if light else c['panel_alt']};
+        border-color: {c['disabled_bg'] if light else group_line};
+        color: {c['disabled_text']};
+    }}
+    QWidget[redesignedModule='true'] QFrame[profileCard='true'],
+    QWidget[redesignedModule='true'] QFrame[metricTile='true'] {{
+        border-color: {c['border_soft'] if light else group_line};
     }}
     /* Qt draws a spin box's step buttons outside the rounded border by
        default, which left a grey stub hanging off every numeric field in both
@@ -3793,17 +3834,18 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-color: {c['blue_border']};
     }}
     QWidget[redesignedModule='true'] QPushButton[accentAction='true'] {{
-        background: {c['blue_soft']};
-        border: 1px solid {c['blue_border']};
+        background: {c['blue_soft'] if light else c['blue']};
+        border: 1px solid {c['blue_border'] if light else c['blue']};
         border-radius: 10px;
         padding: 9px 14px;
         font-size: 12px;
         font-weight: 740;
-        color: {c['blue']};
+        color: {c['blue'] if light else c['on_blue']};
     }}
     QWidget[redesignedModule='true'] QPushButton[accentAction='true']:hover {{
-        border-color: {c['blue']};
-        color: {c['blue_hover']};
+        background: {c['blue_soft'] if light else c['blue_hover']};
+        border-color: {c['blue'] if light else c['blue_hover']};
+        color: {c['blue_hover'] if light else c['on_blue']};
     }}
     QWidget[redesignedModule='true'] QPushButton[accentAction='true']:disabled {{
         background: {c['disabled_bg']};
@@ -3831,7 +3873,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['disabled_text']};
     }}
     QWidget[redesignedModule='true'] QFrame[profileCard='true'][selectedProfile='true'] {{
-        background: {c['blue_soft']};
+        background: {selected_fill};
         border: 1px solid {c['blue_border']};
     }}
     QWidget[redesignedModule='true'] QFrame[profileCard='true'][blockedProfile='true'] {{
@@ -3848,8 +3890,8 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     /* CPU danger zone: the two ways to unlock, as selectable rows. */
     QWidget[redesignedModule='true'] QFrame[unlockOption='true'] {{
-        background: {c['panel']};
-        border: 1px solid {c['red_border']};
+        background: {c['panel'] if light else c['panel_alt']};
+        border: 1px solid {option_line};
         border-radius: 10px;
     }}
     QWidget[redesignedModule='true'] QFrame[unlockOption='true']:hover {{
@@ -3857,7 +3899,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QWidget[redesignedModule='true'] QFrame[unlockOption='true'][selected='true'] {{
         border: 1px solid {c['red']};
-        background: {c['panel']};
+        background: {c['panel'] if light else c['panel_alt']};
     }}
     QWidget[redesignedModule='true'] QFrame[unlockOption='true']:disabled {{
         border-color: {c['border_soft']};

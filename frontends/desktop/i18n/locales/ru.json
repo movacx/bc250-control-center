@@ -6132,5 +6132,8 @@
   "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Удалённый доступ не удалось запустить, даже после попытки Control Center его исправить. Перезагрузите компьютер и попробуйте снова. Если он всё равно не запускается, отправьте отчёт о проблеме из Black Box: в нём есть подробности.",
   "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Удалённый доступ не удалось запустить: его порт занят другой программой. Закройте эту программу или перезагрузите компьютер и попробуйте снова.",
   "No changes": "Без изменений",
-  "No CPU tuning is active: the CPU runs at its normal settings.": "Настройка CPU не активна: процессор работает с обычными параметрами."
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Настройка CPU не активна: процессор работает с обычными параметрами.",
+  "Needs repair": "Требуется исправление",
+  "Repair persistence": "Исправить постоянство",
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Служба загрузки не запустилась при старте системы. «Исправить» установит её заново способом, который допускает эта система."
 }

@@ -6132,5 +6132,8 @@
   "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "Der Fernzugriff konnte nicht starten, auch nicht nachdem Control Center versucht hat, ihn zu reparieren. Starten Sie den Computer neu und versuchen Sie es erneut. Startet er weiterhin nicht, senden Sie einen Problembericht aus Black Box: Er enthält die Details.",
   "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "Der Fernzugriff konnte nicht starten, weil ein anderes Programm seinen Port verwendet. Schließen Sie dieses Programm oder starten Sie den Computer neu und versuchen Sie es erneut.",
   "No changes": "Keine Änderungen",
-  "No CPU tuning is active: the CPU runs at its normal settings.": "Keine CPU-Abstimmung ist aktiv: Die CPU läuft mit ihren normalen Einstellungen."
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Keine CPU-Abstimmung ist aktiv: Die CPU läuft mit ihren normalen Einstellungen.",
+  "Needs repair": "Reparatur nötig",
+  "Repair persistence": "Persistenz reparieren",
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Der Startdienst wurde beim Hochfahren dieses Systems nicht ausgeführt. Reparieren installiert ihn erneut auf eine Weise, die dieses System zulässt."
 }

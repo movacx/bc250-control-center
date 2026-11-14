@@ -222,6 +222,7 @@ def _core_unlock_state(page, core_unlock: dict) -> CoreUnlockState:
         persistence_active=active,
         persistence_status=str(persistence.get("boot_service_status") or ""),
         persistence_note=str(persistence.get("boot_service_note") or ""),
+        persistence_repair=str(persistence.get("boot_service_repair") or ""),
         persist_allowed=persist_allowed,
         # Removal never needs the clone, and is offered wherever a service is.
         remove_allowed=bool(idle and installed and helper_ready),

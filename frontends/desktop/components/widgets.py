@@ -127,6 +127,7 @@ class PillLabel(QLabel):
     def __init__(self, text: str, tone: str = "green", parent: QWidget | None = None):
         super().__init__(tr(text), parent)
         self._tone = tone
+        self._plain = False
         self.setProperty("pill", True)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -141,6 +142,17 @@ class PillLabel(QLabel):
         self._tone = tone
         self._refresh_palette()
 
+    def set_plain(self, plain: bool = True) -> None:
+        """Show the status as coloured text only in the dark themes.
+
+        Additional settings states a status in colour ("Active" in green)
+        without a tinted capsule; screens that follow that look opt in here.
+        """
+        if plain == self._plain:
+            return
+        self._plain = plain
+        self._refresh_palette()
+
     def _refresh_palette(self) -> None:
         tone = self._tone if self._tone in {"green", "blue", "purple", "orange", "red", "cyan"} else "gray"
         if tone == "gray":
@@ -151,6 +163,12 @@ class PillLabel(QLabel):
             border = COLORS[f"{tone}_border"]
         # Selector-scoped: a bare declaration list also reaches child windows,
         # and this pill's tooltip is one — it took on the pill's colours.
+        if self._plain and theme_module.ACTIVE_MODE != "light":
+            self.setStyleSheet(
+                f"PillLabel {{ color:{foreground}; background:transparent; border:none; "
+                f"padding-left:0px; padding-right:0px; }}"
+            )
+            return
         self.setStyleSheet(
             f"PillLabel {{ color:{foreground}; background:{background}; border:1px solid {border}; }}"
         )

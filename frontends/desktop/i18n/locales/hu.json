@@ -6132,5 +6132,8 @@
   "Remote access could not start, even after Control Center tried to repair it. Restart the computer and try again. If it still does not start, send a problem report from Black Box: it includes the details.": "A távoli hozzáférés nem indult el, még azután sem, hogy a Control Center megpróbálta kijavítani. Indítsa újra a számítógépet, és próbálja újra. Ha továbbra sem indul el, küldjön hibajelentést a Black Box felületről: ez tartalmazza a részleteket.",
   "Remote access could not start because another program is using its port. Close that program or restart the computer, then try again.": "A távoli hozzáférés nem indult el, mert a portját egy másik program használja. Zárja be azt a programot, vagy indítsa újra a számítógépet, majd próbálja újra.",
   "No changes": "Nincs változás",
-  "No CPU tuning is active: the CPU runs at its normal settings.": "Nincs aktív CPU-hangolás: a CPU a szokásos beállításaival működik."
+  "No CPU tuning is active: the CPU runs at its normal settings.": "Nincs aktív CPU-hangolás: a CPU a szokásos beállításaival működik.",
+  "Needs repair": "Javítás szükséges",
+  "Repair persistence": "Tartósság javítása",
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Az indítási szolgáltatás nem futott le a rendszer indulásakor. A Javítás újratelepíti úgy, ahogy ez a rendszer engedi."
 }

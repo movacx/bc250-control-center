@@ -270,10 +270,19 @@ def test_an_untrusted_installed_copy_is_not_run_and_the_unit_is_removed_directly
 # ------------------------------------------------------------------ detection
 
 
-def _install(root: Path, *, enabled: bool, status: str = "", note: str = "") -> None:
+CURRENT_UNIT = (
+    "[Service]\nExecStart=/usr/bin/python3 -I "
+    "/var/lib/bc250-core-unlock/bin/bc250-core-unlock apply --boot\n"
+)
+# What core_unlock_bc250 0.1.0 wrote: SELinux refuses to execute it on Bazzite.
+OUTDATED_UNIT = "[Service]\nExecStart=/var/lib/bc250-core-unlock/bin/bc250-core-unlock apply --boot\n"
+
+
+def _install(root: Path, *, enabled: bool, status: str = "", note: str = "",
+             unit_text: str = CURRENT_UNIT, extra: dict | None = None) -> None:
     unit = root / BOOT_SERVICE_UNIT.lstrip("/")
     unit.parent.mkdir(parents=True, exist_ok=True)
-    unit.write_text("[Unit]\n")
+    unit.write_text(unit_text)
     if enabled:
         link = root / BOOT_SERVICE_WANTS_LINK.lstrip("/")
         link.parent.mkdir(parents=True, exist_ok=True)
@@ -281,7 +290,7 @@ def _install(root: Path, *, enabled: bool, status: str = "", note: str = "") -> 
     if status:
         record = root / BOOT_SERVICE_STATE.lstrip("/")
         record.parent.mkdir(parents=True, exist_ok=True)
-        record.write_text(json.dumps({"status": status, "note": note}))
+        record.write_text(json.dumps({"status": status, "note": note, **(extra or {})}))
 
 
 def test_an_enabled_boot_service_keeps_the_unlock_across_power_off(tmp_path):
@@ -314,6 +323,60 @@ def test_a_stock_board_with_the_service_installed_reports_it(tmp_path):
     state = detect_core_unlock_persistence(physical_cores=6, logical_cpus=12, root=tmp_path)
     assert state["mechanism"] == "stock"
     assert state["boot_service_active"] is True
+
+
+def _boot(root: Path, boot_id: str, cmdline: str = "quiet") -> None:
+    proc = root / "proc/sys/kernel/random"
+    proc.mkdir(parents=True, exist_ok=True)
+    (proc / "boot_id").write_text(boot_id + "\n")
+    (root / "proc/cmdline").write_text(cmdline + "\n")
+
+
+def test_a_unit_selinux_cannot_execute_needs_repair_not_in_use(tmp_path):
+    """Bazzite, 2026-11-13: installed and enabled, state.json still "idle",
+    6 cores after the reboot, and the card said "In use"."""
+    _install(tmp_path, enabled=True, status="idle", unit_text=OUTDATED_UNIT)
+    state = detect_core_unlock_persistence(physical_cores=6, logical_cpus=12, root=tmp_path)
+    assert state["boot_service_repair"] == "outdated"
+    assert state["boot_service_active"] is False
+
+
+def test_a_service_that_did_not_run_this_boot_needs_repair(tmp_path):
+    _install(tmp_path, enabled=True, status="idle",
+             extra={"installed_boot_id": "install-boot", "last_run_boot_id": ""})
+    _boot(tmp_path, "a-later-boot")
+    state = detect_core_unlock_persistence(physical_cores=6, logical_cpus=12, root=tmp_path)
+    assert state["boot_service_repair"] == "not-run"
+    assert state["boot_service_active"] is False
+
+
+@pytest.mark.parametrize("boot_id, cmdline", [
+    ("install-boot", "quiet"),            # installed in this boot: no boot has run yet
+    ("ran-boot", "quiet"),                # the service ran in this boot
+    ("a-later-boot", "quiet bc250.core_unlock=0"),  # skipped on purpose
+])
+def test_a_service_that_had_no_chance_or_ran_is_fine(tmp_path, boot_id, cmdline):
+    _install(tmp_path, enabled=True, status="unlocked",
+             extra={"installed_boot_id": "install-boot", "last_run_boot_id": "ran-boot"})
+    _boot(tmp_path, boot_id, cmdline)
+    state = detect_core_unlock_persistence(physical_cores=8, logical_cpus=16, root=tmp_path)
+    assert state["boot_service_repair"] == ""
+    assert state["boot_service_active"] is True
+
+
+def test_the_card_offers_repair_for_a_service_that_needs_it(qtbot):
+    view = CpuControlView()
+    qtbot.addWidget(view)
+    view._set_mode(UNLOCK_MODE_PERSISTENT)
+    view._apply_unlock(CoreUnlockState(
+        helper_ready=True, persistence_supported=True, persistence_source_ready=True,
+        persistence_installed=True, persistence_active=False, persistence_repair="outdated",
+        persist_allowed=True, remove_allowed=True,
+    ))
+    persistent = view._mode_buttons[UNLOCK_MODE_PERSISTENT]
+    assert persistent.tag.text() == "Needs repair"
+    assert view.unlock_button.text() == "Repair persistence" and view.unlock_button.isEnabled()
+    assert "did not run" in view._unlock_note.text()
 
 
 # ------------------------------------------------------------------ card
@@ -510,3 +573,41 @@ def test_a_broken_saved_height_falls_back_and_is_clamped(qtbot, tmp_path):
     assert _console_view(qtbot, settings).console_height() == CONSOLE_DEFAULT_HEIGHT
     settings.setValue(CONSOLE_HEIGHT_KEY, 5)
     assert _console_view(qtbot, settings).console_height() == CONSOLE_MIN_HEIGHT
+
+
+# ------------------------------------------------------------------ nosmt (SteamOS)
+
+
+@pytest.mark.parametrize("spec, expected", [("0-11", 12), ("0-15", 16), ("0-5,6-11", 12),
+                                            ("0", 1), ("", 0), ("garbage", 0)])
+def test_present_threads_are_counted_from_sysfs(tmp_path, spec, expected):
+    from bc250cc.infrastructure.hardware_identity import cpu_threads_present
+
+    path = tmp_path / "present"
+    path.write_text(spec + "\n")
+    assert cpu_threads_present(path) == expected
+
+
+@pytest.mark.parametrize("present, online, shape, unlocked", [
+    (12, 6, True, False),    # stock SteamOS board under nosmt
+    (16, 8, False, True),    # unlocked SteamOS board under nosmt
+    (12, 12, True, False),   # stock elsewhere
+])
+def test_nosmt_does_not_hide_the_stock_or_unlocked_shape(monkeypatch, tmp_path, present, online, shape, unlocked):
+    """SteamOS boots with nosmt: 6 online threads on a stock board kept the
+    Persistence option blocked (2026-11-13)."""
+    from bc250cc.infrastructure import cpu_repository
+
+    monkeypatch.setattr(cpu_repository, "cpu_threads_present", lambda: present)
+    monkeypatch.setattr(cpu_repository.os, "cpu_count", lambda: online)
+    monkeypatch.setattr(cpu_repository.psutil, "cpu_count", lambda logical=True: online // 2 if not logical else online)
+    monkeypatch.setattr(cpu_repository, "is_bc250_platform", lambda: True)
+    repo = object.__new__(cpu_repository.CPURepository)
+    monkeypatch.setattr(repo, "_tool_dir", lambda: tmp_path, raising=False)
+    monkeypatch.setattr(repo, "_ejecutar", lambda *a, **k: (1, "", ""), raising=False)
+    monkeypatch.setattr(repo, "_service_state", lambda *a, **k: "inactive", raising=False)
+    monkeypatch.setattr(repo, "_core_unlock_helper_path", lambda: "", raising=False)
+    state = repo.estado_desbloqueo_nucleos_cpu()
+    assert state["supported_stock_shape"] is shape
+    assert state["unlocked"] is unlocked
+    assert state["logical_cpus"] == present
