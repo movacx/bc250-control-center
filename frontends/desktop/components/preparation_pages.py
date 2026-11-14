@@ -613,6 +613,7 @@ class PreparationPagesMixin:
         self.acpi_update_button.setVisible(False)
         self.acpi_remove_button.setEnabled(False)
         layout.addWidget(self.acpi_card)
+        self._build_pacman_lock_card(layout)
         self.cyan_card = PreparationInfoCard(
             "Cyan Skillfish Governor",
             "Recommended GPU governor. Supports SMU or patched-kernel controls, selectable load monitoring and D-Bus ranges.",
@@ -803,6 +804,14 @@ class PreparationPagesMixin:
         # stays behind as the boot fallback.
         self.cachyos_kernel_detail = _label("", "dashboardCompatibilityLabel", wrap=True)
         self.cachyos_stack_card.layout().insertWidget(3, self.cachyos_kernel_detail)
+        self.cachyos_dependency_note = QLabel("")
+        self.cachyos_dependency_note.setWordWrap(True)
+        self.cachyos_dependency_note.hide()
+        self.cachyos_stack_card.layout().addWidget(self.cachyos_dependency_note)
+        self.cachyos_pahole_button = self.cachyos_stack_card.add_action(
+            "Prepare dependencies", {"action": "cachyos_bc250_pahole", "governor": ""}
+        )
+        self.cachyos_pahole_button.hide()
         self.cachyos_kernel_button = self.cachyos_stack_card.add_action(
             "Install kernel", {"action": "cachyos_bc250_kernel", "governor": ""}
         )
@@ -843,6 +852,25 @@ class PreparationPagesMixin:
         )
         self.cachyos_ch7218_remove_button = self.cachyos_stack_card.add_action(
             "Remove UGREEN adapter firmware files", {"action": "cachyos_bc250_remove-extra-ch7218", "governor": ""}
+        )
+        # A permanent Dolby Digital 5.1 output: the same job as Control
+        # Center's own 5.1 output, so it is offered only while that is unused.
+        self.cachyos_dual_audio_button = self.cachyos_stack_card.add_action(
+            "Install dual audio output (Dolby 5.1)", {"action": "cachyos_bc250_extra-dual-audio", "governor": ""}
+        )
+        self.cachyos_dual_audio_remove_button = self.cachyos_stack_card.add_action(
+            "Remove dual audio output", {"action": "cachyos_bc250_remove-extra-dual-audio", "governor": ""}
+        )
+        # The other two kernels of the repository, beside the stable one.
+        self.cachyos_rc_button = self.cachyos_stack_card.add_action(
+            "Install RC kernel", {"action": "cachyos_bc250_kernel-rc", "governor": ""}
+        )
+        self.cachyos_bore_button = self.cachyos_stack_card.add_action(
+            "Install BORE kernel", {"action": "cachyos_bc250_kernel-bore", "governor": ""}
+        )
+        # Upstream's recommended set in one package (about 4.5 GB).
+        self.cachyos_meta_button = self.cachyos_stack_card.add_action(
+            "Install the full BC-250 bundle", {"action": "cachyos_bc250_meta", "governor": ""}
         )
         self.cachyos_stack_card.primary_button = self.cachyos_kernel_button
         self.cachyos_stack_card.secondary_button = self.cachyos_mesa_button
@@ -1480,3 +1508,98 @@ class PreparationPagesMixin:
             self._accessory_notes[key] = note
             card.action_requested.connect(self._forward_accessory_action)
             layout.addWidget(card)
+
+
+#: What reads pacman's lock; a test replaces it so it never reads the real one.
+PACMAN_LOCK_PROBE = None
+
+
+def _pacman_lock_probe():
+    if PACMAN_LOCK_PROBE is not None:
+        return PACMAN_LOCK_PROBE()
+    from bc250cc.infrastructure.pacman_lock import lock_state
+
+    return lock_state()
+
+
+class PacmanLockCardMixin:
+    """The pacman lock row under System (R-1bf75324, R-d8d8dc3d, R-48d27e43)."""
+
+    PACMAN_LOCK_TIPS = (
+        "Tips: let any running update finish first, including the software center and the update "
+        "notifier. If pamac, Octopi or another package tool is open, close it and check again. "
+        "Release the lock only when nothing is running. Afterwards, run sudo pacman -Syu once to "
+        "finish the interrupted update."
+    )
+
+    def _build_pacman_lock_card(self, layout) -> None:
+        self.pacman_lock_card = PreparationInfoCard(
+            "Package manager lock · pacman",
+            "pacman keeps a lock file while it changes packages. An update that was cut off "
+            "(power loss, a closed terminal) leaves it behind, and every later install fails "
+            "with \"unable to lock database\".",
+            scope_text="Systems with pacman: Arch, CachyOS, Manjaro, SteamOS",
+            status_text="Checking",
+        )
+        card = self.pacman_lock_card
+        self.pacman_lock_holders = QLabel("")
+        self.pacman_lock_holders.setProperty("dashboardComponentDetail", True)
+        self.pacman_lock_holders.setWordWrap(True)
+        self.pacman_lock_holders.hide()
+        self.pacman_lock_tips = QLabel(tr(self.PACMAN_LOCK_TIPS))
+        self.pacman_lock_tips.setProperty("dashboardComponentDetail", True)
+        self.pacman_lock_tips.setProperty("i18nSourceText", self.PACMAN_LOCK_TIPS)
+        self.pacman_lock_tips.setProperty("i18nSourceTextLanguage", "en")
+        self.pacman_lock_tips.setWordWrap(True)
+        # Between the description and the buttons, so they open with the details.
+        card.layout().insertWidget(card.layout().indexOf(card.actions_panel), self.pacman_lock_holders)
+        card.layout().insertWidget(card.layout().indexOf(card.actions_panel), self.pacman_lock_tips)
+        self.pacman_unlock_button = card.add_action("Release lock", {"action": "pacman-unlock"})
+        self.pacman_check_button = card.add_action("Check again", {"action": "pacman-lock-check"})
+        card.action_requested.connect(self._pacman_lock_action)
+        self.pacman_unlock_button.hide()
+        layout.addWidget(card)
+        self.pacman_lock_state: dict = {}
+
+    def _pacman_lock_action(self, payload: object) -> None:
+        values = dict(payload) if isinstance(payload, Mapping) else {}
+        if values.get("action") == "pacman-lock-check":
+            self.refresh_pacman_lock()
+            return
+        self._forward_dependency_action(values)
+
+    def refresh_pacman_lock(self, state: Mapping | None = None) -> dict:
+        """Read the lock (or take ``state``) and show it; returns what was shown."""
+        from bc250cc.infrastructure.pacman_lock import FREE, IN_USE, STALE
+
+        try:
+            current = dict(state) if state is not None else dict(_pacman_lock_probe())
+        except Exception:  # noqa: BLE001 - a failed read must not break the page
+            current = {"state": "not-applicable"}
+        self.pacman_lock_state = current
+        card = self.pacman_lock_card
+        kind = current.get("state")
+        if kind not in {FREE, IN_USE, STALE}:
+            card.hide()
+            return current
+        card.show()
+        holders = ", ".join(current.get("holders") or ())
+        self.pacman_lock_holders.setText(
+            tr_format("Running now: {names}", names=holders) if holders else ""
+        )
+        self.pacman_lock_holders.setVisible(bool(holders))
+        if kind == STALE:
+            card.set_status("Stuck", "orange")
+        elif kind == IN_USE:
+            card.set_status("In use", "gray")
+        else:
+            card.set_status("Not locked", "gray")
+        card.update_action(
+            self.pacman_unlock_button, text="Release lock", visible=kind == STALE
+        )
+        if kind == STALE:
+            browser = getattr(self, "compatibility_browser", None)
+            if browser is not None:
+                browser.show_details(card)
+        return current
+

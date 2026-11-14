@@ -14,6 +14,17 @@ SERVICES = frozenset({
     "cyan-skillfish-governor-smu",
     "oberon-governor",
 })
+CYAN_SERVICE = "cyan-skillfish-governor-smu"
+#: Upstream's v0.4.15 Cyan unit has BindsTo= this device, which its udev rule
+#: creates only once udev has seen the GPU with the rule in place.
+GPU_DEVICE_UNIT = "dev-cyan_skillfish_gpu.device"
+UDEVADM = (
+    pathlib.Path("/usr/bin/udevadm"),
+    pathlib.Path("/bin/udevadm"),
+    pathlib.Path("/usr/sbin/udevadm"),
+    pathlib.Path("/sbin/udevadm"),
+)
+ENVIRONMENT = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"}
 
 
 def _trusted_self(path: pathlib.Path = HELPER_PATH) -> bool:
@@ -77,6 +88,32 @@ def _restart_command(service: str) -> list[str]:
     raise RuntimeError("Neither systemd nor OpenRC is the active init system")
 
 
+def _register_gpu_device(systemctl: str) -> None:
+    """Re-send the GPU's udev event when Cyan's unit waits for a missing device.
+
+    pacman runs no udev trigger, so after an AUR update to v0.4.15 the device
+    stayed unregistered and every restart failed with "Dependency failed"
+    until the next boot. Best effort: the restart reports the real outcome.
+    """
+    def run(command: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            command, text=True, capture_output=True, timeout=timeout, check=False, env=ENVIRONMENT
+        )
+
+    bound = run([systemctl, "show", f"{CYAN_SERVICE}.service", "-p", "BindsTo", "--value"], 10)
+    if GPU_DEVICE_UNIT not in bound.stdout.split():
+        return
+    if run([systemctl, "is-active", "--quiet", GPU_DEVICE_UNIT], 10).returncode == 0:
+        return
+    try:
+        udevadm = _first_executable(UDEVADM)
+    except RuntimeError:
+        return
+    run([udevadm, "trigger", "--action=change", "--subsystem-match=drm"], 10)
+    # Short: the caller gives the whole restart about 30 seconds.
+    run([udevadm, "settle", "--timeout=10"], 15)
+
+
 def main(argv: list[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     try:
@@ -87,13 +124,15 @@ def main(argv: list[str] | None = None) -> int:
         if len(arguments) != 2 or arguments[0] != "restart":
             raise ValueError("usage: restart <approved BC250 governor>")
         command = _restart_command(arguments[1])
+        if arguments[1] == CYAN_SERVICE and command[1:2] == ["restart"]:
+            _register_gpu_device(command[0])
         result = subprocess.run(
             command,
             text=True,
             capture_output=True,
             timeout=45,
             check=False,
-            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"},
+            env=ENVIRONMENT,
         )
         if result.returncode != 0:
             print((result.stderr or result.stdout or "Service restart failed").strip(), file=sys.stderr)

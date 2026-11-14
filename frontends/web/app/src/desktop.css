@@ -218,54 +218,14 @@
 }
 
 @media (min-width: 821px) {
-  .desktop-fan-channel { display: grid; grid-template-columns: minmax(240px,1.8fr) repeat(3,minmax(0,1fr)); gap: 24px; align-items: center; }
-  .desktop-fan-channel .input { min-height: 34px; }
-  .desktop-fan-reading { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .desktop-fan-reading > span { font-size: 10px; color: var(--c-muted); }
-  .desktop-fan-reading > b { font-size: 16px; font-weight: 650; }
-  .desktop-fan-reading small { font-size: 10px; font-weight: 500; color: var(--c-muted); }
-  .desktop-fan-columns { display: grid; grid-template-columns: minmax(0,1.6fr) minmax(0,1fr); gap: 12px; align-items: stretch; }
-  .desktop-fan-columns > .card > .body { height: 100%; }
-  .desktop-fan-tuning .seg { margin-top: -6px; }
-  .desktop-fan-tuning .seg button { min-height: 34px; padding: 6px 10px; font-size: 12px; }
-  .desktop-fan-duty { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-  .desktop-fan-duty > span { font-size: 12px; font-weight: 600; }
-  .desktop-fan-duty .field > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .desktop-fan-presets { grid-template-columns: repeat(auto-fit,minmax(95px,1fr)); }
-  .desktop-fan-presets button { min-height: 65px; padding: 10px 12px; }
-  .desktop-fan-presets .tile strong { font-size: 17px; }
-  .desktop-fan-columns .desktop-action-row { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .desktop-fan-policy .desktop-action-row { margin-top: auto; }
-  .desktop-fan-policy > .hd + .body { height: auto; flex: 1; }
-  .desktop-fan-policy { display: flex; flex-direction: column; }
-  .desktop-fan-curve-presets { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-  .desktop-fan-curve { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(240px,1fr); gap: 16px; align-items: start; }
-  .desktop-fan-curve .chart { width: 100%; max-height: 240px; }
-  .desktop-fan-points { display: flex; flex-direction: column; gap: 8px; }
-  .desktop-fan-points > div { display: grid; grid-template-columns: 24px repeat(2,minmax(0,1fr)); gap: 8px; align-items: end; }
-  .desktop-fan-points .input.num { min-width: 0; width: 58px; min-height: 32px; padding: 5px; }
-  .desktop-fan-points .row { flex-wrap: nowrap; gap: 4px; }
-  .desktop-fan-points > div > b { font-size: 10px; color: var(--c-muted); padding-bottom: 10px; }
-  .desktop-fan-points .field > span { font-size: 9px; }
-  .desktop-fan-curve-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .desktop-fan-curve-actions > .btn:last-child { margin-left: auto; }
-  .desktop-fan-channels { display: grid; grid-template-columns: repeat(auto-fit,minmax(250px,1fr)); gap: 20px; }
-  .desktop-fan-channels > .desktop-inset { padding: 0; border: 0; }
+  .fan-desktop > .body { display: grid; gap: 12px; }
+  .fan-columns { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(360px,1fr); gap: 14px; align-items: start; }
+  .fan-columns .fan-table-wrap { min-height: 420px; }
+  .fan-side { position: sticky; top: 12px; }
 }
 @media (min-width: 821px) and (max-width: 1200px) {
-  .desktop-fan-columns { grid-template-columns: minmax(0,1fr); }
-  .desktop-fan-channel { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
-  .desktop-fan-channel > .field { grid-column: 1 / -1; }
-}
-
-@media (min-width: 821px) {
-  .desktop-fan-side { display: grid; grid-template-rows: auto minmax(0,1fr); gap: 12px; min-width: 0; }
-  .desktop-fan-tuning > .body { justify-content: space-between; }
-  .desktop-fan-thermal { display: flex; flex-direction: column; }
-  .desktop-fan-thermal > .body { flex: 1; justify-content: center; }
-  .desktop-fan-thermal .read { min-width: 0; font-size: 11px; }
-  .desktop-fan-points .field > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .desktop-fan-points-head { font-size: 9px; color: var(--c-muted); font-weight: 600; }
+  .fan-columns { grid-template-columns: minmax(0,1fr); }
+  .fan-side { position: static; }
 }
 
 @media (min-width: 821px) {

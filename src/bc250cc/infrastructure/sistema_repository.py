@@ -37,6 +37,7 @@ from bc250cc.infrastructure.realtime_metrics_policy import (
     disk_rates,
     network_rates,
 )
+from bc250cc.infrastructure.storage_volumes import decode_udev_label, list_real_disks
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
 from bc250cc.infrastructure.vrm_telemetry_reader import (
     leer_telemetria_vrm,
@@ -82,6 +83,7 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         self._metricas_rt_lock = threading.Lock()
         self._metricas_rt_time = None
         self._metricas_rt_disk = None
+        self._metricas_rt_volumes = {}
         self._metricas_rt_network = {}
         self._aux_temperature_cache = {}
         self._aux_temperature_cache_time = 0.0
@@ -773,10 +775,64 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         encontrado = self._buscar_archivo(archivo)
         return str(Path(encontrado).parent) if encontrado else ''
 
+    @staticmethod
+    def _etiquetas_volumen():
+        """Volume labels by resolved device, from ``/dev/disk/by-label``."""
+        etiquetas = {}
+        try:
+            entradas = list(Path('/dev/disk/by-label').iterdir())
+        except OSError:
+            return etiquetas
+        for entrada in entradas:
+            try:
+                etiquetas[os.path.realpath(entrada)] = decode_udev_label(entrada.name)
+            except OSError:
+                continue
+        return etiquetas
+
+    def discos_reales(self):
+        """Every real mounted disk with its usage, system disk first.
+
+        Read again on every call, so a drive plugged in or removed shows up
+        or disappears on the next refresh. Never raises: an unreadable mount
+        table yields an empty list and callers fall back to ``/``.
+        """
+        try:
+            particiones = psutil.disk_partitions(all=False)
+        except Exception:
+            logger.debug("Could not list mounted partitions", exc_info=True)
+            return []
+        por_ruta = self._etiquetas_volumen()
+        etiquetas = {}
+        for particion in particiones:
+            dispositivo = str(getattr(particion, 'device', '') or '')
+            if dispositivo.startswith('/dev/'):
+                etiqueta = por_ruta.get(os.path.realpath(dispositivo))
+                if etiqueta:
+                    etiquetas[dispositivo] = etiqueta
+        try:
+            return list_real_disks(particiones, psutil.disk_usage, etiquetas)
+        except Exception:
+            logger.debug("Could not read disk usage", exc_info=True)
+            return []
+
+    @staticmethod
+    def _uso_disco_principal(discos):
+        """(percent, used, total) of the first real disk, else of ``/``."""
+        if discos:
+            principal = discos[0]
+            return float(principal['percent']), int(principal['used']), int(principal['total'])
+        try:
+            raiz = psutil.disk_usage('/')
+            return float(raiz.percent), int(raiz.used), int(raiz.total)
+        except OSError:
+            return 0.0, 0, 0
+
     def obtener_rendimiento(self):
         memoria = psutil.virtual_memory()
         swap = psutil.swap_memory()
-        raiz = psutil.disk_usage('/')
+        discos = self.discos_reales()
+        disco_porcentaje, disco_usado, disco_total = self._uso_disco_principal(discos)
         lectura, escritura = self.velocidad_disco()
 
         cpu_freq = psutil.cpu_freq()
@@ -803,9 +859,10 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             'swap_porcentaje': swap.percent,
             'swap_usado': swap.used,
             'swap_total': swap.total,
-            'disco_porcentaje': raiz.percent,
-            'disco_usado': raiz.used,
-            'disco_total': raiz.total,
+            'disco_porcentaje': disco_porcentaje,
+            'disco_usado': disco_usado,
+            'disco_total': disco_total,
+            'discos': discos,
             'disco_lectura': lectura,
             'disco_escritura': escritura,
             'cpu_temp': cpu_temperature,
@@ -870,28 +927,44 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             logger.debug("Could not determine the busiest active network interface", exc_info=True)
         return ''
 
-    def _contador_disco_raiz(self):
-        dispositivo = ''
+    @staticmethod
+    def _contadores_por_disco():
         try:
-            particiones = psutil.disk_partitions(all=False)
-            raiz = next((item for item in particiones if item.mountpoint == '/'), None)
-            dispositivo = raiz.device if raiz else ''
-        except Exception:
-            dispositivo = ''
-        try:
-            por_disco = psutil.disk_io_counters(perdisk=True, nowrap=True) or {}
+            return psutil.disk_io_counters(perdisk=True, nowrap=True) or {}
         except TypeError:
-            por_disco = psutil.disk_io_counters(perdisk=True) or {}
+            return psutil.disk_io_counters(perdisk=True) or {}
+        except Exception:
+            logger.debug("Could not read per-disk I/O counters", exc_info=True)
+            return {}
+
+    @staticmethod
+    def _contador_de_dispositivo(dispositivo, por_disco):
+        """(kernel name, counters) of one block device, or ('', None).
+
+        ``/dev/mapper/luks-…`` and other symlinks resolve to the ``dm-N``
+        name the kernel counts under.
+        """
         claves = []
         if dispositivo:
             claves.extend((Path(dispositivo).name, dispositivo.rsplit('/', 1)[-1]))
             try:
-                resuelto = Path(dispositivo).resolve()
-                claves.append(resuelto.name)
+                claves.append(Path(dispositivo).resolve().name)
             except OSError:
                 logger.debug("Could not resolve disk device path %s", dispositivo, exc_info=True)
-        contador = next((por_disco.get(clave) for clave in claves if por_disco.get(clave) is not None), None)
-        etiqueta = next((clave for clave in claves if por_disco.get(clave) is not None), '')
+        for clave in claves:
+            if por_disco.get(clave) is not None:
+                return clave, por_disco[clave]
+        return '', None
+
+    def _contador_disco_raiz(self, dispositivo=''):
+        if not dispositivo:
+            try:
+                particiones = psutil.disk_partitions(all=False)
+                raiz = next((item for item in particiones if item.mountpoint == '/'), None)
+                dispositivo = raiz.device if raiz else ''
+            except Exception:
+                dispositivo = ''
+        etiqueta, contador = self._contador_de_dispositivo(dispositivo, self._contadores_por_disco())
         if contador is None:
             try:
                 contador = psutil.disk_io_counters(nowrap=True)
@@ -1039,23 +1112,50 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         }
 
     def _muestra_disco_tiempo_real(self, intervalo):
-        raiz = psutil.disk_usage('/')
-        nombre, contador = self._contador_disco_raiz()
+        discos = self.discos_reales()
+        porcentaje, usado, total = self._uso_disco_principal(discos)
+        # The system disk's own counters: on Bazzite "/" is a composefs
+        # image with none, while the btrfs device under it has them.
+        nombre, contador = self._contador_disco_raiz(discos[0]['device'] if discos else '')
         lectura, escritura, actividad = disk_rates(
             nombre, contador, self._metricas_rt_disk, intervalo
         )
         self._metricas_rt_disk = (nombre, contador)
+        self._actividad_por_disco(discos, intervalo)
         return {
             'device': nombre,
-            'usage_percent': float(raiz.percent),
-            'used': int(raiz.used),
-            'total': int(raiz.total),
+            'usage_percent': porcentaje,
+            'used': usado,
+            'total': total,
+            'volumes': discos,
             'active_percent': actividad,
             'read_bps': lectura,
             'write_bps': escritura,
             'read_total': int(getattr(contador, 'read_bytes', 0) or 0),
             'write_total': int(getattr(contador, 'write_bytes', 0) or 0),
         }
+
+    def _actividad_por_disco(self, discos, intervalo):
+        """Add each disk's read/write rates and active time, from its own counters.
+
+        A disk seen for the first time, or one whose device changed, reads 0
+        until the next sample. Disks that went away drop their counters.
+        """
+        por_disco = self._contadores_por_disco() if discos else {}
+        anteriores, actuales = getattr(self, '_metricas_rt_volumes', None) or {}, {}
+        for disco in discos:
+            nombre, contador = self._contador_de_dispositivo(disco['device'], por_disco)
+            lectura, escritura, actividad = disk_rates(
+                nombre, contador, anteriores.get(disco['mountpoint']), intervalo
+            )
+            actuales[disco['mountpoint']] = (nombre, contador)
+            disco.update({
+                'io_device': nombre,
+                'read_bps': lectura,
+                'write_bps': escritura,
+                'active_percent': actividad,
+            })
+        self._metricas_rt_volumes = actuales
 
     def _muestra_red_tiempo_real(self, intervalo):
         interfaz = self._interfaz_red_predeterminada()

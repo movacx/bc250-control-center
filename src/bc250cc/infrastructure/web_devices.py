@@ -23,6 +23,53 @@ def identity(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def _read_registry(path) -> dict:
+    """The allow-list of browser sessions, or {} when it cannot be trusted.
+
+    A power cut right after a write used to leave this file empty, and every
+    start of the web server then died on it: remote access never came up
+    again. The registry only lists sessions that are *allowed* (revoking one
+    deletes it), so an unreadable one is read as empty -- no browser stays
+    signed in, which fails closed. The bad file is kept beside it for a report.
+    """
+    if not path.exists():
+        return {}
+    try:
+        raw = path.read_text(encoding="utf-8")
+        data = json.loads(raw) if raw.strip() else {}
+    except (OSError, ValueError):
+        data = None
+    if isinstance(data, dict):
+        return data
+    try:
+        os.replace(path, path.with_name(f"{path.name}.corrupt-{int(time.time())}"))
+    except OSError:
+        pass
+    return {}
+
+
+def write_durably(folder, path, data) -> None:
+    """Replace ``path`` with ``data`` so that a power cut leaves either the
+    old file or the new one, never an empty one: the bytes are on disk
+    before the rename, and the rename is on disk before this returns."""
+    with tempfile.NamedTemporaryFile(mode="w", dir=folder, delete=False, encoding="utf-8") as output:
+        temporary = output.name
+        os.chmod(temporary, 0o600)
+        json.dump(data, output)
+        output.flush()
+        os.fsync(output.fileno())
+    try:
+        os.replace(temporary, path)
+        directory = os.open(folder, os.O_DIRECTORY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
 @contextmanager
 def _store():
     folder = app_config_dir()
@@ -32,23 +79,14 @@ def _store():
     with os.fdopen(fd, "r+") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         try:
-            data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-            if not isinstance(data, dict):
-                raise ValueError("Invalid browser session registry")
+            data = _read_registry(path)
             before = json.dumps(data, sort_keys=True)
             now = time.time()
             data = {k: v for k, v in data.items() if isinstance(v, dict)
                     and deadline(v) > now}
             yield data
             if before != json.dumps(data, sort_keys=True) or not path.exists():
-                with tempfile.NamedTemporaryFile(mode="w", dir=folder, delete=False, encoding="utf-8") as output:
-                    temporary = output.name
-                    json.dump(data, output)
-                try:
-                    os.replace(temporary, path)
-                finally:
-                    if os.path.exists(temporary):
-                        os.unlink(temporary)
+                write_durably(folder, path, data)
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
 

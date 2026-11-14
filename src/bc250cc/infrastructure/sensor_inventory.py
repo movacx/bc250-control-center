@@ -500,6 +500,15 @@ class SensorInventory:
             SensorReading("disk/write", GROUP_STORAGE, device, "Write rate", RATE, "B/s", _finite(disk.get("write_bps"))),
             SensorReading("disk/active", GROUP_STORAGE, device, "Active time", USAGE, "%", _finite(disk.get("active_percent"))),
             SensorReading("disk/space", GROUP_STORAGE, device, "Space used", USAGE, "%", _finite(disk.get("usage_percent"))),
+        ] + [
+            # Every other real disk, an external drive included, under its own
+            # name. Keyed by mount point so a re-plugged drive keeps its history.
+            SensorReading(
+                f"disk/space/{volume.get('mountpoint')}", GROUP_STORAGE, str(volume.get("label") or volume.get("mountpoint")),
+                "Space used", USAGE, "%", _finite(volume.get("percent")),
+            )
+            for volume in list(disk.get("volumes") or ())[1:]
+            if isinstance(volume, Mapping) and volume.get("mountpoint")
         ]
 
     @staticmethod

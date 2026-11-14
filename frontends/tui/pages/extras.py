@@ -76,7 +76,8 @@ DISTRIBUTION = (
     ("Newer kernel and Mesa for the BC-250", "gestionar_kernel_debian", (("install", "Install"),), ("debian",)),
     ("Mesa", "gestionar_mesa_desktop", (("install", "Install"),), ("ubuntu",)),
     ("Install BC-250 kernel and Mesa for Arch/CachyOS", "preparar_cachyos_bc250",
-     (("full", "Prepare everything"), ("kernel", "Kernel"), ("mesa", "Mesa")), ("cachyos",)),
+     (("full", "Prepare everything"), ("kernel", "Kernel"), ("mesa", "Mesa"),
+      ("pahole", "Prepare dependencies")), ("arch", "cachyos")),
 )
 GUIDE_URL = ("https://github.com/morrownr/USB-WiFi/blob/main/home/"
              "USB_WiFi_Adapters_that_are_supported_with_Linux_in-kernel_drivers.md")
@@ -91,7 +92,12 @@ def run(ui, label: str, method, actions=(), danger=False) -> None:
             return
     elif actions:
         argument = actions[0][0]
-    if ui.confirm(tr(label) + (f": {argument}" if argument else ""), danger=danger and argument != "status"):
+    message = tr(label) + (f": {argument}" if argument else "")
+    if argument == "pahole":
+        from bc250cc.application.system.cachyos_kernel import DEPENDENCY_NOTE
+
+        message += "\n\n" + tr(DEPENDENCY_NOTE)
+    if ui.confirm(message, danger=danger and argument != "status"):
         guarded(ui, tr(label), (lambda: method(argument)) if argument else method)
 
 

@@ -41,7 +41,7 @@ install_runtime() {
 }
 
 install_governor() (
-  local version="${BC250_GOVERNOR_SMU_VERSION:-0.4.14}"
+  local version="${BC250_GOVERNOR_SMU_VERSION:-0.4.15}"
   local workdir
   workdir="$(mktemp -d)"
   trap 'rm -rf "$workdir"' EXIT

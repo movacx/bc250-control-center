@@ -1,5 +1,5 @@
 import { useMobile } from "../ui.jsx";
-import { memory, heat, num, pick, t, useApp, usePage } from "../lib.jsx";
+import { keep, memory, heat, num, pick, t, useApp, usePage } from "../lib.jsx";
 import Gddr6 from "../Gddr6.jsx";
 import { Btn, Card, CpuCores, Read } from "../ui.jsx";
 
@@ -10,6 +10,12 @@ function Mem({ label, used, total }) {
   return <Read label={label} value={u.value} unit={u.unit} note={whole.value !== "--" ? `/ ${whole.value} ${whole.unit}` : undefined} />;
 }
 
+// Disks without a name of their own; a volume label stays as the user wrote it.
+const DISK_KIND_LABELS = { system: keep("System"), home: keep("Home") };
+const diskName = (volume) => DISK_KIND_LABELS[volume.kind] ? t(DISK_KIND_LABELS[volume.kind]) : (volume.label || volume.mountpoint || "--");
+
+// The desktop's FAN_OWNER_LABELS: who sets the Cooling card's fan.
+const OWNER_LABELS = { system: keep("System service"), daemon: keep("Desktop daemon"), firmware: keep("Firmware (BIOS)"), manual: keep("Manual value"), external: keep("Another program") };
 const countCUs = rows => rows.length ? rows.reduce((sum, row) => sum + 2 * (Number(row.mask || 0).toString(2).match(/1/g) || []).length, 0) : null;
 
 export function DashboardHeaderSummary() {
@@ -29,6 +35,8 @@ export default function Dashboard() {
   const { gpu = {}, cpu = {}, memory: ram = {}, sensors = {}, power = {} } = live.metrics;
   const daemon = data?.daemon || {};
   const disk = live.metrics.disk || {}, performance = data?.performance || {};
+  // Every real disk after the M.2 one; a drive unplugged drops out on the next sample.
+  const extraDisks = (disk.volumes || performance.discos || []).slice(1).filter((volume) => volume && volume.mountpoint);
   const persistent = data?.cpu_persistence || {}, registered = persistent.config || {};
   const recorded = persistent.applied_this_boot && registered.valid ? registered : {};
 
@@ -36,7 +44,8 @@ export default function Dashboard() {
   const cus = countCUs(rows);
   const engineCounts = [rows.slice(0,2), rows.slice(2,4)].map(engine => engine.reduce((sum,row) => sum + 2 * (Number(row.mask || 0).toString(2).match(/1/g) || []).length,0));
   const effective = Math.min(...engineCounts) * 2;
-  const pump = ((data?.fans?.sensores?.fans) || []).find((row) => /pump|j4003|fan2/i.test(row.label || "")) || ((data?.fans?.sensores?.fans) || []).find((row) => row.rpm) || {};
+  // The fan the service follows or that turns (bc250cc.application.fan.board_view.dashboard_fan).
+  const pump = data?.cooling_fan || {};
   const duty = Number.isInteger(pump.pwm) ? Math.round(pump.pwm * 100 / 255) : undefined;
   const busy = pick(gpu.usage_percent, gpu.compute_busy_percent);
   const rails = [["Vin", sensors.vrm_input_voltage_v, "V", 2], [t("CPU voltage"), sensors.vrm_cpu_voltage_v, "V", 3], [t("GPU voltage"), sensors.vrm_gpu_voltage_v, "V", 3],
@@ -88,13 +97,15 @@ export default function Dashboard() {
           <div className="top"><h2>{t("Cooling")}</h2><span className="head">{num(pump.rpm)}<em>RPM</em></span></div>
           <div className="group">{t("Fan")}</div>
           <Read label={t("PWM duty")} value={duty ?? "--"} unit="%" />
-          <Read label={t("PWM mode")} value={pump.pwm_enable === 2 ? "Firmware (BIOS)" : pump.pwm_enable === 1 ? t("Manual") : "--"} />
-          <Read label={t("Controller")} value={pump.label || "--"} />
+          <Read label={t("PWM mode")} value={pump.owner ? t(OWNER_LABELS[pump.owner] || "Not detected") : "--"} />
+          <Read label={t("Controller")} value={pump.name || "--"} />
           {shown(t("Board temperature"), sensors.board_temperature_c, "°C", 1)}
           <div className="group">{t("M.2 drive")}</div>
           {shown(t("Temperature"), sensors.nvme_temperature_c, "°C", 1)}{shown(t("Hotspot"), sensors.nvme_hotspot_temperature_c, "°C", 1)}
           <Mem label={t("Used")} used={pick(disk.used, performance.disco_usado)} total={pick(disk.total, performance.disco_total)} />
           <Mem label="Swap" used={ram.swap_used} total={ram.swap_total} />
+          {extraDisks.length > 0 && <><div className="group">{t("Storage")}</div>
+            {extraDisks.map((volume) => <Mem key={volume.mountpoint} label={diskName(volume)} used={volume.used} total={volume.total} />)}</>}
           <div className="group">BIOS</div><Read label={t("Version")} value={data?.bios || performance.bios_version || t("Not detected")} note={performance.bios_variant} />
           <div className="row" style={{ marginTop: 12 }}><Btn kind="soft" wide onClick={() => (location.hash = "#/fans")}>{t("Fan Control")}</Btn>{!mobile && <Btn wide onClick={() => (location.hash = "#/fans")}>{t("Automatic curve")}</Btn>}</div>
         </section>

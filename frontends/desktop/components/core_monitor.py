@@ -22,8 +22,9 @@ from PyQt6.QtWidgets import (
 )
 
 from ..i18n import tr
+from .. import theme
 from ..theme import COLORS
-from .style_state import set_style_sheet
+from .style_state import set_style_property
 
 #: Every BC-250 has eight physical core positions. A stock firmware exposes
 #: six of them to Linux, and the other two are the point of the unlock.
@@ -90,7 +91,10 @@ class UsageBar(QWidget):
             radius = self.height() / 2
             track = QPainterPath()
             track.addRoundedRect(QRectF(self.rect()), radius, radius)
-            painter.fillPath(track, QColor(COLORS["neutral_soft"]))
+            # The dark themes put the monitor on a solid grey group, where the
+            # soft neutral disappears; the border tone keeps the track visible.
+            dark = theme.ACTIVE_MODE != "light"
+            painter.fillPath(track, QColor(COLORS["border" if dark else "neutral_soft"]))
             if not self._active or self._ratio <= 0:
                 return
             width = max(float(self.height()), self.width() * self._ratio)
@@ -118,16 +122,19 @@ class CoreRow(QFrame):
     def __init__(self, index: int, parent: QWidget | None = None):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setProperty("coreRow", True)
         self._first = False
         row = QHBoxLayout(self)
         row.setContentsMargins(0, 6, 0, 6)
         row.setSpacing(10)
 
         self.name = QLabel(f"N{index + 1}")
+        self.name.setProperty("coreName", True)
         self.name.setFixedWidth(self.NAME_WIDTH)
         row.addWidget(self.name, 0)
 
         self.frequency = QLabel("--")
+        self.frequency.setProperty("coreClock", True)
         self.frequency.setFixedWidth(_clock_width(self.font(), self.CLOCK_WIDTH))
         row.addWidget(self.frequency, 0)
 
@@ -135,6 +142,7 @@ class CoreRow(QFrame):
         row.addWidget(self.bar, 1)
 
         self.usage = QLabel("")
+        self.usage.setProperty("coreLoad", True)
         self.usage.setFixedWidth(self.LOAD_WIDTH)
         self.usage.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -158,30 +166,18 @@ class CoreRow(QFrame):
         self._refresh_border()
 
     def _refresh_border(self) -> None:
-        border = (
-            "border:none;" if self._first
-            else f"border:none; border-top:1px solid {COLORS['border_soft']};"
-        )
-        set_style_sheet(self, f"QFrame {{ background:transparent; {border} }}")
+        # The hairline above every row but the first; the colour is the
+        # stylesheet's, so it follows the theme.
+        set_style_property(self, "ruled", not self._first)
+
+    def _set_offline_state(self, offline: bool) -> None:
+        for label in (self.name, self.frequency, self.usage):
+            set_style_property(label, "offline", offline)
 
     def set_reading(self, reading: CoreReading) -> None:
-        set_style_sheet(
-            self.name,
-            f"color:{COLORS['muted']}; font-size:11px; font-weight:800;"
-            " background:transparent; border:none;",
-        )
+        self._set_offline_state(False)
         self.frequency.setText(_frequency_text(reading.frequency_mhz))
-        set_style_sheet(
-            self.frequency,
-            f"color:{COLORS['text']}; font-size:12px; font-weight:750;"
-            " background:transparent; border:none;",
-        )
         self.usage.setText(f"{reading.usage_percent:.0f} %")
-        set_style_sheet(
-            self.usage,
-            f"color:{COLORS['muted']}; font-size:11px; font-weight:700;"
-            " background:transparent; border:none;",
-        )
         self.bar.set_usage(reading.usage_percent, active=True)
         # Composed rather than formatted through a catalogue key: the label
         # is translated, the thread numbers are not text to translate.
@@ -191,14 +187,9 @@ class CoreRow(QFrame):
         self._refresh_border()
 
     def set_offline(self) -> None:
-        for label in (self.name, self.frequency, self.usage):
-            set_style_sheet(
-                label,
-                # Quiet but readable: a hidden core is information, not a
-                # disabled control (the disabled grey measured 3:1 in light).
-                f"color:{COLORS['subtle']}; font-size:11px; font-weight:700;"
-                " background:transparent; border:none;",
-            )
+        # Quiet but readable: a hidden core is information, not a disabled
+        # control (the disabled grey measured 3:1 in light).
+        self._set_offline_state(True)
         self.frequency.setText(tr("Hidden"))
         # The word changes with the language; the column follows it.
         self.frequency.setFixedWidth(_clock_width(self.font(), self.CLOCK_WIDTH))

@@ -539,6 +539,9 @@ class SistemaService:
     def gestionar_acpi(self, action: str):
         return self.repo.gestionar_acpi(action)
 
+    def liberar_bloqueo_pacman(self):
+        return self.repo.liberar_bloqueo_pacman()
+
     def reparar_telemetria_8core(self, action: str = "telemetry-fix"):
         return self.repo.reparar_telemetria_8core(action)
 
@@ -766,6 +769,12 @@ class SistemaService:
 
     def comando_desbloquear_nucleos_cpu(self, ignore_core_mask=False):
         return self.repo.comando_desbloquear_nucleos_cpu(ignore_core_mask=ignore_core_mask)
+
+    def comando_persistir_desbloqueo_nucleos_cpu(self, ignore_core_mask=False):
+        return self.repo.comando_persistir_desbloqueo_nucleos_cpu(ignore_core_mask=ignore_core_mask)
+
+    def comando_quitar_persistencia_nucleos_cpu(self):
+        return self.repo.comando_quitar_persistencia_nucleos_cpu()
 
     def estado_gddr6_memory_temp(self):
         return self.repo.estado_gddr6_memory_temp()

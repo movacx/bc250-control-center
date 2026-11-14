@@ -26,10 +26,16 @@ HIDE_BOOT_MESSAGES_OPTION = "loglevel=0"
 SCHED_POLICY_OPTION = "amdgpu.sched_policy=2"
 HDMI21_OFF_OPTION = "amdgpu.bc250_hdmi21=0"
 RELINK_OFF_OPTION = "amdgpu.cs_relink_ms=0"
+#: Opt-in fixes of the same kernel, each for one display symptom.
+CH7218_QUIRK_OPTION = "amdgpu.bc250_ch7218_quirk=1"
+CH7218_VRR_OPTION = "amdgpu.bc250_ch7218_vrr=1"
+PCON_FORCE_DSC_OPTION = "amdgpu.bc250_pcon_force_dsc=1"
+RELINK_AT_BOOT_OPTION = "amdgpu.cs_relink_at_boot=1"
 #: The only kernel boot options the helper manages.
 KERNEL_OPTIONS = (
     "mitigations=off", "nosmt", CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION,
     SCHED_POLICY_OPTION, HDMI21_OFF_OPTION, RELINK_OFF_OPTION,
+    CH7218_QUIRK_OPTION, CH7218_VRR_OPTION, PCON_FORCE_DSC_OPTION, RELINK_AT_BOOT_OPTION,
 )
 
 

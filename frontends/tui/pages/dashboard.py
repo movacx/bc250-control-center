@@ -4,13 +4,10 @@ from __future__ import annotations
 
 import time
 
-from bc250cc.application.fan.system_control import system_fan_control_owns_fan
+from bc250cc.application.fan import board_view
 from bc250cc.application.preparation.component_engine import component_capabilities
 from bc250cc.domain.telemetry import voltage_mv
-from frontends.desktop.core.dashboard_presenter import (
-    FAN_OWNER_LABELS,
-    dashboard_fan_owner,
-)
+from frontends.desktop.core.dashboard_presenter import FAN_OWNER_LABELS
 
 from ..content import (
     Card,
@@ -74,13 +71,22 @@ def memory_meter(label: str, used: object, total: object) -> Meter:
     return Meter(label, fraction, shown, tone)
 
 
-def pump_row(fans) -> dict:
-    rows = ((fans or {}).get("sensores") or {}).get("fans") or []
-    for row in rows:
-        label = str(row.get("label") or "").lower() if isinstance(row, dict) else ""
-        if any(token in label for token in ("pump", "j4003", "fan2")):
-            return row
-    return next((row for row in rows if isinstance(row, dict) and row.get("rpm")), {})
+#: Disks without a name of their own; a volume label stays as the user wrote it.
+DISK_KIND_LABELS = {"system": "System", "home": "Home"}
+
+
+def extra_disk_meters(volumes: object) -> list:
+    """A "Storage" heading and one meter per disk after the first, external drives included."""
+    if not isinstance(volumes, (list, tuple)):
+        return []
+    rows = []
+    for volume in list(volumes)[1:]:
+        if not isinstance(volume, dict):
+            continue
+        name = DISK_KIND_LABELS.get(str(volume.get("kind") or ""))
+        label = tr(name) if name else str(volume.get("label") or volume.get("mountpoint") or "--")
+        rows.append(memory_meter(label, volume.get("used"), volume.get("total")))
+    return [Heading(tr("Storage")), *rows] if rows else []
 
 
 class DashboardPage(Page):
@@ -109,6 +115,9 @@ class DashboardPage(Page):
         data["fans"] = _safe(service.estado_fans_bc250)
         data["sample"] = _safe(service.ultima_temperatura_vram) or {}
         data["config"] = _safe(ctx.settings.read_local_config) if ctx.settings is not None else {}
+        # The Cooling card's fan: the one the service follows or that turns (shared with the web).
+        data["cooling_fan"] = board_view.dashboard_fan(data["fans"] or {}, data.get("fan_system") or {},
+                                                       data["config"] or {})
         return data
 
     def build(self, ctx, data, tab, ui):
@@ -128,11 +137,8 @@ class DashboardPage(Page):
             frequency, scale = registered.get("frequency"), registered.get("scale")
             if isinstance(frequency, (int, float)) and frequency > 0 and isinstance(scale, int) and -50 <= scale <= 0:
                 oc = f"{frequency} MHz · {tr('Scale')} {scale}"
-        owner = dashboard_fan_owner(data.get("fans") or {},
-            system_owned=system_fan_control_owns_fan(data.get("fan_system") or {}),
-            config=data.get("config") or ctx.config,
-            external=bool((data.get("fan_system") or {}).get("external")))
-        pump = pump_row(data.get("fans"))
+        pump = data.get("cooling_fan") or {}
+        owner = pump.get("owner") or "manual"
         busy = gpu.get("usage_percent") if gpu.get("usage_percent") is not None else gpu.get("compute_busy_percent")
         cus = ((data.get("cu") or {}).get("rows")) or []
         active_cus = sum(bin(int(row.get("mask", 0))).count("1") * 2 for row in cus) if cus else None
@@ -193,7 +199,7 @@ class DashboardPage(Page):
             Heading(tr("Fan")),
             Meter(tr("PWM duty"), percent(duty), number(duty, "%"), "accent"),
             Field(tr("PWM mode"), tr(FAN_OWNER_LABELS.get(owner, "Not detected"))),
-            Field(tr("Controller"), str(pump.get("label") or "--")),
+            Field(tr("Controller"), str(pump.get("name") or "--")),
             *heat(tr("Board temperature"), sensors.get("board_temperature_c")),
             Heading(tr("M.2 drive")),
             *heat(tr("Temperature"), sensors.get("nvme_temperature_c")),
@@ -201,6 +207,7 @@ class DashboardPage(Page):
             memory_meter(tr("Used"), disk.get("used", performance.get("disco_usado")),
                          disk.get("total", performance.get("disco_total"))),
             memory_meter("Swap", memory.get("swap_used"), memory.get("swap_total")),
+            *extra_disk_meters(disk.get("volumes", performance.get("discos"))),
             Heading("BIOS"),
             Field(tr("Release"), str(data.get("bios") or ctx.state(self.key).get("bios") or self._bios(ctx))),
         ], number(pump.get("rpm"), "RPM"))

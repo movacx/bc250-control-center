@@ -63,6 +63,35 @@ class PreparationContext:
     gddr6_destination: Path | None = None
     #: Components the inventory already found working before this run.
     already_present: frozenset[str] = frozenset()
+    #: The boot-service tool prepared beside the temporary unlock, as part of
+    #: the same ``core_unlock`` component. Empty when the caller predates it.
+    core_persistent_repository: str = ''
+    core_persistent_destination: Path | None = None
+
+
+#: The persistent unlock's executable, at the root of its checkout.
+CORE_UNLOCK_PERSISTENT_SCRIPT = 'bc250-core-unlock'
+
+
+def core_unlock_persistent_commands(repo, repository_url: str, destination: Path, os_repo) -> list[str]:
+    """Clone the pinned boot-service tool and secure its one executable.
+
+    Part of the ``core_unlock`` component rather than a component of its own:
+    the two tools serve one card, and a board prepared before this existed
+    picks the second clone up the next time that component is prepared.
+    """
+    script = destination / CORE_UNLOCK_PERSISTENT_SCRIPT
+    return [
+        'echo "== Preparing the persistent core unlock (boot service) source =="',
+        repo._hardware_source_checkout_command(repository_url, destination, os_repo),
+        f'test -d {shlex.quote(str(destination / ".git"))} || '
+        '{ echo "ERROR: core_unlock_bc250 is not a Git clone"; exit 36; }',
+        f'test -f {shlex.quote(str(script))} || '
+        '{ echo "ERROR: bc250-core-unlock is missing from core_unlock_bc250"; exit 36; }',
+        # The helper refuses group- or world-writable code, which a desktop
+        # umask of 0002 can leave behind after checkout.
+        f'chmod 0755 {shlex.quote(str(script))}',
+    ]
 
 
 def secure_checkout_command(destination: Path, label: str, exit_code: int) -> str:
@@ -130,6 +159,11 @@ def _immutable_commands(context: PreparationContext) -> list[str]:
             '{ echo "ERROR: bc250-unlock-cores.py is missing"; exit 36; }',
             f'chmod 0755 {shlex.quote(str(context.core_script))}',
         ])
+        if context.core_persistent_destination is not None:
+            commands.extend(core_unlock_persistent_commands(
+                repo, context.core_persistent_repository,
+                context.core_persistent_destination, os_repo,
+            ))
     if 'cu_manager' in selected or 'umr' in selected:
         commands.extend([
             repo._clone_or_update_commit_with_archive_command(
@@ -248,6 +282,11 @@ def _mutable_source_commands(context: PreparationContext) -> list[str]:
             '{ echo "ERROR: bc250-unlock-cores.py is missing"; exit 36; }',
             f'chmod 0755 {shlex.quote(str(context.core_script))}',
         ])
+        if context.core_persistent_destination is not None:
+            commands.extend(core_unlock_persistent_commands(
+                repo, context.core_persistent_repository,
+                context.core_persistent_destination, os_repo,
+            ))
     if 'gddr6_temp' in selected and context.gddr6_destination is not None:
         commands.extend([
             'echo "== Preparing reviewed GDDR6 memory-temperature source =="',

@@ -35,6 +35,27 @@ GOVERNOR_SERVICES = (
     "oberon-governor.service",
 )
 
+# The boot-service tool that re-applies the same unlock on every cold boot.
+# Pinned exactly like the temporary tool; the two must match
+# bc250cc.infrastructure.core_unlock_trust (a packaging test compares them).
+PERSISTENT_REPOSITORY_NAME = "core_unlock_bc250"
+PERSISTENT_OFFICIAL_ORIGINS = frozenset({
+    "https://github.com/movacx/core_unlock_bc250_boot_service",
+    "https://github.com/movacx/core_unlock_bc250_boot_service.git",
+})
+PERSISTENT_SCRIPT = "bc250-core-unlock"
+PERSISTENT_REVIEWED_REVISION = "35db6d13ce8cee5c6b387d7eb7d1de07fcf6249d"
+PERSISTENT_REVIEWED_SCRIPT_SHA256 = "946e24d4452465c17e33c161d721d709e7b84953985e67a43fd403a6e93006c6"
+# Where the tool installs itself and its unit. Fixed by the tool, so removal
+# never needs the user's clone: a deleted tool folder must not leave a root
+# boot service that Control Center can no longer remove.
+PERSISTENT_INSTALLED_BIN = Path("/var/lib/bc250-core-unlock/bin/bc250-core-unlock")
+PERSISTENT_SYSTEMD_UNIT = Path("/etc/systemd/system/bc250-core-unlock.service")
+PERSISTENT_UNIT_NAME = "bc250-core-unlock.service"
+PERSIST_INSTALL = "--persist-install"
+PERSIST_UNINSTALL = "--persist-uninstall"
+UNLOCKED_THREADS = 16
+
 
 def _run(
     command: list[str],
@@ -79,8 +100,29 @@ def _invoking_user() -> tuple[int, int, Path]:
     return uid, account.pw_gid, Path(account.pw_dir).resolve()
 
 
-def _validate_repository(raw_path: str, uid: int, gid: int, home: Path) -> bytes:
-    """The reviewed script's bytes, read once from a clean, reviewed checkout."""
+def _validate_repository(
+    raw_path: str,
+    uid: int,
+    gid: int,
+    home: Path,
+    *,
+    repository_name: str | None = None,
+    origins: frozenset[str] | None = None,
+    script_name: str | None = None,
+    revision: str | None = None,
+    script_sha256: str | None = None,
+) -> bytes:
+    """The reviewed script's bytes, read once from a clean, reviewed checkout.
+
+    Unset pins are the temporary tool's module constants, read at call time;
+    the persistent one passes its own. Every check is the same for both.
+    """
+    pins = globals()
+    REPOSITORY_NAME = repository_name or pins["REPOSITORY_NAME"]  # noqa: N806
+    OFFICIAL_ORIGINS = origins or pins["OFFICIAL_ORIGINS"]  # noqa: N806
+    UPSTREAM_SCRIPT = script_name or pins["UPSTREAM_SCRIPT"]  # noqa: N806
+    REVIEWED_REVISION = revision or pins["REVIEWED_REVISION"]  # noqa: N806
+    REVIEWED_SCRIPT_SHA256 = script_sha256 or pins["REVIEWED_SCRIPT_SHA256"]  # noqa: N806
     requested = Path(raw_path)
     if not requested.is_absolute():
         raise RuntimeError("The upstream repository path must be absolute.")
@@ -153,7 +195,7 @@ def _validate_repository(raw_path: str, uid: int, gid: int, home: Path) -> bytes
 
 
 @contextlib.contextmanager
-def _staged_script(content: bytes):
+def _staged_script(content: bytes, name: str | None = None):
     """Yield the verified bytes as a file only root can reach, removed afterwards.
 
     Running the checkout's own file, even through an fd, runs whatever its
@@ -164,7 +206,7 @@ def _staged_script(content: bytes):
     """
     staging = pathlib.Path(tempfile.mkdtemp(prefix="bc250-core-unlock-", dir=STAGING_PARENT))
     try:
-        script = staging / UPSTREAM_SCRIPT
+        script = staging / (name or UPSTREAM_SCRIPT)
         fd = os.open(
             script, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600
         )
@@ -394,6 +436,133 @@ def _trusted_self() -> bool:
     return True
 
 
+def _threads_present() -> int:
+    """Firmware-enumerated logical CPUs (sysfs ``present``; nosmt cannot shrink it)."""
+    try:
+        spec = Path("/sys/devices/system/cpu/present").read_text(encoding="utf-8").strip()
+    except OSError:
+        return 0
+    total = 0
+    for part in spec.split(","):
+        if "-" in part:
+            low, high = part.split("-", 1)
+            total += int(high) - int(low) + 1
+        elif part:
+            total += 1
+    return total
+
+
+def _systemd_running() -> bool:
+    return Path("/run/systemd/system").is_dir()
+
+
+def _persistent_tool_env() -> dict[str, str]:
+    return {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C", "LC_ALL": "C"}
+
+
+def _persist_install(raw_repository: str, *, force_mask: bool) -> int:
+    """Install the boot service from the pinned clone, then reboot if needed.
+
+    Sends nothing to the SMU and never touches the GPU governors: the unit it
+    installs runs before them at boot, which is where the mask is written. A
+    board already at 16 threads (unlocked earlier this power cycle) needs no
+    reboot; the service takes over from the next cold boot.
+    """
+    if not _bc250_identity_present():
+        raise RuntimeError("AMD BC-250 hardware identity was not detected.")
+    if not Path("/usr/bin/git").is_file():
+        raise RuntimeError("git is required to validate the persistent core unlock clone.")
+    if not _systemd_running():
+        raise RuntimeError(
+            "The persistent core unlock is only offered on systemd for now; its OpenRC "
+            "path has not been tested on hardware."
+        )
+    uid, gid, home = _invoking_user()
+    script_bytes = _validate_repository(
+        raw_repository, uid, gid, home,
+        repository_name=PERSISTENT_REPOSITORY_NAME,
+        origins=PERSISTENT_OFFICIAL_ORIGINS,
+        script_name=PERSISTENT_SCRIPT,
+        revision=PERSISTENT_REVIEWED_REVISION,
+        script_sha256=PERSISTENT_REVIEWED_SCRIPT_SHA256,
+    )
+    with _staged_script(script_bytes, PERSISTENT_SCRIPT) as script:
+        # The tool copies its own file into a root-owned location, so it
+        # installs the verified staged bytes, not the user's checkout.
+        command = ["/usr/bin/python3", "-I", str(script), "install"]
+        if force_mask:
+            command.append("--force-mask")
+            print("Core mask check skipped at the owner's request (--force-mask).")
+        result = subprocess.run(
+            command, text=True, capture_output=True, check=False, timeout=60,
+            cwd=str(script.parent), env=_persistent_tool_env(),
+        )
+    if result.stdout:
+        print(result.stdout.rstrip())
+    if result.returncode != 0:
+        raise RuntimeError(
+            result.stderr.strip() or "The persistent core unlock could not be installed."
+        )
+    print("Installed from: movacx/core_unlock_bc250_boot_service @ " + PERSISTENT_REVIEWED_REVISION[:12])
+    if _threads_present() >= UNLOCKED_THREADS:
+        print("All 8 cores are already active. No restart is needed: the boot service "
+              "unlocks them again after every full power-off.")
+        return 0
+    print("Restarting so the boot service unlocks the two extra cores...")
+    _reboot_after_core_unlock()
+    return 0
+
+
+def _installed_tool_trusted(path: Path) -> bool:
+    """The installed tool and every directory above it are root-owned,
+    not group/world-writable and not symbolic links: it runs as root."""
+    for part in (path, *path.parents):
+        try:
+            info = part.lstat()
+        except OSError:
+            return False
+        if stat.S_ISLNK(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
+            return False
+        if str(part) == path.anchor:
+            break
+    return True
+
+
+def _persist_uninstall() -> int:
+    """Remove the boot service. Needs no clone: the paths are the tool's own.
+
+    Prefers the installed tool's own uninstall (it also cleans its state);
+    falls back to removing the unit directly when that copy is missing or
+    cannot be trusted, so the service can always be removed from here.
+    """
+    if PERSISTENT_INSTALLED_BIN.is_file() and _installed_tool_trusted(PERSISTENT_INSTALLED_BIN):
+        result = subprocess.run(
+            ["/usr/bin/python3", "-I", str(PERSISTENT_INSTALLED_BIN), "uninstall"],
+            text=True, capture_output=True, check=False, timeout=60,
+            cwd="/", env=_persistent_tool_env(),
+        )
+        if result.stdout:
+            print(result.stdout.rstrip())
+        if result.returncode == 0 and not PERSISTENT_SYSTEMD_UNIT.exists():
+            return 0
+        print(result.stderr.strip() or "The installed tool could not remove itself; removing the unit directly.")
+    if PERSISTENT_SYSTEMD_UNIT.exists() or PERSISTENT_SYSTEMD_UNIT.is_symlink():
+        subprocess.run(
+            ["/usr/bin/systemctl", "disable", PERSISTENT_UNIT_NAME],
+            text=True, capture_output=True, check=False, timeout=20,
+        )
+        PERSISTENT_SYSTEMD_UNIT.unlink(missing_ok=True)
+        subprocess.run(
+            ["/usr/bin/systemctl", "daemon-reload"],
+            text=True, capture_output=True, check=False, timeout=20,
+        )
+    if PERSISTENT_SYSTEMD_UNIT.exists():
+        raise RuntimeError(f"{PERSISTENT_SYSTEMD_UNIT} could not be removed.")
+    print("Removed the persistent core unlock boot service. The cores stay unlocked "
+          "until the next full power-off, which restores the factory 6 cores.")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if os.geteuid() != 0:
         raise RuntimeError("This helper must be launched through pkexec.")
@@ -403,11 +572,18 @@ def main(argv: list[str]) -> int:
             "installed payload. Reinstall BC250 Control Center."
         )
     arguments = argv[1:]
+    if arguments == [PERSIST_UNINSTALL]:
+        return _persist_uninstall()
     ignore_core_mask = arguments[-1:] == [IGNORE_CORE_MASK]
     if ignore_core_mask:
         arguments = arguments[:-1]
+    if len(arguments) == 3 and arguments[0] == PERSIST_INSTALL and arguments[1] == "--repo":
+        return _persist_install(arguments[2], force_mask=ignore_core_mask)
     if len(arguments) != 3 or arguments[0] != "--repo" or arguments[2] != "--reboot":
-        raise RuntimeError(f"Expected exactly: --repo PATH --reboot [{IGNORE_CORE_MASK}]")
+        raise RuntimeError(
+            f"Expected exactly: --repo PATH --reboot [{IGNORE_CORE_MASK}], "
+            f"{PERSIST_INSTALL} --repo PATH [{IGNORE_CORE_MASK}], or {PERSIST_UNINSTALL}"
+        )
     if not _bc250_identity_present():
         raise RuntimeError("AMD BC-250 hardware identity was not detected.")
     if not Path("/usr/bin/git").is_file():

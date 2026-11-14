@@ -92,7 +92,7 @@
   "fanGuidance": "Return the channel to Automatic and retry.",
   "fanOperationFailed": "The fan operation failed.",
   "fanPresets": "Presets",
-  "fanPresetsHint": "Each preset sets every active system fan (PWM3–PWM8) together and never PWM2. Speeds start at 20 %.",
+  "fanPresetsHint": "Each preset sets the active system fans together, never PWM2 or a header marked as a pump. Speeds start at 20 %.",
   "fanQuiet": "Quiet",
   "fanRpmObserved": "RPM observed",
   "fanUnverified": "wiring unverified",
@@ -322,5 +322,14 @@
   "copyDetails": "Copy details",
   "copied": "Details copied",
   "copyFailed": "Copying is not available here",
-  "pythonAction": "The helper needs Python 3.11 or newer; update the system, then reinstall from Desktop Mode."
+  "pythonAction": "The helper needs Python 3.11 or newer; update the system, then reinstall from Desktop Mode.",
+  "fanModeFirmware": "BIOS",
+  "fanModeFixed": "Fixed",
+  "fanModeCurve": "Curve",
+  "fanModeMix": "Mix",
+  "fanPump": "Pump",
+  "fanStopped": "Fan stopped",
+  "fanServiceDrives": "The desktop's fan service drives this header. A speed set here pauses it until you resume it.",
+  "fanPumpFloor": "This header drives a pump: it never runs below 30 %.",
+  "fanResume": "Resume fan service"
 }

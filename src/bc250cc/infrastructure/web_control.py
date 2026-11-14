@@ -57,6 +57,9 @@ def save_settings(**changes) -> dict:
     descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
         json.dump(data, handle)
+        # On disk before the rename: a power cut must not leave an empty file.
+        handle.flush()
+        os.fsync(handle.fileno())
     os.replace(temporary, path)
     return data
 
@@ -237,28 +240,149 @@ def status() -> dict:
             "tls_fingerprint": certificate_fingerprint() if opts["tls"] else ""}
 
 
-def start() -> dict:
-    if _listening(options()["port"]):
-        return {"started": False}
-    command = _command()  # Preflight before touching a running service or its unit.
-    access_key()
+#: What the owner reads when even the automatic repairs did not bring the
+#: server up. Plain words: the technical cause is in the log, and the log is
+#: in the problem report.
+START_FAILED = (
+    "Remote access could not start, even after Control Center tried to repair it. "
+    "Restart the computer and try again. If it still does not start, send a problem "
+    "report from Black Box: it includes the details."
+)
+PORT_TAKEN = (
+    "Remote access could not start because another program is using its port. "
+    "Close that program or restart the computer, then try again."
+)
+
+
+def _launch(command: list[str]) -> tuple[bool, object]:
+    """Start the server once; (listening and alive, process or None)."""
     if systemd_available() and autostart_state()["enabled"]:
         set_autostart(True)  # Refresh ExecStart if the interpreter changed.
         process = None
     else:
-        process = subprocess.Popen(  # nosec B603 - this interpreter, on the code that shows the window
-            command, cwd=APP_ROOT, env={**os.environ, **_environment()}, start_new_session=True,
-            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Its output goes to a log, not to /dev/null: a server that died on
+        # start used to leave nothing but "did not start" to go on.
+        log = server_log_path()
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with open(log, "w", encoding="utf-8") as output:
+            process = subprocess.Popen(  # nosec B603 - this interpreter, on the code that shows the window
+                command, cwd=APP_ROOT, env={**os.environ, **_environment()}, start_new_session=True,
+                stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT)
     deadline = time.monotonic() + 15
     while time.monotonic() < deadline:
-        if _listening(options()["port"]):
-            return {"started": True}
         if process is not None and process.poll() is not None:
             break
+        # Listening and still alive: a server that binds and then dies on
+        # its next line must not be reported as started.
+        if _listening(options()["port"]) and (process is None or process.poll() is None):
+            return True, process
         time.sleep(0.1)
     if process is not None and process.poll() is None:
         process.terminate()
-    raise ActionNeeded("The web server did not start. Check its runtime dependencies and whether its port is available.")
+    return False, process
+
+
+def _repair_state_files() -> list[str]:
+    """Set aside remote-access state that cannot be read; return what moved.
+
+    Each of these is read as "nothing yet" when it is missing, so moving an
+    unreadable one away is always safe: browsers pair again, a new key is made.
+    """
+    moved = []
+    folder = app_config_dir()
+    for name in ("web.json", "web-devices.json", "web-pairing.json"):
+        path = folder / name
+        try:
+            raw = path.read_text(encoding="utf-8") if path.is_file() else None
+        except OSError:
+            raw = ""
+        if raw is None:
+            continue
+        try:
+            valid = not raw.strip() or isinstance(json.loads(raw), dict)
+        except ValueError:
+            valid = False
+        if not valid:
+            try:
+                os.replace(path, path.with_name(f"{name}.corrupt-{int(time.time())}"))
+                moved.append(name)
+            except OSError:
+                continue
+    return moved
+
+
+def _record_recovery(note: str) -> None:
+    """Append what the automatic repair did, so a report shows it."""
+    try:
+        with open(server_log_path(), "a", encoding="utf-8") as log:
+            log.write(f"\n[Control Center] {note}\n")
+    except OSError:
+        pass
+
+
+def start() -> dict:
+    """Start the server; repair what is known to stop it, and retry once.
+
+    The owner presses one button and is not expected to read a traceback: a
+    port held by an old copy of this same server is freed, a missing runtime
+    is prepared again, unreadable state files are set aside. Only what is
+    left after that is reported, in plain words.
+    """
+    if _listening(options()["port"]):
+        return {"started": False}
+    command = _command()  # Preflight before touching a running service or its unit.
+    access_key()
+    started, process = _launch(command)
+    if started:
+        return {"started": True}
+
+    log = _server_log_text() if process is not None else ""
+    if "Address already in use" in log or "Errno 98" in log:
+        stop()  # Only our own pid file and unit: never another program.
+        _record_recovery("port in use: stopped an earlier copy of this server and retried")
+        if _listening(options()["port"]):
+            raise ActionNeeded(PORT_TAKEN)
+    elif "ModuleNotFoundError" in log or "ImportError" in log:
+        from bc250cc.infrastructure.web_runtime import prepare
+
+        prepare(APP_ROOT, app_data_dir() / "web-runtime")
+        command = _command()
+        _record_recovery("missing module: prepared the web runtime again and retried")
+    else:
+        moved = _repair_state_files()
+        _record_recovery(
+            "set aside unreadable " + ", ".join(moved) + " and retried" if moved else "retried once"
+        )
+    first_attempt = log
+    started, process = _launch(command)
+    if started:
+        return {"started": True, "repaired": True}
+    if first_attempt:
+        _record_recovery("the first attempt ended with: " + _last_line(first_attempt))
+    raise ActionNeeded(START_FAILED)
+
+
+def _server_log_text() -> str:
+    try:
+        return server_log_path().read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _last_line(text: str) -> str:
+    for line in reversed(text.splitlines()):
+        if line.strip():
+            return line.strip()[:300]
+    return ""
+
+
+def server_log_path() -> Path:
+    return app_data_dir() / "web-server.log"
+
+
+def last_server_error() -> str:
+    """The last line the server printed, usually the exception that stopped it."""
+    return _last_line(_server_log_text())
 
 
 def configure(**changes) -> dict:

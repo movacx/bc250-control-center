@@ -76,6 +76,9 @@ from bc250cc.infrastructure.decky_quick_access import (
 )
 from bc250cc.infrastructure.dependencias_constants import (  # noqa: F401  (re-exported for callers and tests)
     CORE_UNLOCK_DIRECTORY,
+    CORE_UNLOCK_PERSISTENT_DIRECTORY,
+    CORE_UNLOCK_PERSISTENT_REPOSITORY,
+    CORE_UNLOCK_PERSISTENT_SCRIPT,
     CORE_UNLOCK_REPOSITORY,
     CORE_UNLOCK_SCRIPT,
     CYAN_GOVERNOR_BRANCH,
@@ -190,6 +193,7 @@ from bc250cc.infrastructure.opticlient_undo import (
 from bc250cc.infrastructure.preparation_workflow import (
     PreparationContext,
     build_preparation_command,
+    core_unlock_persistent_commands,
     secure_cpu_checkout_command,
 )
 from bc250cc.infrastructure.privileged_install_state import privileged_install_state
@@ -366,6 +370,19 @@ class DependenciasRepository(SteamosDependenciesMixin):
             system_setup_command(action), family=self._os_repository().family
         )
         return self._abrir_terminal(command, 'BC250 ACPI')
+
+    def liberar_bloqueo_pacman(self):
+        """Remove pacman's stale db.lck in a terminal, after checking again as root.
+
+        On SteamOS the database sits in the read-only root
+        (/usr/lib/holo/pacmandb), so the guard unlocks it for this command only.
+        """
+        from bc250cc.infrastructure.pacman_lock import release_command
+
+        command = wrap_steamos_writable_command(
+            release_command(), family=self._os_repository().family
+        )
+        return self._abrir_terminal(command, 'pacman lock')
 
     def reparar_telemetria_8core(self, action: str = "telemetry-fix"):
         if action not in {"telemetry-fix", "telemetry-restore"}:
@@ -545,11 +562,15 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'kernel': 'Install BC-250 kernel for Arch/CachyOS',
             'mesa': 'Install BC-250 Mesa for Arch/CachyOS',
             'full': 'Install BC-250 kernel and Mesa for Arch/CachyOS',
+            'pahole': 'Prepare BC-250 kernel dependency',
+            'kernel-rc': 'Install BC-250 RC kernel for Arch/CachyOS',
+            'kernel-bore': 'Install BC-250 BORE kernel for Arch/CachyOS',
+            'meta': 'Install the full BC-250 bundle',
         }
         for key in ('native', 'ge', 'slr'):
             labels[f'proton-{key}'] = 'Install BC-250 Proton for Arch/CachyOS'
             labels[f'remove-proton-{key}'] = 'Remove BC-250 Proton for Arch/CachyOS'
-        for key in ('fixes', 'paccache', 'ch7218'):
+        for key in ('fixes', 'paccache', 'ch7218', 'dual-audio'):
             labels[f'extra-{key}'] = 'Install BC-250 extra for Arch/CachyOS'
             labels[f'remove-extra-{key}'] = 'Remove BC-250 extra for Arch/CachyOS'
         if action not in labels:
@@ -1267,7 +1288,13 @@ class DependenciasRepository(SteamosDependenciesMixin):
                     else governor_probe['command']
                 ),
                 'cpu_oc': repository_probe['smu_exists'],
-                'core_unlock': repository_probe['core_unlock_script_exists'],
+                # Both clones serve the one card: a board prepared before the
+                # persistent tool existed reports this missing, so preparing
+                # the component again fetches the second clone.
+                'core_unlock': bool(
+                    repository_probe['core_unlock_script_exists']
+                    and repository_probe.get('core_unlock_persistent_script_exists', True)
+                ),
                 'umr': bool(runtime_probe['umr']) and not runtime_probe['umr_broken'],
                 'cu_manager': cu_selection.exists,
                 'fan_pwm': Path('/sys/module/nct6687').is_dir(),
@@ -1616,6 +1643,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
         cyan = tools / CYAN_GOVERNOR_DIRECTORY
         core = tools / CORE_UNLOCK_DIRECTORY
         core_script = core / CORE_UNLOCK_SCRIPT
+        core_persistent_script = tools / CORE_UNLOCK_PERSISTENT_DIRECTORY / CORE_UNLOCK_PERSISTENT_SCRIPT
         steamos = tools / STEAMOS_FIX_DIRECTORY
         steamos_script = steamos / STEAMOS_FIX_SUBDIRECTORY / STEAMOS_FIX_SCRIPT
         gfx1013_compute = safe(
@@ -1630,6 +1658,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'smu_exists': bool(smu_path and safe(lambda: Path(smu_path).exists(), False)),
             'cyan_exists': bool(safe(lambda: (cyan / 'src/gpu_frequency_fix.rs').is_file(), False)),
             'core_unlock_script_exists': bool(safe(core_script.is_file, False)),
+            'core_unlock_persistent_script_exists': bool(safe(core_persistent_script.is_file, False)),
             'core_unlock_exists': bool(
                 safe(lambda: (core / '.git').is_dir(), False)
                 and safe(core_script.is_file, False)
@@ -2048,6 +2077,13 @@ class DependenciasRepository(SteamosDependenciesMixin):
             f'git -C {shlex.quote(str(destination))} diff --quiet -- {shlex.quote(CORE_UNLOCK_SCRIPT)} || {{ echo "ERROR: upstream core unlock script has local modifications"; exit 36; }}',
             f'echo "OK: official bc250-core-unlock clone is ready at {shlex.quote(str(destination))}"',
             f'echo "Source: {CORE_UNLOCK_REPOSITORY}"',
+            *core_unlock_persistent_commands(
+                self,
+                CORE_UNLOCK_PERSISTENT_REPOSITORY,
+                self._tool_dir() / CORE_UNLOCK_PERSISTENT_DIRECTORY,
+                os_repository,
+            ),
+            f'echo "Source: {CORE_UNLOCK_PERSISTENT_REPOSITORY}"',
         ])
         self.estado_herramientas_cache = None
         return self._abrir_terminal(self._join_shell_commands(commands), 'Prepare bc250-core-unlock')
@@ -2123,6 +2159,8 @@ class DependenciasRepository(SteamosDependenciesMixin):
             gddr6_repository=EXTERNAL_TOOLS['gddr6_memory_temp'].upstream,
             gddr6_destination=self._tool_dir() / EXTERNAL_TOOL_DIRECTORIES['gddr6_memory_temp'],
             already_present=already_present,
+            core_persistent_repository=CORE_UNLOCK_PERSISTENT_REPOSITORY,
+            core_persistent_destination=self._tool_dir() / CORE_UNLOCK_PERSISTENT_DIRECTORY,
         )
         command = build_preparation_command(context)
         self.estado_herramientas_cache = None

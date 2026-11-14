@@ -78,12 +78,17 @@ from ..core.performance_model import (
 from ..core.performance_model import (
     _number as _number,
 )
-from ..core.performance_sample_presenter import present_performance_sample
+from ..core.performance_sample_presenter import (
+    disk_volumes,
+    present_disk_volumes,
+    present_performance_sample,
+)
 from ..core.performance_views import (
     VIEW_BY_KEY,
     MetricView,
     available_views,
     series_label,
+    sync_disk_views,
     views_for,
 )
 from ..core.sensor_log import SensorLog, format_sensor_value
@@ -323,7 +328,7 @@ class ResourceTile(QFrame):
         super().__init__(parent)
         self.definition = definition
         self.history = history
-        self.views = tuple(views) if views is not None else tuple(views_for(definition.key))
+        self._views = tuple(views) if views is not None else None
         self.reading: tuple[str, str] = ("--", "")
         self.setProperty("resourceTile", True)
         self.setProperty("selected", False)
@@ -346,6 +351,11 @@ class ResourceTile(QFrame):
         # boxes opening on one hover would cover each other.
         if not self.has_views():
             self.setToolTip(f"{tr(self.definition.title)}\n{primary}\n{context}")
+
+    @property
+    def views(self) -> tuple[MetricView, ...]:
+        # Read each time: the Disk tab's menu follows the drives plugged in.
+        return self._views if self._views is not None else tuple(views_for(self.definition.key))
 
     def has_views(self) -> bool:
         return len(self.views) > 1
@@ -416,9 +426,9 @@ class _ViewRow(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 6, 10, 6)
         layout.setSpacing(1)
-        self.title = QLabel(tr(view.title))
+        self.title = QLabel(view.shown_title(tr))
         self.title.setProperty("viewRowTitle", True)
-        self.hint = QLabel(tr(view.hint))
+        self.hint = QLabel(view.shown_hint(tr))
         self.hint.setProperty("viewRowHint", True)
         self.hint.setWordWrap(True)
         layout.addWidget(self.title)
@@ -426,7 +436,10 @@ class _ViewRow(QFrame):
 
     def set_state(self, *, current: bool, available: bool) -> None:
         self.setEnabled(available)
-        self.hint.setText(tr(self.view.hint if available or not self.view.unavailable_hint else self.view.unavailable_hint))
+        if available or not self.view.unavailable_hint:
+            self.hint.setText(self.view.shown_hint(tr))
+        else:
+            self.hint.setText(tr(self.view.unavailable_hint))
         if bool(self.property("current")) != current:
             self.setProperty("current", current)
             for widget in (self, self.title):
@@ -491,12 +504,13 @@ class ResourceViewFlyout(QFrame):
         anchor: QRect,
         views: tuple[MetricView, ...] | None = None,
     ) -> None:
-        if resource != self.resource:
+        views = tuple(views if views is not None else views_for(resource))
+        if resource != self.resource or tuple(row.view for row in self.rows) != views:
             for row in self.rows:
                 row.setParent(None)
                 row.deleteLater()
             self.rows = []
-            for view in (views if views is not None else views_for(resource)):
+            for view in views:
                 row = _ViewRow(view, self)
                 row.chosen.connect(lambda key, owner=resource: self.view_chosen.emit(owner, key))
                 self._layout.addWidget(row)
@@ -1393,6 +1407,10 @@ class PerformancePage(QWidget):
         # its two minutes the moment it is chosen.
         self._chosen_view = {key: key for key in RESOURCE_BY_KEY}
         self.view_histories: dict[str, MetricHistory] = {}
+        #: Every disk after the system one (``disk:<mount point>``), drawn
+        #: like the Disk tab: its plan's numbers and its own read/write lines.
+        self.volume_histories: dict[str, MetricHistory] = {}
+        self._volume_views: dict[str, tuple[str, str, tuple[str, str, str, str]]] = {}
         self._available_views = {key for key, view in VIEW_BY_KEY.items() if view.is_summary}
         self.sensor_log = SensorLog()
         self._inventory = SensorInventory()
@@ -1551,6 +1569,12 @@ class PerformancePage(QWidget):
             self.view_histories[view_key] = history
         return history
 
+    def _volume_history(self, view_key: str) -> MetricHistory:
+        history = self.volume_histories.get(view_key)
+        if history is None:
+            history = self.volume_histories[view_key] = MetricHistory(RESOURCE_BY_KEY["disk"])
+        return history
+
     def _select_resource(self, key: str) -> None:
         if key not in RESOURCE_BY_KEY:
             return
@@ -1563,8 +1587,17 @@ class PerformancePage(QWidget):
             tile.set_selected(tile_key == key)
         self.sensors_tab.set_selected(False)
         view_key = self._current_view(key)
-        if view_key == key:
+        view = VIEW_BY_KEY.get(view_key)
+        if view_key == key or view is None:
             self.detail.select_resource(RESOURCE_BY_KEY[key], self.histories[key])
+        elif view.volume:
+            self.detail.select_resource(
+                RESOURCE_BY_KEY[key],
+                self._volume_history(view_key),
+                title=f"{tr(RESOURCE_BY_KEY[key].title)} · {view.shown_title(tr)}",
+            )
+            # Its mount point, not the tab's "root filesystem" line.
+            self.detail.subtitle.setText(view.shown_hint(tr))
         else:
             view = VIEW_BY_KEY[view_key]
             self.detail.select_resource(
@@ -1760,6 +1793,7 @@ class PerformancePage(QWidget):
                 graph_values=dict(plan.graph_values),
                 stats=plan.stats,
             )
+        self._record_volumes(sample)
 
         readings = sample.get("sensor_readings") or ()
         if readings:
@@ -1772,11 +1806,38 @@ class PerformancePage(QWidget):
             if self.body.currentWidget() is self.sensor_board:
                 self.sensor_board.refresh()
 
+    def _record_volumes(self, sample: dict) -> None:
+        """The other disks: their plans, their charts and the Disk menu that lists them.
+
+        A drive plugged in gets its entry on the next sample; one unplugged
+        loses it, and a Disk tab showing it goes back to the system disk.
+        """
+        if "disk" not in sample:
+            return
+        changed = sync_disk_views(disk_volumes(sample))
+        peaks = {key: history.peak() for key, history in self.volume_histories.items()}
+        plans = present_disk_volumes(sample, previous_peaks=peaks, translate=tr)
+        wanted = {plan.key for plan in plans}
+        for key in [key for key in self.volume_histories if key not in wanted]:
+            del self.volume_histories[key]
+            self._volume_views.pop(key, None)
+        for plan in plans:
+            self._volume_history(plan.key).append(dict(plan.graph_values))
+            self._volume_views[plan.key] = (plan.primary, plan.context, plan.stats)
+        if not changed:
+            return
+        if self._chosen_view.get("disk", "disk") not in VIEW_BY_KEY:
+            self._chosen_view["disk"] = "disk"
+            if self._selected_key == "disk" and self.body.currentWidget() is self.detail:
+                self._select_resource("disk")
+        if self.flyout.isVisible() and self.flyout.resource == "disk":
+            self._show_flyout("disk")
+
     def _record_views(self, readings) -> None:
         self._available_views = available_views(readings)
         moment = time.monotonic()
-        for key, view in VIEW_BY_KEY.items():
-            if view.is_summary:
+        for key, view in list(VIEW_BY_KEY.items()):
+            if view.pick is None:
                 continue
             series = view.series(readings)
             if not series:
@@ -1801,8 +1862,15 @@ class PerformancePage(QWidget):
     def _refresh_detail(self) -> None:
         sampled_at = getattr(self, "_sample_time", "--:--:--")
         view_key = self._current_view()
-        if view_key != self._selected_key:
-            primary, context, stats = self._view_summary(VIEW_BY_KEY[view_key], self._view_history(view_key))
+        view = VIEW_BY_KEY.get(view_key)
+        if view is not None and view.volume:
+            primary, context, stats = self._volume_views.get(
+                view_key, ("--", tr("Waiting for first sample"), ("--",) * 4)
+            )
+            self.detail.set_values(primary, context, stats, sampled_at=sampled_at)
+            return
+        if view_key != self._selected_key and view is not None:
+            primary, context, stats = self._view_summary(view, self._view_history(view_key))
             self.detail.set_values(primary, context, stats, sampled_at=sampled_at)
             return
         view = self._sample_views.get(self._selected_key)

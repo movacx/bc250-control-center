@@ -14,9 +14,10 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
+from bc250cc.application.fan.board_actions import FanBoardError
 from bc250cc.shared.failure_text import describe_failure
 
-from .i18n import tr
+from .i18n import tr, tr_format
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,13 @@ HISTORY_SAMPLES = 120
 
 def describe_error(error: BaseException) -> str:
     """An exception as text a person can act on, with the catalogue's code."""
+    if isinstance(error, FanBoardError):
+        text = tr_format(error.message, **error.values) if error.values else tr(error.message)
+        if error.notice:
+            # A choice still to make (no channel selected, a reserved name, a
+            # handed-off fan): a plain sentence, never a hardware diagnosis.
+            return f"{tr(error.title)}: {text}"
+        return describe_failure(1, "", text, translate=tr)
     return describe_failure(1, "", str(error) or error.__class__.__name__, translate=tr)
 
 

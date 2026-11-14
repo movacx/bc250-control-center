@@ -68,3 +68,30 @@ def require_bc250_hardware() -> None:
         from bc250cc.shared.errors import ActionNeeded
 
         raise ActionNeeded(HARDWARE_GATE_MESSAGE)
+
+
+def cpu_threads_present(path: Path = Path("/sys/devices/system/cpu/present")) -> int:
+    """Logical CPUs the firmware enumerated, whether or not they are online.
+
+    The online count is no use for the core unlock: SteamOS boots its BC-250
+    image with ``nosmt``, so a stock board shows 6 online threads instead of
+    12 and an unlocked one 8 instead of 16 (seen 2026-11-13: the Persistence
+    option stayed blocked there). ``present`` stays 12 / 16 either way, and it
+    is what the unlock tool and its helper count. 0 when unreadable.
+    """
+    try:
+        spec = path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return 0
+    total = 0
+    for part in spec.split(","):
+        try:
+            if "-" in part:
+                low, high = part.split("-", 1)
+                total += int(high) - int(low) + 1
+            elif part:
+                int(part)
+                total += 1
+        except ValueError:
+            return 0
+    return total

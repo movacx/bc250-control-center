@@ -337,6 +337,9 @@ class PerformanceRecorder:
         self._present, self._views, self._translate = present_performance_sample, VIEW_BY_KEY, translate
         self.inventory = inventory if inventory is not None else SensorInventory()
         self.histories = {definition.key: MetricHistory(definition) for definition in RESOURCE_DEFINITIONS}
+        #: Every disk after the system one, keyed ``disk:<mount point>``:
+        #: drawn like the Disk tab itself, gone once the drive is unplugged.
+        self.volume_histories: dict[str, MetricHistory] = {}
         self.views: dict[str, MetricHistory] = {}
         self.plans: dict = {}
         self.log = SensorLog()
@@ -360,12 +363,13 @@ class PerformanceRecorder:
         for plan in self._present(sample, previous_peaks=peaks, translate=self._translate):
             self.plans[plan.key] = plan
             self.histories[plan.key].append(dict(plan.graph_values), moment=moment)
+        self.record_volumes(sample, moment)
         readings = self.read(sample) if readings is None else readings
         if readings:
             self.log.record(readings, moment)
             self.available = available_views(readings)
-            for key, view in self._views.items():
-                series = [] if view.is_summary else view.series(readings)
+            for key, view in list(self._views.items()):
+                series = [] if view.pick is None else view.series(readings)
                 if not series:
                     continue
                 names = tuple(series_label(item, self._translate) for item in series)
@@ -375,7 +379,52 @@ class PerformanceRecorder:
                 history.append({name: item.value or 0.0 for name, item in zip(names, series)}, moment=moment)
         self.sampled_at = datetime.now().strftime("%H:%M:%S")
 
+    def record_volumes(self, sample: dict, moment: float) -> None:
+        """The other disks' plans and histories, and the Disk menu that lists them."""
+        from .performance_sample_presenter import disk_volumes, present_disk_volumes
+        from .performance_views import sync_disk_views
+
+        if "disk" not in sample:
+            return
+        sync_disk_views(disk_volumes(sample))
+        peaks = {key: history.peak() for key, history in self.volume_histories.items()}
+        plans = present_disk_volumes(sample, previous_peaks=peaks, translate=self._translate)
+        wanted = {plan.key for plan in plans}
+        for key in [key for key in self.volume_histories if key not in wanted]:
+            del self.volume_histories[key]
+            self.plans.pop(key, None)
+        for plan in plans:
+            self.plans[plan.key] = plan
+            history = self.volume_histories.get(plan.key)
+            if history is None:
+                history = self.volume_histories[plan.key] = MetricHistory(RESOURCE_BY_KEY["disk"])
+            history.append(dict(plan.graph_values), moment=moment)
+
     def history(self, view_key: str) -> MetricHistory | None:
-        view = self._views[view_key]
+        view = self._views.get(view_key)
+        if view is None:
+            return None
+        if view.volume:
+            return self.volume_histories.get(view_key)
         return self.histories[view.resource] if view.is_summary else self.views.get(view_key)
+
+    def reading(self, resource: str, view: MetricView | None):
+        """``(history, chart definition, (primary, context, stats), drawn like the tab)`` of one view.
+
+        "Drawn like the tab" is true for the tab's summary and for a disk's
+        own view: their numbers come from a plan and their chart is a rate.
+        """
+        definition = RESOURCE_BY_KEY[resource]
+        if view is None or view.is_summary or view.volume:
+            key = view.key if view is not None and view.volume else resource
+            history = self.volume_histories.get(key) if key != resource else self.histories[resource]
+            plan = self.plans.get(key)
+            values = (plan.primary, plan.context, plan.stats) if plan else \
+                ("--", self._translate("Waiting for first sample"), ("--",) * 4)
+            return history, definition, values, True
+        history = self.history(view.key)
+        chart = history.definition if history else definition
+        values = view_summary(view, history, self.available) if history else \
+            ("--", self._translate(view.unavailable_hint or "Waiting for sample"), ("--",) * 4)
+        return history, chart, values, False
 

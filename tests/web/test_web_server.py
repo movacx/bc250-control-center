@@ -287,8 +287,8 @@ def test_the_password_is_only_typed_on_this_computer_unless_the_owner_allowed_it
 def test_the_action_list_is_closed_and_runs_nothing_outside_the_service_layer():
     assert set(actions.ACTIONS) == {
         "gddr6.monitor", "gddr6.prepare", "gpu.profile", "gpu.compat", "gpu.service", "gpu.high_points", "gpu.voltage", "gpu.voltage_custom", "gpu.save_boot",
-        "gpu.status", "cpu.apply", "cpu.unlock", "cpu.persist", "cpu.persist_off", "cu.sync", "cu.apply", "cu.save",
-        "cu.action", "fan.pwm", "fan.auto", "fan.curve", "fan.service"}
+        "gpu.status", "cpu.apply", "cpu.unlock", "cpu.unlock_persist", "cpu.unlock_persist_off", "cpu.persist", "cpu.persist_off", "cu.sync", "cu.apply", "cu.save",
+        "cu.action", "fan.channel", "fan.label", "fan.profile", "fan.service"}
     source = Path(actions.__file__).read_text(encoding="utf-8")
     assert not re.search(r"\b(subprocess|os\.system|eval|exec|open)\(|import (subprocess|os)\b", source)
 

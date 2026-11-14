@@ -11,6 +11,15 @@
       "retryable": false
     },
     {
+      "code": "BC250-CONTAINER-001",
+      "markers": [
+        "insufficient UIDs or GIDs available in user namespace",
+        "has no subordinate user and group IDs"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
       "code": "BC250-BUILD-001",
       "markers": [
         "STEAMOS_BUILD_RUNTIME_INCOMPATIBLE"
@@ -269,19 +278,6 @@
       "retryable": false
     },
     {
-      "code": "BC250-PKG-001",
-      "markers": [
-        "unable to lock database",
-        "could not lock database",
-        "Could not get lock",
-        "database is locked",
-        "Waiting for cache lock",
-        "System management is locked by the application"
-      ],
-      "exit_statuses": [],
-      "retryable": false
-    },
-    {
       "code": "BC250-WORKFLOW-001",
       "markers": [
         "per-game install unexpectedly enabled the driver system-wide",
@@ -308,6 +304,20 @@
       "code": "BC250-VRAM-001",
       "markers": [
         "QUICK_ACCESS_VRAM"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
+      "code": "BC250-PKG-001",
+      "markers": [
+        "unable to lock database",
+        "could not lock database",
+        "Could not get lock",
+        "database is locked",
+        "Waiting for cache lock",
+        "System management is locked by the application",
+        "so pacman is busy"
       ],
       "exit_statuses": [],
       "retryable": false
@@ -645,6 +655,7 @@
     "reviewed root-owned SteamOS graphics backend is unavailable or changed",
     "per-game install unexpectedly enabled the driver system-wide",
     "Error executing command as another user: Not authorized",
+    "insufficient UIDs or GIDs available in user namespace",
     "another BC250 system preparation is already running",
     "shared contract is not a protected root-owned file",
     "Manual scale must reuse the detected thermal limit",
@@ -670,6 +681,7 @@
     "cannot execute: required file not found",
     "Another git process seems to be running",
     "fork: Resource temporarily unavailable",
+    "has no subordinate user and group IDs",
     "The GPU driver (amdgpu) did not start",
     "invalid ip discovery binary signature",
     "matching kernel-devel is unavailable",
@@ -813,6 +825,7 @@
     "QUICK_ACCESS_GDDR6",
     "HELPER_UNTRUSTED:",
     "QUICK_ACCESS_VRAM",
+    "so pacman is busy",
     "Cyan D-Bus policy",
     "QUICK_ACCESS_AUTH",
     "CU_HELPER_MISSING",

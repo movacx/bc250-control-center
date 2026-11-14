@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { keep, num, pick, t, useApp, usePage } from "../lib.jsx";
 import { Btn, Card, Check, ControlTabs, CpuCores, Fold, Number_, ProfileDeck, ProfileEditor, Read } from "../ui.jsx";
 import VoltageLab from "./VoltageLab.jsx";
+import CoreUnlock from "./CoreUnlock.jsx";
 
 function Tabs({ value, onChange, voltage = false }) {
   const items = [["control", t("Hardware control"), "nav_cpu"], ["sensors", t("Sensors"), "nav_performance"]];
@@ -46,7 +47,7 @@ function Overview({ processor, cpu }) {
   return <section className="desktop-overview"><h3>{t("Processor overview")}</h3><div className="desktop-specs">{[["model_name", keep("Processor")], ["architecture", keep("Architecture")], ["topology", keep("Topology")], ["platform_process", keep("Platform / process")], ["microcode", keep("Microcode")], ["cache", keep("Cache hierarchy")], ["features", keep("Instruction features")]].map(([key, label]) => <Read key={key} label={t(label)} value={processor[key] || t("Not exposed")} />)}<Read label={t("Total CPU load")} value={num(cpu.usage_percent)} unit="%" /></div></section>;
 }
 
-export function DesktopCpu({ data, profiles, profile, chosen, setChosen, editing, setEditing, setProfiles, fields, manual, setManual, scale, setScale, force, setForce, apply }) {
+export function DesktopCpu({ data, profiles, profile, chosen, setChosen, editing, setEditing, setProfiles, fields, manual, setManual, scale, setScale, apply }) {
   const { act, live, running, job } = useApp();
   const [tab, setTab] = useState("control");
   const cpu = live?.metrics?.cpu || {}, unlock = data.unlock || {}, processor = unlock.processor || {};
@@ -62,7 +63,7 @@ export function DesktopCpu({ data, profiles, profile, chosen, setChosen, editing
       </Card><Card><SessionConsole kind="cpu" /></Card></div>
       <Card className="desktop-cpu-runtime"><section className="desktop-inset"><h3>{t("Runtime status")}</h3><p className="note">{t("What is used in this session and what happens at the next boot.")}</p>{runtime}</section>
         <section className="desktop-inset"><h3>{t("Boot persistence")}</h3><div className="desktop-action-row"><Btn disabled={running} onClick={() => act({ action: "cpu.persist", level: 1, title: t("Enable / update CPU persistence") })}>{t("Save for startup")}</Btn><details><summary className="btn">{t("Review persistence")}</summary><div className="desktop-persistence-details">{Object.entries(data.persistent || {}).filter(([,v]) => typeof v !== "object").map(([key,value]) => <Read key={key} label={key} value={String(value)} />)}</div></details><Btn kind="danger" disabled={!persistence.enabled || running} onClick={() => act({ action: "cpu.persist_off", level: 1, title: t("Disable CPU boot service") })}>{t("Remove from boot")}</Btn></div></section>
-        <Card risk title={t("Unlock hidden CPU cores")}><p className="note">{t("CPU core unlocking is experimental. Continue with caution and save your work before proceeding, because a restart is required to apply the changes.")}</p><Check checked={force} onChange={setForce}>{t("Force a non-standard core mask (-f)")}</Check><Btn kind="danger" disabled={!!unlock.unlocked || running} onClick={() => act({ action: "cpu.unlock", level: 2, params: { force_mask: force }, title: t("Unlock CPU cores and restart") })}>{t("Unlock cores and restart")}</Btn></Card>
+        <CoreUnlock unlock={unlock} controls={data.unlock_controls} />
       </Card></div> : <div className="stack"><Card title={t("Live core monitor")} pill={t("{cores} cores / {threads} threads", { cores: cpu.physical_cores ?? "--", threads: cpu.logical_cores ?? "--" })}><Tiles items={[[t("Frequency"), `${num(cpu.frequency_mhz)} MHz`], [t("Temperature"), `${num(cpu.temperature_c,1)} °C`], [t("Total CPU load"), `${num(cpu.usage_percent)} %`]]} /><CpuCores cpu={cpu} /></Card><Card title={t("Runtime status")}>{runtime}<Overview processor={processor} cpu={cpu} /></Card></div>}
   </div>;
 }

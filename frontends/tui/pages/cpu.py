@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bc250cc.application.cpu.core_unlock import core_unlock_controls
 from frontends.desktop.core.cpu_refresh_presenter import (
     present_cpu_persistence,
     present_cpu_tuning,
@@ -181,28 +182,63 @@ class CpuPage(Page):
             Choice(tr("Save for startup"), save_boot), Choice(tr("Review persistence"), review),
             Choice(tr("Remove from boot"), remove, tone="bad", enabled=enabled)])])
 
-        # -- danger zone: the hidden-core unlock lasts until a cold start and needs a restart
+        # -- core unlock: separate from overclock persistence above
+        controls = core_unlock_controls(unlock)
+        mode = target.get("unlock_mode", "persistent" if controls["installed"] else "temporary")
+        persistent_mode = mode == "persistent"
+        unlock_allowed = controls["persist_allowed"] if persistent_mode else controls["temporary_allowed"]
+        unlock_label = controls["action"] if persistent_mode else (
+            "Already unlocked" if unlock.get("unlocked") else "Unlock cores and restart"
+        )
+
         def unlock_cores(ui_):
-            if ui_.confirm(tr("Unlock CPU cores and restart"), danger=True):
+            message = tr(unlock_label)
+            if persistent_mode:
+                message += "\n\n" + tr(
+                    "This installs a small boot service that unlocks the two extra cores again "
+                    "early on every cold boot, without flashing the BIOS. Each cold boot then "
+                    "restarts once by itself, about 30 seconds. If the board cannot keep the "
+                    "unlock, the service stops itself after two restarts. To skip it for one "
+                    "boot, add bc250.core_unlock=0 to the kernel command line."
+                )
+            if ui_.confirm(message, danger=True):
+                command = (service.comando_persistir_desbloqueo_nucleos_cpu if persistent_mode
+                           else service.comando_desbloquear_nucleos_cpu)
                 guarded(ui_, tr("Unlock cores"), lambda: ui_.shell(
-                    service.comando_desbloquear_nucleos_cpu(ignore_core_mask=target["force_mask"])))
+                    command(ignore_core_mask=target["force_mask"])))
+
+        def remove_unlock_persistence(ui_):
+            if ui_.confirm(tr(
+                "The boot service is removed. Nothing restarts: the cores stay unlocked "
+                "until the next full power-off, which brings the board back to 6 cores."
+            ), danger=True):
+                guarded(ui_, tr("Remove persistence"), lambda: ui_.shell(
+                    service.comando_quitar_persistencia_nucleos_cpu()))
 
         def guide(ui_):
-            ui_.show_text(tr("Firmware persistence guide"), tr(
-                "The core unlock does not last: it is applied after the system starts, so a full power-off or a cold "
-                "start brings the board back to 6 cores. If the board is ever unstable with 8 cores, shut it down "
-                "completely and start it again: it comes back to 6. If it is stable and you want 8 cores at every "
-                "start, the permanent way is the firmware, through the external UEFI menu workflow. The guide opens in "
-                "your browser; this application does not flash firmware, change NVRAM, or reboot the system.")
-                + f"\n\n{GUIDE_URL}")
+            ui_.show_text(tr("Firmware persistence guide"), GUIDE_URL)
 
         danger = Panel(tr("DANGER ZONE"), [
             Note(tr("Unlock hidden CPU cores"), "bad"),
+            Choice(tr("Temporary"), lambda ui_: target.update(unlock_mode="temporary"),
+                   detail=tr("Until the next full power-off. Nothing is installed."),
+                   badge=tr("Selected") if not persistent_mode else ""),
+            Choice(tr("Persistence"), lambda ui_: target.update(unlock_mode="persistent"),
+                   detail=tr("Applied again by itself on every cold boot, without flashing the BIOS."),
+                   badge=tr("Selected") if persistent_mode else tr(controls["status"]),
+                   enabled=controls["offered"]),
+            *([Field(tr("Status"), tr(controls["status"]))] if persistent_mode else []),
+            *([Note(tr(controls["note"]), "bad")] if controls["note"] else []),
+            *([Note(tr(controls["hint"]), "dim")] if controls["hint"] and
+              (persistent_mode or not controls["offered"]) else []),
             check(tr("Force a non-standard core mask (-f)"), target["force_mask"],
-                  lambda ui_: target.update(force_mask=not target["force_mask"])),
-            Choice(tr("Firmware persistence guide") + " ›", guide),
-            Buttons([Choice(tr("Unlock cores and restart"), unlock_cores, tone="bad",
-                            enabled=not unlock.get("unlocked"))])], danger=True)
+                  lambda ui_: target.update(force_mask=not target["force_mask"]), enabled=unlock_allowed),
+            Buttons([Choice(tr(unlock_label), unlock_cores, tone="bad", enabled=unlock_allowed),
+                     *([Choice(tr("Remove persistence"), remove_unlock_persistence, tone="bad",
+                               enabled=controls["remove_allowed"])]
+                       if persistent_mode and controls["installed"] else [])]),
+            *([] if persistent_mode else [Choice(tr("Firmware persistence guide") + " ›", guide)]),
+        ], danger=True)
 
         sections = {"tuning": [profile_panel, scale_panel, apply_button, persistence, Buttons([Choice(tr("Export to Decky"), export)])],
                     "monitor": [runtime, cores_panel, overview_panel],

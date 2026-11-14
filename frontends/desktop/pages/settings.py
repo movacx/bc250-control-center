@@ -101,6 +101,7 @@ from ..theme import COLORS, application_stylesheet, scale_stylesheet
 
 DAEMON_SERVICE = "bc250-control-centerd.service"
 OFFICIAL_REPOSITORIES = (
+    ("CachyOS patched pahole build recipe", "CachyOS/CachyOS-PKGBUILDS", "https://github.com/CachyOS/CachyOS-PKGBUILDS"),
     ("BC250 Control Center", "movacx/bc250-control-center", "https://github.com/movacx/bc250-control-center"),
     ("cyan-skillfish-governor", "filippor/cyan-skillfish-governor/tree/smu", "https://github.com/filippor/cyan-skillfish-governor/tree/smu"),
     ("Oberon Governor", "mothenjoyer69/oberon-governor", "https://gitlab.com/mothenjoyer69/oberon-governor"),
@@ -117,8 +118,13 @@ OFFICIAL_REPOSITORIES = (
     ("BC250 patched Bazzite image reference", "62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images", "https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images"),
     ("Arch/CachyOS kernel + Mesa/GFX1013 (opt-in workflow)", "MastaG/linux-cachyos-bc250", "https://github.com/MastaG/linux-cachyos-bc250"),
     ("BC250 FSR4 V3 (isolated per-game workflow)", "dmorazasanchez/bc250-fsr4", "https://github.com/dmorazasanchez/bc250-fsr4"),
+    ("BC250 FSR4 fork (OptiScaler Client build)", "daniel-h-0/bc250-fsr4-fork", "https://github.com/daniel-h-0/bc250-fsr4-fork"),
+    ("HelixSR (DLSS and FSR 4 networks per game)", "lonewolf0622/HelixSR", "https://github.com/lonewolf0622/HelixSR"),
+    ("DirectMesh (mesh shaders for DX12 Ultimate games)", "lonewolf0622/Mesh-Shaders-for-Rdna-1-", "https://github.com/lonewolf0622/Mesh-Shaders-for-Rdna-1-"),
     ("BC250 live telemetry (VRM sensor read)", "onlinermm/BC250-Telemetry", "https://github.com/onlinermm/BC250-Telemetry"),
     ("BC250 GDDR6 memory temperature (SMU inspection workflow)", "pan-Rijovich/bc250-memory-temperature", "https://github.com/pan-Rijovich/bc250-memory-temperature"),
+    ("BC250 VRM sensors kernel module (reference)", "Hexxeh/bc250-vrm-dkms", "https://github.com/Hexxeh/bc250-vrm-dkms"),
+    ("BC250 GDDR6 sensors kernel module (reference)", "Hexxeh/bc250-memory-dkms", "https://github.com/Hexxeh/bc250-memory-dkms"),
     ("BC250 Batocera tools reference", "tmghd272/bc250-batocera-tools", "https://github.com/tmghd272/bc250-batocera-tools"),
     ("BC250 ACPI fix", "e-tho/bc250-acpi-fix", "https://github.com/e-tho/bc250-acpi-fix"),
     ("BC250 VA-API driver (hardware video)", "simpmix/bc250-encoding-decoding-fix", "https://github.com/simpmix/bc250-encoding-decoding-fix"),
@@ -131,6 +137,10 @@ OFFICIAL_REPOSITORIES = (
     ("ASRock BIOS update kit mirror", "kenavru/BC-250", "https://github.com/kenavru/BC-250"),
     ("BC250 custom boot logo reference", "tmghd272/bc250-custom-bios-logo", "https://github.com/tmghd272/bc250-custom-bios-logo"),
     ("nct6687d fan driver", "Fred78290/nct6687d", "https://github.com/Fred78290/nct6687d"),
+    ("BC250 core unlock boot service", "movacx/core_unlock_bc250_boot_service", "https://github.com/movacx/core_unlock_bc250_boot_service"),
+    ("OpenLinkHub (Corsair devices)", "jurkovic-nikola/OpenLinkHub", "https://github.com/jurkovic-nikola/OpenLinkHub"),
+    ("Thermalright LCD coolers on Linux", "Lexonight1/thermalright-trcc-linux", "https://github.com/Lexonight1/thermalright-trcc-linux"),
+    ("Decky Loader installer", "SteamDeckHomebrew/decky-installer", "https://github.com/SteamDeckHomebrew/decky-installer"),
     ("cecd HDMI-CEC daemon (Valve)", "holo/linux-cec", "https://gitlab.steamos.cloud/holo/linux-cec"),
     ("USB Wi-Fi compatibility reference", "morrownr/USB-WiFi", "https://github.com/morrownr/USB-WiFi"),
     ("CUPS printing reference", "OpenPrinting/cups", "https://github.com/OpenPrinting/cups"),

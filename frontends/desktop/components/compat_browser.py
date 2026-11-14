@@ -17,7 +17,7 @@ from __future__ import annotations
 from PyQt6.QtCore import QEvent, QObject, Qt, QTimer
 from PyQt6.QtWidgets import (
     QFrame,
-    QHBoxLayout,
+    QGridLayout,
     QLabel,
     QMenu,
     QPushButton,
@@ -27,8 +27,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from .. import theme as theme_module
 from ..i18n import tr
 from ..theme import COLORS
+from .buttons import WrappingButton
 
 _TONES = {"green", "orange", "red"}
 
@@ -77,9 +79,12 @@ class _ComponentRow(QFrame):
         root.setContentsMargins(18, 12, 18, 12)
         root.setSpacing(10)
 
-        line = QHBoxLayout()
+        line = self._line = QGridLayout()
         line.setSpacing(14)
-        copy = QVBoxLayout()
+        self._copy = QWidget()
+        self._copy.setMinimumWidth(0)
+        copy = QVBoxLayout(self._copy)
+        copy.setContentsMargins(0, 0, 0, 0)
         copy.setSpacing(3)
         self.title = QLabel("")
         self.title.setProperty("compatItemTitle", True)
@@ -90,37 +95,33 @@ class _ComponentRow(QFrame):
         self.summary.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.scope = QLabel("")
         self.scope.setProperty("compatItemScope", True)
+        self.scope.setWordWrap(True)
         copy.addWidget(self.title)
         copy.addWidget(self.summary)
         copy.addWidget(self.scope)
-        line.addLayout(copy, 1)
         self.state = QLabel("")
         self.state.setProperty("compatItemState", True)
+        self.state.setWordWrap(True)
+        self.state.setMinimumWidth(0)
         self.state.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        # Fixed columns, so states and buttons line up down the page.
-        self.state.setFixedWidth(130)
-        line.addWidget(self.state)
-        self.action = QPushButton("")
+        self.action = WrappingButton("")
         self.action.setProperty("compatAction", True)
         self.action.setCursor(Qt.CursorShape.PointingHandCursor)
         self.action.clicked.connect(self._press)
-        self.action.setFixedWidth(190)
-        line.addWidget(self.action)
         self.more = QToolButton()
         self.more.setProperty("compatMore", True)
         self.more.setText(tr("More") + "  ⌄")
         self.more.setCursor(Qt.CursorShape.PointingHandCursor)
         self.more.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.menu = QMenu(self.more)
+        self.menu.setToolTipsVisible(True)
         self.menu.aboutToShow.connect(self._fill_menu)
         self.more.setMenu(self.menu)
-        self.more.setFixedWidth(78)
         # An absent button keeps its place, so the columns stay in line.
         for widget in (self.action, self.more):
             policy = widget.sizePolicy()
             policy.setRetainSizeWhenHidden(True)
             widget.setSizePolicy(policy)
-        line.addWidget(self.more)
         root.addLayout(line)
 
         # The card itself, folded: what is left once its title row, description
@@ -148,6 +149,8 @@ class _ComponentRow(QFrame):
         self.details.hide()
         root.addWidget(self.details)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        self._stacked = None
+        self._reflow()
 
     def _has_details(self) -> bool:
         """Anything the card shows besides what the row already says."""
@@ -181,7 +184,46 @@ class _ComponentRow(QFrame):
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().resizeEvent(event)
+        self._reflow()
         self._elide()
+
+    def changeEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().changeEvent(event)
+        if hasattr(self, "_stacked") and event.type() in (QEvent.Type.FontChange, QEvent.Type.StyleChange):
+            self._reflow()
+
+    def _reflow(self) -> None:
+        if not hasattr(self, "_stacked"):
+            return
+        scale = theme_module.ACTIVE_SCALE / 100
+        widths = (
+            max(round(130 * scale), self.state.fontMetrics().horizontalAdvance(self.state.text()) + round(8 * scale)),
+            max(round(190 * scale), QPushButton.sizeHint(self.action).width()),
+            max(round(78 * scale), self.more.sizeHint().width()),
+        )
+        margins = self.layout().contentsMargins()
+        available = self.width() - margins.left() - margins.right()
+        copy_width = max(round(220 * scale), self.title.fontMetrics().averageCharWidth() * 34)
+        stacked = available < copy_width + sum(widths) + 3 * self._line.horizontalSpacing()
+        for column, width in enumerate((0, *widths)):
+            self._line.setColumnMinimumWidth(column, 0 if stacked else width)
+            self._line.setColumnStretch(column, int(column == 0))
+        if stacked == self._stacked:
+            return
+        for widget in (self._copy, self.state, self.action, self.more):
+            self._line.removeWidget(widget)
+        if stacked:
+            self._line.addWidget(self._copy, 0, 0, 1, 4)
+            self._line.addWidget(self.state, 1, 0, 1, 4)
+            self._line.addWidget(self.action, 2, 0, 1, 3)
+            self._line.addWidget(self.more, 2, 3)
+            self.state.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        else:
+            for column, widget in enumerate((self._copy, self.state, self.action, self.more)):
+                self._line.addWidget(widget, 0, column)
+            self.state.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self._stacked = stacked
+        self.updateGeometry()
 
     def _press(self) -> None:
         if self._target is not None and self._target.isEnabled():
@@ -194,6 +236,7 @@ class _ComponentRow(QFrame):
                 continue
             action = self.menu.addAction(button.text().replace("&&", "&"))
             action.setEnabled(button.isEnabled())
+            action.setToolTip(button.toolTip() or button.text())
             action.triggered.connect(lambda _checked=False, b=button: b.click())
         if self._has_details():
             if not self.menu.isEmpty():
@@ -214,6 +257,7 @@ class _ComponentRow(QFrame):
         tone = getattr(card.status, "_tone", "gray")
         # A card that never shows a state keeps its default text out of sight.
         self.state.setText("" if explicitly_hidden(card.status) else card.status.text())
+        self.state.setToolTip(self.state.text())
         self.state.setStyleSheet(f"QLabel {{ color:{_tone_color(tone)}; }}")
         buttons = _card_buttons(card)
         self._target = _primary(buttons)
@@ -231,7 +275,9 @@ class _ComponentRow(QFrame):
                 self.action.style().unpolish(self.action)
                 self.action.style().polish(self.action)
         others = [button for button in buttons if button is not self._target]
+        self.more.setText(tr("More") + "  ⌄")
         self.more.setVisible(bool(others) or self._has_details())
+        self._reflow()
 
 
 class CompatibilityBrowser(QWidget):
@@ -286,6 +332,12 @@ class CompatibilityBrowser(QWidget):
 
     def cards(self):
         return [card for _title, cards in self._groups for card in cards]
+
+    def show_details(self, card) -> None:
+        """Open a row's details: for a state whose next step is in them."""
+        row = self._rows.get(id(card))
+        if row is not None:
+            row.details.show()
 
     def _schedule(self) -> None:
         if not self._pending:

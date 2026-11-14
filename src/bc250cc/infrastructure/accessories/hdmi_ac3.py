@@ -51,7 +51,11 @@ A52_PLUGIN_DIRS = ("/usr/lib/alsa-lib", "/usr/lib64/alsa-lib", "/usr/lib/x86_64-
 A52_PLUGIN = "libasound_module_pcm_a52.so"
 AUDIO_VENDOR, AUDIO_DEVICE = "0x1002", "0x13ff"
 #: keyboardspecialist's toolkit switches the same profile on; never both.
-FOREIGN_SYSTEM = (Path("/etc/udev/rules.d/91-bc250-hdmi-ac3.rules"),)
+FOREIGN_SYSTEM = (
+    Path("/etc/udev/rules.d/91-bc250-hdmi-ac3.rules"),
+    # MastaG's bc250-dual-audio package: its own permanent 5.1 output.
+    Path("/usr/share/bc250-dual-audio"),
+)
 FOREIGN_USER_NAME = "90-bc250-hdmi-ac3.conf"
 #: The encoder and the FFmpeg library it encodes with, per distribution.
 #: Fedora ships the plugin on its own; Debian folds it into the plugins
@@ -259,13 +263,20 @@ def inventory(family: str) -> dict:
     return {**base, "state": state}
 
 
-def _package_lines(family: str) -> list[str]:
-    packages = " ".join(shlex.quote(item) for item in PACKAGES.get(family, ()))
+def _package_lines(family: str, required: tuple[str, ...] | None = None) -> list[str]:
+    packages = " ".join(shlex.quote(item) for item in (
+        PACKAGES.get(family, ()) if required is None else required
+    ))
     if family in {"arch", "manjaro", "cachyos"}:
         return [f"sudo pacman -S --needed --noconfirm {packages}"]
     if family == "fedora":
         return [f"sudo dnf install -y {packages}"]
     if family in {"debian", "ubuntu"}:
+        if required is not None:
+            return [
+                "sudo apt-get update",
+                f"sudo apt-get install -y --no-install-recommends {packages}",
+            ]
         # Install what this release offers: -extra only exists on older Ubuntu.
         # No pipe into grep: under pipefail an early grep exit is a SIGPIPE.
         return [
@@ -284,6 +295,32 @@ def _package_lines(family: str) -> list[str]:
             "echo 'BC250_REBOOT_REQUIRED=1'",
         ]
     return ["echo 'ERROR: the AC-3 encoder is not part of this SteamOS image.'; exit 69"]
+
+
+def _prepare_pactl(family: str) -> list[str]:
+    """Prepare the audio client before probing the session (R-44eb28f4)."""
+    if family == "steamos":
+        return [
+            "command -v pactl >/dev/null 2>&1 || { echo 'ERROR: pactl is missing from this SteamOS image. Update or repair SteamOS, then retry. No AC-3 configuration was changed.'; exit 69; }",
+        ]
+    package = "libpulse" if family in {"arch", "manjaro", "cachyos"} else "pulseaudio-utils"
+    lines = [
+        "if ! command -v pactl >/dev/null 2>&1; then",
+        f"  echo '== Installing the audio client (pactl): {package} =='",
+        *("  " + line for line in _package_lines(family, required=(package,))),
+    ]
+    if family == "bazzite":
+        lines += [
+            "  if ! command -v pactl >/dev/null 2>&1; then",
+            "    echo 'OK: the audio client is in the next deployment. Restart, then press Install again. No AC-3 configuration was changed.'",
+            "    exit 0",
+            "  fi",
+        ]
+    lines += [
+        f"  command -v pactl >/dev/null 2>&1 || {{ echo 'ERROR: pactl is still unavailable after installing {package}. Check the package installation and retry. No AC-3 configuration was changed.'; exit 69; }}",
+        "fi",
+    ]
+    return lines
 
 
 def _encoder_check() -> str:
@@ -376,14 +413,15 @@ def install_command(family: str) -> str:
             "without a decoder plays it as silence; Remove brings stereo back.'"
         )
     commands += [
-        "for bc250_command in pactl sudo udevadm awk; do",
+        "for bc250_command in sudo udevadm awk; do",
         '  command -v "$bc250_command" >/dev/null 2>&1 || { echo "ERROR: $bc250_command is required."; exit 69; }',
         "done",
+        *_foreign_guard(),
+        *((STEAMOS_PASSWORD_GUARD, "bc250_require_password") if steamos else ()),
+        *_prepare_pactl(family),
         "if ! pactl info >/dev/null 2>&1; then",
         "  echo 'ERROR: cannot connect to the session audio server. Start or repair pipewire-pulse (or PulseAudio) in your desktop session, then retry. No AC-3 configuration was changed.'; exit 69",
         "fi",
-        *_foreign_guard(),
-        *((STEAMOS_PASSWORD_GUARD, "bc250_require_password") if steamos else ()),
         _encoder_check(),
         'if [ "$bc250_encoder" = 0 ]; then',
         "  echo '== Installing the AC-3 encoder (ALSA a52 plugin and FFmpeg) =='",

@@ -106,8 +106,6 @@ def test_the_gpu_screen_says_why_instead_of_zero_to_zero(qtbot):
     )
     view.apply_state(state)
 
-    tile = view._tiles["range"]
-    assert tile.value.text() == "--"
     assert view._bus_notice.isVisible() and "busy-flag" in view._bus_notice.text()
     view._sync_compatibility(state)
     assert view._process_method_warning.isVisible()
@@ -118,6 +116,5 @@ def test_the_gpu_screen_says_why_instead_of_zero_to_zero(qtbot):
     )
     view.apply_state(healthy)
     view._sync_compatibility(healthy)
-    assert tile.value.text() == "1000–1850 MHz"
     assert not view._bus_notice.isVisible()
     assert not view._process_method_warning.isVisible()

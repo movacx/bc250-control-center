@@ -65,7 +65,7 @@ _HARDWARE_QUALIFICATION_MATRIX = {
         ),
     },
     "core_unlock_and_boot": {
-        "tools": ("core_unlock", "steamos_amdgpu"),
+        "tools": ("core_unlock", "core_unlock_persistent", "steamos_amdgpu"),
         "requirements": (
             "recoverable-board preflight and offline recovery media",
             "warm/cold boot and video-output verification",

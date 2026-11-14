@@ -1166,6 +1166,9 @@ class GpuGovernorStateMixin:
         if action in {"acpi-install", "acpi-update", "acpi-uninstall", "acpi-status"}:
             self._manage_acpi(action, dialog_parent)
             return
+        if action == "pacman-unlock":
+            self._release_pacman_lock(dialog_parent)
+            return
         if action in {"memory_swap", "memory_ttm"}:
             self._prepare_bazzite_memory_tuning(
                 policy=memory_policy,
@@ -1219,6 +1222,7 @@ class GpuGovernorStateMixin:
             return
         if action in {
             "cachyos_bc250_kernel",
+            "cachyos_bc250_pahole",
             "cachyos_bc250_mesa",
             "cachyos_bc250_full",
             "cachyos_bc250_proton-native",
@@ -1231,6 +1235,11 @@ class GpuGovernorStateMixin:
             "cachyos_bc250_remove-extra-paccache",
             "cachyos_bc250_extra-ch7218",
             "cachyos_bc250_remove-extra-ch7218",
+            "cachyos_bc250_extra-dual-audio",
+            "cachyos_bc250_remove-extra-dual-audio",
+            "cachyos_bc250_kernel-rc",
+            "cachyos_bc250_kernel-bore",
+            "cachyos_bc250_meta",
         }:
             chosen = action.removeprefix("cachyos_bc250_")
             if chosen == "remove-proton":

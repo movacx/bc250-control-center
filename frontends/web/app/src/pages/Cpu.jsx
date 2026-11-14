@@ -1,8 +1,9 @@
+import CoreUnlock from "./CoreUnlock.jsx";
 import { DesktopCpu } from "./DesktopHardware.jsx";
 import { useMobile } from "../ui.jsx";
 import { useState } from "react";
 import { keep, num, t, useApp, usePage } from "../lib.jsx";
-import { Btn, Card, Check, ControlTabs, CpuCores, Fold, Number_, ProfileDeck, ProfileEditor, Read, useStored } from "../ui.jsx";
+import { Btn, Card, ControlTabs, CpuCores, Fold, Number_, ProfileDeck, ProfileEditor, Read, useStored } from "../ui.jsx";
 
 const PROFILES = [
   { key: "board_average", name: keep("Average board"), frequency: 3550, vid: 1050, temperature: 90 },
@@ -18,14 +19,14 @@ export default function Cpu() {
   const [profiles, setProfiles] = useStored("cpu-profiles", PROFILES);
   const [chosen, setChosen] = useState(PROFILES[0].key), [tab, setTab] = useState("profiles");
   const [manual, setManual] = useState(false), [scale, setScale] = useState(-34);
-  const [force, setForce] = useState(false), [editing, setEditing] = useState(null);
+  const [editing, setEditing] = useState(null);
   if (!data) return <Card><p className="note">{t("Waiting for data…")}</p></Card>;
   const profile = profiles.find((item) => item.key === chosen) || profiles[0], cpu = live?.metrics?.cpu || {};
   const unlock = data.unlock || {}, processor = unlock.processor || {}, enabled = data.persistence.enabled;
   const apply = () => act({ action: "cpu.apply", level: 1, title: manual ? t("Apply temporary OC + manual scale") : t("Apply configuration + automatic scale"),
     body: `${profile.frequency} MHz · ${manual ? `${t("Scale")} ${scale}` : `${profile.vid} mV`} · ${profile.temperature} °C`,
     params: { frequency: profile.frequency, vid: profile.vid, temperature: profile.temperature, manual, scale } });
-  if (!mobile) return <DesktopCpu {...{ data, profiles, profile, chosen, setChosen, editing, setEditing, setProfiles, fields, manual, setManual, scale, setScale, force, setForce, apply }} />;
+  if (!mobile) return <DesktopCpu {...{ data, profiles, profile, chosen, setChosen, editing, setEditing, setProfiles, fields, manual, setManual, scale, setScale, apply }} />;
   return <div className="control-workspace cpu-workspace">
     <ControlTabs items={[["profiles", t("Profiles"), "nav_cpu"], ["monitor", t("Monitoring"), "nav_performance"], ["boot", t("Boot persistence"), "nav_settings"]]} value={tab} onChange={setTab} />
     {tab === "profiles" && <Card className="control-primary">
@@ -41,7 +42,7 @@ export default function Cpu() {
     </Card><Card title={t("Runtime status")}><Read label={t("Applied tuning")} value={data.tuning.applied_value} note={data.tuning.applied_detail} /><Read label={t("Active scale")} value={data.tuning.live_value} /><Read label={t("Detection reference")} value={data.tuning.detection_value} /></Card></>}
     {tab === "boot" && <><Card title={t("Boot persistence")} pill={enabled ? t("Enabled") : t("Temporary")}><Read label={t("Status")} value={data.persistence.value} /><p className="note">{data.persistence.detail}</p><Btn kind="primary" disabled={running} onClick={() => act({ action: "cpu.persist", level: 1, title: t("Enable / update CPU persistence") })}>{t("Save for startup")}</Btn><Btn disabled={!enabled || running} onClick={() => act({ action: "cpu.persist_off", level: 1, title: t("Disable CPU boot service") })}>{t("Remove from boot")}</Btn><details className="control-explanation"><summary>{t("Review persistence")}</summary>{Object.entries(data.persistent || {}).filter(([, v]) => typeof v !== "object").map(([key, value]) => <Read key={key} label={key} value={String(value)} />)}</details></Card>
       <Fold title={t("Processor overview")}>{[["model_name", keep("Processor")], ["architecture", keep("Architecture")], ["topology", keep("Topology")], ["platform_process", keep("Platform / process")], ["microcode", keep("Microcode")], ["cache", keep("Cache hierarchy")], ["features", keep("Instruction features")]].map(([key, label]) => <Read key={key} label={t(label)} value={processor[key] || t("Not exposed")} />)}</Fold>
-      <Fold risk title={t("Unlock hidden CPU cores")}><p className="note">{t("CPU core unlocking is experimental. Continue with caution and save your work before proceeding, because a restart is required to apply the changes.")}</p><Check checked={force} onChange={setForce}>{t("Force a non-standard core mask (-f)")}</Check><Btn kind="danger" disabled={!!unlock.unlocked || running} onClick={() => act({ action: "cpu.unlock", level: 2, params: { force_mask: force }, title: t("Unlock CPU cores and restart") })}>{t("Unlock cores and restart")}</Btn></Fold>
+      <CoreUnlock unlock={unlock} controls={data.unlock_controls} fold />
     </>}
   </div>;
 }

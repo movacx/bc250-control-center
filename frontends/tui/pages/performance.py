@@ -19,7 +19,6 @@ from frontends.desktop.core.performance_model import (
     search_text,
     sensor_label,
     series_statistics,
-    view_summary,
 )
 from frontends.desktop.core.performance_sample_presenter import format_rate
 from frontends.desktop.core.performance_views import VIEW_BY_KEY, views_for
@@ -69,8 +68,8 @@ def axis(values: list[float], unit: str, fixed: bool, rate: bool):
 
 def view_options(views, current: str, available: set[str]) -> list[tuple[str, str]]:
     """A view menu in two columns, name then what it shows; ● marks the open one, (--) one with no data yet."""
-    width = max(cell_width(tr(item.title)) for item in views)
-    return [(item.key, f"{'●' if item.key == current else ' '} {tr(item.title).ljust(width)}   {tr(item.hint)}"
+    width = max(cell_width(item.shown_title(tr)) for item in views)
+    return [(item.key, f"{'●' if item.key == current else ' '} {item.shown_title(tr).ljust(width)}   {item.shown_hint(tr)}"
              + ("" if item.key in available else "  (--)")) for item in views]
 
 
@@ -112,22 +111,17 @@ class PerformancePage(Page):
     def _resource(self, ctx, recorder, key, ui):
         state = ctx.state(self.key)
         definition = RESOURCE_BY_KEY[key]
-        view = VIEW_BY_KEY.get(state.get(f"view:{key}", key), VIEW_BY_KEY.get(key))
-        plan = recorder.plans.get(key)
-        if view is None or view.is_summary:
-            history, chart_def = recorder.histories[key], definition
-            primary, context, stats = plan.primary, plan.context, plan.stats
-        else:
-            history = recorder.history(view.key)
-            chart_def = history.definition if history else definition
-            primary, context, stats = view_summary(view, history, recorder.available) if history \
-                else ("--", tr(view.unavailable_hint or "Waiting for sample"), ("--",) * 4)
-        unit, rate = chart_def.unit, definition.rate_scale and (view is None or view.is_summary)
+        # An unplugged disk's view is gone: fall back to the tab's own.
+        view = VIEW_BY_KEY.get(state.get(f"view:{key}", key)) or VIEW_BY_KEY.get(key)
+        if view is not None and view.resource != key:
+            view = VIEW_BY_KEY.get(key)
+        history, chart_def, (primary, context, stats), summary = recorder.reading(key, view)
+        unit, rate = chart_def.unit, definition.rate_scale and summary
         show = shower(unit, rate)
         fixed = state.get(f"scale:{key}", "auto") == "fixed"
 
-        out = [Heading(f"{tr(definition.title)}  {primary}  {context}"),
-               Note(tr(view.hint if view and not view.is_summary else definition.subtitle), "dim")]
+        hint = view.shown_hint(tr) if view is not None and not view.is_summary else tr(definition.subtitle)
+        out = [Heading(f"{tr(definition.title)}  {primary}  {context}"), Note(hint, "dim")]
         views = views_for(key)
         if len(views) > 1:
             def choose_view(ui_):
@@ -135,7 +129,7 @@ class PerformancePage(Page):
                 if picked is not None:
                     state[f"view:{key}"] = picked
 
-            out.append(Choice(tr("Views"), choose_view, f"{tr(view.title)} ›"))
+            out.append(Choice(tr("Views"), choose_view, f"{view.shown_title(tr)} ›"))
         if unit == "%":
             def scale(ui_, _direction=1):
                 state[f"scale:{key}"] = "auto" if fixed else "fixed"

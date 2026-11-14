@@ -133,13 +133,24 @@ class ExternalToolLifecycle:
 
 
 EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
+    "cachyos_pahole": ExternalToolSpec(
+        key="cachyos_pahole",
+        upstream="https://github.com/CachyOS/CachyOS-PKGBUILDS",
+        license="GPL-2.0-only",
+        reviewed_revision="4235eec8e257993ea4d5d0016d2f0845014d2ee8",
+        privilege_class="package-manager",
+        hardware_writes=False,
+        automated=True,
+        rollback="Reinstall the distribution's pahole package with pacman.",
+        validation_level="code-reviewed",
+    ),
     "cyan_smu": ExternalToolSpec(
         key="cyan_smu",
         upstream="https://github.com/filippor/cyan-skillfish-governor",
         license="MIT",
-        # v0.4.14, installed as upstream publishes it: the official release
+        # v0.4.15, installed as upstream publishes it: the official release
         # binary, or this commit built unmodified where its glibc is too old.
-        reviewed_revision="7b08fdcf542d1edd82f3a9077c902038019c9842",
+        reviewed_revision="34cea69cdf617d1ad05edc71c4c61df501a13c8e",
         privilege_class="service-config",
         hardware_writes=True,
         automated=True,
@@ -168,6 +179,23 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         automated=True,
         rollback="Full power removal restores the factory core mask; physical recovery gate remains mandatory.",
         validation_level="code-reviewed-mocked-hardware-gate-pending",
+    ),
+    # The boot service that re-applies the same unlock on every cold boot.
+    # Maintained alongside Control Center; still pinned like any other tool,
+    # because it installs a unit that runs as root before sysinit.target.
+    "core_unlock_persistent": ExternalToolSpec(
+        key="core_unlock_persistent",
+        upstream="https://github.com/movacx/core_unlock_bc250_boot_service",
+        license="MIT",
+        reviewed_revision="35db6d13ce8cee5c6b387d7eb7d1de07fcf6249d",
+        privilege_class="boot-service-hardware-reboot",
+        hardware_writes=True,
+        automated=True,
+        rollback=(
+            "Uninstall removes the boot service; the next full power-off restores the "
+            "factory core mask. bc250.core_unlock=0 on the kernel command line skips it."
+        ),
+        validation_level="hardware-validated-warm-reboot-cold-boot-pending",
     ),
     "cu_manager_standard": ExternalToolSpec(
         key="cu_manager_standard",
@@ -404,6 +432,13 @@ def _lifecycle(
 
 
 EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
+    "cachyos_pahole": _lifecycle(
+        "Verify the pinned CachyOS recipe and patches, build as the user and install pahole through pacman.",
+        "Check the installed package against the pahole dependency in the BC-250 headers database.",
+        "Reinstall the distribution's pahole package through pacman.",
+        vocabulary="BC-250 kernel build dependency",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.ROLLBACK),
+    ),
     "cyan_smu": _lifecycle(
         "Install the reviewed upstream release, unmodified, and the managed service/config overlay.",
         "Verify the binary's release, service state, D-Bus range and telemetry overlay.",
@@ -455,6 +490,14 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
         conflicts=("cyan-skillfish-governor-smu.service", "oberon-governor.service"),
         vocabulary="Temporary CPU core unlock",
         actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.APPLY, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
+    ),
+    "core_unlock_persistent": _lifecycle(
+        "Prepare the exact reviewed revision beside the temporary unlock; the helper installs its boot service from a root-only staged copy.",
+        "Verify origin, pinned revision and payload digest; report the boot service's enabled state and its last recorded result.",
+        "Remove the boot service (no clone needed); the next full power-off restores the factory cores.",
+        conflicts=("Hexxeh/bc250-efi-core-unlock", "BIOS DXE core-unlock mods"),
+        vocabulary="Persistent CPU core unlock (boot service)",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.UNINSTALL),
     ),
     "cu_manager_standard": _lifecycle(
         "Stage the exact reviewed userspace manager; privileged actions remain locked in Control Center.",
@@ -655,9 +698,11 @@ class GitCheckoutReader:
 
 
 EXTERNAL_TOOL_DIRECTORIES = {
+    "cachyos_pahole": "cachyos-pahole",
     "cyan_smu": "cyan-skillfish-governor-smu",
     "cpu_smu_oc": "bc250_smu_oc",
     "core_unlock": "bc250-core-unlock",
+    "core_unlock_persistent": "core_unlock_bc250",
     "cu_manager_standard": "bc250-cu-live-manager",
     "cu_manager_steamos": "bc250-cu-live-manager-steamos",
     "steamos_amdgpu": "bc250-steamos",

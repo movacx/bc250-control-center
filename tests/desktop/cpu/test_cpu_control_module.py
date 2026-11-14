@@ -40,16 +40,30 @@ def test_hidden_cores_are_shown_as_offline_rather_than_omitted(qtbot):
     assert view.core_grid.rows[0].usage.text() == "10 %"
 
 
-def test_the_core_shape_is_shown_translated_not_as_the_backend_spells_it(qtbot):
-    """The backend formats it in English; the unlock card composes it properly."""
-    view = _view(qtbot)
+def test_the_unlock_card_and_core_monitor_carry_no_core_count_or_experimental_caption(qtbot):
+    """Removed on request: the count sat twice on screen and the caption said
+    nothing the red panel does not. Neither may come back."""
+    from PyQt6.QtWidgets import QLabel
 
+    view = _view(qtbot)
     view.apply_state(CpuControlState(
         topology="6 cores / 12 threads",
         core_unlock=CoreUnlockState(detected_shape="6 núcleos / 12 hilos"),
     ))
+    # Only these two cards: the processor overview still lists the topology.
+    for card in (view._risk_panel, view.cores_panel):
+        texts = [label.text() for label in card.findChildren(QLabel)]
+        assert not any("núcleos / 12 hilos" in text or "cores / 12 threads" in text for text in texts)
+        assert not any("restart-required" in text or "requiere reinicio" in text for text in texts)
 
-    assert view._core_shape.text() == "6 núcleos / 12 hilos"
+
+def test_the_two_unlock_buttons_look_like_the_boot_persistence_ones(qtbot):
+    view = _view(qtbot)
+    # Same family as Save for boot / Review persistence / Remove from boot:
+    # the action in the red tone, the other one neutral, equal width.
+    assert view.unlock_button.property("dangerAction") is True
+    assert view.firmware_button.property("ghostButton") is True
+    assert not view.firmware_button.property("linkButton")
 
 
 def test_the_runtime_block_mirrors_the_page_instead_of_recomputing_it(qtbot):
@@ -162,3 +176,62 @@ def test_the_page_executor_reaches_the_ring():
     assert integration._is_busy(Page()) is False
     Page._background.running = True
     assert integration._is_busy(Page()) is True
+
+
+def test_core_rows_take_their_colours_from_the_theme_not_from_inline_sheets(qtbot):
+    """Inline sheets kept the palette they were written with: after a switch to
+    the dark theme the rows showed light-theme ink on a dark panel."""
+    from frontends.desktop.components.core_monitor import CoreReading
+
+    view = _view(qtbot)
+    view.apply_state(CpuControlState(cores=(CoreReading(0, True, 1500, 20, 2),)))
+    row = view.core_grid.rows[0]
+    for label in (row.name, row.frequency, row.usage):
+        assert label.styleSheet() == ""
+    assert row.styleSheet() == ""
+    assert row.name.property("offline") is False
+    # A hidden core is the same labels in their quiet state.
+    assert view.core_grid.rows[7].name.property("offline") is True
+
+
+def test_the_console_opens_at_the_height_the_owner_settled_on(qtbot, tmp_path):
+    from PyQt6.QtCore import QSettings
+    from PyQt6.QtWidgets import QPlainTextEdit
+
+    from frontends.desktop.pages.cpu_control_view import CONSOLE_DEFAULT_HEIGHT
+
+    assert CONSOLE_DEFAULT_HEIGHT == 219
+    view = CpuControlView(settings=QSettings(str(tmp_path / "ui.ini"), QSettings.Format.IniFormat))
+    qtbot.addWidget(view)
+    view.mount_console(QPlainTextEdit("x"))
+    assert view.console_height() == 219
+
+
+def test_the_export_to_decky_button_keeps_its_size_and_font(qtbot):
+    """Left column of the CPU screen: asked to stay exactly as it was.
+
+    Measured at c7e91ad, before the unlock card, the console and the runtime
+    block were reworked: 148 x 35 px, 12 px bold, about 145 px wide. Pixel-compared then; this
+    keeps a later stylesheet change from quietly moving it.
+    """
+    from PyQt6.QtWidgets import QApplication
+
+    from frontends.desktop.theme import application_stylesheet
+
+    app = QApplication.instance()
+    previous = app.styleSheet()
+    try:
+        for mode in ("light", "dark"):
+            app.setStyleSheet(application_stylesheet(mode))
+            view = _view(qtbot)
+            view.resize(1632, 940)  # a full-size window, laid out
+            view.show()
+            qtbot.waitExposed(view)
+            qtbot.wait(20)
+            button = view._export_decky_button
+            assert button.height() == 35, mode
+            assert 130 <= button.width() <= 160, mode  # compact, never stretched
+            assert button.font().pixelSize() == 12, mode
+            assert button.font().weight() >= 700, mode
+    finally:
+        app.setStyleSheet(previous)

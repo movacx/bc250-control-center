@@ -8,14 +8,19 @@ builds a command line from the request.
 
 from __future__ import annotations
 
+import json
+
+from bc250cc.application.fan import board_view
+from bc250cc.application.fan.board_actions import (
+    FanBoardActions,
+    FanBoardError,
+    Outcome,
+)
 from bc250cc.application.fan.system_control import build_system_fan_policy
 from bc250cc.application.gpu.voltage_apply import plan_voltage_apply
 from bc250cc.application.gpu.voltage_lab_state import build_voltage_lab_state
-from bc250cc.domain.fan.persistence import (
-    CUSTOM_FAN_PRESET,
-    normalize_fan_curve,
-    validate_fan_curve_points,
-)
+from bc250cc.domain.fan import engine
+from bc250cc.domain.fan.channels import LABEL_MAX_LENGTH, MODE_NAME_MAX_LENGTH
 from bc250cc.domain.gpu.voltage_profiles import (
     CUSTOM_VOLTAGE_MAX_MV,
     CUSTOM_VOLTAGE_MIN_MV,
@@ -26,12 +31,13 @@ from bc250cc.shared.contract import (
     CPU_TEMPERATURE_RANGE,
     CPU_VID_RANGE,
 )
-from frontends.tui.i18n import tr_format
+from frontends.tui.i18n import tr, tr_format
 
 SAFE_CEILING = 2000  # past the factory TOML's last point the rail turns red
-LOW_DUTY = 30
+LOW_DUTY = board_view.LOW_DUTY_CONFIRM_PERCENT
+ENTRY_MAX_BYTES = 4096  # a channel entry: at most 4 mix curves of 8 points
 RANGES = {"frequency": CPU_FREQUENCY_RANGE, "vid": CPU_VID_RANGE, "temperature": CPU_TEMPERATURE_RANGE, "scale": CPU_SCALE_RANGE,
-          "gpu": (300, 3000), "pwm": (1, 8), "percent": (0, 100), "level": (0, 6)}
+          "gpu": (300, 3000), "pwm": (engine.PWM_MIN, engine.PWM_MAX), "percent": (0, 100), "level": (0, 6)}
 SET_METHODS, USAGE_METHODS, TEMP_READS = ("smu", "kernel"), ("busy-flag", "process", "kernel"), ("drm", "sysfs")
 GOVERNOR_ACTIONS = ("reiniciar", "activar", "desactivar")
 CU_ACTIONS = ("install_service", "remove_service", "factory")
@@ -67,30 +73,6 @@ def masks(p: dict) -> list[int]:
             and all(isinstance(item, int) and not isinstance(item, bool) and 0 <= item <= 31 for item in value)):
         raise Invalid("masks")
     return value
-
-
-def to_pwm(percent: int) -> int:
-    return round(percent * 255 / 100)
-
-
-def _fan_save(ctx, payload: dict, first=None, *, start_service=False) -> str:
-    """A PWM write, the saved fan settings, then the new policy to the root service when it is on."""
-    service = ctx.service
-    system = service.estado_control_fan_sistema()
-    if start_service and (not isinstance(system, dict) or system.get("external") or not system.get("available")):
-        raise Invalid("Fan service unavailable or controlled by another program")
-    if first is not None:
-        first()
-    ctx.settings.save_local_config(payload)
-    if start_service:
-        policy = build_system_fan_policy(ctx.settings.read_local_config())
-        if policy is None:
-            raise Invalid("Choose a curve or a preset first")
-        service.activar_control_fan_sistema(policy)
-    elif isinstance(system, dict) and system.get("enabled"):
-        policy = build_system_fan_policy(ctx.settings.read_local_config())
-        service.sincronizar_control_fan_sistema(policy)
-    return ""
 
 
 # -- GPU ------------------------------------------------------------------------------------------
@@ -200,6 +182,11 @@ def cpu_unlock(ctx, p, shell):
     return 2, lambda: shell(ctx.service.comando_desbloquear_nucleos_cpu(ignore_core_mask=force))
 
 
+def cpu_unlock_persist(ctx, p, shell):
+    force = flag(p, "force_mask")
+    return 2, lambda: shell(ctx.service.comando_persistir_desbloqueo_nucleos_cpu(ignore_core_mask=force))
+
+
 # -- Compute units --------------------------------------------------------------------------------
 
 def cu_apply(ctx, p, shell):
@@ -219,44 +206,99 @@ def cu_action(ctx, p, shell):
 
 # -- Fans -----------------------------------------------------------------------------------------
 
-def fan_pwm(ctx, p, shell):
-    pwm, percent = number(p, "pwm"), number(p, "percent")
-    curve = normalize_fan_curve(ctx.settings.read_local_config().get("fan_curve"))
-    payload = {"fan_curve": dict(curve, enabled=False), "fan_preset": {
-        "enabled": True, "preset": CUSTOM_FAN_PRESET, "percent": percent, "pwm": pwm}}
-    return (2 if percent < LOW_DUTY else 1), lambda: _fan_save(
-        ctx, payload, lambda: ctx.service.aplicar_pwm_fan(pwm, to_pwm(percent)))
+def _said(outcome: Outcome) -> str:
+    """An outcome as the sentence the job log shows."""
+    message = tr_format(outcome.message, **outcome.values) if outcome.values else tr(outcome.message)
+    return f"{tr(outcome.title)} · {message}"
 
 
-def fan_auto(ctx, p, shell):
-    pwm = number(p, "pwm")
-    return 1, lambda: ctx.service.restaurar_pwm_automatico(pwm)
+def _board(ctx) -> FanBoardActions:
+    return FanBoardActions(ctx.service, ctx.settings)
 
 
-def fan_curve(ctx, p, shell):
-    pwm, enabled = number(p, "pwm"), flag(p, "enabled")
-    start_service = flag(p, "start_service") if "start_service" in p else False
-    if start_service and not enabled:
-        raise Invalid("Enable the curve before starting its service")
-    raw = p.get("points")
-    if not (isinstance(raw, list) and 2 <= len(raw) <= 8 and all(
-            isinstance(item, list) and len(item) == 2 and all(isinstance(v, int) and not isinstance(v, bool) for v in item)
-            and 20 <= item[0] <= 110 and 0 <= item[1] <= 100 for item in raw)):
-        raise Invalid("points")
-    points = sorted((t, s) for t, s in raw)
-    ok, _message = validate_fan_curve_points(points)
-    if not ok:
-        raise Invalid("points")
-    saved = normalize_fan_curve(ctx.settings.read_local_config().get("fan_curve"))
-    body = {"enabled": enabled, "edit_enabled": enabled, "pwm": pwm, "point_count": len(points),
-            "points": [{"temperature": t, "speed": s} for t, s in points],
-            "preset": saved.get("preset", "custom"), "last_pwm_text": saved.get("last_pwm_text", "--")}
-    for index, (t, s) in enumerate(points[:3], start=1):  # the legacy daemon's keys
-        body[f"t{index}"], body[f"s{index}"] = t, s
-    payload = {"fan_curve": body}
-    if enabled:
-        payload["fan_preset"] = {"enabled": False, "preset": "", "percent": 0, "pwm": pwm}
-    return 1, lambda: _fan_save(ctx, payload, start_service=start_service)
+def _entry(p: dict) -> dict | None:
+    """A channel setting as the engine reads it; the engine itself decides
+    whether it is valid, here only its shape and size are checked."""
+    entry = p.get("entry")
+    if entry is None:
+        return None
+    if not isinstance(entry, dict) or entry.get("mode") not in engine.MODES:
+        raise Invalid("entry")
+    try:
+        size = len(json.dumps(entry))
+    except (TypeError, ValueError) as error:
+        raise Invalid("entry") from error
+    if size > ENTRY_MAX_BYTES:
+        raise Invalid("entry")
+    if entry["mode"] == "firmware":
+        return None
+    try:
+        engine.validate_policy({"schema": 2, "channels": {"1": entry}})
+    except ValueError as error:
+        raise Invalid(f"entry: {error}") from error
+    return entry
+
+
+def _text(p: dict, key: str, limit: int, *, empty: bool = False) -> str:
+    value = p.get(key)
+    if not isinstance(value, str) or len(value) > limit * 4:
+        raise Invalid(key)
+    text = " ".join(value.split())[:limit]
+    if not text and not empty:
+        raise Invalid(key)
+    return text
+
+
+def fan_channel(ctx, p, shell):
+    """One channel's setting (Firmware, Fixed, Curve or Mix), as the desktop
+    Fans page applies it."""
+    pwm, entry = number(p, "pwm"), _entry(p)
+    low = bool(entry and entry.get("mode") == "fixed" and int(entry.get("percent", 100)) < LOW_DUTY)
+    return (2 if low else 1), lambda: _said(_board(ctx).apply_channel(pwm, entry))
+
+
+def fan_label(ctx, p, shell):
+    pwm, label = number(p, "pwm"), _text(p, "label", LABEL_MAX_LENGTH, empty=True)
+
+    def rename():
+        _board(ctx).rename(pwm, label)
+        return tr("Saved")
+    return 0, rename
+
+
+def fan_profile(ctx, p, shell):
+    """Apply, save or delete a fan profile (the desktop's named modes)."""
+    operation = choice(p, "operation", ("apply", "save", "delete"))
+    name = _text(p, "name", MODE_NAME_MAX_LENGTH)
+    if operation == "apply":
+        selected = number(p, "selected", "pwm") if p.get("selected") is not None else None
+        return 1, lambda: _said(_board(ctx).apply_profile(name, selected))
+    if operation == "delete":
+        def delete():
+            _board(ctx).delete_profile(name)
+            return tr("Saved")
+        return 1, delete
+    channels = None
+    if p.get("draft") is not None:
+        # The visible draft of one channel, saved with the others, never applied.
+        draft = p["draft"]
+        if not isinstance(draft, dict):
+            raise Invalid("draft")
+        pwm, entry = number(draft, "pwm"), _entry(draft)
+        channels = dict(_board(ctx).board().channels)
+        if entry is None:
+            channels.pop(str(pwm), None)
+        else:
+            channels[str(pwm)] = entry
+    replace = flag(p, "replace") if "replace" in p else False
+
+    def save():
+        board = _board(ctx)
+        if board.profile_exists(name) and not replace:
+            raise FanBoardError("Save as…", "Replace fan profile?", notice=True)
+        board.save_profile(name, channels=channels, reserved=[tr(label) for label in ("Quiet", "Balanced", "Performance")])
+        return f"{tr('Saved')} · {name}"
+    return 1, save
 
 
 def fan_service(ctx, p, shell):
@@ -273,6 +315,8 @@ def fan_service(ctx, p, shell):
         policy = build_system_fan_policy(ctx.settings.read_local_config())
         if policy is None:
             raise Invalid("Choose a curve or a preset first")
+        if not board_view.policy_supported(state, policy):
+            raise FanBoardError(board_view.NOT_READY_TITLE, "Update fan helper", notice=True)
         if operation == "sync":
             if not state.get("enabled"):
                 raise Invalid("Enable the fan service first")
@@ -289,10 +333,13 @@ ACTIONS = {
     "gpu.save_boot": lambda ctx, p, shell: (1, ctx.service.guardar_rango_gpu_arranque),
     "gpu.status": lambda ctx, p, shell: (0, ctx.service.status_governor),
     "cpu.apply": cpu_apply, "cpu.unlock": cpu_unlock,
+    "cpu.unlock_persist": cpu_unlock_persist,
+    "cpu.unlock_persist_off": lambda ctx, p, shell: (
+        2, lambda: shell(ctx.service.comando_quitar_persistencia_nucleos_cpu())),
     "cpu.persist": lambda ctx, p, shell: (1, lambda: shell(ctx.service.comando_cpu_oc_persistente_embebido())),
     "cpu.persist_off": lambda ctx, p, shell: (
         1, lambda: shell(ctx.service.comando_cpu_oc_desactivar_persistente_embebido())),
     "cu.sync": lambda ctx, p, shell: (0, ctx.service.obtener_estado_cu),
     "cu.apply": cu_apply, "cu.save": cu_save, "cu.action": cu_action,
-    "fan.pwm": fan_pwm, "fan.auto": fan_auto, "fan.curve": fan_curve, "fan.service": fan_service,
+    "fan.channel": fan_channel, "fan.label": fan_label, "fan.profile": fan_profile, "fan.service": fan_service,
 }

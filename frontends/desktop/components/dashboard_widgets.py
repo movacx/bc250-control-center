@@ -43,9 +43,13 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtWidgets import QPushButton as IconButton
 
 from bc250cc.infrastructure.system_setup import (
+    CH7218_QUIRK_OPTION,
+    CH7218_VRR_OPTION,
     CU_UNLOCK_OPTION,
     HDMI21_OFF_OPTION,
     HIDE_BOOT_MESSAGES_OPTION,
+    PCON_FORCE_DSC_OPTION,
+    RELINK_AT_BOOT_OPTION,
     RELINK_OFF_OPTION,
     SCHED_POLICY_OPTION,
 )
@@ -2433,11 +2437,11 @@ class _HelixSRSettings(SectionCard):
             self._summaries()
 
 
-from .preparation_pages import PreparationPagesMixin  # noqa: E402  (needs names defined above, so imported here)
+from .preparation_pages import PacmanLockCardMixin, PreparationPagesMixin  # noqa: E402  (needs names defined above, so imported here)
 from .preparation_render import PreparationRenderMixin  # noqa: E402  (needs names defined above, so imported here)
 
 
-class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
+class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLockCardMixin, QFrame):
     """Compact in-dashboard adaptation of DependencyPreparationDialog."""
 
     prepare_requested = pyqtSignal(object)
@@ -3000,16 +3004,25 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         (SCHED_POLICY_OPTION, "GPU scheduler policy (non-HWS)", "Use non-HWS scheduling", "Restore default scheduling"),
         (HDMI21_OFF_OPTION, "HDMI 2.1 and DSC negotiation", "Turn HDMI 2.1 off", "Turn HDMI 2.1 on"),
         (RELINK_OFF_OPTION, "Picture recovery after a mode change", "Turn recovery off", "Turn recovery on"),
+        # Opt-in fixes of MastaG's kernel, each for one symptom; off by default there.
+        (CH7218_QUIRK_OPTION, "4K120 black screen fix (UGREEN / CH7218 adapter)", "Turn the CH7218 fix on", "Turn the CH7218 fix off"),
+        (CH7218_VRR_OPTION, "VRR on CH7218 firmware 07.00.69", "Force VRR on the adapter", "Stop forcing VRR"),
+        (PCON_FORCE_DSC_OPTION, "Force DSC on a VMM7100 adapter (experimental)", "Force DSC", "Stop forcing DSC"),
+        (RELINK_AT_BOOT_OPTION, "Picture recovery at boot (experimental)", "Recover at boot", "Stop recovering at boot"),
     )
     #: Options only the BC-250 kernel has a parameter for: offered where the
     #: kernel reports it (or where one is already staged, to take it back).
-    KERNEL_PARAMETER_OPTIONS = frozenset({HDMI21_OFF_OPTION, RELINK_OFF_OPTION})
+    KERNEL_PARAMETER_OPTIONS = frozenset({
+        HDMI21_OFF_OPTION, RELINK_OFF_OPTION,
+        CH7218_QUIRK_OPTION, CH7218_VRR_OPTION, PCON_FORCE_DSC_OPTION, RELINK_AT_BOOT_OPTION,
+    })
     #: Options that give something up, and so are drawn as a warning. Unlocking
     #: compute units gives nothing up: it is the BC-250 kernel's own method.
     #: Hiding boot messages risks nothing for the board; it is explained in its
     #: confirmation, not painted red.
     KERNEL_OPTION_NEUTRAL = frozenset({
         CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION, SCHED_POLICY_OPTION, HDMI21_OFF_OPTION, RELINK_OFF_OPTION,
+        CH7218_QUIRK_OPTION, CH7218_VRR_OPTION, PCON_FORCE_DSC_OPTION, RELINK_AT_BOOT_OPTION,
     })
 
 
@@ -3190,7 +3203,7 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         lines; the description and actions of a row open on demand.
         """
         self.compatibility_groups = (
-            ("System", (self.acpi_card,)),
+            ("System", (self.acpi_card, self.pacman_lock_card)),
             ("GPU governor", (self.cyan_card, self.oberon_card)),
             # Mesa first: it is what leaves the desktop on the CPU, whatever the kernel does.
             ("Kernel and graphics", (
@@ -3279,6 +3292,7 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         ("hdmi_ac3", "reboot-required"): "The encoder is in the next deployment. Restart, then press Install again to switch the output to 5.1.",
         ("hdmi_ac3", "installed"): "Configured, but another output is in use. Press Use 5.1 output to switch back to it.",
         ("hdmi_ac3", "managed-elsewhere"): "Another toolkit already switches the AC-3 profile on, so it is left as it is.",
+        ("hdmi_cec", "managed-elsewhere"): "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.",
         ("hdmi_cec", "unsupported"): "The running kernel was built without CEC over DisplayPort.",
     }
     #: What the configure button reads as, per accessory; empty hides it.

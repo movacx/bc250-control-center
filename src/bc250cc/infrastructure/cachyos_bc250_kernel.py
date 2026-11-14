@@ -13,6 +13,8 @@ import platform
 import subprocess
 from pathlib import Path
 
+from .cachyos_pahole import build_pahole_prepare_command, pahole_dependency_state
+
 CACHYOS_BC250_REPOSITORY = "https://github.com/MastaG/linux-cachyos-bc250"
 CACHYOS_BC250_PACMAN_REPOSITORY = "bc250-cachyos"
 CACHYOS_BC250_INCLUDE = "/etc/pacman.d/bc250-control-center-bc250-cachyos.conf"
@@ -45,10 +47,19 @@ CACHYOS_BC250_EXTRA_PACKAGES = {
     # Only the updater and its firmware images: flashing the UGREEN adapter
     # stays a manual command, as upstream documents it.
     "ch7218": "bc250-ch7218-fw",
+    # A permanent Dolby Digital 5.1 output beside native HDMI (WirePlumber
+    # policy). The same job as Control Center's own 5.1 output: never both.
+    "dual-audio": "bc250-dual-audio",
 }
-CACHYOS_BC250_KERNEL_ACTIONS = {"kernel", "mesa", "full"}
+#: Upstream's recommended set in one package: stable kernel and headers, dual
+#: audio, bc250-cec, bc250-fixes and all three Proton builds (about 4.5 GB).
+CACHYOS_BC250_META_PACKAGE = "linux-cachyos-bc250-meta"
+#: The RC and BORE kernels, installed beside the stable one (each with headers).
+CACHYOS_BC250_VARIANT_ACTIONS = {"kernel-rc": "rc", "kernel-bore": "bore"}
+CACHYOS_BC250_KERNEL_ACTIONS = {"kernel", "mesa", "full", "meta", *CACHYOS_BC250_VARIANT_ACTIONS}
 CACHYOS_BC250_ACTIONS = (
     CACHYOS_BC250_KERNEL_ACTIONS
+    | {"pahole"}
     | {f"proton-{key}" for key in CACHYOS_BC250_PROTON_PACKAGES}
     | {f"remove-proton-{key}" for key in CACHYOS_BC250_PROTON_PACKAGES}
     | {f"extra-{key}" for key in CACHYOS_BC250_EXTRA_PACKAGES}
@@ -183,11 +194,18 @@ def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
             key: installed(package)
             for key, package in CACHYOS_BC250_EXTRA_PACKAGES.items()
         },
+        "variants_installed": {
+            variant: variant in installed_variants for variant in CACHYOS_BC250_KERNEL_VARIANTS
+        },
+        "meta_installed": installed(CACHYOS_BC250_META_PACKAGE),
+        # MastaG's own CEC daemon, which the bundle pulls in.
+        "cec_package_installed": installed("bc250-cec"),
         "kernel_installed": bool(installed_variants),
         "kernel_active": running_variant in installed_variants,
         "kernel_variant": running_variant if running_variant in installed_variants
         else (installed_variants[0] if installed_variants else ""),
         "mesa_installed": mesa_from_bc250_repository,
+        "pahole_dependency": pahole_dependency_state() if supported else {},
     }
 
 
@@ -228,6 +246,8 @@ def build_cachyos_bc250_kernel_command(action: str = "kernel") -> str:
     action = str(action or "kernel").strip().lower()
     if action not in CACHYOS_BC250_ACTIONS:
         raise ValueError("Unsupported CachyOS BC-250 action.")
+    if action == "pahole":
+        return build_pahole_prepare_command()
     if action.startswith("remove-proton-"):
         return _build_proton_removal_command(action.removeprefix("remove-proton-"))
     if action.startswith("remove-extra-"):
@@ -243,8 +263,14 @@ def build_cachyos_bc250_kernel_command(action: str = "kernel") -> str:
     selected = []
     if single_package:
         selected.append(single_package)
-    if action in {"kernel", "full"}:
-        selected.extend(CACHYOS_BC250_PACKAGES)
+    variant = CACHYOS_BC250_VARIANT_ACTIONS.get(action, "stable")
+    kernel_package = CACHYOS_BC250_KERNEL_VARIANTS[variant]
+    kernel_packages = (kernel_package, f"{kernel_package}-headers")
+    installs_kernel = action in {"kernel", "full", "meta", *CACHYOS_BC250_VARIANT_ACTIONS}
+    if action == "meta":
+        selected.append(CACHYOS_BC250_META_PACKAGE)
+    if installs_kernel:
+        selected.extend(kernel_packages)
     if action in {"mesa", "full"}:
         selected.extend(CACHYOS_BC250_MESA_PACKAGES)
     targets = " ".join(f"{repository}/{name}" for name in selected)
@@ -256,7 +282,7 @@ def build_cachyos_bc250_kernel_command(action: str = "kernel") -> str:
             "linux-cachyos-bore-bc250*,mesa*,lib32-mesa*,vulkan-*,lib32-vulkan-*,"
             "opencl-mesa,lib32-opencl-mesa')"
         )
-    elif action == "kernel":
+    elif action in {"kernel", "meta", *CACHYOS_BC250_VARIANT_ACTIONS}:
         # This repository also has higher-priority Mesa split packages.  Keep
         # the explicit kernel-only action honest while still performing the
         # full Arch system upgrade required by pacman.
@@ -279,16 +305,25 @@ fi'''
         if action in {"mesa", "full"} else ""
     )
     kernel_step = (
-        '''pacman -Q linux-cachyos-bc250 linux-cachyos-bc250-headers
+        f'''pacman -Q {" ".join(kernel_packages)}
 printf '%s\\n' nct6687 | sudo tee /etc/modules-load.d/nct6687.conf >/dev/null
 echo "BC250_REBOOT_REQUIRED=1"'''
-        if action in {"kernel", "full"}
+        if installs_kernel
         else ""
     )
+    if action == "meta":
+        kernel_step += (
+            "\necho \"[INFO] The bundle also installed dual audio, bc250-cec, bc250-fixes and the three "
+            "BC-250 Proton builds. Restart Steam to see the Proton builds.\""
+        )
     proton_step = (
         f'''pacman -Q {proton_package}
 echo "[INFO] Restart Steam; pick this Proton in a game's Compatibility settings."'''
         if proton_package
+        else f'''pacman -Q {extra_package}
+systemctl --user restart pipewire pipewire-pulse wireplumber || echo "[WARN] Restart the session so the audio change applies."
+echo "[INFO] Pick Dolby Digital 5.1 (AC3 Encoder) as the output; check it with /usr/share/bc250-dual-audio/check.sh"'''
+        if extra_package == "bc250-dual-audio"
         else f'''pacman -Q {extra_package}
 echo "[INFO] {extra_package} is installed; nothing else was changed."'''
         if extra_package
@@ -300,11 +335,12 @@ echo "[INFO] Log out/restart games after Mesa changes; reboot is recommended whe
         if action in {"mesa", "full"}
         else ""
     )
+    kernel_suffix = kernel_package.removeprefix("linux-")
     kernel_notice = (
-        '''echo "[INFO] Booted kernel now: $(uname -r)"
+        f'''echo "[INFO] Booted kernel now: $(uname -r)"
 echo "[INFO] CachyOS Kernel Manager only lists kernels from CachyOS's own repositories, so the BC-250 kernel (from MastaG's repository) does not appear there."
-echo "[INFO] After rebooting, verify with: uname -r  (it must end in -cachyos-bc250). Your previous kernel stays as a boot fallback."'''
-        if action in {"kernel", "full"}
+echo "[INFO] After rebooting, verify with: uname -r  (it must end in -{kernel_suffix}). Your previous kernel stays as a boot fallback."'''
+        if installs_kernel
         else ""
     )
     return f'''set -euo pipefail
@@ -336,7 +372,8 @@ bc250_packages=({targets})
 {mesa_selection}
 bc250_repo_file="$(mktemp)"
 bc250_pacman_conf=''
-trap 'rm -f -- "$bc250_repo_file" "$bc250_pacman_conf"' EXIT
+bc250_plan=''
+trap 'rm -f -- "$bc250_repo_file" "$bc250_pacman_conf" "$bc250_plan"' EXIT
 bc250_pacman_conf="$(mktemp)"
 awk '$0 != "Include = {include}"' /etc/pacman.conf > "$bc250_pacman_conf"
 if [ "$bc250_anchor" = cachyos-v3 ] && ! grep -Eq '^[[:space:]]*\\[cachyos-v3\\][[:space:]]*$' "$bc250_pacman_conf"; then
@@ -397,7 +434,19 @@ sudo install -D -m 0644 "$bc250_repo_file" "{include}"
 sudo install -m 0644 "$bc250_pacman_conf" /etc/pacman.conf
 fi
 echo "== Installing selected BC-250 packages in one system-upgrade transaction =="
-sudo pacman -Syu "${{bc250_scope_guard[@]}}" "${{bc250_packages[@]}}"
+bc250_plan="$(mktemp)"
+if sudo pacman -Syu --print --noconfirm --print-format '%n' "${{bc250_scope_guard[@]}}" "${{bc250_packages[@]}}" | tee "$bc250_plan"; then
+  for bc250_target in "${{bc250_packages[@]}}"; do
+    grep -Fxq "${{bc250_target#*/}}" "$bc250_plan" || {{ echo "ERROR: A requested package was omitted from the installation plan. Resolve its dependencies before retrying."; exit 74; }}
+  done
+else
+  bc250_status=$?
+  case "$bc250_status" in 130|143) exit "$bc250_status" ;; esac
+  echo "ERROR: The package transaction could not be prepared. No packages from this transaction were installed."
+  echo "ERROR: If the output names pahole, use Prepare dependencies in the BC-250 graphics stack row, then retry."
+  exit "$bc250_status"
+fi
+sudo pacman -Su "${{bc250_scope_guard[@]}}" "${{bc250_packages[@]}}"
 for bc250_target in "${{bc250_packages[@]}}"; do
   bc250_name="${{bc250_target#*/}}"
   pacman -Sl '{repository}' | awk -v package="$bc250_name" '

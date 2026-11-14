@@ -149,6 +149,12 @@ bash scripts/uninstall-local.sh
 3. On the Dashboard, run **Prepare BC250 system**. It shows what will be installed for your distribution and runs it in the built-in terminal.
 4. Read the status line of a module before applying changes; it reports what is ready and what is missing.
 
+### MastaG kernel dependencies on Arch and CachyOS
+
+In **Additional settings › Compatibility**, the BC-250 graphics-stack row checks whether the kernel headers require CachyOS's patched `pahole`. If it is missing, **Prepare dependencies** offers to build and install the reviewed CachyOS package. The confirmation explains the system-package update and the source build. Once preparation succeeds, retry **Update / repair kernel** or your chosen kernel installation.
+
+The kernel workflow resolves dependencies and checks that every requested package is included before installing. A missing dependency must be resolved before continuing with the kernel and its headers.
+
 ## Terminal mode
 
 The TUI runs in a terminal emulator, a Linux TTY or an SSH session. It shares

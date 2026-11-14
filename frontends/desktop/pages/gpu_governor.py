@@ -51,10 +51,14 @@ from bc250cc.infrastructure.gpu.governor_toml import (
     VOLTAGE_BOOST_START_MHZ,
 )
 from bc250cc.infrastructure.system_setup import (
+    CH7218_QUIRK_OPTION,
+    CH7218_VRR_OPTION,
     CU_UNLOCK_OPTION,
     CU_UNLOCK_THERMAL_NOTE,
     HDMI21_OFF_OPTION,
     HIDE_BOOT_MESSAGES_OPTION,
+    PCON_FORCE_DSC_OPTION,
+    RELINK_AT_BOOT_OPTION,
     RELINK_OFF_OPTION,
     SCHED_POLICY_OPTION,
 )
@@ -1219,6 +1223,46 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                     "and can be restored from Control Center."
                 )
                 confirm_text, tone = "Turn recovery off", "orange"
+            elif changed == CH7218_QUIRK_OPTION:
+                title = "Turn the CH7218 adapter fix on"
+                body = (
+                    "Only for a DisplayPort to HDMI 2.1 adapter with a Chrontel CH7218 chip (UGREEN and "
+                    "others) where 4K60 works but 4K90 or 4K120 gives a black screen. It makes the driver "
+                    "treat the adapter as the HDMI 2.1 converter it is. Many CH7218 adapters work without "
+                    "it and nothing tells them apart, so leave it off unless you have that symptom. It "
+                    "needs HDMI 2.1 negotiation on. The change applies after reboot and can be restored "
+                    "from Control Center."
+                )
+                confirm_text, tone = "Turn the CH7218 fix on", "orange"
+            elif changed == CH7218_VRR_OPTION:
+                title = "Force VRR on the CH7218 adapter"
+                body = (
+                    "UGREEN's 07.00.69 firmware for the CH7218 adapter no longer tells the driver that it "
+                    "supports VRR, so none is offered although the TV has it. This makes the driver assume "
+                    "it does. It was tested on one setup: if the picture misbehaves with VRR on, turn it "
+                    "off again. It needs HDMI 2.1 negotiation on. The change applies after reboot and can "
+                    "be restored from Control Center."
+                )
+                confirm_text, tone = "Force VRR on the adapter", "orange"
+            elif changed == PCON_FORCE_DSC_OPTION:
+                title = "Force DSC on the adapter"
+                body = (
+                    "Experimental. For a DisplayPort to HDMI 2.1 adapter that reports no DSC decoder, such "
+                    "as the Cable Matters 102101 (VMM7100), and so gives 4K120 in 4:2:2 instead of RGB. "
+                    "The driver then drives it as if it had DSC. Either 4K120 comes out in full colour, or "
+                    "the screen stays black at 4K120 and you turn it off again. The change applies after "
+                    "reboot and can be restored from Control Center."
+                )
+                confirm_text, tone = "Force DSC", "orange"
+            elif changed == RELINK_AT_BOOT_OPTION:
+                title = "Recover the picture at boot"
+                body = (
+                    "Experimental. Re-detects the display once on the first screen of each boot, for an "
+                    "adapter that was already stuck before the machine started. Each re-detect costs a real "
+                    "mode change, so leave it off unless you have that symptom. The change applies after "
+                    "reboot and can be restored from Control Center."
+                )
+                confirm_text, tone = "Recover at boot", "orange"
             else:
                 title = "Disable simultaneous multithreading"
                 body = (
@@ -1334,6 +1378,27 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             tr("Could not free /var space" if action == "free-var" else "Could not change SteamOS read-only mode"),
             controls=(),
             error_parent=dialog_parent,
+        )
+
+    def _release_pacman_lock(self, dialog_parent: QWidget | None = None) -> None:
+        confirmation = ConfirmDialog(
+            tr("Package manager lock · pacman"),
+            tr(
+                "No package manager is running, so the lock was left behind by an interrupted "
+                "update. This removes it with your password in the terminal. It checks again "
+                "first and stops, removing nothing, if a package manager has started meanwhile."
+            ),
+            confirm_text=tr("Release lock"),
+            tone="orange", parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.liberar_bloqueo_pacman(),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self, tr("Package manager lock · pacman"), tr("The terminal shows the new state.")
+            ),
+            tr("Could not release the pacman lock"), controls=(), error_parent=dialog_parent,
         )
 
     def _manage_acpi(self, action: str, dialog_parent: QWidget | None = None) -> None:
@@ -1459,6 +1524,24 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         self, action: str, *, dialog_parent: QWidget | None
     ) -> None:
         action = str(action or "kernel").strip().lower()
+        if action == "pahole":
+            from bc250cc.infrastructure.cachyos_pahole import DEPENDENCY_NOTE, PAHOLE_VERSION
+
+            confirmation = ConfirmDialog(
+                "Prepare dependencies", tr(DEPENDENCY_NOTE),
+                summary=((tr("Source"), "CachyOS/CachyOS-PKGBUILDS"),
+                         (tr("Packages"), f"pahole {PAHOLE_VERSION}")),
+                confirm_text=tr("Build and install"), tone="orange", parent=dialog_parent or self,
+            )
+            if confirmation.exec() == QDialog.DialogCode.Accepted:
+                self._run_backend_action(
+                    lambda: self.controller.preparar_cachyos_bc250("pahole"),
+                    lambda _result: GpuGovernorPage._record_preparation_result(
+                        self, "Prepare dependencies", "Dependency workflow opened",
+                    ),
+                    "Dependency preparation failed", controls=(), error_parent=dialog_parent,
+                )
+            return
         actions = {
             "kernel": (
                 "Install external Arch/CachyOS BC-250 kernel",
@@ -1473,6 +1556,22 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             "full": (
                 "Install external Arch/CachyOS BC-250 kernel and Mesa",
                 "linux-cachyos-bc250 + headers · mesa + optional lib32-mesa",
+                tr("Stock CachyOS kernel remains installed"),
+            ),
+            "kernel-rc": (
+                "Install external Arch/CachyOS BC-250 RC kernel",
+                "linux-cachyos-rc-bc250 + headers",
+                tr("Your other kernels remain installed"),
+            ),
+            "kernel-bore": (
+                "Install external Arch/CachyOS BC-250 BORE kernel",
+                "linux-cachyos-bore-bc250 + headers",
+                tr("Your other kernels remain installed"),
+            ),
+            "meta": (
+                "Install the full BC-250 bundle",
+                "linux-cachyos-bc250-meta · linux-cachyos-bc250 + headers, bc250-dual-audio, bc250-cec, "
+                "bc250-fixes, three Proton BC-250 builds (about 4.5 GB)",
                 tr("Stock CachyOS kernel remains installed"),
             ),
         }
@@ -1491,6 +1590,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             "extra-fixes": "bc250-fixes",
             "extra-paccache": "bc250-paccache-cleanup",
             "extra-ch7218": "bc250-ch7218-fw",
+            "extra-dual-audio": "bc250-dual-audio",
         }
         for key, package in extra_packages.items():
             actions[key] = (
@@ -1553,11 +1653,16 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         if action not in actions:
             raise ValueError("Unsupported CachyOS BC-250 action.")
         title, packages, recovery = actions[action]
+        body = tr(
+            "This is not a standard dependency. It adds MastaG's external pacman repository, whose packages are unsigned (Optional TrustAll). Continue only if you trust that upstream repository."
+        )
+        if action == "meta":
+            body += " " + tr(
+                "The bundle brings its own Dolby 5.1 output and its own CEC service. If Control Center's 5.1 output or TV control is set up, remove those first: two of each get in each other's way."
+            )
         confirmation = ConfirmDialog(
             title,
-            tr(
-                "This is not a standard dependency. It adds MastaG's external pacman repository, whose packages are unsigned (Optional TrustAll). Continue only if you trust that upstream repository."
-            ),
+            body,
             summary=(
                 (tr("Source"), "github.com/MastaG/linux-cachyos-bc250"),
                 (tr("Packages"), packages),
