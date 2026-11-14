@@ -110,8 +110,9 @@ def test_oberon_never_borrows_a_voltage_from_cyans_curve(qtbot):
 def test_cyan_still_shows_its_own_per_frequency_voltages(qtbot):
     _page_, view = _page(qtbot, CYAN)
 
+    # Both ends of each profile, read from the curve (packaged values here).
     shown = [card._voltage_label.text() for card in view._profile_cards]
-    assert shown == ["900 mV", "930 mV", "960 mV"]
+    assert shown == ["700 – 900 mV", "800 – 930 mV", "800 – 960 mV"]
 
 
 def test_the_old_screen_is_never_painted_not_even_for_one_frame(qtbot):

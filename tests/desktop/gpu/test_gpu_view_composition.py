@@ -84,3 +84,33 @@ def test_a_kernel_ceiling_warning_wraps_on_its_own_line_and_leaves_the_subtitle_
     assert view._locked_label.text() == ""
     assert "SteamOS" not in subtitle.text()
     assert subtitle.width() > view._range_panel.width() // 2
+
+
+def test_the_profile_cards_show_the_voltage_range_from_config_toml(qtbot):
+    """The mV line under each profile read a packaged table, so a curve raised
+    in the voltage laboratory never showed there. It now reads the governor's
+    own curve at both ends of the profile, +2000 MHz points included."""
+    from frontends.desktop.pages.gpu_governor_view import GpuProfile, GpuViewState
+
+    curve = [
+        (500, 715), (1000, 800), (1175, 850), (1500, 905), (1600, 915),
+        (1700, 925), (1850, 935), (2000, 965), (2400, 1155),
+    ]
+    state = GpuViewState.from_backend({
+        "service_active": "active",
+        "safe_points_with_voltage": [{"frequency": f, "voltage": v} for f, v in curve],
+        "high_frequency_points": {"enabled": True},
+    })
+    view = GpuGovernorView()
+    qtbot.addWidget(view)
+    view.apply_state(state)
+    shown = {card.profile.key: card._voltage_label.text() for card in view._profile_cards}
+    assert shown == {
+        "balanced": "715 – 905 mV",
+        "gaming": "800 – 935 mV",
+        "benchmark": "800 – 965 mV",
+    }
+    assert GpuProfile("x", "X", 1000, 2400).voltage_range(dict(curve)) == "800 – 1155 mV"
+    # A point the curve does not reach falls back to the packaged value.
+    assert GpuProfile("x", "X", 1000, 2400).voltage_range({1000: 800}) == "800 – 1150 mV"
+    assert GpuProfile("o", "O", 1000, 2000, fixed_voltage=950).voltage_range(dict(curve)) == "950 mV"

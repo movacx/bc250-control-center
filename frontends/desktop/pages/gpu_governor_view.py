@@ -118,6 +118,19 @@ def voltage_for(frequency: int) -> int:
     return VOLTAGE_MAP[nearest]
 
 
+def curve_voltage(frequency: int, curve: dict[int, int] | None = None) -> int:
+    """Voltage of the nearest safe-point in the governor's own curve.
+
+    ``curve`` is what config.toml holds (frequency → mV), the values the voltage
+    laboratory edits. A frequency the curve does not reach — a +2000 MHz point
+    still commented out — falls back to the packaged value for that point.
+    """
+    points = dict(VOLTAGE_MAP)
+    points.update(curve or {})
+    nearest = min(points, key=lambda point: abs(point - frequency))
+    return points[nearest]
+
+
 def backend_voltage_for(frequency: int, *, is_oberon: bool = False) -> int:
     """Oberon's endpoints are flat; only Cyan has a per-frequency curve.
 
@@ -150,6 +163,14 @@ class GpuProfile:
         if self.fixed_voltage is not None:
             return int(self.fixed_voltage)
         return voltage_for(self.maximum)
+
+    def voltage_range(self, curve: dict[int, int] | None = None) -> str:
+        """The voltages Cyan uses at this profile's two ends, from config.toml."""
+        if self.fixed_voltage is not None:
+            return f"{int(self.fixed_voltage)} mV"
+        low = curve_voltage(self.minimum, curve)
+        high = curve_voltage(self.maximum, curve)
+        return f"{low} mV" if low == high else f"{low} – {high} mV"
 
     def is_risky(self) -> bool:
         return self.maximum > SAFE_CEILING
@@ -591,6 +612,14 @@ class ProfileCardEditable(EditableCardNavigation, QFrame):
         self._unlocked = unlocked
         self._sync_view()
 
+    def set_voltage_curve(self, curve: dict[int, int]) -> None:
+        """The governor's current curve; the voltage line follows it."""
+        curve = dict(curve)
+        if curve == getattr(self, "_curve", None):
+            return
+        self._curve = curve
+        self._sync_view()
+
     def set_maximum_mhz(self, maximum_mhz: int | None) -> None:
         self._maximum_mhz = maximum_mhz
         ceiling = maximum_mhz or ABSOLUTE_CEILING
@@ -662,7 +691,7 @@ class ProfileCardEditable(EditableCardNavigation, QFrame):
         profile = self._profile
         self._name_label.setText(profile.shown_name())
         self._range_label.setText(profile.summary())
-        self._voltage_label.setText(f"{profile.voltage} mV")
+        self._voltage_label.setText(profile.voltage_range(getattr(self, "_curve", None)))
         blocked = self.is_blocked()
         set_style_property(self._range_label, "danger", blocked)
         set_style_property(self, "blockedProfile", blocked)
@@ -2288,9 +2317,11 @@ class GpuGovernorView(QWidget):
         self._sync_compatibility(state)
         self._rail.set_unlocked(unlocked)
         self._rail.set_maximum_mhz(state.frequency_ceiling_mhz)
+        curve = dict(state.safe_points)
         for profile_card in self._profile_cards:
             profile_card.set_unlocked(unlocked)
             profile_card.set_maximum_mhz(state.frequency_ceiling_mhz)
+            profile_card.set_voltage_curve(curve)
         self._sync_selection()
 
     def sync_active_range(self, minimum: int, maximum: int) -> None:
