@@ -6139,5 +6139,6 @@
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "启动服务由旧版本的工具安装。更新会安装当前版本，它也能在 Bazzite 等启用 SELinux 的系统上启动。",
   "Update persistence": "更新持久化",
   "The persistence tool is downloaded first, then installed.": "先下载持久化工具，然后安装。",
-  "Home": "主目录"
+  "Home": "主目录",
+  "These kernel headers need CachyOS's patched pahole. Prepare dependencies builds and installs it from the official CachyOS recipe. This updates system packages and can take a few minutes. Then retry the kernel installation.": "这些内核头文件需要 CachyOS 修补后的 pahole。“准备依赖项”会使用 CachyOS 官方构建配方编译并安装它，同时更新系统软件包，可能需要几分钟。完成后请重试安装内核。"
 }

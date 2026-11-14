@@ -101,6 +101,7 @@ from ..theme import COLORS, application_stylesheet, scale_stylesheet
 
 DAEMON_SERVICE = "bc250-control-centerd.service"
 OFFICIAL_REPOSITORIES = (
+    ("CachyOS patched pahole build recipe", "CachyOS/CachyOS-PKGBUILDS", "https://github.com/CachyOS/CachyOS-PKGBUILDS"),
     ("BC250 Control Center", "movacx/bc250-control-center", "https://github.com/movacx/bc250-control-center"),
     ("cyan-skillfish-governor", "filippor/cyan-skillfish-governor/tree/smu", "https://github.com/filippor/cyan-skillfish-governor/tree/smu"),
     ("Oberon Governor", "mothenjoyer69/oberon-governor", "https://gitlab.com/mothenjoyer69/oberon-governor"),

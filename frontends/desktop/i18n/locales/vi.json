@@ -6139,5 +6139,6 @@
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Dịch vụ khởi động được cài bởi phiên bản cũ hơn của công cụ. Cập nhật sẽ cài phiên bản hiện tại, chạy được cả trên hệ thống dùng SELinux như Bazzite.",
   "Update persistence": "Cập nhật lưu bền",
   "The persistence tool is downloaded first, then installed.": "Công cụ lưu bền được tải xuống trước, rồi mới cài đặt.",
-  "Home": "Thư mục nhà"
+  "Home": "Thư mục nhà",
+  "These kernel headers need CachyOS's patched pahole. Prepare dependencies builds and installs it from the official CachyOS recipe. This updates system packages and can take a few minutes. Then retry the kernel installation.": "Các tệp tiêu đề nhân này cần pahole đã vá của CachyOS. Chuẩn bị phần phụ thuộc sẽ biên dịch và cài đặt từ công thức chính thức của CachyOS. Các gói hệ thống sẽ được cập nhật và có thể mất vài phút. Sau đó hãy thử cài đặt nhân lại."
 }

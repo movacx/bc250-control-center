@@ -13,6 +13,8 @@ import platform
 import subprocess
 from pathlib import Path
 
+from .cachyos_pahole import build_pahole_prepare_command, pahole_dependency_state
+
 CACHYOS_BC250_REPOSITORY = "https://github.com/MastaG/linux-cachyos-bc250"
 CACHYOS_BC250_PACMAN_REPOSITORY = "bc250-cachyos"
 CACHYOS_BC250_INCLUDE = "/etc/pacman.d/bc250-control-center-bc250-cachyos.conf"
@@ -57,6 +59,7 @@ CACHYOS_BC250_VARIANT_ACTIONS = {"kernel-rc": "rc", "kernel-bore": "bore"}
 CACHYOS_BC250_KERNEL_ACTIONS = {"kernel", "mesa", "full", "meta", *CACHYOS_BC250_VARIANT_ACTIONS}
 CACHYOS_BC250_ACTIONS = (
     CACHYOS_BC250_KERNEL_ACTIONS
+    | {"pahole"}
     | {f"proton-{key}" for key in CACHYOS_BC250_PROTON_PACKAGES}
     | {f"remove-proton-{key}" for key in CACHYOS_BC250_PROTON_PACKAGES}
     | {f"extra-{key}" for key in CACHYOS_BC250_EXTRA_PACKAGES}
@@ -202,6 +205,7 @@ def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
         "kernel_variant": running_variant if running_variant in installed_variants
         else (installed_variants[0] if installed_variants else ""),
         "mesa_installed": mesa_from_bc250_repository,
+        "pahole_dependency": pahole_dependency_state() if supported else {},
     }
 
 
@@ -242,6 +246,8 @@ def build_cachyos_bc250_kernel_command(action: str = "kernel") -> str:
     action = str(action or "kernel").strip().lower()
     if action not in CACHYOS_BC250_ACTIONS:
         raise ValueError("Unsupported CachyOS BC-250 action.")
+    if action == "pahole":
+        return build_pahole_prepare_command()
     if action.startswith("remove-proton-"):
         return _build_proton_removal_command(action.removeprefix("remove-proton-"))
     if action.startswith("remove-extra-"):
@@ -366,7 +372,8 @@ bc250_packages=({targets})
 {mesa_selection}
 bc250_repo_file="$(mktemp)"
 bc250_pacman_conf=''
-trap 'rm -f -- "$bc250_repo_file" "$bc250_pacman_conf"' EXIT
+bc250_plan=''
+trap 'rm -f -- "$bc250_repo_file" "$bc250_pacman_conf" "$bc250_plan"' EXIT
 bc250_pacman_conf="$(mktemp)"
 awk '$0 != "Include = {include}"' /etc/pacman.conf > "$bc250_pacman_conf"
 if [ "$bc250_anchor" = cachyos-v3 ] && ! grep -Eq '^[[:space:]]*\\[cachyos-v3\\][[:space:]]*$' "$bc250_pacman_conf"; then
@@ -427,7 +434,19 @@ sudo install -D -m 0644 "$bc250_repo_file" "{include}"
 sudo install -m 0644 "$bc250_pacman_conf" /etc/pacman.conf
 fi
 echo "== Installing selected BC-250 packages in one system-upgrade transaction =="
-sudo pacman -Syu "${{bc250_scope_guard[@]}}" "${{bc250_packages[@]}}"
+bc250_plan="$(mktemp)"
+if sudo pacman -Syu --print --noconfirm --print-format '%n' "${{bc250_scope_guard[@]}}" "${{bc250_packages[@]}}" | tee "$bc250_plan"; then
+  for bc250_target in "${{bc250_packages[@]}}"; do
+    grep -Fxq "${{bc250_target#*/}}" "$bc250_plan" || {{ echo "ERROR: A requested package was omitted from the installation plan. Resolve its dependencies before retrying."; exit 74; }}
+  done
+else
+  bc250_status=$?
+  case "$bc250_status" in 130|143) exit "$bc250_status" ;; esac
+  echo "ERROR: The package transaction could not be prepared. No packages from this transaction were installed."
+  echo "ERROR: If the output names pahole, use Prepare dependencies in the BC-250 graphics stack row, then retry."
+  exit "$bc250_status"
+fi
+sudo pacman -Su "${{bc250_scope_guard[@]}}" "${{bc250_packages[@]}}"
 for bc250_target in "${{bc250_packages[@]}}"; do
   bc250_name="${{bc250_target#*/}}"
   pacman -Sl '{repository}' | awk -v package="$bc250_name" '

@@ -804,6 +804,14 @@ class PreparationPagesMixin:
         # stays behind as the boot fallback.
         self.cachyos_kernel_detail = _label("", "dashboardCompatibilityLabel", wrap=True)
         self.cachyos_stack_card.layout().insertWidget(3, self.cachyos_kernel_detail)
+        self.cachyos_dependency_note = QLabel("")
+        self.cachyos_dependency_note.setWordWrap(True)
+        self.cachyos_dependency_note.hide()
+        self.cachyos_stack_card.layout().addWidget(self.cachyos_dependency_note)
+        self.cachyos_pahole_button = self.cachyos_stack_card.add_action(
+            "Prepare dependencies", {"action": "cachyos_bc250_pahole", "governor": ""}
+        )
+        self.cachyos_pahole_button.hide()
         self.cachyos_kernel_button = self.cachyos_stack_card.add_action(
             "Install kernel", {"action": "cachyos_bc250_kernel", "governor": ""}
         )

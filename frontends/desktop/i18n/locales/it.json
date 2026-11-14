@@ -6139,5 +6139,6 @@
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Il servizio di avvio è stato installato da una versione precedente dello strumento. Aggiorna installa quella attuale, che si avvia anche sui sistemi con SELinux come Bazzite.",
   "Update persistence": "Aggiorna persistenza",
   "The persistence tool is downloaded first, then installed.": "Lo strumento di persistenza viene prima scaricato e poi installato.",
-  "Home": "Cartella home"
+  "Home": "Cartella home",
+  "These kernel headers need CachyOS's patched pahole. Prepare dependencies builds and installs it from the official CachyOS recipe. This updates system packages and can take a few minutes. Then retry the kernel installation.": "Questi header del kernel richiedono il pahole corretto di CachyOS. La preparazione delle dipendenze lo compila e installa dalla ricetta ufficiale di CachyOS. I pacchetti di sistema verranno aggiornati e potrebbero servire alcuni minuti. Poi riprova a installare il kernel."
 }

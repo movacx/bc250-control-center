@@ -6139,5 +6139,6 @@
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "A rendszerindítási szolgáltatást az eszköz egy korábbi verziója telepítette. A Frissítés a jelenlegit telepíti, amely SELinuxot használó rendszereken, például a Bazzite-on is elindul.",
   "Update persistence": "Tartósság frissítése",
   "The persistence tool is downloaded first, then installed.": "A tartóssági eszköz először letöltődik, majd települ.",
-  "Home": "Saját mappa"
+  "Home": "Saját mappa",
+  "These kernel headers need CachyOS's patched pahole. Prepare dependencies builds and installs it from the official CachyOS recipe. This updates system packages and can take a few minutes. Then retry the kernel installation.": "Ezekhez a kernelfejlécekhez a CachyOS javított pahole csomagja szükséges. A függőségek előkészítése a hivatalos CachyOS-receptből lefordítja és telepíti. Ez frissíti a rendszercsomagokat, és néhány percig tarthat. Ezután próbálja újra a kernel telepítését."
 }

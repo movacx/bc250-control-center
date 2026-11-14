@@ -133,6 +133,17 @@ class ExternalToolLifecycle:
 
 
 EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
+    "cachyos_pahole": ExternalToolSpec(
+        key="cachyos_pahole",
+        upstream="https://github.com/CachyOS/CachyOS-PKGBUILDS",
+        license="GPL-2.0-only",
+        reviewed_revision="4235eec8e257993ea4d5d0016d2f0845014d2ee8",
+        privilege_class="package-manager",
+        hardware_writes=False,
+        automated=True,
+        rollback="Reinstall the distribution's pahole package with pacman.",
+        validation_level="code-reviewed",
+    ),
     "cyan_smu": ExternalToolSpec(
         key="cyan_smu",
         upstream="https://github.com/filippor/cyan-skillfish-governor",
@@ -421,6 +432,13 @@ def _lifecycle(
 
 
 EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
+    "cachyos_pahole": _lifecycle(
+        "Verify the pinned CachyOS recipe and patches, build as the user and install pahole through pacman.",
+        "Check the installed package against the pahole dependency in the BC-250 headers database.",
+        "Reinstall the distribution's pahole package through pacman.",
+        vocabulary="BC-250 kernel build dependency",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.ROLLBACK),
+    ),
     "cyan_smu": _lifecycle(
         "Install the reviewed upstream release, unmodified, and the managed service/config overlay.",
         "Verify the binary's release, service state, D-Bus range and telemetry overlay.",
@@ -680,6 +698,7 @@ class GitCheckoutReader:
 
 
 EXTERNAL_TOOL_DIRECTORIES = {
+    "cachyos_pahole": "cachyos-pahole",
     "cyan_smu": "cyan-skillfish-governor-smu",
     "cpu_smu_oc": "bc250_smu_oc",
     "core_unlock": "bc250-core-unlock",

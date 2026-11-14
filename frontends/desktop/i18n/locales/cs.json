@@ -6139,5 +6139,6 @@
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Spouštěcí službu nainstalovala starší verze nástroje. Aktualizovat nainstaluje aktuální, která se spouští i v systémech se SELinuxem, jako je Bazzite.",
   "Update persistence": "Aktualizovat trvalost",
   "The persistence tool is downloaded first, then installed.": "Nástroj pro trvalost se nejprve stáhne a poté nainstaluje.",
-  "Home": "Domovská složka"
+  "Home": "Domovská složka",
+  "These kernel headers need CachyOS's patched pahole. Prepare dependencies builds and installs it from the official CachyOS recipe. This updates system packages and can take a few minutes. Then retry the kernel installation.": "Tyto hlavičky jádra potřebují opravený pahole z CachyOS. Příprava závislostí jej sestaví a nainstaluje podle oficiálního předpisu CachyOS. Aktualizují se systémové balíčky. Může to trvat několik minut. Poté zopakujte instalaci jádra."
 }

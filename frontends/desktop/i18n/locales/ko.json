@@ -6139,5 +6139,6 @@
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "부팅 서비스가 이전 버전의 도구로 설치되었습니다. 업데이트하면 현재 버전이 설치되며, Bazzite처럼 SELinux를 사용하는 시스템에서도 실행됩니다.",
   "Update persistence": "영구 적용 업데이트",
   "The persistence tool is downloaded first, then installed.": "영구 적용 도구를 먼저 다운로드한 다음 설치합니다.",
-  "Home": "홈"
+  "Home": "홈",
+  "These kernel headers need CachyOS's patched pahole. Prepare dependencies builds and installs it from the official CachyOS recipe. This updates system packages and can take a few minutes. Then retry the kernel installation.": "이 커널 헤더에는 CachyOS의 패치된 pahole이 필요합니다. 의존성 준비를 누르면 CachyOS 공식 빌드 설정으로 컴파일하고 설치합니다. 시스템 패키지도 업데이트되며 몇 분 정도 걸릴 수 있습니다. 완료 후 커널 설치를 다시 시도하세요."
 }

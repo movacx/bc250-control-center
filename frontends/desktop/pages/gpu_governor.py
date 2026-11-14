@@ -1524,6 +1524,24 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         self, action: str, *, dialog_parent: QWidget | None
     ) -> None:
         action = str(action or "kernel").strip().lower()
+        if action == "pahole":
+            from bc250cc.infrastructure.cachyos_pahole import DEPENDENCY_NOTE, PAHOLE_VERSION
+
+            confirmation = ConfirmDialog(
+                "Prepare dependencies", tr(DEPENDENCY_NOTE),
+                summary=((tr("Source"), "CachyOS/CachyOS-PKGBUILDS"),
+                         (tr("Packages"), f"pahole {PAHOLE_VERSION}")),
+                confirm_text=tr("Build and install"), tone="orange", parent=dialog_parent or self,
+            )
+            if confirmation.exec() == QDialog.DialogCode.Accepted:
+                self._run_backend_action(
+                    lambda: self.controller.preparar_cachyos_bc250("pahole"),
+                    lambda _result: GpuGovernorPage._record_preparation_result(
+                        self, "Prepare dependencies", "Dependency workflow opened",
+                    ),
+                    "Dependency preparation failed", controls=(), error_parent=dialog_parent,
+                )
+            return
         actions = {
             "kernel": (
                 "Install external Arch/CachyOS BC-250 kernel",

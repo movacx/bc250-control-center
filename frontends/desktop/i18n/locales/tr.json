@@ -6139,5 +6139,6 @@
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Önyükleme hizmeti aracın önceki bir sürümüyle kuruldu. Güncelle, Bazzite gibi SELinux kullanan sistemlerde de başlayan güncel sürümü kurar.",
   "Update persistence": "Kalıcılığı güncelle",
   "The persistence tool is downloaded first, then installed.": "Kalıcılık aracı önce indirilir, ardından kurulur.",
-  "Home": "Ev dizini"
+  "Home": "Ev dizini",
+  "These kernel headers need CachyOS's patched pahole. Prepare dependencies builds and installs it from the official CachyOS recipe. This updates system packages and can take a few minutes. Then retry the kernel installation.": "Bu çekirdek başlıkları CachyOS'un yamalı pahole paketini gerektirir. Bağımlılıkları hazırlama işlemi resmi CachyOS tarifiyle paketi derleyip kurar. Sistem paketleri güncellenir ve işlem birkaç dakika sürebilir. Ardından çekirdek kurulumunu yeniden deneyin."
 }

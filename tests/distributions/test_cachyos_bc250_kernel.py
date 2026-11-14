@@ -122,7 +122,8 @@ def test_cachyos_mesa_and_full_workflows_keep_their_scopes_explicit():
     assert {"kernel", "mesa", "full"} <= CACHYOS_BC250_ACTIONS
     assert "Installing stable BC-250 patched Mesa" in mesa
     assert "bc250-cachyos/mesa bc250-cachyos/vulkan-radeon" in mesa
-    assert 'sudo pacman -Syu "${bc250_scope_guard[@]}" "${bc250_packages[@]}"' in mesa
+    assert "sudo pacman -Syu --print --noconfirm --print-format '%n'" in mesa
+    assert 'sudo pacman -Su "${bc250_scope_guard[@]}" "${bc250_packages[@]}"' in mesa
     assert "--needed" not in mesa
     assert "linux-cachyos-bc250 linux-cachyos-bc250-headers" not in mesa
     assert "bc250-cachyos/lib32-mesa bc250-cachyos/lib32-vulkan-radeon" in mesa

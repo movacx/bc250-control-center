@@ -6139,5 +6139,6 @@
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Serviciul de pornire a fost instalat de o versiune anterioară a instrumentului. Actualizare instalează versiunea curentă, care pornește și pe sistemele cu SELinux, precum Bazzite.",
   "Update persistence": "Actualizează persistența",
   "The persistence tool is downloaded first, then installed.": "Instrumentul de persistență este mai întâi descărcat, apoi instalat.",
-  "Home": "Dosar personal"
+  "Home": "Dosar personal",
+  "These kernel headers need CachyOS's patched pahole. Prepare dependencies builds and installs it from the official CachyOS recipe. This updates system packages and can take a few minutes. Then retry the kernel installation.": "Aceste antete de nucleu necesită pahole corectat de CachyOS. Pregătirea dependențelor îl compilează și instalează folosind rețeta oficială CachyOS. Pachetele sistemului vor fi actualizate. Poate dura câteva minute. Apoi reîncercați instalarea nucleului."
 }

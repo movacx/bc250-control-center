@@ -6139,5 +6139,6 @@
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Услугата при стартиране е инсталирана от по-стара версия на инструмента. „Актуализиране“ инсталира текущата, която стартира и на системи със SELinux като Bazzite.",
   "Update persistence": "Актуализиране на постоянството",
   "The persistence tool is downloaded first, then installed.": "Първо се изтегля инструментът за постоянство, след което се инсталира.",
-  "Home": "Домашна папка"
+  "Home": "Домашна папка",
+  "These kernel headers need CachyOS's patched pahole. Prepare dependencies builds and installs it from the official CachyOS recipe. This updates system packages and can take a few minutes. Then retry the kernel installation.": "Тези заглавни файлове на ядрото изискват поправения pahole от CachyOS. Подготовката на зависимостите го компилира и инсталира по официалната рецепта на CachyOS. Системните пакети ще бъдат обновени. Това може да отнеме няколко минути. След това опитайте отново да инсталирате ядрото."
 }

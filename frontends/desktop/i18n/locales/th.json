@@ -6139,5 +6139,6 @@
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "บริการบูตถูกติดตั้งโดยเครื่องมือเวอร์ชันก่อนหน้า อัปเดตจะติดตั้งเวอร์ชันปัจจุบัน ซึ่งเริ่มทำงานได้บนระบบที่ใช้ SELinux เช่น Bazzite ด้วย",
   "Update persistence": "อัปเดตการคงอยู่",
   "The persistence tool is downloaded first, then installed.": "จะดาวน์โหลดเครื่องมือการคงอยู่ก่อน แล้วจึงติดตั้ง",
-  "Home": "โฮม"
+  "Home": "โฮม",
+  "These kernel headers need CachyOS's patched pahole. Prepare dependencies builds and installs it from the official CachyOS recipe. This updates system packages and can take a few minutes. Then retry the kernel installation.": "ส่วนหัวเคอร์เนลเหล่านี้ต้องใช้ pahole ที่แก้ไขโดย CachyOS การเตรียมส่วนประกอบที่จำเป็นจะคอมไพล์และติดตั้งจากสูตรทางการของ CachyOS พร้อมอัปเดตแพ็กเกจระบบ ซึ่งอาจใช้เวลาสักครู่ จากนั้นให้ลองติดตั้งเคอร์เนลอีกครั้ง"
 }

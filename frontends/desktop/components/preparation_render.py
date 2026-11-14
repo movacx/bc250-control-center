@@ -13,6 +13,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
 
+from bc250cc.infrastructure.cachyos_pahole import DEPENDENCY_NOTE
+
 from ..core.feature_visibility import (
     FSR4_UI_ENABLED,
     GFX1013_FSR4_UI_ENABLED,
@@ -1228,6 +1230,15 @@ class PreparationRenderMixin:
         kernel_installed = bool(masta.get("kernel_installed"))
         kernel_active = bool(masta.get("kernel_active"))
         mesa_installed = bool(masta.get("mesa_installed"))
+        pahole = _mapping(masta.get("pahole_dependency"))
+        dependency_missing = masta_supported and bool(pahole.get("requirement")) and not pahole.get("ready")
+        self.cachyos_dependency_note.setText(tr(DEPENDENCY_NOTE))
+        self.cachyos_dependency_note.setVisible(dependency_missing)
+        self.cachyos_stack_card.update_action(
+            self.cachyos_pahole_button, text="Prepare dependencies",
+            enabled=dependency_missing, visible=dependency_missing,
+            tooltip=DEPENDENCY_NOTE,
+        )
         if not masta_supported:
             self.cachyos_stack_card.set_status("Not compatible", "gray")
         elif kernel_installed and mesa_installed and kernel_active:

@@ -1222,6 +1222,7 @@ class GpuGovernorStateMixin:
             return
         if action in {
             "cachyos_bc250_kernel",
+            "cachyos_bc250_pahole",
             "cachyos_bc250_mesa",
             "cachyos_bc250_full",
             "cachyos_bc250_proton-native",
