@@ -2,18 +2,22 @@
 
 Destination: ``frontends/desktop/pages/gpu_governor_view.py``
 
-Rebuilds the governor screen with the approved mockup hierarchy:
+Rebuilds the governor screen in the formal layout of Additional settings ›
+Compatibility: one card, plain headings over bordered groups, rows split by
+hairlines, the same layout at every window width.
 
-    ┌ GPU configuration ─────────────────┐ ┌ Live telemetry ─────────┐
-    │ safe-mode notice                   │ │ 6 read-only tiles       │
-    │ operating profile (3 cards)        │ │ Governor service        │
-    │ frequency range (safe-points)      │ │ Voltage laboratory      │
-    │ Cyan kernel compatibility          │ │ Danger zone (+2000)     │
-    │ Review and apply range             │ └─────────────────────────┘
-    └─────────────────────────────────────┘
-    ┌ Advanced GPU diagnostics (collapsible) ────────────────────────┐
-    │ safe-point table + contract       │  console (tall column)     │
-    └───────────────────────────────────────────────────────────────┘
+    Operating profile ............................ [Export to Decky]
+      three profile cards
+    Frequency range .......................... (locked-points legend)
+      [ caption ............ Save for startup  Review and apply range ]
+      [ safe-point rail ]
+    Cyan kernel compatibility ..................... (range state)
+      [ three pickers ]
+      [ fixes ........................... Apply compatibility ]
+    [ Governor service row | Voltage laboratory row ]
+    Danger zone
+      [ TOML points above 2000 MHz ............ state  [Uncomment] ]
+    Advanced GPU diagnostics (collapsible card)
 
 Does not talk to D-Bus or the controller: it exposes signals and receives
 state. The wiring lives in ``gpu_governor_integration.py``.
@@ -51,7 +55,6 @@ from ..components.buttons import WrappingButton as QPushButton
 from ..components.card_navigation import EditableCardNavigation
 from ..components.page_widgets import (
     ConfirmDialog,
-    MetricTile,
     SectionCard,
     caption,
     subpanel,
@@ -128,23 +131,6 @@ def backend_voltage_for(frequency: int, *, is_oberon: bool = False) -> int:
 def snap_to_point(frequency: int, *, unlocked: bool = False) -> int:
     pool = offered_points(unlocked=unlocked)
     return min(pool, key=lambda point: abs(point - frequency))
-
-
-def temperature_detail(value: float) -> str:
-    """Tile caption for the temperature reading.
-
-    The mockup labels it ``Normal · hwmon``.  The bands are the ones the legacy
-    screen already uses (``_temperature_status``) so the two never disagree.
-    Whole phrases are translated rather than the bare adjective: "Normal" alone
-    is already catalogued for an unrelated, differently-inflected context.
-    """
-    if value <= 0:
-        return tr("hwmon")
-    if value < 75:
-        return tr("Normal · hwmon")
-    if value < 85:
-        return tr("Warm · hwmon")
-    return tr("High · hwmon")
 
 
 @dataclass
@@ -374,6 +360,7 @@ class PickerRow(QFrame):
             action.triggered.connect(
                 lambda _checked=False, position=index: self.setCurrentIndex(position)
             )
+        menu.setMinimumWidth(self.width())
         menu.exec(self.mapToGlobal(self.rect().bottomLeft()))
 
     def gamepad_activate(self) -> None:
@@ -397,49 +384,6 @@ class PickerRow(QFrame):
             event.accept()
             return
         super().keyPressEvent(event)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Metric tile grid — the mockup's ``auto-fit, minmax(140px, 1fr)``
-# ─────────────────────────────────────────────────────────────────────────────
-
-class ResponsiveTileGrid(QWidget):
-    """Metric tiles that pick their column count from the width they are given.
-
-    Three columns, so the six readings read as a block instead of a single
-    thin strip.  Narrower panels drop to two and then one column, which is the
-    only point where the count moves.
-    """
-
-    MINIMUM_TILE = 140
-    COLUMNS = 3
-
-    def __init__(self, tiles, parent: QWidget | None = None):
-        super().__init__(parent)
-        self._tiles = list(tiles)
-        self._columns = 0
-        self._grid = QGridLayout(self)
-        self._grid.setContentsMargins(0, 0, 0, 0)
-        self._grid.setHorizontalSpacing(10)
-        self._grid.setVerticalSpacing(10)
-        self._apply_columns(self.COLUMNS)
-
-    def _apply_columns(self, columns: int) -> None:
-        columns = max(1, min(self.COLUMNS, int(columns)))
-        if columns == self._columns:
-            return
-        self._columns = columns
-        for tile in self._tiles:
-            self._grid.removeWidget(tile)
-        for index, tile in enumerate(self._tiles):
-            self._grid.addWidget(tile, index // columns, index % columns)
-        for column in range(self.COLUMNS):
-            self._grid.setColumnStretch(column, 1 if column < columns else 0)
-
-    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt)
-        super().resizeEvent(event)
-        spacing = self._grid.horizontalSpacing()
-        self._apply_columns((self.width() + spacing) // (self.MINIMUM_TILE + spacing))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1451,24 +1395,128 @@ class GpuGovernorView(QWidget):
         layout.setContentsMargins(16, 12, 16, 24)
         layout.setSpacing(12)
 
-        self._workspace = QGridLayout()
-        self._workspace.setContentsMargins(0, 0, 0, 0)
-        self._workspace.setHorizontalSpacing(12)
-        self._workspace.setVerticalSpacing(12)
-        layout.addLayout(self._workspace)
-
+        # One layout at every width: the sections stack in one card, in the
+        # order the work is done, and only the grids inside them reflow.
         self._configuration = self._build_configuration_card()
-        self._telemetry = self._build_telemetry_card()
-        self._workspace.addWidget(self._configuration, 0, 0)
-        self._workspace.addWidget(self._telemetry, 0, 1)
-        self._workspace.setColumnStretch(0, 18)
-        self._workspace.setColumnStretch(1, 12)
+        self._telemetry = self._build_telemetry_card(self._configuration)
+        layout.addWidget(self._configuration)
 
         layout.addWidget(self._build_advanced_card())
         layout.addStretch(1)
         self.apply_state(self._state)
 
     # ── GPU configuration ──────────────────────────────────────────────────
+    # ── Formal layout helpers ──────────────────────────────────────────────
+    # The page follows Additional settings › Compatibility: a plain heading
+    # over a bordered group, rows inside the group split by hairlines, the
+    # explanation on the left and the state and actions on the right.
+    @staticmethod
+    def _section(title: str = "") -> tuple[QWidget, QVBoxLayout, QHBoxLayout]:
+        """A heading row and the area under it; returns (section, body, heading row)."""
+        section = QWidget()
+        box = QVBoxLayout(section)
+        box.setContentsMargins(0, 0, 0, 0)
+        box.setSpacing(6)
+        heading_row = QHBoxLayout()
+        heading_row.setContentsMargins(2, 0, 0, 0)
+        heading_row.setSpacing(8)
+        heading = QLabel(tr(title))
+        heading.setProperty("gpuSectionTitle", True)
+        heading.setWordWrap(True)
+        heading_row.addWidget(heading, 1)
+        box.addLayout(heading_row)
+        section.heading = heading
+        return section, box, heading_row
+
+    @staticmethod
+    def _group() -> tuple[QFrame, QVBoxLayout]:
+        group = QFrame()
+        group.setProperty("compatGroup", True)
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(0, 2, 0, 2)
+        layout.setSpacing(0)
+        return group, layout
+
+    @staticmethod
+    def _block(*, ruled: bool = False) -> tuple[QFrame, QVBoxLayout]:
+        """Free-form content inside a group, padded like a row."""
+        block = QFrame()
+        block.setProperty("compatItem", True)
+        block.setProperty("ruled", ruled)
+        layout = QVBoxLayout(block)
+        layout.setContentsMargins(18, 12, 18, 12)
+        layout.setSpacing(9)
+        return block, layout
+
+    @staticmethod
+    def _row(title: str, summary: str = "", *, ruled: bool = False):
+        """Title and summary on the left, a right-hand area for controls."""
+        row = QFrame()
+        row.setProperty("compatItem", True)
+        row.setProperty("ruled", ruled)
+        line = QHBoxLayout(row)
+        line.setContentsMargins(18, 12, 18, 12)
+        line.setSpacing(14)
+        copy = QVBoxLayout()
+        copy.setSpacing(3)
+        title_label = QLabel(tr(title))
+        title_label.setProperty("compatItemTitle", True)
+        title_label.setWordWrap(True)
+        copy.addWidget(title_label)
+        summary_label = QLabel(tr(summary))
+        summary_label.setProperty("compatItemSummary", True)
+        summary_label.setWordWrap(True)
+        summary_label.setVisible(bool(summary))
+        copy.addWidget(summary_label)
+        line.addLayout(copy, 1)
+        row.title_label, row.summary_label = title_label, summary_label
+        return row, line
+
+    def _match_range_button_widths(self) -> None:
+        """Every row button takes the width of the widest label.
+
+        As in Additional settings, one width for all the actions on the page
+        lines them up in a column down the right edge, whatever the language.
+        """
+        buttons = [b for b in getattr(self, "_uniform_buttons", []) if b.text()]
+        if not buttons:
+            return
+        for button in buttons:
+            button.setMinimumWidth(0)
+            button.setMaximumWidth(16777215)
+            button.ensurePolished()
+        # Measured from the text: the wrapping button's size hint follows its
+        # current width, so it reported a two-line button instead of growing.
+        def needed(button: QPushButton) -> int:
+            return button.fontMetrics().horizontalAdvance(button.text()) + 44
+
+        # The danger zone's long label would widen every button on the page;
+        # it is alone in its row, so it keeps at least the column width and
+        # grows past it on its own.
+        lone = getattr(self, "unlock_button", None)
+        column = [b for b in buttons if b is not lone]
+        width = max(170, *(needed(b) for b in column)) if column else 170
+        for button in column:
+            button.setFixedWidth(width)
+        if lone is not None and lone in buttons:
+            lone.setFixedWidth(max(width, needed(lone)))
+
+    @staticmethod
+    def _vertical_rule() -> QFrame:
+        rule = QFrame()
+        rule.setProperty("gpuVerticalRule", True)
+        rule.setFixedWidth(1)
+        return rule
+
+    def _row_button(self, text: str) -> QPushButton:
+        button = QPushButton(tr(text))
+        button.setProperty("gpuRowAction", True)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        if not hasattr(self, "_uniform_buttons"):
+            self._uniform_buttons: list[QPushButton] = []
+        self._uniform_buttons.append(button)
+        return button
+
     def _build_configuration_card(self) -> SectionCard:
         card = SectionCard(
             "GPU configuration",
@@ -1478,41 +1526,36 @@ class GpuGovernorView(QWidget):
             icon_background=_accent_soft(),
             status=("Safe mode", "green"),
         )
-        # The same composition as the CPU workspace: no title row, since the
-        # page already says where it is. The range state it carried moves to
-        # the Cyan compatibility heading below, with the ring that stands in
-        # for it while hardware work runs.
+        # No title row: the page already says where it is. The range state it
+        # carried moves to the Cyan compatibility heading, with the ring that
+        # stands in for it while hardware work runs.
         self._safe_pill = card.drop_header()
         if self._safe_pill is not None:
             self._safe_pill.set_plain()
         self._busy_badge = BusyBadge()
         self._operation_busy = False
+        card.body.setSpacing(14)
+        card.setProperty("gpuFormal", True)
 
-        profiles_panel, profiles_box = _subpanel("")
+        # ── Operating profile: heading, caption, three cards ──
+        profiles_panel, profiles_box, title_row = self._section("Operating profile")
         self.profiles_panel = profiles_panel
-        title_row = QHBoxLayout()
-        title_row.setContentsMargins(0, 0, 0, 0)
-        title_row.setSpacing(8)
-        profiles_title = QLabel(tr("Operating profile"))
-        profiles_title.setProperty("cardTitle", True)
-        profiles_title.setWordWrap(True)
-        title_row.addWidget(profiles_title, 0)
+        title_row.setStretch(0, 0)
         title_row.addStretch(1)
         self._profiles_title_row = title_row
         self._export_decky_button = QPushButton(tr("Export to Decky"))
         self._export_decky_button.setIcon(icon("gamepad_menu"))
-        self._export_decky_button.setProperty("compactAction", True)
+        self._export_decky_button.setProperty("gpuRowAction", True)
         self._export_decky_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._export_decky_button.setToolTip(
             tr("Send these three profile cards to the Decky Quick Access panel.")
         )
         self._export_decky_button.clicked.connect(self.export_to_decky_requested.emit)
         title_row.addWidget(self._export_decky_button, 0)
-        title_row.setAlignment(self._export_decky_button, Qt.AlignmentFlag.AlignBottom)
-        profiles_box.addLayout(title_row)
-        profiles_box.addWidget(
-            caption("One click sets the range. The pencil changes name and frequencies.")
-        )
+        profile_caption = caption("One click sets the range. The pencil changes name and frequencies.")
+        profile_caption.setContentsMargins(2, 0, 0, 2)
+        profiles_box.addWidget(profile_caption)
+        # Three separate cards, as on the previous GPU screen.
         self._profiles_grid = QGridLayout()
         self._profiles_grid.setContentsMargins(0, 0, 0, 0)
         self._profiles_grid.setHorizontalSpacing(8)
@@ -1529,63 +1572,88 @@ class GpuGovernorView(QWidget):
             self._profile_cards.append(profile_card)
         card.body.addWidget(profiles_panel)
 
-        range_panel, range_box = _subpanel("Frequency range")
+        # ── Frequency range: rail, then the two limits as rows ──
+        range_panel, range_box, range_heading = self._section("Frequency range")
         self._range_panel = range_panel
-        # One row: the subtitle on the left, the locked-points notice on the
-        # right. The range itself is already in the two fields below the rail.
-        header = QHBoxLayout()
-        header.setSpacing(12)
-        self._range_subtitle = _caption("")
-        header.addWidget(self._range_subtitle, 1)
+        # The locked-points notice sits at the right of the heading.
         self._locked_label = QLabel("")
         self._locked_label.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
         self._locked_label.setProperty("railLegend", True)
-        header.addWidget(self._locked_label, 0, Qt.AlignmentFlag.AlignVCenter)
-        range_box.addLayout(header)
+        range_heading.addWidget(self._locked_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        range_group, range_layout = self._group()
+        rail_block, rail_box = self._block()
+        # The range actions sit on the rail's own top line, right of its
+        # caption: next to the control they send, without a row of their own.
+        top = QHBoxLayout()
+        top.setContentsMargins(0, 0, 0, 0)
+        top.setSpacing(10)
+        self._range_subtitle = _caption("")
+        top.addWidget(self._range_subtitle, 1)
+        self.startup_button = self._row_button("Save for startup")
+        self.startup_button.clicked.connect(
+            lambda: self.range_startup_requested.emit(
+                self._selected_minimum, self._selected_maximum
+            )
+        )
+        self.apply_button = self._row_button("Review and apply range")
+        self.apply_button.setObjectName("PrimaryAction")
+        self.apply_button.setProperty("primaryAction", True)
+        self.apply_button.setProperty("primary", True)
+        self.apply_button.clicked.connect(self._confirm_and_apply)
+        top.addWidget(self.startup_button, 0)
+        top.addWidget(self.apply_button, 0)
+        self._range_actions_row = top
+        rail_box.addLayout(top)
         # A kernel-imposed ceiling (the SteamOS BC-250 module) is a sentence,
-        # not a legend: on the header row it took the whole width and squeezed
-        # the subtitle into a one-word column. It gets its own wrapped line.
+        # not a legend: it gets its own wrapped line.
         self._ceiling_notice = QLabel("")
         self._ceiling_notice.setProperty("railLegend", True)
         self._ceiling_notice.setWordWrap(True)
         self._ceiling_notice.setVisible(False)
-        range_box.addWidget(self._ceiling_notice)
-
+        rail_box.addWidget(self._ceiling_notice)
         self._rail = SafePointRail()
         self._rail.range_changed.connect(self._on_rail_changed)
-        range_box.addWidget(self._rail)
+        rail_box.addWidget(self._rail)
+        self._match_range_button_widths()
+        range_layout.addWidget(rail_block)
 
-        fields = QHBoxLayout()
-        fields.setSpacing(12)
         self._minimum_line = FrequencyField(
             "Minimum frequency",
             "Governor floor applied through the validated D-Bus interface.",
         )
         self._maximum_line = FrequencyField("Maximum frequency", "", accent=True)
-        fields.addWidget(self._minimum_line, 1)
-        fields.addWidget(self._maximum_line, 1)
-        range_box.addLayout(fields)
+        # Both limits on one row, split by a hairline: stacked, they spent a
+        # row each on a single number.
+        limits = QFrame()
+        limits.setProperty("compatItem", True)
+        limits.setProperty("ruled", True)
+        limits_line = QHBoxLayout(limits)
+        limits_line.setContentsMargins(18, 10, 18, 10)
+        limits_line.setSpacing(18)
+        limits_line.addWidget(self._minimum_line, 1)
+        limits_line.addWidget(self._vertical_rule(), 0)
+        limits_line.addWidget(self._maximum_line, 1)
+        range_layout.addWidget(limits)
+        # Trial: the rail already shows both handles and the ceiling; the two
+        # readouts repeat it. Hidden, not removed, while the user decides.
+        self._limits_row = limits
+        limits.hide()
+        range_box.addWidget(range_group)
         card.body.addWidget(range_panel)
 
-        compat_panel, compat_box = _subpanel()
+        # ── Cyan kernel compatibility ──
+        compat_panel, compat_box, compat_title_row = self._section("Cyan kernel compatibility")
         self._compat_panel = compat_panel
-        compat_title_row = QHBoxLayout()
-        compat_title_row.setContentsMargins(0, 0, 0, 0)
-        compat_title_row.setSpacing(8)
-        compat_title = QLabel(tr("Cyan kernel compatibility"))
-        compat_title.setProperty("cardTitle", True)
-        compat_title.setWordWrap(True)
-        compat_title_row.addWidget(compat_title, 1)
         # What Cyan is running under (the safe or the extended range) and,
         # while the governor is being changed, the ring that says so.
         if self._safe_pill is not None:
             compat_title_row.addWidget(self._safe_pill, 0, Qt.AlignmentFlag.AlignVCenter)
         compat_title_row.addWidget(self._busy_badge, 0, Qt.AlignmentFlag.AlignVCenter)
-        compat_box.addLayout(compat_title_row)
         self._compat_title_row = compat_title_row
-        compat_box.addWidget(caption("Only touch this if the readings above look wrong."))
+        compat_group, compat_layout = self._group()
+        methods_block, methods_box = self._block()
         # The legacy screen is hidden while this view is mounted, so the two
         # method selectors have to live here or they become unreachable.
         methods = QHBoxLayout()
@@ -1601,10 +1669,12 @@ class GpuGovernorView(QWidget):
         self.temp_read_combo = PickerRow("Temperature reading")
         self.temp_read_combo.addItem("DRM", "drm")
         self.temp_read_combo.addItem("sysfs", "sysfs")
-        for picker in (self.set_method_combo, self.usage_method_combo, self.temp_read_combo):
+        for index, picker in enumerate(
+            (self.set_method_combo, self.usage_method_combo, self.temp_read_combo)
+        ):
             picker.currentIndexChanged.connect(self._mark_compatibility_dirty)
             methods.addWidget(picker, 1)
-        compat_box.addLayout(methods)
+        methods_box.addLayout(methods)
         # "process" looks like one more option, and it is the one that stops
         # Cyan from answering whenever a game is open.
         self._process_method_warning = QLabel(
@@ -1616,32 +1686,39 @@ class GpuGovernorView(QWidget):
         )
         self._process_method_warning.setWordWrap(True)
         self._process_method_warning.setProperty("gpuBusNotice", True)
-        compat_box.addWidget(self._process_method_warning)
+        methods_box.addWidget(self._process_method_warning)
         self.usage_method_combo.currentIndexChanged.connect(self._sync_process_method_warning)
         self._sync_process_method_warning()
+        compat_layout.addWidget(methods_block)
 
         # On MastaG's kernel the recommended settings differ from the stock ones.
-        self._bc250_kernel_row = QWidget()
+        self._bc250_kernel_row = QFrame()
+        self._bc250_kernel_row.setProperty("compatItem", True)
+        self._bc250_kernel_row.setProperty("ruled", True)
         kernel_row = QHBoxLayout(self._bc250_kernel_row)
-        kernel_row.setContentsMargins(0, 0, 0, 0)
-        kernel_row.setSpacing(10)
+        kernel_row.setContentsMargins(18, 10, 18, 10)
+        kernel_row.setSpacing(14)
         kernel_note = caption(
             "The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, "
             "kernel usage reading, sysfs temperature, both fixes off."
         )
         kernel_row.addWidget(kernel_note, 1)
         self._bc250_kernel_button = QPushButton(tr("Use the BC-250 kernel settings"))
-        self._bc250_kernel_button.setProperty("ghostButton", True)
+        self._bc250_kernel_button.setProperty("gpuRowAction", True)
         self._bc250_kernel_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self._bc250_kernel_button.clicked.connect(self._stage_bc250_kernel_settings)
         kernel_row.addWidget(self._bc250_kernel_button, 0)
         self._bc250_kernel_row.hide()
-        compat_box.addWidget(self._bc250_kernel_row)
+        compat_layout.addWidget(self._bc250_kernel_row)
 
-        toggles = QHBoxLayout()
+        toggles_row = QFrame()
+        toggles_row.setProperty("compatItem", True)
+        toggles_row.setProperty("ruled", True)
+        toggles = QHBoxLayout(toggles_row)
+        toggles.setContentsMargins(18, 10, 18, 10)
         toggles.setSpacing(16)
-        # The mockup uses check boxes here, not chips: these two are settings
-        # staged for "Apply compatibility", not actions that fire on click.
+        # Check boxes, not chips: these two are settings staged for
+        # "Apply compatibility", not actions that fire on click.
         self._metrics_toggle = CheckRow(governor_fix_label("metrics"))
         self._frequencies_toggle = CheckRow(governor_fix_label("frequency"))
         for box in (self._metrics_toggle, self._frequencies_toggle):
@@ -1650,180 +1727,121 @@ class GpuGovernorView(QWidget):
             box.toggled.connect(self._mark_compatibility_dirty)
             toggles.addWidget(box, 0)
         toggles.addStretch(1)
-        apply_compat = QPushButton(tr("Apply compatibility"))
-        apply_compat.setProperty("ghostButton", True)
-        apply_compat.setCursor(Qt.CursorShape.PointingHandCursor)
+        apply_compat = self._row_button("Apply compatibility")
         apply_compat.clicked.connect(
             lambda: self.compatibility_apply_requested.emit(self.compatibility_options())
         )
         toggles.addWidget(apply_compat, 0)
-        compat_box.addLayout(toggles)
+        compat_layout.addWidget(toggles_row)
+        compat_box.addWidget(compat_group)
         card.body.addWidget(compat_panel)
+        # Oberon has no frequency range panel; its apply button comes here.
+        self._standalone_actions = QWidget()
+        standalone = QHBoxLayout(self._standalone_actions)
+        standalone.setContentsMargins(0, 0, 0, 0)
+        standalone.addStretch(1)
+        self._standalone_actions_row = standalone
+        self._standalone_actions.hide()
+        card.body.addWidget(self._standalone_actions)
 
-        actions = QHBoxLayout()
-        actions.setSpacing(10)
-        self.startup_button = QPushButton(tr("Save for startup"))
-        self.startup_button.setProperty("ghostButton", True)
-        self.startup_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.startup_button.clicked.connect(
-            lambda: self.range_startup_requested.emit(
-                self._selected_minimum, self._selected_maximum
-            )
-        )
-        actions.addWidget(self.startup_button, 1)
-        self.apply_button = QPushButton(tr("Review and apply range"))
-        self.apply_button.setObjectName("PrimaryAction")
-        self.apply_button.setProperty("primaryAction", True)
-        self.apply_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.apply_button.clicked.connect(self._confirm_and_apply)
-        actions.addWidget(self.apply_button, 2)
-        # Beside "Save for startup", so it takes that button's measurements:
-        # the regular primary padding left it a few pixels taller.
-        self.apply_button.setProperty("ghostSized", True)
-        card.body.addLayout(actions)
-        card.body.addStretch(1)
         return card
 
-    # ── Live telemetry ─────────────────────────────────────────────────────
-    def _build_telemetry_card(self) -> SectionCard:
-        card = SectionCard(
-            "Live GPU telemetry",
-            "Read-only sensor data refreshed from amdgpu, the governor backend, "
-            "and the existing performance service.",
-            icon_name="metrics_blue",
-            icon_background=_accent_soft(),
-            status=("Live", "green"),
-        )
-        # No title row and no "Live" pill, as on the CPU workspace; the tiles
-        # below are read by their labels, without a badge each.
-        card.drop_header()
-
-        self._tiles: dict[str, MetricTile] = {
-            "core": MetricTile("Core clock", "--", "Current SCLK state", icon_name="", compact=True),
-            "voltage": MetricTile("GPU voltage", "--", "OD / SMU telemetry", icon_name="", compact=True),
-            "temperature": MetricTile("Temperature", "--", "hwmon", icon_name="", compact=True),
-            "load": MetricTile("GPU load", "--", "amdgpu activity", icon_name="", compact=True),
-            "memory": MetricTile("Memory clock", "--", "Current MCLK state", icon_name="", compact=True),
-            "range": MetricTile("Active range", "--", "Persisted on hardware", icon_name="", compact=True),
-        }
-        card.body.addWidget(ResponsiveTileGrid(self._tiles.values()))
-        card.body.addWidget(
-            _caption("Passive readings · hardware changes require confirmation.")
-        )
-        # Says why the range and the D-Bus actions fail while Cyan is running
-        # but not answering, instead of an error on every click.
+    # ── Live telemetry, service, laboratory and the danger zone ────────────
+    def _build_telemetry_card(self, card: SectionCard) -> SectionCard:
+        """Adds the second half of the page (service, laboratory, danger zone)."""
+        # The live readings were here; the dashboard and Performance already
+        # show them, and the profiles say which range is in force. What stays
+        # is the notice for a Cyan that runs but does not answer, at the top
+        # of the page where it explains why the controls below fail.
         self._bus_notice = QLabel()
         self._bus_notice.setWordWrap(True)
         self._bus_notice.setProperty("gpuBusNotice", True)
         self._bus_notice.hide()
-        card.body.addWidget(self._bus_notice)
+        card.body.insertWidget(0, self._bus_notice)
 
-        service_panel, service_box = _subpanel("Governor service")
+        # ── Governor service and voltage laboratory: two rows of one group ──
+        tools_group, tools_layout = self._group()
         # "Enable" is systemd's word for "start at boot", so it named only half
-        # of what this button does; a tester read it as "save for startup".
-        # The button says what happens now, the caption what happens at boot.
-        service_box.addWidget(
-            _caption(
-                "Start governor runs it now and saves it for startup (enables "
-                "the service). Stop governor stops it and removes it from "
-                "startup (disables the service)."
-            )
+        # of what this button does. The button says what happens now, the
+        # summary what happens at boot.
+        service_row, service_line = self._row(
+            "Governor service",
+            "Start governor runs it now and saves it for startup (enables "
+            "the service). Stop governor stops it and removes it from "
+            "startup (disables the service).",
         )
-        service_actions = QHBoxLayout()
-        service_actions.setSpacing(8)
+        self.service_panel = service_row
         # Kept addressable so a test can check every one of these names is
         # something the backend planner actually accepts.
         self.service_buttons: dict[str, QPushButton] = {}
         for label, action in (("View status", "status"), ("Restart", "restart")):
-            button = QPushButton(tr(label))
+            button = self._row_button(label)
             self.service_buttons[action] = button
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setProperty("ghostButton", True)
             button.clicked.connect(
                 lambda _checked=False, name=action: self.service_action_requested.emit(name)
             )
-            service_actions.addWidget(button, 1)
-
-        # One button for both directions: red "Disable" while the service runs,
-        # green "Enable" while it does not.  ``_sync_service_toggle`` owns both
+            service_line.addWidget(button, 0)
+        # One button for both directions: red "Stop" while the service runs,
+        # green "Start" while it does not.  ``_sync_service_toggle`` owns both
         # the label and which action it emits.
         self._service_toggle_action = "disable"
-        self.service_toggle = QPushButton("")
+        self.service_toggle = self._row_button("")
         self.service_buttons["disable"] = self.service_toggle
-        self.service_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
         self.service_toggle.clicked.connect(
             lambda: self.service_action_requested.emit(self._service_toggle_action)
         )
-        service_actions.addWidget(self.service_toggle, 1)
+        service_line.addWidget(self.service_toggle, 0)
         self._sync_service_toggle(running=True)
-        service_box.addLayout(service_actions)
-        card.body.addWidget(service_panel)
+        tools_layout.addWidget(service_row)
 
-        lab_panel, lab_box = _subpanel("")
-        self.lab_panel = lab_panel
-        lab_head = QHBoxLayout()
-        lab_head.setSpacing(10)
-        self._lab_title = lab_title = QLabel(tr("Voltage laboratory"))
-        lab_title.setProperty("cardTitle", True)
-        lab_head.addWidget(lab_title, 1)
+        lab_row, lab_line = self._row(
+            "Voltage laboratory",
+            "Point-by-point conservative validation of the selected range.",
+            ruled=True,
+        )
+        self.lab_panel = lab_row
+        self._lab_title = lab_row.title_label
         self._lab_point = QLabel("")
         self._lab_point.setProperty("rangeReadout", True)
-        lab_head.addWidget(self._lab_point, 0, Qt.AlignmentFlag.AlignRight)
-        lab_box.addLayout(lab_head)
-        lab_box.addWidget(
-            _caption("Point-by-point conservative validation of the selected range.")
-        )
-        lab_actions = QHBoxLayout()
-        lab_actions.setSpacing(8)
-        open_lab = QPushButton(tr("Open laboratory"))
-        open_lab.setProperty("accentAction", True)
-        open_lab.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._lab_point.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        # The point is already on the rail and the profiles; the readout is
+        # kept for the laboratory dialog but no longer shown on the row.
+        self._lab_point.hide()
+        open_lab = self._row_button("Open laboratory")
+        open_lab.setProperty("accentText", True)
         open_lab.clicked.connect(self.voltage_lab_requested)
-        lab_actions.addWidget(open_lab, 1)
-        self._open_config_button = open_config = QPushButton(tr("Open config.toml"))
-        open_config.setProperty("ghostButton", True)
-        open_config.setCursor(Qt.CursorShape.PointingHandCursor)
+        lab_line.addWidget(open_lab, 0)
+        self._open_config_button = open_config = self._row_button("Open config.toml")
         open_config.clicked.connect(self.config_open_requested)
-        lab_actions.addWidget(open_config, 1)
-        lab_box.addLayout(lab_actions)
-        card.body.addWidget(lab_panel)
+        lab_line.addWidget(open_config, 0)
+        tools_layout.addWidget(lab_row)
+        card.body.addWidget(tools_group)
 
-        risk_panel, risk_box = _subpanel("")
+        # ── Danger zone: a heading and one row, outlined in red ──
+        risk_panel, risk_box, _risk_heading = self._section(tr("DANGER ZONE").capitalize())
         self._risk_panel = risk_panel
-        risk_panel.setProperty("riskPanel", True)
-        risk_head = QHBoxLayout()
-        risk_head.setSpacing(7)
-        risk_glyph = QLabel()
-        risk_glyph.setPixmap(icon("warning_orange").pixmap(QSize(14, 14)))
-        risk_glyph.setFixedSize(14, 16)
-        risk_head.addWidget(risk_glyph, 0)
-        eyebrow = QLabel(tr("DANGER ZONE"))
-        eyebrow.setProperty("eyebrow", True)
-        eyebrow.setProperty("danger", True)
-        risk_head.addWidget(eyebrow, 1)
-        self._unlock_state = _caption("")
-        risk_head.addWidget(self._unlock_state, 0)
-        risk_box.addLayout(risk_head)
-
-        risk_title = QLabel(tr("TOML points above 2000 MHz"))
-        risk_title.setProperty("panelHeadline", True)
-        risk_title.setWordWrap(True)
-        risk_box.addWidget(risk_title)
+        risk_group, risk_layout = self._group()
+        risk_group.setProperty("gpuRiskGroup", True)
+        risk_row, risk_line = self._row("TOML points above 2000 MHz")
         # Interpolated, so localize_widget_tree() cannot map it back to a source
         # string: retranslate_dynamic_copy() rebuilds it on a language change.
-        self._risk_caption = _caption("")
+        self._risk_caption = risk_row.summary_label
+        self._risk_caption.setVisible(True)
         self._refresh_risk_caption()
-        risk_box.addWidget(self._risk_caption)
-        self.unlock_button = QPushButton("")
+        self._unlock_state = QLabel("")
+        self._unlock_state.setProperty("compatItemState", True)
+        self._unlock_state.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        # The button already says which way it goes; the state word beside it
+        # repeated it. Kept for the code that sets it, not shown.
+        self._unlock_state.hide()
+        self.unlock_button = self._row_button("")
         self.unlock_button.setProperty("dangerAction", True)
-        self.unlock_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.unlock_button.clicked.connect(
             lambda: self.high_points_toggle_requested.emit(not self._state.unlocked)
         )
-        risk_box.addWidget(self.unlock_button)
-        # The mockup leaves more air above the danger zone than between the
-        # neutral panels, so it reads as a separate class of control.
-        card.body.addSpacing(10)
+        risk_line.addWidget(self.unlock_button, 0)
+        risk_layout.addWidget(risk_row)
+        risk_box.addWidget(risk_group)
         card.body.addWidget(risk_panel)
         card.body.addStretch(1)
         return card
@@ -1895,6 +1913,8 @@ class GpuGovernorView(QWidget):
         Two kinds: strings already interpolated at build time (no source to map
         back to) and the fix-labels, which live in their own catalogue.
         """
+        # Labels change length between languages; keep the pair one size.
+        self._match_range_button_widths()
         self._metrics_toggle.setText(governor_fix_label("metrics"))
         self._frequencies_toggle.setText(governor_fix_label("frequency"))
         self.set_method_combo.retranslate()
@@ -2162,10 +2182,20 @@ class GpuGovernorView(QWidget):
         # (``guardar_rango_gpu_arranque`` raises), so offering it would be a
         # button whose only outcome is an error.
         self.startup_button.setVisible(not is_oberon)
+        # The apply button lives on the range rail, which Oberon hides.
+        if is_oberon:
+            self._range_actions_row.removeWidget(self.apply_button)
+            self._standalone_actions_row.addWidget(self.apply_button, 0)
+        else:
+            self._standalone_actions_row.removeWidget(self.apply_button)
+            self._range_actions_row.addWidget(self.apply_button, 0)
+        self._standalone_actions.setVisible(is_oberon)
+        self.apply_button.show()
         self.apply_button.setText(
             tr("Review and apply Oberon profile") if is_oberon
             else tr("Review and apply range")
         )
+        self._match_range_button_widths()
         self._lab_title.setText(
             tr("YAML endpoint laboratory") if is_oberon else tr("Voltage laboratory")
         )
@@ -2207,21 +2237,7 @@ class GpuGovernorView(QWidget):
         self._state = state
         unlocked = state.unlocked
 
-        self._tiles["core"].set_values(f"{state.core_clock} MHz")
-        self._tiles["voltage"].set_values(f"{state.voltage} mV")
-        self._tiles["temperature"].set_values(
-            f"{state.temperature:.1f} °C",
-            temperature_detail(state.temperature),
-        )
-        self._tiles["load"].set_values(f"{state.load} %")
-        self._tiles["memory"].set_values(f"{state.memory_clock} MHz")
-        range_known = state.active_minimum > 0 and state.active_maximum > 0
         stalled = state.dbus_responsive is False
-        # 0–0 MHz read as a real range; it only ever meant "not read".
-        self._tiles["range"].set_values(
-            f"{state.active_minimum}–{state.active_maximum} MHz" if range_known else "--",
-            "Cyan is not answering" if stalled and not range_known else "Persisted on hardware",
-        )
         if stalled:
             self._bus_notice.setText(
                 tr(
@@ -2245,6 +2261,8 @@ class GpuGovernorView(QWidget):
             if unlocked
             else tr("Uncomment +2000 MHz points")
         )
+        # The toggle labels change with the state; keep the column even.
+        self._match_range_button_widths()
         ceiling_notice = (
             tr_format(
                 "{reason} Maximum selectable frequency: {ceiling} MHz.",
@@ -2369,20 +2387,6 @@ class GpuGovernorView(QWidget):
         self._reflow(self.width())
 
     def _reflow(self, width: int) -> None:
-        # At the default window (1460 px) the page is about 1200 px wide: too
-        # narrow for the range slider beside the telemetry, so it stacks, as
-        # the CPU page does.
-        stacked = width < 1280
-        telemetry_stacked = self._workspace.itemAtPosition(1, 0) is not None
-        if stacked and not telemetry_stacked:
-            self._workspace.removeWidget(self._telemetry)
-            self._workspace.addWidget(self._telemetry, 1, 0)
-            self._workspace.setColumnStretch(1, 0)
-        elif not stacked and telemetry_stacked:
-            self._workspace.removeWidget(self._telemetry)
-            self._workspace.addWidget(self._telemetry, 0, 1)
-            self._workspace.setColumnStretch(1, 12)
-
         columns = 1 if width < 700 else 3
         current = 1 if self._profiles_grid.itemAtPosition(1, 0) is not None else 3
         if columns != current:

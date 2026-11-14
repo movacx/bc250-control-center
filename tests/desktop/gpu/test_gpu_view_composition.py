@@ -19,8 +19,9 @@ def test_no_card_has_a_title_row_icon_or_badge(qtbot):
     qtbot.addWidget(view)
     assert view._configuration._headerless and view._telemetry._headerless
     assert view.findChildren(IconBadge) == []
-    tiles = view.findChildren(MetricTile)
-    assert len(tiles) == 6
+    # The live readings left this screen: the dashboard and Performance
+    # already show them.
+    assert view.findChildren(MetricTile) == []
 
 
 def test_the_range_state_and_the_busy_ring_sit_in_the_cyan_compatibility_heading(qtbot):

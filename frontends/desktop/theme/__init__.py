@@ -3557,6 +3557,66 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     /* Redesigned Cyan GPU view (gpu_governor_view.py). Every control the view
        builds carries one of these properties, so nothing falls back to the
        unstyled platform button. */
+    /* GPU page, formal layout: headings over bordered groups and compact
+       row buttons, the way Additional settings › Compatibility reads. */
+    /* Formal GPU card. Only the groups carry a full border; inside them a
+       control is a compact solid surface, a step lighter than the group so
+       it never sinks into it, with a hairline that holds its edge. */
+    /* Row actions: today's size (7px 16px, 11px) in the look of the old
+       GPU screen's "Save for startup" and "Review and apply range": a filled
+       panel with a hairline, radius 10; the primary solid; stop and danger
+       as the old module drew them. */
+    QWidget[redesignedModule='true'] QPushButton[gpuRowAction='true'] {{
+        background: {c['panel_alt']}; color: {c['text']}; border: 1px solid {c['border']};
+        border-radius: 10px; min-height: 0px; padding: 7px 16px; font-size: 11px; font-weight: 720;
+    }}
+    QWidget[redesignedModule='true'] QPushButton[gpuRowAction='true']:hover {{
+        background: {c['control_hover']}; border-color: {c['border_strong']};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[gpuRowAction='true']:focus {{
+        border-color: {c['blue']};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[gpuRowAction='true'][successAction='true'] {{
+        background: {c['green_soft'] if light else success_solid};
+        border-color: {c['green_border'] if light else success_solid};
+        color: {c['green'] if light else '#FFFFFF'};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[gpuRowAction='true'][successAction='true']:hover {{
+        border-color: {c['green'] if light else _blend(success_solid, '#FFFFFF', 0.10)};
+        background: {c['green_soft'] if light else _blend(success_solid, '#FFFFFF', 0.10)};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[gpuRowAction='true'][dangerAction='true'] {{
+        background: {c['red_soft'] if light else danger_solid};
+        border-color: {c['red_border'] if light else danger_solid};
+        color: {c['red'] if light else '#FFFFFF'};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[gpuRowAction='true'][dangerAction='true']:hover {{
+        border-color: {c['red'] if light else _blend(danger_solid, '#FFFFFF', 0.10)};
+        background: {c['red_soft'] if light else _blend(danger_solid, '#FFFFFF', 0.10)};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[gpuRowAction='true'][primary='true'] {{
+        background: {c['blue']}; border-color: {c['blue']}; color: {c['on_blue']};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[gpuRowAction='true'][primary='true']:hover {{
+        background: {c['blue_hover']}; border-color: {c['blue_hover']};
+    }}
+    QWidget[redesignedModule='true'] QPushButton[gpuRowAction='true']:disabled {{
+        background: {c['disabled_bg']}; border-color: {c['border_soft']}; color: {c['disabled_text']};
+    }}
+    QWidget[redesignedModule='true'] QPushButton#PrimaryAction[gpuRowAction='true'] {{
+        padding: 7px 16px; min-height: 0px; font-size: 11px; font-weight: 720; border-radius: 10px;
+    }}
+    QLabel[gpuSectionTitle='true'] {{
+        color: {c['text']}; font-size: 13px; font-weight: 750; background: transparent;
+    }}
+    QFrame[gpuVerticalRule='true'] {{ background: {c['border_soft']}; border: none; }}
+    QWidget[redesignedModule='true'] QFrame[gpuFormal='true'] QLabel[frequencyChip='true'] {{
+        background: transparent; border: none; padding: 0px 2px; font-size: 17px; font-weight: 800;
+        min-width: 0px;
+    }}
+    QFrame[compatGroup='true'][gpuRiskGroup='true'] {{
+        border-color: {c['red_border'] if light else risk_line};
+    }}
     QWidget[redesignedModule='true'] QFrame[subPanel='true'] {{
         background: {'transparent' if light else group_fill};
         border: 1px solid {c['border_soft'] if light else group_line};
@@ -4012,7 +4072,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QWidget[redesignedModule='true'] QFrame[pickerRow='true']:hover {{
         border-color: {c['border_strong']};
     }}
-    QWidget[redesignedModule='true'] QFrame[pickerRow='true']:disabled QLabel {{
+    QWidget[redesignedModule='true'] QFrame[pickerRow='true'] QLabel:disabled {{
         color: {c['subtle']};
     }}
     QWidget[redesignedModule='true'] QLabel[pickerCaption='true'] {{
