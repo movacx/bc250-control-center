@@ -6138,5 +6138,6 @@
   "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "이 시스템이 시작될 때 부팅 서비스가 실행되지 않았습니다. 복구하면 이 시스템이 허용하는 방식으로 다시 설치합니다.",
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "부팅 서비스가 이전 버전의 도구로 설치되었습니다. 업데이트하면 현재 버전이 설치되며, Bazzite처럼 SELinux를 사용하는 시스템에서도 실행됩니다.",
   "Update persistence": "영구 적용 업데이트",
-  "The persistence tool is downloaded first, then installed.": "영구 적용 도구를 먼저 다운로드한 다음 설치합니다."
+  "The persistence tool is downloaded first, then installed.": "영구 적용 도구를 먼저 다운로드한 다음 설치합니다.",
+  "Home": "홈"
 }

@@ -45,7 +45,6 @@ from frontends.desktop.core.performance_model import (
     search_text,
     sensor_label,
     series_statistics,
-    view_summary,
 )
 from frontends.desktop.core.performance_sample_presenter import format_rate
 from frontends.desktop.core.performance_views import VIEW_BY_KEY, views_for
@@ -271,23 +270,15 @@ def _resource(recorder: PerformanceRecorder, key: str, query: dict) -> dict:
     if view is not None and view.resource != key:
         view = None
     view = view or VIEW_BY_KEY.get(key)
-    plan = recorder.plans.get(key)
-    summary = view is None or view.is_summary
-    if summary:
-        history, chart_def = recorder.histories[key], definition
-        primary, context, stats = (plan.primary, plan.context, plan.stats) if plan else \
-            ("--", tr("Waiting for first sample"), ("--",) * 4)
-    else:
-        history = recorder.history(view.key)
-        chart_def = history.definition if history else definition
-        primary, context, stats = view_summary(view, history, recorder.available) if history \
-            else ("--", tr(view.unavailable_hint or "Waiting for sample"), ("--",) * 4)
+    # A disk's own view (Disk tab) reads like the tab's summary, from its plan.
+    history, chart_def, (primary, context, stats), summary = recorder.reading(key, view)
     rate = bool(definition.rate_scale and summary)
     unit = "B/s" if rate else chart_def.unit
     show = _shower(unit, rate)
+    hint = view.shown_hint(tr) if view is not None and not view.is_summary else tr(definition.subtitle)
     out = {"title": tr(definition.title), "primary": primary, "context": context,
-           "hint": tr(definition.subtitle if summary else view.hint), "view": view.key if view else key,
-           "views": [{"key": item.key, "title": tr(item.title), "hint": tr(item.hint),
+           "hint": hint, "view": view.key if view else key,
+           "views": [{"key": item.key, "title": item.shown_title(tr), "hint": item.shown_hint(tr),
                       "available": item.key in recorder.available} for item in views_for(key)],
            "percent": unit == "%", "legend": [], "cards": []}
     names = [name for name, _tone in chart_def.series] if history else []

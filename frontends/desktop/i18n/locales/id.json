@@ -6138,5 +6138,6 @@
   "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Layanan boot tidak berjalan saat sistem ini dimulai. Perbaiki akan memasangnya lagi dengan cara yang diizinkan sistem ini.",
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Layanan boot dipasang oleh versi alat yang lebih lama. Perbarui memasang versi terkini, yang juga berjalan di sistem dengan SELinux seperti Bazzite.",
   "Update persistence": "Perbarui persistensi",
-  "The persistence tool is downloaded first, then installed.": "Alat persistensi diunduh terlebih dahulu, lalu dipasang."
+  "The persistence tool is downloaded first, then installed.": "Alat persistensi diunduh terlebih dahulu, lalu dipasang.",
+  "Home": "Folder Home"
 }

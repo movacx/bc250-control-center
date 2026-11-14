@@ -6138,5 +6138,6 @@
   "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Oppstartstjenesten ble ikke kjørt da systemet startet. Reparer installerer den på nytt på en måte systemet tillater.",
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Oppstartstjenesten ble installert av en tidligere versjon av verktøyet. Oppdater installerer den gjeldende, som også starter på systemer med SELinux som Bazzite.",
   "Update persistence": "Oppdater vedvarenhet",
-  "The persistence tool is downloaded first, then installed.": "Vedvarenhetsverktøyet lastes først ned og installeres deretter."
+  "The persistence tool is downloaded first, then installed.": "Vedvarenhetsverktøyet lastes først ned og installeres deretter.",
+  "Home": "Hjemmemappe"
 }

@@ -6138,5 +6138,6 @@
   "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Услугата при стартиране не се изпълни при стартирането на системата. Поправката я инсталира отново по начин, който системата позволява.",
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Услугата при стартиране е инсталирана от по-стара версия на инструмента. „Актуализиране“ инсталира текущата, която стартира и на системи със SELinux като Bazzite.",
   "Update persistence": "Актуализиране на постоянството",
-  "The persistence tool is downloaded first, then installed.": "Първо се изтегля инструментът за постоянство, след което се инсталира."
+  "The persistence tool is downloaded first, then installed.": "Първо се изтегля инструментът за постоянство, след което се инсталира.",
+  "Home": "Домашна папка"
 }

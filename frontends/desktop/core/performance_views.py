@@ -56,10 +56,21 @@ class MetricView:
     pick: Callable[[Sequence[SensorReading]], list[ChartSeries]] | None = None
     #: Shown greyed out, with this reason, while the view has nothing to draw.
     unavailable_hint: str = ""
+    #: The mount point of a disk's own view (Disk tab). Such a view is drawn
+    #: from that disk's plan, like a tab's summary, not from the sensor list.
+    volume: str = ""
+    #: Title and hint are a volume label and a path: shown as they are.
+    literal: bool = False
 
     @property
     def is_summary(self) -> bool:
-        return self.pick is None
+        return self.pick is None and not self.volume
+
+    def shown_title(self, translate: Callable[[str], str]) -> str:
+        return self.title if self.literal else translate(self.title)
+
+    def shown_hint(self, translate: Callable[[str], str]) -> str:
+        return self.hint if self.literal else translate(self.hint)
 
     def series(self, readings: Sequence[SensorReading]) -> list[ChartSeries]:
         return [] if self.pick is None else self.pick(readings)
@@ -190,6 +201,48 @@ VIEW_BY_KEY: dict[str, MetricView] = {
     view.key: view for views in RESOURCE_VIEWS.values() for view in views
 }
 
+#: Disks without a name of their own; a volume label is shown as written.
+DISK_KIND_TITLES = {"system": "System", "home": "Home"}
+
+
+def disk_views(volumes: Sequence[Mapping[str, object]]) -> tuple[MetricView, ...]:
+    """The Disk tab's menu: the system disk (the tab's summary), then every other disk."""
+    views = []
+    for index, volume in enumerate(volumes):
+        mountpoint = str(volume.get("mountpoint") or "")
+        if not mountpoint:
+            continue
+        generic = DISK_KIND_TITLES.get(str(volume.get("kind") or ""))
+        title = generic or str(volume.get("label") or mountpoint)
+        views.append(MetricView(
+            "disk" if index == 0 else f"disk:{mountpoint}", "disk", title, mountpoint,
+            unit="B/s", volume="" if index == 0 else mountpoint,
+            # The system disk keeps a translated title; the hint is a path.
+            literal=generic is None,
+        ))
+    return tuple(views) if len(views) > 1 else ()
+
+
+def sync_disk_views(volumes: Sequence[Mapping[str, object]]) -> bool:
+    """Point the Disk tab's menu at the disks mounted now; True when it changed.
+
+    Called by whoever records samples, on the thread that reads the views,
+    so a drive plugged in gets its entry on the next sample and an unplugged
+    one loses it.
+    """
+    views = disk_views(volumes)
+    current = RESOURCE_VIEWS.get("disk", ())
+    if views == current:
+        return False
+    for view in current:
+        VIEW_BY_KEY.pop(view.key, None)
+    if views:
+        RESOURCE_VIEWS["disk"] = views
+        VIEW_BY_KEY.update((view.key, view) for view in views)
+    else:
+        RESOURCE_VIEWS.pop("disk", None)
+    return True
+
 
 def views_for(resource: str) -> tuple[MetricView, ...]:
     return RESOURCE_VIEWS.get(resource, ())
@@ -198,8 +251,8 @@ def views_for(resource: str) -> tuple[MetricView, ...]:
 def available_views(readings: Sequence[SensorReading]) -> set[str]:
     """The views that would draw something from this sample."""
     available = set()
-    for key, view in VIEW_BY_KEY.items():
-        if view.is_summary or any(item.value is not None for item in view.series(readings)):
+    for key, view in list(VIEW_BY_KEY.items()):
+        if view.pick is None or any(item.value is not None for item in view.series(readings)):
             available.add(key)
     return available
 

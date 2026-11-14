@@ -6138,5 +6138,6 @@
   "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "O serviço de inicialização não foi executado quando este sistema iniciou. Reparar o instala novamente de um jeito que este sistema permite.",
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "O serviço de inicialização foi instalado por uma versão anterior da ferramenta. Atualizar instala a atual, que também inicia em sistemas com SELinux como o Bazzite.",
   "Update persistence": "Atualizar persistência",
-  "The persistence tool is downloaded first, then installed.": "Primeiro a ferramenta de persistência é baixada e depois instalada."
+  "The persistence tool is downloaded first, then installed.": "Primeiro a ferramenta de persistência é baixada e depois instalada.",
+  "Home": "Pasta pessoal"
 }

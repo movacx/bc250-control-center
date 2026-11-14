@@ -125,6 +125,27 @@ def _integer(value: Any, default: int = 0) -> int:
         return default
 
 
+def _disk_volumes(value: Any, previous: tuple) -> tuple:
+    """The sample's disk list, or the last one when the sample left it out."""
+    if value is None:
+        return previous
+    if not isinstance(value, (list, tuple)):
+        return ()
+    volumes = []
+    for item in value:
+        if not isinstance(item, dict) or not item.get("mountpoint"):
+            continue
+        volumes.append((
+            str(item["mountpoint"]),
+            str(item.get("label") or item["mountpoint"]),
+            str(item.get("kind") or "volume"),
+            max(0, _integer(item.get("used"))),
+            max(0, _integer(item.get("total"))),
+            _number(item.get("percent")),
+        ))
+    return tuple(volumes)
+
+
 def _voltage_millivolts(value: Any) -> int:
     return voltage_mv(value) or 0
 
@@ -473,6 +494,9 @@ class DashboardState:
     disk_used_bytes: int = 0
     disk_total_bytes: int = 0
     disk_percent: float = 0.0
+    #: Every real disk as ``(mountpoint, label, kind, used, total, percent)``,
+    #: system disk first. The first one is the drive the ``disk_*`` fields show.
+    disk_volumes: tuple[tuple[str, str, str, int, int, float], ...] = field(default_factory=tuple)
 
     nvme_temperature_c: float = 0.0
     nvme_hotspot_temperature_c: float = 0.0
@@ -659,6 +683,7 @@ class DashboardState:
             disk_used_bytes=max(0, _integer(disk.get("used"), self.disk_used_bytes)),
             disk_total_bytes=max(0, _integer(disk.get("total"), self.disk_total_bytes)),
             disk_percent=_number(disk.get("usage_percent"), self.disk_percent),
+            disk_volumes=_disk_volumes(disk.get("volumes"), self.disk_volumes),
             performance_available=bool(cpu or gpu or power),
         )
 
@@ -679,6 +704,14 @@ class DashboardState:
     @property
     def disk_summary(self) -> str:
         return self._pool_summary(self.disk_used_bytes, self.disk_total_bytes)
+
+    @property
+    def extra_disks(self) -> tuple[tuple[str, str, str, str, float], ...]:
+        """The disks after the first: ``(mountpoint, label, kind, summary, percent)``."""
+        return tuple(
+            (mountpoint, label, kind, self._pool_summary(used, total), percent)
+            for mountpoint, label, kind, used, total, percent in self.disk_volumes[1:]
+        )
 
     @staticmethod
     def _pool_summary(used: int, total: int) -> str:

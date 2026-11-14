@@ -1173,6 +1173,34 @@ class DashboardPage(QWidget):
             used, total = self._split_pair(summary)
             panel.details[key].set_value(used, total)
             panel.details[key].set_tone("warning" if percent >= 90 else "")
+        self._apply_extra_disks(state)
+
+    #: How the disks after the system one are named when they have no name
+    #: of their own; a volume label is shown as the user wrote it.
+    DISK_KIND_LABELS = {"system": "System", "home": "Home"}
+
+    def _apply_extra_disks(self, state: DashboardState) -> None:
+        """One "Storage" row per disk beyond the M.2 drive, external ones included.
+
+        Rows follow the mount table: a drive plugged in gets its row on the
+        next sample and loses it once it is unmounted.
+        """
+        details = self.fan_card.details
+        wanted = {f"disk:{mountpoint}": item for mountpoint, *item in state.extra_disks}
+        for key in [key for key in details.readings if key.startswith("disk:") and key not in wanted]:
+            details.remove(key)
+        for key, (label, kind, summary, percent) in wanted.items():
+            reading = details.readings.get(key)
+            if reading is None:
+                reading = details.add(key, "", group="Storage", before="BIOS")
+            # Set every time, untranslated unless it is a generic name: a USB
+            # stick called "Backup" keeps its name in every language.
+            name = self.DISK_KIND_LABELS.get(kind)
+            reading.label.setText(tr(name) if name else label)
+            reading.setToolTip(key.removeprefix("disk:"))
+            used, total = self._split_pair(summary)
+            reading.set_value(used, total)
+            reading.set_tone("warning" if percent >= 90 else "")
 
     #: What each variant is called under the version. "" is DMI's version
     #: shared by two images that nothing on the running system separates.

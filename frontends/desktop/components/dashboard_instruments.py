@@ -218,6 +218,27 @@ class ReadingGroup(QWidget):
         self._box.addWidget(reading)
         return reading
 
+    def remove(self, key: str) -> None:
+        """Take a reading away with the hairline that separated it."""
+        reading = self.readings.pop(key, None)
+        if reading is None:
+            return
+        index = self._box.indexOf(reading)
+        rule = None
+        # The hairline sits before every reading but the first; the first
+        # one takes the hairline after it instead.
+        for neighbour in (index - 1, index + 1):
+            if 0 <= neighbour < self._box.count():
+                widget = self._box.itemAt(neighbour).widget()
+                if widget is not None and widget.property("instrumentHairline"):
+                    rule = widget
+                    break
+        for widget in (reading, rule):
+            if widget is not None:
+                self._box.removeWidget(widget)
+                widget.hide()
+                widget.deleteLater()
+
 
 class ReadingBook(QWidget):
     """Groups of readings, laid out in one or two columns."""
@@ -244,12 +265,17 @@ class ReadingBook(QWidget):
         self._group_titles: dict[str, str] = {}
         self._packed = self._wanted_columns
 
-    def group(self, title: str, column: int = 0) -> ReadingGroup:
+    def group(self, title: str, column: int = 0, *, before: str = "") -> ReadingGroup:
         group = self.groups.get(title)
         if group is None:
             group = ReadingGroup(title)
             self.groups[title] = group
-            self._placement.append((group, column))
+            anchor = self.groups.get(before)
+            position = next(
+                (index for index, (placed, _column) in enumerate(self._placement) if placed is anchor),
+                len(self._placement),
+            )
+            self._placement.insert(position, (group, column))
             self._packed = 0
             self._repack(self.width() or 460)
         return group
@@ -281,11 +307,30 @@ class ReadingBook(QWidget):
         super().resizeEvent(event)
         self._repack(event.size().width())
 
-    def add(self, key: str, label: str, *, group: str, column: int = 0) -> Reading:
-        reading = self.group(group, column).add(key, label)
+    def add(
+        self, key: str, label: str, *, group: str, column: int = 0, before: str = ""
+    ) -> Reading:
+        """A reading in ``group``; a new group goes in front of ``before``."""
+        reading = self.group(group, column, before=before).add(key, label)
         self.readings[key] = reading
         self._group_titles[key] = group
         return reading
+
+    def remove(self, key: str) -> None:
+        """Drop a reading; a group left empty goes with it."""
+        self.readings.pop(key, None)
+        group = self.groups.get(self._group_titles.pop(key, ""))
+        if group is None:
+            return
+        group.remove(key)
+        if group.readings:
+            return
+        self.groups = {title: kept for title, kept in self.groups.items() if kept is not group}
+        self._placement = [(kept, column) for kept, column in self._placement if kept is not group]
+        for column in self._columns:
+            column.removeWidget(group)
+        group.hide()
+        group.deleteLater()
 
     def __getitem__(self, key: str) -> Reading:
         return self.readings[key]

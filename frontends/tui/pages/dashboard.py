@@ -71,6 +71,24 @@ def memory_meter(label: str, used: object, total: object) -> Meter:
     return Meter(label, fraction, shown, tone)
 
 
+#: Disks without a name of their own; a volume label stays as the user wrote it.
+DISK_KIND_LABELS = {"system": "System", "home": "Home"}
+
+
+def extra_disk_meters(volumes: object) -> list:
+    """A "Storage" heading and one meter per disk after the first, external drives included."""
+    if not isinstance(volumes, (list, tuple)):
+        return []
+    rows = []
+    for volume in list(volumes)[1:]:
+        if not isinstance(volume, dict):
+            continue
+        name = DISK_KIND_LABELS.get(str(volume.get("kind") or ""))
+        label = tr(name) if name else str(volume.get("label") or volume.get("mountpoint") or "--")
+        rows.append(memory_meter(label, volume.get("used"), volume.get("total")))
+    return [Heading(tr("Storage")), *rows] if rows else []
+
+
 class DashboardPage(Page):
     key = "dashboard"
     title = "Dashboard"
@@ -189,6 +207,7 @@ class DashboardPage(Page):
             memory_meter(tr("Used"), disk.get("used", performance.get("disco_usado")),
                          disk.get("total", performance.get("disco_total"))),
             memory_meter("Swap", memory.get("swap_used"), memory.get("swap_total")),
+            *extra_disk_meters(disk.get("volumes", performance.get("discos"))),
             Heading("BIOS"),
             Field(tr("Release"), str(data.get("bios") or ctx.state(self.key).get("bios") or self._bios(ctx))),
         ], number(pump.get("rpm"), "RPM"))

@@ -6138,5 +6138,6 @@
   "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Служба загрузки не запустилась при старте системы. «Исправить» установит её заново способом, который допускает эта система.",
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Служба запуска установлена более ранней версией инструмента. «Обновить» устанавливает текущую, которая запускается и в системах с SELinux, например Bazzite.",
   "Update persistence": "Обновить постоянство",
-  "The persistence tool is downloaded first, then installed.": "Сначала загружается инструмент постоянства, затем он устанавливается."
+  "The persistence tool is downloaded first, then installed.": "Сначала загружается инструмент постоянства, затем он устанавливается.",
+  "Home": "Домашняя папка"
 }

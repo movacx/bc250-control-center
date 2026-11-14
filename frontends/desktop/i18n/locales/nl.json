@@ -6138,5 +6138,6 @@
   "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "De opstartservice is niet uitgevoerd toen dit systeem startte. Herstellen installeert hem opnieuw op een manier die dit systeem toestaat.",
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "De opstartservice is geïnstalleerd door een eerdere versie van de tool. Bijwerken installeert de huidige, die ook start op systemen met SELinux zoals Bazzite.",
   "Update persistence": "Persistentie bijwerken",
-  "The persistence tool is downloaded first, then installed.": "De persistentietool wordt eerst gedownload en daarna geïnstalleerd."
+  "The persistence tool is downloaded first, then installed.": "De persistentietool wordt eerst gedownload en daarna geïnstalleerd.",
+  "Home": "Persoonlijke map"
 }

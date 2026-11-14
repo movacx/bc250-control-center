@@ -6138,5 +6138,6 @@
   "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Önyükleme hizmeti bu sistem başlarken çalışmadı. Onar, onu bu sistemin izin verdiği bir şekilde yeniden kurar.",
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Önyükleme hizmeti aracın önceki bir sürümüyle kuruldu. Güncelle, Bazzite gibi SELinux kullanan sistemlerde de başlayan güncel sürümü kurar.",
   "Update persistence": "Kalıcılığı güncelle",
-  "The persistence tool is downloaded first, then installed.": "Kalıcılık aracı önce indirilir, ardından kurulur."
+  "The persistence tool is downloaded first, then installed.": "Kalıcılık aracı önce indirilir, ardından kurulur.",
+  "Home": "Ev dizini"
 }

@@ -6138,5 +6138,6 @@
   "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Az indítási szolgáltatás nem futott le a rendszer indulásakor. A Javítás újratelepíti úgy, ahogy ez a rendszer engedi.",
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "A rendszerindítási szolgáltatást az eszköz egy korábbi verziója telepítette. A Frissítés a jelenlegit telepíti, amely SELinuxot használó rendszereken, például a Bazzite-on is elindul.",
   "Update persistence": "Tartósság frissítése",
-  "The persistence tool is downloaded first, then installed.": "A tartóssági eszköz először letöltődik, majd települ."
+  "The persistence tool is downloaded first, then installed.": "A tartóssági eszköz először letöltődik, majd települ.",
+  "Home": "Saját mappa"
 }

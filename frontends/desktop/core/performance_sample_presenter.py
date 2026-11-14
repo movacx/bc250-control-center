@@ -193,3 +193,43 @@ def present_performance_sample(
         _disk_plan(_mapping(sample.get("disk")), previous_peaks, translate),
         _network_plan(_mapping(sample.get("network")), previous_peaks, translate),
     )
+
+
+def volume_key(mountpoint: object) -> str:
+    """The view and plan key of one disk after the system one."""
+    return f"disk:{mountpoint}"
+
+
+def disk_volumes(sample: Mapping[str, object]) -> tuple[Mapping[str, object], ...]:
+    """The sample's real disks, system disk first; empty from an older backend."""
+    volumes = _mapping(sample.get("disk")).get("volumes")
+    if not isinstance(volumes, (list, tuple)):
+        return ()
+    return tuple(item for item in volumes if isinstance(item, Mapping) and item.get("mountpoint"))
+
+
+def present_disk_volumes(
+    sample: Mapping[str, object],
+    *,
+    previous_peaks: Mapping[str, float],
+    translate: Callable[[str], str] = lambda value: value,
+) -> tuple[ResourceSamplePlan, ...]:
+    """One Disk plan per disk after the system one, an external drive included.
+
+    The system disk is the Disk tab's own plan; these are the other entries
+    of its menu, read and drawn the same way from each disk's own counters.
+    """
+    plans = []
+    for volume in disk_volumes(sample)[1:]:
+        key = volume_key(volume.get("mountpoint"))
+        disk = {
+            "usage_percent": volume.get("percent"),
+            "used": volume.get("used"),
+            "total": volume.get("total"),
+            "read_bps": volume.get("read_bps"),
+            "write_bps": volume.get("write_bps"),
+            "active_percent": volume.get("active_percent"),
+        }
+        plan = _disk_plan(disk, {"disk": _number(previous_peaks.get(key))}, translate)
+        plans.append(ResourceSamplePlan(key, plan.primary, plan.context, plan.graph_values, plan.stats))
+    return tuple(plans)

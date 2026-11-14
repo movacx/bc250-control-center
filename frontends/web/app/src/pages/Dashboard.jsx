@@ -10,6 +10,10 @@ function Mem({ label, used, total }) {
   return <Read label={label} value={u.value} unit={u.unit} note={whole.value !== "--" ? `/ ${whole.value} ${whole.unit}` : undefined} />;
 }
 
+// Disks without a name of their own; a volume label stays as the user wrote it.
+const DISK_KIND_LABELS = { system: keep("System"), home: keep("Home") };
+const diskName = (volume) => DISK_KIND_LABELS[volume.kind] ? t(DISK_KIND_LABELS[volume.kind]) : (volume.label || volume.mountpoint || "--");
+
 // The desktop's FAN_OWNER_LABELS: who sets the Cooling card's fan.
 const OWNER_LABELS = { system: keep("System service"), daemon: keep("Desktop daemon"), firmware: keep("Firmware (BIOS)"), manual: keep("Manual value"), external: keep("Another program") };
 const countCUs = rows => rows.length ? rows.reduce((sum, row) => sum + 2 * (Number(row.mask || 0).toString(2).match(/1/g) || []).length, 0) : null;
@@ -31,6 +35,8 @@ export default function Dashboard() {
   const { gpu = {}, cpu = {}, memory: ram = {}, sensors = {}, power = {} } = live.metrics;
   const daemon = data?.daemon || {};
   const disk = live.metrics.disk || {}, performance = data?.performance || {};
+  // Every real disk after the M.2 one; a drive unplugged drops out on the next sample.
+  const extraDisks = (disk.volumes || performance.discos || []).slice(1).filter((volume) => volume && volume.mountpoint);
   const persistent = data?.cpu_persistence || {}, registered = persistent.config || {};
   const recorded = persistent.applied_this_boot && registered.valid ? registered : {};
 
@@ -98,6 +104,8 @@ export default function Dashboard() {
           {shown(t("Temperature"), sensors.nvme_temperature_c, "°C", 1)}{shown(t("Hotspot"), sensors.nvme_hotspot_temperature_c, "°C", 1)}
           <Mem label={t("Used")} used={pick(disk.used, performance.disco_usado)} total={pick(disk.total, performance.disco_total)} />
           <Mem label="Swap" used={ram.swap_used} total={ram.swap_total} />
+          {extraDisks.length > 0 && <><div className="group">{t("Storage")}</div>
+            {extraDisks.map((volume) => <Mem key={volume.mountpoint} label={diskName(volume)} used={volume.used} total={volume.total} />)}</>}
           <div className="group">BIOS</div><Read label={t("Version")} value={data?.bios || performance.bios_version || t("Not detected")} note={performance.bios_variant} />
           <div className="row" style={{ marginTop: 12 }}><Btn kind="soft" wide onClick={() => (location.hash = "#/fans")}>{t("Fan Control")}</Btn>{!mobile && <Btn wide onClick={() => (location.hash = "#/fans")}>{t("Automatic curve")}</Btn>}</div>
         </section>

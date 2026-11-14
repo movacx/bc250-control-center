@@ -49,7 +49,7 @@ def test_realtime_sampler_builds_one_coherent_passive_snapshot(monkeypatch):
         lambda **_kwargs: {"eth0": network},
     )
     monkeypatch.setattr("bc250cc.infrastructure.sistema_repository.os.getloadavg", lambda: (1.0, 2.0, 3.0))
-    repo._contador_disco_raiz = lambda: ("nvme0n1", disk)
+    repo._contador_disco_raiz = lambda _device="": ("nvme0n1", disk)
     repo._interfaz_red_predeterminada = lambda: "eth0"
     repo._gpu_device_path = lambda: Path("/mock/card0/device")
     repo._gpu_busy_percent = lambda _path: 130

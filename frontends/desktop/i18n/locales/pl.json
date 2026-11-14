@@ -6138,5 +6138,6 @@
   "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Usługa rozruchowa nie uruchomiła się przy starcie systemu. Napraw instaluje ją ponownie w sposób dozwolony przez ten system.",
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Usługę rozruchową zainstalowała wcześniejsza wersja narzędzia. Aktualizuj instaluje bieżącą, która uruchamia się także w systemach z SELinux, takich jak Bazzite.",
   "Update persistence": "Aktualizuj trwałość",
-  "The persistence tool is downloaded first, then installed.": "Narzędzie trwałości jest najpierw pobierane, a potem instalowane."
+  "The persistence tool is downloaded first, then installed.": "Narzędzie trwałości jest najpierw pobierane, a potem instalowane.",
+  "Home": "Katalog domowy"
 }

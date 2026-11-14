@@ -6138,5 +6138,6 @@
   "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Spouštěcí služba se při startu systému nespustila. Opravit ji nainstaluje znovu způsobem, který tento systém povoluje.",
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Spouštěcí službu nainstalovala starší verze nástroje. Aktualizovat nainstaluje aktuální, která se spouští i v systémech se SELinuxem, jako je Bazzite.",
   "Update persistence": "Aktualizovat trvalost",
-  "The persistence tool is downloaded first, then installed.": "Nástroj pro trvalost se nejprve stáhne a poté nainstaluje."
+  "The persistence tool is downloaded first, then installed.": "Nástroj pro trvalost se nejprve stáhne a poté nainstaluje.",
+  "Home": "Domovská složka"
 }

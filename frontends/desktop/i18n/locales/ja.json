@@ -6138,5 +6138,6 @@
   "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "このシステムの起動時にブートサービスが実行されませんでした。修復すると、このシステムが許可する方法で再インストールします。",
   "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "起動サービスはツールの以前のバージョンでインストールされています。更新すると現在のバージョンがインストールされ、Bazzite のような SELinux のシステムでも起動します。",
   "Update persistence": "永続化を更新",
-  "The persistence tool is downloaded first, then installed.": "永続化ツールを先にダウンロードしてからインストールします。"
+  "The persistence tool is downloaded first, then installed.": "永続化ツールを先にダウンロードしてからインストールします。",
+  "Home": "ホーム"
 }
