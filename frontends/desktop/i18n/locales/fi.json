@@ -6135,5 +6135,8 @@
   "No CPU tuning is active: the CPU runs at its normal settings.": "Mitään suorittimen viritystä ei ole käytössä: suoritin toimii normaaleilla asetuksillaan.",
   "Needs repair": "Vaatii korjausta",
   "Repair persistence": "Korjaa pysyvyys",
-  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Käynnistyspalvelu ei käynnistynyt tämän järjestelmän käynnistyessä. Korjaa asentaa sen uudelleen tavalla, jonka järjestelmä sallii."
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Käynnistyspalvelu ei käynnistynyt tämän järjestelmän käynnistyessä. Korjaa asentaa sen uudelleen tavalla, jonka järjestelmä sallii.",
+  "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Käynnistyspalvelu asennettiin työkalun aiemmalla versiolla. Päivitä asentaa nykyisen, joka käynnistyy myös SELinux-järjestelmissä, kuten Bazzitessa.",
+  "Update persistence": "Päivitä pysyvyys",
+  "The persistence tool is downloaded first, then installed.": "Pysyvyystyökalu ladataan ensin ja asennetaan sitten."
 }

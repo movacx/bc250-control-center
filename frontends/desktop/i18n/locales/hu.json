@@ -4048,7 +4048,7 @@
   "Update Cyan from its official SMU release and verify the active service override.": "Frissítse a Cyan verziót a hivatalos SMU kiadásból, és ellenőrizze az aktív szolgáltatás felülbírálását.",
   "Update FSR4 client": "FSR4-kliens frissítése",
   "Update application": "Frissítse az alkalmazást",
-  "Update available": "Frissítés elérhető",
+  "Update available": "Frissítés érhető el",
   "Update now": "Frissítés most",
   "Update required": "Frissítés szükséges",
   "Update the distribution keyring and retry. If this is an external repository, review its configured signature policy before changing pacman, DNF, or APT settings.": "Frissítse a terjesztési kulcstartót, és próbálkozzon újra. Ha ez egy külső adattár, tekintse át annak konfigurált aláírási házirendjét, mielőtt módosítaná a pacman, a DNF vagy az APT beállításait.",
@@ -6135,5 +6135,8 @@
   "No CPU tuning is active: the CPU runs at its normal settings.": "Nincs aktív CPU-hangolás: a CPU a szokásos beállításaival működik.",
   "Needs repair": "Javítás szükséges",
   "Repair persistence": "Tartósság javítása",
-  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Az indítási szolgáltatás nem futott le a rendszer indulásakor. A Javítás újratelepíti úgy, ahogy ez a rendszer engedi."
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Az indítási szolgáltatás nem futott le a rendszer indulásakor. A Javítás újratelepíti úgy, ahogy ez a rendszer engedi.",
+  "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "A rendszerindítási szolgáltatást az eszköz egy korábbi verziója telepítette. A Frissítés a jelenlegit telepíti, amely SELinuxot használó rendszereken, például a Bazzite-on is elindul.",
+  "Update persistence": "Tartósság frissítése",
+  "The persistence tool is downloaded first, then installed.": "A tartóssági eszköz először letöltődik, majd települ."
 }

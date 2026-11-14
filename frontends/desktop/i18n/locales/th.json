@@ -6135,5 +6135,8 @@
   "No CPU tuning is active: the CPU runs at its normal settings.": "ไม่มีการปรับแต่ง CPU ที่ใช้งานอยู่: CPU ทำงานด้วยการตั้งค่าปกติ",
   "Needs repair": "ต้องซ่อมแซม",
   "Repair persistence": "ซ่อมแซมการคงอยู่",
-  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "บริการตอนบูตไม่ได้ทำงานเมื่อระบบนี้เริ่มต้น การซ่อมแซมจะติดตั้งใหม่ในแบบที่ระบบนี้อนุญาต"
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "บริการตอนบูตไม่ได้ทำงานเมื่อระบบนี้เริ่มต้น การซ่อมแซมจะติดตั้งใหม่ในแบบที่ระบบนี้อนุญาต",
+  "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "บริการบูตถูกติดตั้งโดยเครื่องมือเวอร์ชันก่อนหน้า อัปเดตจะติดตั้งเวอร์ชันปัจจุบัน ซึ่งเริ่มทำงานได้บนระบบที่ใช้ SELinux เช่น Bazzite ด้วย",
+  "Update persistence": "อัปเดตการคงอยู่",
+  "The persistence tool is downloaded first, then installed.": "จะดาวน์โหลดเครื่องมือการคงอยู่ก่อน แล้วจึงติดตั้ง"
 }

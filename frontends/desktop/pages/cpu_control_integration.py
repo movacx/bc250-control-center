@@ -200,9 +200,9 @@ def _core_unlock_state(page, core_unlock: dict) -> CoreUnlockState:
     unlocked = bool(core_unlock.get("unlocked"))
     # Install from the factory shape (it restarts) or from an unlock made
     # earlier this power cycle (no restart); never over an active service.
+    # A missing persistence tool no longer blocks it: the install fetches it.
     persist_allowed = bool(
         idle and supported and helper_ready and not active
-        and core_unlock.get("persistent_repository_ready")
         and (unlocked or core_unlock.get("supported_stock_shape"))
     )
     return CoreUnlockState(

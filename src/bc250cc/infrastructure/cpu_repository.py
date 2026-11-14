@@ -869,17 +869,18 @@ class CPURepository:
         helper = self._core_unlock_persistent_preflight()
         repository = self._tool_dir() / CORE_UNLOCK_PERSISTENT_DIRECTORY
         script = repository / CORE_UNLOCK_PERSISTENT_SCRIPT
-        if not (repository / '.git').is_dir() or not script.is_file():
-            raise RuntimeError(
-                'The persistent core unlock tool (movacx/core_unlock_bc250) is not prepared. '
-                'Run Prepare dependencies with CPU Core Unlock selected, then refresh this page.'
-            )
-        origin, clean, revision_matches = self._core_unlock_persistent_repository_state(repository)
-        if origin not in CORE_UNLOCK_PERSISTENT_ORIGINS or not clean or not revision_matches:
-            raise RuntimeError(
-                'The core_unlock_bc250 clone did not pass origin, revision, and integrity validation. '
-                'Prepare it again from Prepare dependencies.'
-            )
+        extra = ('--ignore-core-mask',) if ignore_core_mask else ()
+        install = pkexec_argv('pkexec', helper, '--persist-install', '--repo', str(repository), *extra)
+        ready = (repository / '.git').is_dir() and script.is_file()
+        if ready:
+            origin, clean, revision_matches = self._core_unlock_persistent_repository_state(repository)
+            ready = origin in CORE_UNLOCK_PERSISTENT_ORIGINS and clean and revision_matches
+        if not ready:
+            # Self-repair: a missing or stale clone (a reinstall, a board that
+            # was never prepared) is fetched at the reviewed revision first, as
+            # the desktop user, then the same install runs. The helper still
+            # checks the revision and the script's checksum before it uses it.
+            return self._persistent_tool_then(install, repository)
         if script.is_symlink():
             raise RuntimeError('The persistent core unlock script must not be a symbolic link.')
         metadata = script.stat(follow_symlinks=False)
@@ -890,8 +891,22 @@ class CPURepository:
             metadata = script.stat(follow_symlinks=False)
         if metadata.st_mode & 0o022:
             raise RuntimeError('The persistent core unlock script permissions could not be secured.')
-        extra = ('--ignore-core-mask',) if ignore_core_mask else ()
-        return pkexec_argv('pkexec', helper, '--persist-install', '--repo', str(repository), *extra)
+        return install
+
+    def _persistent_tool_then(self, command, repository):
+        """``command`` after fetching the pinned core_unlock_bc250 clone."""
+        from bc250cc.infrastructure.dependencias_constants import (
+            CORE_UNLOCK_PERSISTENT_REPOSITORY,
+        )
+        from bc250cc.infrastructure.preparation_workflow import (
+            core_unlock_persistent_commands,
+        )
+
+        steps = core_unlock_persistent_commands(
+            self, CORE_UNLOCK_PERSISTENT_REPOSITORY, repository, None
+        )
+        script = '\n'.join(['set -e', *steps, 'exec ' + shlex.join(command)])
+        return ['/bin/sh', '-c', script]
 
     def comando_quitar_persistencia_nucleos_cpu(self):
         """Remove the boot service. Needs no clone; does not reboot."""

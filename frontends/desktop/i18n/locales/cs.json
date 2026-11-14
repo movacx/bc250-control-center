@@ -4048,7 +4048,7 @@
   "Update Cyan from its official SMU release and verify the active service override.": "Aktualizujte Cyan z oficiálního vydání SMU a ověřte přepsání aktivní služby.",
   "Update FSR4 client": "Aktualizovat klienta FSR4",
   "Update application": "Aktualizovat aplikaci",
-  "Update available": "Je k dispozici aktualizace",
+  "Update available": "K dispozici aktualizace",
   "Update now": "Aktualizovat nyní",
   "Update required": "Je vyžadována aktualizace",
   "Update the distribution keyring and retry. If this is an external repository, review its configured signature policy before changing pacman, DNF, or APT settings.": "Aktualizujte distribuční klíčenku a zkuste to znovu. Pokud se jedná o externí úložiště, před změnou nastavení pacmana, DNF nebo APT si přečtěte jeho nakonfigurované zásady pro podpisy.",
@@ -6135,5 +6135,8 @@
   "No CPU tuning is active: the CPU runs at its normal settings.": "Není aktivní žádné ladění CPU: procesor běží s běžným nastavením.",
   "Needs repair": "Vyžaduje opravu",
   "Repair persistence": "Opravit trvalost",
-  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Spouštěcí služba se při startu systému nespustila. Opravit ji nainstaluje znovu způsobem, který tento systém povoluje."
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Spouštěcí služba se při startu systému nespustila. Opravit ji nainstaluje znovu způsobem, který tento systém povoluje.",
+  "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Spouštěcí službu nainstalovala starší verze nástroje. Aktualizovat nainstaluje aktuální, která se spouští i v systémech se SELinuxem, jako je Bazzite.",
+  "Update persistence": "Aktualizovat trvalost",
+  "The persistence tool is downloaded first, then installed.": "Nástroj pro trvalost se nejprve stáhne a poté nainstaluje."
 }

@@ -6135,5 +6135,8 @@
   "No CPU tuning is active: the CPU runs at its normal settings.": "Không có tinh chỉnh CPU nào đang hoạt động: CPU chạy với cài đặt bình thường.",
   "Needs repair": "Cần sửa",
   "Repair persistence": "Sửa chế độ bền vững",
-  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Dịch vụ khởi động đã không chạy khi hệ thống này khởi động. Sửa sẽ cài lại nó theo cách hệ thống này cho phép."
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Dịch vụ khởi động đã không chạy khi hệ thống này khởi động. Sửa sẽ cài lại nó theo cách hệ thống này cho phép.",
+  "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Dịch vụ khởi động được cài bởi phiên bản cũ hơn của công cụ. Cập nhật sẽ cài phiên bản hiện tại, chạy được cả trên hệ thống dùng SELinux như Bazzite.",
+  "Update persistence": "Cập nhật lưu bền",
+  "The persistence tool is downloaded first, then installed.": "Công cụ lưu bền được tải xuống trước, rồi mới cài đặt."
 }

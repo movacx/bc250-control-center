@@ -877,6 +877,7 @@
    "CPURepository.comando_desbloquear_nucleos_cpu": "CPU-0264",
    "CPURepository._core_unlock_persistent_preflight": "CPU-0311",
    "CPURepository.comando_persistir_desbloqueo_nucleos_cpu": "CPU-0312",
+   "CPURepository._persistent_tool_then": "CPU-0332",
    "CPURepository.comando_quitar_persistencia_nucleos_cpu": "CPU-0313",
    "CPURepository.ejecutar_cpu_oc_temporal": "CPU-0265",
    "CPURepository.comando_cpu_oc_temporal_embebido": "CPU-0266",

@@ -370,13 +370,53 @@ def test_the_card_offers_repair_for_a_service_that_needs_it(qtbot):
     view._set_mode(UNLOCK_MODE_PERSISTENT)
     view._apply_unlock(CoreUnlockState(
         helper_ready=True, persistence_supported=True, persistence_source_ready=True,
-        persistence_installed=True, persistence_active=False, persistence_repair="outdated",
+        persistence_installed=True, persistence_active=False, persistence_repair="not-run",
         persist_allowed=True, remove_allowed=True,
     ))
     persistent = view._mode_buttons[UNLOCK_MODE_PERSISTENT]
     assert persistent.tag.text() == "Needs repair"
     assert view.unlock_button.text() == "Repair persistence" and view.unlock_button.isEnabled()
     assert "did not run" in view._unlock_note.text()
+
+
+def test_an_older_unit_is_an_update_not_a_service_that_did_not_run(qtbot):
+    """Arch, 2026-11-14: a 0.1.0 unit ran fine this boot, yet the card said
+    "did not run when this system started". An older unit is an update."""
+    view = CpuControlView()
+    qtbot.addWidget(view)
+    view._set_mode(UNLOCK_MODE_PERSISTENT)
+    view._apply_unlock(CoreUnlockState(
+        unlocked=True, helper_ready=True, persistence_supported=True, persistence_source_ready=False,
+        persistence_installed=True, persistence_active=False, persistence_repair="outdated",
+        persist_allowed=True, remove_allowed=True,
+    ))
+    persistent = view._mode_buttons[UNLOCK_MODE_PERSISTENT]
+    assert persistent.tag.text() == "Update available"
+    assert view.unlock_button.text() == "Update persistence" and view.unlock_button.isEnabled()
+    assert "did not run" not in view._unlock_note.text()
+    assert "earlier version" in view._unlock_note.text()
+
+
+def test_a_missing_persistence_tool_is_fetched_before_the_install(monkeypatch, tmp_path):
+    """A reinstall left no core_unlock_bc250 clone and Repair stayed grey. The
+    install now fetches the reviewed revision first, as the desktop user."""
+    from bc250cc.infrastructure import cpu_repository
+
+    repo = object.__new__(cpu_repository.CPURepository)
+    monkeypatch.setattr(repo, "_tool_dir", lambda: tmp_path, raising=False)
+    monkeypatch.setattr(repo, "_core_unlock_persistent_preflight", lambda: "/usr/libexec/helper", raising=False)
+    monkeypatch.setattr(
+        repo, "_hardware_source_checkout_command",
+        lambda url, destination, os_repo=None: f"git-checkout {url} {destination}", raising=False,
+    )
+    command = repo.comando_persistir_desbloqueo_nucleos_cpu()
+    assert command[:2] == ["/bin/sh", "-c"]
+    script = command[2]
+    assert script.startswith("set -e")
+    assert "git-checkout https://github.com/movacx/core_unlock_bc250" in script
+    assert "chmod 0755" in script
+    last = script.splitlines()[-1]
+    assert last.startswith("exec ") and "--persist-install" in last and "pkexec" in last
 
 
 # ------------------------------------------------------------------ card

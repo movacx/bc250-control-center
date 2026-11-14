@@ -6135,5 +6135,8 @@
   "No CPU tuning is active: the CPU runs at its normal settings.": "No CPU tuning is active: the CPU runs at its normal settings.",
   "Needs repair": "Needs repair",
   "Repair persistence": "Repair persistence",
-  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "The boot service did not run when this system started. Repair installs it again in a way this system allows."
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "The boot service did not run when this system started. Repair installs it again in a way this system allows.",
+  "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.",
+  "Update persistence": "Update persistence",
+  "The persistence tool is downloaded first, then installed.": "The persistence tool is downloaded first, then installed."
 }

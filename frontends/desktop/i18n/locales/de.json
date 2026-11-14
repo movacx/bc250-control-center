@@ -6135,5 +6135,8 @@
   "No CPU tuning is active: the CPU runs at its normal settings.": "Keine CPU-Abstimmung ist aktiv: Die CPU läuft mit ihren normalen Einstellungen.",
   "Needs repair": "Reparatur nötig",
   "Repair persistence": "Persistenz reparieren",
-  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Der Startdienst wurde beim Hochfahren dieses Systems nicht ausgeführt. Reparieren installiert ihn erneut auf eine Weise, die dieses System zulässt."
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Der Startdienst wurde beim Hochfahren dieses Systems nicht ausgeführt. Reparieren installiert ihn erneut auf eine Weise, die dieses System zulässt.",
+  "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Der Startdienst wurde von einer älteren Version des Tools installiert. Aktualisieren installiert die aktuelle, die auch auf Systemen mit SELinux wie Bazzite startet.",
+  "Update persistence": "Persistenz aktualisieren",
+  "The persistence tool is downloaded first, then installed.": "Das Persistenz-Tool wird zuerst heruntergeladen und dann installiert."
 }

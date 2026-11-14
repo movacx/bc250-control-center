@@ -6135,5 +6135,8 @@
   "No CPU tuning is active: the CPU runs at its normal settings.": "Δεν είναι ενεργή καμία ρύθμιση CPU: η CPU λειτουργεί με τις κανονικές της ρυθμίσεις.",
   "Needs repair": "Χρειάζεται επισκευή",
   "Repair persistence": "Επισκευή μονιμότητας",
-  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Η υπηρεσία εκκίνησης δεν εκτελέστηκε κατά την εκκίνηση του συστήματος. Η επισκευή την εγκαθιστά ξανά με τρόπο που επιτρέπει το σύστημα."
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Η υπηρεσία εκκίνησης δεν εκτελέστηκε κατά την εκκίνηση του συστήματος. Η επισκευή την εγκαθιστά ξανά με τρόπο που επιτρέπει το σύστημα.",
+  "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Η υπηρεσία εκκίνησης εγκαταστάθηκε από παλαιότερη έκδοση του εργαλείου. Η Ενημέρωση εγκαθιστά την τρέχουσα, η οποία ξεκινά και σε συστήματα με SELinux όπως το Bazzite.",
+  "Update persistence": "Ενημέρωση μονιμότητας",
+  "The persistence tool is downloaded first, then installed.": "Το εργαλείο μονιμότητας κατεβαίνει πρώτα και μετά εγκαθίσταται."
 }

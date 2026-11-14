@@ -6135,5 +6135,8 @@
   "No CPU tuning is active: the CPU runs at its normal settings.": "目前沒有生效的 CPU 調校：CPU 以正常設定運作。",
   "Needs repair": "需要修復",
   "Repair persistence": "修復持久化",
-  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "此系統啟動時開機服務沒有執行。修復會以此系統允許的方式重新安裝它。"
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "此系統啟動時開機服務沒有執行。修復會以此系統允許的方式重新安裝它。",
+  "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "開機服務由舊版工具安裝。更新會安裝目前版本，它也能在 Bazzite 等啟用 SELinux 的系統上啟動。",
+  "Update persistence": "更新持久化",
+  "The persistence tool is downloaded first, then installed.": "先下載持久化工具，然後安裝。"
 }

@@ -1506,6 +1506,8 @@ class CpuControlView(QWidget):
         )
         if unlock.persistence_active:
             persistent.set_tag("In use", "green")
+        elif unlock.persistence_repair == "outdated":
+            persistent.set_tag("Update available", "green")
         elif unlock.persistence_repair:
             persistent.set_tag("Needs repair", "orange")
         elif stopped:
@@ -1519,7 +1521,15 @@ class CpuControlView(QWidget):
         )
 
         # Why a service stopped itself is said in plain sight, in both modes.
-        if unlock.persistence_repair:
+        if unlock.persistence_repair == "outdated":
+            # Installed by an earlier version of the tool: it may well have run
+            # (it does on Arch); it cannot start where SELinux enforces.
+            note = tr(
+                "The boot service was installed by an earlier version of the tool. "
+                "Update installs the current one, which also starts on systems "
+                "with SELinux such as Bazzite."
+            )
+        elif unlock.persistence_repair:
             note = tr(
                 "The boot service did not run when this system started. "
                 "Repair installs it again in a way this system allows."
@@ -1563,6 +1573,9 @@ class CpuControlView(QWidget):
         if unlock.persistence_active:
             text = tr("Persistence active")
             allowed = False
+        elif unlock.persistence_repair == "outdated":
+            text = tr("Update persistence")
+            allowed = unlock.persist_allowed
         elif unlock.persistence_repair:
             text = tr("Repair persistence")
             allowed = unlock.persist_allowed
@@ -1579,7 +1592,7 @@ class CpuControlView(QWidget):
         if not unlock.persistence_supported:
             tip = tr("Persistence needs a BC-250 running systemd.")
         elif not unlock.persistence_source_ready and not unlock.persistence_active:
-            tip = tr("Run Prepare dependencies with CPU Core Unlock selected to fetch the persistence tool.")
+            tip = tr("The persistence tool is downloaded first, then installed.")
         elif not unlock.helper_ready and not unlock.persistence_active:
             tip = tr("Reinstall the local application package to install the privileged helper.")
         self.unlock_button.setText(text)

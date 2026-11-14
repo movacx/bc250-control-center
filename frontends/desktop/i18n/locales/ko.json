@@ -4048,7 +4048,7 @@
   "Update Cyan from its official SMU release and verify the active service override.": "공식 SMU 릴리스에서 Cyan를 업데이트하고 활성 서비스 대체를 확인하십시오.",
   "Update FSR4 client": "FSR4 클라이언트 업데이트",
   "Update application": "애플리케이션 업데이트",
-  "Update available": "업데이트 있음",
+  "Update available": "업데이트 가능",
   "Update now": "지금 업데이트",
   "Update required": "업데이트 필요",
   "Update the distribution keyring and retry. If this is an external repository, review its configured signature policy before changing pacman, DNF, or APT settings.": "배포 키링을 업데이트하고 다시 시도하세요. 외부 저장소인 경우 팩맨, DNF 또는 APT 설정을 변경하기 전에 구성된 서명 정책을 검토하세요.",
@@ -6135,5 +6135,8 @@
   "No CPU tuning is active: the CPU runs at its normal settings.": "활성화된 CPU 튜닝이 없습니다. CPU가 일반 설정으로 동작 중입니다.",
   "Needs repair": "복구 필요",
   "Repair persistence": "영구 적용 복구",
-  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "이 시스템이 시작될 때 부팅 서비스가 실행되지 않았습니다. 복구하면 이 시스템이 허용하는 방식으로 다시 설치합니다."
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "이 시스템이 시작될 때 부팅 서비스가 실행되지 않았습니다. 복구하면 이 시스템이 허용하는 방식으로 다시 설치합니다.",
+  "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "부팅 서비스가 이전 버전의 도구로 설치되었습니다. 업데이트하면 현재 버전이 설치되며, Bazzite처럼 SELinux를 사용하는 시스템에서도 실행됩니다.",
+  "Update persistence": "영구 적용 업데이트",
+  "The persistence tool is downloaded first, then installed.": "영구 적용 도구를 먼저 다운로드한 다음 설치합니다."
 }

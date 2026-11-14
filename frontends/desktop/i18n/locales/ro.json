@@ -6135,5 +6135,8 @@
   "No CPU tuning is active: the CPU runs at its normal settings.": "Niciun reglaj al CPU nu este activ: CPU funcționează cu setările normale.",
   "Needs repair": "Necesită reparare",
   "Repair persistence": "Repară persistența",
-  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Serviciul de pornire nu a rulat la pornirea sistemului. Repară îl reinstalează într-un mod permis de acest sistem."
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Serviciul de pornire nu a rulat la pornirea sistemului. Repară îl reinstalează într-un mod permis de acest sistem.",
+  "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Serviciul de pornire a fost instalat de o versiune anterioară a instrumentului. Actualizare instalează versiunea curentă, care pornește și pe sistemele cu SELinux, precum Bazzite.",
+  "Update persistence": "Actualizează persistența",
+  "The persistence tool is downloaded first, then installed.": "Instrumentul de persistență este mai întâi descărcat, apoi instalat."
 }

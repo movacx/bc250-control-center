@@ -4048,7 +4048,7 @@
   "Update Cyan from its official SMU release and verify the active service override.": "Cyan'ı resmi SMU sürümünden güncelleyin ve etkin hizmet geçersiz kılmayı doğrulayın.",
   "Update FSR4 client": "FSR4 istemcisini güncelle",
   "Update application": "Uygulamayı güncelle",
-  "Update available": "Güncelleme var",
+  "Update available": "Güncelleme mevcut",
   "Update now": "Şimdi güncelle",
   "Update required": "Güncelleme gerekli",
   "Update the distribution keyring and retry. If this is an external repository, review its configured signature policy before changing pacman, DNF, or APT settings.": "Dağıtım anahtarlığını güncelleyin ve yeniden deneyin. Bu harici bir depoysa pacman, DNF veya APT ayarlarını değiştirmeden önce yapılandırılmış imza politikasını gözden geçirin.",
@@ -6135,5 +6135,8 @@
   "No CPU tuning is active: the CPU runs at its normal settings.": "Etkin bir CPU ayarı yok: CPU normal ayarlarıyla çalışıyor.",
   "Needs repair": "Onarım gerekli",
   "Repair persistence": "Kalıcılığı onar",
-  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Önyükleme hizmeti bu sistem başlarken çalışmadı. Onar, onu bu sistemin izin verdiği bir şekilde yeniden kurar."
+  "The boot service did not run when this system started. Repair installs it again in a way this system allows.": "Önyükleme hizmeti bu sistem başlarken çalışmadı. Onar, onu bu sistemin izin verdiği bir şekilde yeniden kurar.",
+  "The boot service was installed by an earlier version of the tool. Update installs the current one, which also starts on systems with SELinux such as Bazzite.": "Önyükleme hizmeti aracın önceki bir sürümüyle kuruldu. Güncelle, Bazzite gibi SELinux kullanan sistemlerde de başlayan güncel sürümü kurar.",
+  "Update persistence": "Kalıcılığı güncelle",
+  "The persistence tool is downloaded first, then installed.": "Kalıcılık aracı önce indirilir, ardından kurulur."
 }
