@@ -155,26 +155,6 @@ In **Additional settings › Compatibility**, the BC-250 graphics-stack row chec
 
 The kernel workflow resolves dependencies and checks that every requested package is included before installing. A missing dependency must be resolved before continuing with the kernel and its headers.
 
-### Limine boot menu
-
-A manually configured Limine menu needs an entry for the newly installed BC-250 kernel. On a standard mkinitcpio installation with the EFI partition mounted at `/boot`, the kernel and initramfs are `/boot/vmlinuz-linux-cachyos-bc250` and `/boot/initramfs-linux-cachyos-bc250.img`.
-
-Locate the active `limine.conf` and save a backup before editing it. Limine searches the EFI executable's directory before the other configuration locations. [Limine configuration reference](https://github.com/limine-bootloader/limine/blob/v12.x/CONFIG.md)
-
-Run the following command from the working Arch installation to print a new entry with its current root and boot options. Add the output to the active `limine.conf`, keeping the existing entry available for recovery.
-
-```bash
-cat <<EOF
-/Arch Linux (BC-250)
-    protocol: linux
-    path: boot():/vmlinuz-linux-cachyos-bc250
-    cmdline: $(cat /proc/cmdline)
-    module_path: boot():/initramfs-linux-cachyos-bc250.img
-EOF
-```
-
-These `boot():` paths assume the configuration is on the same partition as those files. After saving, reboot and select **Arch Linux (BC-250)**. Run `uname -r` to confirm that the running kernel ends in `-cachyos-bc250`.
-
 ## Terminal mode
 
 The TUI runs in a terminal emulator, a Linux TTY or an SSH session. It shares
