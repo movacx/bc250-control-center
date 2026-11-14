@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
 
-from bc250cc.infrastructure.cachyos_pahole import DEPENDENCY_NOTE
+from bc250cc.application.system.cachyos_kernel import DEPENDENCY_NOTE
 
 from ..core.feature_visibility import (
     FSR4_UI_ENABLED,

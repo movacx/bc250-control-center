@@ -94,7 +94,7 @@ def run(ui, label: str, method, actions=(), danger=False) -> None:
         argument = actions[0][0]
     message = tr(label) + (f": {argument}" if argument else "")
     if argument == "pahole":
-        from bc250cc.infrastructure.cachyos_pahole import DEPENDENCY_NOTE
+        from bc250cc.application.system.cachyos_kernel import DEPENDENCY_NOTE
 
         message += "\n\n" + tr(DEPENDENCY_NOTE)
     if ui.confirm(message, danger=danger and argument != "status"):

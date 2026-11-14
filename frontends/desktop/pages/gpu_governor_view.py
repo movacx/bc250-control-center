@@ -1238,7 +1238,7 @@ class ContractPanel(QWidget):
 def _running_bc250_kernel() -> bool:
     import platform
 
-    from bc250cc.infrastructure.cachyos_bc250_kernel import running_bc250_kernel_variant
+    from bc250cc.application.system.cachyos_kernel import running_bc250_kernel_variant
 
     return bool(running_bc250_kernel_variant(platform.release()))
 

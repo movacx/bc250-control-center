@@ -84,6 +84,9 @@
    "ApplicationContainer.production": "CORE-0002",
    "ApplicationContainer.system_status": "CORE-0003"
   },
+  "bc250cc/application/cpu/core_unlock.py": {
+   "core_unlock_controls": "CPU-0333"
+  },
   "bc250cc/application/cpu/use_cases.py": {
    "validate_tuning_target": "CPU-0207"
   },
@@ -568,6 +571,7 @@
    "supported": "DRV-0052",
    "inventory": "DRV-0053",
    "_package_lines": "DRV-0054",
+   "_prepare_pactl": "DRV-0152",
    "_encoder_check": "DRV-0055",
    "_root_script": "DRV-0056",
    "_foreign_guard": "DRV-0057",
@@ -797,6 +801,11 @@
    "running_bc250_kernel_variant": "DIST-0014",
    "build_cachyos_bc250_kernel_command": "DIST-0015",
    "_build_proton_removal_command": "DIST-0128"
+  },
+  "bc250cc/infrastructure/cachyos_pahole.py": {
+   "kernel_pahole_requirement": "DIST-0142",
+   "pahole_dependency_state": "DIST-0143",
+   "build_pahole_prepare_command": "DIST-0144"
   },
   "bc250cc/infrastructure/container_network.py": {
    "setup_lines": "DIST-0016"
@@ -3134,6 +3143,8 @@
    "_ComponentRow._has_details": "UI-0724",
    "_ComponentRow._elide": "UI-0725",
    "_ComponentRow.resizeEvent": "UI-0726",
+   "_ComponentRow.changeEvent": "UI-0749",
+   "_ComponentRow._reflow": "UI-0750",
    "_ComponentRow._press": "UI-0727",
    "_ComponentRow._fill_menu": "UI-0728",
    "_ComponentRow.refresh": "UI-0729",
