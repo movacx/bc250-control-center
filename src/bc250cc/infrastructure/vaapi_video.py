@@ -448,7 +448,7 @@ def _install(family: str) -> str:
         "{ echo 'ERROR: the source archive does not have the expected layout.'; exit 29; }",
         f"mkdir -p {cache}",
         'echo "== Building in a Fedora container (a few minutes; nothing is installed yet) =="',
-        "bc250_podman=podman; podman info >/dev/null 2>&1 || bc250_podman='sudo podman'",
+        container_network.PICK_PODMAN,
         *container_network.setup_lines('"$bc250_podman"'),
         f'$bc250_podman run --rm $bc250_net --pull=missing -v "$bc250_stage/src":/src:ro,Z -v "$bc250_stage/out":/out:Z '
         f"{BUILD_IMAGE} bash -c {shlex.quote(build)}",
@@ -545,7 +545,7 @@ def _install32(family: str) -> str:
         "{ echo 'ERROR: the source archive does not have the expected layout.'; exit 29; }",
         f"mkdir -p {cache}",
         'echo "== Building the 32-bit driver in a Fedora container (a few minutes; nothing is installed yet) =="',
-        "bc250_podman=podman; podman info >/dev/null 2>&1 || bc250_podman='sudo podman'",
+        container_network.PICK_PODMAN,
         *container_network.setup_lines('"$bc250_podman"'),
         f'$bc250_podman run --rm $bc250_net --pull=missing -v "$bc250_stage/src":/src:ro,Z -v "$bc250_stage/out":/out:Z '
         f"-v {shlex.quote(str(PROBE32_SOURCE))}:/probe.c:ro,Z {BUILD_IMAGE} bash -c {shlex.quote(build)}",

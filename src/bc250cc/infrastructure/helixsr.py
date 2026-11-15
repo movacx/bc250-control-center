@@ -1953,7 +1953,13 @@ test ! -f {target}/{build_folder}/{dll_name} || bc250_built={target}/{build_fold
 test "$(tail -c {_EMBED_FOOTER} "$bc250_built/{dll_name}" | head -c {len(HELIXSR_EMBED_MAGIC)})" = {HELIXSR_EMBED_MAGIC.decode()} \\
   || {{ test -s {target}/{HELIXSR_NETWORK_FILES[0]} && test -s {target}/{HELIXSR_NETWORK_FILES[1]}; }} || {{
   echo "ERROR: the setup finished without building the network."; exit 1; }}'''
-    return f'''bc250_portable=1
+    return f'''# Two builds in one release folder delete each other's weights file (R-767bbe68:
+# the setup died at 99% with helixsr_weights.bin gone). One at a time.
+if command -v flock >/dev/null 2>&1; then
+  exec 9>{target}/.bc250-network-build.lock
+  flock -n 9 || {{ echo "ERROR: another HelixSR network build is already running (see your other terminal windows). Wait for it to finish."; exit 75; }}
+fi
+bc250_portable=1
 if command -v python3 >/dev/null 2>&1 && python3 -c 'import numpy, sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1; then
   bc250_portable=0
 fi
@@ -2832,6 +2838,15 @@ def remove_helixsr_bridge(appid: str) -> dict:
         if appid in _scaler_records():
             _forget_bridge_games()
             return remove_helixsr_scaler(appid)
+        listed = _folders()
+        entry = listed.get(appid)
+        if entry is not None and not Path(str(entry.get("path") or "")).is_dir():
+            # R-2e7f6048: the game was deleted from the disk; there is nothing
+            # to put back, so it only comes off the list.
+            listed.pop(appid)
+            _write_json(_folders_path(), listed)
+            _forget_bridge_games()
+            return {"game": str(entry.get("name") or appid), "forgotten": True}
         game = _game(appid)
         folder = Path(str(game["path"]))
         _refuse_running(folder)
@@ -2839,6 +2854,12 @@ def remove_helixsr_bridge(appid: str) -> dict:
         _forget_bridge_games()
         return {"game": str(game["name"])}
     folder = Path(record["folder"])
+    if not folder.is_dir():
+        # The game's folder is gone (uninstalled or moved): no file of it is left to restore.
+        del records[appid]
+        _write_json(_bridge_records_path(), records)
+        _forget_bridge_games()
+        return {"game": record["name"], "forgotten": True}
     _refuse_running(folder)
     _run_bridge("remove", "--game", str(folder))
     _forget_bridge_games()

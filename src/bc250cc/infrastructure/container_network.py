@@ -89,3 +89,16 @@ def setup_lines(podman: str = "podman") -> tuple[str, str]:
         f"{SUBID_FUNCTION_NAME} {podman} || exit 1; "
         f'{VARIABLE}="$({FUNCTION_NAME} {podman})"'
     )
+
+
+#: The line that picks which Podman runs the build. R-a148c990: on btrfs with a
+#: kernel that has no usable overlay, every ``podman`` command stopped at
+#: "'overlay' is not supported over btrfs", so the Fedora build container never
+#: started. The ``vfs`` storage driver needs nothing from the filesystem; it is
+#: slower and larger, so it is used only when the default driver cannot start.
+PICK_PODMAN = (
+    "bc250_podman=podman; podman info >/dev/null 2>&1 || bc250_podman='sudo podman'; "
+    "if ! $bc250_podman info >/dev/null 2>&1 && $bc250_podman --storage-driver vfs info >/dev/null 2>&1; then "
+    "echo \"[INFO] This filesystem cannot hold overlay container storage (btrfs without overlay support): "
+    "building with the slower vfs storage driver.\"; bc250_podman=\"$bc250_podman --storage-driver vfs\"; fi"
+)

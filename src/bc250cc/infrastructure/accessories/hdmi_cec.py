@@ -305,7 +305,7 @@ def _container_storage_lines() -> list[str]:
     """Budget extraction, Rust build files and temporary image copies before pulling."""
     return [
         'bc250_graphroot="$($bc250_podman info --format \'{{.Store.GraphRoot}}\')"',
-        'bc250_df=df; [ "$bc250_podman" != "sudo podman" ] || bc250_df="sudo df"',
+        'bc250_df=df; case "$bc250_podman" in "sudo podman"*) bc250_df="sudo df";; esac',
         'for bc250_storage in "$bc250_graphroot" "$bc250_stage" "${TMPDIR:-/var/tmp}"; do',
         '  bc250_free="$($bc250_df -Pk -- "$bc250_storage" | awk \'END {print $4}\')"',
         '  case "$bc250_free" in ""|*[!0-9]*) echo "ERROR: Cannot check free space on $bc250_storage"; exit 74;; esac',
@@ -340,7 +340,7 @@ def _container_lines(family: str) -> list[str]:
         "fi",
         f'echo "== Building cecd in {BUILD_IMAGE} (a few minutes, about 1 GB downloaded the first time; nothing is installed yet) =="',
         'mkdir -p "$bc250_stage/out"',
-        "bc250_podman=podman; podman info >/dev/null 2>&1 || bc250_podman='sudo podman'",
+        container_network.PICK_PODMAN,
         *_container_storage_lines(),
         *container_network.setup_lines('"$bc250_podman"'),
         f'$bc250_podman run --rm $bc250_net --pull=missing -v "$bc250_stage/out":/out:Z {BUILD_IMAGE} bash -c {shlex.quote(build)}',
