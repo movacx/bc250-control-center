@@ -46,19 +46,10 @@ def test_header_actions_stay_visible_without_covering_scrolled_controls(qtbot, w
 def test_sticky_buttons_keep_routes_translations_and_keyboard_activation(qtbot, monkeypatch):
     opened = []
     monkeypatch.setattr(dashboard_module, "open_external_url", lambda url: (opened.append(url) or True, ""))
-    reports = []
-
-    class Report:
-        def __init__(self, parent, **kwargs):
-            reports.append(kwargs)
-
-        def exec(self):
-            return 0
-
-    # The report button opens the form inside the app, not the browser.
-    monkeypatch.setattr(dashboard_module, "FeedbackDialog", Report)
     page = DashboardPage(object())
     qtbot.addWidget(page)
+    actions = []
+    page.action_requested.connect(actions.append)
     page.resize(1000, 800)
     page.show()
     try:
@@ -81,7 +72,8 @@ def test_sticky_buttons_keep_routes_translations_and_keyboard_activation(qtbot, 
         page.telegram_button.click()
         page.report_button.click()
         assert opened == [SUPPORT_URL, CONTACT_URL, TELEGRAM_URL]
-        assert reports == [{"opened_from": "Dashboard footer"}]
+        # The report form is a page of Settings > Support, not a window of its own.
+        assert actions == ["support"]
         assert TELEGRAM_URL.startswith("https://t.me/")
     finally:
         set_language("en")

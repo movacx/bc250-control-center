@@ -19,7 +19,7 @@ from PyQt6.QtCore import (
     QUrl,
     pyqtSignal,
 )
-from PyQt6.QtGui import QDesktopServices, QIcon, QPixmap
+from PyQt6.QtGui import QDesktopServices, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -28,7 +28,6 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
-    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -38,6 +37,7 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit,
     QScrollArea,
     QSizePolicy,
+    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -45,6 +45,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as _PlainButton
 
+from bc250cc.application.system.feedback import reports as sent_reports_store
 from bc250cc.infrastructure import SystemdUserService
 from bc250cc.infrastructure.apu_telemetry_service import apu_telemetry_state
 from bc250cc.infrastructure.gddr6_memory_temp_repository import (
@@ -82,7 +83,6 @@ from ..core.diagnostic_history import (
     diagnostic_report,
     history_entries,
 )
-from ..core.external_links import open_external_url
 from ..core.preferences import REPORT_GLOW_KEY, application_settings
 from ..core.raw_errors import remember
 from ..core.state import state_cache_for
@@ -153,7 +153,6 @@ OFFICIAL_REPOSITORIES = (
 )
 #: Repositories whose owner has archived them: still the reference for what they were, no longer updated.
 ARCHIVED_REPOSITORIES = frozenset({"duggasco/bc250-40cu-unlock"})
-CONTACT_URL = "https://discord.com/channels/1315924807128449065/1526169299490836510"
 
 
 def settings_stylesheet() -> str:
@@ -320,6 +319,76 @@ def settings_stylesheet() -> str:
     QWidget[settingsPage='true'] QFrame[repositoryRow='true']:hover {{
         border-color:{c['border_strong']}; background:{c['control_hover']};
     }}
+    QWidget[settingsPage='true'] QPushButton[supportCard='true'] {{
+        background:{c['panel_raised']}; border:1px solid {c['border_soft']}; border-radius:12px;
+        text-align:left; padding:0; min-height:112px;
+    }}
+    QWidget[settingsPage='true'] QPushButton[supportCard='true']:hover,
+    QWidget[settingsPage='true'] QPushButton[supportCard='true']:focus {{
+        border-color:{c['border_strong']}; background:{c['control_hover']};
+    }}
+    QWidget[settingsPage='true'] QPushButton[supportCard='true'][primaryCard='true'] {{
+        border-color:{c['blue']};
+    }}
+    QWidget[settingsPage='true'] QLabel[supportCardTitle='true'] {{
+        color:{c['text']}; font-size:13px; font-weight:700; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[supportCardText='true'] {{
+        color:{row_note}; font-size:11px; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[supportCardGo='true'] {{
+        color:{c['blue']}; font-size:11px; font-weight:650; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QPushButton[supportTab='true'] {{
+        background:transparent; border:none; border-bottom:2px solid transparent;
+        color:{c['muted']}; font-size:12px; font-weight:650; padding:8px 14px; border-radius:0;
+    }}
+    QWidget[settingsPage='true'] QPushButton[supportTab='true']:checked {{
+        color:{c['text']}; border-bottom-color:{c['blue']};
+    }}
+    QWidget[settingsPage='true'] QFrame[supportTable='true'] {{
+        background:{c['panel_raised']}; border:1px solid {c['border_soft']}; border-radius:10px;
+    }}
+    QWidget[settingsPage='true'] QFrame[supportTableHeader='true'] {{
+        background:{band}; border:none; border-bottom:1px solid {c['border_soft']};
+        border-top-left-radius:10px; border-top-right-radius:10px;
+    }}
+    QWidget[settingsPage='true'] QLabel[supportHeaderCell='true'] {{
+        color:{c['muted']}; font-size:10px; font-weight:650; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QFrame[supportTableRow='true'] {{
+        background:transparent; border:none; border-bottom:1px solid {c['border_soft']};
+    }}
+    QWidget[settingsPage='true'] QFrame[supportTableRow='true'][lastRow='true'] {{ border-bottom:none; }}
+    QWidget[settingsPage='true'] QFrame[supportTableRow='true']:hover {{ background:{c['control_hover']}; }}
+    QWidget[settingsPage='true'] QFrame[supportTableRow='true'] QLabel {{ background:transparent; }}
+    QWidget[settingsPage='true'] QPushButton[supportPill='true'] {{
+        background:{c['control']}; border:1px solid {c['border_soft']}; border-radius:12px;
+        color:{c['muted']}; font-size:11px; padding:4px 12px;
+    }}
+    QWidget[settingsPage='true'] QPushButton[supportPill='true']:checked {{
+        color:{c['text']}; border-color:{c['border_strong']};
+    }}
+    QWidget[settingsPage='true'] QLabel[sentId='true'] {{
+        color:{c['blue']}; background:transparent; font-size:11px;
+        font-family:'Noto Sans Mono','DejaVu Sans Mono',monospace;
+    }}
+    QWidget[settingsPage='true'] QLabel[rowSubtitle='true'] {{ color:{row_note}; font-size:11px; background:transparent; }}
+    QWidget[settingsPage='true'] QLabel[rowValue='true'] {{ color:{c['text']}; font-size:12px; background:transparent; }}
+    QWidget[settingsPage='true'] QLabel[supportSummaryHeading='true'] {{
+        color:{c['muted']}; font-size:10px; font-weight:650; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[supportFact='true'] {{
+        color:{c['text']}; font-size:12px; font-weight:600; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[supportWrote='true'] {{
+        color:{c['text']}; font-size:12px; background:{c['window']}; border:1px solid {c['border_soft']};
+        border-radius:8px; padding:10px 12px;
+    }}
+    QWidget[settingsPage='true'] QLabel[supportAttached='true'] {{
+        color:{c['text']}; font-size:12px; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QFrame[supportRule='true'] {{ background:{c['border_soft']}; border:none; }}
     QWidget[settingsPage='true'] QLabel[repositoryName='true'] {{
         color:{c['text']}; font-size:12px; font-weight:720;
     }}
@@ -1094,6 +1163,336 @@ class RepositoriesDialog(QDialog):
         localize_widget_tree(self)
 
 
+class SupportCard(QPushButton):
+    """A support action: a title, one line about it and where it leads."""
+
+    def __init__(self, title: str, text: str, go: str, *, primary: bool = False, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setProperty("supportCard", True)
+        self.setProperty("primaryCard", primary)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        column = QVBoxLayout(self)
+        column.setContentsMargins(16, 14, 16, 12)
+        column.setSpacing(4)
+        for key, label_text in (("supportCardTitle", title), ("supportCardText", text)):
+            label = QLabel(tr(label_text))
+            label.setProperty(key, True)
+            label.setWordWrap(True)
+            label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            column.addWidget(label)
+        column.addStretch(1)
+        arrow = QLabel(tr(go) + "  \u203a")
+        arrow.setProperty("supportCardGo", True)
+        arrow.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        column.addWidget(arrow)
+
+
+def _when(stamp: str) -> str:
+    """A sent report's time as a person says it: today, yesterday or the date."""
+    try:
+        moment = datetime.fromisoformat(stamp).astimezone()
+    except ValueError:
+        return ""
+    days = (datetime.now().astimezone().date() - moment.date()).days
+    if days == 0:
+        return tr_format("Today {time}", time=moment.strftime("%H:%M"))
+    if days == 1:
+        return tr_format("Yesterday {time}", time=moment.strftime("%H:%M"))
+    return moment.strftime("%Y-%m-%d %H:%M")
+
+
+class _ElidedLabel(QLabel):
+    """One line that ends in an ellipsis instead of widening its column."""
+
+    def __init__(self, text: str = "", parent: QWidget | None = None):
+        super().__init__(parent)
+        self._full = text
+        self.setMinimumWidth(24)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.setToolTip(text)
+
+    def set_full_text(self, text: str) -> None:
+        self._full = text
+        self.setToolTip(text)
+        self.update()
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        painter = QPainter(self)
+        painter.setPen(self.palette().color(self.foregroundRole()))
+        painter.setFont(self.font())
+        painter.drawText(self.rect(), int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft),
+                         self.fontMetrics().elidedText(self._full, Qt.TextElideMode.ElideRight, self.width()))
+
+
+def _clear_layout(layout) -> None:
+    """Remove everything in a layout, nested rows included, so nothing is left drawn."""
+    while layout.count():
+        item = layout.takeAt(0)
+        widget = item.widget()
+        if widget is not None:
+            widget.hide()
+            widget.setParent(None)
+            widget.deleteLater()
+        elif item.layout() is not None:
+            _clear_layout(item.layout())
+
+
+#: Column widths of the sent-reports table: ID, problem (takes the rest), version, when, actions.
+_SENT_COLUMNS = (116, 0, 70, 110, 156)
+
+
+def _in_week(stamp: str) -> bool:
+    try:
+        moment = datetime.fromisoformat(stamp).astimezone()
+    except ValueError:
+        return False
+    return (datetime.now().astimezone() - moment).days < 7
+
+
+def _copy_text(owner: QWidget, value: str) -> None:
+    clipboard = QApplication.clipboard()
+    if clipboard is not None:
+        clipboard.setText(value)
+    show_toast(owner, "Report ID copied", tone="blue")
+
+
+class SentReportsList(QWidget):
+    """The reports this computer sent, newest first, as a table: View and Copy on each."""
+
+    view_requested = pyqtSignal(dict)
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._column = QVBoxLayout(self)
+        self._column.setContentsMargins(0, 0, 0, 0)
+        self._column.setSpacing(10)
+        top = QHBoxLayout()
+        self.heading = QLabel(tr("Sent reports"))
+        self.heading.setProperty("groupTitle", True)
+        top.addWidget(self.heading)
+        top.addStretch(1)
+        self.filters: list[QPushButton] = []
+        group = QButtonGroup(self)
+        group.setExclusive(True)
+        for label in ("All reports", "This week"):
+            pill = _PlainButton(tr(label))
+            pill.setProperty("supportPill", True)
+            pill.setCheckable(True)
+            pill.setCursor(Qt.CursorShape.PointingHandCursor)
+            pill.clicked.connect(lambda _checked=False: self.refresh())
+            group.addButton(pill)
+            top.addWidget(pill)
+            self.filters.append(pill)
+        self.filters[0].setChecked(True)
+        self._column.addLayout(top)
+        self.table = QFrame()
+        self.table.setProperty("supportTable", True)
+        self._table_layout = QVBoxLayout(self.table)
+        self._table_layout.setContentsMargins(0, 0, 0, 0)
+        self._table_layout.setSpacing(0)
+        self._column.addWidget(self.table)
+        self.rows: list[QWidget] = []
+        self._actions_column = _SENT_COLUMNS[4]
+        self.refresh()
+
+    def _actions_width(self) -> int:
+        """Wide enough for View and Copy in this language, whatever the words are."""
+        probe_view, probe_copy = _PlainButton(tr("View")), _PlainButton(tr("Copy"))
+        for probe in (probe_view, probe_copy):
+            probe.setProperty("toolbarAction", True)
+        probe_copy.setIcon(icon("copy_gray"))
+        width = probe_view.sizeHint().width() + probe_copy.sizeHint().width() + 6
+        for probe in (probe_view, probe_copy):
+            probe.deleteLater()
+        return max(_SENT_COLUMNS[4], width + 6)
+
+    def _grid(self, frame: QFrame) -> QGridLayout:
+        grid = QGridLayout(frame)
+        grid.setContentsMargins(16, 0, 16, 0)
+        grid.setHorizontalSpacing(12)
+        widths = (*_SENT_COLUMNS[:4], self._actions_column)
+        for index, width in enumerate(widths):
+            if width:
+                grid.setColumnMinimumWidth(index, width)
+            else:
+                grid.setColumnStretch(index, 1)
+        return grid
+
+    @staticmethod
+    def _cell(widget: QWidget, width: int) -> QWidget:
+        """A fixed-width column cell whose content hugs the left edge."""
+        holder = QWidget()
+        holder.setFixedWidth(width)
+        row = QHBoxLayout(holder)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(widget)
+        row.addStretch(1)
+        return holder
+
+    def refresh(self) -> None:
+        _clear_layout(self._table_layout)
+        self.rows = []
+        self._actions_column = self._actions_width()
+        items = sent_reports_store.sent_reports()
+        if self.filters[1].isChecked():
+            items = [item for item in items if _in_week(str(item.get("sent_at") or ""))]
+        header = QFrame()
+        header.setProperty("supportTableHeader", True)
+        header.setFixedHeight(34)
+        grid = self._grid(header)
+        for index, label in enumerate(("ID", "Problem", "Version", "When")):
+            cell = QLabel(tr(label))
+            cell.setProperty("supportHeaderCell", True)
+            if _SENT_COLUMNS[index]:
+                cell.setFixedWidth(_SENT_COLUMNS[index])
+            grid.addWidget(cell, 0, index)
+        # An empty column gets no spacing: the actions column keeps the header aligned.
+        spacer = QLabel("")
+        spacer.setFixedWidth(self._actions_column)
+        grid.addWidget(spacer, 0, 4)
+        self._table_layout.addWidget(header)
+        self.rows.append(header)
+        if not items:
+            note = QLabel(tr("No reports sent yet. Each report you send shows here with its ID."))
+            note.setProperty("rowDescription", True)
+            note.setWordWrap(True)
+            note.setContentsMargins(16, 14, 16, 14)
+            self._table_layout.addWidget(note)
+            self.rows.append(note)
+            return
+        for position, item in enumerate(items):
+            self._table_layout.addWidget(self._row(item, last=position == len(items) - 1))
+
+    def _row(self, item: dict, *, last: bool) -> QFrame:
+        row = QFrame()
+        row.setProperty("supportTableRow", True)
+        row.setProperty("lastRow", last)
+        row.setFixedHeight(52)
+        grid = self._grid(row)
+        identifier = QLabel(str(item.get("id") or ""))
+        identifier.setProperty("sentId", True)
+        identifier.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        grid.addWidget(self._cell(identifier, _SENT_COLUMNS[0]), 0, 0)
+        cell = QVBoxLayout()
+        cell.setContentsMargins(0, 0, 0, 0)
+        cell.setSpacing(1)
+        title = _ElidedLabel(str(item.get("summary") or tr("Suggestion")))
+        title.setProperty("repositoryName", True)
+        area = tr("Suggestion") if str(item.get("kind") or "") == "idea" else tr(str(item.get("area") or ""))
+        cell.addWidget(title)
+        if area:
+            subtitle = _ElidedLabel(area)
+            subtitle.setProperty("rowSubtitle", True)
+            cell.addWidget(subtitle)
+        grid.addLayout(cell, 0, 1)
+        for column, text in ((2, str(item.get("version") or "")), (3, _when(str(item.get("sent_at") or "")))):
+            label = QLabel(text)
+            label.setProperty("rowValue", True)
+            grid.addWidget(self._cell(label, _SENT_COLUMNS[column]), 0, column)
+        actions = QWidget()
+        actions.setFixedWidth(self._actions_column)
+        action_row = QHBoxLayout(actions)
+        action_row.setContentsMargins(0, 0, 0, 0)
+        action_row.setSpacing(6)
+        action_row.addStretch(1)
+        view = _PlainButton(tr("View"))
+        view.setProperty("toolbarAction", True)
+        view.setCursor(Qt.CursorShape.PointingHandCursor)
+        view.clicked.connect(lambda _checked=False, entry=dict(item): self.view_requested.emit(entry))
+        copy = _PlainButton(tr("Copy"))
+        copy.setProperty("toolbarAction", True)
+        copy.setIcon(icon("copy_gray"))
+        copy.setCursor(Qt.CursorShape.PointingHandCursor)
+        copy.clicked.connect(lambda _checked=False, value=str(item.get("id") or ""): _copy_text(self, value))
+        action_row.addWidget(view)
+        action_row.addWidget(copy)
+        grid.addWidget(actions, 0, 4)
+        self.rows.append(row)
+        return row
+
+
+class SupportDetail(QWidget):
+    """One sent report: what it was about and what was attached, all kept on this computer."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        summary = QFrame()
+        summary.setProperty("supportTable", True)
+        column = QVBoxLayout(summary)
+        column.setContentsMargins(18, 18, 18, 18)
+        column.setSpacing(0)
+        self._facts = QGridLayout()
+        self._facts.setHorizontalSpacing(14)
+        self._facts.setVerticalSpacing(9)
+        self._facts.setColumnMinimumWidth(0, 110)
+        self._facts.setColumnStretch(1, 1)
+        column.addLayout(self._facts)
+        column.addSpacing(14)
+        column.addWidget(self._rule())
+        column.addSpacing(14)
+        column.addWidget(self._heading("What was attached"))
+        column.addSpacing(6)
+        self.attached = QVBoxLayout()
+        self.attached.setSpacing(6)
+        column.addLayout(self.attached)
+        column.addSpacing(14)
+        self.copy_id = _PlainButton(tr("Copy ID"))
+        self.copy_id.setProperty("toolbarAction", True)
+        self.copy_id.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.copy_id.clicked.connect(lambda: _copy_text(self, self._id))
+        column.addWidget(self.copy_id)
+        outer.addWidget(summary, 0, Qt.AlignmentFlag.AlignTop)
+        self._id = ""
+
+    @staticmethod
+    def _heading(text: str) -> QLabel:
+        # Small capitals, whatever the language: the catalogs keep the plain sentence.
+        label = QLabel(tr(text).upper())
+        label.setProperty("supportSummaryHeading", True)
+        return label
+
+    @staticmethod
+    def _rule() -> QFrame:
+        rule = QFrame()
+        rule.setProperty("supportRule", True)
+        rule.setFixedHeight(1)
+        return rule
+
+    def show_report(self, item: dict) -> None:
+        self._id = str(item.get("id") or "")
+        idea = str(item.get("kind") or "") == "idea"
+        title = str(item.get("summary") or tr("Suggestion"))
+        _clear_layout(self._facts)
+        rows = (
+            ("Problem", title),
+            ("Area", tr("Suggestion") if idea else (tr(str(item.get("area") or "")) or "\u2014")),
+            ("Code", str(item.get("code") or "\u2014")),
+            ("Version", str(item.get("version") or "\u2014")),
+            ("Sent", _when(str(item.get("sent_at") or "")) or "\u2014"),
+        )
+        for position, (label, value) in enumerate(rows):
+            name = QLabel(tr(label))
+            name.setProperty("rowDescription", True)
+            text = QLabel(value)
+            text.setProperty("supportFact", True)
+            text.setWordWrap(True)
+            self._facts.addWidget(name, position, 0, Qt.AlignmentFlag.AlignTop)
+            self._facts.addWidget(text, position, 1)
+        _clear_layout(self.attached)
+        names = ("Version and system", "Recent logs", "System diagnostics") if item.get("attached") else ()
+        if not names:
+            none = QLabel(tr("Nothing was attached."))
+            none.setProperty("rowDescription", True)
+            self.attached.addWidget(none)
+        for name in names:
+            line = QLabel(f"<span style='color:{COLORS['green']}'>\u2713</span>&nbsp;&nbsp;" + tr(name))
+            line.setTextFormat(Qt.TextFormat.RichText)
+            line.setProperty("supportAttached", True)
+            self.attached.addWidget(line)
+
+
 class SettingsPage(QWidget):
     section_requested = pyqtSignal(str)
     language_changed = pyqtSignal(str)
@@ -1227,10 +1626,7 @@ class SettingsPage(QWidget):
             ("console", "Terminal and controls", "terminal_window_gray"),
             ("hardware", "GPU governor", "gpu_blue"),
             ("telemetry", "Telemetry", "metrics_blue"),
-            # "and", never "&": a push button reads "&" as a keyboard
-            # mnemonic, and "History & reports" rendered as "History _reports".
-            ("diagnostics", "Diagnostics", "logs_gray"),
-            ("reports", "History and reports", "history_blue"),
+            # Diagnostics and the history live under About > Support > View reports.
             ("about", "About", "info_blue"),
         ]
         self.section_order = [key for key, _text, _icon in sections]
@@ -1245,7 +1641,6 @@ class SettingsPage(QWidget):
         self.nav_groups = (
             ("Interface", ("general", "appearance", "console")),
             ("Hardware", ("hardware", "telemetry")),
-            ("Data", ("diagnostics", "reports")),
             ("Application", ("about",)),
         )
         self.nav_captions: list[QLabel] = []
@@ -1493,7 +1888,12 @@ class SettingsPage(QWidget):
             self.select_section(shown[0])
 
     #: Pages opened from a section, shown under its tab with a way back.    #: Pages opened from a section, shown under its tab with a way back.
-    SUBPAGES = {"overview": "about", "repositories": "about"}
+    SUBPAGES = {
+        "overview": "about", "repositories": "about", "support": "about",
+        "support_report": "about", "support_reports": "about", "support_detail": "about",
+    }
+    #: Sections that moved into Support: the old key opens its tab.
+    SECTION_ALIASES = {"diagnostics": ("support_reports", 0), "reports": ("support_reports", 1)}
 
     def _show_section(self, key: str) -> None:
         owner = self.SUBPAGES.get(key, key)
@@ -1507,10 +1907,13 @@ class SettingsPage(QWidget):
 
     def _section_shown(self, key: str) -> None:
         """Fetch what a section shows, now that it is on screen."""
-        if key == "reports":
+        if key == "support_reports":
             self.refresh_history()
-        elif key == "diagnostics":
             self._refresh_diagnostics()
+        elif key == "support":
+            self.sent_reports_list.refresh()
+        elif key == "support_report":
+            self._open_report_form()
         elif key == "telemetry":
             self._load_daemon_config()
             self.refresh_daemon_status()
@@ -1524,8 +1927,10 @@ class SettingsPage(QWidget):
             "hardware": self._build_hardware_page,
             "console": self._build_console_page,
             "telemetry": self._build_telemetry_page,
-            "reports": self._build_reports_page,
-            "diagnostics": self._build_diagnostics_page,
+            "support": self._build_support_page,
+            "support_report": self._build_support_report_page,
+            "support_reports": self._build_support_reports_page,
+            "support_detail": self._build_support_detail_page,
             "about": self._build_about_page,
             "overview": self._build_overview_page,
             "repositories": self._build_repositories_page,
@@ -1540,6 +1945,7 @@ class SettingsPage(QWidget):
             self._section_pages[key] = placeholder
 
     def _ensure_section(self, key: str) -> QWidget | None:
+        key = self.SECTION_ALIASES.get(key, (key, 0))[0]
         if key not in self._page_builders:
             return None
         if key in self._built_sections:
@@ -2333,9 +2739,6 @@ class SettingsPage(QWidget):
     def _build_reports_page(self) -> QWidget:
         # No page title: the sidebar names it, and the table is the page.
         page, layout = self._build_page_frame("", "")
-        self.metrics_csv_button = self._small_button(
-            "Export metrics as CSV", lambda: self._export_runtime_metrics("csv")
-        )
         # Still written by the history code, never shown: the table says how
         # many events there are, and it refreshes each time it is opened.
         count = self._register_count("history_count", "0 events")
@@ -2347,7 +2750,6 @@ class SettingsPage(QWidget):
             "Recent activity",
             None,
             (
-                self.metrics_csv_button,
                 self._small_button("Open history folder", self._open_history_folder),
                 self._small_button("Clear history", self._clear_history),
             ),
@@ -2374,32 +2776,23 @@ class SettingsPage(QWidget):
         return page
 
     def _build_diagnostics_page(self) -> QWidget:
-        page, layout = self._build_page_frame(
-            "Diagnostics",
-            "This system at a glance and every error Control Center explained, ready to paste into a problem report.",
-        )
-        support = SettingsGroup("Help")
-        self.diagnostics_send_button = self._button("Send a report", self._send_problem_report, primary=True)
-        self.diagnostics_copy_button = self._small_button("Copy for a problem report", self._copy_diagnostic_report)
-        actions = QWidget()
-        actions_row = QHBoxLayout(actions)
-        actions_row.setContentsMargins(0, 0, 0, 0)
-        actions_row.setSpacing(8)
-        actions_row.addWidget(self.diagnostics_copy_button)
-        actions_row.addWidget(self.diagnostics_send_button)
-        support.add_row(SettingRow(
-            "Send a report",
-            "This system at a glance and every error Control Center explained, ready to paste into a problem report.",
-            actions,
+        # No title of its own: the tab above already names it. Sending a report
+        # is Support's job (its first card), so it is not offered a second time here.
+        page, layout = self._build_page_frame("", "")
+        self.diagnostics_copy_button = self._small_button("Copy diagnostics", self._copy_diagnostic_report)
+        self.diagnostics_refresh_button = self._small_button("Refresh", self._refresh_diagnostics)
+        detailed = QWidget()
+        detailed_row = QHBoxLayout(detailed)
+        detailed_row.setContentsMargins(0, 0, 8, 0)
+        detailed_row.setSpacing(8)
+        detailed_label = QLabel(tr("Detailed diagnostics"))
+        detailed_label.setProperty("rowDescription", True)
+        detailed_label.setToolTip(tr("Show complete device and configuration paths in technical diagnostic panels."))
+        detailed_row.addWidget(detailed_label)
+        detailed_row.addWidget(self._switch("settings/detailed_diagnostics", False, self.diagnostics_changed.emit))
+        layout.addWidget(self._table_header(
+            "System", None, (detailed, self.diagnostics_copy_button, self.diagnostics_refresh_button),
         ))
-        support.add_row(SettingRow(
-            "Detailed diagnostics",
-            "Show complete device and configuration paths in technical diagnostic panels.",
-            self._switch("settings/detailed_diagnostics", False, self.diagnostics_changed.emit),
-        ))
-        layout.addWidget(support)
-
-        layout.addWidget(self._table_header("System", None, ()))
         # A sheet, not a list: every fact in its own cell, so a screenshot of
         # it answers what a support thread asks first.
         self.system_table = self._sheet(("Item", "Value"))
@@ -2408,12 +2801,11 @@ class SettingsPage(QWidget):
         self.system_table.setWordWrap(True)
         layout.addWidget(self.system_table)
 
-        self.diagnostics_refresh_button = self._small_button("Refresh", self._refresh_diagnostics)
         self.diagnostics_clear_button = self._small_button("Clear history", self._clear_diagnostic_history)
         layout.addWidget(self._table_header(
             "Diagnostic history",
             self._register_count("diagnostics_count", "0 entries"),
-            (self.diagnostics_clear_button, self.diagnostics_refresh_button),
+            (self.diagnostics_clear_button,),
         ))
 
         self.diagnostics_table = self._sheet(("Date and time", "Code", "Where", "What happened", "Likely cause"))
@@ -2465,7 +2857,7 @@ class SettingsPage(QWidget):
         identity = QFrame()
         identity.setProperty("aboutIdentity", True)
         identity_layout = QHBoxLayout(identity)
-        identity_layout.setContentsMargins(0, 18, 0, 0)
+        identity_layout.setContentsMargins(0, 12, 0, 0)
         identity_layout.setSpacing(16)
         mark = QLabel()
         app_icon = Path(__file__).resolve().parents[3] / "assets" / "icons" / "bc250-control-center-128.png"
@@ -2481,13 +2873,8 @@ class SettingsPage(QWidget):
         name.setProperty("aboutName", True)
         version = QLabel(f"{tr('Version')} {__version__}")
         version.setProperty("aboutVersion", True)
-        text = QLabel("BC250 Control Center is a graphical interface for managing, preparing, and monitoring community tools for the AMD BC-250 board.")
-        text.setProperty("rowDescription", True)
-        text.setWordWrap(True)
         copy.addWidget(name)
         copy.addWidget(version)
-        copy.addSpacing(4)
-        copy.addWidget(text)
         identity_layout.addLayout(copy, 1)
         # As wide as its label: the wrapping button folded it into two lines.
         update = _PlainButton(tr("Update application"))
@@ -2501,6 +2888,7 @@ class SettingsPage(QWidget):
 
         group = SettingsGroup("Application")
         self.config_path_field = ReadOnlyPathField(str(Path(self._path_for("config")).expanduser().resolve().parent))
+        self.config_path_field.setMinimumWidth(400)
         folder = QWidget()
         folder_row = QHBoxLayout(folder)
         folder_row.setContentsMargins(0, 0, 0, 0)
@@ -2508,13 +2896,15 @@ class SettingsPage(QWidget):
         folder_row.addWidget(self.config_path_field, 1)
         folder_row.addWidget(self._small_button("Open", self._open_settings_folder))
         group.add_row(SettingRow("Configuration folder", "Shared application configuration used by the GUI and optional daemon.", folder))
+        for title, description, location in self._application_folders():
+            group.add_row(SettingRow(title, description, self._folder_field(location)))
         layout.addWidget(group)
 
         links = SettingsGroup("Help")
         for text, callback in (
             ("Project overview", self._show_project_overview),
             ("Official repositories", self._show_repositories),
-            ("Report a problem / Contact", self._open_contact),
+            ("Support", self._show_support),
         ):
             link = LinkRow(text, callback)
             links.layout_root.addWidget(link)
@@ -2523,14 +2913,45 @@ class SettingsPage(QWidget):
         layout.addStretch(1)
         return page
 
-    def _back_link(self, layout: QVBoxLayout, title: str) -> None:
-        """A way back to About, then the page's title."""
+    @staticmethod
+    def _application_folders() -> tuple[tuple[str, str, Path], ...]:
+        """The folders the application keeps its own files in, besides the configuration one."""
+        home = Path.home()
+        data = Path(os.environ.get("XDG_DATA_HOME") or home / ".local" / "share")
+        state = Path(os.environ.get("XDG_STATE_HOME") or home / ".local" / "state")
+        return (
+            ("Data folder", "Tools, helper scripts and releases the application manages for you.", data / "bc250-control-center"),
+            ("State and logs", "Application log, workflow logs, saved reports and the list of sent reports.", state / "bc250-control-center"),
+            ("System data", "Data the application keeps for the whole system.", Path("/var/lib/bc250-control-center")),
+        )
+
+    def _folder_field(self, location: Path) -> QWidget:
+        holder = QWidget()
+        row = QHBoxLayout(holder)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        field = ReadOnlyPathField(str(location))
+        # Long enough to read a whole path at a glance.
+        field.setMinimumWidth(400)
+        row.addWidget(field, 1)
+        row.addWidget(self._small_button("Open", lambda _checked=False, target=location: self._open_existing_folder(target)))
+        return holder
+
+    def _open_existing_folder(self, location: Path) -> None:
+        """Open a folder; one that does not exist yet is not created just to be looked at."""
+        if not location.is_dir():
+            show_toast(self, "That folder does not exist yet.", tone="blue")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(location)))
+
+    def _back_link(self, layout: QVBoxLayout, title: str, target: str = "about", label: str = "About") -> None:
+        """A way back (to About unless told otherwise), then the page's title."""
         row = QHBoxLayout()
         row.setContentsMargins(0, 18, 0, 0)
-        back = QPushButton("\u2039  " + tr("About"))
+        back = QPushButton("\u2039  " + tr(label))
         back.setProperty("backLink", True)
         back.setCursor(Qt.CursorShape.PointingHandCursor)
-        back.clicked.connect(lambda: self.select_section("about"))
+        back.clicked.connect(lambda: self.select_section(target))
         row.addWidget(back)
         row.addStretch(1)
         layout.addLayout(row)
@@ -2562,6 +2983,91 @@ class SettingsPage(QWidget):
             layout.addWidget(group)
         layout.addStretch(1)
         return page
+
+    def _build_support_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Support")
+        layout.addSpacing(14)
+        cards = QGridLayout()
+        cards.setHorizontalSpacing(12)
+        cards.setVerticalSpacing(12)
+        for column, (title, text, go, section, primary) in enumerate((
+            ("Report a problem", "Tell us what failed. We attach the diagnostics for you.", "Begin", "support_report", True),
+            ("View reports", "System diagnostics and the movement history.", "Open", "support_reports", False),
+        )):
+            card = SupportCard(title, text, go, primary=primary)
+            card.clicked.connect(lambda _checked=False, target=section: self.select_section(target))
+            cards.addWidget(card, 0, column)
+            cards.setColumnStretch(column, 1)
+        layout.addLayout(cards)
+        layout.addSpacing(22)
+        self.sent_reports_list = SentReportsList()
+        self.sent_reports_list.view_requested.connect(self._show_report_detail)
+        layout.addWidget(self.sent_reports_list)
+        layout.addSpacing(8)
+        note = QLabel(tr("Keep the ID to ask about a report on GitHub or Discord. The list only exists on this computer."))
+        note.setProperty("rowDescription", True)
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        layout.addStretch(1)
+        return page
+
+    def _build_support_report_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Report a problem", "support", "Support")
+        layout.addSpacing(10)
+        host = QWidget()
+        self.report_form_host = QVBoxLayout(host)
+        self.report_form_host.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(host, 1)
+        return page
+
+    def _build_support_reports_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "View reports", "support", "Support")
+        layout.addSpacing(6)
+        tabs = QHBoxLayout()
+        tabs.setSpacing(2)
+        self.report_tabs = []
+        self.report_tab_pages = QStackedWidget()
+        group = QButtonGroup(page)
+        group.setExclusive(True)
+        for index, (label, builder) in enumerate((
+            ("Diagnostics", self._build_diagnostics_page),
+            ("Movement history", self._build_reports_page),
+        )):
+            tab = _PlainButton(tr(label))
+            tab.setProperty("supportTab", True)
+            tab.setCheckable(True)
+            tab.setCursor(Qt.CursorShape.PointingHandCursor)
+            group.addButton(tab)
+            tab.clicked.connect(lambda _checked=False, position=index: self.report_tab_pages.setCurrentIndex(position))
+            tabs.addWidget(tab)
+            self.report_tabs.append(tab)
+            self.report_tab_pages.addWidget(builder())
+        tabs.addStretch(1)
+        self.report_tabs[0].setChecked(True)
+        layout.addLayout(tabs)
+        layout.addSpacing(10)
+        layout.addWidget(self.report_tab_pages)
+        return page
+
+    def _build_support_detail_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Report", "support", "Support")
+        heading = layout.itemAt(layout.count() - 1).widget()
+        self.detail_title = heading
+        layout.addSpacing(14)
+        self.support_detail = SupportDetail()
+        layout.addWidget(self.support_detail)
+        layout.addStretch(1)
+        return page
+
+    def _show_report_detail(self, item: dict) -> None:
+        self._ensure_section("support_detail")
+        self.detail_title.setText(str(item.get("id") or ""))
+        self.support_detail.show_report(item)
+        self._show_section("support_detail")
 
     def _build_repositories_page(self) -> QWidget:
         page, layout = self._build_page_frame("", "")
@@ -2903,41 +3409,6 @@ class SettingsPage(QWidget):
     def _portable_start_directory(self) -> str:
         return str(Path(self._path_for("config")).expanduser().resolve().parent)
 
-    def _export_runtime_metrics(self, format_name: str) -> None:
-        # Settings intentionally exposes one interoperable report format.
-        format_name = "csv"
-        destination, _selected_filter = QFileDialog.getSaveFileName(
-            self,
-            tr_format("Export metrics as {format}", format=format_name.upper()),
-            str(Path(self._portable_start_directory()) / f"bc250-metrics.{format_name}"),
-            tr_format("Metrics file (*.{extension})", extension=format_name),
-        )
-        if not destination:
-            return
-        destination_path = Path(destination).expanduser()
-        if destination_path.suffix.lower() != ".csv":
-            destination_path = destination_path.with_suffix(".csv")
-        destination = str(destination_path)
-
-        def success(result: object) -> None:
-            show_toast(
-                self,
-                "Metrics export completed",
-                tr_format("Recorded metrics were saved to {path}.", path=result),
-                tone="green",
-            )
-
-        self._start_task(
-            lambda: self.settings_service.export_runtime_metrics(destination, format_name),
-            success,
-            lambda message: InfoDialog(
-                "Metrics export failed", message, icon_name="warning_orange", parent=self,
-                eyebrow="REPORTS",
-                notice="No incomplete export was kept.", tone="red",
-            ).exec(),
-            controls=(self.metrics_csv_button,),
-        )
-
     def refresh_history(self, force: bool = False) -> None:
         # state_cache.events() delegates to the injected activity service in a
         # worker and caches the JSONL result briefly between settings tabs.
@@ -3106,13 +3577,6 @@ class SettingsPage(QWidget):
             parts.append(f"{tr('Technical detail')}\n{entry.detail}")
         self.diagnostics_detail.setPlainText("\n\n".join(parts))
 
-    def _send_problem_report(self) -> None:
-        from ..components.feedback_dialog import FeedbackDialog
-
-        # The report carries the recent errors; which one it is about is the
-        # owner's to say, so no code is guessed here.
-        FeedbackDialog(self, opened_from="Settings › Diagnostics").exec()
-
     def _copy_diagnostic_report(self) -> None:
         report = diagnostic_report(self._system_rows, self._diagnostic_entries)
         QApplication.clipboard().setText(report)
@@ -3126,19 +3590,27 @@ class SettingsPage(QWidget):
     def _show_repositories(self) -> None:
         self._show_section("repositories")
 
-    def _open_contact(self) -> None:
-        opened, message = open_external_url(CONTACT_URL)
-        if opened:
-            return
-        InfoDialog(
-            "Contact link could not be opened",
-            message,
-            icon_name="warning_orange",
-            parent=self,
-            eyebrow="CONTACT",
-            notice=tr_format("Copy this address manually: {url}", url=CONTACT_URL),
-            tone="orange",
-        ).exec()
+    def _show_support(self) -> None:
+        self._show_section("support")
+
+    def _select_report_tab(self, index: int) -> None:
+        tabs = getattr(self, "report_tabs", None)
+        if tabs is not None and 0 <= index < len(tabs):
+            tabs[index].setChecked(True)
+            self.report_tab_pages.setCurrentIndex(index)
+
+    def _open_report_form(self) -> None:
+        """A fresh form each time, inside this window instead of one of its own."""
+        from ..components.feedback_dialog import FeedbackDialog
+
+        while self.report_form_host.count():
+            item = self.report_form_host.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        form = FeedbackDialog(self, embedded=True, opened_from="Settings › Support")
+        form.closed.connect(lambda: self.select_section("support"))
+        self.report_form = form
+        self.report_form_host.addWidget(form)
 
     def _update_application(self) -> None:
         # The same updater as the dashboard: it picks the route for how this
@@ -3156,6 +3628,11 @@ class SettingsPage(QWidget):
         return self.scroll
 
     def select_section(self, key: str) -> None:
+        if key in self.SECTION_ALIASES:
+            key, tab = self.SECTION_ALIASES[key]
+            self._show_section(key)
+            self._select_report_tab(tab)
+            return
         if key in self.SUBPAGES:
             # A page opened from a section (About › Official repositories).
             self._show_section(key)
@@ -3372,6 +3849,9 @@ class SettingsDialog(QDialog):
         self.close_button.setFixedSize(30, 30)
         self.close_button.setToolTip("Close")
         self.close_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        # Not the dialog's default button: Enter in a search box would press it and close Settings.
+        self.close_button.setAutoDefault(False)
+        self.close_button.setDefault(False)
         self.close_button.clicked.connect(self._request_close)
         self.close_button.raise_()
         self._localized_language = current_language()
@@ -3401,6 +3881,14 @@ class SettingsDialog(QDialog):
             )
             return
         super().reject()
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        # Enter in a search box means "search", not "press the default button":
+        # QDialog would otherwise click the first button it finds and close Settings.
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and isinstance(self.focusWidget(), QLineEdit):
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def reject(self) -> None:
         self._request_close()

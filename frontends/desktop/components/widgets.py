@@ -35,6 +35,7 @@ from ..core.diagnostic_history import (
 from ..core.error_diagnostics import (
     error_sections,
     format_error_for_user,
+    umr_is_missing,
     umr_repair_command,
 )
 from ..core.preferences import report_glow_enabled
@@ -439,11 +440,14 @@ class InfoDialog(QDialog):
         self.origin = None
         self.raw_error = None
         self.opened_at = time.time()
-        if tone == "red" and _asks_for_an_action(message):
+        if tone == "red" and _asks_for_an_action(message) and not umr_is_missing(message):
             # Refused before anything changed until the user does one thing
             # (close Steam, prepare dependencies): say what to do, without an
-            # error code that invites a problem report.
+            # error code that invites a problem report. A UMR that is not
+            # installed is the exception: it is a missing piece of the system,
+            # so it keeps the full error window with its install command.
             tone, icon_name = "orange", "warning_orange"
+
         if tone == "red":
             self.origin = caller_origin()
             self.raw_error = find_raw_error(message)
@@ -458,6 +462,9 @@ class InfoDialog(QDialog):
             # steps point at it, so it must not hide under the scrolled detail.
             if not copy_text:
                 umr_command = umr_repair_command(message, context=context)
+                if umr_command:
+                    # A section of the window, where the steps say it is.
+                    copy_text, copy_button_text, umr_command = umr_command, "Copy command", ""
             explained = error_sections(message, context=context, translate=tr, section=section, classify=english)
             if explained is not None:
                 sections, report_code = explained
@@ -521,40 +528,11 @@ class InfoDialog(QDialog):
         content = QWidget()
         content.setObjectName("DialogContent")
         content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(22, 18, 22, 20)
-        content_layout.setSpacing(14)
+        roomy = tone == "red"
+        content_layout.setContentsMargins(26, 22, 26, 24) if roomy else content_layout.setContentsMargins(22, 18, 22, 20)
+        content_layout.setSpacing(18 if roomy else 14)
 
-        self.spinner: BusySpinner | None = None
-        if tone == "red":
-            # First the identity of the failure: what kind (code), which screen
-            # action showed it (origin) and which function raised it.
-            content_layout.addWidget(_error_identity(report_code, self.origin, self.raw_error, self.opened_at))
-        if sections:
-            # Then three plain answers, and the evidence last, raw.
-            *answers, (_detail_heading, detail_text) = sections
-            for heading, text in answers:
-                content_layout.addWidget(_dialog_section(heading, text))
-            content_layout.addWidget(_raw_error_block(detail_text, self.raw_error))
-        else:
-            body = QLabel(message)
-            body.setObjectName("DialogBody")
-            body.setWordWrap(True)
-            body.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            if busy:
-                # Something is still running: the ring says so, and whoever
-                # opened the dialog closes it the moment that work ends.
-                busy_row = QHBoxLayout()
-                busy_row.setContentsMargins(0, 0, 0, 0)
-                busy_row.setSpacing(10)
-                self.spinner = BusySpinner(18, "cyan" if tone != "red" else "red")
-                busy_row.addWidget(self.spinner, 0, Qt.AlignmentFlag.AlignVCenter)
-                busy_row.addWidget(body, 1)
-                content_layout.addLayout(busy_row)
-                self.spinner.start()
-            else:
-                content_layout.addWidget(body)
-
-        if copy_text:
+        def command_box() -> QFrame:
             copy_frame = QFrame()
             copy_frame.setObjectName("DialogDetail")
             copy_layout = QHBoxLayout(copy_frame)
@@ -577,7 +555,45 @@ class InfoDialog(QDialog):
 
             copy_button.clicked.connect(copy_to_clipboard)
             copy_layout.addWidget(copy_button, 0, Qt.AlignmentFlag.AlignTop)
-            content_layout.addWidget(copy_frame)
+            return copy_frame
+
+        command_added = False
+        self.spinner: BusySpinner | None = None
+        if tone == "red":
+            # First the identity of the failure: what kind (code), which screen
+            # action showed it (origin) and which function raised it.
+            content_layout.addWidget(_error_identity(report_code, self.origin, self.raw_error, self.opened_at))
+        if sections:
+            # Then three plain answers, and the evidence last, raw.
+            *answers, (_detail_heading, detail_text) = sections
+            for heading, text in answers:
+                content_layout.addWidget(_dialog_section(heading, text))
+            if copy_text:
+                # The command sits right under the steps that point at it.
+                content_layout.addWidget(command_box())
+                command_added = True
+            content_layout.addWidget(_raw_error_block(detail_text, self.raw_error))
+        else:
+            body = QLabel(message)
+            body.setObjectName("DialogBody")
+            body.setWordWrap(True)
+            body.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            if busy:
+                # Something is still running: the ring says so, and whoever
+                # opened the dialog closes it the moment that work ends.
+                busy_row = QHBoxLayout()
+                busy_row.setContentsMargins(0, 0, 0, 0)
+                busy_row.setSpacing(10)
+                self.spinner = BusySpinner(18, "cyan" if tone != "red" else "red")
+                busy_row.addWidget(self.spinner, 0, Qt.AlignmentFlag.AlignVCenter)
+                busy_row.addWidget(body, 1)
+                content_layout.addLayout(busy_row)
+                self.spinner.start()
+            else:
+                content_layout.addWidget(body)
+
+        if copy_text and not command_added:
+            content_layout.addWidget(command_box())
 
         if notice:
             notice_text = QLabel(notice)

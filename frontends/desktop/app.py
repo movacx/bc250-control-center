@@ -1781,6 +1781,9 @@ class ControlCenterWindow(QMainWindow):
             # terminal launcher, but it does not need to become visible.
             self.fans_page.prepare_pwm_driver(dialog_parent=self)
             return
+        if action == "support":
+            self._open_settings_dialog("support")
+            return
         if action == "open_logs":
             self._open_settings_dialog("reports")
             return

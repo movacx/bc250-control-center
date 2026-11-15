@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 
 import frontends.desktop.core.external_links as external_links_module
-import frontends.desktop.pages.settings as settings_module
 from frontends.desktop.core.external_links import open_external_url, open_local_file
 
 
@@ -24,30 +23,6 @@ def test_external_link_handler_exception_is_graceful():
     )
     assert opened is False
     assert "desktop unavailable" in message
-
-
-def test_settings_contact_fallback_shows_copyable_url(monkeypatch):
-    shown = {}
-
-    class FakeDialog:
-        def __init__(self, title, message, **kwargs):
-            shown.update(title=title, message=message, **kwargs)
-
-        def exec(self):
-            shown["executed"] = True
-
-    monkeypatch.setattr(
-        settings_module,
-        "open_external_url",
-        lambda _url: (False, "desktop unavailable"),
-    )
-    monkeypatch.setattr(settings_module, "InfoDialog", FakeDialog)
-
-    settings_module.SettingsPage._open_contact(SimpleNamespace())
-
-    assert shown["executed"] is True
-    assert shown["message"] == "desktop unavailable"
-    assert settings_module.CONTACT_URL in shown["notice"]
 
 
 def test_external_link_rejects_non_https_without_calling_handler():

@@ -125,40 +125,11 @@ def _page(qtbot, tmp_path, monkeypatch):
     return page, controller, notices
 
 
-def test_reports_page_exposes_only_csv_metrics_export(
-    qtbot, tmp_path, monkeypatch
-):
-    page, controller, notices = _page(qtbot, tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        settings_module.QFileDialog,
-        "getSaveFileName",
-        lambda *_args, **_kwargs: (str(tmp_path / "metrics"), ""),
-    )
-
-    page.metrics_csv_button.click()
-
-    assert controller.calls == [
-        ("export-metrics", str(tmp_path / "metrics.csv"), "csv"),
-    ]
-    assert [item[0] for item in notices] == ["Metrics export completed"]
+def test_history_offers_no_metrics_export(qtbot, tmp_path, monkeypatch):
+    page, controller, _notices = _page(qtbot, tmp_path, monkeypatch)
+    assert not hasattr(page, "metrics_csv_button") and not hasattr(page, "_export_runtime_metrics")
     assert "health" not in page.section_order
     assert not hasattr(page, "profile_export_button")
-    assert not hasattr(page, "metrics_jsonl_button")
-
-
-def test_cancelled_file_dialog_performs_no_operation(qtbot, tmp_path, monkeypatch):
-    page, controller, _notices = _page(qtbot, tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        settings_module.QFileDialog,
-        "getSaveFileName",
-        lambda *_args, **_kwargs: ("", ""),
-    )
-    monkeypatch.setattr(
-        settings_module.QFileDialog,
-        "getOpenFileName",
-        lambda *_args, **_kwargs: ("", ""),
-    )
-    page.metrics_csv_button.click()
     assert controller.calls == []
 
 
@@ -168,15 +139,7 @@ def test_current_reports_copy_is_translated_in_every_language():
         "Metrics report",
         "Export recorded samples as a spreadsheet-ready CSV file.",
         "Recent activity",
-        "Export metrics as CSV",
         "REPORTS",
-        "Export metrics as {format}",
-        "Metrics file (*.{extension})",
-        "Metrics export completed",
-        "Metrics export failed",
-        "Recorded metrics were saved to {path}.",
-        "The CSV contains recorded samples and can be opened in a spreadsheet.",
-        "No incomplete export was kept.",
     )
     for language in SUPPORTED_LANGUAGES - {"en"}:
         assert all(tr(source, language) != source for source in sources), language

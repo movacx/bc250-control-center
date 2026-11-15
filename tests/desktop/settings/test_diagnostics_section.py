@@ -252,7 +252,7 @@ def test_copy_puts_the_report_on_the_clipboard_and_clear_empties_it(qtbot, page)
 
 def test_the_old_health_section_is_gone(page):
     assert "health" not in page.section_order and not hasattr(page, "health_table")
-    assert json.dumps(page.section_order).count("diagnostics") == 1
+    assert "diagnostics" not in page.section_order and "diagnostics" in page.SECTION_ALIASES
 
 
 def test_an_older_entry_shows_the_wording_its_code_has_today(journal_file):

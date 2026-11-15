@@ -470,6 +470,21 @@ _CODES: tuple[ErrorCode, ...] = (
         ),
         requires="returned error: 404",
     ),
+    # R-f193b192: a package whose checksum does not match the repository's list
+    # was taken for a signature problem, and the advice (update the keyring)
+    # could not help. The kernel workflow now deletes the damaged copy and
+    # downloads it again by itself; this explains it when that also fails.
+    ErrorCode(
+        "BC250-PKG-006",
+        "A downloaded package was damaged.",
+        "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.",
+        "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.",
+        markers=(
+            # No brackets: the terminal wrapper reads markers as regular expressions.
+            "corrupted package .checksum",
+            "BC-250 repository is serving a damaged package",
+        ),
+    ),
     ErrorCode(
         "BC250-PKG-002",
         "The package signature or repository key could not be verified.",

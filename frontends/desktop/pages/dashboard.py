@@ -38,7 +38,6 @@ from ..components.dashboard_widgets import (
     PreparationSidebar,
     UpdateCallout,
 )
-from ..components.feedback_dialog import FeedbackDialog
 from ..components.i2c_guide import I2cGuideDialog
 from ..components.responsive import (
     clear_grid,
@@ -719,24 +718,8 @@ class DashboardPage(QWidget):
         ).exec()
 
     def _open_report(self) -> None:
-        # The form inside the app; the browser only when it cannot be built.
-        try:
-            FeedbackDialog(self.window(), opened_from="Dashboard footer").exec()
-            return
-        except Exception:  # noqa: BLE001 - the browser form still works
-            logger.exception("The report form could not be opened")
-        opened, message = open_external_url(REPORT_URL)
-        if opened:
-            return
-        InfoDialog(
-            "Report form could not be opened",
-            message,
-            icon_name="warning_orange",
-            parent=self,
-            eyebrow="CONTACT",
-            notice=tr_format("Copy this address manually: {url}", url=REPORT_URL),
-            tone="orange",
-        ).exec()
+        # The form is a page of Settings (Support), not a window of its own.
+        self.action_requested.emit("support")
 
     def _open_support(self) -> None:
         opened, message = open_external_url(SUPPORT_URL)
