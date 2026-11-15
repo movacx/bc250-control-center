@@ -7,6 +7,7 @@ from typing import NamedTuple
 from PyQt6.QtCore import QPoint, QRect, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QGridLayout,
+    QLabel,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -148,7 +149,7 @@ class DashboardPage(QWidget):
     def __init__(self, controller, parent: QWidget | None = None):
         super().__init__(parent)
         self.controller = controller
-        self.state = DashboardState()
+        self.state = DashboardState(loaded=False)
         # Settings › Telemetry: show the Power delivery rails whatever the
         # automatic detection decided, for a mod being wired or tested.
         self._vrm_manual = False
@@ -258,7 +259,6 @@ class DashboardPage(QWidget):
         for key, label, group in (
             ("duty", "PWM duty", "Fan"),
             ("mode", "PWM mode", "Fan"),
-            ("controller", "Controller", "Fan"),
             ("board", "Board temperature", "Fan"),
             ("nvme", "Temperature", "M.2 drive"),
             ("hotspot", "Hotspot", "M.2 drive"),
@@ -466,6 +466,7 @@ class DashboardPage(QWidget):
         # is the path that carries them: without it they would only change on
         # a full refresh while every other sensor ticked.
         self._apply_fan_card(self.state)
+        self._mark_still_reading(self.state)
 
     def _live_failed(self, message: str) -> None:
         self._apply_live_sample((time.monotonic(), {}))
@@ -792,6 +793,20 @@ class DashboardPage(QWidget):
         self._apply_cpu_card(state)
         self._apply_fan_card(state)
         self.readiness.set_state(state)
+        self._mark_still_reading(state)
+
+    def _mark_still_reading(self, state: DashboardState) -> None:
+        """Before the first read returns, an empty field says so instead of "Not detected".
+
+        The first read takes a moment; showing "Not detected" meanwhile made a
+        working fan, governor and VRM look missing for the first seconds.
+        """
+        if state.loaded:
+            return
+        absent, reading = tr("Not detected"), tr("Checking…")
+        for label in self.findChildren(QLabel):
+            if label.text() == absent:
+                label.setText(reading)
 
     def _announce_attention(self, state: DashboardState) -> None:
         """Say once per session what the installed tools need, as a toast.
@@ -1035,7 +1050,9 @@ class DashboardPage(QWidget):
                 hotspot = f"{hotspot} · {tr('Read by the kernel driver (bc250_memory)')}"
             summary.set_detail(hotspot)
         else:
-            summary.set_value("Waiting for sample")
+            # Read only during a live session: between sessions it is off, not
+            # "waiting" for something that will never come on its own.
+            summary.set_value("Waiting for sample" if reading.live else "Off")
             summary.set_detail("")
         # Why the button is off, when it is, or why the last session ended.
         # Saying nothing is what made this look broken: a disabled control
@@ -1066,7 +1083,8 @@ class DashboardPage(QWidget):
         details["oc"].set_value(
             tr_format("{frequency} MHz", frequency=state.cpu_oc_frequency_mhz)
             if state.cpu_oc_active and state.cpu_oc_frequency_mhz > 0
-            else "Not detected",
+            # No overclock saved is an answer, not a missing sensor.
+            else "None",
             tr_format("Scale {scale}", scale=state.cpu_oc_scale)
             if state.cpu_oc_active and state.cpu_oc_scale is not None
             else "",
@@ -1131,9 +1149,6 @@ class DashboardPage(QWidget):
         details["mode"].set_value(
             FAN_OWNER_LABELS.get(state.fan_owner) or state.fan_mode or "Not detected"
         )
-        details["controller"].set_value(
-            state.fan_controller_label or "Not detected"
-        )
         # Neither the board nor the drive is a processor or a graphics
         # reading. They are the thermal environment this fan manages, and the
         # board sensor is one of the four inputs of its automatic curve.
@@ -1169,6 +1184,9 @@ class DashboardPage(QWidget):
         next sample and loses it once it is unmounted.
         """
         details = self.fan_card.details
+        # Folded until opened: each plugged-in drive would otherwise make the
+        # cooling card taller on its own.
+        details.set_collapsible("Storage", collapsed=True)
         wanted = {f"disk:{mountpoint}": item for mountpoint, *item in state.extra_disks}
         for key in [key for key in details.readings if key.startswith("disk:") and key not in wanted]:
             details.remove(key)
@@ -1257,8 +1275,10 @@ class DashboardPage(QWidget):
         """What the processor's own VRM reports, when anything does."""
         if state.vrm_source != "pmbus":
             return "Not detected", ""
-        detail = f"{state.vrm_cpu_power_w:.1f} W" if state.vrm_cpu_power_w > 0 else ""
-        return self._format_temperature(state.vrm_cpu_temperature_c), detail
+        # Temperature only. The rail's power comes and goes (an idle CPU rail
+        # reads 0 W), and the line under the value appearing and vanishing made
+        # the whole card jump. The power band below already shows it.
+        return self._format_temperature(state.vrm_cpu_temperature_c), ""
 
     def _show_vrm_help(self) -> None:
         """Where the power delivery readings come from on this board, the
@@ -1309,20 +1329,20 @@ class DashboardPage(QWidget):
         strip["input"].set_value(self._format_volts(state.vrm_input_voltage_v))
         strip["cpu_voltage"].set_value(self._format_volts(state.vrm_cpu_voltage_v))
         strip["gpu_voltage"].set_value(self._format_volts(state.vrm_gpu_voltage_v))
-        strip["total"].set_value(self._format_watts(state.vrm_total_power_w))
-        strip["cpu_current"].set_value(self._format_amps(state.vrm_cpu_current_a))
-        strip["gpu_current"].set_value(self._format_amps(state.vrm_gpu_current_a))
+        # The regulator answered: an idle rail reading 0 A or 0 W is a reading,
+        # not a missing sensor. Showing it as 0.0 keeps every cell the same
+        # size; dropping it made the line under the temperature come and go
+        # and the whole band jump with it.
+        strip["total"].set_value(self._rail_reading(state.vrm_total_power_w, "W"))
+        strip["cpu_current"].set_value(self._rail_reading(state.vrm_cpu_current_a, "A"))
+        strip["gpu_current"].set_value(self._rail_reading(state.vrm_gpu_current_a, "A"))
         strip["cpu_temperature"].set_value(
             self._format_temperature(state.vrm_cpu_temperature_c),
-            self._format_watts(state.vrm_cpu_power_w)
-            if state.vrm_cpu_power_w > 0
-            else "",
+            self._rail_reading(state.vrm_cpu_power_w, "W"),
         )
         strip["gpu_temperature"].set_value(
             self._format_temperature(state.vrm_gpu_temperature_c),
-            self._format_watts(state.vrm_gpu_power_w)
-            if state.vrm_gpu_power_w > 0
-            else "",
+            self._rail_reading(state.vrm_gpu_power_w, "W"),
         )
         # The PMIC raises these itself, before anything is damaged.
         for key in ("cpu_temperature", "gpu_temperature"):
@@ -1391,6 +1411,11 @@ class DashboardPage(QWidget):
         if not any(rail.get("valid") for rail in rails):
             return tr("Manual mode · no valid answer from the PMIC; values as BC250-Telemetry reports them")
         return tr("Manual mode")
+
+    @staticmethod
+    def _rail_reading(value: float, unit: str) -> str:
+        """A rail the regulator reported: never negative, 0.0 when idle."""
+        return f"{max(0.0, float(value or 0.0)):.1f} {unit}"
 
     @staticmethod
     def _format_amps(value_a: float) -> str:

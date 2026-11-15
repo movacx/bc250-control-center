@@ -6195,5 +6195,22 @@
   "What was attached": "Какво е приложено",
   "A downloaded package was damaged.": "Изтегленият пакет е повреден.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Контролната му сума не съвпадна със списъка на хранилището: изтеглянето е прекъснало или хранилището е публикувало файла отново със същата версия. Нищо не е инсталирано.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Изпълнете действието отново: Control Center изтрива повреденото копие и го изтегля наново. Ако продължава да се проваля, хранилището в момента предлага повреден файл; опитайте по-късно."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Изпълнете действието отново: Control Center изтрива повреденото копие и го изтегля наново. Ако продължава да се проваля, хранилището в момента предлага повреден файл; опитайте по-късно.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "Температура на GDDR6 от ядрото (bc250_memory)",
+  "Load at boot": "Зареждане при стартиране",
+  "Stop loading at boot": "Без зареждане при стартиране",
+  "Load the GDDR6 memory driver at boot": "Зареждане на драйвера за памет GDDR6 при стартиране",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "Драйверът на ядрото bc250_memory ще публикува постоянно температурата на осемте чипа GDDR6, без да натискате „Наблюдение на живо“. За да я чете, драйверът поправя в паметта фърмуера на SMU и иска показанията през същата единствена пощенска кутия, която използват Cyan и овърклокът на CPU. Платката не става по-стабилна: кутията получава още един потребител и ако две заявки се сблъскат, платката може да замръзне, докато не бъде изключена от контакта. Оставете го изключен, освен ако температурата не ви трябва постоянно. Промяната важи след рестарт; за да премахнете поправката, изключете платката напълно.",
+  "Kernel memory driver (bc250_memory)": "Драйвер за памет на ядрото (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Зарежда драйвера GDDR6 на ядрото BC-250 при всяко стартиране, за да се вижда винаги температурата на паметта. Поправя в паметта фърмуера на SMU и споделя пощенската ѝ кутия с Cyan; оставете го изключен, ако не ви трябва.",
+  "Update Control Center's system setup helper first.": "Първо обновете помощника за настройка на системата на Control Center.",
+  "Loads at every boot": "Зарежда се при всяко стартиране",
+  "Loads at the next boot": "Ще се зареди при следващото стартиране",
+  "This kernel has no bc250_memory driver.": "Това ядро няма драйвера bc250_memory.",
+  "Loaded now, not at boot": "Зареден сега, не при стартиране",
+  "Not on disk": "Няма го на диска",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "Папката на играта вече не съществува. Премахването ѝ от списъка не променя нищо на диска.",
+  "Remove this game from the list": "Премахване на тази игра от списъка",
+  "Its folder is no longer on disk, so there is nothing to put back.": "Папката ѝ вече не е на диска, така че няма какво да се възстанови.",
+  "{game} was removed from the list.": "{game} е премахната от списъка."
 }

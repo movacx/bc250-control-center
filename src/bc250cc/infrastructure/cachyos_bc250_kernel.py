@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import platform
 import subprocess
+import time
 from pathlib import Path
 
 from .cachyos_pahole import build_pahole_prepare_command, pahole_dependency_state
@@ -121,8 +122,46 @@ def masta_bc250_stack_supported(*, distro_id: str, family: str) -> bool:
     )
 
 
+#: The dashboard asks for this state twice per refresh (the inventory and the
+#: GFX1013 row). Kept this long, the second ask is free.
+_STACK_STATE_SECONDS = 3.0
+_stack_state_cache: dict[tuple[str, str], tuple[float, dict]] = {}
+
+
+def _installed_packages(packages: tuple[str, ...]) -> frozenset[str]:
+    """Which of these packages pacman has installed, in one query.
+
+    One ``pacman -Qq`` per package was 28 processes and about a second of the
+    dashboard's first load. Asked together, pacman lists the installed ones and
+    names the others on stderr.
+    """
+    try:
+        result = subprocess.run(
+            ("pacman", "-Qq", *packages),
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=4,
+            env={**os.environ, "LANG": "C", "LC_ALL": "C"},
+        )
+    except (OSError, subprocess.SubprocessError):
+        return frozenset()
+    wanted = set(packages)
+    return frozenset(line.strip() for line in result.stdout.splitlines() if line.strip() in wanted)
+
+
 def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
     """Return a read-only installation snapshot for the compatibility UI."""
+    key = (str(distro_id), str(family))
+    cached = _stack_state_cache.get(key)
+    if cached is not None and time.monotonic() - cached[0] < _STACK_STATE_SECONDS:
+        return dict(cached[1])
+    state = _masta_bc250_stack_state(distro_id=distro_id, family=family)
+    _stack_state_cache[key] = (time.monotonic(), state)
+    return dict(state)
+
+
+def _masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
 
     supported = masta_bc250_stack_supported(
         distro_id=distro_id,
@@ -134,18 +173,14 @@ def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
         or (supported and _resolved_repository_valid(anchor))
     )
 
+    present = _installed_packages((
+        *CACHYOS_BC250_KERNEL_VARIANTS.values(), "mesa", "vulkan-radeon",
+        *CACHYOS_BC250_PROTON_PACKAGES.values(), *CACHYOS_BC250_EXTRA_PACKAGES.values(),
+        CACHYOS_BC250_META_PACKAGE, "bc250-cec",
+    ))
+
     def installed(package: str) -> bool:
-        try:
-            result = subprocess.run(
-                ("pacman", "-Qq", package),
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=2,
-            )
-        except (OSError, subprocess.SubprocessError):
-            return False
-        return result.returncode == 0 and result.stdout.strip() == package
+        return package in present
 
     installed_variants = [
         variant

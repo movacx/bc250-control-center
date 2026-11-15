@@ -6195,5 +6195,22 @@
   "What was attached": "已附加的内容",
   "A downloaded package was damaged.": "下载的软件包已损坏。",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "它的校验和与软件仓库的列表不符：下载中断了，或者仓库用相同的版本重新发布了该文件。没有安装任何内容。",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "请再次运行该操作：Control Center 会删除损坏的副本并重新下载。如果仍然失败，说明仓库目前提供的是损坏的文件，请稍后再试。"
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "请再次运行该操作：Control Center 会删除损坏的副本并重新下载。如果仍然失败，说明仓库目前提供的是损坏的文件，请稍后再试。",
+  "GDDR6 temperature from the kernel (bc250_memory)": "来自内核的 GDDR6 温度（bc250_memory）",
+  "Load at boot": "开机时加载",
+  "Stop loading at boot": "不再开机加载",
+  "Load the GDDR6 memory driver at boot": "开机时加载 GDDR6 内存驱动",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "内核的 bc250_memory 驱动会随后一直发布八颗 GDDR6 芯片的温度，无需点击“实时监控”。为了读取温度，该驱动会在内存中修补 SMU 固件，并通过 Cyan 和 CPU 超频共用的同一个、也是唯一的邮箱请求读数。它不会让主板更稳定：这个邮箱会多一个使用者，如果两个请求冲突，主板可能会卡死，直到拔掉电源。除非你需要一直看到温度，否则请保持关闭。更改在重启后生效；要撤销修补，请将主板完全断电。",
+  "Kernel memory driver (bc250_memory)": "内核内存驱动（bc250_memory）",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "每次开机时加载 BC-250 内核的 GDDR6 驱动，以便始终显示内存温度。它会在内存中修补 SMU 固件，并与 Cyan 共用其邮箱；除非需要，否则请保持关闭。",
+  "Update Control Center's system setup helper first.": "请先更新 Control Center 的系统设置助手。",
+  "Loads at every boot": "每次开机时加载",
+  "Loads at the next boot": "将在下次开机时加载",
+  "This kernel has no bc250_memory driver.": "此内核没有 bc250_memory 驱动。",
+  "Loaded now, not at boot": "当前已加载，但不会开机加载",
+  "Not on disk": "不在磁盘上",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "游戏的文件夹已不存在。将它从列表中移除不会改变磁盘上的任何内容。",
+  "Remove this game from the list": "将此游戏从列表中移除",
+  "Its folder is no longer on disk, so there is nothing to put back.": "它的文件夹已不在磁盘上，因此没有需要恢复的内容。",
+  "{game} was removed from the list.": "已将 {game} 从列表中移除。"
 }

@@ -6195,5 +6195,22 @@
   "What was attached": "Ce a fost atașat",
   "A downloaded package was damaged.": "Un pachet descărcat a ajuns deteriorat.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Suma sa de control nu s-a potrivit cu lista depozitului: descărcarea s-a întrerupt sau depozitul a publicat din nou fișierul cu aceeași versiune. Nu s-a instalat nimic.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Rulează din nou acțiunea: Control Center șterge copia deteriorată și o descarcă din nou. Dacă tot eșuează, depozitul servește acum un fișier deteriorat; încearcă mai târziu."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Rulează din nou acțiunea: Control Center șterge copia deteriorată și o descarcă din nou. Dacă tot eșuează, depozitul servește acum un fișier deteriorat; încearcă mai târziu.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "Temperatura GDDR6 din kernel (bc250_memory)",
+  "Load at boot": "Încarcă la pornire",
+  "Stop loading at boot": "Nu mai încărca la pornire",
+  "Load the GDDR6 memory driver at boot": "Încarcă driverul de memorie GDDR6 la pornire",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "Driverul kernelului bc250_memory va publica tot timpul temperatura celor opt cipuri GDDR6, fără să apeși Monitorizează live. Ca s-o citească, driverul aplică în memorie un patch firmware-ului SMU și cere citirile prin aceeași și singura cutie poștală folosită de Cyan și de overclockul CPU. Nu face placa mai stabilă: cutia primește încă un utilizator, iar dacă două cereri se ciocnesc placa se poate bloca până e scoasă din priză. Lasă-l oprit dacă nu ai nevoie de temperatură tot timpul. Schimbarea se aplică după repornire; pentru a anula patchul, oprește complet placa.",
+  "Kernel memory driver (bc250_memory)": "Driverul de memorie al kernelului (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Încarcă driverul GDDR6 al kernelului BC-250 la fiecare pornire, ca temperatura memoriei să se vadă mereu. Aplică în memorie un patch firmware-ului SMU și împarte cutia poștală cu Cyan; lasă-l oprit dacă nu ai nevoie de el.",
+  "Update Control Center's system setup helper first.": "Actualizează mai întâi asistentul de configurare a sistemului din Control Center.",
+  "Loads at every boot": "Se încarcă la fiecare pornire",
+  "Loads at the next boot": "Se va încărca la următoarea pornire",
+  "This kernel has no bc250_memory driver.": "Acest kernel nu are driverul bc250_memory.",
+  "Loaded now, not at boot": "Încărcat acum, nu la pornire",
+  "Not on disk": "Nu este pe disc",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "Dosarul jocului nu mai există. Scoaterea lui din listă nu schimbă nimic pe disc.",
+  "Remove this game from the list": "Scoate acest joc din listă",
+  "Its folder is no longer on disk, so there is nothing to put back.": "Dosarul lui nu mai este pe disc, deci nu e nimic de pus înapoi.",
+  "{game} was removed from the list.": "{game} a fost scos din listă."
 }

@@ -404,6 +404,9 @@ class ActivityItem:
 
 @dataclass(frozen=True)
 class DashboardState:
+    #: False only for the placeholder a page shows before its first read has
+    #: come back: an empty field then means "still reading", not "absent".
+    loaded: bool = True
     cpu_frequency_mhz: int = 0
     cpu_voltage_mv: int = 0
     cpu_temperature_c: float = 0.0
@@ -749,7 +752,7 @@ class DashboardState:
         """
         cache = cache or state_cache_for(controller)
         with passive_probe_budget(1):
-            return cls._from_controller_with_budget(controller, cache)
+            return replace(cls._from_controller_with_budget(controller, cache), loaded=True)
 
     @classmethod
     def _from_controller_with_budget(

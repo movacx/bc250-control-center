@@ -6195,5 +6195,22 @@
   "What was attached": "Mitä liitettiin",
   "A downloaded package was damaged.": "Ladattu paketti oli vioittunut.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Sen tarkistussumma ei vastannut ohjelmavaraston luetteloa: lataus katkesi, tai varasto julkaisi tiedoston uudelleen samalla versiolla. Mitään ei asennettu.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Suorita toiminto uudelleen: Control Center poistaa vioittuneen kopion ja lataa sen uudelleen. Jos se epäonnistuu yhä, varasto jakaa juuri nyt vioittunutta tiedostoa; yritä myöhemmin."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Suorita toiminto uudelleen: Control Center poistaa vioittuneen kopion ja lataa sen uudelleen. Jos se epäonnistuu yhä, varasto jakaa juuri nyt vioittunutta tiedostoa; yritä myöhemmin.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "GDDR6-lämpötila ytimeltä (bc250_memory)",
+  "Load at boot": "Lataa käynnistyksessä",
+  "Stop loading at boot": "Lopeta lataus käynnistyksessä",
+  "Load the GDDR6 memory driver at boot": "Lataa GDDR6-muistiajuri käynnistyksessä",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "Ytimen bc250_memory-ajuri julkaisee silloin jatkuvasti kahdeksan GDDR6-piirin lämpötilan ilman Seuraa livenä -painiketta. Lukeakseen sen ajuri paikkaa SMU:n laiteohjelmiston muistissa ja pyytää lukemat saman ainoan postilaatikon kautta, jota Cyan ja CPU:n ylikellotus käyttävät. Se ei tee kortista vakaampaa: postilaatikko saa yhden käyttäjän lisää, ja jos kaksi pyyntöä törmää, kortti voi jumittua, kunnes se irrotetaan pistorasiasta. Pidä se pois päältä, ellet tarvitse lämpötilaa jatkuvasti. Muutos tulee voimaan uudelleenkäynnistyksessä; poistaaksesi paikkauksen sammuta kortti kokonaan.",
+  "Kernel memory driver (bc250_memory)": "Ytimen muistiajuri (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Lataa BC-250-ytimen GDDR6-ajurin jokaisessa käynnistyksessä, jotta muistin lämpötila näkyy aina. Se paikkaa SMU:n laiteohjelmiston muistissa ja jakaa sen postilaatikon Cyanin kanssa; pidä se pois päältä, ellet tarvitse sitä.",
+  "Update Control Center's system setup helper first.": "Päivitä ensin Control Centerin järjestelmäasetusten apuri.",
+  "Loads at every boot": "Ladataan jokaisessa käynnistyksessä",
+  "Loads at the next boot": "Ladataan seuraavassa käynnistyksessä",
+  "This kernel has no bc250_memory driver.": "Tässä ytimessä ei ole bc250_memory-ajuria.",
+  "Loaded now, not at boot": "Ladattu nyt, ei käynnistyksessä",
+  "Not on disk": "Ei levyllä",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "Pelin kansiota ei enää ole. Poistaminen luettelosta ei muuta levyllä mitään.",
+  "Remove this game from the list": "Poista tämä peli luettelosta",
+  "Its folder is no longer on disk, so there is nothing to put back.": "Sen kansio ei ole enää levyllä, joten palautettavaa ei ole.",
+  "{game} was removed from the list.": "{game} poistettiin luettelosta."
 }

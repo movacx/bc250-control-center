@@ -6195,5 +6195,22 @@
   "What was attached": "Что приложено",
   "A downloaded package was damaged.": "Загруженный пакет повреждён.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Его контрольная сумма не совпала со списком репозитория: загрузка оборвалась или репозиторий заново опубликовал файл с той же версией. Ничего не установлено.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Запустите действие ещё раз: Control Center удалит повреждённую копию и загрузит её заново. Если ошибка повторяется, репозиторий сейчас раздаёт повреждённый файл; попробуйте позже."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Запустите действие ещё раз: Control Center удалит повреждённую копию и загрузит её заново. Если ошибка повторяется, репозиторий сейчас раздаёт повреждённый файл; попробуйте позже.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "Температура GDDR6 от ядра (bc250_memory)",
+  "Load at boot": "Загружать при запуске",
+  "Stop loading at boot": "Не загружать при запуске",
+  "Load the GDDR6 memory driver at boot": "Загружать драйвер памяти GDDR6 при запуске",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "Драйвер ядра bc250_memory будет постоянно публиковать температуру восьми чипов GDDR6, без нажатия «Мониторинг в реальном времени». Чтобы читать её, драйвер патчит в памяти прошивку SMU и запрашивает показания через тот же единственный почтовый ящик, которым пользуются Cyan и разгон CPU. Плата от этого не становится стабильнее: у ящика появляется ещё один пользователь, и если два запроса столкнутся, плата может зависнуть до отключения от розетки. Оставьте выключенным, если температура не нужна постоянно. Изменение применяется после перезагрузки; чтобы убрать патч, полностью выключите плату.",
+  "Kernel memory driver (bc250_memory)": "Драйвер памяти ядра (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Загружает драйвер GDDR6 ядра BC-250 при каждом запуске, чтобы температура памяти была видна всегда. Он патчит в памяти прошивку SMU и делит её почтовый ящик с Cyan; оставьте выключенным, если он вам не нужен.",
+  "Update Control Center's system setup helper first.": "Сначала обновите помощник настройки системы Control Center.",
+  "Loads at every boot": "Загружается при каждом запуске",
+  "Loads at the next boot": "Загрузится при следующем запуске",
+  "This kernel has no bc250_memory driver.": "В этом ядре нет драйвера bc250_memory.",
+  "Loaded now, not at boot": "Загружен сейчас, не при запуске",
+  "Not on disk": "Нет на диске",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "Папки игры больше нет. Удаление из списка ничего не меняет на диске.",
+  "Remove this game from the list": "Убрать эту игру из списка",
+  "Its folder is no longer on disk, so there is nothing to put back.": "Её папки больше нет на диске, поэтому восстанавливать нечего.",
+  "{game} was removed from the list.": "{game} убрана из списка."
 }

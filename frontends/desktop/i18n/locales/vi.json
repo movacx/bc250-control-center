@@ -6195,5 +6195,22 @@
   "What was attached": "Nội dung đính kèm",
   "A downloaded package was damaged.": "Một gói đã tải xuống bị hỏng.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Mã kiểm tra của nó không khớp với danh sách của kho: quá trình tải bị ngắt, hoặc kho đã phát hành lại tệp với cùng phiên bản. Không có gì được cài đặt.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Hãy chạy lại thao tác: Control Center sẽ xoá bản bị hỏng và tải lại. Nếu vẫn lỗi, kho đang cung cấp một tệp bị hỏng; hãy thử lại sau."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Hãy chạy lại thao tác: Control Center sẽ xoá bản bị hỏng và tải lại. Nếu vẫn lỗi, kho đang cung cấp một tệp bị hỏng; hãy thử lại sau.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "Nhiệt độ GDDR6 từ nhân (bc250_memory)",
+  "Load at boot": "Nạp khi khởi động",
+  "Stop loading at boot": "Ngừng nạp khi khởi động",
+  "Load the GDDR6 memory driver at boot": "Nạp trình điều khiển bộ nhớ GDDR6 khi khởi động",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "Trình điều khiển bc250_memory của nhân sẽ luôn công bố nhiệt độ của tám chip GDDR6, không cần nhấn Theo dõi trực tiếp. Để đọc, trình điều khiển vá firmware của SMU trong bộ nhớ và yêu cầu số đo qua cùng một hộp thư duy nhất mà Cyan và việc ép xung CPU dùng. Việc này không làm bo mạch ổn định hơn: hộp thư có thêm một người dùng, và nếu hai yêu cầu va nhau, bo mạch có thể treo cho đến khi rút điện. Hãy để tắt trừ khi bạn cần nhiệt độ mọi lúc. Thay đổi có hiệu lực sau khi khởi động lại; để gỡ bản vá, hãy tắt hẳn bo mạch.",
+  "Kernel memory driver (bc250_memory)": "Trình điều khiển bộ nhớ của nhân (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Nạp trình điều khiển GDDR6 của nhân BC-250 mỗi lần khởi động, để luôn thấy nhiệt độ bộ nhớ. Nó vá firmware SMU trong bộ nhớ và dùng chung hộp thư với Cyan; hãy để tắt trừ khi bạn cần.",
+  "Update Control Center's system setup helper first.": "Hãy cập nhật trước trình hỗ trợ thiết lập hệ thống của Control Center.",
+  "Loads at every boot": "Được nạp mỗi lần khởi động",
+  "Loads at the next boot": "Sẽ nạp ở lần khởi động tới",
+  "This kernel has no bc250_memory driver.": "Nhân này không có trình điều khiển bc250_memory.",
+  "Loaded now, not at boot": "Đang nạp, không phải khi khởi động",
+  "Not on disk": "Không có trên ổ đĩa",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "Thư mục của trò chơi không còn nữa. Gỡ khỏi danh sách không thay đổi gì trên ổ đĩa.",
+  "Remove this game from the list": "Gỡ trò chơi này khỏi danh sách",
+  "Its folder is no longer on disk, so there is nothing to put back.": "Thư mục của nó không còn trên ổ đĩa, nên không có gì để khôi phục.",
+  "{game} was removed from the list.": "Đã gỡ {game} khỏi danh sách."
 }

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import shutil
+import time
+import weakref
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -151,8 +153,31 @@ def _binary_path(repository, binary: str) -> str:
     return shutil.which(binary) or ""
 
 
+#: One refresh of the GPU page asks for this twice (the governor context and the
+#: tool inventory); each ask is several service and package queries.
+_DETECTION_SECONDS = 1.5
+#: Keyed by the repository itself (weakly), never by id(): ids are reused once
+#: an object is gone, and a new repository must not inherit an old answer.
+_detection_cache: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+
+
 def detect_supported_governors(repository) -> dict[str, dict[str, object]]:
     """Return deterministic runtime evidence for every supported backend."""
+    try:
+        cached = _detection_cache.get(repository)
+    except TypeError:  # not weakly referenceable: no cache
+        cached = None
+    if cached is not None and time.monotonic() - cached[0] < _DETECTION_SECONDS:
+        return {key: dict(value) for key, value in cached[1].items()}
+    detected = _detect_supported_governors(repository)
+    try:
+        _detection_cache[repository] = (time.monotonic(), detected)
+    except TypeError:
+        pass
+    return {key: dict(value) for key, value in detected.items()}
+
+
+def _detect_supported_governors(repository) -> dict[str, dict[str, object]]:
     detected: dict[str, dict[str, object]] = {}
     for identifier in SUPPORTED_GPU_GOVERNORS:
         spec = GOVERNOR_SPECS[identifier]

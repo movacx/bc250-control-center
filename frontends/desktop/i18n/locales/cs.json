@@ -6195,5 +6195,22 @@
   "What was attached": "Co bylo přiloženo",
   "A downloaded package was damaged.": "Stažený balíček byl poškozený.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Jeho kontrolní součet neodpovídal seznamu repozitáře: stahování se přerušilo, nebo repozitář soubor znovu zveřejnil se stejnou verzí. Nic nebylo nainstalováno.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Spusťte akci znovu: Control Center smaže poškozenou kopii a stáhne ji znovu. Pokud to stále selhává, repozitář právě poskytuje poškozený soubor; zkuste to později."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Spusťte akci znovu: Control Center smaže poškozenou kopii a stáhne ji znovu. Pokud to stále selhává, repozitář právě poskytuje poškozený soubor; zkuste to později.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "Teplota GDDR6 z jádra (bc250_memory)",
+  "Load at boot": "Načítat při startu",
+  "Stop loading at boot": "Nenačítat při startu",
+  "Load the GDDR6 memory driver at boot": "Načítat ovladač paměti GDDR6 při startu",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "Ovladač jádra bc250_memory pak bude stále zveřejňovat teplotu osmi čipů GDDR6, bez stisknutí Sledovat živě. Aby ji přečetl, ovladač v paměti upraví firmware SMU a žádá o hodnoty přes tutéž jedinou schránku, kterou používají Cyan a přetaktování CPU. Deska tím nebude stabilnější: schránka získá dalšího uživatele, a když se dva požadavky srazí, deska může zamrznout až do odpojení ze zásuvky. Nechte vypnuté, pokud teplotu nepotřebujete neustále. Změna platí po restartu; k odstranění úpravy desku zcela vypněte.",
+  "Kernel memory driver (bc250_memory)": "Ovladač paměti jádra (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Načte ovladač GDDR6 jádra BC-250 při každém startu, aby byla teplota paměti vždy vidět. V paměti upraví firmware SMU a sdílí jeho schránku s Cyan; nechte vypnuté, pokud ho nepotřebujete.",
+  "Update Control Center's system setup helper first.": "Nejprve aktualizujte pomocníka pro nastavení systému Control Center.",
+  "Loads at every boot": "Načítá se při každém startu",
+  "Loads at the next boot": "Načte se při příštím startu",
+  "This kernel has no bc250_memory driver.": "Toto jádro nemá ovladač bc250_memory.",
+  "Loaded now, not at boot": "Načten nyní, ne při startu",
+  "Not on disk": "Není na disku",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "Složka hry už neexistuje. Odebrání ze seznamu na disku nic nezmění.",
+  "Remove this game from the list": "Odebrat tuto hru ze seznamu",
+  "Its folder is no longer on disk, so there is nothing to put back.": "Její složka už na disku není, takže není co obnovovat.",
+  "{game} was removed from the list.": "{game} byla odebrána ze seznamu."
 }

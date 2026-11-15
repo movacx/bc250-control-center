@@ -6195,5 +6195,22 @@
   "What was attached": "Lo que se adjuntó",
   "A downloaded package was damaged.": "Un paquete descargado llegó dañado.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Su suma de verificación no coincidió con la lista del repositorio: la descarga se cortó o el repositorio volvió a publicar el archivo con la misma versión. No se instaló nada.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Vuelve a ejecutar la acción: Control Center borra la copia dañada y la descarga de nuevo. Si sigue fallando, el repositorio está sirviendo un archivo dañado en este momento; inténtalo más tarde."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Vuelve a ejecutar la acción: Control Center borra la copia dañada y la descarga de nuevo. Si sigue fallando, el repositorio está sirviendo un archivo dañado en este momento; inténtalo más tarde.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "Temperatura GDDR6 desde el kernel (bc250_memory)",
+  "Load at boot": "Cargar al arrancar",
+  "Stop loading at boot": "Dejar de cargar al arrancar",
+  "Load the GDDR6 memory driver at boot": "Cargar el driver de memoria GDDR6 al arrancar",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "El driver bc250_memory del kernel publicará entonces la temperatura de los ocho chips GDDR6 todo el tiempo, sin pulsar Monitorizar en vivo. Para leerla, el driver parchea en memoria el firmware del SMU y le pide las lecturas por el mismo y único buzón que usan Cyan y el overclock de CPU. No hace la placa más estable: añade un usuario más a ese buzón, y si dos coinciden la placa puede congelarse hasta desenchufarla. Déjalo apagado salvo que necesites la temperatura todo el tiempo. El cambio se aplica al reiniciar; para quitar el parche, apaga la placa por completo.",
+  "Kernel memory driver (bc250_memory)": "Driver de memoria del kernel (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Carga el driver GDDR6 del kernel BC-250 en cada arranque, para ver siempre la temperatura de la memoria. Parchea en memoria el firmware del SMU y comparte su buzón con Cyan; déjalo apagado salvo que lo necesites.",
+  "Update Control Center's system setup helper first.": "Primero actualiza el ayudante de configuración del sistema de Control Center.",
+  "Loads at every boot": "Se carga en cada arranque",
+  "Loads at the next boot": "Se cargará en el próximo arranque",
+  "This kernel has no bc250_memory driver.": "Este kernel no tiene el driver bc250_memory.",
+  "Loaded now, not at boot": "Cargado ahora, no al arrancar",
+  "Not on disk": "No está en el disco",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "La carpeta del juego ya no existe. Quitarlo de la lista no cambia nada en el disco.",
+  "Remove this game from the list": "Quitar este juego de la lista",
+  "Its folder is no longer on disk, so there is nothing to put back.": "Su carpeta ya no está en el disco, así que no hay nada que restaurar.",
+  "{game} was removed from the list.": "{game} se quitó de la lista."
 }

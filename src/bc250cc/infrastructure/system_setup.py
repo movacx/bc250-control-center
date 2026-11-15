@@ -31,11 +31,15 @@ CH7218_QUIRK_OPTION = "amdgpu.bc250_ch7218_quirk=1"
 CH7218_VRR_OPTION = "amdgpu.bc250_ch7218_vrr=1"
 PCON_FORCE_DSC_OPTION = "amdgpu.bc250_pcon_force_dsc=1"
 RELINK_AT_BOOT_OPTION = "amdgpu.cs_relink_at_boot=1"
+#: Loads Hexxeh's bc250_memory driver (shipped unloaded with that kernel) at
+#: boot, so the GDDR6 temperature is published all the time.
+MEMORY_SENSOR_OPTION = "modules-load=bc250_memory"
 #: The only kernel boot options the helper manages.
 KERNEL_OPTIONS = (
     "mitigations=off", "nosmt", CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION,
     SCHED_POLICY_OPTION, HDMI21_OFF_OPTION, RELINK_OFF_OPTION,
     CH7218_QUIRK_OPTION, CH7218_VRR_OPTION, PCON_FORCE_DSC_OPTION, RELINK_AT_BOOT_OPTION,
+    MEMORY_SENSOR_OPTION,
 )
 
 

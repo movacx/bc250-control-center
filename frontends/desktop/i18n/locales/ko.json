@@ -6195,5 +6195,22 @@
   "What was attached": "첨부된 항목",
   "A downloaded package was damaged.": "다운로드한 패키지가 손상되었습니다.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "체크섬이 저장소 목록과 일치하지 않습니다. 다운로드가 중간에 끊겼거나 저장소가 같은 버전으로 파일을 다시 게시했습니다. 아무것도 설치되지 않았습니다.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "작업을 다시 실행하세요. Control Center가 손상된 사본을 지우고 다시 다운로드합니다. 계속 실패하면 저장소가 지금 손상된 파일을 제공하고 있는 것이니 나중에 다시 시도하세요."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "작업을 다시 실행하세요. Control Center가 손상된 사본을 지우고 다시 다운로드합니다. 계속 실패하면 저장소가 지금 손상된 파일을 제공하고 있는 것이니 나중에 다시 시도하세요.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "커널의 GDDR6 온도(bc250_memory)",
+  "Load at boot": "부팅 시 불러오기",
+  "Stop loading at boot": "부팅 시 불러오지 않기",
+  "Load the GDDR6 memory driver at boot": "부팅 시 GDDR6 메모리 드라이버 불러오기",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "커널의 bc250_memory 드라이버가 '실시간 모니터링'을 누르지 않아도 GDDR6 칩 8개의 온도를 항상 게시합니다. 읽기 위해 드라이버는 메모리에서 SMU 펌웨어를 패치하고, Cyan과 CPU 오버클럭이 쓰는 같은 하나뿐인 메일박스로 값을 요청합니다. 보드가 더 안정해지지는 않습니다. 메일박스 사용자가 하나 더 늘고, 두 요청이 충돌하면 전원을 뽑을 때까지 보드가 멈출 수 있습니다. 온도가 항상 필요하지 않다면 꺼 두세요. 변경 사항은 재부팅 후 적용됩니다. 패치를 되돌리려면 보드 전원을 완전히 끄세요.",
+  "Kernel memory driver (bc250_memory)": "커널 메모리 드라이버(bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "부팅할 때마다 BC-250 커널의 GDDR6 드라이버를 불러와 메모리 온도를 항상 표시합니다. 메모리에서 SMU 펌웨어를 패치하고 그 메일박스를 Cyan과 함께 씁니다. 필요하지 않다면 꺼 두세요.",
+  "Update Control Center's system setup helper first.": "먼저 Control Center의 시스템 설정 도우미를 업데이트하세요.",
+  "Loads at every boot": "부팅할 때마다 불러옴",
+  "Loads at the next boot": "다음 부팅 때 불러옴",
+  "This kernel has no bc250_memory driver.": "이 커널에는 bc250_memory 드라이버가 없습니다.",
+  "Loaded now, not at boot": "지금 불러옴, 부팅 시에는 아님",
+  "Not on disk": "디스크에 없음",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "게임 폴더가 더 이상 없습니다. 목록에서 제거해도 디스크에는 아무 변화가 없습니다.",
+  "Remove this game from the list": "이 게임을 목록에서 제거",
+  "Its folder is no longer on disk, so there is nothing to put back.": "폴더가 더 이상 디스크에 없으므로 되돌릴 것이 없습니다.",
+  "{game} was removed from the list.": "{game}을(를) 목록에서 제거했습니다."
 }

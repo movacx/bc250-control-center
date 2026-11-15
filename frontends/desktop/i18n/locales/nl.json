@@ -6195,5 +6195,22 @@
   "What was attached": "Wat is bijgevoegd",
   "A downloaded package was damaged.": "Een gedownload pakket was beschadigd.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "De controlesom kwam niet overeen met de lijst van de repository: de download werd afgebroken, of de repository heeft het bestand opnieuw gepubliceerd met dezelfde versie. Er is niets geïnstalleerd.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Voer de actie opnieuw uit: Control Center verwijdert de beschadigde kopie en downloadt die opnieuw. Blijft het mislukken, dan levert de repository op dit moment een beschadigd bestand; probeer het later opnieuw."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Voer de actie opnieuw uit: Control Center verwijdert de beschadigde kopie en downloadt die opnieuw. Blijft het mislukken, dan levert de repository op dit moment een beschadigd bestand; probeer het later opnieuw.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "GDDR6-temperatuur van de kernel (bc250_memory)",
+  "Load at boot": "Laden bij opstarten",
+  "Stop loading at boot": "Niet meer laden bij opstarten",
+  "Load the GDDR6 memory driver at boot": "GDDR6-geheugenstuurprogramma laden bij opstarten",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "Het kernelstuurprogramma bc250_memory publiceert dan voortdurend de temperatuur van de acht GDDR6-chips, zonder op Live volgen te drukken. Om die te lezen past het stuurprogramma de SMU-firmware in het geheugen aan en vraagt het de metingen via dezelfde enige postbus die Cyan en het overklokken van de CPU gebruiken. Het maakt het bord niet stabieler: de postbus krijgt er een gebruiker bij, en als twee verzoeken botsen kan het bord vastlopen tot de stekker eruit gaat. Laat het uit, tenzij je de temperatuur altijd nodig hebt. De wijziging geldt na herstarten; om de aanpassing ongedaan te maken, schakel je het bord volledig uit.",
+  "Kernel memory driver (bc250_memory)": "Geheugenstuurprogramma van de kernel (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Laadt het GDDR6-stuurprogramma van de BC-250-kernel bij elke start, zodat de geheugentemperatuur altijd zichtbaar is. Het past de SMU-firmware in het geheugen aan en deelt de postbus met Cyan; laat het uit tenzij je het nodig hebt.",
+  "Update Control Center's system setup helper first.": "Werk eerst de systeemconfiguratiehulp van Control Center bij.",
+  "Loads at every boot": "Laadt bij elke start",
+  "Loads at the next boot": "Laadt bij de volgende start",
+  "This kernel has no bc250_memory driver.": "Deze kernel heeft geen bc250_memory-stuurprogramma.",
+  "Loaded now, not at boot": "Nu geladen, niet bij opstarten",
+  "Not on disk": "Niet op de schijf",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "De map van het spel bestaat niet meer. Het van de lijst halen verandert niets op de schijf.",
+  "Remove this game from the list": "Dit spel van de lijst halen",
+  "Its folder is no longer on disk, so there is nothing to put back.": "De map staat niet meer op de schijf, dus er valt niets terug te zetten.",
+  "{game} was removed from the list.": "{game} is van de lijst gehaald."
 }

@@ -6195,5 +6195,22 @@
   "What was attached": "Neler eklendi",
   "A downloaded package was damaged.": "İndirilen bir paket bozuk geldi.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Sağlama toplamı deponun listesiyle eşleşmedi: indirme yarıda kesildi ya da depo dosyayı aynı sürümle yeniden yayımladı. Hiçbir şey kurulmadı.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "İşlemi yeniden çalıştırın: Control Center bozuk kopyayı silip yeniden indirir. Hata sürerse depo şu anda bozuk bir dosya sunuyordur; daha sonra tekrar deneyin."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "İşlemi yeniden çalıştırın: Control Center bozuk kopyayı silip yeniden indirir. Hata sürerse depo şu anda bozuk bir dosya sunuyordur; daha sonra tekrar deneyin.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "Çekirdekten GDDR6 sıcaklığı (bc250_memory)",
+  "Load at boot": "Açılışta yükle",
+  "Stop loading at boot": "Açılışta yüklemeyi bırak",
+  "Load the GDDR6 memory driver at boot": "GDDR6 bellek sürücüsünü açılışta yükle",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "Çekirdeğin bc250_memory sürücüsü, Canlı izle'ye basmadan sekiz GDDR6 yongasının sıcaklığını sürekli yayımlar. Okumak için sürücü SMU ürün yazılımını bellekte yamalar ve okumaları Cyan ile CPU hız aşırtmanın kullandığı aynı ve tek posta kutusundan ister. Kartı daha kararlı yapmaz: o kutuya bir kullanıcı daha ekler ve iki istek çakışırsa kart fişten çekilene kadar donabilir. Sıcaklığa sürekli ihtiyacınız yoksa kapalı bırakın. Değişiklik yeniden başlatınca geçerli olur; yamayı kaldırmak için kartı tamamen kapatın.",
+  "Kernel memory driver (bc250_memory)": "Çekirdek bellek sürücüsü (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "BC-250 çekirdeğinin GDDR6 sürücüsünü her açılışta yükler; böylece bellek sıcaklığı her zaman görünür. SMU ürün yazılımını bellekte yamalar ve posta kutusunu Cyan ile paylaşır; ihtiyacınız yoksa kapalı bırakın.",
+  "Update Control Center's system setup helper first.": "Önce Control Center'ın sistem kurulum yardımcısını güncelleyin.",
+  "Loads at every boot": "Her açılışta yüklenir",
+  "Loads at the next boot": "Sonraki açılışta yüklenecek",
+  "This kernel has no bc250_memory driver.": "Bu çekirdekte bc250_memory sürücüsü yok.",
+  "Loaded now, not at boot": "Şu an yüklü, açılışta değil",
+  "Not on disk": "Diskte yok",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "Oyunun klasörü artık yok. Listeden kaldırmak diskte hiçbir şeyi değiştirmez.",
+  "Remove this game from the list": "Bu oyunu listeden kaldır",
+  "Its folder is no longer on disk, so there is nothing to put back.": "Klasörü artık diskte değil, bu yüzden geri konacak bir şey yok.",
+  "{game} was removed from the list.": "{game} listeden kaldırıldı."
 }

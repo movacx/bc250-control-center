@@ -53,6 +53,7 @@ from bc250cc.infrastructure.gddr6_memory_temp_repository import (
     gddr6_firmware_supported,
 )
 from bc250cc.infrastructure.governor_conflicts import normalize_governor_preference
+from bc250cc.infrastructure.system_setup import MEMORY_SENSOR_OPTION
 from bc250cc.infrastructure.system_snapshot import system_snapshot
 from bc250cc.infrastructure.vrm_telemetry_reader import (
     kernel_vrm_driver_present,
@@ -1513,6 +1514,8 @@ class SettingsPage(QWidget):
     vrm_manual_changed = pyqtSignal(bool)
     tour_requested = pyqtSignal()
     update_requested = pyqtSignal()
+    #: A managed kernel boot option to switch (Compatibility does the work).
+    kernel_option_requested = pyqtSignal(str)
 
     def __init__(self, controller, *, settings_service, activity_service, app_settings: QSettings | None = None, parent: QWidget | None = None):
         super().__init__(parent)
@@ -1915,6 +1918,7 @@ class SettingsPage(QWidget):
         elif key == "support_report":
             self._open_report_form()
         elif key == "telemetry":
+            self._refresh_gddr6_kernel_driver()
             self._load_daemon_config()
             self.refresh_daemon_status()
             self.refresh_vrm_detection()
@@ -2459,6 +2463,40 @@ class SettingsPage(QWidget):
         ),
     )
 
+    def _refresh_gddr6_kernel_driver(self) -> None:
+        """Where the bc250_memory boot option stands, read in the background."""
+        if not hasattr(self, "gddr6_kernel_state"):
+            return
+
+        def success(tools: object) -> None:
+            setup = dict(dict(tools or {}).get("system_setup") or {}) if isinstance(tools, dict) else {}
+            self._apply_gddr6_kernel_driver(setup)
+
+        self._start_task(lambda: self._state_cache.tools(), success, lambda _message: None)
+
+    def _apply_gddr6_kernel_driver(self, setup: dict) -> None:
+        options = dict(setup.get("kernel_options") or {})
+        item = dict(dict(options.get("arguments") or {}).get(MEMORY_SENSOR_OPTION) or {})
+        support = dict(dict(options.get("parameters") or {}).get(MEMORY_SENSOR_OPTION) or {})
+        managed = bool(item.get("managed"))
+        if not setup.get("helper_available") or not options.get("available"):
+            text, enabled = "Update Control Center's system setup helper first.", False
+        elif item.get("external"):
+            text, enabled = "Set outside Control Center", False
+        elif managed and item.get("active"):
+            text, enabled = "Loads at every boot", True
+        elif managed:
+            text, enabled = "Loads at the next boot", True
+        elif not support.get("supported"):
+            text, enabled = "This kernel has no bc250_memory driver.", False
+        elif support.get("loaded"):
+            text, enabled = "Loaded now, not at boot", True
+        else:
+            text, enabled = "Off", True
+        self.gddr6_kernel_state.setText(tr(text))
+        self.gddr6_kernel_button.setText(tr("Stop loading at boot" if managed else "Load at boot"))
+        self.gddr6_kernel_button.setEnabled(enabled)
+
     def _build_gddr6_manual_group(self) -> QWidget:
         """GDDR6 monitoring without the SMU channel check, for those who ask."""
         group = SettingsGroup("GDDR6 memory temperature")
@@ -2470,6 +2508,27 @@ class SettingsPage(QWidget):
             "Enable the memory temperature button even when the SMU channel check "
             "says to wait. It can make the board unstable or freeze it.",
             self.gddr6_manual_switch,
+        ))
+        # The same switch as Compatibility › Kernel boot options: one place to
+        # read about the memory temperature, one boot option underneath.
+        driver = QWidget()
+        driver_row = QHBoxLayout(driver)
+        driver_row.setContentsMargins(0, 0, 0, 0)
+        driver_row.setSpacing(10)
+        self.gddr6_kernel_state = QLabel(tr("Checking…"))
+        self.gddr6_kernel_state.setProperty("rowDescription", True)
+        self.gddr6_kernel_button = self._small_button(
+            "Load at boot", lambda: self.kernel_option_requested.emit(MEMORY_SENSOR_OPTION)
+        )
+        self.gddr6_kernel_button.setEnabled(False)
+        driver_row.addWidget(self.gddr6_kernel_state)
+        driver_row.addWidget(self.gddr6_kernel_button)
+        group.add_row(SettingRow(
+            "Kernel memory driver (bc250_memory)",
+            "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows "
+            "all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; "
+            "leave it off unless you need it.",
+            driver,
         ))
         # Manual mode lifts only the channel check. On a board that is not on
         # P3.00 the button stays grey whatever this switch says, and the one
@@ -3785,6 +3844,7 @@ class SettingsDialog(QDialog):
     vrm_manual_changed = pyqtSignal(bool)
     tour_requested = pyqtSignal()
     update_requested = pyqtSignal()
+    kernel_option_requested = pyqtSignal(str)
 
     def __init__(self, controller, *, settings_service, activity_service, app_settings: QSettings | None = None, parent: QWidget | None = None):
         super().__init__(parent)
@@ -3829,6 +3889,7 @@ class SettingsDialog(QDialog):
         self.page.sidebar_collapsed_changed.connect(self.sidebar_collapsed_changed.emit)
         self.page.tour_requested.connect(self.tour_requested.emit)
         self.page.update_requested.connect(self.update_requested.emit)
+        self.page.kernel_option_requested.connect(self.kernel_option_requested.emit)
         self.page.gamepad_navigation_changed.connect(self.gamepad_navigation_changed.emit)
         self.page.report_glow_changed.connect(self.report_glow_changed.emit)
         self.page.gamepad_keypad_changed.connect(self.gamepad_keypad_changed.emit)

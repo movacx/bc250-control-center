@@ -153,7 +153,8 @@ def test_dashboard_shows_only_registered_boot_cpu_oc_and_scale(qtbot):
             cpu_oc_source="live",
         )
     )
-    assert page.cpu_card.details["oc"].value.text() == tr("Not detected")
+    # No overclock saved is an answer ("None"), not a missing sensor.
+    assert page.cpu_card.details["oc"].value.text() == tr("None")
 
 
 def test_a_medium_dashboard_stacks_the_three_panels(qtbot):

@@ -48,6 +48,7 @@ from bc250cc.infrastructure.system_setup import (
     CU_UNLOCK_OPTION,
     HDMI21_OFF_OPTION,
     HIDE_BOOT_MESSAGES_OPTION,
+    MEMORY_SENSOR_OPTION,
     PCON_FORCE_DSC_OPTION,
     RELINK_AT_BOOT_OPTION,
     RELINK_OFF_OPTION,
@@ -1006,6 +1007,15 @@ def _bridge_cells(row_for, bridge_games: Iterable[Mapping]) -> None:
         installed = str(game.get("installed_way") or "")
         version = str(game.get("version") or "")
         key = appid or name
+        if game.get("missing"):
+            # The folder is gone: there is nothing to add or put back, only a
+            # row to take off the list (R-2e7f6048).
+            row["helixsr"] = (
+                "Not on disk", "gray",
+                tr("The game's folder is gone. Removing it from the list changes nothing on disk."),
+                (("Remove from list", f"helixsr_bridge_remove:{key}", True),),
+            )
+            continue
         remove = ("Remove HelixSR", f"helixsr_bridge_remove:{key}", True)
         if game.get("managed_by") == "app-2x":
             # The same way HelixSR 2 gave it (Update all does the same).
@@ -3009,12 +3019,15 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         (CH7218_VRR_OPTION, "VRR on CH7218 firmware 07.00.69", "Force VRR on the adapter", "Stop forcing VRR"),
         (PCON_FORCE_DSC_OPTION, "Force DSC on a VMM7100 adapter (experimental)", "Force DSC", "Stop forcing DSC"),
         (RELINK_AT_BOOT_OPTION, "Picture recovery at boot (experimental)", "Recover at boot", "Stop recovering at boot"),
+        # Off on purpose: the driver patches the SMU firmware and shares its mailbox.
+        (MEMORY_SENSOR_OPTION, "GDDR6 temperature from the kernel (bc250_memory)", "Load at boot", "Stop loading at boot"),
     )
     #: Options only the BC-250 kernel has a parameter for: offered where the
     #: kernel reports it (or where one is already staged, to take it back).
     KERNEL_PARAMETER_OPTIONS = frozenset({
         HDMI21_OFF_OPTION, RELINK_OFF_OPTION,
         CH7218_QUIRK_OPTION, CH7218_VRR_OPTION, PCON_FORCE_DSC_OPTION, RELINK_AT_BOOT_OPTION,
+        MEMORY_SENSOR_OPTION,
     })
     #: Options that give something up, and so are drawn as a warning. Unlocking
     #: compute units gives nothing up: it is the BC-250 kernel's own method.

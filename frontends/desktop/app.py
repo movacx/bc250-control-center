@@ -1280,6 +1280,10 @@ class ControlCenterWindow(QMainWindow):
         self.sidebar.buttons[self.current_page_key].setChecked(True)
         self.stack.setCurrentWidget(self.pages[self.current_page_key])
 
+    def _kernel_option_from_settings(self, option: str) -> None:
+        """A kernel boot option switched from Settings: the same path as Compatibility."""
+        self.dashboard.readiness._request_kernel_option(option)
+
     def _open_settings_dialog(self, section: str = "home", then=None) -> None:
         previous_key = self.current_page_key if self.current_page_key in self.sidebar.buttons else "dashboard"
         previous_page = self.pages.get(previous_key)
@@ -1322,6 +1326,7 @@ class ControlCenterWindow(QMainWindow):
             dialog.vrm_manual_changed.connect(self._set_vrm_manual)
             dialog.tour_requested.connect(self._tour_requested_from_settings)
             dialog.update_requested.connect(self._update_requested_from_settings)
+            dialog.kernel_option_requested.connect(self._kernel_option_from_settings)
             self.settings_dialog = dialog
         dialog = self.settings_dialog
         dialog.select_section(section)

@@ -6195,5 +6195,22 @@
   "What was attached": "Was angehängt wurde",
   "A downloaded package was damaged.": "Ein heruntergeladenes Paket war beschädigt.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Seine Prüfsumme passte nicht zur Liste des Repositorys: Der Download wurde abgebrochen, oder das Repository hat die Datei mit derselben Version neu veröffentlicht. Es wurde nichts installiert.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Führe die Aktion erneut aus: Control Center löscht die beschädigte Kopie und lädt sie neu herunter. Schlägt es weiter fehl, liefert das Repository gerade eine beschädigte Datei aus; versuche es später erneut."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Führe die Aktion erneut aus: Control Center löscht die beschädigte Kopie und lädt sie neu herunter. Schlägt es weiter fehl, liefert das Repository gerade eine beschädigte Datei aus; versuche es später erneut.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "GDDR6-Temperatur vom Kernel (bc250_memory)",
+  "Load at boot": "Beim Start laden",
+  "Stop loading at boot": "Nicht mehr beim Start laden",
+  "Load the GDDR6 memory driver at boot": "GDDR6-Speichertreiber beim Start laden",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "Der Kernel-Treiber bc250_memory veröffentlicht dann ständig die Temperatur der acht GDDR6-Chips, ohne „Live überwachen“ zu drücken. Um sie zu lesen, patcht der Treiber die SMU-Firmware im Speicher und fragt die Werte über dasselbe einzige Postfach ab, das Cyan und die CPU-Übertaktung nutzen. Die Platine wird dadurch nicht stabiler: Das Postfach bekommt einen weiteren Nutzer, und wenn zwei zusammenstoßen, kann die Platine einfrieren, bis sie vom Strom getrennt wird. Lass es aus, außer du brauchst die Temperatur ständig. Die Änderung gilt nach dem Neustart; um den Patch zu entfernen, schalte die Platine ganz aus.",
+  "Kernel memory driver (bc250_memory)": "Kernel-Speichertreiber (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Lädt den GDDR6-Treiber des BC-250-Kernels bei jedem Start, damit die Speichertemperatur immer angezeigt wird. Er patcht die SMU-Firmware im Speicher und teilt ihr Postfach mit Cyan; lass ihn aus, außer du brauchst ihn.",
+  "Update Control Center's system setup helper first.": "Aktualisiere zuerst den Systemeinrichtungs-Helfer von Control Center.",
+  "Loads at every boot": "Wird bei jedem Start geladen",
+  "Loads at the next boot": "Wird beim nächsten Start geladen",
+  "This kernel has no bc250_memory driver.": "Dieser Kernel hat keinen bc250_memory-Treiber.",
+  "Loaded now, not at boot": "Jetzt geladen, nicht beim Start",
+  "Not on disk": "Nicht auf der Festplatte",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "Der Ordner des Spiels ist weg. Es von der Liste zu entfernen, ändert nichts auf der Festplatte.",
+  "Remove this game from the list": "Dieses Spiel von der Liste entfernen",
+  "Its folder is no longer on disk, so there is nothing to put back.": "Sein Ordner ist nicht mehr auf der Festplatte, daher gibt es nichts wiederherzustellen.",
+  "{game} was removed from the list.": "{game} wurde von der Liste entfernt."
 }

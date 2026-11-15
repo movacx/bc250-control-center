@@ -6195,5 +6195,22 @@
   "What was attached": "Yang dilampirkan",
   "A downloaded package was damaged.": "Paket yang diunduh rusak.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Checksum-nya tidak cocok dengan daftar repositori: unduhan terputus, atau repositori menerbitkan ulang berkas dengan versi yang sama. Tidak ada yang dipasang.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Jalankan lagi tindakannya: Control Center menghapus salinan yang rusak dan mengunduhnya lagi. Jika masih gagal, repositori sedang menyajikan berkas yang rusak; coba lagi nanti."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Jalankan lagi tindakannya: Control Center menghapus salinan yang rusak dan mengunduhnya lagi. Jika masih gagal, repositori sedang menyajikan berkas yang rusak; coba lagi nanti.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "Suhu GDDR6 dari kernel (bc250_memory)",
+  "Load at boot": "Muat saat boot",
+  "Stop loading at boot": "Berhenti memuat saat boot",
+  "Load the GDDR6 memory driver at boot": "Muat driver memori GDDR6 saat boot",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "Driver kernel bc250_memory akan terus menerbitkan suhu delapan chip GDDR6, tanpa menekan Pantau langsung. Untuk membacanya, driver menambal firmware SMU di memori dan meminta pembacaan lewat kotak surat tunggal yang sama yang dipakai Cyan dan overclock CPU. Ini tidak membuat papan lebih stabil: kotak surat itu mendapat satu pengguna lagi, dan jika dua permintaan bertabrakan papan bisa membeku sampai dicabut dari listrik. Biarkan mati kecuali Anda butuh suhunya setiap saat. Perubahan berlaku setelah boot ulang; untuk membatalkan tambalan, matikan papan sepenuhnya.",
+  "Kernel memory driver (bc250_memory)": "Driver memori kernel (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Memuat driver GDDR6 kernel BC-250 setiap boot, agar suhu memori selalu tampil. Driver ini menambal firmware SMU di memori dan berbagi kotak suratnya dengan Cyan; biarkan mati kecuali Anda membutuhkannya.",
+  "Update Control Center's system setup helper first.": "Perbarui dulu pembantu penyiapan sistem Control Center.",
+  "Loads at every boot": "Dimuat setiap boot",
+  "Loads at the next boot": "Dimuat pada boot berikutnya",
+  "This kernel has no bc250_memory driver.": "Kernel ini tidak punya driver bc250_memory.",
+  "Loaded now, not at boot": "Dimuat sekarang, tidak saat boot",
+  "Not on disk": "Tidak ada di disk",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "Folder gim sudah tidak ada. Menghapusnya dari daftar tidak mengubah apa pun di disk.",
+  "Remove this game from the list": "Hapus gim ini dari daftar",
+  "Its folder is no longer on disk, so there is nothing to put back.": "Foldernya sudah tidak ada di disk, jadi tidak ada yang perlu dikembalikan.",
+  "{game} was removed from the list.": "{game} dihapus dari daftar."
 }

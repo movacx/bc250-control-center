@@ -2630,6 +2630,21 @@ def _bundled_scaler_version(directory: Path) -> str:
     return match.group(1).decode("ascii") if match else ""
 
 
+def _hidden_games_path() -> Path:
+    """Games taken off the list because their folder was gone (R-2e7f6048)."""
+    return helixsr_root() / "hidden-games.json"
+
+
+def _hidden_games() -> set[str]:
+    value = _read_json(_hidden_games_path(), [])
+    return {str(item) for item in value} if isinstance(value, list) else set()
+
+
+def _hide_game(appid: str) -> None:
+    hidden = _hidden_games() | {str(appid)}
+    _write_json(_hidden_games_path(), sorted(hidden))
+
+
 def _bridge_game_rows(status: dict) -> list[dict]:
     records, native, scaler = _bridge_records(), _records(), _scaler_records()
     candidates = {str(g["appid"]): g for g in installed_steam_game_folders()}
@@ -2657,8 +2672,15 @@ def _bridge_game_rows(status: dict) -> list[dict]:
     except (OSError, RuntimeError):
         by_folder = {}
     rows = []
+    hidden = _hidden_games()
     for appid, game in candidates.items():
         folder = str(game.get("path") or "")
+        # Deleted from the disk but still named somewhere (a stale Steam
+        # manifest, a folder added by hand, an old record): offered only to be
+        # taken off the list, and gone for good once it is.
+        missing = bool(folder) and not Path(folder).is_dir()
+        if missing and appid in hidden:
+            continue
         info = by_folder.get(os.path.realpath(folder), {}) if folder else {}
         record = records.get(appid, {})
         owner = "bridge" if record else "app-2x" if appid in native or appid in scaler else "other"
@@ -2677,7 +2699,8 @@ def _bridge_game_rows(status: dict) -> list[dict]:
                      "managed_by": owner,
                      # A game HelixSR 2 put in always needs the update to 3.
                      "outdated": owner == "app-2x" or bool(version and version != helixsr_release()["version"]),
-                     "settings_supported": ["HelixSR.WaveSize"] if installed == "scaler" else []})
+                     "settings_supported": ["HelixSR.WaveSize"] if installed == "scaler" else [],
+                     "missing": missing})
     return rows
 
 
@@ -2847,7 +2870,15 @@ def remove_helixsr_bridge(appid: str) -> dict:
             _write_json(_folders_path(), listed)
             _forget_bridge_games()
             return {"game": str(entry.get("name") or appid), "forgotten": True}
-        game = _game(appid)
+        try:
+            game = _game(appid)
+        except (RuntimeError, ValueError):
+            game = None
+        if game is None or not Path(str(game["path"])).is_dir():
+            # Nothing on disk to put back: the game only comes off the list.
+            _hide_game(appid)
+            _forget_bridge_games()
+            return {"game": str((game or {}).get("name") or appid), "forgotten": True}
         folder = Path(str(game["path"]))
         _refuse_running(folder)
         _run_bridge("remove", "--game", str(folder))

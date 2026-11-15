@@ -6195,5 +6195,22 @@
   "What was attached": "添付された内容",
   "A downloaded package was damaged.": "ダウンロードしたパッケージが破損していました。",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "チェックサムがリポジトリの一覧と一致しませんでした。ダウンロードが途中で切れたか、リポジトリが同じバージョンでファイルを公開し直しました。何もインストールされていません。",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "もう一度操作を実行してください。Control Centerが破損したコピーを削除して再ダウンロードします。それでも失敗する場合は、リポジトリが現在破損したファイルを配信しています。しばらくしてからお試しください。"
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "もう一度操作を実行してください。Control Centerが破損したコピーを削除して再ダウンロードします。それでも失敗する場合は、リポジトリが現在破損したファイルを配信しています。しばらくしてからお試しください。",
+  "GDDR6 temperature from the kernel (bc250_memory)": "カーネルからの GDDR6 温度（bc250_memory）",
+  "Load at boot": "起動時に読み込む",
+  "Stop loading at boot": "起動時の読み込みをやめる",
+  "Load the GDDR6 memory driver at boot": "起動時に GDDR6 メモリードライバーを読み込む",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "カーネルの bc250_memory ドライバーが、「ライブで監視」を押さなくても 8 個の GDDR6 チップの温度を常に公開するようになります。読み取りのため、ドライバーは SMU のファームウェアをメモリー上でパッチし、Cyan と CPU のオーバークロックが使うのと同じ、ただ一つのメールボックスを通じて値を要求します。ボードが安定するわけではありません。メールボックスの利用者が一つ増え、二つの要求がぶつかると、電源を抜くまでボードがフリーズすることがあります。温度を常に見る必要がなければオフのままにしてください。変更は再起動後に適用されます。パッチを元に戻すには、ボードの電源を完全に切ってください。",
+  "Kernel memory driver (bc250_memory)": "カーネルのメモリードライバー（bc250_memory）",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "起動のたびに BC-250 カーネルの GDDR6 ドライバーを読み込み、メモリー温度を常に表示します。SMU のファームウェアをメモリー上でパッチし、そのメールボックスを Cyan と共有します。必要でなければオフのままにしてください。",
+  "Update Control Center's system setup helper first.": "先に Control Center のシステム設定ヘルパーを更新してください。",
+  "Loads at every boot": "起動のたびに読み込み",
+  "Loads at the next boot": "次回の起動時に読み込み",
+  "This kernel has no bc250_memory driver.": "このカーネルには bc250_memory ドライバーがありません。",
+  "Loaded now, not at boot": "今は読み込み済み、起動時には読み込まない",
+  "Not on disk": "ディスク上にありません",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "ゲームのフォルダーはもうありません。一覧から外してもディスク上は何も変わりません。",
+  "Remove this game from the list": "このゲームを一覧から外す",
+  "Its folder is no longer on disk, so there is nothing to put back.": "フォルダーがもうディスク上にないため、元に戻すものはありません。",
+  "{game} was removed from the list.": "{game} を一覧から外しました。"
 }

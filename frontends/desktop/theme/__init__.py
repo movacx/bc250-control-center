@@ -1147,6 +1147,10 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 9px;
         font-weight: 800;
     }}
+    QToolButton[groupToggle='true'] {{
+        background: transparent; border: none; padding: 0; color: {c['muted']};
+    }}
+    QToolButton[groupToggle='true']:hover {{ background: {c['control_hover']}; border-radius: 4px; }}
     QLabel[bandNote='true'] {{
         color: {c['muted']};
         font-size: 10px;

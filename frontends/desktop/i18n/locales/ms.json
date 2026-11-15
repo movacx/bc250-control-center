@@ -6195,5 +6195,22 @@
   "What was attached": "Yang dilampirkan",
   "A downloaded package was damaged.": "Pakej yang dimuat turun rosak.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Checksumnya tidak sepadan dengan senarai repositori: muat turun terputus, atau repositori menerbitkan semula fail dengan versi yang sama. Tiada apa-apa dipasang.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Jalankan tindakan sekali lagi: Control Center memadam salinan yang rosak dan memuat turunnya semula. Jika masih gagal, repositori sedang menyediakan fail yang rosak; cuba lagi kemudian."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Jalankan tindakan sekali lagi: Control Center memadam salinan yang rosak dan memuat turunnya semula. Jika masih gagal, repositori sedang menyediakan fail yang rosak; cuba lagi kemudian.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "Suhu GDDR6 daripada kernel (bc250_memory)",
+  "Load at boot": "Muat semasa but",
+  "Stop loading at boot": "Berhenti memuat semasa but",
+  "Load the GDDR6 memory driver at boot": "Muat pemacu memori GDDR6 semasa but",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "Pemacu kernel bc250_memory akan sentiasa menerbitkan suhu lapan cip GDDR6, tanpa menekan Pantau secara langsung. Untuk membacanya, pemacu menampal perisian tegar SMU dalam memori dan meminta bacaan melalui peti mel tunggal yang sama yang digunakan Cyan dan overclock CPU. Ia tidak menjadikan papan lebih stabil: peti mel itu mendapat seorang lagi pengguna, dan jika dua permintaan bertembung papan boleh membeku sehingga palam dicabut. Biarkan ia mati melainkan anda perlukan suhu itu sepanjang masa. Perubahan berkuat kuasa selepas but semula; untuk membuang tampalan, matikan papan sepenuhnya.",
+  "Kernel memory driver (bc250_memory)": "Pemacu memori kernel (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Memuatkan pemacu GDDR6 kernel BC-250 pada setiap but, supaya suhu memori sentiasa dipaparkan. Ia menampal perisian tegar SMU dalam memori dan berkongsi peti melnya dengan Cyan; biarkan ia mati melainkan anda memerlukannya.",
+  "Update Control Center's system setup helper first.": "Kemas kini dahulu pembantu persediaan sistem Control Center.",
+  "Loads at every boot": "Dimuatkan pada setiap but",
+  "Loads at the next boot": "Akan dimuatkan pada but seterusnya",
+  "This kernel has no bc250_memory driver.": "Kernel ini tiada pemacu bc250_memory.",
+  "Loaded now, not at boot": "Dimuatkan sekarang, bukan semasa but",
+  "Not on disk": "Tiada dalam cakera",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "Folder permainan sudah tiada. Membuangnya daripada senarai tidak mengubah apa-apa dalam cakera.",
+  "Remove this game from the list": "Buang permainan ini daripada senarai",
+  "Its folder is no longer on disk, so there is nothing to put back.": "Foldernya sudah tiada dalam cakera, jadi tiada apa-apa untuk dikembalikan.",
+  "{game} was removed from the list.": "{game} telah dibuang daripada senarai."
 }

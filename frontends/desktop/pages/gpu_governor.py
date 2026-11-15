@@ -57,6 +57,7 @@ from bc250cc.infrastructure.system_setup import (
     CU_UNLOCK_THERMAL_NOTE,
     HDMI21_OFF_OPTION,
     HIDE_BOOT_MESSAGES_OPTION,
+    MEMORY_SENSOR_OPTION,
     PCON_FORCE_DSC_OPTION,
     RELINK_AT_BOOT_OPTION,
     RELINK_OFF_OPTION,
@@ -1263,6 +1264,19 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                     "reboot and can be restored from Control Center."
                 )
                 confirm_text, tone = "Recover at boot", "orange"
+            elif changed == MEMORY_SENSOR_OPTION:
+                title = "Load the GDDR6 memory driver at boot"
+                body = (
+                    "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 "
+                    "chips all the time, without pressing Monitor live. To read it, the driver patches the "
+                    "SMU firmware in memory, and it asks the SMU for readings through the same single "
+                    "mailbox that Cyan and CPU overclocking use. It does not make the board more stable: "
+                    "it adds one more user to that mailbox, and if two of them collide the board can "
+                    "freeze until it is switched off at the plug. Leave it off unless you need the "
+                    "temperature all the time. The change applies after reboot; to undo the patch, "
+                    "switch the board off completely."
+                )
+                confirm_text, tone = "Load at boot", "orange"
             else:
                 title = "Disable simultaneous multithreading"
                 body = (
@@ -2151,6 +2165,10 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 tr("The game gets back the version it had before its last update. You can undo this the same way."),
                 "Go back", "orange",
             )
+        elif game_action == "bridge_remove" and game.get("missing"):
+            copy = ("Remove this game from the list",
+                    tr("Its folder is no longer on disk, so there is nothing to put back."),
+                    "Remove from list", "blue")
         elif game_action == "bridge_remove":
             copy = ("Remove HelixSR from this game", tr("Every file HelixSR replaced is put back."),
                     "Remove", "orange")
@@ -2159,7 +2177,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         title, body, confirm, tone = copy
         confirmation = ConfirmDialog(
             title,
-            body + " " + tr("Close the game first."),
+            body if game.get("missing") else body + " " + tr("Close the game first."),
             summary=((tr("Game"), name),),
             confirm_text=confirm,
             eyebrow="HelixSR",
@@ -2172,7 +2190,9 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         def done(result: object) -> None:
             result = _dict(result)
             game_name = str(result.get("game") or name)
-            if game_action == "bridge_remove":
+            if game_action == "bridge_remove" and result.get("forgotten"):
+                message = tr_format("{game} was removed from the list.", game=game_name)
+            elif game_action == "bridge_remove":
                 message = tr_format("HelixSR was removed from {game}; its own files are back.", game=game_name)
             elif game_action == "bridge_rollback":
                 message = tr_format("{game} now has HelixSR {version}.", game=game_name,

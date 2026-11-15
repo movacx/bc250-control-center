@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import pytest
 
+from frontends.desktop.core.state import DashboardState
 from frontends.desktop.pages.dashboard import DashboardPage
 
 BASE = {
@@ -48,7 +49,8 @@ def page(qtbot):
 
 
 def _sensors(page, sensors):
-    page.apply_state(page.state.with_live_metrics({**BASE, "sensors": sensors}))
+    # A board that has been read once: before that, empty rows say "Checking…".
+    page.apply_state(DashboardState().with_live_metrics({**BASE, "sensors": sensors}))
     hero = page.gpu_card
     rows = [hero.details["mos"], hero.details["rail"]]
     return (
@@ -174,3 +176,35 @@ def test_an_empty_band_explains_how_to_enable_it(page, monkeypatch, kernel, daem
 def test_a_band_with_readings_has_no_help_button(page):
     _sensors(page, PMBUS)
     assert page.vrm_help_button.isHidden() is True
+
+
+def test_before_the_first_read_empty_rows_say_checking_not_missing(qtbot):
+    from frontends.desktop.i18n import tr
+
+    fresh = DashboardPage(object())
+    qtbot.addWidget(fresh)
+    from PyQt6.QtWidgets import QLabel
+
+    values = [label.text() for label in fresh.cpu_card.findChildren(QLabel)]
+    assert tr("Not detected") not in values and tr("Checking…") in values
+
+
+def test_storage_is_folded_until_the_small_arrow_opens_it(qtbot):
+    fresh = DashboardPage(object())
+    qtbot.addWidget(fresh)
+    fresh.show()
+    gib = 1024 ** 3
+    state = DashboardState(disk_volumes=(
+        ("/", "M.2", "nvme", 263 * gib, 411 * gib, 64.0),
+        ("/run/media/usb", "Ventoy", "usb", 23 * gib, 116 * gib, 20.0),
+    ))
+    fresh.apply_state(state)
+    group = fresh.fan_card.details.groups["Storage"]
+    reading = fresh.fan_card.details.readings["disk:/run/media/usb"]
+    assert group.collapsed is True and not reading.isVisible()
+    group.toggle.click()
+    assert group.collapsed is False and reading.isVisible()
+    # A drive unplugged and plugged in again keeps the choice.
+    fresh.apply_state(DashboardState())
+    fresh.apply_state(state)
+    assert fresh.fan_card.details.groups["Storage"].collapsed is False

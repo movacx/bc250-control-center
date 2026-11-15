@@ -6195,5 +6195,22 @@
   "What was attached": "Mi lett csatolva",
   "A downloaded package was damaged.": "Egy letöltött csomag sérült volt.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Az ellenőrzőösszege nem egyezett a tároló listájával: a letöltés megszakadt, vagy a tároló ugyanazzal a verzióval újra közzétette a fájlt. Semmi sem lett telepítve.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Futtasd újra a műveletet: a Control Center törli a sérült példányt és újra letölti. Ha továbbra is hibát ad, a tároló jelenleg sérült fájlt szolgál ki; próbáld később."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Futtasd újra a műveletet: a Control Center törli a sérült példányt és újra letölti. Ha továbbra is hibát ad, a tároló jelenleg sérült fájlt szolgál ki; próbáld később.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "GDDR6-hőmérséklet a kerneltől (bc250_memory)",
+  "Load at boot": "Betöltés indításkor",
+  "Stop loading at boot": "Ne töltse be indításkor",
+  "Load the GDDR6 memory driver at boot": "GDDR6 memóriaillesztő betöltése indításkor",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "A kernel bc250_memory illesztője ekkor folyamatosan közzéteszi a nyolc GDDR6 chip hőmérsékletét, az Élő figyelés megnyomása nélkül. Az olvasáshoz az illesztő a memóriában módosítja az SMU firmware-ét, és ugyanazon az egyetlen postafiókon kéri az értékeket, amelyet a Cyan és a CPU-tuning használ. A kártyát nem teszi stabilabbá: a postafióknak eggyel több felhasználója lesz, és ha két kérés ütközik, a kártya lefagyhat, amíg ki nem húzzák a konnektorból. Hagyd kikapcsolva, hacsak nem kell folyamatosan a hőmérséklet. A változás újraindítás után lép életbe; a módosítás visszavonásához kapcsold ki teljesen a kártyát.",
+  "Kernel memory driver (bc250_memory)": "A kernel memóriaillesztője (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Minden indításkor betölti a BC-250 kernel GDDR6 illesztőjét, így a memória hőmérséklete mindig látható. A memóriában módosítja az SMU firmware-ét, és megosztja a postafiókját a Cyannal; hagyd kikapcsolva, ha nincs rá szükséged.",
+  "Update Control Center's system setup helper first.": "Előbb frissítsd a Control Center rendszerbeállító segédjét.",
+  "Loads at every boot": "Minden indításkor betöltődik",
+  "Loads at the next boot": "A következő indításkor betöltődik",
+  "This kernel has no bc250_memory driver.": "Ebben a kernelben nincs bc250_memory illesztő.",
+  "Loaded now, not at boot": "Most betöltve, indításkor nem",
+  "Not on disk": "Nincs a lemezen",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "A játék mappája már nem létezik. A listáról való eltávolítás semmit sem változtat a lemezen.",
+  "Remove this game from the list": "A játék eltávolítása a listáról",
+  "Its folder is no longer on disk, so there is nothing to put back.": "A mappája már nincs a lemezen, így nincs mit visszaállítani.",
+  "{game} was removed from the list.": "{game} lekerült a listáról."
 }

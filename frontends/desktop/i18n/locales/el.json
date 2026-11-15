@@ -6195,5 +6195,22 @@
   "What was attached": "Τι επισυνάφθηκε",
   "A downloaded package was damaged.": "Ένα πακέτο που λήφθηκε ήταν κατεστραμμένο.",
   "Its checksum did not match the repository's list: the download was cut short, or the repository published the file again with the same version. Nothing was installed.": "Το άθροισμα ελέγχου του δεν ταίριαξε με τη λίστα του αποθετηρίου: η λήψη διακόπηκε ή το αποθετήριο δημοσίευσε ξανά το αρχείο με την ίδια έκδοση. Δεν εγκαταστάθηκε τίποτα.",
-  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Εκτελέστε ξανά την ενέργεια: το Control Center διαγράφει το κατεστραμμένο αντίγραφο και το κατεβάζει ξανά. Αν συνεχίζει να αποτυγχάνει, το αποθετήριο διαθέτει αυτή τη στιγμή κατεστραμμένο αρχείο· δοκιμάστε αργότερα."
+  "Run the action again: Control Center deletes the damaged copy and downloads it again. If it keeps failing, the repository is serving a damaged file right now; try again later.": "Εκτελέστε ξανά την ενέργεια: το Control Center διαγράφει το κατεστραμμένο αντίγραφο και το κατεβάζει ξανά. Αν συνεχίζει να αποτυγχάνει, το αποθετήριο διαθέτει αυτή τη στιγμή κατεστραμμένο αρχείο· δοκιμάστε αργότερα.",
+  "GDDR6 temperature from the kernel (bc250_memory)": "Θερμοκρασία GDDR6 από τον πυρήνα (bc250_memory)",
+  "Load at boot": "Φόρτωση κατά την εκκίνηση",
+  "Stop loading at boot": "Διακοπή φόρτωσης κατά την εκκίνηση",
+  "Load the GDDR6 memory driver at boot": "Φόρτωση του οδηγού μνήμης GDDR6 κατά την εκκίνηση",
+  "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 chips all the time, without pressing Monitor live. To read it, the driver patches the SMU firmware in memory, and it asks the SMU for readings through the same single mailbox that Cyan and CPU overclocking use. It does not make the board more stable: it adds one more user to that mailbox, and if two of them collide the board can freeze until it is switched off at the plug. Leave it off unless you need the temperature all the time. The change applies after reboot; to undo the patch, switch the board off completely.": "Ο οδηγός bc250_memory του πυρήνα θα δημοσιεύει συνεχώς τη θερμοκρασία των οκτώ τσιπ GDDR6, χωρίς να πατάτε Ζωντανή παρακολούθηση. Για να τη διαβάσει, ο οδηγός τροποποιεί στη μνήμη το υλικολογισμικό του SMU και ζητά τις μετρήσεις από το ίδιο και μοναδικό γραμματοκιβώτιο που χρησιμοποιούν το Cyan και το overclock του CPU. Δεν κάνει την πλακέτα πιο σταθερή: το γραμματοκιβώτιο αποκτά έναν ακόμη χρήστη, και αν δύο αιτήματα συγκρουστούν η πλακέτα μπορεί να παγώσει μέχρι να αποσυνδεθεί από την πρίζα. Αφήστε το απενεργοποιημένο, εκτός αν χρειάζεστε τη θερμοκρασία συνεχώς. Η αλλαγή ισχύει μετά την επανεκκίνηση· για να αφαιρέσετε την τροποποίηση, σβήστε εντελώς την πλακέτα.",
+  "Kernel memory driver (bc250_memory)": "Οδηγός μνήμης του πυρήνα (bc250_memory)",
+  "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; leave it off unless you need it.": "Φορτώνει τον οδηγό GDDR6 του πυρήνα BC-250 σε κάθε εκκίνηση, ώστε η θερμοκρασία της μνήμης να φαίνεται πάντα. Τροποποιεί στη μνήμη το υλικολογισμικό του SMU και μοιράζεται το γραμματοκιβώτιό του με το Cyan· αφήστε τον απενεργοποιημένο, αν δεν τον χρειάζεστε.",
+  "Update Control Center's system setup helper first.": "Ενημερώστε πρώτα τον βοηθό ρύθμισης συστήματος του Control Center.",
+  "Loads at every boot": "Φορτώνεται σε κάθε εκκίνηση",
+  "Loads at the next boot": "Θα φορτωθεί στην επόμενη εκκίνηση",
+  "This kernel has no bc250_memory driver.": "Αυτός ο πυρήνας δεν έχει τον οδηγό bc250_memory.",
+  "Loaded now, not at boot": "Φορτωμένος τώρα, όχι κατά την εκκίνηση",
+  "Not on disk": "Δεν υπάρχει στον δίσκο",
+  "The game's folder is gone. Removing it from the list changes nothing on disk.": "Ο φάκελος του παιχνιδιού δεν υπάρχει πια. Η αφαίρεσή του από τη λίστα δεν αλλάζει τίποτα στον δίσκο.",
+  "Remove this game from the list": "Αφαίρεση αυτού του παιχνιδιού από τη λίστα",
+  "Its folder is no longer on disk, so there is nothing to put back.": "Ο φάκελός του δεν βρίσκεται πια στον δίσκο, οπότε δεν υπάρχει τίποτα για επαναφορά.",
+  "{game} was removed from the list.": "Το {game} αφαιρέθηκε από τη λίστα."
 }
