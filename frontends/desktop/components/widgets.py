@@ -405,6 +405,36 @@ def _asks_for_an_action(message: object) -> bool:
     return raw is not None and (raw.asks_for_action or raw.kind == ActionNeeded.__name__)
 
 
+def command_box(copy_text: str, button_text: str = "Copy command") -> QFrame:
+    """A selectable command and a copy button; this widget never executes it."""
+    frame = QFrame()
+    frame.setObjectName("DialogDetail")
+    layout = QHBoxLayout(frame)
+    layout.setContentsMargins(12, 9, 9, 9)
+    layout.setSpacing(10)
+    command = QLabel(str(copy_text))
+    command.setObjectName("DialogDetailText")
+    command.setProperty("i18nLiteral", True)
+    command.setTextFormat(Qt.TextFormat.PlainText)
+    command.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+    command.setWordWrap(True)
+    command.setMinimumWidth(0)
+    layout.addWidget(command, 1)
+    copy_button = QPushButton(tr(button_text))
+    copy_button.setObjectName("DialogSecondary")
+    copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def copy_to_clipboard() -> None:
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(str(copy_text))
+        copy_button.setText(tr("Copied"))
+
+    copy_button.clicked.connect(copy_to_clipboard)
+    layout.addWidget(copy_button, 0, Qt.AlignmentFlag.AlignTop)
+    return frame
+
+
 class InfoDialog(QDialog):
     """Compact frameless modal used by the control center.
 
@@ -532,31 +562,6 @@ class InfoDialog(QDialog):
         content_layout.setContentsMargins(26, 22, 26, 24) if roomy else content_layout.setContentsMargins(22, 18, 22, 20)
         content_layout.setSpacing(18 if roomy else 14)
 
-        def command_box() -> QFrame:
-            copy_frame = QFrame()
-            copy_frame.setObjectName("DialogDetail")
-            copy_layout = QHBoxLayout(copy_frame)
-            copy_layout.setContentsMargins(12, 9, 9, 9)
-            copy_layout.setSpacing(10)
-            command = QLabel(str(copy_text))
-            command.setObjectName("DialogDetailText")
-            command.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            command.setWordWrap(True)
-            copy_layout.addWidget(command, 1)
-            copy_button = QPushButton(copy_button_text)
-            copy_button.setObjectName("DialogSecondary")
-            copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
-
-            def copy_to_clipboard() -> None:
-                clipboard = QApplication.clipboard()
-                if clipboard is not None:
-                    clipboard.setText(str(copy_text))
-                copy_button.setText(tr("Copied"))
-
-            copy_button.clicked.connect(copy_to_clipboard)
-            copy_layout.addWidget(copy_button, 0, Qt.AlignmentFlag.AlignTop)
-            return copy_frame
-
         command_added = False
         self.spinner: BusySpinner | None = None
         if tone == "red":
@@ -570,7 +575,7 @@ class InfoDialog(QDialog):
                 content_layout.addWidget(_dialog_section(heading, text))
             if copy_text:
                 # The command sits right under the steps that point at it.
-                content_layout.addWidget(command_box())
+                content_layout.addWidget(command_box(copy_text, copy_button_text))
                 command_added = True
             content_layout.addWidget(_raw_error_block(detail_text, self.raw_error))
         else:
@@ -593,13 +598,18 @@ class InfoDialog(QDialog):
                 content_layout.addWidget(body)
 
         if copy_text and not command_added:
-            content_layout.addWidget(command_box())
+            content_layout.addWidget(command_box(copy_text, copy_button_text))
 
         if notice:
             notice_text = QLabel(notice)
             notice_text.setObjectName("DialogNoticeText")
             notice_text.setWordWrap(True)
             content_layout.addWidget(notice_text)
+
+        if tone in {"red", "orange"}:
+            self._add_known_errors_link(
+                content_layout, english if tone == "red" else canonical_source(raw_message), report_code,
+            )
 
         content_layout.addStretch(1)
         content_scroll.setWidget(content)
@@ -683,6 +693,38 @@ class InfoDialog(QDialog):
 
         localize_widget_tree(self)
         self.fit_to_content()
+
+    def _add_known_errors_link(self, layout: QVBoxLayout, message: str, code: str) -> None:
+        from bc250cc.shared import known_errors
+
+        candidates = known_errors.for_message(message)
+        if not candidates and code not in {"BC250-GENERAL-001", "BC250-WORKFLOW-001"}:
+            candidates = known_errors.for_code(code)
+        if not candidates:
+            return
+        owner = self.parentWidget()
+        opener = None
+        while owner is not None:
+            if owner.property("settingsPage") and callable(getattr(owner, "select_section", None)):
+                opener = owner.select_section
+                break
+            if callable(getattr(owner, "_open_settings_dialog", None)):
+                opener = owner._open_settings_dialog
+                break
+            owner = owner.parentWidget()
+        if opener is None:
+            return
+        target = candidates[0]["id"] if len(candidates) == 1 else message
+        button = QPushButton(tr("View in known errors"))
+        button.setObjectName("DialogSecondary")
+
+        def open_entry() -> None:
+            self.accept()
+            QTimer.singleShot(0, lambda: opener("support_errors:" + target))
+
+        button.clicked.connect(open_entry)
+        self.known_errors_button = button
+        layout.addWidget(button)
 
     def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().showEvent(event)

@@ -2933,6 +2933,36 @@
   "bc250cc/shared/failure_text.py": {
    "describe_failure": "DIAG-0109"
   },
+  "bc250cc/shared/known_errors.py": {
+   "normalize": "CORE-0305",
+   "localized": "CORE-0306",
+   "catalog": "CORE-0307",
+   "load": "CORE-0308",
+   "modules": "CORE-0309",
+   "for_id": "CORE-0310",
+   "_code_matches": "CORE-0311",
+   "for_code": "CORE-0312",
+   "_message_matches": "CORE-0313",
+   "for_message": "CORE-0314",
+   "search": "CORE-0316",
+   "search_matches": "CORE-0320",
+   "search_suggestions": "CORE-0321",
+   "family_for": "CORE-0317",
+   "fix_for": "CORE-0318",
+   "needs_update": "CORE-0319"
+  },
+  "bc250cc/shared/known_errors_search.py": {
+   "_words": "CORE-0322",
+   "vocabulary": "CORE-0323",
+   "_index": "CORE-0324",
+   "_distance": "CORE-0325",
+   "_near": "CORE-0326",
+   "_postings": "CORE-0327",
+   "_identifiers": "CORE-0328",
+   "matches": "CORE-0329",
+   "suggestions": "CORE-0330",
+   "suggested_modules": "CORE-0331"
+  },
   "bc250cc/shared/logging_config.py": {
    "log_path": "CORE-0100",
    "configure_logging": "CORE-0025",
@@ -3567,6 +3597,29 @@
    "I2cGuideDialog._fill_steps": "TEL-0373",
    "I2cGuideDialog.showEvent": "TEL-0368"
   },
+  "frontends/desktop/components/known_errors.py": {
+   "_label": "UI-0752",
+   "_clear": "UI-0764",
+   "DistributionContext.__init__": "UI-0765",
+   "DistributionContext.family": "UI-0766",
+   "DistributionContext.select": "UI-0767",
+   "DistributionSelector.__init__": "UI-0768",
+   "DistributionSelector.refresh_language": "UI-0769",
+   "DistributionSelector._sync": "UI-0770",
+   "KnownErrorsList.__init__": "UI-0753",
+   "KnownErrorsList.refresh_language": "UI-0755",
+   "KnownErrorsList._module_changed": "UI-0771",
+   "KnownErrorsList._suggested_module": "UI-0775",
+   "KnownErrorsList.set_query": "UI-0757",
+   "KnownErrorsList._suggested_query": "UI-0776",
+   "KnownErrorsList._filter": "UI-0758",
+   "KnownErrorDetail.__init__": "UI-0759",
+   "KnownErrorDetail._distribution_changed": "UI-0772",
+   "KnownErrorDetail._section": "UI-0760",
+   "KnownErrorDetail.show_entry": "UI-0761",
+   "KnownErrorDetail._build_solution": "UI-0773",
+   "KnownErrorDetail.select_tab": "UI-0774"
+  },
   "frontends/desktop/components/line_icons.py": {
    "line_icon": "UI-0735"
   },
@@ -3932,7 +3985,9 @@
    "_error_identity": "UI-0532",
    "_raw_error_block": "UI-0533",
    "_asks_for_an_action": "UI-0553",
+   "command_box": "UI-0762",
    "InfoDialog.__init__": "UI-0292",
+   "InfoDialog._add_known_errors_link": "UI-0763",
    "InfoDialog.showEvent": "UI-0293",
    "InfoDialog._tighten": "UI-0294",
    "InfoDialog.reference": "UI-0534",
@@ -5381,6 +5436,7 @@
    "DashboardPage.set_vrm_manual": "DASH-0292",
    "DashboardPage._show_vrm_probe": "DASH-0293",
    "DashboardPage._vrm_probe_note": "DASH-0294",
+   "DashboardPage._rail_reading": "DASH-0321",
    "DashboardPage._format_amps": "DASH-0295",
    "DashboardPage._format_volts": "DASH-0296",
    "DashboardPage._format_watts": "DASH-0297",
@@ -6473,6 +6529,10 @@
    "SettingsPage._back_link": "SET-0280",
    "SettingsPage._build_overview_page": "SET-0281",
    "SettingsPage._build_support_page": "SET-0290",
+   "SettingsPage._build_known_errors_page": "SET-0324",
+   "SettingsPage._build_known_error_detail_page": "SET-0325",
+   "SettingsPage._guide_context": "SET-0327",
+   "SettingsPage._show_known_error": "SET-0326",
    "SettingsPage._build_support_report_page": "SET-0291",
    "SettingsPage._build_support_reports_page": "SET-0292",
    "SettingsPage._build_support_detail_page": "SET-0314",
@@ -6512,6 +6572,7 @@
    "SettingsPage._show_repositories": "SET-0114",
    "SettingsPage._show_support": "SET-0294",
    "SettingsPage._select_report_tab": "SET-0295",
+   "SettingsPage._report_unknown_error": "SET-0328",
    "SettingsPage._open_report_form": "SET-0296",
    "SettingsPage._update_application": "SET-0116",
    "SettingsPage.gamepad_cycle_section": "SET-0117",
@@ -6582,6 +6643,7 @@
  },
  "retired": [
   "CORE-0086",
+  "CORE-0315",
   "CPU-0314",
   "CPU-0315",
   "DASH-0012",
@@ -6841,6 +6903,8 @@
   "UI-0700",
   "UI-0701",
   "UI-0702",
-  "UI-0705"
+  "UI-0705",
+  "UI-0754",
+  "UI-0756"
  ]
 }

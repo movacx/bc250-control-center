@@ -2137,15 +2137,29 @@ if ! printf '%s  %s\\n' {release['sha256']} "$bc250_archive" | sha256sum -c --st
   # The author re-publishes files under the same version. Instead of refusing,
   # ask GitHub for the digest it lists now and accept a download that matches it.
   bc250_actual="$(sha256sum "$bc250_archive" | awk '{{print $1}}')"
-  bc250_listed="$(bc250_fetch "$bc250_work/release.json" {shlex.quote(HELIXSR_RELEASE_API_BY_TAG.format(tag=release['tag']))} >/dev/null 2>&1 &&
+  if ! bc250_fetch "$bc250_work/release.json" {shlex.quote(HELIXSR_RELEASE_API_BY_TAG.format(tag=release['tag']))} >/dev/null 2>&1; then
+    echo "ERROR: GitHub release metadata could not be fetched; the downloaded archive could not be verified. Nothing was installed."
+    echo "Downloaded SHA-256: $bc250_actual"
+    echo "Try again when GitHub is reachable. Check the connection and API rate limit."
+    exit 30
+  fi
+  bc250_listed="$(
     "$bc250_python" -I -c 'import json, sys
 release = json.load(open(sys.argv[1]))
 print(next((str(a.get("digest") or "").removeprefix("sha256:") for a in release.get("assets", []) if a.get("name") == sys.argv[2]), ""))' "$bc250_work/release.json" {shlex.quote(release['archive'])} || true)"
+  if ! printf '%s' "$bc250_listed" | grep -Eq '^[0-9a-f]{{64}}$'; then
+    echo "ERROR: GitHub did not provide a usable SHA-256 for {release['archive']}. Nothing was installed."
+    echo "Downloaded SHA-256: $bc250_actual"
+    echo "Try again later; archive verification is required before installation."
+    exit 30
+  fi
   if [ -n "$bc250_listed" ] && [ "$bc250_listed" = "$bc250_actual" ]; then
     echo "The author re-published HelixSR {release['version']} under the same version; the download matches the SHA-256 GitHub lists for it now."
     bc250_republished=1
   else
     echo "ERROR: the download of {release['archive']} does not match the SHA-256 GitHub lists for it. Nothing was installed."
+    echo "Downloaded SHA-256: $bc250_actual"
+    echo "GitHub SHA-256: $bc250_listed"
     echo "Try again in a few minutes, or choose another HelixSR version."
     exit 30
   fi

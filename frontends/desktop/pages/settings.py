@@ -61,6 +61,7 @@ from bc250cc.infrastructure.vrm_telemetry_reader import (
 )
 from bc250cc.platform.init.services import detect_init_manager
 from bc250cc.platform.packages.strategies.detector import detect_os_info
+from bc250cc.shared import known_errors
 from bc250cc.shared.failure_text import describe_failure
 from bc250cc.shared.version import __version__
 
@@ -68,6 +69,11 @@ from .. import theme as _theme
 from ..components.buttons import WrappingButton as QPushButton
 from ..components.density import apply_layout_density
 from ..components.dialogs import center_dialog, enable_adaptive_dialog
+from ..components.known_errors import (
+    DistributionContext,
+    KnownErrorDetail,
+    KnownErrorsList,
+)
 from ..components.page_widgets import ConfirmDialog
 from ..components.responsive import (
     QT_MAX_SIZE,
@@ -346,6 +352,31 @@ def settings_stylesheet() -> str:
     }}
     QWidget[settingsPage='true'] QPushButton[supportTab='true']:checked {{
         color:{c['text']}; border-bottom-color:{c['blue']};
+    }}
+    QWidget[settingsPage='true'] QLabel[guideTitle='true'] {{
+        color:{c['text']}; font-size:21px; font-weight:700; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[guideLead='true'] {{
+        color:{row_note}; font-size:13px; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[guideBody='true'] {{
+        color:{c['text']}; font-size:13px; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[guideSectionTitle='true'],
+    QWidget[settingsPage='true'] QLabel[guideRowTitle='true'] {{
+        color:{c['text']}; font-size:14px; font-weight:650; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[guideMeta='true'] {{
+        color:{c['muted']}; font-size:11px; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[guideFieldLabel='true'] {{
+        color:{c['text']}; font-size:12px; font-weight:600; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[guideNotice='true'] {{
+        color:{row_note}; font-size:12px; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLineEdit[guideSearch='true'] {{
+        min-height:38px; font-size:12px; padding:0 12px;
     }}
     QWidget[settingsPage='true'] QFrame[supportTable='true'] {{
         background:{c['panel_raised']}; border:1px solid {c['border_soft']}; border-radius:10px;
@@ -1894,6 +1925,7 @@ class SettingsPage(QWidget):
     SUBPAGES = {
         "overview": "about", "repositories": "about", "support": "about",
         "support_report": "about", "support_reports": "about", "support_detail": "about",
+        "support_errors": "about", "support_error_detail": "about",
     }
     #: Sections that moved into Support: the old key opens its tab.
     SECTION_ALIASES = {"diagnostics": ("support_reports", 0), "reports": ("support_reports", 1)}
@@ -1917,6 +1949,10 @@ class SettingsPage(QWidget):
             self.sent_reports_list.refresh()
         elif key == "support_report":
             self._open_report_form()
+        elif key == "support_errors":
+            self.known_errors_list.refresh_language()
+        elif key == "support_error_detail" and self.known_error_detail.identity:
+            self.known_error_detail.show_entry(self.known_error_detail.identity)
         elif key == "telemetry":
             self._refresh_gddr6_kernel_driver()
             self._load_daemon_config()
@@ -1935,6 +1971,8 @@ class SettingsPage(QWidget):
             "support_report": self._build_support_report_page,
             "support_reports": self._build_support_reports_page,
             "support_detail": self._build_support_detail_page,
+            "support_errors": self._build_known_errors_page,
+            "support_error_detail": self._build_known_error_detail_page,
             "about": self._build_about_page,
             "overview": self._build_overview_page,
             "repositories": self._build_repositories_page,
@@ -3053,6 +3091,7 @@ class SettingsPage(QWidget):
         for column, (title, text, go, section, primary) in enumerate((
             ("Report a problem", "Tell us what failed. We attach the diagnostics for you.", "Begin", "support_report", True),
             ("View reports", "System diagnostics and the movement history.", "Open", "support_reports", False),
+            ("Known errors", "Find an error and how to fix it.", "Open", "support_errors", False),
         )):
             card = SupportCard(title, text, go, primary=primary)
             card.clicked.connect(lambda _checked=False, target=section: self.select_section(target))
@@ -3070,6 +3109,44 @@ class SettingsPage(QWidget):
         layout.addWidget(note)
         layout.addStretch(1)
         return page
+
+    def _build_known_errors_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Known errors", "support", "Support")
+        layout.itemAt(0).layout().setContentsMargins(0, 6, 0, 0)
+        layout.itemAt(layout.count() - 1).widget().hide()
+        layout.addSpacing(8)
+        self.known_errors_list = KnownErrorsList()
+        self.known_errors_list.entry_requested.connect(self._show_known_error)
+        self.known_errors_list.report_requested.connect(self._report_unknown_error)
+        layout.addWidget(self.known_errors_list)
+        layout.addStretch(1)
+        return page
+
+    def _build_known_error_detail_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Known errors", "support_errors", "Known errors")
+        layout.itemAt(0).layout().setContentsMargins(0, 6, 0, 0)
+        layout.itemAt(layout.count() - 1).widget().hide()
+        layout.addSpacing(8)
+        self.known_error_detail = KnownErrorDetail(context=self._guide_context())
+        self.known_error_detail.update_requested.connect(self.update_requested.emit)
+        layout.addWidget(self.known_error_detail)
+        layout.addStretch(1)
+        return page
+
+    def _guide_context(self) -> DistributionContext:
+        if not hasattr(self, "_known_errors_context"):
+            self._known_errors_context = DistributionContext(self)
+        return self._known_errors_context
+
+    def _show_known_error(self, code: str) -> None:
+        if known_errors.for_id(code) is not None:
+            self._ensure_section("support_error_detail")
+            if self.known_error_detail.identity != code:
+                self.known_error_detail.active_tab = "solution"
+            self.known_error_detail.identity = code
+            self._show_section("support_error_detail")
 
     def _build_support_report_page(self) -> QWidget:
         page, layout = self._build_page_frame("", "")
@@ -3658,6 +3735,10 @@ class SettingsPage(QWidget):
             tabs[index].setChecked(True)
             self.report_tab_pages.setCurrentIndex(index)
 
+    def _report_unknown_error(self, query: str) -> None:
+        self.select_section("support_report")
+        self.report_form.summary.setText(query)
+
     def _open_report_form(self) -> None:
         """A fresh form each time, inside this window instead of one of its own."""
         from ..components.feedback_dialog import FeedbackDialog
@@ -3687,6 +3768,15 @@ class SettingsPage(QWidget):
         return self.scroll
 
     def select_section(self, key: str) -> None:
+        if key.startswith("support_errors:"):
+            query = key.partition(":")[2]
+            entry = known_errors.for_id(query)
+            if entry is not None:
+                self._show_known_error(entry["id"])
+            else:
+                self._show_section("support_errors")
+                self.known_errors_list.set_query(query)
+            return
         if key in self.SECTION_ALIASES:
             key, tab = self.SECTION_ALIASES[key]
             self._show_section(key)

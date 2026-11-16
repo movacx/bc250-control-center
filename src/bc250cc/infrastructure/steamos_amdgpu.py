@@ -348,13 +348,26 @@ def build_steamos_compatibility_command(
         'echo "== SteamOS compatibility: source validation =="',
         'echo "[INFO] Scope: patched AMDGPU telemetry/compute support and scheduler boot policy."',
         'echo "[INFO] This workflow does not install the optional Mesa/RADV performance patch."',
+    ]
+    if install:
+        # R-f901e064 / R-ec163c9d: reject a new unsupported kernel before
+        # cloning/staging the protected backend or asking for sudo.
+        kernel_patterns = "|".join(f"{base}.*" for base in SUPPORTED_KERNEL_BASES)
+        kernel_bases = ", ".join(SUPPORTED_KERNEL_BASES)
+        commands.extend([
+            'running_release="$(uname -r)"',
+            'printf "Kernel: %s\\n" "$running_release"',
+            f'case "$running_release" in {kernel_patterns}) ;; *) echo "ERROR: the reviewed SteamOS kernel backend supports kernel bases {kernel_bases}; running: $running_release"; '
+            'echo "An updated, reviewed backend is required for this kernel. No system changes were made."; exit 38 ;; esac',
+        ])
+    commands.extend([
         checkout_command,
         f'{backend_ready} || {{ echo "ERROR: protected SteamOS AMDGPU backend is unavailable or untrusted; use Prepare SteamOS compatibility from Desktop Mode."; exit 38; }}',
         f'test -r {qcmdline} || {{ echo "ERROR: the live kernel command line is not readable"; exit 38; }}',
         'status_file="$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/bc250-amdgpu-status.XXXXXX")"',
         'chmod 0600 "$status_file"',
         "trap 'rm -f -- \"$status_file\"' EXIT",
-    ]
+    ])
     if not install:
         commands.append(
             'echo "== SteamOS compatibility: read-only preflight =="; '
@@ -374,14 +387,11 @@ def build_steamos_compatibility_command(
             'echo "[INFO] Use the explicit Prepare SteamOS compatibility action when you are ready to modify amdgpu/initramfs and reboot."; fi'
         )
     else:
-        kernel_patterns = "|".join(f"{base}.*" for base in SUPPORTED_KERNEL_BASES)
-        kernel_bases = ", ".join(SUPPORTED_KERNEL_BASES)
         commands.extend(
             [
                 'echo "== SteamOS compatibility: privileged preflight =="',
                 'running_release="$(uname -r)"',
                 'printf "Kernel: %s\\n" "$running_release"',
-                f'case "$running_release" in {kernel_patterns}) ;; *) echo "ERROR: the reviewed SteamOS kernel backend supports kernel bases {kernel_bases}; running: $running_release"; exit 38 ;; esac',
                 'lspci -Dnnd 1002:13fe 2>/dev/null | grep -q . || { echo "ERROR: AMD BC-250 PCI device 1002:13fe was not detected"; exit 38; }',
                 'echo "Hardware: AMD BC-250 [1002:13fe] detected"',
                 (

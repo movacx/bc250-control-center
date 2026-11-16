@@ -1,3 +1,5 @@
+import os
+import shlex
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -383,6 +385,47 @@ def test_steamos_restores_omitted_kernel_api_headers(tmp_path):
     assert "#include <linux/types.h>" in command
     assert "sudo pacman -S --noconfirm linux-api-headers" in command
     assert "linux/types.h is still missing" in command
+
+
+@pytest.mark.parametrize("missing,repair_works", [(False, True), (True, True), (True, False)])
+def test_steamos_repairs_omitted_glibc_headers_before_building(tmp_path, missing, repair_works):
+    """R-e23fa920: package records exist but the image lacks features.h."""
+    binary = tmp_path / "bin"
+    binary.mkdir()
+    header = tmp_path / "glibc-ready"
+    calls = tmp_path / "packages"
+    if not missing:
+        header.touch()
+    tools = {
+        "pkg-config": "exit 0",
+        "cc": 'input=$(cat); case "$input" in *features.h*) test -f "$GLIBC_READY" ;; *) exit 0 ;; esac',
+        "c++": 'cat >/dev/null; test -f "$GLIBC_READY"',
+        "sudo": 'printf "%s\\n" "$*" >> "$PACKAGES"; '
+                'if [ "${*: -1}" = glibc ] && [ "$REPAIR_WORKS" = 1 ]; then touch "$GLIBC_READY"; fi',
+    }
+    for name, body in tools.items():
+        path = binary / name
+        path.write_text("#!/bin/bash\n" + body + "\n")
+        path.chmod(0o755)
+    command = oberon_install_command(
+        _os_repository(tmp_path, "steamos"), destination=tmp_path / "oberon",
+        checkout_command="CHECKOUT", yaml_cpp_revision="reviewed-yaml",
+    )
+    prefix = command[:command.index('command -v git')]
+    ready = tmp_path / "build-ready"
+    result = subprocess.run(
+        ["bash", "-c", prefix + f"touch {shlex.quote(str(ready))}"],
+        env=os.environ | {"PATH": f"{binary}:/usr/bin:/bin", "GLIBC_READY": str(header),
+                          "PACKAGES": str(calls), "REPAIR_WORKS": str(int(repair_works))},
+        capture_output=True, text=True, timeout=10,
+    )
+    assert ("pacman -S --noconfirm glibc" in calls.read_text()) is missing
+    if missing and not repair_works:
+        assert result.returncode == 54
+        assert "features.h/stdio.h" in result.stdout and not ready.exists()
+    else:
+        assert result.returncode == 0, result.stderr
+        assert ready.exists()
 
 
 def test_bazzite_builds_in_the_hosts_fedora_release_and_checks_the_binary(tmp_path):

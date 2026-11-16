@@ -275,6 +275,8 @@ The report also attaches a hardware diagnosis, collected without root on every d
 
 To read everything a report attaches before sending it, open **Settings › Diagnostics › View full diagnosis**: every section (kernel, previous boot, black box, sensors, GPU, services, configuration, packages, logs) is expandable, sorted into tabs, searchable, and can be copied or saved as a file. The terminal prints the same with `bc250-control-center-cli diagnose --full`.
 
+**Settings › About › Support › Known errors** opens an offline handbook with searchable guides and a module selector. Each article uses your detected distribution. It presents the solution as text and copyable commands, with developer notes in a separate tab. Matching error windows link to the relevant article. The handbook never runs commands automatically.
+
 Issues on GitHub are welcome as well. Please include your distribution, kernel version and the terminal output.
 
 ## Safety

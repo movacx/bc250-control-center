@@ -406,6 +406,7 @@ def test_full_install_requires_the_attested_module_to_match_final_status(
         ("6.18.3-valve1-1-neptune-618-gabcdef012345", True),
         ("6.16.12-valve24.5-1-neptune-616-gb2f7cfe85e45", True),
         ("6.11.11-valve1-1-neptune-611-g0123456789ab", False),
+        ("7.3.1-valve2-1-neptune-73-g0ed55b10a784", False),
     ),
 )
 def test_the_preflight_accepts_every_kernel_base_the_backend_builds_for(tmp_path, release, accepted):
@@ -419,3 +420,23 @@ def test_the_preflight_accepts_every_kernel_base_the_backend_builds_for(tmp_path
     assert (result.returncode == 0) is accepted
     if not accepted:
         assert "kernel bases 6.16, 6.18, 7.2" in result.stdout
+
+
+def test_unsupported_steamos_kernel_stops_before_backend_staging(tmp_path):
+    """The two 7.3.1 reports staged a root backend before rejecting the kernel."""
+    binary = tmp_path / "bin"
+    binary.mkdir()
+    uname = binary / "uname"
+    uname.write_text("#!/bin/bash\necho 7.3.1-valve2-1-neptune-73-g0ed55b10a784\n")
+    uname.chmod(0o755)
+    staged = tmp_path / "staged"
+    command = build_steamos_compatibility_command(
+        script=tmp_path / "status.sh", boot_config=tmp_path / "boot-config.sh",
+        checkout_command=f"touch {staged}", install=True,
+    )
+    result = subprocess.run(["bash", "-c", command], capture_output=True, text=True,
+                            env=os.environ | {"PATH": f"{binary}:/usr/bin:/bin"}, timeout=10)
+    assert result.returncode == 38
+    assert not staged.exists()
+    assert "An updated, reviewed backend is required" in result.stdout
+    assert "No system changes were made" in result.stdout

@@ -199,6 +199,11 @@ def oberon_install_command(
             "if ! pkg-config --exists libdrm libdrm_amdgpu; then "
             'echo "[INFO] Restoring the libdrm development payload omitted by this deployment."; '
             "sudo pacman -S --noconfirm libdrm; fi; "
+            # R-e23fa920: SteamOS can also omit glibc's development files.
+            # A kernel API probe alone passes, then C++ fails on features.h.
+            "if ! printf '#include <features.h>\\n#include <stdio.h>\\n' | cc -fsyntax-only -x c - >/dev/null 2>&1; then "
+            'echo "[INFO] Restoring the C library development headers omitted by this deployment."; '
+            "sudo pacman -S --noconfirm glibc; fi; "
             # R-bb33f44b: SteamOS images can record linux-api-headers as
             # installed while omitting its files, so --needed skips it and the
             # build dies on <linux/types.h>. Probe the header, not the record.
@@ -209,8 +214,12 @@ def oberon_install_command(
         dependency_preflight = (
             "pkg-config --exists libdrm libdrm_amdgpu || "
             '{ echo "ERROR: libdrm pkg-config metadata is still unavailable after package repair"; exit 54; }; '
+            "printf '#include <features.h>\\n#include <stdio.h>\\n' | cc -fsyntax-only -x c - >/dev/null 2>&1 || "
+            '{ echo "ERROR: C library development headers (features.h/stdio.h) are still unavailable after reinstalling glibc"; exit 54; }; '
             "printf '#include <linux/types.h>\\n' | cc -fsyntax-only -x c - >/dev/null 2>&1 || "
-            '{ echo "ERROR: linux/types.h is still missing after reinstalling linux-api-headers"; exit 54; }'
+            '{ echo "ERROR: linux/types.h is still missing after reinstalling linux-api-headers"; exit 54; }; '
+            "printf '#include <string>\\n#include <cstdint>\\n' | c++ -fsyntax-only -x c++ - >/dev/null 2>&1 || "
+            '{ echo "ERROR: the C++ development headers are unavailable after C library and kernel header repair; repair the matching gcc package before building Oberon"; exit 54; }'
         )
         build_command = (
             f"cmake -S {shlex.quote(str(destination))} -B {shlex.quote(str(build))} "

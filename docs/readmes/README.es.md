@@ -242,6 +242,8 @@ El informe adjunta además un diagnóstico del hardware, recopilado sin root en 
 
 Para leer todo lo que adjunta un informe antes de enviarlo, abra **Configuración › Diagnóstico › Ver diagnóstico completo**: cada sección (kernel, arranque anterior, caja negra, sensores, GPU, servicios, configuración, paquetes, registros) se puede expandir, ordenar en pestañas, buscar y se puede copiar o guardar como un archivo. El terminal imprime lo mismo con `bc250-control-center-cli diagnose --full`.
 
+**Ajustes › Acerca de › Soporte › Errores frecuentes** abre un catálogo sin conexión con guías buscables y selector de módulo. Cada artículo utiliza la distribución detectada. Presenta la solución como texto y comandos copiables, con las notas de desarrollo en otra pestaña. Las ventanas de error con una coincidencia enlazan a su artículo. El catálogo nunca ejecuta comandos automáticamente.
+
 Los problemas en GitHub también son bienvenidos. Incluye tu distribución, la versión del kernel y la salida de la terminal.
 
 ## Seguridad
