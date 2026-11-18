@@ -11,6 +11,7 @@ import platform
 from pathlib import Path
 
 from .steamos_graphics_ownership import (
+    graphics_conflicts,
     graphics_prefix_present,
     vulkan_driver_selections,
 )
@@ -102,8 +103,15 @@ def probe_real_toolkit(*, root: Path = Path('/'), home: Path | None = None,
             # An unreadable ownership record is unknown. The privileged
             # checker still rechecks/fails closed at operation time.
             native_ownership[component] = None
+    try:
+        # The same check the privileged runtime makes before the combined fix:
+        # read here so the row says so instead of failing after the password.
+        foreign_graphics = list(graphics_conflicts('real-toolkit', root=root, home=home, kernel=kernel))
+    except (OSError, ValueError):
+        foreign_graphics = None
     return {
         'provider': REPOSITORY, 'reviewed_revision': revision, 'prepared': bool(prepared),
+        'foreign_graphics': foreign_graphics,
         'workspace': str(state_root), 'components': components,
         'native_ownership': native_ownership,
         'graphics': {'state': graphics_state, 'icds': [str(p) for p in valid],

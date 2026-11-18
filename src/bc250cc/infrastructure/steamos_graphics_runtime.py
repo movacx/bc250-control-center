@@ -597,6 +597,73 @@ def _fsr4_runtime_state(*, state_dir: Path) -> dict[str, object]:
     }
 
 
+#: Lines every generator template keyboardspecialist has written carries; the
+#: generator only ever exports the driver while all three files agree.
+_GENERATOR_SIGNATURE = (
+    "DRIVER='/usr/lib/libvulkan_radeon_driconf.so'",
+    'ICD="$HOME/radeon_driconf_icd.x86_64.json"',
+    'MANIFEST="$HOME/.local/share/bc250-mesh-shader/install.conf"',
+)
+
+
+def orphaned_runtime(home: Path | None = None, *, driver_path: Path = RADV_DRIVER,
+                     generator_path: Path = RADV_GENERATOR) -> tuple[str, ...]:
+    """keyboardspecialist's system files whose install record in /home is gone.
+
+    SteamOS' factory reset erases /home and keeps the system partition, so the
+    driver and generator outlive ``install.conf``. The provider's own uninstall
+    then refuses (it proves ownership with that record) and the Real Toolkit
+    refuses to install over them: nothing could remove them.
+    """
+    home = Path.home() if home is None else Path(home)
+    manifest = home / ".local" / "share" / "bc250-mesh-shader" / "install.conf"
+    if manifest.exists() or manifest.is_symlink():
+        return ()
+    return tuple(str(path) for path in (driver_path, generator_path)
+                 if path.exists() or path.is_symlink())
+
+
+def orphan_cleanup_command(*, driver_path: Path = RADV_DRIVER,
+                           generator_path: Path = RADV_GENERATOR) -> str:
+    """Remove those leftovers, after proving each one is the provider's.
+
+    A file is removed only when it is a root-owned regular file nobody else can
+    write, no package owns it, the driver is an ELF library and the generator
+    carries the provider's template lines. Any doubt removes nothing.
+    """
+    driver, generator = shlex.quote(str(driver_path)), shlex.quote(str(generator_path))
+    manifest = '"$HOME/.local/share/bc250-mesh-shader/install.conf"'
+    icd = '"$HOME/radeon_driconf_icd.x86_64.json"'
+    signature = " && ".join(f"grep -qxF {shlex.quote(line)} {generator}" for line in _GENERATOR_SIGNATURE)
+    steps = (
+        f'if [ -e {manifest} ] || [ -L {manifest} ]; then '
+        'echo "ERROR: the keyboardspecialist install record exists; use its own Remove instead."; exit 3; fi',
+        'echo "[INFO] keyboardspecialist left its Mesa / RADV files in the system partition, but its install '
+        'record in /home is gone (a SteamOS factory reset erases /home only). Each file is checked before it is removed."',
+        f'for bc250_path in {driver} {generator}; do '
+        '[ -e "$bc250_path" ] || [ -L "$bc250_path" ] || continue; '
+        '{ [ -f "$bc250_path" ] && [ ! -L "$bc250_path" ] && [ "$(stat -c %u "$bc250_path")" = 0 ] '
+        '&& (( (8#$(stat -c %a "$bc250_path") & 8#022) == 0 )); } '
+        '|| { echo "ERROR: $bc250_path is not a root-owned regular file; nothing was removed."; exit 3; }; '
+        'if bc250_owner=$(pacman -Qoq "$bc250_path" 2>/dev/null); then '
+        'echo "ERROR: $bc250_path belongs to the package $bc250_owner; nothing was removed."; exit 3; fi; '
+        'done',
+        f'if [ -e {driver} ]; then '
+        f'[ "$(head -c 4 {driver} | od -An -tx1 | tr -d " \\n")" = 7f454c46 ] '
+        f'|| {{ echo "ERROR: {driver_path} is not a library; nothing was removed."; exit 3; }}; fi',
+        f'if [ -e {generator} ]; then {{ {signature}; }} '
+        f'|| {{ echo "ERROR: {generator_path} is not the keyboardspecialist generator; nothing was removed."; exit 3; }}; fi',
+        wrap_steamos_writable_command(f"sudo rm -f -- {driver} {generator}", family="steamos"),
+        f'if [ -f {icd} ] && [ ! -L {icd} ]; then rm -f -- {icd}; fi',
+        'systemctl --user daemon-reload >/dev/null 2>&1 || true',
+        f'if [ -e {driver} ] || [ -e {generator} ]; then '
+        'echo "ERROR: the files are still there; see the messages above."; exit 1; fi',
+        f'echo "[OK] Removed {driver_path} and {generator_path}. Games already used the stock RADV; '
+        'sign out and back in to clear the old Vulkan environment."',
+    )
+    return "; ".join(steps)
+
+
 def probe_steamos_graphics_runtime(
     *,
     home: Path | None = None,
@@ -625,6 +692,8 @@ def probe_steamos_graphics_runtime(
         "radv": global_runtime,
         "fsr4": fsr4,
         "legacy_radv_detected": bool(global_runtime["legacy"]),
+        # Only the real paths: test doubles for the driver would not match them.
+        "orphaned": list(orphaned_runtime(home)) if driver_path is None and generator_path is None else [],
         "incomplete": bool(
             global_runtime["state"] == "invalid" or fsr4["state"] == "invalid"
         ),

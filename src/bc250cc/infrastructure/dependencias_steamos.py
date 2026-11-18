@@ -52,6 +52,8 @@ from bc250cc.infrastructure.steamos_cu_shell import (
 from bc250cc.infrastructure.steamos_graphics_ownership import alternative_guard_command
 from bc250cc.infrastructure.steamos_graphics_runtime import (
     build_steamos_graphics_command,
+    orphan_cleanup_command,
+    orphaned_runtime,
 )
 from bc250cc.infrastructure.steamos_native_diagnostics import (
     graphics_diagnostic_command,
@@ -457,6 +459,14 @@ class SteamosDependenciesMixin:
                 'The dedicated SteamOS graphics workflow is available only on SteamOS.'
             )
         action = str(action or '').strip().lower()
+        if action == 'uninstall' and orphaned_runtime():
+            # The provider's uninstall refuses without its record in /home; check
+            # the leftovers ourselves instead of leaving them unremovable.
+            self.estado_herramientas_cache = None
+            return self._abrir_terminal(
+                self._join_shell_commands(('set -Eeuo pipefail', 'export LC_ALL=C LANG=C',
+                                           orphan_cleanup_command())),
+                'Desinstalar Mesa RADV SteamOS BC250')
         destination = self._tool_dir() / STEAMOS_FIX_DIRECTORY
         if action == 'status':
             checkout_command = ':'

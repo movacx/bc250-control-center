@@ -6316,5 +6316,7 @@
   "SteamOS toolkit": "SteamOS araç takımı",
   "Controllers and wireless": "Denetleyiciler ve kablosuz aygıtlar",
   "A toolkit action is running; the system files stay unlocked until it ends.": "Bir araç takımı eylemi çalışıyor; sistem dosyaları bitene kadar kilitsiz kalır.",
-  "A toolkit action ended before it could lock the system files again.": "Bir araç takımı eylemi, sistem dosyalarını yeniden kilitleyemeden sona erdi."
+  "A toolkit action ended before it could lock the system files again.": "Bir araç takımı eylemi, sistem dosyalarını yeniden kilitleyemeden sona erdi.",
+  "keyboardspecialist's kernel fix or Mesa / RADV is installed. Remove them first with its rows (Restore the stock module for the running kernel, then Remove Mesa / RADV), restart, and install this one.": "keyboardspecialist'in çekirdek düzeltmesi veya Mesa / RADV kurulu. Önce kendi satırlarıyla kaldırın (Çalışan çekirdek için orijinal modülü geri yükle, ardından Mesa / RADV'yi kaldır), yeniden başlatın ve bunu kurun.",
+  "Its files are still in the system partition, but its install record in /home is gone (a SteamOS factory reset erases /home only). Remove Mesa / RADV checks those files and removes them.": "Dosyaları hâlâ sistem bölümünde, ancak /home içindeki kurulum kaydı yok (SteamOS fabrika sıfırlaması yalnızca /home'u siler). Mesa / RADV'yi kaldır bu dosyaları denetler ve kaldırır."
 }

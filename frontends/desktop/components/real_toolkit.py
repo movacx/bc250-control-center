@@ -117,6 +117,8 @@ class ToolRows(QObject):
         self._holder.hide()
         self._specifications, self._labels = specifications, labels
         self.namespace, self.scope_text = namespace, scope_text
+        #: A row's explanation replacing its description while a state needs one.
+        self._notes = {}
         self.buttons, self.cards, self.categories = {}, {}, {}
         for category, names, descriptions, keys in specifications:
             card = PreparationInfoCard(_localized(names), _localized(descriptions),
@@ -152,7 +154,7 @@ class ToolRows(QObject):
         for _category, names, descriptions, keys in self._specifications:
             card = self.cards[keys[0]]
             card.title.setText(tr(_localized(names)))
-            card.detail.setText(tr(_localized(descriptions)))
+            card.detail.setText(tr(self._notes.get(keys[0]) or _localized(descriptions)))
             for index, key in enumerate(keys):
                 source = _primary_label(key) if index == 0 else _localized(self._labels[key])
                 button = self.buttons[key]
@@ -195,16 +197,58 @@ class RealToolkitRows(ToolRows):
 
     def set_provider_state(self, state):
         protected = protected_actions(state.get('native_ownership'))
+        # keyboardspecialist's kernel fix or Mesa: the privileged runtime refuses
+        # the combined fix over them, so say it here instead of after the password.
+        foreign = bool(state.get('foreign_graphics'))
+        blocked = protected | (FOREIGN_GRAPHICS_ACTIONS if foreign else frozenset())
         for key, button in self.buttons.items():
-            button.setEnabled(key not in protected)
-        for _category, _names, _description, keys in self._specifications:
+            button.setEnabled(key not in blocked)
+        self._notes = {'combined-install': FOREIGN_GRAPHICS_NOTE} if foreign else {}
+        for _category, _names, descriptions, keys in self._specifications:
             card = self.cards[keys[0]]
+            card.detail.setText(tr(self._notes.get(keys[0]) or _localized(descriptions)))
             if keys == ('verify',):
                 self._apply_root_status()  # this row reports the system's lock, not ownership
             elif any(key in protected for key in keys):
                 card.set_status('BC250 Control Center', 'blue')
+            elif keys[0] == 'combined-install' and foreign:
+                card.set_status('keyboardspecialist', 'orange')
+            elif (evidence := _installed(keys[0], state)) is not None:
+                card.set_status(*evidence)
             else:
                 card.status.hide()
+
+
+#: The combined fix replaces the same amdgpu module and RADV library.
+FOREIGN_GRAPHICS_ACTIONS = frozenset({'combined-install', 'combined-revert'})
+FOREIGN_GRAPHICS_NOTE = (
+    "keyboardspecialist's kernel fix or Mesa / RADV is installed. Remove them first with its rows "
+    "(Restore the stock module for the running kernel, then Remove Mesa / RADV), restart, and install this one."
+)
+#: Rows whose installation the toolkit probe can prove from files on disk.
+_COMPONENT_EVIDENCE = {'acpi-install': 'acpi', 'video-install': 'video',
+                       'dual-install': 'dual-audio', 'recovery': 'recovery'}
+
+
+def _installed(key, state):
+    """(status, tone) from what is on disk, or None when nothing proves either way."""
+    if key in _COMPONENT_EVIDENCE:
+        present = (state.get('components') or {}).get(_COMPONENT_EVIDENCE[key])
+        if present is None:
+            return None
+        return ('Installed', 'blue') if present else ('Not installed', 'gray')
+    if key == 'combined-install':
+        graphics = state.get('graphics') or {}
+        if graphics.get('state') == 'configured':
+            return 'Installed', 'blue'
+        if graphics.get('kernel_override_installed'):
+            return 'Incomplete', 'orange'
+        return ('Not installed', 'gray') if graphics else None
+    if key == 'proton-install':
+        proton = (state.get('proton') or {}).get('state')
+        return {'installed': ('Installed', 'blue'), 'incomplete': ('Incomplete', 'orange'),
+                'not-installed': ('Not installed', 'gray')}.get(proton)
+    return None
 
 
 class SteamOSAlternativeRows(ToolRows):
@@ -215,8 +259,13 @@ class SteamOSAlternativeRows(ToolRows):
     def set_provider_state(self, state):
         labels = {'ready': 'Installed', 'invalid': 'Incomplete', 'not-installed': 'Not installed'}
         radv = dict(state.get('radv') or {})
+        orphaned = bool(state.get('orphaned'))
         self.cards['graphics-install'].set_status(labels.get(radv.get('state'), 'Unknown'),
-                                                 'blue' if radv.get('state') == 'ready' else 'gray')
+                                                 'blue' if radv.get('state') == 'ready'
+                                                 else 'orange' if orphaned else 'gray')
+        self._notes = {'graphics-install': ORPHANED_RUNTIME_NOTE} if orphaned else {}
+        for _category, _names, descriptions, keys in self._specifications:
+            self.cards[keys[0]].detail.setText(tr(self._notes.get(keys[0]) or _localized(descriptions)))
         kernel = dict(state.get('kernel') or {})
         if kernel.get('reboot_pending'):
             self.cards['kernel-install'].set_status('Reboot required', 'orange')
@@ -226,3 +275,9 @@ class SteamOSAlternativeRows(ToolRows):
             self.cards['kernel-install'].set_status('Incomplete', 'orange')
         else:
             self.cards['kernel-install'].set_status('Not installed', 'gray')
+
+
+ORPHANED_RUNTIME_NOTE = (
+    "Its files are still in the system partition, but its install record in /home is gone "
+    "(a SteamOS factory reset erases /home only). Remove Mesa / RADV checks those files and removes them."
+)

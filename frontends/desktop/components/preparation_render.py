@@ -1005,6 +1005,18 @@ class PreparationRenderMixin:
         self.acpi_card.setVisible(str(acpi.get("status") or "") in self._NATIVE_ACPI_PRESENT)
         # Its actions are the toolkit's own Proton ones, which have their own row.
         self.steamos_proton_card.setVisible(False)
+        # Same here: its buttons were the toolkit's combined fix, verify and Proton,
+        # each already a row ("Kernel and Mesa · GFX1013", "Toolkit management", "Proton · FSR4").
+        self.gfx_card.setVisible(False)
+        # No SteamOS route exists behind these two buttons (the backend answers
+        # "No reviewed ... workflow for steamos"): SteamOS ships the firmware and
+        # BlueZ, and packages added to its read-only root vanish with the next update.
+        # The toolkit's AIC8800 and BE200 rows cover the adapters that need more.
+        self.network_driver_card.setVisible(False)
+        self.printing_driver_card.setVisible(False)
+        # DirectMesh's own installer has no SteamOS path; there it comes inside the
+        # Mesa / RADV row (keyboardspecialist v0.40 builds DirectMesh 1.4 in).
+        self.directmesh_card.setVisible(False)
 
     def _label_steamos_origins(self) -> None:
         """Under every SteamOS row, say whose it is: this application's or a provider's."""

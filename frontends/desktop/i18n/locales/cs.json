@@ -6316,5 +6316,7 @@
   "SteamOS toolkit": "Sada nástrojů SteamOS",
   "Controllers and wireless": "Gamepady a bezdrátová zařízení",
   "A toolkit action is running; the system files stay unlocked until it ends.": "Probíhá akce sady nástrojů; systémové soubory zůstávají odemčené, dokud neskončí.",
-  "A toolkit action ended before it could lock the system files again.": "Akce sady nástrojů skončila dřív, než mohla systémové soubory znovu zamknout."
+  "A toolkit action ended before it could lock the system files again.": "Akce sady nástrojů skončila dřív, než mohla systémové soubory znovu zamknout.",
+  "keyboardspecialist's kernel fix or Mesa / RADV is installed. Remove them first with its rows (Restore the stock module for the running kernel, then Remove Mesa / RADV), restart, and install this one.": "Je nainstalována oprava jádra nebo Mesa / RADV od keyboardspecialist. Nejprve je odeberte jeho řádky (Obnovit původní modul pro běžící jádro, potom Odebrat Mesa / RADV), restartujte a nainstalujte tuto.",
+  "Its files are still in the system partition, but its install record in /home is gone (a SteamOS factory reset erases /home only). Remove Mesa / RADV checks those files and removes them.": "Jeho soubory jsou stále v systémovém oddílu, ale záznam o instalaci v /home chybí (obnovení továrního nastavení SteamOS maže jen /home). Odebrat Mesa / RADV tyto soubory zkontroluje a odebere."
 }

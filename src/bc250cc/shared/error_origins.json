@@ -2405,6 +2405,8 @@
    "_tokens": "DIST-0043",
    "_global_runtime_state": "DIST-0044",
    "_fsr4_runtime_state": "DIST-0045",
+   "orphaned_runtime": "DIST-0210",
+   "orphan_cleanup_command": "DIST-0211",
    "probe_steamos_graphics_runtime": "DIST-0046"
   },
   "bc250cc/infrastructure/steamos_native_diagnostics.py": {
@@ -3885,6 +3887,7 @@
    "RealToolkitRows.set_root_state": "UI-0799",
    "RealToolkitRows._apply_root_status": "UI-0800",
    "RealToolkitRows.set_provider_state": "UI-0796",
+   "_installed": "UI-0801",
    "SteamOSAlternativeRows.__init__": "UI-0797",
    "SteamOSAlternativeRows.set_provider_state": "UI-0798"
   },

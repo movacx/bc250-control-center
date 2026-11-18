@@ -6316,5 +6316,7 @@
   "SteamOS toolkit": "Toolkit SteamOS",
   "Controllers and wireless": "Kontroler dan perangkat nirkabel",
   "A toolkit action is running; the system files stay unlocked until it ends.": "Sebuah aksi toolkit sedang berjalan; berkas sistem tetap tidak terkunci hingga aksi selesai.",
-  "A toolkit action ended before it could lock the system files again.": "Sebuah aksi toolkit berakhir sebelum sempat mengunci kembali berkas sistem."
+  "A toolkit action ended before it could lock the system files again.": "Sebuah aksi toolkit berakhir sebelum sempat mengunci kembali berkas sistem.",
+  "keyboardspecialist's kernel fix or Mesa / RADV is installed. Remove them first with its rows (Restore the stock module for the running kernel, then Remove Mesa / RADV), restart, and install this one.": "Perbaikan kernel atau Mesa / RADV dari keyboardspecialist terpasang. Hapus dulu dengan barisnya (Pulihkan modul bawaan untuk kernel yang berjalan, lalu Hapus Mesa / RADV), mulai ulang, lalu pasang yang ini.",
+  "Its files are still in the system partition, but its install record in /home is gone (a SteamOS factory reset erases /home only). Remove Mesa / RADV checks those files and removes them.": "Berkasnya masih ada di partisi sistem, tetapi catatan pemasangannya di /home sudah hilang (reset pabrik SteamOS hanya menghapus /home). Hapus Mesa / RADV memeriksa berkas itu dan menghapusnya."
 }

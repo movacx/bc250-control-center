@@ -6316,5 +6316,7 @@
   "SteamOS toolkit": "SteamOS eszközkészlet",
   "Controllers and wireless": "Kontrollerek és vezeték nélküli eszközök",
   "A toolkit action is running; the system files stay unlocked until it ends.": "Egy eszközkészlet-művelet fut; a rendszerfájlok a befejezéséig feloldva maradnak.",
-  "A toolkit action ended before it could lock the system files again.": "Egy eszközkészlet-művelet véget ért, mielőtt újra zárolhatta volna a rendszerfájlokat."
+  "A toolkit action ended before it could lock the system files again.": "Egy eszközkészlet-művelet véget ért, mielőtt újra zárolhatta volna a rendszerfájlokat.",
+  "keyboardspecialist's kernel fix or Mesa / RADV is installed. Remove them first with its rows (Restore the stock module for the running kernel, then Remove Mesa / RADV), restart, and install this one.": "A keyboardspecialist kerneljavítása vagy Mesa / RADV-je telepítve van. Először távolítsa el őket a saját soraival (A futó kernel eredeti moduljának visszaállítása, majd Mesa / RADV eltávolítása), indítsa újra a gépet, és telepítse ezt.",
+  "Its files are still in the system partition, but its install record in /home is gone (a SteamOS factory reset erases /home only). Remove Mesa / RADV checks those files and removes them.": "A fájljai még a rendszerpartíción vannak, de a telepítési nyilvántartása a /home mappából hiányzik (a SteamOS gyári visszaállítása csak a /home mappát törli). A(z) Mesa / RADV eltávolítása ellenőrzi és eltávolítja ezeket a fájlokat."
 }

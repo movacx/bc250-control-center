@@ -471,3 +471,79 @@ def test_our_acpi_stays_for_whoever_installed_it_with_the_previous_version(qtbot
     if visible:
         assert sidebar.acpi_card.scope.text() == NATIVE_SCOPE
     assert not sidebar.real_toolkit_rows.cards['acpi-install'].isHidden()
+
+
+# --- A SteamOS factory reset: keyboardspecialist's files outlive /home (R-20261118-045245) ---
+
+FOREIGN = ['/usr/lib/libvulkan_radeon_driconf.so',
+           '/usr/lib/modules/7.2.7-valve2/updates/.bc250-gfx1013-fix']
+
+
+def test_the_combined_fix_is_off_and_says_why_while_keyboardspecialist_owns_the_graphics():
+    from frontends.desktop.components.real_toolkit import FOREIGN_GRAPHICS_NOTE
+    from frontends.desktop.i18n import tr
+
+    rows = RealToolkitRows()
+    rows.set_provider_state({'foreign_graphics': FOREIGN, 'graphics': {'kernel_override_installed': True}})
+    assert not rows.buttons['combined-install'].isEnabled()
+    assert not rows.buttons['combined-revert'].isEnabled()
+    card = rows.cards['combined-install']
+    assert card.status.text() == 'keyboardspecialist'
+    assert card.detail.text() == tr(FOREIGN_GRAPHICS_NOTE)
+    # Everything else stays usable: the ACPI fix was installed on this very machine.
+    assert rows.buttons['acpi-install'].isEnabled() and rows.buttons['proton-install'].isEnabled()
+
+
+def test_the_combined_fix_comes_back_once_those_files_are_gone():
+    rows = RealToolkitRows()
+    rows.set_provider_state({'foreign_graphics': FOREIGN})
+    rows.set_provider_state({'foreign_graphics': [], 'graphics': {'state': 'not-installed'}})
+    assert rows.buttons['combined-install'].isEnabled()
+    assert rows.cards['combined-install'].detail.text() != ''
+    assert rows.cards['combined-install'].status.text() != 'keyboardspecialist'
+
+
+@pytest.mark.parametrize('present,text', [(True, 'Installed'), (False, 'Not installed')])
+def test_toolkit_rows_say_what_is_installed_instead_of_always_offering_install(present, text):
+    from frontends.desktop.i18n import tr
+
+    rows = RealToolkitRows()
+    rows.set_provider_state({'components': {'acpi': present, 'video': present, 'dual-audio': present}})
+    for key in ('acpi-install', 'video-install', 'dual-install'):
+        assert not rows.cards[key].status.isHidden(), key
+        assert rows.cards[key].status.text() == tr(text), key
+
+
+def test_rows_without_evidence_on_disk_claim_nothing():
+    rows = RealToolkitRows()
+    rows.set_provider_state({'components': {}})
+    for key in ('ac3-install', 'cec-setup', 'aic8800', 'keyring'):
+        assert rows.cards[key].status.isHidden(), key
+
+
+def test_an_orphaned_keyboardspecialist_mesa_explains_that_remove_cleans_it():
+    from frontends.desktop.components.real_toolkit import ORPHANED_RUNTIME_NOTE
+    from frontends.desktop.i18n import tr
+
+    rows = SteamOSAlternativeRows()
+    rows.set_provider_state({'radv': {'state': 'invalid'}, 'orphaned': FOREIGN[:1]})
+    card = rows.cards['graphics-install']
+    assert card.status.text() == tr('Incomplete')
+    assert card.detail.text() == tr(ORPHANED_RUNTIME_NOTE)
+    assert rows.buttons['graphics-uninstall'].isEnabled()
+    rows.set_provider_state({'radv': {'state': 'not-installed'}, 'orphaned': []})
+    assert card.detail.text() != tr(ORPHANED_RUNTIME_NOTE)
+
+
+def test_steamos_hides_rows_that_have_no_steamos_route_or_repeat_a_provider_row(qtbot, tmp_path):
+    sidebar = _steamos_with(qtbot, tmp_path)
+    # Wi-Fi / printing support had no SteamOS backend ("No reviewed ... workflow for steamos");
+    # DirectMesh ships inside the Mesa / RADV row; the old GFX1013 card repeated three toolkit rows.
+    for name in ('network_driver_card', 'printing_driver_card', 'directmesh_card', 'gfx_card'):
+        assert getattr(sidebar, name).isHidden(), name
+
+
+def test_other_systems_keep_their_driver_support_rows(qtbot, tmp_path):
+    sidebar = _steamos_with(qtbot, tmp_path, 'arch')
+    for name in ('network_driver_card', 'printing_driver_card'):
+        assert not getattr(sidebar, name).isHidden(), name
