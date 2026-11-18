@@ -102,3 +102,32 @@ def test_installed_checker_uses_all_kernel_scope_only_for_bulk_recovery(tmp_path
     monkeypatch.setattr(sys, 'path', list(sys.path))
     runpy.run_path(str(target), run_name='__main__')
     assert calls == expected
+
+
+def test_local_uninstall_opens_the_steamos_root_for_its_own_helpers_and_closes_it_again():
+    """Removing /usr/libexec helpers needs the same writable window the installer used.
+
+    Without it every helper was kept as a "read-only system file" and the closing
+    message blamed a system package that does not exist.
+    """
+    uninstall = (ROOT / 'scripts/uninstall-local.sh').read_text()
+    unlock = uninstall.index('bc250_steamos_unlock_root')
+    assert uninstall.index('trap steamos_uninstall_restore EXIT') < unlock
+    assert unlock < uninstall.index('remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-fan-pwm-helper"')
+    assert 'STEAMOS_ROOT_HELPER="$SCRIPT_DIR/system/steamos-root.sh"' in uninstall
+    assert 'bc250_steamos_restore_root "$status"' in uninstall
+    # Only when there is something of ours to remove, never for a dry run or a package.
+    assert '"$KEEP_PRIVILEGED" -eq 0 && "$DRY_RUN" -eq 0' in uninstall
+    assert '! package_owner "$SYSTEM_PRIV_HELPER"' in uninstall
+    assert 'they are on a read-only system file system' in uninstall
+    # The helper it sources is shipped next to it by the local installer.
+    installer = (ROOT / 'scripts/install-local.sh').read_text()
+    assert 'cp -a -- "$ROOT_DIR/scripts/system" "$APP_STAGE/scripts/system"' in installer
+    assert (ROOT / 'scripts/system/steamos-root.sh').is_file()
+
+
+def test_the_launcher_and_the_installed_checker_agree_on_the_refusal_status():
+    from bc250cc.infrastructure.steamos_real_toolkit import CONFLICT_STATUS
+
+    checker = (ROOT / 'scripts/system/check-steamos-toolkit-conflicts.py').read_text()
+    assert f'raise SystemExit({CONFLICT_STATUS})' in checker

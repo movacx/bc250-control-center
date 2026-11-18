@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import fcntl
-import hashlib
+import json
 import os
 import platform
 import pwd
@@ -10,27 +10,41 @@ import shutil
 import signal
 import stat
 import subprocess
+import sys
 import tempfile
+import time
 import urllib.request
 from contextlib import contextmanager
 from pathlib import Path
 
 from . import steamos_real_toolkit as provider
+from . import steamos_root_guard as guard
 from .hardware_identity import require_bc250_hardware
-from .steamos_readonly import _state_from
 
 STATE_ROOT = provider.STATE_ROOT
 READONLY_COMMAND = '/usr/bin/steamos-readonly'
 
 
-def _root_mode() -> str:
+def _read_root(attempts: int = 2) -> guard.RootReading:
+    """The one place the launcher reads the root: state plus what the command said."""
+    return guard.read_root(attempts=attempts)
+
+
+def _root_mode(attempts: int = 1) -> str:
+    """``enabled`` (read-only), ``disabled`` (writable) or ``unknown``.
+
+    Read from the text of ``steamos-readonly status``: it exits 1 while the root
+    is writable, so its exit status says nothing about the answer.
+    """
+    return _read_root(attempts).state
+
+
+def _say(message: str, *, error: bool = False) -> None:
+    """Print without ever failing: the terminal may already be gone (SIGHUP)."""
     try:
-        result = subprocess.run([READONLY_COMMAND, 'status'], check=False,
-                                capture_output=True, text=True, timeout=3,
-                                env={**os.environ, 'LANG': 'C', 'LC_ALL': 'C'})
-    except (OSError, subprocess.SubprocessError):
-        return 'unknown'
-    return _state_from(result.stdout + '\n' + result.stderr) if result.returncode == 0 else 'unknown'
+        print(message, file=sys.stderr if error else sys.stdout, flush=True)
+    except (OSError, ValueError):
+        pass
 
 
 @contextmanager
@@ -88,13 +102,38 @@ def _interactive_signal_relay():
             signal.signal(number, handler)
 
 
-def run_preserving_root_mode(command: list[str]) -> int:
+def _restore_root(initial: str, code: int | None) -> None:
+    """Give the root back as it was, verified, or say exactly how to."""
+    if _root_mode() == initial:
+        return
+    verb = 'enable' if initial == 'enabled' else 'disable'
+    for attempt in range(3):
+        try:
+            result = subprocess.run([READONLY_COMMAND, verb], check=False, timeout=30)
+        except (OSError, subprocess.SubprocessError):
+            result = None
+        if result is not None and result.returncode == 0 and _root_mode() == initial:
+            return
+        if attempt < 2:
+            time.sleep(1)
+    raise RuntimeError('Could not restore SteamOS read-only mode to ' + initial
+                       + '; toolkit exit status: ' + str(code)
+                       + '. Run: sudo steamos-readonly ' + verb
+                       + ' (check it with steamos-readonly status).')
+
+
+def run_preserving_root_mode(command: list[str], initial: str | None = None, *,
+                             on_restored=None) -> int:
     """Leave privileged windows to upstream, then verify the original mode.
 
     Do not unlock the root during source downloads or long compilation. On
-    completion or a Python exception, repair only a changed/unknown root mode.
+    completion or a Python exception, restore a changed root. ``initial`` is the
+    state to give back when the caller already decided it (an interrupted earlier
+    run can make the current state differ from the original). ``on_restored`` runs
+    once the original state is verified back, whether the action finished or not.
     """
-    initial = _root_mode()
+    if initial is None:
+        initial = _root_mode()
     if initial not in {'enabled', 'disabled'}:
         raise RuntimeError('Cannot determine SteamOS read-only mode; the toolkit action was not started.')
     with _interactive_signal_relay() as execute:
@@ -103,17 +142,9 @@ def run_preserving_root_mode(command: list[str]) -> int:
             code = execute(command)
             return code
         finally:
-            if _root_mode() != initial:
-                action = 'enable' if initial == 'enabled' else 'disable'
-                message = ('Could not restore SteamOS read-only mode to ' + initial
-                           + '; toolkit exit status: ' + str(code)
-                           + '. Check steamos-readonly status before continuing.')
-                try:
-                    result = subprocess.run([READONLY_COMMAND, action], check=False, timeout=15)
-                except (OSError, subprocess.SubprocessError) as error:
-                    raise RuntimeError(message) from error
-                if result.returncode != 0 or _root_mode() != initial:
-                    raise RuntimeError(message)
+            _restore_root(initial, code)
+            if on_restored is not None:
+                on_restored()
 
 
 def prepare_state_root(path: Path) -> None:
@@ -169,29 +200,119 @@ def cache_guard_runtime(installed: Path, destination: Path) -> None:
             Path(temporary).unlink(missing_ok=True)
 
 
-def download_archive(destination: Path) -> None:
-    """Cache only bytes matching the reviewed digest; never execute a download."""
+def resolve_revision() -> str:
+    """Newest commit of the tracked branch, as one full hash.
+
+    The archive is then requested by that hash, so the bytes verified and run
+    are those of the commit named here, not of a branch that moves meanwhile.
+    """
+    request = urllib.request.Request(provider.REVISION_API, headers={
+        'Accept': 'application/vnd.github.sha', 'User-Agent': 'bc250-control-center'})
+    with urllib.request.urlopen(request, timeout=20) as response:
+        revision = response.read(128).decode('ascii', 'replace').strip().lower()
+    if not provider.valid_revision(revision):
+        raise ValueError('The upstream revision lookup did not return a commit hash')
+    return revision
+
+
+def _cached_revision(state_root: Path) -> str | None:
+    """Most recent archive already downloaded, for use when offline."""
+    candidates = [path for path in state_root.glob('*.tar.gz')
+                  if provider.valid_revision(path.name[:-len('.tar.gz')]) and path.is_file()
+                  and not path.is_symlink()]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda path: path.stat().st_mtime).name[:-len('.tar.gz')]
+
+
+def download_archive(destination: Path, revision: str) -> None:
+    """Fetch the archive of exactly this commit; never execute a download.
+
+    Content is checked structurally when the snapshot is prepared. A cached
+    archive of the same commit is reused; it is immutable by construction.
+    """
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.is_file() and not destination.is_symlink():
-        with destination.open('rb') as existing:
-            if hashlib.file_digest(existing, 'sha256').hexdigest() == provider.ARCHIVE_SHA256:
-                return
+        return
     handle, name = tempfile.mkstemp(prefix='.download-', dir=destination.parent)
     temporary = Path(name)
     try:
-        digest, count = hashlib.sha256(), 0
-        with os.fdopen(handle, 'wb') as output, urllib.request.urlopen(provider.ARCHIVE_URL, timeout=45) as response:
+        count = 0
+        with os.fdopen(handle, 'wb') as output, urllib.request.urlopen(
+                provider.archive_url(revision), timeout=45) as response:
             while chunk := response.read(1024 * 1024):
                 count += len(chunk)
                 if count > 512 * 1024**2:
                     raise ValueError('Real Toolkit download exceeds its size limit')
-                digest.update(chunk)
                 output.write(chunk)
-        if digest.hexdigest() != provider.ARCHIVE_SHA256:
-            raise ValueError('Real Toolkit download did not match the reviewed SHA-256')
+        if count == 0:
+            raise ValueError('Real Toolkit download was empty')
         os.replace(temporary, destination)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def clear_cache(state_root: Path | None = None) -> None:
+    """Forget downloaded sources and the workspace so the next run starts clean.
+
+    Keeps the protected guard runtime and the lock. Upstream may publish a fix
+    within hours of a failure, and a half-built tree or a bad archive must not
+    survive to the next attempt.
+    """
+    state_root = STATE_ROOT if state_root is None else state_root
+    for pattern in ('*.tar.gz', '.download-*', '.verify-*', '.guard-*'):
+        for path in state_root.glob(pattern):
+            if path.is_file() or path.is_symlink():
+                path.unlink(missing_ok=True)
+            elif path.is_dir():
+                shutil.rmtree(path, ignore_errors=True)
+    workspace = state_root / 'workspace'
+    _keep_failure_logs(workspace, state_root)
+    if workspace.is_symlink():
+        workspace.unlink()
+    elif workspace.exists():
+        shutil.rmtree(workspace, ignore_errors=True)
+
+
+FAILURE_LOGS = 'last-failure'
+
+
+def _keep_failure_logs(workspace: Path, state_root: Path, *, newest: int = 6) -> None:
+    """Copy the toolkit's own logs out before the workspace goes.
+
+    They are what a report needs ("what did the toolkit say") and they live in
+    the tree that is about to be deleted. Only the newest few, only plain files.
+    """
+    logs = workspace / 'logs'
+    try:
+        files = sorted((path for path in logs.glob('*.log') if path.is_file() and not path.is_symlink()),
+                       key=lambda path: path.stat().st_mtime, reverse=True)[:newest]
+    except OSError:
+        return
+    if not files:
+        return
+    target = state_root / FAILURE_LOGS
+    try:
+        shutil.rmtree(target, ignore_errors=True)
+        target.mkdir(mode=0o755)
+        for path in files:
+            shutil.copyfile(path, target / path.name)
+            (target / path.name).chmod(0o644)
+    except OSError:
+        pass
+
+
+def _prune_other_archives(state_root: Path, keep: str) -> None:
+    for path in state_root.glob('*.tar.gz'):
+        if path.name != keep:
+            path.unlink(missing_ok=True)
+
+
+def _workspace_revision(workspace: Path) -> str:
+    try:
+        return str(json.loads((workspace / '.bc250cc-provider.json').read_text(encoding='utf-8')).get('revision') or '')
+    except (OSError, ValueError, AttributeError):
+        return ''
 
 
 def refresh_workspace(snapshot: Path, workspace: Path) -> None:
@@ -246,6 +367,42 @@ def _require_invoking_user() -> pwd.struct_passwd:
     return user
 
 
+def _preflight_root(action: str) -> None:
+    """Refuse early, with the reason, and say what is about to happen to the root."""
+    reading = _read_root()
+    if reading.state not in guard.KNOWN:
+        raise RuntimeError(guard.explain_unreadable(reading))
+    initial, note = guard.initial_state(reading, guard.read_session(STATE_ROOT))
+    if note:
+        _say('[WARN] ' + note)
+    if initial == guard.PROTECTED:
+        _say('SteamOS system files: protected (read-only). The toolkit unlocks them only for the steps '
+             'that need it, and Control Center locks them again when the action ends.')
+    else:
+        _say('SteamOS system files: already writable. They stay writable when the action ends.')
+    free, level = guard.var_space()
+    if level == 'critical':
+        raise RuntimeError('/var has only ' + str(free) + ' MB free and package installs need room there; '
+                           'the toolkit action was not started.\n' + guard.VAR_HELP)
+    if level == 'low':
+        _say('[WARN] /var has only ' + str(free) + ' MB free; it works now, but a package install may not fit.')
+    root_free, root_level = guard.root_space()
+    if root_level == 'low':
+        _say('[WARN] The SteamOS system partition (/) has only ' + str(root_free) + ' MB free. Components that '
+             'install packages there (kernel headers, build tools, drivers) can stop half way; a SteamOS '
+             'update gives the space back.')
+
+
+def _begin_root_session(action: str) -> str:
+    """The state to give back, written to disk before the toolkit can change anything."""
+    reading = _read_root()
+    if reading.state not in guard.KNOWN:
+        raise RuntimeError(guard.explain_unreadable(reading))
+    initial, _note = guard.initial_state(reading, guard.read_session(STATE_ROOT))
+    guard.write_session(STATE_ROOT, initial=initial, action=action)
+    return initial
+
+
 def run_action(action: str) -> int:
     """Root entrypoint, invoked only after an explicit terminal action."""
     provider.action_for(action)
@@ -260,16 +417,60 @@ def run_action(action: str) -> int:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as error:
             raise RuntimeError('Another Real Toolkit action is still running') from error
+        _preflight_root(action)
         require_source_space(STATE_ROOT)
         cache_guard_runtime(provider.INSTALLED_RUNTIME_ROOT, STATE_ROOT / 'runtime')
-        archive = STATE_ROOT / (provider.REVISION + '.tar.gz')
-        print('Preparing SteamOS Real Toolkit ' + provider.VERSION, flush=True)
-        download_archive(archive)
-        with tempfile.TemporaryDirectory(prefix='.verify-', dir=STATE_ROOT) as temporary:
-            snapshot = provider.prepare_snapshot(archive, Path(temporary) / 'snapshot')
+        try:
+            revision = _resolve_or_cached()
+            archive = STATE_ROOT / (revision + '.tar.gz')
+            print('Preparing SteamOS Real Toolkit (' + provider.BRANCH + ' ' + revision[:7] + ')', flush=True)
+            download_archive(archive, revision)
+            _prune_other_archives(STATE_ROOT, archive.name)
             workspace = STATE_ROOT / 'workspace'
-            refresh_workspace(snapshot, workspace)
+            if _workspace_revision(workspace) != revision:
+                # Files an older revision tracked and this one dropped must not linger.
+                shutil.rmtree(workspace, ignore_errors=True)
+            with tempfile.TemporaryDirectory(prefix='.verify-', dir=STATE_ROOT) as temporary:
+                snapshot = provider.prepare_snapshot(archive, Path(temporary) / 'snapshot', revision)
+                refresh_workspace(snapshot, workspace)
+        except BaseException:
+            clear_cache()
+            print('The toolkit source could not be prepared. Its cache was cleared; '
+                  'the next attempt downloads the latest version again.', file=sys.stderr, flush=True)
+            raise
         # Do not pre-answer menus. The toolkit owns prompts, recovery choices
         # and privileged windows; the terminal remains interactive throughout.
-        return run_preserving_root_mode(['/usr/bin/bash', str(workspace / 'start.sh'),
-                                         '--bc250cc-action', action])
+        initial = _begin_root_session(action)
+        code = run_preserving_root_mode(['/usr/bin/bash', str(workspace / 'start.sh'),
+                                         '--bc250cc-action', action], initial,
+                                        on_restored=lambda: guard.clear_session(STATE_ROOT))
+        if code == 0:
+            if initial == guard.PROTECTED:
+                _say('SteamOS read-only protection is on again. A SteamOS system update replaces what was '
+                     'installed into the system files; run the action again after updating.')
+        elif code == provider.CONFLICT_STATUS:
+            # Control Center's own ownership check said no: not an upstream bug,
+            # so a fresh 100 MB download would change nothing.
+            _say('Control Center stopped the action: another provider, or Control Center itself, manages '
+                 'this component (see the message above). The toolkit cache was kept; remove that '
+                 'installation with the tool that made it, then try again.')
+        elif code < 128:
+            # A failed action may be a bug upstream has already fixed. Interrupts
+            # (128 + signal) are the user's choice and keep the cache.
+            clear_cache()
+            _say('The action failed (status ' + str(code) + '). The toolkit cache was cleared, '
+                 'so trying again starts from scratch with the latest upstream version.')
+            if (STATE_ROOT / FAILURE_LOGS).is_dir():
+                _say("The toolkit's own logs were kept in " + str(STATE_ROOT / FAILURE_LOGS) + '.')
+        return code
+
+
+def _resolve_or_cached() -> str:
+    try:
+        return resolve_revision()
+    except (OSError, ValueError) as error:
+        cached = _cached_revision(STATE_ROOT)
+        if cached is None:
+            raise RuntimeError('Cannot reach the toolkit source and no earlier copy is cached: ' + str(error)) from error
+        print('Cannot check for a newer toolkit; using the copy already downloaded.', flush=True)
+        return cached

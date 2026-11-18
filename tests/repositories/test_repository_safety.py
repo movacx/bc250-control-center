@@ -612,9 +612,11 @@ def test_steamos_fixes_are_installed_only_when_running_kernel_is_not_ready(tmp_p
     assert 'awk -v release="$running_release"' in command
     assert 'installed, metrics and compute aware' in command
     assert "--cg" not in command
-    # The toolkit's build.sh runs as an adapted copy that uses the installed
-    # SteamOS branch's tools (GLIBC_2.44 on 3.9.5).
-    assert "/build-bc250cc.sh ||" in command
+    # The toolkit's own build.sh runs unchanged: since v0.38 it takes its
+    # tools from the installed SteamOS channel (GLIBC_2.44 on 3.9.5).
+    user_build = f"/usr/bin/bash {tmp_path}/bc250-steamos/bc250-audio-fix/build.sh ||"
+    assert user_build in command
+    assert "build-bc250cc.sh ||" not in command
     from bc250cc.infrastructure.steamos_amdgpu_backend import (
         STEAMOS_AMDGPU_AUDIO_FIX_ROOT,
     )
@@ -624,7 +626,7 @@ def test_steamos_fixes_are_installed_only_when_running_kernel_is_not_ready(tmp_p
     assert 'sudo install -o root -g root -m 0644 "$source_artifact"' in command
     assert f"sudo /usr/bin/bash {tmp_path}" not in command
     assert "BC250_REBOOT_REQUIRED=1" in command
-    assert command.index("patch-driver.sh status") < command.index("/build-bc250cc.sh ||")
+    assert command.index("patch-driver.sh status") < command.index(user_build)
 
 
 def test_changed_40cu_output_format_produces_clear_error():
@@ -659,11 +661,17 @@ def test_community_credits_remain_and_reference_only_projects_do_not_become_depe
     assert "DryhoppedIPA/bc250-gfx1013-fix" not in dependency_source
     # Real Toolkit is now an explicitly authorized provider, not reference-only.
     from bc250cc.infrastructure.external_tools.catalog import EXTERNAL_TOOLS
-    from bc250cc.infrastructure.steamos_real_toolkit import REPOSITORY, REVISION
+    from bc250cc.infrastructure.steamos_real_toolkit import (
+        REPOSITORY,
+        REVISION,
+        valid_revision,
+    )
 
     spec = EXTERNAL_TOOLS['steamos_real_toolkit']
     assert spec.upstream == REPOSITORY
-    assert spec.reviewed_revision == REVISION
+    # Not pinned: the runtime follows the newest commit. The catalog keeps the
+    # last revision a person reviewed, for the provenance record only.
+    assert REVISION == 'main' and valid_revision(spec.reviewed_revision)
     assert spec.payload_distribution == 'runtime-fetch-reviewed-revision'
     assert spec.adoption_ready
     assert "redbeard1083/bc250-toolkit" not in dependency_source

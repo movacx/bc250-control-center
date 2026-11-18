@@ -1,4 +1,4 @@
-"""Recovery adaptations applied only after the full upstream source is attested."""
+"""Recovery adaptations applied to the downloaded upstream source."""
 from __future__ import annotations
 
 import re
@@ -28,7 +28,7 @@ CTL_HANDOFF = '        AUTO=1 bash "$toolkit" --revert-all || echo "toolkit reve
 def adapt_revert_all(text: str) -> str:
     """Do not erase recovery state or report success after a component fails.
 
-    The caller invokes this only after attesting the full upstream source.
+    The caller has already checked the entrypoint structurally.
     Explicit propagation is necessary even with errexit: this function is
     called from conditionals that disable Bash's implicit error handling.
     """
@@ -37,11 +37,13 @@ def adapt_revert_all(text: str) -> str:
         raise ValueError('Real Toolkit bulk revert function contract changed')
     match = matches[0]
     body = match.group()
-    for step in REVERT_ALL_STEPS:
-        original = '    ' + step + '\n'
-        if body.count(original) != 1:
-            raise ValueError('Real Toolkit bulk revert step contract changed: ' + step)
-        body = body.replace(original, '    ' + step + ' || return $?\n', 1)
+    # Upstream adds and drops revert steps between releases, so no fixed list:
+    # every revert/uninstall step present gains error propagation. A body with
+    # none is a shape this adapter does not understand, and is refused.
+    body, steps = re.subn(r'^(    (?:run_revert_|uninstall_|revert_)\w+(?: [\w-]+)*)\n',
+                          r'\1 || return $?\n', body, flags=re.MULTILINE)
+    if not steps:
+        raise ValueError('Real Toolkit bulk revert step contract changed')
     return text[:match.start()] + body + text[match.end():]
 
 
@@ -68,10 +70,12 @@ def adapt_recovery_ctl(text: str, checker_command: tuple[str, ...]) -> str:
     echo "bc250.revert_all=1 detected — reverting toolkit installation"
     unlock
     local bc250cc_root_state=""
-    bc250cc_root_state=$(LC_ALL=C steamos-readonly status 2>/dev/null) || {
+    # status exits 1 while the root is writable: read what it says, not its status.
+    bc250cc_root_state=$(LC_ALL=C steamos-readonly status 2>/dev/null || true)
+    if [[ -z "$bc250cc_root_state" ]]; then
         echo "Cannot verify writable root; recovery was stopped." >&2
         return 1
-    }
+    fi
     if [[ ! "$bc250cc_root_state" =~ (^|[^[:alpha:]])disabled([^[:alpha:]]|$) ]]; then
         echo "Root is not confirmed writable; recovery was stopped." >&2
         return 1

@@ -1001,7 +1001,8 @@ class DependencyPreparationDialog(QDialog):
             commit=(
                 RADV_ASYNC_REVIEWED_COMMIT
                 if route is not None
-                else steamos_real_toolkit.REVISION
+                else (str((state.get("steamos_real_toolkit") or {}).get("reviewed_revision") or "")
+                      or steamos_real_toolkit.BRANCH)
                 if presentation.steamos_actions
                 else str(state.get("reviewed_commit") or "")
             )[:7],

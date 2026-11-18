@@ -284,6 +284,12 @@
   "bc250cc/application/preparation/service.py": {
    "plan_runtime_dependencies": "PREP-0020"
   },
+  "bc250cc/application/preparation/steamos_providers.py": {
+   "real_toolkit_action_keys": "PREP-0134",
+   "alternative_action_keys": "PREP-0135",
+   "_components": "PREP-0136",
+   "protected_actions": "PREP-0137"
+  },
   "bc250cc/application/recovery/release_gates.py": {
    "qualification_requirements": "SET-0134",
    "build_qualification_template": "SET-0135",
@@ -1129,6 +1135,8 @@
    "SteamosDependenciesMixin._generic_cu_privileged_backend_stage_command": "PREP-0092",
    "SteamosDependenciesMixin._steamos_cu_status_probe_command": "PREP-0093",
    "SteamosDependenciesMixin._steamos_compatibility_stage_command": "PREP-0094",
+   "SteamosDependenciesMixin._steamos_alternative_stage_command": "PREP-0138",
+   "SteamosDependenciesMixin._steamos_alternative_backend_guard": "PREP-0139",
    "SteamosDependenciesMixin._steamos_module_frequency_blocker": "PREP-0095",
    "SteamosDependenciesMixin.preparar_compatibilidad_steamos": "PREP-0096",
    "SteamosDependenciesMixin.gestionar_graficos_steamos": "PREP-0097",
@@ -2343,9 +2351,12 @@
    "parse_amdgpu_status": "GPU-0610",
    "gpu_points_above_module_limit": "GPU-0611",
    "_join": "GPU-0612",
+   "retire_build_adapter_command": "GPU-0667",
+   "build_dependencies_command": "GPU-0668",
    "_module_verified_guard": "GPU-0613",
    "_policy_active_guard": "GPU-0614",
    "_policy_reboot_guard": "GPU-0615",
+   "_policy_deferred_guard": "GPU-0666",
    "_runtime_policy_active_guard": "GPU-0616",
    "_runtime_policy_not_active_guard": "GPU-0617",
    "_policy_runtime_coherent_guard": "GPU-0618",
@@ -2357,6 +2368,9 @@
    "_safe_subtree": "GPU-0622",
    "_protected_path": "GPU-0623",
    "protected_backend_guard": "GPU-0624",
+   "rollback_backend_guard": "GPU-0669",
+   "existing_backend_guard": "GPU-0670",
+   "legacy_stage_note": "GPU-0671",
    "stage_backend_command": "GPU-0625"
   },
   "bc250cc/infrastructure/steamos_cu_shell.py": {
@@ -2412,11 +2426,10 @@
    "guarded_component": "DIST-0171",
    "_cec_dispatch": "DIST-0158",
    "dispatch_shell": "DIST-0148",
+   "valid_revision": "DIST-0183",
+   "archive_url": "DIST-0184",
    "prepare_entrypoint": "DIST-0149",
    "prepare_snapshot": "DIST-0150"
-  },
-  "bc250cc/infrastructure/steamos_real_toolkit_decky.py": {
-   "adapt_decky_payload": "DIST-0164"
   },
   "bc250cc/infrastructure/steamos_real_toolkit_recovery.py": {
    "adapt_revert_all": "DIST-0177",
@@ -2424,16 +2437,28 @@
    "adapt_recovery_ctl": "DIST-0173"
   },
   "bc250cc/infrastructure/steamos_real_toolkit_runtime.py": {
+   "_read_root": "DIST-0191",
    "_root_mode": "DIST-0174",
+   "_say": "DIST-0192",
    "_interactive_signal_relay": "DIST-0178",
+   "_restore_root": "DIST-0193",
    "run_preserving_root_mode": "DIST-0175",
    "prepare_state_root": "DIST-0169",
    "require_source_space": "DIST-0170",
    "cache_guard_runtime": "DIST-0176",
+   "resolve_revision": "DIST-0185",
+   "_cached_revision": "DIST-0186",
    "download_archive": "DIST-0152",
+   "clear_cache": "DIST-0187",
+   "_keep_failure_logs": "DIST-0194",
+   "_prune_other_archives": "DIST-0188",
+   "_workspace_revision": "DIST-0189",
    "refresh_workspace": "DIST-0153",
    "_require_invoking_user": "DIST-0181",
-   "run_action": "DIST-0154"
+   "_preflight_root": "DIST-0195",
+   "_begin_root_session": "DIST-0196",
+   "run_action": "DIST-0154",
+   "_resolve_or_cached": "DIST-0190"
   },
   "bc250cc/infrastructure/steamos_real_toolkit_state.py": {
    "_text": "DIST-0155",
@@ -2446,6 +2471,21 @@
    "is_steamos": "DIST-0052",
    "runs_from_package": "DIST-0053",
    "ensure_steamos_rescue": "DIST-0054"
+  },
+  "bc250cc/infrastructure/steamos_root_guard.py": {
+   "read_root": "DIST-0197",
+   "explain_unreadable": "DIST-0198",
+   "boot_id": "DIST-0199",
+   "_start_ticks": "DIST-0200",
+   "write_session": "DIST-0201",
+   "read_session": "DIST-0202",
+   "clear_session": "DIST-0203",
+   "session_running": "DIST-0204",
+   "initial_state": "DIST-0205",
+   "interrupted": "DIST-0206",
+   "session_summary": "DIST-0207",
+   "var_space": "DIST-0208",
+   "root_space": "DIST-0209"
   },
   "bc250cc/infrastructure/steamos_shell.py": {
    "steamos_writable_root_wrapper": "DIST-0055",
@@ -3826,6 +3866,8 @@
    "PreparationRenderMixin._render_helixsr_section": "UPS-0032",
    "PreparationRenderMixin._render_upscaling_games": "UPS-0033",
    "PreparationRenderMixin._render_fsr4_games": "UPS-0034",
+   "PreparationRenderMixin._hide_superseded_native_rows": "UPS-0305",
+   "PreparationRenderMixin._label_steamos_origins": "UPS-0304",
    "PreparationRenderMixin._apply_compatibility_filter": "UPS-0035",
    "PreparationRenderMixin.set_state": "UPS-0036"
   },
@@ -3833,14 +3875,18 @@
    "_localized": "UI-0783",
    "action_label": "UI-0777",
    "_primary_label": "UI-0784",
-   "_SearchField.keyPressEvent": "UI-0778",
-   "_ToolsIndex.__init__": "UI-0785",
-   "_ToolsIndex.retranslate_dynamic_copy": "UI-0787",
-   "_ToolsIndex._filter": "UI-0786",
-   "RealToolkitPanel.__init__": "UI-0779",
-   "RealToolkitPanel.set_provider_state": "UI-0788",
-   "SteamOSAlternativePanel.__init__": "UI-0781",
-   "SteamOSAlternativePanel.set_provider_state": "UI-0782"
+   "ToolRows.__init__": "UI-0789",
+   "ToolRows.cards_for": "UI-0790",
+   "ToolRows.all_cards": "UI-0791",
+   "ToolRows.retranslate_dynamic_copy": "UI-0792",
+   "ToolRows.set_enabled": "UI-0793",
+   "ToolRows.set_visible": "UI-0794",
+   "RealToolkitRows.__init__": "UI-0795",
+   "RealToolkitRows.set_root_state": "UI-0799",
+   "RealToolkitRows._apply_root_status": "UI-0800",
+   "RealToolkitRows.set_provider_state": "UI-0796",
+   "SteamOSAlternativeRows.__init__": "UI-0797",
+   "SteamOSAlternativeRows.set_provider_state": "UI-0798"
   },
   "frontends/desktop/components/remote_widgets.py": {
    "_scale": "UI-0203",
@@ -6499,6 +6545,15 @@
    "settings_stylesheet": "SET-0017",
    "SettingsNavButton.__init__": "SET-0018",
    "SettingsNavButton.refresh_icon": "SET-0257",
+   "SettingsNavButton._text_width": "SET-0329",
+   "SettingsNavButton._text_height": "SET-0330",
+   "SettingsNavButton.hasHeightForWidth": "SET-0331",
+   "SettingsNavButton.heightForWidth": "SET-0332",
+   "SettingsNavButton.sizeHint": "SET-0337",
+   "SettingsNavButton.minimumSizeHint": "SET-0333",
+   "SettingsNavButton.resizeEvent": "SET-0334",
+   "SettingsNavButton.setText": "SET-0335",
+   "SettingsNavButton.paintEvent": "SET-0336",
    "tinted_icon": "SET-0258",
    "ReadOnlyPathField.__init__": "SET-0019",
    "ReadOnlyPathField.setText": "SET-0020",
@@ -6762,6 +6817,7 @@
   "DIAG-0141",
   "DIAG-0142",
   "DIST-0129",
+  "DIST-0164",
   "FAN-0013",
   "FAN-0014",
   "FAN-0017",
@@ -6985,6 +7041,14 @@
   "UI-0705",
   "UI-0754",
   "UI-0756",
-  "UI-0780"
+  "UI-0778",
+  "UI-0779",
+  "UI-0780",
+  "UI-0781",
+  "UI-0782",
+  "UI-0785",
+  "UI-0786",
+  "UI-0787",
+  "UI-0788"
  ]
 }

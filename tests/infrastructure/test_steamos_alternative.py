@@ -50,3 +50,11 @@ def test_alternative_is_not_available_on_another_distribution():
     repo = SimpleNamespace(_os_repository=lambda: SimpleNamespace(info=SimpleNamespace(family='arch')))
     with pytest.raises(RuntimeError, match='only on SteamOS'):
         run_alternative(repo, 'graphics-status')
+
+
+def test_the_retired_per_game_fsr4_install_is_not_offered():
+    """Upstream retired the V3 profile; the action could only fail with an error."""
+    assert 'graphics-install-fsr4' not in ALTERNATIVE_ACTIONS
+    assert 'graphics-uninstall-fsr4' in ALTERNATIVE_ACTIONS
+    with pytest.raises(ValueError, match='Unknown'):
+        run_alternative(None, 'graphics-install-fsr4')

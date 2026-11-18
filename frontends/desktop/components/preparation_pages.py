@@ -45,7 +45,12 @@ from .dashboard_widgets import (  # noqa: E402
     _UpscalerSection,
     _UpscalingGames,
 )
-from .real_toolkit import RealToolkitPanel, SteamOSAlternativePanel, action_label
+from .real_toolkit import (
+    REAL_TOOLKIT_SCOPE,
+    RealToolkitRows,
+    SteamOSAlternativeRows,
+    action_label,
+)
 from .system_setup_controls import (
     VRAM_SIZE_CHOICES,
     is_bazzite_host,
@@ -755,7 +760,7 @@ class PreparationPagesMixin:
         self.steamos_proton_card = PreparationInfoCard(
             "Proton · SteamOS Real Toolkit",
             action_label('proton-install'),
-            scope_text="SteamOS · rpf16rj",
+            scope_text=REAL_TOOLKIT_SCOPE,
             status_text="Optional",
         )
         for action, label in (
@@ -771,36 +776,14 @@ class PreparationPagesMixin:
         self.steamos_proton_card.hide()
         self.steamos_proton_card.setEnabled(False)
         layout.addWidget(self.steamos_proton_card)
-        self.real_toolkit_card = PreparationInfoCard(
-            'SteamOS Real Toolkit',
-            'Search installation, configuration and recovery tools by component.',
-            scope_text='SteamOS · rpf16rj', status_text='Optional',
-            action_text='Open', payload={'action': 'steamos_tools_browse', 'provider': 'real-toolkit'},
-            secondary_action_text='Check status', secondary_payload={'action': 'real_toolkit:verify', 'governor': ''},
-        )
-        self.real_toolkit_card.action_requested.connect(self._forward_dependency_action)
-        self.real_toolkit_panel = RealToolkitPanel(show_title=False)
-        self.real_toolkit_panel.action_requested.connect(self._forward_dependency_action)
-        self.real_toolkit_panel.hide()
-        self.real_toolkit_panel.setEnabled(False)
-        self.real_toolkit_card.layout().addWidget(self.real_toolkit_panel)
-        self.real_toolkit_card.hide()
-        layout.addWidget(self.real_toolkit_card)
-        self.steamos_alternative_card = PreparationInfoCard(
-            'SteamOS · keyboardspecialist',
-            'Maintain an existing kernel, Mesa / RADV, FSR4 or GE-Proton installation.',
-            scope_text='SteamOS · keyboardspecialist', status_text='Optional',
-            action_text='Open', payload={'action': 'steamos_tools_browse', 'provider': 'keyboardspecialist'},
-            secondary_action_text='Check status', secondary_payload={'action': 'steamos_alternative:graphics-status', 'governor': ''},
-        )
-        self.steamos_alternative_card.action_requested.connect(self._forward_dependency_action)
-        self.steamos_alternative_panel = SteamOSAlternativePanel(show_title=False)
-        self.steamos_alternative_panel.action_requested.connect(self._forward_dependency_action)
-        self.steamos_alternative_panel.hide()
-        self.steamos_alternative_panel.setEnabled(False)
-        self.steamos_alternative_card.layout().addWidget(self.steamos_alternative_panel)
-        self.steamos_alternative_card.hide()
-        layout.addWidget(self.steamos_alternative_card)
+        # Provider components are ordinary rows of their topic, each marked with
+        # the provider it comes from; the pages below place them.
+        self.real_toolkit_rows = RealToolkitRows()
+        self.steamos_alternative_rows = SteamOSAlternativeRows()
+        for rows in (self.real_toolkit_rows, self.steamos_alternative_rows):
+            rows.action_requested.connect(self._forward_dependency_action)
+            rows.set_visible(False)
+            rows.set_enabled(False)
         self.cachyos_stack_card = PreparationInfoCard(
             "Arch / CachyOS BC-250 graphics stack · includes GFX1013 fix",
             "MastaG's matched kernel and Mesa/RADV include the GFX1013 async-compute fix. They can be installed separately or together; the current kernel stays as a boot fallback.",
@@ -1462,13 +1445,15 @@ class PreparationPagesMixin:
         groups = (
             ("Connectivity", (self.network_driver_card, self.printing_driver_card, self.external_drivers_card)),
             ("Case accessories", (self.thermalright_card, self.corsair_card)),
-            ("Audio and TV", (self.hdmi_ac3_card, self.hdmi_cec_card)),
+            ("Audio and TV", (self.hdmi_ac3_card, self.hdmi_cec_card,
+                              *self.real_toolkit_rows.cards_for("audio"))),
+            ("Controllers and wireless", tuple(self.real_toolkit_rows.cards_for("drivers"))),
         )
         for _title, cards in groups:
             for card in cards:
                 layout.removeWidget(card)
-        # The category already says what each scope did ("Case accessory").
-        self.drivers_browser = CompatibilityBrowser(groups, show_scope=False)
+        # The scope line says whose row it is (this application's or a provider's).
+        self.drivers_browser = CompatibilityBrowser(groups)
         layout.insertWidget(0, self.drivers_browser)
 
     def _build_accessory_cards(self, layout: QVBoxLayout) -> None:

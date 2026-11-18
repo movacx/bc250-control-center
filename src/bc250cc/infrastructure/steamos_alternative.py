@@ -1,4 +1,8 @@
-"""Explicit keyboardspecialist lifecycle routes; never a fallback on failure."""
+"""Explicit keyboardspecialist lifecycle routes; never a fallback on failure.
+
+There is no "install per-game FSR4": upstream retired that V3 profile in v0.29 and the
+command only ever answered with an error. Removing an old profile stays available.
+"""
 
 ALTERNATIVE_ACTIONS = {
     'kernel-install': ('Prepare kernel compatibility', 'Preparar compatibilidad del kernel'),
@@ -7,7 +11,6 @@ ALTERNATIVE_ACTIONS = {
     'graphics-status': ('Check Mesa / RADV', 'Verificar Mesa / RADV'),
     'graphics-install': ('Install Mesa / RADV', 'Instalar Mesa / RADV'),
     'graphics-uninstall': ('Remove Mesa / RADV', 'Quitar Mesa / RADV'),
-    'graphics-install-fsr4': ('Install per-game FSR4', 'Instalar FSR4 por juego'),
     'graphics-uninstall-fsr4': ('Remove per-game FSR4', 'Quitar FSR4 por juego'),
     'proton-status': ('Check BC-250 GE-Proton', 'Verificar BC-250 GE-Proton'),
     'proton-install': ('Install / update BC-250 GE-Proton', 'Instalar / actualizar BC-250 GE-Proton'),

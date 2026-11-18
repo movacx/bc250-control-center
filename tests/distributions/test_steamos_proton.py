@@ -77,7 +77,7 @@ def test_only_proton_checkout_tracks_upstream_master(tmp_path):
     assert "sudo pacman" not in command
     assert " setup" not in command
     assert "bc250-proton.sh install" in command
-    assert EXTERNAL_TOOLS["steamos_amdgpu"].reviewed_revision == "e1563f2051727702a000b6ff6f6c524e2792aa21"
+    assert EXTERNAL_TOOLS["steamos_amdgpu"].reviewed_revision == "6aee5530a07f2c1a4fd2f23c00a87986030c5b35"
     subprocess.run(['bash', '-n'], input=command, text=True, check=True)
 
 

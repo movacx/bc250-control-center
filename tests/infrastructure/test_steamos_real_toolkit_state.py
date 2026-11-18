@@ -3,8 +3,10 @@ import json
 
 import pytest
 
-from bc250cc.infrastructure.steamos_real_toolkit import REPOSITORY, REVISION
+from bc250cc.infrastructure.steamos_real_toolkit import REPOSITORY
 from bc250cc.infrastructure.steamos_real_toolkit_state import probe_real_toolkit
+
+REVISION = '0123456789abcdef0123456789abcdef01234567'
 
 
 def _write(root, name, content):
@@ -38,7 +40,16 @@ def test_provider_snapshot_is_separate_from_component_installation(tmp_path):
     _write(tmp_path, workspace + 'start.sh', '# never executed')
     state = probe_real_toolkit(root=tmp_path, home=tmp_path / 'home', kernel='fixture')
     assert state['prepared'] and state['graphics']['state'] == 'not-installed'
+    assert state['reviewed_revision'] == REVISION
     assert not any(state['components'].values())
+
+
+def test_a_workspace_without_a_commit_hash_is_not_prepared(tmp_path):
+    workspace = 'home/.bc250-control-center/real-toolkit/workspace/'
+    _write(tmp_path, workspace + '.bc250cc-provider.json', json.dumps({'repository': REPOSITORY, 'revision': 'main'}))
+    _write(tmp_path, workspace + 'start.sh', '# never executed')
+    state = probe_real_toolkit(root=tmp_path, home=tmp_path / 'home', kernel='fixture')
+    assert not state['prepared'] and state['reviewed_revision'] == ''
 
 
 def test_valid_library_and_environment_prove_configuration_not_live_activation(tmp_path):

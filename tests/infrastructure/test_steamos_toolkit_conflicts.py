@@ -87,3 +87,39 @@ def test_packaged_ac3_profile_alone_is_not_native_ownership(tmp_path):
     profile.parent.mkdir(parents=True)
     profile.write_text('distribution package\n')
     assert native_conflicts('audio', tmp_path) == ()
+
+
+def test_a_native_openlinkhub_stops_the_toolkit_installing_a_second_copy(tmp_path):
+    """Two OpenLinkHub services fight over the same USB devices and port."""
+    from bc250cc.application.preparation.steamos_providers import protected_actions
+    from bc250cc.infrastructure.accessories.openlinkhub import unit_text
+
+    unit = tmp_path / 'home/.config/systemd/user/bc250-openlinkhub.service'
+    unit.parent.mkdir(parents=True)
+    unit.write_text(unit_text(tmp_path / 'tools'))
+    found = native_conflicts('openlinkhub', tmp_path)
+    assert found == ('/home/.config/systemd/user/bc250-openlinkhub.service',)
+    with pytest.raises(RuntimeError, match='Control Center manages'):
+        require_no_native_conflicts('openlinkhub', tmp_path)
+    # Bulk flows never install it, and removing the toolkit's own copy stays possible.
+    require_no_native_conflicts('all', tmp_path)
+    blocked = protected_actions({'openlinkhub': list(found)})
+    assert 'openlinkhub-install' in blocked and 'openlinkhub-revert' not in blocked
+
+
+def test_someone_elses_openlinkhub_user_unit_is_not_native_ownership(tmp_path):
+    unit = tmp_path / 'home/.config/systemd/user/bc250-openlinkhub.service'
+    unit.parent.mkdir(parents=True)
+    unit.write_text('[Service]\nExecStart=/opt/other/OpenLinkHub\n')
+    assert native_conflicts('openlinkhub', tmp_path) == ()
+
+
+def test_the_native_accessories_recognise_what_the_toolkit_installed():
+    """The other direction: Control Center's own AC-3 and OpenLinkHub must see rpf16rj's copies."""
+    from pathlib import Path
+
+    from bc250cc.infrastructure.accessories import hdmi_ac3, openlinkhub
+
+    assert Path('/etc/udev/rules.d/91-ac3-audio.rules') in hdmi_ac3.FOREIGN_SYSTEM
+    assert Path('/etc/alsa/conf.d/61-bc250-a52.conf') in hdmi_ac3.FOREIGN_SYSTEM
+    assert Path('/usr/lib/systemd/system/openlinkhub.service') in openlinkhub.FOREIGN_INSTALLS

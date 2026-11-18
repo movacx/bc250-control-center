@@ -55,6 +55,11 @@ FOREIGN_SYSTEM = (
     Path("/etc/udev/rules.d/91-bc250-hdmi-ac3.rules"),
     # MastaG's bc250-dual-audio package: its own permanent 5.1 output.
     Path("/usr/share/bc250-dual-audio"),
+    # The SteamOS Real Toolkit (rpf16rj): its AC-3 udev rule and profile set,
+    # and its dual-output audio, which encodes AC-3 the same way.
+    Path("/etc/udev/rules.d/91-ac3-audio.rules"),
+    Path("/usr/share/alsa-card-profile/mixer/profile-sets/bc250-hdmi-ac3.conf"),
+    Path("/etc/alsa/conf.d/61-bc250-a52.conf"),
 )
 FOREIGN_USER_NAME = "90-bc250-hdmi-ac3.conf"
 #: The encoder and the FFmpeg library it encodes with, per distribution.

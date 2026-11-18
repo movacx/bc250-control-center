@@ -11,8 +11,9 @@ ROOT = Path(__file__).resolve().parents[2]
 DESTINATION = ROOT / 'privileged/lib/bc250_steamos_toolkit_runtime.zip'
 MODULES = (
     'infrastructure/hardware_identity.py', 'infrastructure/steamos_readonly.py',
+    'infrastructure/steamos_root_guard.py',
     'infrastructure/steamos_real_toolkit.py', 'infrastructure/steamos_real_toolkit_runtime.py',
-    'infrastructure/steamos_real_toolkit_decky.py', 'infrastructure/steamos_real_toolkit_recovery.py',
+    'infrastructure/steamos_real_toolkit_recovery.py',
     'infrastructure/steamos_toolkit_conflicts.py', 'infrastructure/steamos_graphics_ownership.py',
     'shared/errors.py', 'shared/error_catalog.py',
 )

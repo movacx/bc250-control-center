@@ -14,7 +14,7 @@ from .steamos_graphics_ownership import (
     graphics_prefix_present,
     vulkan_driver_selections,
 )
-from .steamos_real_toolkit import REPOSITORY, REVISION, WORKSPACE
+from .steamos_real_toolkit import REPOSITORY, WORKSPACE, valid_revision
 from .steamos_toolkit_conflicts import NATIVE_COMPONENTS, native_conflicts
 
 
@@ -49,7 +49,9 @@ def probe_real_toolkit(*, root: Path = Path('/'), home: Path | None = None,
     except (ValueError, TypeError):
         metadata = {}
     prepared = (isinstance(metadata, dict) and metadata.get('repository') == REPOSITORY
-                and metadata.get('revision') == REVISION and (state_root / 'start.sh').is_file())
+                and valid_revision(str(metadata.get('revision') or ''))
+                and (state_root / 'start.sh').is_file())
+    revision = str(metadata.get('revision')) if prepared else ''
     prefix = root / 'opt/bc250-gfx1013'
     descriptors = list(prefix.glob('*/share/vulkan/icd.d/radeon_icd.x86_64.json'))
     valid = [path for path in descriptors if _icd_valid(path, prefix, root)]
@@ -101,7 +103,7 @@ def probe_real_toolkit(*, root: Path = Path('/'), home: Path | None = None,
             # checker still rechecks/fails closed at operation time.
             native_ownership[component] = None
     return {
-        'provider': REPOSITORY, 'reviewed_revision': REVISION, 'prepared': bool(prepared),
+        'provider': REPOSITORY, 'reviewed_revision': revision, 'prepared': bool(prepared),
         'workspace': str(state_root), 'components': components,
         'native_ownership': native_ownership,
         'graphics': {'state': graphics_state, 'icds': [str(p) for p in valid],

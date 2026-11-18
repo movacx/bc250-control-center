@@ -146,6 +146,7 @@ require_supported_python() {
 }
 require_supported_python
 
+
 check_python_gui_runtime() {
   python3 - <<'PY' >/dev/null 2>&1
 from PyQt6.QtGui import QImageReader
@@ -505,6 +506,26 @@ mv -- "$APP_STAGE/VERSION" "$APP_DIR/VERSION"
 install -Dm644 "$ROOT_DIR/README.md" "$DOC_DIR/README.md"
 install -Dm644 "$ROOT_DIR/LICENSE" "$DOC_DIR/LICENSE"
 install -Dm644 "$ROOT_DIR/docs/THIRD_PARTY_NOTICES.md" "$DOC_DIR/THIRD_PARTY_NOTICES.md"
+# A system package may already own the privileged helpers (pacman -U of a local
+# build, the AUR, an RPM or a .deb). Installing over them leaves two versions:
+# the package's launcher keeps starting its own, older interface against this
+# build's helpers, and removing the package later deletes the helpers this
+# install relies on. Say so before the helpers are replaced. Exit statuses only: the
+# managers translate their sentences (Spanish SteamOS: "está contenido en").
+system_package_owner() {
+  local path="$1" owner=""
+  if command -v pacman >/dev/null 2>&1 && owner="$(LC_ALL=C pacman -Qoq -- "$path" 2>/dev/null)" && [[ -n "$owner" ]]; then
+    printf '%s\n' "${owner%%$'\n'*}"; return 0
+  fi
+  if command -v rpm >/dev/null 2>&1 && owner="$(LC_ALL=C rpm -qf --qf '%{NAME}\n' -- "$path" 2>/dev/null)" && [[ -n "$owner" ]]; then
+    printf '%s\n' "${owner%%$'\n'*}"; return 0
+  fi
+  if command -v dpkg-query >/dev/null 2>&1 && owner="$(LC_ALL=C dpkg-query -S -- "$path" 2>/dev/null)" && [[ "$owner" == *:* ]]; then
+    owner="${owner%%$'\n'*}"; printf '%s\n' "${owner%%:*}"; return 0
+  fi
+  return 1
+}
+
 install_privileged_pwm_components() {
   local helper_source="$ROOT_DIR/privileged/helpers/bc250-fan-pwm-helper"
   local system_setup_helper_source="$ROOT_DIR/privileged/helpers/bc250-system-setup-helper"
@@ -539,6 +560,14 @@ install_privileged_pwm_components() {
   if [[ -e /run/ostree-booted ]]; then
     echo "Warning: immutable rpm-ostree system detected; install the RPM with rpm-ostree for the hardened PWM helper." >&2
     return 0
+  fi
+
+  if [[ "$PREFIX" != "/usr" ]] && package_name="$(system_package_owner /usr/libexec/bc250-control-center/bc250-fan-pwm-helper)"; then
+    echo "[WARN] BC250 Control Center is also installed as the system package '$package_name'." >&2
+    echo "[WARN] This local install replaces that package's privileged helpers in /usr/libexec with this build's," >&2
+    echo "[WARN] while the package's own launcher (/usr/bin/bc250-control-center) keeps starting its older interface." >&2
+    echo "[WARN] To keep one version: upgrade the package instead (packaging/scripts/build-local-pkg.sh, then" >&2
+    echo "[WARN] sudo pacman -U dist/bc250-control-center-*-any.pkg.tar.zst), or remove it first (sudo pacman -R $package_name)." >&2
   fi
 
   if is_steamos_install_local; then

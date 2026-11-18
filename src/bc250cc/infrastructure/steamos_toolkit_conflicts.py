@@ -5,8 +5,9 @@ from pathlib import Path
 
 from .steamos_graphics_ownership import invoking_home
 
-NATIVE_COMPONENTS = ('cpu', 'gpu', 'cu', 'cores', 'fans', 'acpi', 'audio', 'video', 'cec')
-BULK_COMPONENTS = NATIVE_COMPONENTS[:-1]  # Upstream bulk flows do not configure CEC.
+NATIVE_COMPONENTS = ('cpu', 'gpu', 'cu', 'cores', 'fans', 'acpi', 'audio', 'video', 'cec', 'openlinkhub')
+# Upstream bulk flows configure neither CEC nor OpenLinkHub.
+BULK_COMPONENTS = tuple(item for item in NATIVE_COMPONENTS if item not in {'cec', 'openlinkhub'})
 
 
 def native_conflicts(component: str, root: Path = Path('/'), *, home: Path | None = None) -> tuple[str, ...]:
@@ -42,6 +43,11 @@ def native_conflicts(component: str, root: Path = Path('/'), *, home: Path | Non
                 home / '.config/cecd/config.d/50-bc250-control-center.toml',
                 home / '.config/systemd/user/bc250-control-center-cec-wake.service'),
     }
+    # Two OpenLinkHub copies fight over the same USB devices and port.
+    owned_units = {
+        'openlinkhub': ((home / '.config/systemd/user/bc250-openlinkhub.service',
+                         'OpenLinkHub (BC250 Control Center)'),),
+    }
     for item in sorted(components):
         for unit in units.get(item, ()):
             for directory in ('etc/systemd/system', 'usr/lib/systemd/system'):
@@ -64,6 +70,13 @@ def native_conflicts(component: str, root: Path = Path('/'), *, home: Path | Non
             except FileNotFoundError:
                 continue
             if content.startswith('# Managed by BC250 Control Center'):
+                found.append('/' + str(path.relative_to(root)) if path.is_relative_to(root) else str(path))
+        for path, signature in owned_units.get(item, ()):
+            try:
+                content = path.read_text(encoding='utf-8')
+            except FileNotFoundError:
+                continue
+            if signature in content:
                 found.append('/' + str(path.relative_to(root)) if path.is_relative_to(root) else str(path))
     return tuple(found)
 

@@ -154,7 +154,14 @@ def build_steamos_readonly_command(action: str) -> str:
         'command -v steamos-readonly >/dev/null 2>&1 || { echo "ERROR: steamos-readonly was not found; this workflow is for SteamOS."; exit 64; }',
     ]
     if action == "status":
-        commands.append("steamos-readonly status")
+        # It exits 1 whenever the root is writable: that is an answer, not a
+        # failure. Only an answer naming neither state is reported as one.
+        commands.append(
+            'bc250_readonly_said="$(LC_ALL=C steamos-readonly status 2>&1 || true)"; '
+            'printf "%s\\n" "$bc250_readonly_said"; '
+            'printf "%s\\n" "$bc250_readonly_said" | grep -Eqi "(^|[^a-z])(enabled|disabled)([^a-z]|$)" || '
+            '{ echo "ERROR: steamos-readonly did not report enabled or disabled."; exit 70; }'
+        )
         return "\n".join(commands)
     commands.append(STEAMOS_PASSWORD_GUARD)
     commands.append("bc250_require_password")

@@ -46,7 +46,7 @@ DISTRIBUTIONS = [
     ("arch", "Arch Linux", "arch", True, False, True),
     ("cachyos", "CachyOS", "arch", True, False, True),
     ("bazzite", "Bazzite", "bazzite", True, False, False),
-    ("steamos", "SteamOS", "steamos", True, True, False),
+    ("steamos", "SteamOS", "steamos", False, False, False),  # the toolkit offers its own ACPI and Proton rows
     ("ubuntu", "Ubuntu", "debian", False, False, False),
     ("fedora", "Fedora", "fedora", False, False, False),
 ]
@@ -58,15 +58,17 @@ def test_each_row_is_shown_only_where_the_distribution_can_use_it(os_id, label, 
     assert (not sidebar.acpi_card.isHidden()) is acpi
     assert (not sidebar.steamos_proton_card.isHidden()) is proton
     assert any((not card.isHidden()) is stack for card in sidebar.cachyos_cards)
-    # The governors and VA-API are offered everywhere.
-    for card in (sidebar.cyan_card, sidebar.oberon_card, sidebar.vaapi_card):
+    # The governors are offered everywhere, and VA-API everywhere but SteamOS,
+    # where the Real Toolkit's own VA-API row replaces it (until one is installed).
+    for card in (sidebar.cyan_card, sidebar.oberon_card):
         assert not card.isHidden()
+    assert sidebar.vaapi_card.isHidden() is (family == "steamos")
 
 
 def test_the_acpi_scope_names_the_distribution_it_was_validated_on():
     assert "Arch" in _sidebar("arch", "Arch Linux", "arch").acpi_card.scope.text()
     assert "Bazzite" in _sidebar("bazzite", "Bazzite", "bazzite").acpi_card.scope.text()
-    assert "SteamOS" in _sidebar("steamos", "SteamOS", "steamos").acpi_card.scope.text()
+    assert _sidebar("steamos", "SteamOS", "steamos").acpi_card.isHidden()
 
 
 @pytest.mark.parametrize("reason,expected", [

@@ -36,7 +36,7 @@ def _page(qtbot):
 def test_the_row_sits_under_system_after_acpi(qtbot, lock):
     page = _page(qtbot)
     groups = dict(page.panel.compatibility_groups)
-    assert groups["System"] == (page.panel.acpi_card, page.panel.pacman_lock_card)
+    assert groups["System"][:2] == (page.panel.acpi_card, page.panel.pacman_lock_card)
 
 
 @pytest.mark.parametrize("kind, status, release_visible", [

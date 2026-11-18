@@ -41,7 +41,7 @@ def _shown(sidebar) -> list[str]:
 def test_it_sits_in_compatibility_under_video():
     sidebar = _sidebar()
     groups = dict(sidebar.compatibility_groups)
-    assert groups["Video"] == (sidebar.vaapi_card,)
+    assert groups["Video"][0] is sidebar.vaapi_card
     compatibility = sidebar.stack.widget(sidebar.tab_index("compatibility"))
     assert compatibility.isAncestorOf(sidebar.vaapi_card)
 

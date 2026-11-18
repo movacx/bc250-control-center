@@ -27,6 +27,7 @@ from .dashboard_widgets import (  # noqa: E402
     _mapping,
     game_matrix_rows,
 )
+from .real_toolkit import NATIVE_SCOPE, REAL_TOOLKIT_SCOPE
 from .responsive import clear_grid
 
 
@@ -964,6 +965,54 @@ class PreparationRenderMixin:
         """FSR4's games are rows of its section on the Upscaling tab."""
         self._fsr4_games = list(games)
 
+    # Rows of this application that share a SteamOS list with provider rows.
+    _STEAMOS_NATIVE_ROWS = (
+        "cyan_card", "oberon_card", "mesa_card", "directmesh_card", "vaapi_card",
+        "pacman_lock_card", "hdmi_ac3_card", "hdmi_cec_card", "thermalright_card", "corsair_card",
+        "network_driver_card", "printing_driver_card", "external_drivers_card", "acpi_card",
+    )
+
+    #: Where the provider's own row replaces ours on SteamOS. Ours stays visible for
+    #: anyone who already has it installed, so it can still be updated or removed.
+    _SUPERSEDED_WHEN = frozenset({"", "not-installed", "unsupported", "managed-elsewhere", "hardware-vcn", "unknown"})
+
+    #: ACPI states that mean this application put something there.
+    _NATIVE_ACPI_PRESENT = frozenset({"active", "pending-reboot", "not-active", "incomplete",
+                                      "outdated", "needs-repair", "needs-check"})
+
+    def _hide_superseded_native_rows(self) -> None:
+        """SteamOS offers the Real Toolkit's VA-API, AC-3, HDMI-CEC and Proton rows.
+
+        Showing this application's own copy beside each one only made people
+        choose between two installers of the same thing. A native install that
+        already exists is the exception: it must stay manageable (and it makes
+        the provider's row read "BC250 Control Center" and turn itself off).
+        """
+        tools = _mapping(getattr(self, "_tools", None))
+        accessories = _mapping(tools.get("accessories"))
+        states = {
+            "vaapi_card": str(_mapping(tools.get("vaapi_video")).get("state") or ""),
+            "hdmi_ac3_card": str(_mapping(accessories.get("hdmi_ac3")).get("state") or ""),
+            "hdmi_cec_card": str(_mapping(accessories.get("hdmi_cec")).get("state") or ""),
+        }
+        for name, state in states.items():
+            card = getattr(self, name, None)
+            if card is not None and state in self._SUPERSEDED_WHEN:
+                card.setVisible(False)
+        # Our ACPI correction (offered on SteamOS before the toolkit's): hidden unless
+        # one is installed, so whoever has it can still update, repair or remove it.
+        acpi = _mapping(_mapping(tools.get("system_setup")).get("acpi"))
+        self.acpi_card.setVisible(str(acpi.get("status") or "") in self._NATIVE_ACPI_PRESENT)
+        # Its actions are the toolkit's own Proton ones, which have their own row.
+        self.steamos_proton_card.setVisible(False)
+
+    def _label_steamos_origins(self) -> None:
+        """Under every SteamOS row, say whose it is: this application's or a provider's."""
+        for name in self._STEAMOS_NATIVE_ROWS:
+            card = getattr(self, name, None)
+            if card is not None:
+                card.set_scope(NATIVE_SCOPE)
+
     def _apply_compatibility_filter(self) -> None:
         self._restore_compatibility_preview_actions()
         actual = self._distribution_group(str(self._tools.get("os_family") or ""))
@@ -979,12 +1028,11 @@ class PreparationRenderMixin:
             "debian": "Ubuntu / Debian",
             "other": "Other distributions",
         }
-        self.acpi_card.setVisible(show_all or selected in {"arch", "bazzite", "steamos"})
-        # Bazzite takes the same tables through grubenv, SteamOS through GRUB's
-        # early initrd list (both beta).
+        # SteamOS uses the toolkit's ACPI row instead; ours stays for the others.
+        # Bazzite takes the same tables through grubenv (beta).
+        self.acpi_card.setVisible(show_all or selected in {"arch", "bazzite"})
         self.acpi_card.set_scope(
             "Beta · Bazzite" if selected == "bazzite"
-            else "Beta · SteamOS" if selected == "steamos"
             else "Validated · Arch / CachyOS / Manjaro"
         )
         self.cyan_card.setVisible(True)
@@ -1000,16 +1048,15 @@ class PreparationRenderMixin:
         self.cachyos_stack_card.setVisible(show_all or selected == "arch")
         self.steamos_proton_card.setVisible(show_all or selected == "steamos")
         self.steamos_proton_card.setEnabled(actual == "steamos" and not preview)
-        self.real_toolkit_panel.setVisible(show_all or selected == "steamos")
-        self.real_toolkit_panel.setEnabled(actual == "steamos" and not preview)
-        self.real_toolkit_card.setVisible(show_all or selected == "steamos")
-        self.real_toolkit_card.setEnabled(actual == "steamos" and not preview)
-        self.steamos_alternative_panel.setVisible(show_all or selected == "steamos")
-        self.steamos_alternative_panel.setEnabled(actual == "steamos" and not preview)
-        self.steamos_alternative_card.setVisible(show_all or selected == "steamos")
-        self.steamos_alternative_card.setEnabled(actual == "steamos" and not preview)
+        for rows in (self.real_toolkit_rows, self.steamos_alternative_rows):
+            rows.set_visible(show_all or selected == "steamos")
+            rows.set_enabled(actual == "steamos" and not preview)
         self.fsr4_card.setVisible(FSR4_UI_ENABLED)
         self.helixsr_card.setVisible(HELIXSR_UI_ENABLED)
+        if selected == "steamos":
+            self._label_steamos_origins()
+            if actual == "steamos":
+                self._hide_superseded_native_rows()
         self._refresh_compatibility_summary()
 
         if not preview:
@@ -1091,7 +1138,8 @@ class PreparationRenderMixin:
             self.gfx_card,
             self.cachyos_stack_card,
             self.steamos_proton_card,
-            self.real_toolkit_panel,
+            *self.real_toolkit_rows.all_cards(),
+            *self.steamos_alternative_rows.all_cards(),
         ):
             for button in card.findChildren(QPushButton):
                 action = str(getattr(button, "request_payload", {}).get("action") or "")
@@ -1439,13 +1487,21 @@ class PreparationRenderMixin:
         self.bazzite_enable_row.hide()
         self.bazzite_launch_row.hide()
         real_toolkit = _mapping(gfx_state.get("steamos_real_toolkit"))
-        self.real_toolkit_panel.set_provider_state(real_toolkit)
-        self.steamos_alternative_panel.set_provider_state(
-            _mapping(gfx_state.get("steamos_alternative_graphics")))
+        self.real_toolkit_rows.set_provider_state(real_toolkit)
+        # Someone who installed with an earlier version has keyboardspecialist's kernel
+        # fix and Mesa/RADV: show that on its own rows so it stays manageable.
+        self.steamos_alternative_rows.set_provider_state({
+            **_mapping(gfx_state.get("steamos_alternative_graphics")),
+            "kernel": {
+                "installed": bool(gfx_state.get("steamos_kernel_installed")),
+                "ready": bool(gfx_state.get("steamos_kernel_ready")),
+                "reboot_pending": bool(gfx_state.get("steamos_kernel_reboot_pending")),
+            },
+        })
         if reason_key == "steamos-dedicated-backend":
             proton = _mapping(real_toolkit.get("proton"))
             graphics_label, graphics_tone = gfx.status, gfx.tone
-            self.gfx_card.set_scope("SteamOS Real Toolkit", "blue")
+            self.gfx_card.set_scope(REAL_TOOLKIT_SCOPE, "blue")
             self.gfx_card.set_status(graphics_label, graphics_tone)
             self.steamos_kernel_status.setText(tr("Unknown"))
             self.steamos_kernel_status.set_tone("gray")

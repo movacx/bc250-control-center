@@ -1,6 +1,6 @@
 """Persistent workspace and application routing without root or hardware writes."""
-import hashlib
 import io
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -9,26 +9,51 @@ from bc250cc.infrastructure import steamos_real_toolkit as provider
 from bc250cc.infrastructure import steamos_real_toolkit_runtime as runtime
 from bc250cc.infrastructure.dependencias_steamos import SteamosDependenciesMixin
 
+REVISION = '0123456789abcdef0123456789abcdef01234567'
 
-def test_download_is_verified_and_a_valid_cache_never_hits_network(tmp_path, monkeypatch):
-    content = b'reviewed source archive'
-    monkeypatch.setattr(provider, 'ARCHIVE_SHA256', hashlib.sha256(content).hexdigest())
+
+def test_download_names_the_commit_and_a_cached_copy_never_hits_network(tmp_path, monkeypatch):
+    content = b'upstream source archive'
     calls = []
     def fetch(url, **kwargs):
         calls.append(url)
         return io.BytesIO(content)
     monkeypatch.setattr(runtime.urllib.request, 'urlopen', fetch)
-    destination = tmp_path / 'cache' / 'archive.tar.gz'
-    runtime.download_archive(destination)
-    runtime.download_archive(destination)
-    assert destination.read_bytes() == content and calls == [provider.ARCHIVE_URL]
+    destination = tmp_path / 'cache' / (REVISION + '.tar.gz')
+    runtime.download_archive(destination, REVISION)
+    runtime.download_archive(destination, REVISION)
+    assert destination.read_bytes() == content and calls == [provider.archive_url(REVISION)]
+    assert provider.archive_url(REVISION).endswith('/tar.gz/' + REVISION)
 
 
-def test_bad_download_is_never_published(tmp_path, monkeypatch):
-    monkeypatch.setattr(runtime.urllib.request, 'urlopen', lambda *args, **kwargs: io.BytesIO(b'wrong'))
-    with pytest.raises(ValueError, match='SHA-256'):
-        runtime.download_archive(tmp_path / 'archive')
+def test_an_empty_download_is_never_published(tmp_path, monkeypatch):
+    monkeypatch.setattr(runtime.urllib.request, 'urlopen', lambda *args, **kwargs: io.BytesIO(b''))
+    with pytest.raises(ValueError, match='empty'):
+        runtime.download_archive(tmp_path / 'archive', REVISION)
     assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize('reply,valid', [(REVISION + '\n', True), ('Not Found', False), ('main', False), ('', False)])
+def test_the_latest_revision_must_be_a_full_commit_hash(monkeypatch, reply, valid):
+    monkeypatch.setattr(runtime.urllib.request, 'urlopen', lambda *args, **kwargs: io.BytesIO(reply.encode()))
+    if valid:
+        assert runtime.resolve_revision() == REVISION
+    else:
+        with pytest.raises(ValueError, match='commit hash'):
+            runtime.resolve_revision()
+
+
+def test_clear_cache_forgets_sources_and_workspace_but_keeps_guard_and_lock(tmp_path):
+    (tmp_path / (REVISION + '.tar.gz')).write_bytes(b'archive')
+    (tmp_path / '.download-x').write_bytes(b'partial')
+    (tmp_path / 'workspace/external').mkdir(parents=True)
+    (tmp_path / 'workspace/external/build.o').write_bytes(b'half-built')
+    (tmp_path / 'runtime').mkdir()
+    (tmp_path / 'runtime/guard').write_text('guard')
+    (tmp_path / '.lock').write_text('')
+    runtime.clear_cache(tmp_path)
+    assert sorted(path.name for path in tmp_path.iterdir()) == ['.lock', 'runtime']
+    runtime.clear_cache(tmp_path)  # idempotent
 
 
 def test_workspace_restores_provider_files_but_keeps_build_outputs(tmp_path):
@@ -197,3 +222,51 @@ def test_cached_guard_runtime_refuses_directory_symlinks(tmp_path):
     with pytest.raises(PermissionError, match='symlink'):
         runtime.cache_guard_runtime(installed, destination)
     assert list(outside.iterdir()) == []
+
+
+@pytest.mark.parametrize('stdout,status,expected', [
+    ('disabled\n', 1, 'disabled'),   # what SteamOS really does while the root is writable
+    ('enabled\n', 0, 'enabled'),
+    ('enabled\n', 1, 'enabled'),
+    ('', 1, 'unknown'),
+    ('steamos-readonly: command exploded\n', 2, 'unknown'),
+])
+def test_root_mode_is_read_from_the_text_not_the_exit_status(monkeypatch, stdout, status, expected):
+    monkeypatch.setattr(runtime.subprocess, 'run', lambda *a, **k: SimpleNamespace(
+        returncode=status, stdout=stdout, stderr=''))
+    assert runtime._root_mode() == expected
+
+
+def test_root_mode_distinguishes_a_missing_command_from_one_that_hangs(monkeypatch):
+    def missing(*args, **kwargs):
+        raise FileNotFoundError
+
+    def hangs(*args, **kwargs):
+        raise runtime.subprocess.TimeoutExpired('steamos-readonly', 10)
+
+    monkeypatch.setattr(runtime.subprocess, 'run', missing)
+    assert runtime._root_mode() == 'unavailable'
+    monkeypatch.setattr(runtime.subprocess, 'run', hangs)
+    assert runtime._root_mode() == 'unknown'
+
+
+def test_failure_logs_are_the_newest_few_plain_files_and_replace_the_previous_set(tmp_path):
+    logs = tmp_path / 'workspace' / 'logs'
+    logs.mkdir(parents=True)
+    for number in range(8):
+        path = logs / ('run-%d.log' % number)
+        path.write_text(str(number))
+        os.utime(path, (1000 + number, 1000 + number))
+    (logs / 'elsewhere.log').symlink_to(tmp_path)
+    (logs / 'notes.txt').write_text('not a log')
+    (tmp_path / runtime.FAILURE_LOGS).mkdir()
+    (tmp_path / runtime.FAILURE_LOGS / 'old.log').write_text('previous failure')
+    runtime.clear_cache(tmp_path)
+    assert sorted(path.name for path in (tmp_path / runtime.FAILURE_LOGS).iterdir()) == [
+        'run-2.log', 'run-3.log', 'run-4.log', 'run-5.log', 'run-6.log', 'run-7.log']
+
+
+def test_no_logs_means_no_failure_folder(tmp_path):
+    (tmp_path / 'workspace').mkdir()
+    runtime.clear_cache(tmp_path)
+    assert not (tmp_path / runtime.FAILURE_LOGS).exists()

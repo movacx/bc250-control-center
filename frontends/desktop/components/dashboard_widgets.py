@@ -2614,8 +2614,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
                 self.compatibility_filter.setCurrentIndex(selected_index)
         finally:
             self.compatibility_filter.blockSignals(blocked)
-        self.real_toolkit_panel.retranslate_dynamic_copy()
-        self.steamos_alternative_panel.retranslate_dynamic_copy()
+        self.real_toolkit_rows.retranslate_dynamic_copy()
+        self.steamos_alternative_rows.retranslate_dynamic_copy()
         if getattr(self, "_last_preparation_state", None) is not None:
             self.set_state(self._last_preparation_state)
 
@@ -2981,6 +2981,11 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         )
         detail.setWordWrap(True)
         copy.addWidget(detail)
+        # Only while a toolkit action is running, or died with the system unlocked.
+        self.readonly_session_note = _label("", "dashboardMemoryDetail")
+        self.readonly_session_note.setWordWrap(True)
+        self.readonly_session_note.hide()
+        copy.addWidget(self.readonly_session_note)
         root.addLayout(copy, 1)
         self.readonly_button = QPushButton(tr("Disable read-only mode"))
         self.readonly_button.setProperty("dashboardCardAction", True)
@@ -3168,20 +3173,34 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         if not available:
             return
         mode = str(state.get("state") or "unknown")
+        session = _mapping(state.get("toolkit_session"))
+        running = bool(session.get("running"))
+        interrupted = bool(session.get("restore_pending")) and not running
         status, tone = {
             "enabled": ("Protected", "green"),
             "disabled": ("Writable", "orange"),
         }.get(mode, ("Unknown", "gray"))
+        if running:
+            status, tone = "In use", "blue"
+        elif interrupted:
+            status, tone = "Interrupted", "orange"
         self.readonly_status.setText(tr(status))
         self.readonly_status.set_tone(tone)
         # Protected / Writable is what the button says ("Disable read-only
-        # mode" means it is protected); only an unknown state is worth a pill.
-        self.readonly_status.setVisible(mode not in {"enabled", "disabled"})
+        # mode" means it is protected); an unknown state, a toolkit action in
+        # progress or one that died with the system unlocked are worth a pill.
+        self.readonly_status.setVisible(running or interrupted or mode not in {"enabled", "disabled"})
+        note = ("A toolkit action is running; the system files stay unlocked until it ends." if running
+                else "A toolkit action ended before it could lock the system files again." if interrupted else "")
+        self.readonly_session_note.setText(tr(note) if note else "")
+        self.readonly_session_note.setVisible(bool(note))
         self._readonly_action = "enable" if mode == "disabled" else "disable"
         self.readonly_button.setText(
             tr("Turn read-only back on" if self._readonly_action == "enable" else "Disable read-only mode")
         )
-        self.readonly_button.setEnabled(mode in {"enabled", "disabled"})
+        # While a toolkit action holds the system unlocked, a second switch would fight it.
+        self.readonly_button.setEnabled(mode in {"enabled", "disabled"} and not running)
+        self.real_toolkit_rows.set_root_state(mode, running=running, interrupted=interrupted)
         free = state.get("var_free_mb")
         if isinstance(free, int) and not isinstance(free, bool):
             self.var_space_note.setText(tr("/var: {free} MB free").format(free=free))
@@ -3218,21 +3237,21 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         lines; the description and actions of a row open on demand.
         """
         self.compatibility_groups = (
-            ("System", (self.acpi_card, self.pacman_lock_card)),
+            ("System", (self.acpi_card, self.pacman_lock_card,
+                        *self.real_toolkit_rows.cards_for("system"))),
             ("GPU governor", (self.cyan_card, self.oberon_card)),
             # Mesa first: it is what leaves the desktop on the CPU, whatever the kernel does.
             ("Kernel and graphics", (
                 self.mesa_card, self.gfx_card,
                 *((self.directmesh_card,) if hasattr(self, "directmesh_card") else ()),
                 self.steamos_proton_card, *self.cachyos_cards,
+                *self.real_toolkit_rows.cards_for("graphics"),
+                *self.steamos_alternative_rows.cards_for("graphics"),
             )),
-            ("Video", (self.vaapi_card,)),
-            ("SteamOS", (self.real_toolkit_card, self.steamos_alternative_card)),
+            ("Video", (self.vaapi_card, *self.real_toolkit_rows.cards_for("video"))),
+            ("SteamOS toolkit", tuple(self.real_toolkit_rows.cards_for("toolkit"))),
         )
         layout.setSpacing(0)
-        # Boot options: the panels that used to sit above the component list.
-        layout.insertSpacing(layout.count() - 1, 12)
-        layout.insertWidget(layout.count() - 1, self._boot_holder)
         from .compat_browser import CompatibilityBrowser
 
         index = min(layout.indexOf(card) for _title, cards in self.compatibility_groups for card in cards)
@@ -3245,6 +3264,19 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
             page.setProperty("compatPage", True)
         self.compatibility_browser = CompatibilityBrowser(self.compatibility_groups)
         layout.insertWidget(index, self.compatibility_browser)
+        # Boot options (read-only mode, kernel options, mitigations) come last,
+        # under the tools, as in the other workflows.
+        position = layout.indexOf(self.compatibility_browser)
+        layout.insertSpacing(position + 1, 12)
+        layout.insertWidget(position + 2, self._boot_holder)
+        # The page's closing stretch stays under everything; it must not sit between
+        # the filter and the list, where it would push a short list to the bottom.
+        for number in range(layout.count() - 1, -1, -1):
+            item = layout.itemAt(number)
+            if item is not None and item.spacerItem() is not None and \
+                    item.expandingDirections() & Qt.Orientation.Vertical:
+                layout.takeAt(number)
+        layout.addStretch(1)
         self._refresh_compatibility_summary()
 
     def _refresh_compatibility_summary(self) -> None:
@@ -3655,13 +3687,6 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
 
     def _forward_dependency_action(self, payload: object) -> None:
         values = dict(payload) if isinstance(payload, Mapping) else {}
-        if values.get('action') == 'steamos_tools_browse':
-            cards = {'real-toolkit': self.real_toolkit_card,
-                     'keyboardspecialist': self.steamos_alternative_card}
-            card = cards.get(values.get('provider'))
-            if card is not None and hasattr(self, 'compatibility_browser'):
-                self.compatibility_browser.show_details(card)
-            return
         values.setdefault("selected_components", self.selected_components)
         self.dependency_action_requested.emit(values)
 

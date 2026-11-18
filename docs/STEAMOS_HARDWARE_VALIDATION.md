@@ -5,8 +5,12 @@ certifica que los componentes se hayan probado en una consola. El equipo de
 desarrollo inspeccionado el 2026-11-16 usa Arch Linux con kernel
 7.3.4-1.425-cachyos-bc250, por lo que no sirve como evidencia de arranque SteamOS.
 
-Revisión fijada del proveedor: `88abd200170c8855f45cc6883e72d243151ceb7a`
-(1.12.0). El inventario completo de funciones y opciones anidadas está en
+El proveedor ya no está fijado: cada acción resuelve el último commit de `main`
+(el 2026-11-18 seguía siendo `88abd200170c8855f45cc6883e72d243151ceb7a`, 1.12.0) y
+lo anota en `.bc250cc-provider.json`; anotar en cada sesión el hash que muestra la
+terminal («Preparing SteamOS Real Toolkit (main xxxxxxx)»). La alternativa
+keyboardspecialist sí está fijada: kernel/Mesa en `6aee553` (v0.40.0, 2026-11-17;
+antes `e1563f2`, v0.30.0) y Proton siguiendo `master`. El inventario completo de funciones y opciones anidadas está en
 [steamos-real-toolkit-inventory.json](steamos-real-toolkit-inventory.json).
 La ruta de integración y las adaptaciones se documentan en
 [STEAMOS_REAL_TOOLKIT_MIGRATION.md](STEAMOS_REAL_TOOLKIT_MIGRATION.md).
@@ -88,19 +92,14 @@ cerrado del adaptador; abrir un menú no valida sus opciones internas. Para los
 menús, recorrer y registrar cada opción pertinente del inventario, incluyendo
 cancelar/volver. No ejecutar todo el registro como un script automático.
 
-| Componente | Acciones Real Toolkit | Evidencia física |
+Solo se exponen las filas que la aplicación no ofrece de forma nativa; CPU/GPU,
+CU, perfiles, memoria/swap, ventiladores, CoolerControl, mitigaciones y extras se
+prueban con los controles propios de Control Center.
+
+| Componente (origen `SteamOS · rpf16rj`) | Acciones Real Toolkit | Evidencia física |
 | --- | --- | --- |
-| Administración del toolkit | `manual`, `verify`, `install-all`, `revert-all` | Pendiente |
-| Gobernador de CPU | `cpu-install`, `cpu-revert` | Pendiente |
-| Gobernador de GPU · Cyan | `gpu-install`, `gpu-revert` | Pendiente |
-| Unidades de cómputo · CU / WGP | `cu` | Pendiente |
-| Desbloqueo de núcleos de CPU | `cores-install`, `cores-revert` | Pendiente |
-| Perfiles de CPU y GPU | `profiles` | Pendiente |
-| Swap | `swap`, `swap-revert` | Pendiente |
-| ZRAM / ZSWAP | `zswap-install`, `zswap-revert` | Pendiente |
-| Reparto de RAM y VRAM | `uma-install`, `uma-revert` | Pendiente |
+| Administración del toolkit | `verify` | Pendiente |
 | Gestión de energía · ACPI | `acpi-install`, `acpi-revert` | Pendiente |
-| Mitigaciones de seguridad de CPU | `mitigations-disable`, `mitigations-restore` | Pendiente |
 | Recuperación de arranque · GRUB | `recovery` | Pendiente |
 | Claves de firma de paquetes | `keyring` | Pendiente |
 | Kernel y Mesa · GFX1013 | `combined-install`, `combined-revert` | Pendiente |
@@ -109,27 +108,18 @@ cancelar/volver. No ejecutar todo el registro como un script automático.
 | Dolby Digital · AC-3 | `ac3-install`, `ac3-revert` | Pendiente |
 | Salida de audio doble | `dual-install`, `dual-revert` | Pendiente |
 | Control del televisor · HDMI-CEC | `cec-setup`, `cec-status`, `cec`, `cec-wake-install`, `cec-wake-remove`, `cec-poweroff-install`, `cec-poweroff-remove`, `cec-clear-overrides` | Pendiente |
-| Sensores y controlador PWM | `sensors`, `sensors-readonly`, `sensors-pwm`, `sensors-revert` | Pendiente |
-| CoolerControl | `coolercontrol` | Pendiente |
 | AIC8800 · Wi-Fi / Bluetooth | `aic8800` | Pendiente |
 | Intel BE200 | `be200` | Pendiente |
 | DualSense | `dualsense` | Pendiente |
 | Adaptador inalámbrico Xbox | `xbox-adapter` | Pendiente |
 | OpenLinkHub | `openlinkhub-install`, `openlinkhub-revert` | Pendiente |
-| Herramientas adicionales | `extras` | Pendiente |
-| Decky · Toolkit SteamOS Control | `decky-plugin-only`, `decky-install` | Pendiente |
-| Decky · FSR4 Launch Options | `fsr4-launch-options-install` | Pendiente |
-| Decky · Launch Coach | `launch-coach-install` | Pendiente |
-| Emuladores | `emulators`, `emudeck-install` | Pendiente |
-| KytyPS5-Native | `kyty-install`, `kyty-status`, `kyty-revert` | Pendiente |
-| Lichii BC-250 | `lichii-install`, `lichii-shortcut`, `lichii-revert` | Pendiente |
 
 ### Alternativa conservada
 
 | Componente | Acciones keyboardspecialist | Evidencia física |
 | --- | --- | --- |
 | Compatibilidad del kernel | `kernel-install`, `kernel-status`, `kernel-rollback` | Pendiente |
-| Mesa / RADV · GFX1013 | `graphics-install`, `graphics-status`, `graphics-install-fsr4`, `graphics-uninstall-fsr4`, `graphics-uninstall` | Pendiente |
+| Mesa / RADV · GFX1013 | `graphics-install`, `graphics-status`, `graphics-uninstall-fsr4`, `graphics-uninstall` | Pendiente |
 | BC-250 GE-Proton | `proton-install`, `proton-status`, `proton-uninstall` | Pendiente |
 
 ## Criterios funcionales por familia
@@ -182,6 +172,78 @@ cancelar/volver. No ejecutar todo el registro como un script automático.
 7. Verificar el checker persistente de Decky/recuperación tras retirar la app
    en la instalación de prueba y luego reinstalarla. Las pruebas de importación
    aislada existentes no sustituyen esa prueba completa del ciclo de vida.
+
+## Lista de entrega (2026-11-18)
+
+Orden pensado para una BC-250 con SteamOS 3.9.5 (kernel 7.2.7) como la de
+desarrollo. Cada paso dice qué debería verse y cómo volver atrás. Antes de nada,
+guardar `uname -r`, `steamos-readonly status`, `df -h / /var /home` y
+`pacman -Q bc250-control-center`.
+
+1. **Una sola instalación.** Si `pacman -Q bc250-control-center` responde, hay un
+   paquete: actualizarlo en lugar de mezclar (`BC250_PKG_RELEASE=4
+   packaging/scripts/build-local-pkg.sh`, `sudo steamos-readonly disable`,
+   `sudo pacman -U dist/bc250-control-center-*-any.pkg.tar.zst`, `sudo
+   steamos-readonly enable`). Con `scripts/install-local.sh` encima del paquete el
+   instalador avisa con `[WARN] … also installed as the system package`.
+   Comprobar después: `cmp privileged/lib/bc250_steamos_toolkit_runtime.zip
+   /usr/libexec/bc250-control-center/lib/bc250_steamos_toolkit_runtime.zip` sin
+   salida y `stat -c '%U:%a' …zip` = `root:644`. Volver atrás: reinstalar el
+   paquete anterior con `pacman -U`.
+2. **Solo-lectura.** En Preparación, el panel de solo-lectura muestra el estado
+   real (`Protegido`/`Escribible`). Si la raíz quedó escribible de una sesión
+   anterior y se quiere protegida: «Volver a activar solo lectura». Esperado: el
+   panel pasa a `Protegido` sin errores. En la interfaz de terminal, «SteamOS
+   read-only mode → Status» termina bien en ambos estados (antes salía con el
+   código 1 de `steamos-readonly status` y se mostraba como fallo).
+3. **Toolkit · Administración → Verificar.** La terminal muestra el commit de
+   `main`, el estado de `/` y `/var` (avisos `[WARN]` si quedan <300 MB en `/` o
+   <250 MB en `/var`), ejecuta `run_status` y al terminar la raíz vuelve a su
+   estado inicial. Comprobar `steamos-readonly status` antes y después.
+4. **Una acción que la guarda debe rechazar.** Con el kernel/RADV de
+   keyboardspecialist instalados, «Kernel y Mesa · GFX1013 → Instalar» debe parar
+   con `Existing keyboardspecialist / Control Center graphics artifacts were
+   found…` y `The toolkit cache was kept` (no se vuelve a descargar el archivo).
+5. **ACPI del toolkit** (si se quiere): instalar, reiniciar, comprobar
+   `/var/lib/bc250-acpi-fix/acpi_override.cpio` y el estado en la fila; revertir
+   con «Quitar corrección ACPI».
+6. **Alternativa keyboardspecialist.** «Compatibilidad del kernel → Verificar»
+   debe decir `READY FOR MESA / RADV` o `READY` si el módulo está activo; ya no
+   ofrece «Install per-game FSR4» (upstream lo retiró). Tras una instalación de
+   kernel nueva, la política `amdgpu.sched_policy=2` ya no se escribe junto con
+   el módulo: la activa «Mesa / RADV → Instalar», como hace upstream. Volver
+   atrás: «Restaurar módulo original del kernel actual» y reiniciar.
+   Con la fijación v0.40.0 (`6aee553`): una copia protegida preparada por
+   Control Center 1.22.x (v0.30) sigue sirviendo para «Verificar» y «Restaurar
+   módulo original» (la terminal avisa de que es v0.30.0); «Preparar» vuelve
+   a copiar la v0.40 (ahora con `fetch-build-deps.sh` y
+   `bc250-mesa-patches/libdrm-2.4.134-wrap.patch`, nunca `scripts/`) y, si el
+   módulo de v0.30 sigue verificado, no recompila (mismos parches y marcas
+   `smu-8core-metrics-r1`). Si hay que compilar, la terminal muestra
+   `Build dependency repositories: extra-3.9 core-3.9` antes de bajar el kernel;
+   ya no aparece el adaptador `*-bc250cc.sh`. «Mesa / RADV → Instalar» compila
+   Mesa 26.3.0 con DirectMesh 1.4 para todos los juegos (`RADV_DIRECTMESH=0
+   %command%` lo apaga en uno); «Verificar Mesa / RADV» debe mostrar
+   `DirectMesh directmesh-v1.4`. Un Mesa / RADV instalado con 1.22.x
+   (mesa-26.2.2, `production-fsr4-v4`) aparece «Instalado» y, ya con la copia
+   v0.40, «Installed (earlier release)» en «Verificar»; «Instalar / actualizar»
+   lo sustituye y «Quitar» lo retira. «BC-250 GE-Proton → Instalar» espera a
+   que Mesa / RADV sea el de v0.40.
+7. **Coexistencia nativa.** Con el AC-3 de rpf16rj instalado, el AC-3 propio
+   debe mostrarse «gestionado por otra herramienta»; con el OpenLinkHub propio
+   instalado, «OpenLinkHub → Instalar» del toolkit queda deshabilitado y marcado
+   `BC250 Control Center`.
+8. **Desinstalación local en SteamOS** (solo si se instaló con
+   `install-local.sh`): `uninstall-local.sh` abre la raíz, retira los helpers de
+   `/usr/libexec/bc250-control-center` y vuelve a protegerla; si no puede, lo dice
+   en vez de culpar a un paquete.
+9. **Tras una actualización de SteamOS**: `/usr` (helpers, paquetes, módulos de
+   kernel parcheados) se pierde; `/etc` conserva solo lo listado en
+   `/etc/atomic-update.conf.d`. Reinstalar Control Center, después repetir el
+   kernel fix del proveedor elegido. El Mesa de rpf16rj vive en `/opt` (en
+   `/home`) y su `VK_DRIVER_FILES` en `/etc/environment` (conservado), así que
+   puede seguir activo sin el módulo parcheado: ejecutar «Verificar la
+   instalación» y repetir «Kernel y Mesa · GFX1013» antes de jugar.
 
 ## Cierre
 

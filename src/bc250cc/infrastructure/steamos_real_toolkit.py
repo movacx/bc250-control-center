@@ -1,9 +1,16 @@
-"""Pinned Real Toolkit entrypoint contract.
+"""Real Toolkit entrypoint contract, tracking the upstream's latest revision.
 
 The upstream is a root TUI, not a sourceable library. Insert an allowlisted
 dispatch immediately before its main loop, keeping the upstream component
 functions and their interactive choices. Guard overlapping component functions
 to preserve native Control Center ownership. Preparation never executes upstream.
+
+No revision or digest is pinned: each run resolves the newest commit of the
+tracked branch, so an upstream fix reaches users without a release of this
+application. Trust is structural instead of by hash. The entrypoint must still
+have the one main loop and startup boundary the adapter patches, every action
+function we dispatch to, and every function we guard exactly once; otherwise
+nothing is prepared or run and the cache is discarded.
 """
 from __future__ import annotations
 
@@ -20,21 +27,37 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from .steamos_readonly import STEAMOS_PASSWORD_GUARD
+
 REPOSITORY = "https://github.com/rpf16rj/bc250-steamos-real-toolkit"
-REVISION = "88abd200170c8855f45cc6883e72d243151ceb7a"
-VERSION = "1.12.0"
-CHANGELOG_URL = f"{REPOSITORY}/blob/{REVISION}/CHANGELOG.md"
+# The tracked branch, not a commit: the commit is resolved on every run and
+# recorded in the workspace metadata (see steamos_real_toolkit_runtime).
+BRANCH = "main"
+REVISION = BRANCH
+VERSION = "latest"
+CHANGELOG_URL = f"{REPOSITORY}/blob/{BRANCH}/CHANGELOG.md"
+REVISION_API = "https://api.github.com/repos/rpf16rj/bc250-steamos-real-toolkit/commits/" + BRANCH
+ARCHIVE_URL_TEMPLATE = "https://codeload.github.com/rpf16rj/bc250-steamos-real-toolkit/tar.gz/{revision}"
+_REVISION_PATTERN = re.compile(r"[0-9a-f]{40}")
 # SteamOS /var can be only a few hundred MiB. Keep archive, verified source
 # and build caches on the large /home filesystem, outside every user's home.
 STATE_ROOT = Path('/home/.bc250-control-center/real-toolkit')
 WORKSPACE = STATE_ROOT / 'workspace'
 INSTALLED_RUNTIME_ROOT = Path('/usr/libexec/bc250-control-center')
 PERSISTENT_RUNTIME_ROOT = STATE_ROOT / 'runtime'
-ENTRYPOINT_SHA256 = "a48357c83af9e59f7d02e29706cffc24ef8e171cff18c0e848d82f932186f747"
-ARCHIVE_URL = f"https://codeload.github.com/rpf16rj/bc250-steamos-real-toolkit/tar.gz/{REVISION}"
-ARCHIVE_SHA256 = "e019a4d5ddb8701cb3cea7681e7eef00ff8f474b1194a3a67e8521015707b813"
 _MAIN_LOOP = "while true; do\n    show_menu\n"
 _GUARD_BOUNDARY = 'ensure_desktop_shortcut || true\n'
+# A tree without .git and without external/bc250_smu_oc counts upstream as a
+# lone start.sh: it clones main from GitHub and execs *that* copy, which has no
+# dispatch and no guards, as root. Never let the prepared entrypoint hand over
+# to an unprepared one; refuse instead.
+_STANDALONE_HANDOFF = 'exec bash "$TOOLKIT_REPO_DIR/start.sh" "$@"'
+_STANDALONE_REFUSAL = ('echo "ERROR: the prepared toolkit tree is incomplete; Control Center does not run an '
+                       'unprepared copy. Try the action again." >&2; exit 70')
+_STANDALONE_MARKER = Path('external/bc250_smu_oc')
+_FOREIGN_HANDOFF = re.compile(r'exec\s+(?:sudo\s+)?(?:/usr/bin/)?bash\s+"?\$TOOLKIT_REPO_DIR')
+#: What the ownership checker exits with when it refuses (check-steamos-toolkit-conflicts.py).
+CONFLICT_STATUS = 79
 CONFLICT_CHECK_COMMAND = (
     '/usr/bin/python3', '-I',
     str(PERSISTENT_RUNTIME_ROOT / 'bc250-steamos-toolkit-check'),
@@ -58,6 +81,8 @@ GUARDED_FUNCTIONS = {
     'install_ac3_surround': 'audio', 'run_revert_ac3_surround': 'audio',
     'install_dual_audio': 'audio', 'run_revert_dual_audio': 'audio',
     'run_cec_menu': 'cec',
+    # Its revert removes only its own AUR package, so only the install is guarded.
+    'install_openlinkhub': 'openlinkhub',
 }
 
 
@@ -78,37 +103,20 @@ class ToolkitAction:
 # Keep upstream menus for choices requiring interaction; never feed canned
 # answers or set AUTO=1. Individual install/revert routes support native UI.
 _GROUPS = {
-    "toolkit": {"install-all": "run_install_all", "manual": "run_install_manual",
-                "revert-all": "run_revert_all", "verify": "run_status"},
-    "performance": {"profiles": "run_overclock_menu", "cpu-install": "run_cpu_governor",
-                    "cpu-revert": "run_revert_cpu_governor", "gpu-install": "run_gpu_governor",
-                    "gpu-revert": "run_revert_gpu_governor", "cu": "run_cu_live_manager",
-                    "cores-install": "install_core_unlock", "cores-revert": "run_revert_core_unlock"},
-    "memory": {"swap": "run_swap_menu", "swap-revert": "run_revert_swap",
-               "zswap-install": "run_zram_zswap_toggle", "zswap-revert": "run_revert_zram_zswap",
-               "uma-install": "install_ram_split", "uma-revert": "run_revert_ram_split"},
-    "system": {"mitigations-disable": "run_disable_mitigations", "mitigations-restore": "run_revert_mitigations",
-               "acpi-install": "install_acpi_fix", "acpi-revert": "run_revert_acpi_fix",
+    # Only what Control Center does not already do natively. GPU/CPU governors,
+    # CU, core unlock, profiles, memory/swap, fans/sensors, CoolerControl,
+    # mitigations (Kernel boot options) and the upstream extras are deliberately not exposed.
+    "toolkit": {"verify": "run_status"},
+    "system": {"acpi-install": "install_acpi_fix", "acpi-revert": "run_revert_acpi_fix",
                "recovery": "run_recovery_menu", "keyring": "run_repair_pacman_keyring"},
     "graphics": {"combined-install": "install_combined_fix", "combined-revert": "run_revert_gfx1013_fix",
                  "proton-install": "install_fsr4_proton", "proton-revert": "revert_fsr4_proton",
                  "video-install": "install_vaapi_driver", "video-revert": "run_revert_vaapi_driver"},
     "audio": {"ac3-install": "install_ac3_surround", "ac3-revert": "run_revert_ac3_surround",
               "dual-install": "install_dual_audio", "dual-revert": "run_revert_dual_audio", "cec": "run_cec_menu"},
-    "accessories": {"sensors": "run_sensors_menu", "coolercontrol": "run_coolercontrol_menu",
-                    "sensors-readonly": "install_sensors_readonly", "sensors-pwm": "install_sensors_pwm",
-                    "sensors-revert": "run_revert_sensors",
-                    "aic8800": "run_aic8800_menu", "be200": "run_be200_menu",
-                    "dualsense": "run_ds5_bridge_menu", "xbox-adapter": "run_xbox_adapter_menu",
-                    "openlinkhub-install": "install_openlinkhub", "openlinkhub-revert": "run_revert_openlinkhub"},
-    "extras": {"extras": "run_extras_menu", "emulators": "run_emulators_menu",
-               "launch-coach-install": "bc250cc_install_launch_coach",
-               "decky-install": "install_toolkit_steamos_control_plugin",
-               "decky-plugin-only": "bc250cc_decky_plugin_only",
-               "fsr4-launch-options-install": "install_fsr4_launch_options_plugin",
-               "kyty-install": "install_kyty", "kyty-status": "run_kyty_status", "kyty-revert": "revert_kyty",
-               "lichii-install": "install_lichii", "lichii-shortcut": "lichii_game_shortcut",
-               "lichii-revert": "revert_lichii", "emudeck-install": "install_emudeck"},
+    "drivers": {"aic8800": "run_aic8800_menu", "be200": "run_be200_menu",
+                "dualsense": "run_ds5_bridge_menu", "xbox-adapter": "run_xbox_adapter_menu",
+                "openlinkhub-install": "install_openlinkhub", "openlinkhub-revert": "run_revert_openlinkhub"},
 }
 ACTIONS = tuple(ToolkitAction(key, function, category)
                 for category, entries in _GROUPS.items() for key, function in entries.items())
@@ -117,7 +125,10 @@ ACTIONS = tuple(ToolkitAction(key, function, category)
 def launch_command(action: str) -> str:
     """Use installed code under sudo, never import the desktop user's checkout."""
     action_for(action)
-    return ('sudo /usr/bin/python3 -I '
+    # The deck account has no password until its owner sets one, and sudo then
+    # fails without saying why: say so first, as every other SteamOS workflow does.
+    return (STEAMOS_PASSWORD_GUARD + '\nbc250_require_password\n'
+            'sudo /usr/bin/python3 -I '
             '/usr/libexec/bc250-control-center/bc250-steamos-toolkit '
             + shlex.quote(action))
 
@@ -177,15 +188,28 @@ def dispatch_shell() -> str:
             '  esac\n  exit $?\nfi\n\n')
 
 
+def valid_revision(value: str) -> bool:
+    return bool(_REVISION_PATTERN.fullmatch(value or ""))
+
+
+def archive_url(revision: str) -> str:
+    if not valid_revision(revision):
+        raise ValueError("Real Toolkit revision must be a full commit hash")
+    return ARCHIVE_URL_TEMPLATE.format(revision=revision)
+
+
 def prepare_entrypoint(source: bytes) -> bytes:
-    """Attest the exact revision before adding dispatch and component guards."""
-    if hashlib.sha256(source).hexdigest() != ENTRYPOINT_SHA256:
-        raise ValueError("Real Toolkit entrypoint differs from the reviewed revision")
+    """Check the structural contract, then add dispatch and component guards."""
     text = source.decode("utf-8")
     if text.count(_MAIN_LOOP) != 1:
         raise ValueError("Real Toolkit main-loop contract changed")
     if text.count(_GUARD_BOUNDARY) != 1:
         raise ValueError('Real Toolkit startup/recovery contract changed')
+    if text.count(_STANDALONE_HANDOFF) > 1:
+        raise ValueError('Real Toolkit standalone re-launch contract changed')
+    text = text.replace(_STANDALONE_HANDOFF, _STANDALONE_REFUSAL, 1)
+    if _FOREIGN_HANDOFF.search(text):
+        raise ValueError('Real Toolkit standalone re-launch contract changed')
     functions = set(re.findall(r"^([A-Za-z_][A-Za-z_0-9]*)\(\)\s*\{", text, re.MULTILINE))
     absent = {action.function for action in ACTIONS} - functions - {'bc250cc_install_launch_coach', 'bc250cc_decky_plugin_only'} - {
         'bc250cc_' + key.replace('-', '_') for key in CEC_ACTIONS}
@@ -212,23 +236,24 @@ def prepare_entrypoint(source: bytes) -> bytes:
     return text.replace(_MAIN_LOOP, dispatch_shell() + _MAIN_LOOP, 1).encode("utf-8")
 
 
-def prepare_snapshot(archive: Path, destination: Path) -> Path:
-    """Prepare a fresh attested tree atomically, without running toolkit code.
+def prepare_snapshot(archive: Path, destination: Path, revision: str) -> Path:
+    """Prepare a fresh tree atomically, without running toolkit code.
 
     The caller chooses the staging parent/ownership boundary. Never merge into
     an existing installation: build caches and live provider state need their
     own lifecycle rather than being overwritten by an archive operation.
     """
     archive, destination = Path(archive), Path(destination)
+    if not valid_revision(revision):
+        raise ValueError("Real Toolkit revision must be a full commit hash")
     if destination.exists() or destination.is_symlink():
         raise ValueError("Real Toolkit snapshot destination already exists")
     with archive.open("rb") as source:
         payload = source.read(512 * 1024**2 + 1)
     if len(payload) > 512 * 1024**2:
         raise ValueError("Real Toolkit source archive exceeds the download size limit")
-    if hashlib.sha256(payload).hexdigest() != ARCHIVE_SHA256:
-        raise ValueError("Real Toolkit source archive differs from the reviewed snapshot")
-    prefix = f"bc250-steamos-real-toolkit-{REVISION}"
+    archive_digest = hashlib.sha256(payload).hexdigest()
+    prefix = f"bc250-steamos-real-toolkit-{revision}"
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=".real-toolkit-stage-", dir=destination.parent))
     try:
@@ -258,18 +283,20 @@ def prepare_snapshot(archive: Path, destination: Path) -> Path:
                         shutil.copyfileobj(source, output)
                     target.chmod(0o755 if member.mode & 0o111 else 0o644)
         entrypoint = temporary / "start.sh"
-        entrypoint.write_bytes(prepare_entrypoint(entrypoint.read_bytes()))
-        from .steamos_real_toolkit_decky import adapt_decky_payload
-        for name in ('main.py', 'fan_manager.py'):
-            payload = temporary / 'extras/toolkit-steamos-control' / name
-            if payload.exists():
-                payload.write_bytes(adapt_decky_payload(name, payload.read_bytes()))
+        if not (temporary / _STANDALONE_MARKER).is_dir():
+            # Without it start.sh treats itself as a lone script and fetches
+            # another copy; the adapter above refuses that hand-over, so the
+            # action could only fail. Say why now, before anything runs.
+            raise ValueError("Real Toolkit archive layout changed: " + str(_STANDALONE_MARKER) + " is missing")
+        original = entrypoint.read_bytes()
+        entrypoint.write_bytes(prepare_entrypoint(original))
         syntax = subprocess.run(["/usr/bin/bash", "-n", str(entrypoint)], capture_output=True, timeout=15)
         if syntax.returncode:
             raise ValueError("Adapted Real Toolkit entrypoint failed Bash syntax validation")
         (temporary / ".bc250cc-provider.json").write_text(json.dumps({
-            "repository": REPOSITORY, "revision": REVISION, "version": VERSION,
-            "archive_sha256": ARCHIVE_SHA256,
+            "repository": REPOSITORY, "branch": BRANCH, "revision": revision,
+            "archive_sha256": archive_digest,
+            "entrypoint_sha256": hashlib.sha256(original).hexdigest(),
         }) + "\n", encoding="utf-8")
         # mkdtemp's 0700 permission protects an unfinished snapshot. Published
         # code needs traversal for upstream's explicitly unprivileged builders.

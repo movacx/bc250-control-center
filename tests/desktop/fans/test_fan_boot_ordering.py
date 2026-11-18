@@ -87,3 +87,19 @@ def test_a_simulated_boot_transaction_has_no_ordering_cycle(tmp_path):
     output = result.stdout + result.stderr
     assert "ordering cycle" not in output.lower(), output
     assert "deleted to break" not in output, output
+
+
+def test_the_units_skip_cleanly_when_a_steamos_update_removed_their_programs():
+    """/etc keeps the units across a SteamOS update; /usr and /usr/local lose their programs.
+
+    Restart=on-failure with no start limit then retried the loader forever.
+    """
+    script = (ROOT / "packaging/common/os-scripts/common/install-fan-persistence.sh").read_text(encoding="utf-8")
+    loader = script[script.index("sudo tee /etc/systemd/system/nct6687-load.service"):]
+    loader = loader[:loader.index("\nEOF")]
+    assert "ConditionPathExists=/usr/local/sbin/bc250-load-nct6687" in loader
+    assert loader.index("ConditionPathExists=") < loader.index("[Service]")
+    restore = script[script.index("sudo tee /etc/systemd/system/bc250-fan-pwm-restore.service"):]
+    restore = restore[:restore.index("\nEOF")]
+    assert "ConditionPathExists=$FAN_PWM_HELPER" in restore
+    assert restore.index("ConditionPathExists=$FAN_PWM_HELPER") < restore.index("[Service]")

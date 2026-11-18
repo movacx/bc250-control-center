@@ -922,3 +922,53 @@ does not prove boot recovery or patch compatibility on physical SteamOS.
 91 focused ownership, alternative, packaged checker, recovery, native backend
 and telemetry tests pass. Lint, source validation, runtime freshness and diff
 checks pass. No installed kernel/module/initramfs was changed.
+
+## keyboardspecialist alternative: e1563f2 (v0.30.0) → 6aee553 (v0.40.0)
+
+Reviewed `e1563f2..6aee553` (21 commits, 2026-10-02 → 2026-11-17) for the
+members Control Center stages and runs. Unchanged: the kernel patches,
+`rollback.sh`, `cleanup-other-slot.sh`, `mkinitcpio-compat.sh`,
+`check-module.sh`, `ensure-build-prereqs.sh`, `clean.sh`, `prepare-kernel.sh`,
+the `patch-driver.sh status` and `boot-config.sh` texts, the GFX1013 commit
+`d3e6dc06` (legacy `b66203e`) and the `smu-8core-metrics-r1` marker tag.
+
+Changed and adapted:
+
+* `fetch-sources.sh` no longer holds `DEP_REPOS=(extra-main core-main)`; it
+  calls the new `fetch-build-deps.sh`, which takes the extra/core pair from
+  `pacman-conf --repo-list`, verifies package SHA-256s against the repository
+  metadata, and publishes the private cache only after `build-env.sh` runs its
+  tools, Python extension imports (`math`, the GLIBC_2.44 case), Perl and C
+  headers. Control Center's adapter, whose anchors are gone, is removed; the
+  build calls `fetch-build-deps.sh` first (so a mismatch stops before the kernel
+  download and keeps the BUILD-001 marker), then `fetch-sources.sh` and
+  `build.sh` unchanged, and deletes the old `*-bc250cc.sh` copies and
+  `deps-bc250cc-*` cache.
+* `bc250-mesh-shader.sh` builds Mesa 26.3.0 with DirectMesh 1.4 (global,
+  opt-out `RADV_DIRECTMESH=0`), writes profile
+  `directmesh-1.4-mesa-26.3-fsr4-v7` and applies
+  `bc250-mesa-patches/libdrm-2.4.134-wrap.patch` from next to itself, which is
+  now staged. Its CLI (`setup`, `status-json`, `uninstall`,
+  `uninstall --fsr4-legacy`), paths and manifest layouts are unchanged; the
+  status JSON adds `directMeshVersion`, now shown by the status report.
+* Entrypoints source `../scripts/feature-tracking.sh` when it exists (v0.37
+  "automatic tracking"). It is not adopted: `scripts/` is not staged and the
+  guard refuses a stage containing it, so the hooks are skipped exactly as
+  upstream does when the file is missing.
+
+Installations made by Control Center 1.22.x (branch `main`, pin `e1563f2`)
+remain supported: read-only checks and the stock-module restore accept the
+complete protected copy that release staged (`LEGACY_STAGES`), with the same
+root-ownership, permission and no-link checks and a note naming v0.30.0;
+install, update and removal stage v0.40.0 first. Its RADV manifest (profile
+`production-fsr4-v4`) is "installed, update available", and the status report
+names it an earlier release where v0.40's `status-json` says "invalid".
+Copies staged before `e1563f2` (v0.21.2, `1f4f326`) have a different
+`rollback.sh` and must be prepared again.
+
+Not adopted: upstream's interactive toolkit menus, tracking/targeted recovery,
+and the v0.31-v0.40 components Control Center does not expose (TTM, swap,
+Wi-Fi backend lock, Decky). Checked against the real v0.40.0 tree with a
+read-only structural script (members and modes, constants, CLI verbs, status
+texts, kernel bases, `bash -n` of every staged script) and on a SteamOS 3.9.5 /
+7.2.7 host without privileges. No build, install or reboot was performed.

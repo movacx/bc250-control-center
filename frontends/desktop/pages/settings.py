@@ -13,13 +13,14 @@ from PyQt6.QtCore import (
     QRect,
     QSettings,
     QSignalBlocker,
+    QSize,
     Qt,
     QThread,
     QTimer,
     QUrl,
     pyqtSignal,
 )
-from PyQt6.QtGui import QDesktopServices, QIcon, QPainter, QPixmap
+from PyQt6.QtGui import QDesktopServices, QIcon, QPainter, QPalette, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -38,6 +39,9 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QStackedWidget,
+    QStyle,
+    QStyleOptionButton,
+    QStylePainter,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -559,7 +563,17 @@ VRM_SERVICE_REDUNDANT = (
     "is not needed and cannot open the bus. Remove it here."
 )
 
-class SettingsNavButton(QPushButton):
+class SettingsNavButton(_PlainButton):
+    """One row of the settings sidebar: icon at the left, label beside it.
+
+    A long (or translated) label wraps under itself instead of being centred
+    across the row, which is what the action-button wrapper does and drops the
+    icon in the process. The row grows to hold the lines it needs.
+    """
+
+    #: Space around the content, matching the stylesheet's ``padding:6px 8px``.
+    SIDE, VERTICAL, GAP = 8, 6, 6
+
     def __init__(self, key: str, text: str, icon_name: str, parent: QWidget | None = None):
         super().__init__(text, parent)
         self.key = key
@@ -577,6 +591,61 @@ class SettingsNavButton(QPushButton):
 
         self.setIcon(_nav_icon(self.icon_name, "blue"))
         self.setIconSize(EXPANDED_ICON)
+        self.updateGeometry()
+
+    def _text_width(self, width: int) -> int:
+        return max(20, width - 2 * self.SIDE - self.iconSize().width() - self.GAP)
+
+    def _text_height(self, width: int) -> int:
+        flags = Qt.TextFlag.TextWordWrap | Qt.TextFlag.TextShowMnemonic
+        bounds = self.fontMetrics().boundingRect(QRect(0, 0, self._text_width(width), 10000), flags, self.text())
+        return bounds.height()
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, width: int) -> int:
+        return max(34, self._text_height(width) + 2 * self.VERTICAL + 4)
+
+    def sizeHint(self) -> QSize:
+        native = super().sizeHint()
+        if self.isVisible() and 0 < self.width() < native.width():
+            # Narrower than one line: the label wraps, so say what it needs here.
+            return QSize(self.width(), self.heightForWidth(self.width()))
+        return native
+
+    def minimumSizeHint(self) -> QSize:
+        native = super().minimumSizeHint()
+        return QSize(min(native.width(), 100), native.height())
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        wanted = self.heightForWidth(self.width())
+        if self.minimumHeight() != wanted:
+            self.setMinimumHeight(wanted)
+
+    def setText(self, text: str) -> None:
+        super().setText(text)
+        self.updateGeometry()
+        if self.width():
+            self.setMinimumHeight(self.heightForWidth(self.width()))
+
+    def paintEvent(self, event) -> None:
+        option = QStyleOptionButton()
+        self.initStyleOption(option)
+        painter = QStylePainter(self)
+        painter.drawControl(QStyle.ControlElement.CE_PushButtonBevel, option)
+        size = self.iconSize()
+        state = QIcon.State.On if self.isChecked() else QIcon.State.Off
+        mode = (QIcon.Mode.Disabled if not self.isEnabled()
+                else QIcon.Mode.Active if self.underMouse() else QIcon.Mode.Normal)
+        icon_rect = QRect(self.SIDE, (self.height() - size.height()) // 2, size.width(), size.height())
+        self.icon().paint(painter, icon_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, mode, state)
+        text_rect = QRect(self.SIDE + size.width() + self.GAP, 0,
+                          self._text_width(self.width()), self.height())
+        flags = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter | Qt.TextFlag.TextWordWrap | Qt.TextFlag.TextShowMnemonic
+        self.style().drawItemText(painter, text_rect, flags, option.palette, self.isEnabled(),
+                                  self.text(), QPalette.ColorRole.ButtonText)
 
 
 #: A magnifier for the search field, drawn like the other glyphs.

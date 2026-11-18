@@ -24,14 +24,19 @@ from bc250cc.infrastructure.governor_conflicts import (
 )
 from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from bc250cc.infrastructure.steamos_amdgpu import (
+    build_dependencies_command,
     build_steamos_compatibility_command,
     gpu_points_above_module_limit,
+    retire_build_adapter_command,
 )
 from bc250cc.infrastructure.steamos_amdgpu_backend import (
     STEAMOS_AMDGPU_AUDIO_FIX_ROOT,
     STEAMOS_AMDGPU_BACKEND,
     STEAMOS_AMDGPU_BOOT_CONFIG,
+    existing_backend_guard,
+    legacy_stage_note,
     protected_backend_guard,
+    rollback_backend_guard,
     stage_backend_command,
 )
 from bc250cc.infrastructure.steamos_cu_shell import (
@@ -221,6 +226,12 @@ class SteamosDependenciesMixin:
         a missing amdgpu.sched_policy=2 afterwards. Control Center therefore
         reapplies the upstream boot-config transaction after mkinitcpio and can
         repair that policy alone without rebuilding an already verified module.
+
+        The pinned revision (since v0.30, still in v0.40) instead removes the
+        policy on purpose and reports "deferred until Mesa / RADV setup": RADV
+        setup enables it with the patched driver. That state is accepted as
+        complete for this step and the policy is not written back
+        (steamos_amdgpu.POLICY_DEFERRED_MARKER).
         """
         destination = self._tool_dir() / STEAMOS_FIX_DIRECTORY
         script = STEAMOS_AMDGPU_BACKEND
@@ -241,7 +252,6 @@ class SteamosDependenciesMixin:
         q_user_audio = shlex.quote(str(user_audio_root))
         q_protected_audio = shlex.quote(str(STEAMOS_AMDGPU_AUDIO_FIX_ROOT))
         index_repair = Path(__file__).resolve().parents[3] / 'scripts' / 'system' / 'repair-steamos-kernel-index.py'
-        runtime_prepare = Path(__file__).resolve().parents[3] / 'scripts' / 'system' / 'prepare-steamos-build-runtime.py'
         install_artifacts_command = '; '.join((
             'set -Eeuo pipefail; '
             f'for artifact in amdgpu.ko.zst amdgpu.gfx1013.attestation; do '
@@ -254,12 +264,19 @@ class SteamosDependenciesMixin:
             'done',
             f'sudo /usr/bin/bash {q_protected_audio}/install.sh',
         ))
+        # Since v0.38 the toolkit fetches its build dependencies from the
+        # installed SteamOS channel (``pacman-conf --repo-list``: extra-3.9 and
+        # core-3.9 on 3.9.5), checks their SHA-256 and that they run on this
+        # glibc before using them. That is what Control Center's adapted copies
+        # of fetch-sources.sh/build.sh did for the GLIBC_2.44 failure, so the
+        # upstream scripts now run unchanged and the copies are removed.
         build_install_command = '; '.join((
             f'sudo /usr/bin/bash {q_protected_audio}/ensure-build-prereqs.sh',
-            'echo; echo "== Downloading exact Valve kernel sources and build dependencies =="; '
+            'echo; echo "== Build dependencies for the installed SteamOS channel =="',
+            build_dependencies_command(user_audio_root),
+            'echo; echo "== Downloading exact Valve kernel sources =="; '
             'echo "[INFO] This step can remain quiet for several minutes while Git is working. Do not close this window; the process is still running."',
-            f'python3 {shlex.quote(str(runtime_prepare))} {q_user_audio}',
-            f'/usr/bin/bash {q_user_audio}/fetch-sources-bc250cc.sh',
+            f'/usr/bin/bash {q_user_audio}/fetch-sources.sh',
             f'python3 {shlex.quote(str(index_repair))} {shlex.quote(str(user_audio_root / "valve-kernel"))}',
             'echo "[OK] Kernel sources and build dependencies are ready."; echo; '
             'echo "== Building the BC250 AMDGPU module =="; '
@@ -268,29 +285,20 @@ class SteamosDependenciesMixin:
             # recognises, typically one patched by an earlier toolkit
             # revision. Like upstream's patch-driver, clean the tree (cached
             # downloads are kept) and build once more.
-            f'bc250_build_rc=0; /usr/bin/bash {q_user_audio}/build-bc250cc.sh || bc250_build_rc=$?',
+            f'bc250_build_rc=0; /usr/bin/bash {q_user_audio}/build.sh || bc250_build_rc=$?',
             'if [ "$bc250_build_rc" = 75 ]; then '
             'echo "[INFO] The kernel tree was prepared by an earlier toolkit revision; cleaning it and building again. Cached downloads are kept."; '
             f'python3 {shlex.quote(str(index_repair))} {shlex.quote(str(user_audio_root / "valve-kernel"))}; '
             f'/usr/bin/bash {q_user_audio}/clean.sh; '
-            f'/usr/bin/bash {q_user_audio}/fetch-sources-bc250cc.sh; '
-            f'bc250_build_rc=0; /usr/bin/bash {q_user_audio}/build-bc250cc.sh || bc250_build_rc=$?; fi; '
+            f'/usr/bin/bash {q_user_audio}/fetch-sources.sh; '
+            f'bc250_build_rc=0; /usr/bin/bash {q_user_audio}/build.sh || bc250_build_rc=$?; fi; '
             'if [ "$bc250_build_rc" != 0 ]; then '
             'echo "[ERROR] STEAMOS_AMDGPU_BUILD_FAILED: AMDGPU compilation failed. Read the first compiler or runtime error above; the module was not installed."; '
             'exit "$bc250_build_rc"; fi',
             wrap_steamos_writable_command(install_artifacts_command, family='steamos'),
         ))
         if install:
-            checkout_command = self._clone_or_update_commit_command(
-                STEAMOS_FIX_REPOSITORY, destination, STEAMOS_FIX_REVIEWED_COMMIT
-            ) + '; ' + wrap_steamos_writable_command(
-                stage_backend_command(
-                    destination,
-                    STEAMOS_FIX_REVIEWED_COMMIT,
-                    subtree=STEAMOS_FIX_SUBDIRECTORY,
-                ),
-                family='steamos',
-            )
+            checkout_command = self._steamos_alternative_stage_command(destination)
         else:
             # Diagnostics must never clone, stage or invoke user-writable
             # ResourceTools. They inspect only a previously staged runtime.
@@ -301,10 +309,39 @@ class SteamosDependenciesMixin:
             checkout_command=checkout_command,
             install=install,
             module_install_command=build_install_command if install else '',
-            backend_guard=protected_backend_guard(
-                reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT
-            ),
+            backend_guard=self._steamos_alternative_backend_guard(read_only=not install),
         )
+
+    def _steamos_alternative_stage_command(self, destination):
+        """Fetch the reviewed commit, drop earlier adapters, stage it root-owned."""
+        return '; '.join((
+            self._clone_or_update_commit_command(
+                STEAMOS_FIX_REPOSITORY, destination, STEAMOS_FIX_REVIEWED_COMMIT
+            ),
+            retire_build_adapter_command(destination / STEAMOS_FIX_SUBDIRECTORY),
+            wrap_steamos_writable_command(
+                stage_backend_command(
+                    destination,
+                    STEAMOS_FIX_REVIEWED_COMMIT,
+                    subtree=STEAMOS_FIX_SUBDIRECTORY,
+                ),
+                family='steamos',
+            ),
+        ))
+
+    @staticmethod
+    def _steamos_alternative_backend_guard(*, read_only):
+        """The staged copy an action may run.
+
+        Changes run only right after the current revision was staged, so they
+        check exactly that. Read-only checks also accept a complete copy that
+        Control Center 1.22.x staged (toolkit v0.30.0) and say so: a person
+        who installed with that release keeps "Check" working before updating.
+        """
+        if not read_only:
+            return protected_backend_guard(reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT)
+        return (f'{{ {existing_backend_guard(STEAMOS_FIX_REVIEWED_COMMIT)}; }} && '
+                f'{{ {legacy_stage_note()}; }}')
 
 
     def _steamos_module_frequency_blocker(self):
@@ -367,7 +404,10 @@ class SteamosDependenciesMixin:
         """
         if self._os_repository().info.family != 'steamos':
             raise RuntimeError('SteamOS kernel recovery is available only on SteamOS.')
-        guard = protected_backend_guard(reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT)
+        # A backend staged by the previous Control Center release (toolkit
+        # v0.30) may still restore the stock module: its rollback chain is
+        # byte-identical (steamos_amdgpu_backend.ROLLBACK_COMPATIBLE_REVISIONS).
+        guard = rollback_backend_guard(STEAMOS_FIX_REVIEWED_COMMIT)
         rollback = shlex.quote(str(STEAMOS_AMDGPU_AUDIO_FIX_ROOT / 'rollback.sh'))
         command = self._join_shell_commands((
             'set -Eeuo pipefail',
@@ -421,27 +461,14 @@ class SteamosDependenciesMixin:
         if action == 'status':
             checkout_command = ':'
         else:
-            checkout_command = self._clone_or_update_commit_command(
-                STEAMOS_FIX_REPOSITORY,
-                destination,
-                STEAMOS_FIX_REVIEWED_COMMIT,
-            ) + '; ' + wrap_steamos_writable_command(
-                stage_backend_command(
-                    destination,
-                    STEAMOS_FIX_REVIEWED_COMMIT,
-                    subtree=STEAMOS_FIX_SUBDIRECTORY,
-                ),
-                family='steamos',
-            )
+            checkout_command = self._steamos_alternative_stage_command(destination)
         command = self._join_shell_commands((
             'set -Eeuo pipefail',
             'export LC_ALL=C LANG=C',
             build_steamos_graphics_command(
                 action,
                 checkout_command=checkout_command,
-                backend_guard=protected_backend_guard(
-                    reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT
-                ),
+                backend_guard=self._steamos_alternative_backend_guard(read_only=action == 'status'),
             ),
         ))
         self.estado_herramientas_cache = None
@@ -462,6 +489,11 @@ class SteamosDependenciesMixin:
     def gestionar_proton_steamos_alternativo(self, action: str):
         if self._os_repository().info.family != 'steamos':
             raise RuntimeError('The SteamOS Proton workflow is available only on SteamOS.')
+        # Only install/update use the guard. It stays on the current stage: the
+        # Proton installer follows master and asks the staged RADV manager
+        # whether FSR4 RADV is ready. v0.40's manager answers "not ready" for a
+        # v0.30 RADV, as upstream intends (update Mesa / RADV first); a v0.30
+        # copy would answer "ready" for it. Status and removal need no stage.
         command = build_steamos_proton_command(
             action,
             self._tool_dir() / STEAMOS_PROTON_DIRECTORY,

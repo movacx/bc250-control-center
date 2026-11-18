@@ -23,7 +23,8 @@ def _helper(tmp_path, checker_status, child_status, root_state='disabled'):
     # real toolkit component can be invoked by this fixture.
     source = ('#!/bin/bash\nset -u\n'
               'unlock() { echo UNLOCK; }; stat() { echo 0; };\n'
-              'steamos-readonly() { echo ' + shlex.quote(root_state) + '; };\n'
+              'steamos-readonly() { echo ' + shlex.quote(root_state) + '; return '
+              + ('1' if root_state == 'disabled' else '0') + '; };\n'
               'cmd_revert() {\n' + CTL_PRELUDE
               + '    toolkit=' + shlex.quote(str(child)) + '\n'
               + CTL_HANDOFF + '    echo CLEANUP_AND_REBOOT\n}\ncmd_revert\n')

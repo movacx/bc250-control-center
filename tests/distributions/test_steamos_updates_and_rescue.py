@@ -47,9 +47,11 @@ def _steamos(tmp_path: Path, *, readonly: str = "enabled", password: str = "P", 
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "calls.log"
+    # Like the real one (holo-readonly): status prints the state and exits 1
+    # while the root is writable. A stand-in that always exits 0 hid that.
     _tool(bin_dir, "steamos-readonly", f"""
 echo "steamos-readonly $*" >> {calls}
-[ "$1" = status ] && echo "{readonly}"
+if [ "$1" = status ]; then echo "{readonly}"; [ "{readonly}" = enabled ]; exit $?; fi
 exit 0""")
     _tool(bin_dir, "pacman", f'echo "pacman $*" >> {calls}; [ "$1" = -U ] && [ "{int(pacman_fails)}" = 1 ] && exit 1; exit 0')
     _tool(bin_dir, "pacman-key", f'echo "pacman-key $*" >> {calls}')
@@ -163,6 +165,22 @@ def test_the_switch_runs_steamos_readonly_once(tmp_path, action):
     result = _run(bin_dir, build_steamos_readonly_command(action))
     assert result.returncode == 0, result.stdout + result.stderr
     assert f"steamos-readonly {action}" in calls.read_text().splitlines()
+
+
+@pytest.mark.parametrize("state", ["enabled", "disabled"])
+def test_the_status_check_reports_both_states_as_success(tmp_path, state):
+    """steamos-readonly exits 1 while writable; the check must not call that a failure."""
+    bin_dir, _calls = _steamos(tmp_path, readonly=state)
+    result = _run(bin_dir, build_steamos_readonly_command("status"))
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert state in result.stdout
+
+
+def test_the_status_check_fails_when_the_answer_names_no_state(tmp_path):
+    bin_dir, _calls = _steamos(tmp_path, readonly="something else")
+    result = _run(bin_dir, build_steamos_readonly_command("status"))
+    assert result.returncode == 70
+    assert "did not report" in result.stdout
 
 
 def test_the_switch_refuses_unknown_actions():

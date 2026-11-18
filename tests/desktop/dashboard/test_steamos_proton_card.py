@@ -13,7 +13,9 @@ def test_upstream_proton_card_is_only_actionable_on_steamos(qtbot, tmp_path, fam
     qtbot.addWidget(sidebar)
     sidebar.set_state(DashboardState(preparation_tools={"os_family": family}))
     card = sidebar.steamos_proton_card
-    assert card.isHidden() == (family != "steamos")
+    # Hidden everywhere: on SteamOS the toolkit's own Proton row replaces this card,
+    # but its actions stay valid (they are the same ones).
+    assert card.isHidden()
     assert card.isEnabled() == (family == "steamos")
     assert card in dict(sidebar.compatibility_groups)["Kernel and graphics"]
     if family == "steamos":

@@ -213,6 +213,8 @@ from bc250cc.infrastructure.steamos_readonly import (
     build_steamos_readonly_command,
     probe_steamos_readonly,
 )
+from bc250cc.infrastructure.steamos_real_toolkit import STATE_ROOT as TOOLKIT_STATE_ROOT
+from bc250cc.infrastructure.steamos_root_guard import RootReading, session_summary
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
 from bc250cc.infrastructure.system_setup import command as system_setup_command
 from bc250cc.infrastructure.system_setup import inventory as system_setup_inventory
@@ -1253,6 +1255,12 @@ class DependenciasRepository(SteamosDependenciesMixin):
             if os_info.family == 'steamos'
             else {'available': False, 'state': 'unsupported'}
         )
+        if os_info.family == 'steamos':
+            # A toolkit action unlocks the root; say whether one is running now or
+            # died and left it unlocked, so the panel can offer to lock it again.
+            steamos_readonly = {**steamos_readonly, 'toolkit_session': self._optional_inventory_probe(
+                lambda: session_summary(TOOLKIT_STATE_ROOT, RootReading(str(steamos_readonly.get('state')))),
+                {'running': False, 'action': '', 'restore_pending': False})}
         system_setup = system_setup_inventory()
         init_manager = detect_init_manager()
         init_preflight = (
