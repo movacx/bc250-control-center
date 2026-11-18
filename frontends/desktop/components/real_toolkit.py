@@ -200,10 +200,15 @@ class RealToolkitRows(ToolRows):
         # keyboardspecialist's kernel fix or Mesa: the privileged runtime refuses
         # the combined fix over them, so say it here instead of after the password.
         foreign = bool(state.get('foreign_graphics'))
-        blocked = protected | (FOREIGN_GRAPHICS_ACTIONS if foreign else frozenset())
+        # The toolkit's FSR4 Proton refuses to install without its own RADV.
+        needs_radv = (state.get('proton') or {}).get('radv_ready') is False
+        blocked = (protected | (FOREIGN_GRAPHICS_ACTIONS if foreign else frozenset())
+                   | ({'proton-install'} if needs_radv else frozenset()))
         for key, button in self.buttons.items():
             button.setEnabled(key not in blocked)
         self._notes = {'combined-install': FOREIGN_GRAPHICS_NOTE} if foreign else {}
+        if needs_radv:
+            self._notes['proton-install'] = TOOLKIT_RADV_NOTE
         for _category, _names, descriptions, keys in self._specifications:
             card = self.cards[keys[0]]
             card.detail.setText(tr(self._notes.get(keys[0]) or _localized(descriptions)))
@@ -224,6 +229,10 @@ FOREIGN_GRAPHICS_ACTIONS = frozenset({'combined-install', 'combined-revert'})
 FOREIGN_GRAPHICS_NOTE = (
     "keyboardspecialist's kernel fix or Mesa / RADV is installed. Remove them first with its rows "
     "(Restore the stock module for the running kernel, then Remove Mesa / RADV), restart, and install this one."
+)
+TOOLKIT_RADV_NOTE = (
+    "Needs this toolkit's own patched Mesa / RADV, which is not set up: install Kernel and Mesa · GFX1013 "
+    "first. keyboardspecialist's Mesa does not count."
 )
 #: Rows whose installation the toolkit probe can prove from files on disk.
 _COMPONENT_EVIDENCE = {'acpi-install': 'acpi', 'video-install': 'video',

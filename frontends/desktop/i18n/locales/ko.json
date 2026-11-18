@@ -6318,5 +6318,6 @@
   "A toolkit action is running; the system files stay unlocked until it ends.": "툴킷 작업이 실행 중입니다. 작업이 끝날 때까지 시스템 파일은 잠금 해제된 상태로 유지됩니다.",
   "A toolkit action ended before it could lock the system files again.": "툴킷 작업이 시스템 파일을 다시 잠그기 전에 종료되었습니다.",
   "keyboardspecialist's kernel fix or Mesa / RADV is installed. Remove them first with its rows (Restore the stock module for the running kernel, then Remove Mesa / RADV), restart, and install this one.": "keyboardspecialist의 커널 수정 또는 Mesa / RADV가 설치되어 있습니다. 먼저 해당 행으로 제거하고(실행 중인 커널의 기본 모듈 복원, 그다음 Mesa / RADV 제거) 다시 시작한 뒤 이것을 설치하세요.",
-  "Its files are still in the system partition, but its install record in /home is gone (a SteamOS factory reset erases /home only). Remove Mesa / RADV checks those files and removes them.": "파일은 시스템 파티션에 남아 있지만 /home의 설치 기록이 사라졌습니다(SteamOS 공장 초기화는 /home만 지웁니다). Mesa / RADV 제거이(가) 해당 파일을 확인하고 제거합니다."
+  "Its files are still in the system partition, but its install record in /home is gone (a SteamOS factory reset erases /home only). Remove Mesa / RADV checks those files and removes them.": "파일은 시스템 파티션에 남아 있지만 /home의 설치 기록이 사라졌습니다(SteamOS 공장 초기화는 /home만 지웁니다). Mesa / RADV 제거이(가) 해당 파일을 확인하고 제거합니다.",
+  "Needs this toolkit's own patched Mesa / RADV, which is not set up: install Kernel and Mesa · GFX1013 first. keyboardspecialist's Mesa does not count.": "이 toolkit 자체의 패치된 Mesa / RADV가 필요하지만 설정되어 있지 않습니다. 먼저 커널 및 Mesa · GFX1013을(를) 설치하세요. keyboardspecialist의 Mesa는 해당되지 않습니다."
 }

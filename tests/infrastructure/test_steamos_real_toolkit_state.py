@@ -83,7 +83,7 @@ def test_proton_marker_alone_is_not_a_working_compatibility_tool(tmp_path):
     launcher.chmod(0o755)
     _write(home, marker, 'package:tool\n')
     state = probe_real_toolkit(root=tmp_path, home=home, kernel='fixture')
-    assert state['proton'] == {'state': 'installed', 'tools': ['tool']}
+    assert state['proton'] == {'state': 'installed', 'tools': ['tool'], 'radv_ready': False}
 
 
 def test_one_complete_proton_variant_does_not_hide_an_incomplete_second_variant(tmp_path):
@@ -94,7 +94,7 @@ def test_one_complete_proton_variant_does_not_hide_an_incomplete_second_variant(
         _write(home, base + name + '/compatibilitytool.vdf', 'fixture')
     _write(home, base + 'complete/proton', '#!/bin/sh\nexit 99\n').chmod(0o755)
     state = probe_real_toolkit(root=tmp_path, home=home, kernel='fixture')
-    assert state['proton'] == {'state': 'incomplete', 'tools': ['complete']}
+    assert state['proton'] == {'state': 'incomplete', 'tools': ['complete'], 'radv_ready': False}
 
 
 def test_non_executable_proton_launcher_is_not_an_installed_tool(tmp_path):
@@ -204,3 +204,16 @@ def test_repository_legacy_ready_field_uses_validated_provider_evidence(
     result = repository.DependenciasRepository()._gfx1013_compute_state(host)
     assert result['steamos_safe_radv_detected'] is expected
     assert result['steamos_real_toolkit']['graphics']['state'] == state
+
+
+@pytest.mark.parametrize('environment,ready', [
+    ('', False),
+    # keyboardspecialist's Mesa uses its own generator, not /etc/environment.
+    ('VK_ICD_FILENAMES=/home/deck/radeon_driconf_icd.x86_64.json\n', False),
+    ('VK_DRIVER_FILES=/opt/bc250-gfx1013/mesa/share/vulkan/icd.d/radeon_icd.x86_64.json\n', True),
+])
+def test_fsr4_proton_readiness_is_the_toolkits_own_check(tmp_path, environment, ready):
+    # install_fsr4_proton refuses unless /etc/environment names VK_DRIVER_FILES and bc250-gfx1013.
+    _write(tmp_path, 'etc/environment', environment)
+    state = probe_real_toolkit(root=tmp_path, home=tmp_path / 'home', kernel='fixture')
+    assert state['proton']['radv_ready'] is ready

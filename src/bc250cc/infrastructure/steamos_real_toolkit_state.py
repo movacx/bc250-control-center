@@ -84,6 +84,11 @@ def probe_real_toolkit(*, root: Path = Path('/'), home: Path | None = None,
                     proton_tools.append(fields[1])
                 continue
         proton_incomplete = True
+    # The toolkit's own FSR4 Proton precondition, word for word: it refuses
+    # unless /etc/environment names its patched RADV (keyboardspecialist's
+    # Mesa does not count). Read here so the row says so before the password.
+    environment = _text(root / 'etc/environment')
+    radv_ready = 'VK_DRIVER_FILES' in environment and 'bc250-gfx1013' in environment
     components = {
         'cpu': (root / 'etc/bc250-smu-oc.conf').is_file(),
         'gpu': (root / 'etc/cyan-skillfish-governor-smu/config.toml').is_file(),
@@ -119,5 +124,5 @@ def probe_real_toolkit(*, root: Path = Path('/'), home: Path | None = None,
                      'kernel_override_installed': bool(modules), 'kernel_modules': modules},
         'proton': {'state': 'installed' if proton_tools and not proton_incomplete else
                    'incomplete' if marker.exists() else 'not-installed',
-                   'tools': proton_tools},
+                   'tools': proton_tools, 'radv_ready': radv_ready},
     }

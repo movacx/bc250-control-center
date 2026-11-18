@@ -547,3 +547,18 @@ def test_other_systems_keep_their_driver_support_rows(qtbot, tmp_path):
     sidebar = _steamos_with(qtbot, tmp_path, 'arch')
     for name in ('network_driver_card', 'printing_driver_card'):
         assert not getattr(sidebar, name).isHidden(), name
+
+
+def test_fsr4_proton_is_off_and_says_why_until_the_toolkits_own_mesa_is_set_up():
+    # R-20261118-065618: the toolkit refused after the password ("Patched Mesa/RADV not found").
+    from frontends.desktop.components.real_toolkit import TOOLKIT_RADV_NOTE
+    from frontends.desktop.i18n import tr
+
+    rows = RealToolkitRows()
+    rows.set_provider_state({'proton': {'state': 'not-installed', 'radv_ready': False}})
+    assert not rows.buttons['proton-install'].isEnabled()
+    assert rows.buttons['proton-revert'].isEnabled()  # removing never needs the driver
+    assert rows.cards['proton-install'].detail.text() == tr(TOOLKIT_RADV_NOTE)
+    rows.set_provider_state({'proton': {'state': 'not-installed', 'radv_ready': True}})
+    assert rows.buttons['proton-install'].isEnabled()
+    assert rows.cards['proton-install'].detail.text() != tr(TOOLKIT_RADV_NOTE)
