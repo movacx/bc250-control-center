@@ -91,7 +91,7 @@ from ..core.voltage_keypad_guard import (
     clear_voltage_keypad_state,
     voltage_keypad_edit_active,
 )
-from ..i18n import shipped_name, tr, tr_format
+from ..i18n import current_language, shipped_name, tr, tr_format
 from .gpu_governor_helpers import (  # noqa: F401  (re-exported: other modules and tests import them from here)
     _dict,
     _integer,
@@ -1539,7 +1539,10 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
     ) -> None:
         action = str(action or "kernel").strip().lower()
         if action == "pahole":
-            from bc250cc.infrastructure.cachyos_pahole import DEPENDENCY_NOTE, PAHOLE_VERSION
+            from bc250cc.infrastructure.cachyos_pahole import (
+                DEPENDENCY_NOTE,
+                PAHOLE_VERSION,
+            )
 
             confirmation = ConfirmDialog(
                 "Prepare dependencies", tr(DEPENDENCY_NOTE),
@@ -2842,12 +2845,20 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         ).exec()
 
     def _open_steamos_graphics_upstream(
-        self, *, dialog_parent: QWidget | None
+        self, *, dialog_parent: QWidget | None, provider: str = 'real-toolkit', document: str = 'project'
     ) -> None:
         """Open the external SteamOS graphics documentation without executing it."""
-        opened, message = open_external_url(
-            "https://github.com/keyboardspecialist/bc250-steamos"
+        from bc250cc.infrastructure.steamos_real_toolkit import (
+            CHANGELOG_URL,
+            REPOSITORY,
         )
+
+        urls = {('real-toolkit', 'project'): REPOSITORY,
+                ('real-toolkit', 'changelog'): CHANGELOG_URL,
+                ('keyboardspecialist', 'project'): 'https://github.com/keyboardspecialist/bc250-steamos'}
+        if (provider, document) not in urls:
+            raise ValueError('Unknown SteamOS documentation provider.')
+        opened, message = open_external_url(urls[provider, document])
         if opened:
             return
         InfoDialog(
@@ -2978,205 +2989,76 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         plan: GpuDependencyPlan,
         dialog_parent: QWidget | None,
     ) -> None:
-        high_points = _dict(self.current_state.get("high_frequency_points"))
-        high_point_frequencies = tuple(
-            int(value)
-            for value in high_points.get("enabled_frequencies")
-            or high_points.get("frequencies")
-            or ()
-            if str(value).isdigit() and int(value) > 2230
-        )
-        needs_module_safe_points = bool(high_points.get("enabled")) and bool(
-            high_point_frequencies
-        )
+        """Open the provider's patch selector without editing native GPU profiles."""
+        self._manage_real_toolkit('combined-install', dialog_parent=dialog_parent)
 
-        def start_preparation() -> None:
-            self._run_backend_action(
-                self.controller.preparar_compatibilidad_steamos,
-                lambda _result: GpuGovernorPage._record_preparation_result(
-                    self,
-                    "SteamOS compatibility",
-                    "Opened the explicit SteamOS kernel compatibility workflow. Review the terminal result and reboot only when it reports a successful installation.",
-                ),
-                "Could not prepare SteamOS compatibility",
-                controls=(),
-                error_parent=dialog_parent,
-            )
 
-        if plan.requires_kernel_confirmation:
+    def _manage_steamos_alternative(self, action: str, *, dialog_parent=None) -> None:
+        from bc250cc.infrastructure.steamos_alternative import ALTERNATIVE_ACTIONS
+
+        if action not in ALTERNATIVE_ACTIONS:
+            raise ValueError('Unknown SteamOS alternative action.')
+        if not action.endswith('-status'):
+            description = ALTERNATIVE_ACTIONS[action][1 if current_language().startswith('es') else 0]
+            if action == 'kernel-rollback':
+                description = (
+                    'Restore the stock AMDGPU module for the running kernel only. '
+                    'Mesa, Proton and overrides for other kernels are preserved. '
+                    'Patched graphics features will be unavailable after restarting; '
+                    'review the remaining Mesa configuration before using games.'
+                )
             confirmation = ConfirmDialog(
-                "Prepare SteamOS kernel compatibility",
-                tr(
-                    "This explicit SteamOS repair builds and installs a kernel-matched amdgpu override for DisplayPort/audio, GPU telemetry and GFX1013 compute-queue support. It regenerates initramfs and requires a reboot. If exact headers are unavailable, the upstream fallback can require about 40 GiB of temporary space. The legacy mesh/task RADV path is not installed."
-                ),
-                summary=(
-                    ("Distribution", plan.os_label),
-                    ("Running kernel", plan.kernel),
-                    ("Kernel change", "amdgpu override + initramfs"),
-                    ("RADV mesh/task", "Not installed"),
-                    ("Reboot", "Required after installation"),
-                    *((
-                        ("Safe-points", "Disable +2000 MHz TOML points"),
-                    ) if needs_module_safe_points else ()),
-                ),
-                confirm_text="Prepare SteamOS compatibility",
-                tone="orange",
-                parent=dialog_parent or self,
-            )
-            if confirmation.exec() != QDialog.DialogCode.Accepted:
-                return
-        if not needs_module_safe_points:
-            start_preparation()
-            return
-
-        confirmation = ConfirmDialog(
-            "Disable advanced +2000 MHz points",
-            "This comments the TOML safe-point blocks above 2000 MHz and validates the complete "
-            "file. Active 3D workloads must be stopped first. This does not reload Cyan or "
-            "change the live GPU range.",
-            summary=(
-                ("Safe-points", ", ".join(map(str, high_point_frequencies))),
-                ("Requested state", "Commented"),
-                ("Service", "No restart or clock change"),
-            ),
-            confirm_text="Disable +2000 MHz TOML points",
-            tone="orange",
-            parent=dialog_parent or self,
-        )
-        if confirmation.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        def disabled_points(_result: object) -> None:
-            self._apply_high_points_toggle_feedback(False)
-            start_preparation()
-
-        self._run_backend_action(
-            lambda: self.controller.alternar_puntos_gpu_altos(False),
-            disabled_points,
-            "Could not update advanced safe-points",
-            controls=(),
-            error_parent=dialog_parent,
-        )
-
-    def _manage_steamos_proton(
-        self,
-        action: str,
-        *,
-        dialog_parent: QWidget | None,
-    ) -> None:
-        if action not in {"install", "update", "status", "uninstall"}:
-            raise ValueError("Unsupported SteamOS Proton action.")
-        if action != "status":
-            removing = action == "uninstall"
-            confirmation = ConfirmDialog(
-                "Remove BC-250 GE-Proton" if removing else "Install / update BC-250 GE-Proton",
-                (
-                    "The upstream toolkit removes its managed GE-Proton tool. Steam prefixes and saved games are preserved. Restart Steam afterwards."
-                    if removing else
-                    "Downloads and runs keyboardspecialist's current upstream Proton installer. It verifies the BC-250 GE-Proton download and installs it in your Steam folder. The toolkit checks that FSR4 RADV is active first. Restart Steam and select BC-250 GE-Proton per game. Do not use FSR4 injection in anti-cheat games."
-                ),
-                confirm_text="Remove Proton" if removing else "Install / update",
-                tone="red" if removing else "orange",
+                'SteamOS · keyboardspecialist',
+                tr(description),
+                confirm_text=tr('Continue'),
+                tone='red' if 'uninstall' in action or action == 'kernel-rollback' else 'orange',
                 parent=dialog_parent or self,
             )
             if confirmation.exec() != QDialog.DialogCode.Accepted:
                 return
         self._run_backend_action(
-            lambda: self.controller.gestionar_proton_steamos(action),
+            lambda: self.controller.gestionar_alternativa_steamos(action),
             lambda _result: GpuGovernorPage._record_preparation_result(
-                self,
-                "BC-250 GE-Proton · SteamOS",
-                "Opened the upstream Proton workflow. Read the terminal result; restart Steam after installing, updating or removing the tool.",
-            ),
-            "Could not manage SteamOS GE-Proton",
-            controls=(),
-            error_parent=dialog_parent,
+                self, 'SteamOS · keyboardspecialist', 'Review the terminal output.'),
+            'SteamOS · keyboardspecialist', controls=(), error_parent=dialog_parent,
         )
 
-    def _manage_steamos_graphics(
-        self,
-        action: str,
-        *,
-        dialog_parent: QWidget | None,
-    ) -> None:
-        if action == "status":
-            self._run_backend_action(
-                lambda: self.controller.gestionar_graficos_steamos("status"),
-                lambda _result: GpuGovernorPage._record_preparation_result(
-                    self,
-                    "SteamOS graphics stack",
-                    "Opened the verified SteamOS kernel, RADV and FSR4 status. No component was changed.",
-                ),
-                "Could not check the SteamOS graphics stack",
-                controls=(),
-                error_parent=dialog_parent,
-            )
-            return
+    def _manage_real_toolkit(self, action: str, *, dialog_parent=None) -> None:
+        from bc250cc.infrastructure.steamos_real_toolkit import action_for
 
-        installing = action in {"install", "install-fsr4"}
-        fsr4_only = action in {"install-fsr4", "uninstall-fsr4"}
-        if action == "install":
-            title = "Install matched SteamOS Mesa / RADV"
-            body = (
-                "This builds the reviewed Mesa 26.2.2 async-compute runtime for the active verified AMDGPU module. "
-                "It installs a separate 64-bit RADV driver, keeps stock 32-bit RADV as fallback and enables it only when module attestation and amdgpu.sched_policy=2 agree. A reboot is required when the scheduler policy changes."
+        from ..components.real_toolkit import action_label
+
+        action_for(action)
+        if action not in {'verify', 'kyty-status', 'cec-status'}:
+            confirmation = ConfirmDialog(
+                'SteamOS Real Toolkit', action_label(action),
+                confirm_text='Continue',
+                tone='red' if 'revert' in action else 'orange',
+                parent=dialog_parent or self,
             )
-            confirm_text = "Install Mesa / RADV"
-        elif action == "install-fsr4":
-            title = "Install SteamOS FSR4 V3 profile"
-            body = (
-                "This reuses the verified Mesa build and creates a private per-game FSR4 V3 driver. "
-                "It is never enabled globally; each game must opt in with the launch command shown after installation."
-            )
-            confirm_text = "Install per-game FSR4"
-        elif action == "uninstall-fsr4":
-            title = "Remove SteamOS FSR4 profile"
-            body = (
-                "This removes only the private per-game FSR4 profile. Remove its launch option from each game before using system RADV again."
-            )
-            confirm_text = "Remove FSR4"
-        else:
-            title = "Remove SteamOS Mesa / RADV runtime"
-            body = (
-                "This removes the alternate RADV driver, ICD and activation generator, then removes the scheduler policy when it belongs to this toolkit. Build caches are preserved for recovery."
-            )
-            confirm_text = "Remove Mesa / RADV"
-        confirmation = ConfirmDialog(
-            tr(title),
-            tr(body),
-            summary=(
-                (tr("Source"), "keyboardspecialist/bc250-steamos"),
-                (tr("Reviewed revision"), "b8b293ca5781"),
-                (
-                    tr("Scope"),
-                    tr("Private per-game FSR4 profile")
-                    if fsr4_only
-                    else tr("Mesa / RADV + verified scheduler policy"),
-                ),
-                (
-                    tr("Recovery"),
-                    tr("Stock 32-bit RADV remains available")
-                    if installing
-                    else tr("Build cache is preserved"),
-                ),
-            ),
-            confirm_text=tr(confirm_text),
-            tone="orange" if installing else "red",
-            parent=dialog_parent or self,
-        )
-        if confirmation.exec() != QDialog.DialogCode.Accepted:
-            return
+            if confirmation.exec() != QDialog.DialogCode.Accepted:
+                return
         self._run_backend_action(
-            lambda: self.controller.gestionar_graficos_steamos(action),
+            lambda: self.controller.gestionar_real_toolkit_steamos(action),
             lambda _result: GpuGovernorPage._record_preparation_result(
-                self,
-                "SteamOS graphics stack",
-                "Opened the reviewed SteamOS graphics transaction. Follow its verified result and reboot or sign out only when requested.",
-            ),
-            "Could not manage the SteamOS graphics stack",
-            controls=(),
-            error_parent=dialog_parent,
+                self, 'SteamOS Real Toolkit', 'Review the terminal output.'),
+            'SteamOS Real Toolkit', controls=(), error_parent=dialog_parent,
         )
+
+    def _manage_steamos_proton(self, action: str, *, dialog_parent=None) -> None:
+        routes = {'install': 'proton-install', 'update': 'proton-install',
+                  'status': 'verify', 'uninstall': 'proton-revert'}
+        if action not in routes:
+            raise ValueError('Unsupported SteamOS Proton action.')
+        self._manage_real_toolkit(routes[action], dialog_parent=dialog_parent)
+
+    def _manage_steamos_graphics(self, action: str, *, dialog_parent=None) -> None:
+        routes = {'status': 'verify', 'install': 'combined-install',
+                  'install-fsr4': 'proton-install', 'uninstall': 'combined-revert',
+                  'uninstall-fsr4': 'proton-revert'}
+        if action not in routes:
+            raise ValueError('Unsupported SteamOS graphics action.')
+        self._manage_real_toolkit(routes[action], dialog_parent=dialog_parent)
 
     def _prepare_steamos_diagnostics(
         self,

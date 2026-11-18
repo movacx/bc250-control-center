@@ -6242,5 +6242,11 @@
   "Search by code, message or keyword": "Търсене по код, съобщение или ключова дума",
   "Matches: {term}": "Съвпадение: {term}",
   "Did you mean: {term}?": "Имахте предвид: {term}?",
-  "Try another search or select a module.": "Опитайте друго търсене или изберете модул."
+  "Try another search or select a module.": "Опитайте друго търсене или изберете модул.",
+  "Search installation, configuration and recovery tools by component.": "Търсене на инструменти за инсталиране, настройка и възстановяване по компонент.",
+  "Maintain an existing kernel, Mesa / RADV, FSR4 or GE-Proton installation.": "Управление на съществуваща инсталация на ядрото, Mesa / RADV, FSR4 или GE-Proton.",
+  "Restore the stock AMDGPU module for the running kernel only. Mesa, Proton and overrides for other kernels are preserved. Patched graphics features will be unavailable after restarting; review the remaining Mesa configuration before using games.": "Възстановява оригиналния модул AMDGPU само за текущото ядро. Mesa, Proton и модулите на другите ядра се запазват. Графичните функции на корекцията няма да са достъпни след рестартиране; проверете настройките на Mesa, преди да стартирате игри.",
+  "SteamOS Real Toolkit": "SteamOS Real Toolkit",
+  "SteamOS · keyboardspecialist": "SteamOS · keyboardspecialist",
+  "Use SteamOS Real Toolkit to select, check or revert graphics components.": "Използвайте SteamOS Real Toolkit, за да изберете, проверите или отмените промените в графичните компоненти."
 }

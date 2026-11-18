@@ -138,6 +138,12 @@ done
 install -m644 \
   "$ROOT_DIR/privileged/lib/bc250_smu_oc_vendor.zip" \
   "$DESTDIR/usr/libexec/bc250-control-center/lib/bc250_smu_oc_vendor.zip"
+install -m755 "$ROOT_DIR/scripts/system/run-steamos-real-toolkit.py" \
+  "$DESTDIR/usr/libexec/bc250-control-center/bc250-steamos-toolkit"
+install -m755 "$ROOT_DIR/scripts/system/check-steamos-toolkit-conflicts.py" \
+  "$DESTDIR/usr/libexec/bc250-control-center/bc250-steamos-toolkit-check"
+install -m644 "$ROOT_DIR/privileged/lib/bc250_steamos_toolkit_runtime.zip" \
+  "$DESTDIR/usr/libexec/bc250-control-center/lib/bc250_steamos_toolkit_runtime.zip"
 install -m644 \
   "$ROOT_DIR/privileged/lib/governor_toml.py" \
   "$DESTDIR/usr/libexec/bc250-control-center/lib/governor_toml.py"

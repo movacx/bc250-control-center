@@ -4,7 +4,6 @@ import shlex
 import shutil
 import subprocess
 import time
-from contextlib import suppress
 from copy import deepcopy
 from pathlib import Path
 
@@ -209,9 +208,6 @@ from bc250cc.infrastructure.source_checkout import (
 from bc250cc.infrastructure.steam_launch_options import (
     add_dll_override,
     add_dll_override_to_library,
-)
-from bc250cc.infrastructure.steamos_graphics_runtime import (
-    probe_steamos_graphics_runtime,
 )
 from bc250cc.infrastructure.steamos_readonly import (
     build_steamos_readonly_command,
@@ -858,7 +854,8 @@ class DependenciasRepository(SteamosDependenciesMixin):
 
         DryhoppedIPA's direct installer is a high-impact boot/kernel/Mesa flow.
         Generic dependency preparation must never run it. SteamOS uses the
-        separately-audited keyboardspecialist backend for the kernel half.
+        Real Toolkit provider, with the separately audited keyboardspecialist
+        backend available through explicit alternative actions.
         """
 
         os_release = read_os_release()
@@ -921,35 +918,24 @@ class DependenciasRepository(SteamosDependenciesMixin):
             and steamos_kernel_commit == STEAMOS_REVIEWED_DRYHOPPED_COMMIT
         )
 
-        # The reviewed SteamOS graphics runtime stores its build products and
-        # manifests per user. Validate those hashes without executing mutable
-        # checkout scripts; lifecycle actions use the protected staged backend.
-        external_steamos_graphics = (
-            probe_steamos_graphics_runtime()
-            if os_repository.info.family == 'steamos'
-            else {}
-        )
-        external_radv = dict(external_steamos_graphics.get('radv') or {})
-        external_fsr4 = dict(external_steamos_graphics.get('fsr4') or {})
-        legacy_radv_detected = bool(
-            external_steamos_graphics.get('legacy_radv_detected')
-        )
-        legacy_radv_commit = str(external_radv.get('upstream_commit') or '')
+        from .steamos_real_toolkit_state import probe_real_toolkit
+        real_toolkit = probe_real_toolkit() if os_repository.info.family == 'steamos' else {}
+        graphics = dict(real_toolkit.get('graphics') or {})
+        proton = dict(real_toolkit.get('proton') or {})
+        external_steamos_graphics = {'provider': real_toolkit.get('provider'),
+                                     'radv': graphics, 'fsr4': proton}
+        from .steamos_graphics_runtime import probe_steamos_graphics_runtime
+        alternative_graphics = probe_steamos_graphics_runtime() if os_repository.info.family == 'steamos' else {}
+        external_radv, external_fsr4 = graphics, proton
+        legacy_radv_detected, legacy_radv_commit = False, ''
 
-        # rpf16rj v1.1.0 is kept as a reviewed SteamOS RADV reference because
-        # it follows current DryhoppedIPA safety guidance: only Mesa patch 0001
-        # is enabled, X11+Wayland are built, and the stock 32-bit RADV ICD is
-        # retained as a fallback.  Control Center does not install this path
-        # automatically; detect an external installation without taking ownership.
-        safe_radv_icds = sorted(Path('/opt/bc250-gfx1013').glob('*/share/vulkan/icd.d/radeon_icd.x86_64.json'))
-        safe_radv_env = ''
-        with suppress(OSError):
-            safe_radv_env = Path('/etc/environment').read_text(encoding='utf-8', errors='replace')
+        # Keep the historical presenter field, but use the provider's validated
+        # ICD/library/assignment probe. File names or commented environment
+        # references alone must not mark an incomplete installation ready.
         steamos_safe_radv_detected = bool(
             os_repository.info.family == 'steamos'
-            and any(path.is_file() for path in safe_radv_icds)
-            and 'VK_DRIVER_FILES=' in safe_radv_env
-            and '/opt/bc250-gfx1013/' in safe_radv_env
+            and graphics.get('state') == 'configured'
+            and graphics.get('activation_configured')
         )
 
         policy.update({
@@ -970,6 +956,8 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'legacy_steamos_radv_detected': legacy_radv_detected,
             'legacy_steamos_radv_commit': legacy_radv_commit,
             'steamos_external_graphics': external_steamos_graphics,
+            'steamos_real_toolkit': real_toolkit,
+            'steamos_alternative_graphics': alternative_graphics,
             'steamos_external_radv_state': str(external_radv.get('state') or 'not-installed'),
             'steamos_external_radv_current': bool(external_radv.get('current')),
             'steamos_external_fsr4_state': str(external_fsr4.get('state') or 'not-installed'),
@@ -1206,10 +1194,8 @@ class DependenciasRepository(SteamosDependenciesMixin):
         cyan_repo = self._tool_dir() / CYAN_GOVERNOR_DIRECTORY
         core_unlock_repo = self._tool_dir() / CORE_UNLOCK_DIRECTORY
         core_unlock_script = core_unlock_repo / CORE_UNLOCK_SCRIPT
-        steamos_fix_repo = self._tool_dir() / STEAMOS_FIX_DIRECTORY
-        steamos_fix_script = (
-            steamos_fix_repo / STEAMOS_FIX_SUBDIRECTORY / STEAMOS_FIX_SCRIPT
-        )
+        steamos_fix_repo = Path('/home/.bc250-control-center/real-toolkit/workspace')
+        steamos_fix_script = steamos_fix_repo / 'start.sh'
         gfx1013_compute = repository_probe['gfx1013_compute']
         fsr4 = repository_probe['fsr4']
         helixsr = repository_probe['helixsr']
@@ -1414,8 +1400,9 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'steamos_fix_applicable': is_steamos,
             'steamos_fix_repo_path': str(steamos_fix_repo),
             'steamos_fix_script': str(steamos_fix_script),
-            'steamos_fix_repo_exists': repository_probe['steamos_fix_exists'],
-            'steamos_fix_repo_url': STEAMOS_FIX_REPOSITORY,
+            'steamos_fix_repo_exists': bool(dict(gfx1013_compute.get('steamos_real_toolkit') or {}).get('prepared')),
+            'steamos_fix_repo_url': 'https://github.com/rpf16rj/bc250-steamos-real-toolkit',
+            'steamos_real_toolkit': dict(gfx1013_compute.get('steamos_real_toolkit') or {}),
             'gfx1013_compute': gfx1013_compute,
             'fsr4': fsr4,
             'helixsr': helixsr,

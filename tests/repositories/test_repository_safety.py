@@ -642,7 +642,7 @@ def test_changed_40cu_output_format_produces_clear_error():
         repository.obtener_estado_cu()
 
 
-def test_community_research_and_bazzite_sources_are_credited_without_becoming_dependencies():
+def test_community_credits_remain_and_reference_only_projects_do_not_become_dependencies():
     readme = Path("README.md").read_text(encoding="utf-8")
     notices = Path("docs/THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
     dependency_source = Path("src/bc250cc/infrastructure/dependencias_repository.py").read_text(
@@ -657,7 +657,15 @@ def test_community_research_and_bazzite_sources_are_credited_without_becoming_de
     ):
         assert project in readme or project in notices
     assert "DryhoppedIPA/bc250-gfx1013-fix" not in dependency_source
-    assert "rpf16rj/bc250-steamos-real-toolkit" not in dependency_source
+    # Real Toolkit is now an explicitly authorized provider, not reference-only.
+    from bc250cc.infrastructure.external_tools.catalog import EXTERNAL_TOOLS
+    from bc250cc.infrastructure.steamos_real_toolkit import REPOSITORY, REVISION
+
+    spec = EXTERNAL_TOOLS['steamos_real_toolkit']
+    assert spec.upstream == REPOSITORY
+    assert spec.reviewed_revision == REVISION
+    assert spec.payload_distribution == 'runtime-fetch-reviewed-revision'
+    assert spec.adoption_ready
     assert "redbeard1083/bc250-toolkit" not in dependency_source
     assert "62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images" not in dependency_source
 

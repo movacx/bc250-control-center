@@ -60,6 +60,9 @@ SYSTEMD_USER_DIR="$PREFIX/lib/systemd/user"
 DOC_DIR="$PREFIX/share/doc/bc250-control-center"
 SYSTEM_PRIV_HELPER="/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
 SYSTEM_STEAMOS_GAME_HELPER="/usr/libexec/bc250-control-center/bc250-steamos-game-helper"
+SYSTEM_STEAMOS_TOOLKIT_RUNNER="/usr/libexec/bc250-control-center/bc250-steamos-toolkit"
+SYSTEM_STEAMOS_TOOLKIT_CHECK="/usr/libexec/bc250-control-center/bc250-steamos-toolkit-check"
+SYSTEM_STEAMOS_TOOLKIT_RUNTIME="/usr/libexec/bc250-control-center/lib/bc250_steamos_toolkit_runtime.zip"
 SYSTEM_GOVERNOR_CONFIG_HELPER="/usr/libexec/bc250-control-center/bc250-governor-config-helper"
 SYSTEM_CORE_UNLOCK_HELPER="/usr/libexec/bc250-control-center/bc250-core-unlock-helper"
 SYSTEM_CPU_SMU_HELPER="/usr/libexec/bc250-control-center/bc250-cpu-smu-helper"
@@ -577,6 +580,9 @@ install_privileged_pwm_components() {
     "$cu_helper_target"
     "$SYSTEM_PRIV_HELPER"
     "$SYSTEM_STEAMOS_GAME_HELPER"
+    "$SYSTEM_STEAMOS_TOOLKIT_RUNNER"
+    "$SYSTEM_STEAMOS_TOOLKIT_CHECK"
+    "$SYSTEM_STEAMOS_TOOLKIT_RUNTIME"
     "$SYSTEM_QUICK_ACCESS_HELPER"
     "$SYSTEM_GOVERNOR_CONFIG_HELPER"
     "$SYSTEM_CORE_UNLOCK_HELPER"
@@ -631,6 +637,9 @@ install_privileged_pwm_components() {
     "${elevate[@]}" install -Dm755 "$helper_source" "$SYSTEM_PRIV_HELPER"
     "${elevate[@]}" install -Dm755 "$cu_helper_source" "$cu_helper_target"
     "${elevate[@]}" install -Dm755 "$steamos_helper_source" "$SYSTEM_STEAMOS_GAME_HELPER"
+    "${elevate[@]}" install -Dm755 "$ROOT_DIR/scripts/system/run-steamos-real-toolkit.py" "$SYSTEM_STEAMOS_TOOLKIT_RUNNER"
+    "${elevate[@]}" install -Dm755 "$ROOT_DIR/scripts/system/check-steamos-toolkit-conflicts.py" "$SYSTEM_STEAMOS_TOOLKIT_CHECK"
+    "${elevate[@]}" install -Dm644 "$ROOT_DIR/privileged/lib/bc250_steamos_toolkit_runtime.zip" "$SYSTEM_STEAMOS_TOOLKIT_RUNTIME"
     "${elevate[@]}" install -Dm755 "$quick_access_helper_source" "$SYSTEM_QUICK_ACCESS_HELPER"
     "${elevate[@]}" install -Dm755 "$governor_helper_source" "$SYSTEM_GOVERNOR_CONFIG_HELPER"
     "${elevate[@]}" install -Dm755 "$core_unlock_helper_source" "$SYSTEM_CORE_UNLOCK_HELPER"
@@ -670,6 +679,8 @@ install_privileged_pwm_components() {
       "$cu_helper_source:$cu_helper_target" \
       "$helper_source:$SYSTEM_PRIV_HELPER" \
       "$steamos_helper_source:$SYSTEM_STEAMOS_GAME_HELPER" \
+      "$ROOT_DIR/scripts/system/run-steamos-real-toolkit.py:$SYSTEM_STEAMOS_TOOLKIT_RUNNER" \
+      "$ROOT_DIR/scripts/system/check-steamos-toolkit-conflicts.py:$SYSTEM_STEAMOS_TOOLKIT_CHECK" \
       "$governor_helper_source:$SYSTEM_GOVERNOR_CONFIG_HELPER" \
       "$core_unlock_helper_source:$SYSTEM_CORE_UNLOCK_HELPER" \
       "$cpu_smu_helper_source:$SYSTEM_CPU_SMU_HELPER" \
@@ -697,7 +708,8 @@ install_privileged_pwm_components() {
     for implementation_pair in \
       "$governor_toml_source:$SYSTEM_GOVERNOR_TOML_IMPLEMENTATION" \
       "$fan_engine_source:/usr/libexec/bc250-control-center/lib/bc250_fan_engine.py" \
-      "$cpu_smu_vendor_source:$SYSTEM_CPU_SMU_VENDOR"; do
+      "$cpu_smu_vendor_source:$SYSTEM_CPU_SMU_VENDOR" \
+      "$ROOT_DIR/privileged/lib/bc250_steamos_toolkit_runtime.zip:$SYSTEM_STEAMOS_TOOLKIT_RUNTIME"; do
       implementation_source_path="${implementation_pair%%:*}"
       implementation_installed_path="${implementation_pair#*:}"
       if ! cmp -s "$implementation_source_path" "$implementation_installed_path"; then

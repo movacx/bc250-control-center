@@ -2016,13 +2016,30 @@ bc250_work="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr-build.XXXXXX")"
 bc250_fg_args=()
 test ! -d {target}/{HELIXSR_BUILD_FOLDER} || bc250_fg_args=(--no-fg)
 {_shader_progress('"$bc250_work"')}
-if ! TMPDIR="$bc250_work" PATH="$bc250_shim:$PATH" HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} "${{bc250_dlss_args[@]}}" "${{bc250_fg_args[@]}}"{flags} </dev/null; then
+# R-3f6a7098: Wine died on shader 387 of 389 ("wine client error: Connection
+# reset by peer") and 23 minutes of work were lost. That is Wine closing, not a
+# shader the compiler rejects, so the setup is run once more before giving up.
+bc250_attempt=1
+bc250_wine_log="$bc250_work/setup-errors.log"
+while :; do
+  : > "$bc250_wine_log"
+  if TMPDIR="$bc250_work" PATH="$bc250_shim:$PATH" HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} "${{bc250_dlss_args[@]}}" "${{bc250_fg_args[@]}}"{flags} </dev/null 2> >(tee -a "$bc250_wine_log" >&2); then
+    break
+  fi
+  sleep 1
+  if [ "$bc250_attempt" = 1 ] && grep -q 'wine client error' "$bc250_wine_log" 2>/dev/null; then
+    bc250_attempt=2
+    echo
+    echo "Wine closed in the middle of the build; this is not a shader error. Trying once more..."
+    echo
+    continue
+  fi
   kill "$bc250_progress" 2>/dev/null || true
   rm -rf -- "$bc250_dlss_dir" "$bc250_work"
   echo
   echo "The network was not built. HelixSR is installed; use Build network files to try again."
   exit 1
-fi
+done
 kill "$bc250_progress" 2>/dev/null || true
 rm -rf -- "$bc250_dlss_dir" "$bc250_work"
 echo
@@ -2157,11 +2174,26 @@ print(next((str(a.get("digest") or "").removeprefix("sha256:") for a in release.
     echo "The author re-published HelixSR {release['version']} under the same version; the download matches the SHA-256 GitHub lists for it now."
     bc250_republished=1
   else
-    echo "ERROR: the download of {release['archive']} does not match the SHA-256 GitHub lists for it. Nothing was installed."
-    echo "Downloaded SHA-256: $bc250_actual"
-    echo "GitHub SHA-256: $bc250_listed"
-    echo "Try again in a few minutes, or choose another HelixSR version."
-    exit 30
+    # R-a0a8ed2f: a complete 279 MB download that matched neither digest. A proxy
+    # or a flaky mirror damages the file far more often than the author
+    # re-publishes it, so fetch it once more before refusing.
+    echo "The download does not match the SHA-256 GitHub lists for it. Downloaded SHA-256: $bc250_actual"
+    echo "Downloading it once more in case it arrived damaged..."
+    rm -f -- "$bc250_archive"
+    bc250_fetch "$bc250_archive" {shlex.quote(helixsr_url(release))} || true
+    bc250_actual="$(sha256sum "$bc250_archive" 2>/dev/null | awk '{{print $1}}')"
+    if printf '%s  %s\\n' {release['sha256']} "$bc250_archive" | sha256sum -c --status - 2>/dev/null; then
+      echo "The second download matches the reviewed SHA-256."
+    elif [ -n "$bc250_actual" ] && [ "$bc250_listed" = "$bc250_actual" ]; then
+      echo "The second download matches the SHA-256 GitHub lists for it."
+      bc250_republished=1
+    else
+      echo "ERROR: the download of {release['archive']} does not match the SHA-256 GitHub lists for it. Nothing was installed."
+      echo "Downloaded SHA-256: $bc250_actual"
+      echo "GitHub SHA-256: $bc250_listed"
+      echo "Try again in a few minutes, or choose another HelixSR version."
+      exit 30
+    fi
   fi
 fi
 echo "Archive verified."

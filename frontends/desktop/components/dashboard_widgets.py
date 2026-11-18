@@ -2614,6 +2614,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
                 self.compatibility_filter.setCurrentIndex(selected_index)
         finally:
             self.compatibility_filter.blockSignals(blocked)
+        self.real_toolkit_panel.retranslate_dynamic_copy()
+        self.steamos_alternative_panel.retranslate_dynamic_copy()
         if getattr(self, "_last_preparation_state", None) is not None:
             self.set_state(self._last_preparation_state)
 
@@ -3225,6 +3227,7 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
                 self.steamos_proton_card, *self.cachyos_cards,
             )),
             ("Video", (self.vaapi_card,)),
+            ("SteamOS", (self.real_toolkit_card, self.steamos_alternative_card)),
         )
         layout.setSpacing(0)
         # Boot options: the panels that used to sit above the component list.
@@ -3652,6 +3655,13 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
 
     def _forward_dependency_action(self, payload: object) -> None:
         values = dict(payload) if isinstance(payload, Mapping) else {}
+        if values.get('action') == 'steamos_tools_browse':
+            cards = {'real-toolkit': self.real_toolkit_card,
+                     'keyboardspecialist': self.steamos_alternative_card}
+            card = cards.get(values.get('provider'))
+            if card is not None and hasattr(self, 'compatibility_browser'):
+                self.compatibility_browser.show_details(card)
+            return
         values.setdefault("selected_components", self.selected_components)
         self.dependency_action_requested.emit(values)
 

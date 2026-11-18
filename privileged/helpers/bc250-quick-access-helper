@@ -3296,6 +3296,19 @@ SYSTEM_FAN_OVERRIDE = pathlib.Path("/run/bc250-control-center/fan-override.json"
 #: The Desktop's "Another program controls the fan" marker (see
 #: bc250-fan-pwm-helper): while it exists no fan preset is applied from here.
 SYSTEM_FAN_EXTERNAL = pathlib.Path("/var/lib/bc250-control-center/fan-external.json")
+
+TOOLKIT_FAN_CGROUP = pathlib.Path("/sys/fs/cgroup/system.slice/toolkit-steamos-fan.service/cgroup.events")
+
+def toolkit_fan_running() -> bool:
+    try:
+        return 'populated 1' in TOOLKIT_FAN_CGROUP.read_text(encoding='ascii').splitlines()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        # An existing but unreadable runtime cannot safely grant PWM ownership.
+        return True
+
+
 #: The preset this panel applied last. Two exported presets can share a
 #: duty, and the PWM read-back alone cannot tell them apart; this only breaks
 #: that tie, it never names a preset the hardware does not match.
@@ -3374,7 +3387,7 @@ def system_fan_ownership() -> dict[str, bool]:
     return {
         "system_fan_policy": policy,
         "system_fan_override": override,
-        "system_fan_external": SYSTEM_FAN_EXTERNAL.is_file(),
+        "system_fan_external": (SYSTEM_FAN_EXTERNAL.is_file() or toolkit_fan_running()),
     }
 
 
@@ -4553,7 +4566,7 @@ def main(argv: Sequence[str]) -> int:
             with operation_lock(CU_OPERATION_LOCK, "CU"):
                 return cu_remove_service()
         return fail("QUICK_ACCESS_CU_SERVICE: action must be install or remove.", 2)
-    if action in {"fan-auto", "fan-system", "fan-channel"} and SYSTEM_FAN_EXTERNAL.is_file():
+    if action in {"fan-auto", "fan-system", "fan-channel"} and (SYSTEM_FAN_EXTERNAL.is_file() or toolkit_fan_running()):
         return fail(
             "QUICK_ACCESS_FAN_EXTERNAL: the fan is handed to another program. "
             "Take control back on the Desktop's Fans page first.",

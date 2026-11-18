@@ -6242,5 +6242,11 @@
   "Search by code, message or keyword": "依代碼、訊息或關鍵字搜尋",
   "Matches: {term}": "符合項目：{term}",
   "Did you mean: {term}?": "您是否要找：{term}？",
-  "Try another search or select a module.": "請嘗試其他搜尋或選擇一個模組。"
+  "Try another search or select a module.": "請嘗試其他搜尋或選擇一個模組。",
+  "Search installation, configuration and recovery tools by component.": "依元件搜尋安裝、設定與復原工具。",
+  "Maintain an existing kernel, Mesa / RADV, FSR4 or GE-Proton installation.": "管理現有的核心、Mesa / RADV、FSR4 或 GE-Proton 安裝。",
+  "Restore the stock AMDGPU module for the running kernel only. Mesa, Proton and overrides for other kernels are preserved. Patched graphics features will be unavailable after restarting; review the remaining Mesa configuration before using games.": "僅還原目前核心的原始 AMDGPU 模組。保留 Mesa、Proton 與其他核心的模組。重新啟動後，修補程式提供的圖形功能將無法使用；啟動遊戲前請檢查 Mesa 設定。",
+  "SteamOS Real Toolkit": "SteamOS Real Toolkit",
+  "SteamOS · keyboardspecialist": "SteamOS · keyboardspecialist",
+  "Use SteamOS Real Toolkit to select, check or revert graphics components.": "使用 SteamOS Real Toolkit 選擇、檢查或還原圖形元件。"
 }

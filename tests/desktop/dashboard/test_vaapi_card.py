@@ -83,6 +83,18 @@ def test_another_installer_and_unsupported_systems_cannot_install():
     assert "glibc 2.38" in sidebar.vaapi_card.detail.text()
 
 
+def test_conflicting_video_installations_keep_our_removal_without_offering_more_activation():
+    sidebar = _sidebar()
+    sidebar.set_state(_state({'supported': True, 'state': 'managed-elsewhere', 'installed': True,
+                              'flatpak': {'available': True, 'applied': False},
+                              'driver32': {'state': 'not-installed'}}))
+    assert sidebar.vaapi_card.status.text() == 'Managed externally'
+    assert not sidebar.vaapi_remove_button.isHidden()
+    assert sidebar.vaapi_install_button.isHidden()
+    assert sidebar.vaapi_flatpak_button.isHidden()
+    assert sidebar.vaapi_32_button.isHidden()
+
+
 def test_the_buttons_ask_for_the_workflows():
     sidebar = _sidebar()
     sidebar.set_state(_state({"supported": True, "state": "outdated", "installed": True}))

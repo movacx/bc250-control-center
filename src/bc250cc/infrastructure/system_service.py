@@ -554,6 +554,14 @@ class SistemaService:
     def gestionar_proton_steamos(self, action: str):
         return self.repo.gestionar_proton_steamos(action)
 
+    def gestionar_real_toolkit_steamos(self, action: str):
+        return self.repo.gestionar_real_toolkit_steamos(action)
+
+    def gestionar_alternativa_steamos(self, action: str):
+        from .steamos_alternative import run_alternative
+
+        return run_alternative(self.repo, action)
+
     def diagnostico_steamos(self):
         return self.repo.diagnostico_steamos()
 

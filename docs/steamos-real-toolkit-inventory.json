@@ -1,0 +1,1854 @@
+{
+  "schema_version": 1,
+  "upstream": "https://github.com/rpf16rj/bc250-steamos-real-toolkit",
+  "revision": "88abd200170c8855f45cc6883e72d243151ceb7a",
+  "version": "1.12.0",
+  "start_sha256": "a48357c83af9e59f7d02e29706cffc24ef8e171cff18c0e848d82f932186f747",
+  "functions": [
+    {
+      "name": "cleanup_sudo_keepalive",
+      "line": 27
+    },
+    {
+      "name": "derive_home_state_paths",
+      "line": 80
+    },
+    {
+      "name": "tty_cols",
+      "line": 137
+    },
+    {
+      "name": "print_banner",
+      "line": 143
+    },
+    {
+      "name": "print_section",
+      "line": 178
+    },
+    {
+      "name": "print_item",
+      "line": 185
+    },
+    {
+      "name": "print_success",
+      "line": 194
+    },
+    {
+      "name": "print_error",
+      "line": 195
+    },
+    {
+      "name": "print_warning",
+      "line": 196
+    },
+    {
+      "name": "print_info",
+      "line": 197
+    },
+    {
+      "name": "print_step",
+      "line": 198
+    },
+    {
+      "name": "press_enter",
+      "line": 200
+    },
+    {
+      "name": "confirm",
+      "line": 208
+    },
+    {
+      "name": "pick_items",
+      "line": 222
+    },
+    {
+      "name": "open_url",
+      "line": 334
+    },
+    {
+      "name": "run_help",
+      "line": 342
+    },
+    {
+      "name": "run_changelog",
+      "line": 348
+    },
+    {
+      "name": "ensure_desktop_shortcut",
+      "line": 357
+    },
+    {
+      "name": "aur_helper",
+      "line": 389
+    },
+    {
+      "name": "is_steamos",
+      "line": 397
+    },
+    {
+      "name": "kernel_version_ok",
+      "line": 405
+    },
+    {
+      "name": "require_kernel_version",
+      "line": 416
+    },
+    {
+      "name": "warn_legacy_kernel",
+      "line": 434
+    },
+    {
+      "name": "save_error_log",
+      "line": 449
+    },
+    {
+      "name": "fail_with_log",
+      "line": 512
+    },
+    {
+      "name": "toolkit_unhandled_error",
+      "line": 518
+    },
+    {
+      "name": "repair_pacman_keyring",
+      "line": 526
+    },
+    {
+      "name": "run_repair_pacman_keyring",
+      "line": 550
+    },
+    {
+      "name": "is_network_error",
+      "line": 567
+    },
+    {
+      "name": "prompt_retry_or_abort",
+      "line": 572
+    },
+    {
+      "name": "run_with_retry",
+      "line": 589
+    },
+    {
+      "name": "steamos_writable",
+      "line": 648
+    },
+    {
+      "name": "ensure_build_deps",
+      "line": 670
+    },
+    {
+      "name": "aur_install",
+      "line": 692
+    },
+    {
+      "name": "aur_clean_cache",
+      "line": 706
+    },
+    {
+      "name": "aur_remove",
+      "line": 720
+    },
+    {
+      "name": "bc250_pipx",
+      "line": 754
+    },
+    {
+      "name": "cpu_governor_seed_shared",
+      "line": 773
+    },
+    {
+      "name": "cpu_governor_venv_install",
+      "line": 811
+    },
+    {
+      "name": "cpu_governor_clean_stale_shims",
+      "line": 830
+    },
+    {
+      "name": "cpu_governor_installed",
+      "line": 844
+    },
+    {
+      "name": "cpu_governor_venv_healthy",
+      "line": 850
+    },
+    {
+      "name": "cpu_governor_ensure_pipx",
+      "line": 855
+    },
+    {
+      "name": "cpu_governor_repair_venv",
+      "line": 881
+    },
+    {
+      "name": "cpu_governor_setup",
+      "line": 902
+    },
+    {
+      "name": "run_cpu_governor",
+      "line": 951
+    },
+    {
+      "name": "gpu_governor_installed",
+      "line": 1015
+    },
+    {
+      "name": "gpu_governor_setup",
+      "line": 1021
+    },
+    {
+      "name": "gpu_governor_install_prebuilt",
+      "line": 1061
+    },
+    {
+      "name": "run_gpu_governor",
+      "line": 1096
+    },
+    {
+      "name": "run_revert_cpu_governor",
+      "line": 1128
+    },
+    {
+      "name": "run_revert_gpu_governor",
+      "line": 1155
+    },
+    {
+      "name": "run_revert_gpu_governor_files",
+      "line": 1180
+    },
+    {
+      "name": "core_unlock_persist_installed",
+      "line": 1209
+    },
+    {
+      "name": "core_unlock_cores_active",
+      "line": 1213
+    },
+    {
+      "name": "install_core_unlock",
+      "line": 1217
+    },
+    {
+      "name": "ram_split_bc250_detected",
+      "line": 1366
+    },
+    {
+      "name": "ram_split_gcc_can_compile",
+      "line": 1370
+    },
+    {
+      "name": "ram_split_build_tool",
+      "line": 1380
+    },
+    {
+      "name": "ram_split_current_uma",
+      "line": 1407
+    },
+    {
+      "name": "ram_split_installed",
+      "line": 1415
+    },
+    {
+      "name": "install_ram_split",
+      "line": 1419
+    },
+    {
+      "name": "run_revert_ram_split",
+      "line": 1470
+    },
+    {
+      "name": "run_revert_core_unlock",
+      "line": 1504
+    },
+    {
+      "name": "grub_cfg_path",
+      "line": 1531
+    },
+    {
+      "name": "grub_mod_dir",
+      "line": 1556
+    },
+    {
+      "name": "grub_ensure_efi_video_backend",
+      "line": 1564
+    },
+    {
+      "name": "grub_prune_missing_insmods",
+      "line": 1579
+    },
+    {
+      "name": "grub_regen",
+      "line": 1590
+    },
+    {
+      "name": "run_grub_boot_fix",
+      "line": 1604
+    },
+    {
+      "name": "mitigations_currently_off",
+      "line": 1646
+    },
+    {
+      "name": "run_disable_mitigations",
+      "line": 1650
+    },
+    {
+      "name": "run_revert_mitigations",
+      "line": 1691
+    },
+    {
+      "name": "swapfile_size_mb",
+      "line": 1748
+    },
+    {
+      "name": "zswap_currently_on",
+      "line": 1753
+    },
+    {
+      "name": "zswap_enable_runtime",
+      "line": 1762
+    },
+    {
+      "name": "zram_currently_disabled",
+      "line": 1771
+    },
+    {
+      "name": "run_configure_swap",
+      "line": 1775
+    },
+    {
+      "name": "run_revert_swap",
+      "line": 1849
+    },
+    {
+      "name": "run_zram_zswap_toggle",
+      "line": 1881
+    },
+    {
+      "name": "run_revert_zram_zswap",
+      "line": 1933
+    },
+    {
+      "name": "sensors_driver_loaded",
+      "line": 1984
+    },
+    {
+      "name": "sensors_active_driver",
+      "line": 1988
+    },
+    {
+      "name": "detect_kernel_headers_package",
+      "line": 1998
+    },
+    {
+      "name": "install_sensors_readonly",
+      "line": 2005
+    },
+    {
+      "name": "install_sensors_pwm",
+      "line": 2036
+    },
+    {
+      "name": "run_revert_sensors",
+      "line": 2117
+    },
+    {
+      "name": "nct6686_hardware_present",
+      "line": 2154
+    },
+    {
+      "name": "ensure_sensors_pwm_installed",
+      "line": 2187
+    },
+    {
+      "name": "ensure_coolercontrol_installed",
+      "line": 2204
+    },
+    {
+      "name": "validate_core_unlock",
+      "line": 2223
+    },
+    {
+      "name": "bc250_vrm_installed",
+      "line": 2240
+    },
+    {
+      "name": "install_bc250_vrm",
+      "line": 2244
+    },
+    {
+      "name": "run_revert_vrm",
+      "line": 2294
+    },
+    {
+      "name": "run_sensors_menu",
+      "line": 2309
+    },
+    {
+      "name": "coolercontrol_installed",
+      "line": 2350
+    },
+    {
+      "name": "coolercontrol_gui_installed",
+      "line": 2356
+    },
+    {
+      "name": "coolercontrol_install_official",
+      "line": 2365
+    },
+    {
+      "name": "install_coolercontrol",
+      "line": 2437
+    },
+    {
+      "name": "run_revert_coolercontrol",
+      "line": 2481
+    },
+    {
+      "name": "coolercontrol_status_label",
+      "line": 2507
+    },
+    {
+      "name": "run_coolercontrol_menu",
+      "line": 2517
+    },
+    {
+      "name": "xone_installed",
+      "line": 2548
+    },
+    {
+      "name": "install_xbox_adapter",
+      "line": 2552
+    },
+    {
+      "name": "run_revert_xbox_adapter",
+      "line": 2626
+    },
+    {
+      "name": "xbox_adapter_status_label",
+      "line": 2656
+    },
+    {
+      "name": "run_ds5_bridge_menu",
+      "line": 2666
+    },
+    {
+      "name": "run_xbox_adapter_menu",
+      "line": 2695
+    },
+    {
+      "name": "fixes_repo_sync",
+      "line": 2729
+    },
+    {
+      "name": "acpi_fix_installed",
+      "line": 2751
+    },
+    {
+      "name": "acpi_fix_source_current",
+      "line": 2755
+    },
+    {
+      "name": "install_acpi_fix",
+      "line": 2759
+    },
+    {
+      "name": "run_revert_acpi_fix",
+      "line": 2890
+    },
+    {
+      "name": "bc250_headers_pkg_name",
+      "line": 2940
+    },
+    {
+      "name": "bc250_fetch_headers_pkg",
+      "line": 2960
+    },
+    {
+      "name": "audio_fix_prefetch_headers",
+      "line": 2986
+    },
+    {
+      "name": "audio_fix_resolve_fullsha",
+      "line": 2994
+    },
+    {
+      "name": "audio_fix_patch_fetch_sources",
+      "line": 3010
+    },
+    {
+      "name": "audio_fix_ensure_mkinitcpio_preset",
+      "line": 3027
+    },
+    {
+      "name": "audio_fix_hpd_debounce_grub_installed",
+      "line": 3047
+    },
+    {
+      "name": "audio_fix_ensure_hpd_debounce_grub_param",
+      "line": 3051
+    },
+    {
+      "name": "audio_fix_remove_hpd_debounce_grub_param",
+      "line": 3073
+    },
+    {
+      "name": "audio_fix_remove_cs_legacy_grub_param",
+      "line": 3091
+    },
+    {
+      "name": "bc250_bios_version",
+      "line": 3114
+    },
+    {
+      "name": "audio_fix_cs_legacy_grub_installed",
+      "line": 3118
+    },
+    {
+      "name": "audio_fix_ensure_cs_legacy_grub_param",
+      "line": 3122
+    },
+    {
+      "name": "audio_fix_cleanup_legacy_edid",
+      "line": 3142
+    },
+    {
+      "name": "install_audio_fix",
+      "line": 3216
+    },
+    {
+      "name": "run_revert_audio_fix",
+      "line": 3312
+    },
+    {
+      "name": "ds5_bridge_fix_installed",
+      "line": 3353
+    },
+    {
+      "name": "ds5_chord_vdf_path",
+      "line": 3361
+    },
+    {
+      "name": "ds5_chord_vdf_patched",
+      "line": 3373
+    },
+    {
+      "name": "install_ds5_chord_vdf",
+      "line": 3379
+    },
+    {
+      "name": "revert_ds5_chord_vdf",
+      "line": 3425
+    },
+    {
+      "name": "run_install_ds5_chord_vdf",
+      "line": 3438
+    },
+    {
+      "name": "run_revert_ds5_chord_vdf",
+      "line": 3462
+    },
+    {
+      "name": "install_ds5_bridge_fix",
+      "line": 3479
+    },
+    {
+      "name": "run_revert_ds5_bridge_fix",
+      "line": 3520
+    },
+    {
+      "name": "ac3_surround_installed",
+      "line": 3559
+    },
+    {
+      "name": "ac3_profile_active",
+      "line": 3563
+    },
+    {
+      "name": "ac3_pactl",
+      "line": 3567
+    },
+    {
+      "name": "vaapi_driver_installed",
+      "line": 3589
+    },
+    {
+      "name": "vaapi_driver_deps_ok",
+      "line": 3593
+    },
+    {
+      "name": "vaapi_provide_x264",
+      "line": 3604
+    },
+    {
+      "name": "vaapi_ensure_runtime_deps",
+      "line": 3632
+    },
+    {
+      "name": "vaapi_write_env",
+      "line": 3662
+    },
+    {
+      "name": "install_vaapi_driver",
+      "line": 3679
+    },
+    {
+      "name": "run_revert_vaapi_driver",
+      "line": 3750
+    },
+    {
+      "name": "install_ac3_surround",
+      "line": 3774
+    },
+    {
+      "name": "ac3_post_install_test",
+      "line": 3896
+    },
+    {
+      "name": "ac3_auto_diagnose",
+      "line": 3930
+    },
+    {
+      "name": "ac3_generate_diagnostic_log",
+      "line": 4028
+    },
+    {
+      "name": "run_revert_ac3_surround",
+      "line": 4121
+    },
+    {
+      "name": "dual_audio_wp_version_ok",
+      "line": 4172
+    },
+    {
+      "name": "dual_audio_installed",
+      "line": 4178
+    },
+    {
+      "name": "dual_audio_ensure_wireplumber",
+      "line": 4185
+    },
+    {
+      "name": "install_dual_audio",
+      "line": 4203
+    },
+    {
+      "name": "run_revert_dual_audio",
+      "line": 4266
+    },
+    {
+      "name": "fsr4_proton_installed",
+      "line": 4317
+    },
+    {
+      "name": "fsr4_proton_installed_pkgs",
+      "line": 4322
+    },
+    {
+      "name": "fsr4_proton_installed_toolnames",
+      "line": 4330
+    },
+    {
+      "name": "fsr4_proton_is_pkg_installed",
+      "line": 4338
+    },
+    {
+      "name": "fsr4_proton_marker_add",
+      "line": 4344
+    },
+    {
+      "name": "fsr4_proton_marker_remove",
+      "line": 4352
+    },
+    {
+      "name": "_mastag_repo_add",
+      "line": 4361
+    },
+    {
+      "name": "_mastag_repo_remove",
+      "line": 4374
+    },
+    {
+      "name": "_fsr4_download_and_install",
+      "line": 4381
+    },
+    {
+      "name": "install_fsr4_proton",
+      "line": 4444
+    },
+    {
+      "name": "revert_fsr4_proton",
+      "line": 4595
+    },
+    {
+      "name": "gfx1013_try_mesa_prebuilt",
+      "line": 4657
+    },
+    {
+      "name": "gfx1013_ensure_mesa_build_deps",
+      "line": 4713
+    },
+    {
+      "name": "install_gfx1013_fix",
+      "line": 4806
+    },
+    {
+      "name": "run_revert_gfx1013_fix",
+      "line": 4914
+    },
+    {
+      "name": "install_combined_fix",
+      "line": 4957
+    },
+    {
+      "name": "aic8800_installed",
+      "line": 5202
+    },
+    {
+      "name": "aic8800_profile",
+      "line": 5206
+    },
+    {
+      "name": "aic8800_prefetch_headers",
+      "line": 5222
+    },
+    {
+      "name": "install_aic8800_wifi",
+      "line": 5240
+    },
+    {
+      "name": "install_aic8800_legacy_mcu1",
+      "line": 5335
+    },
+    {
+      "name": "run_revert_aic8800_wifi",
+      "line": 5486
+    },
+    {
+      "name": "be200_firmware_installed",
+      "line": 5534
+    },
+    {
+      "name": "install_be200_firmware",
+      "line": 5539
+    },
+    {
+      "name": "run_revert_be200_firmware",
+      "line": 5637
+    },
+    {
+      "name": "cec_control_installed",
+      "line": 5669
+    },
+    {
+      "name": "run_cec_control",
+      "line": 5673
+    },
+    {
+      "name": "cec_retrain_installed",
+      "line": 5713
+    },
+    {
+      "name": "install_cec_retrain",
+      "line": 5717
+    },
+    {
+      "name": "revert_cec_retrain",
+      "line": 5795
+    },
+    {
+      "name": "run_cec_menu",
+      "line": 5818
+    },
+    {
+      "name": "write_cpu_undervolt_3_5ghz",
+      "line": 5859
+    },
+    {
+      "name": "write_cpu_overclock_3_85ghz",
+      "line": 5867
+    },
+    {
+      "name": "write_cpu_overclock_4ghz",
+      "line": 5875
+    },
+    {
+      "name": "write_gpu_overclock_1500mhz",
+      "line": 5883
+    },
+    {
+      "name": "write_gpu_overclock_1600mhz",
+      "line": 5927
+    },
+    {
+      "name": "write_gpu_overclock_1600mhz_undervolt",
+      "line": 5974
+    },
+    {
+      "name": "write_gpu_overclock_1750mhz",
+      "line": 6021
+    },
+    {
+      "name": "write_gpu_overclock_1850mhz",
+      "line": 6074
+    },
+    {
+      "name": "write_gpu_overclock_2000mhz",
+      "line": 6127
+    },
+    {
+      "name": "write_gpu_overclock_2100mhz",
+      "line": 6183
+    },
+    {
+      "name": "write_gpu_overclock_2300mhz",
+      "line": 6245
+    },
+    {
+      "name": "write_gpu_overclock_2350mhz",
+      "line": 6322
+    },
+    {
+      "name": "install_cpu",
+      "line": 6402
+    },
+    {
+      "name": "install_gpu",
+      "line": 6413
+    },
+    {
+      "name": "oc_edit_cpu_config_nano",
+      "line": 6430
+    },
+    {
+      "name": "oc_edit_gpu_config_nano",
+      "line": 6451
+    },
+    {
+      "name": "oc_run_bc250_detect",
+      "line": 6470
+    },
+    {
+      "name": "oc_active_profile",
+      "line": 6548
+    },
+    {
+      "name": "oc_match_preset",
+      "line": 6566
+    },
+    {
+      "name": "oc_warn_high_risk",
+      "line": 6623
+    },
+    {
+      "name": "oc_print_summary",
+      "line": 6648
+    },
+    {
+      "name": "oc_apply_preset",
+      "line": 6659
+    },
+    {
+      "name": "oc_prompt_temperature",
+      "line": 6694
+    },
+    {
+      "name": "oc_apply_custom",
+      "line": 6706
+    },
+    {
+      "name": "run_overclock_menu",
+      "line": 6777
+    },
+    {
+      "name": "run_status",
+      "line": 6828
+    },
+    {
+      "name": "install_all_progress_init",
+      "line": 7076
+    },
+    {
+      "name": "install_all_progress_done",
+      "line": 7077
+    },
+    {
+      "name": "install_all_progress_is_done",
+      "line": 7078
+    },
+    {
+      "name": "install_all_progress_clear",
+      "line": 7079
+    },
+    {
+      "name": "run_install_all_step",
+      "line": 7081
+    },
+    {
+      "name": "run_install_all",
+      "line": 7098
+    },
+    {
+      "name": "run_revert_all",
+      "line": 7133
+    },
+    {
+      "name": "run_install_manual",
+      "line": 7174
+    },
+    {
+      "name": "run_swap_menu",
+      "line": 7249
+    },
+    {
+      "name": "run_cu_live_manager",
+      "line": 7283
+    },
+    {
+      "name": "run_aic8800_menu",
+      "line": 7293
+    },
+    {
+      "name": "run_be200_menu",
+      "line": 7319
+    },
+    {
+      "name": "openlinkhub_installed",
+      "line": 7347
+    },
+    {
+      "name": "openlinkhub_status_label",
+      "line": 7352
+    },
+    {
+      "name": "install_openlinkhub",
+      "line": 7362
+    },
+    {
+      "name": "run_revert_openlinkhub",
+      "line": 7397
+    },
+    {
+      "name": "install_toolkit_steamos_control_plugin",
+      "line": 7417
+    },
+    {
+      "name": "install_fsr4_launch_options_plugin",
+      "line": 7433
+    },
+    {
+      "name": "kyty_appimage",
+      "line": 7461
+    },
+    {
+      "name": "kyty_installed",
+      "line": 7466
+    },
+    {
+      "name": "lichii_installed",
+      "line": 7470
+    },
+    {
+      "name": "install_kyty",
+      "line": 7476
+    },
+    {
+      "name": "run_kyty_status",
+      "line": 7526
+    },
+    {
+      "name": "revert_kyty",
+      "line": 7536
+    },
+    {
+      "name": "install_lichii",
+      "line": 7562
+    },
+    {
+      "name": "lichii_game_shortcut",
+      "line": 7590
+    },
+    {
+      "name": "revert_lichii",
+      "line": 7757
+    },
+    {
+      "name": "install_emudeck",
+      "line": 7778
+    },
+    {
+      "name": "run_emulators_menu",
+      "line": 7789
+    },
+    {
+      "name": "run_extras_menu",
+      "line": 7824
+    },
+    {
+      "name": "recovery_entries_installed",
+      "line": 7900
+    },
+    {
+      "name": "recovery_menu_conf_load",
+      "line": 7909
+    },
+    {
+      "name": "recovery_menu_conf_write",
+      "line": 7922
+    },
+    {
+      "name": "recovery_menu_timeout",
+      "line": 7932
+    },
+    {
+      "name": "recovery_menu_visible",
+      "line": 7933
+    },
+    {
+      "name": "recovery_write_ctl",
+      "line": 7935
+    },
+    {
+      "name": "unlock",
+      "line": 7951
+    },
+    {
+      "name": "grub_strip_toolkit_params",
+      "line": 7960
+    },
+    {
+      "name": "emergency_revert",
+      "line": 7976
+    },
+    {
+      "name": "cmd_revert",
+      "line": 8014
+    },
+    {
+      "name": "recovery_write_units",
+      "line": 8070
+    },
+    {
+      "name": "recovery_write_grub_script",
+      "line": 8094
+    },
+    {
+      "name": "emit_entry",
+      "line": 8149
+    },
+    {
+      "name": "install_recovery_entries",
+      "line": 8227
+    },
+    {
+      "name": "uninstall_recovery_entries",
+      "line": 8285
+    },
+    {
+      "name": "recovery_menu_toggle",
+      "line": 8311
+    },
+    {
+      "name": "recovery_menu_set_timeout",
+      "line": 8332
+    },
+    {
+      "name": "run_recovery_menu",
+      "line": 8359
+    },
+    {
+      "name": "steam_repair_pinned_libcurl",
+      "line": 8405
+    },
+    {
+      "name": "show_menu",
+      "line": 8432
+    },
+    {
+      "name": "validate_combined_fix_prerequisites",
+      "line": 8470
+    }
+  ],
+  "menu_items": [
+    {
+      "function": "run_sensors_menu",
+      "selector": "1",
+      "label": "Read-Only Sensors (nct6683)",
+      "description": "Monitoring only — temps, voltages, fan RPM",
+      "line": 2315
+    },
+    {
+      "function": "run_sensors_menu",
+      "selector": "2",
+      "label": "Full PWM Fan Control (nct6687)",
+      "description": "Recommended — builds module, adds writable PWM control",
+      "line": 2316
+    },
+    {
+      "function": "run_sensors_menu",
+      "selector": "3",
+      "label": "Revert / Remove Sensor Driver",
+      "description": "Unload driver and remove autoload config",
+      "line": 2317
+    },
+    {
+      "function": "run_sensors_menu",
+      "selector": "4",
+      "label": "VRM Telemetry (bc250_vrm)",
+      "description": "CPU/GPU rail V/I/temp/power via NCT6687 SMBus",
+      "line": 2318
+    },
+    {
+      "function": "run_sensors_menu",
+      "selector": "5",
+      "label": "Revert VRM Driver",
+      "description": "Unload bc250_vrm and remove autoload config",
+      "line": 2319
+    },
+    {
+      "function": "run_sensors_menu",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 2320
+    },
+    {
+      "function": "run_coolercontrol_menu",
+      "selector": "1",
+      "label": "Install CoolerControl",
+      "description": "Install coolercontrold (+ optional GUI) and enable service",
+      "line": 2523
+    },
+    {
+      "function": "run_coolercontrol_menu",
+      "selector": "2",
+      "label": "Revert CoolerControl",
+      "description": "Stop, disable, and remove CoolerControl",
+      "line": 2524
+    },
+    {
+      "function": "run_coolercontrol_menu",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 2525
+    },
+    {
+      "function": "run_ds5_bridge_menu",
+      "selector": "1",
+      "label": "Install DS5 Bridge Fix",
+      "description": "⚠  Patched hid-playstation.ko — exposes BTN_MODE for chord combos",
+      "line": 2672
+    },
+    {
+      "function": "run_ds5_bridge_menu",
+      "selector": "2",
+      "label": "Revert DS5 Bridge Fix",
+      "description": "Restore stock hid-playstation.ko",
+      "line": 2673
+    },
+    {
+      "function": "run_ds5_bridge_menu",
+      "selector": "3",
+      "label": "Install DS5 Chord Config",
+      "description": "Patch Steam VDF — PS+Cross=QAM, PS+Triangle=Steam overlay",
+      "line": 2674
+    },
+    {
+      "function": "run_ds5_bridge_menu",
+      "selector": "4",
+      "label": "Revert DS5 Chord Config",
+      "description": "Restore original Steam PS5 chord config",
+      "line": 2675
+    },
+    {
+      "function": "run_ds5_bridge_menu",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 2676
+    },
+    {
+      "function": "run_xbox_adapter_menu",
+      "selector": "1",
+      "label": "Install Xbox Adapter Driver",
+      "description": "Install dkms + xone-dkms + firmware, blacklist xpad/mt76x2u",
+      "line": 2701
+    },
+    {
+      "function": "run_xbox_adapter_menu",
+      "selector": "2",
+      "label": "Revert Xbox Adapter Driver",
+      "description": "Remove xone driver and undo blacklist",
+      "line": 2702
+    },
+    {
+      "function": "run_xbox_adapter_menu",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 2703
+    },
+    {
+      "function": "run_cec_menu",
+      "selector": "C",
+      "label": "TV / Receiver Control",
+      "description": "Open bc250-cec.sh TUI (wake/standby, amp-follow, multi-device etiquette)",
+      "line": 5825
+    },
+    {
+      "function": "run_cec_menu",
+      "selector": "I",
+      "label": "Install Link-Retrain Daemon",
+      "description": "MastaG bc250-cec — retrains DP link when TV/AVR comes back (status: ${rt_status})",
+      "line": 5826
+    },
+    {
+      "function": "run_cec_menu",
+      "selector": "R",
+      "label": "Revert Link-Retrain Daemon",
+      "description": "Remove the bc250-cec retrain daemon",
+      "line": 5827
+    },
+    {
+      "function": "run_cec_menu",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 5828
+    },
+    {
+      "function": "oc_apply_custom",
+      "selector": "$((i+1))",
+      "label": "${CPU_NAMES[$i]}",
+      "description": "${CPU_DESCS[$i]}",
+      "line": 6710
+    },
+    {
+      "function": "oc_apply_custom",
+      "selector": "$((i+1))",
+      "label": "${GPU_NAMES[$i]}",
+      "description": "${GPU_DESCS[$i]}",
+      "line": 6721
+    },
+    {
+      "function": "run_overclock_menu",
+      "selector": "$((i+1))",
+      "label": "${PRESET_NAMES[$i]}",
+      "description": "${PRESET_DESCS[$i]}",
+      "line": 6786
+    },
+    {
+      "function": "run_overclock_menu",
+      "selector": "$((i+1))",
+      "label": "${PRESET_NAMES[$i]}",
+      "description": "${PRESET_DESCS[$i]}",
+      "line": 6792
+    },
+    {
+      "function": "run_overclock_menu",
+      "selector": "C",
+      "label": "Custom",
+      "description": "Mix & match CPU and GPU profiles",
+      "line": 6796
+    },
+    {
+      "function": "run_overclock_menu",
+      "selector": "E",
+      "label": "Edit GPU Config",
+      "description": "Manually edit GPU config with nano",
+      "line": 6797
+    },
+    {
+      "function": "run_overclock_menu",
+      "selector": "F",
+      "label": "Edit CPU Config",
+      "description": "Manually edit CPU config with nano",
+      "line": 6798
+    },
+    {
+      "function": "run_overclock_menu",
+      "selector": "D",
+      "label": "Run bc250-detect",
+      "description": "Auto-tune CPU undervolt (re-run after CPU Core Unlock)",
+      "line": 6799
+    },
+    {
+      "function": "run_overclock_menu",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 6800
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "1",
+      "label": "Install CPU Governor",
+      "description": "bc250-smu-oc CPU overclock service",
+      "line": 7180
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "1R",
+      "label": "Revert CPU Governor",
+      "description": "Remove bc250-smu-oc",
+      "line": 7181
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "2",
+      "label": "Install GPU Governor",
+      "description": "cyan-skillfish GPU governor service",
+      "line": 7182
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "2R",
+      "label": "Revert GPU Governor",
+      "description": "Remove cyan-skillfish-governor-smu",
+      "line": 7183
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "3",
+      "label": "Disable CPU Mitigations",
+      "description": "Add mitigations=off to GRUB",
+      "line": 7184
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "3R",
+      "label": "Re-enable CPU Mitigations",
+      "description": "Remove mitigations=off from GRUB",
+      "line": 7185
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "4",
+      "label": "Configure Swap",
+      "description": "Resize swapfile, set vm.swappiness",
+      "line": 7186
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "4R",
+      "label": "Revert Swap to Default",
+      "description": "Back to stock ${SWAPFILE_STOCK_SIZE_MB}M / swappiness=60",
+      "line": 7187
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "5",
+      "label": "Disable ZRAM & Enable ZSWAP",
+      "description": "lz4, 25% pool — needs reboot",
+      "line": 7188
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "5R",
+      "label": "Revert ZRAM/ZSWAP to Default",
+      "description": "Back to stock ZRAM — needs reboot",
+      "line": 7189
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "6",
+      "label": "Install ACPI Fix",
+      "description": "CPU C-/P-states",
+      "line": 7190
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "6R",
+      "label": "Revert ACPI Fix",
+      "description": "Remove ACPI fix",
+      "line": 7191
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "7",
+      "label": "CU Unlock Live",
+      "description": "Open bc250-cu-live-manager.sh (WGP/CU live manager)",
+      "line": 7192
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "8",
+      "label": "CPU Core Unlock",
+      "description": "⚠  EXPERIMENTAL: 6c/12t -> 8c/16t, needs reboot",
+      "line": 7193
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "8R",
+      "label": "Revert CPU Core Unlock",
+      "description": "Remove boot-time re-apply service",
+      "line": 7194
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "9",
+      "label": "Install RAM/VRAM Split",
+      "description": "UMA_SIZE=512 + ttm.pages_limit dynamic ceiling",
+      "line": 7195
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "9R",
+      "label": "Revert RAM/VRAM Split",
+      "description": "Restore stock ${RAM_SPLIT_STOCK_UMA_MB}MB split",
+      "line": 7196
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "10",
+      "label": "Install Combined Audio+GFX1013",
+      "description": "⚠  Single kernel build (recommended): DP audio + async compute + Mesa/RADV + FSR4 + mesh/task",
+      "line": 7197
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "10R",
+      "label": "Revert Combined Fix",
+      "description": "Restore stock amdgpu.ko + remove patched Mesa",
+      "line": 7198
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "11",
+      "label": "Install AC-3 Surround Encoding",
+      "description": "HDMI/DP Dolby Digital 5.1 via eARC — zero latency, native a52 encoding",
+      "line": 7199
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "11R",
+      "label": "Revert AC-3 Surround Encoding",
+      "description": "Restore HDMI stereo profile",
+      "line": 7200
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "12",
+      "label": "Install Dual-Output Audio",
+      "description": "WirePlumber-native AC3 + HDMI with hotplug guard (MastaG v0.15+v0.17) — requires WP 0.5.17",
+      "line": 7201
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "12R",
+      "label": "Revert Dual-Output Audio",
+      "description": "Remove dual-output audio, restore stock WirePlumber",
+      "line": 7202
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "13",
+      "label": "Install FSR4 Proton (MastaG)",
+      "description": "Pre-built Proton + OptiScaler + FSR4 + fakenvapi — 3 variants (GE/Native/SLR)",
+      "line": 7203
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "13R",
+      "label": "Revert FSR4 Proton",
+      "description": "Remove FSR4 Proton compatibility tool",
+      "line": 7204
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "14",
+      "label": "Install VA-API Video Driver",
+      "description": "H.264/HEVC encode+decode via Vulkan compute (VCN fused off) — Sunshine/Steam Link/mpv/FFmpeg",
+      "line": 7205
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "14R",
+      "label": "Revert VA-API Video Driver",
+      "description": "Remove bc250 VA-API driver + env config",
+      "line": 7206
+    },
+    {
+      "function": "run_install_manual",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 7207
+    },
+    {
+      "function": "run_swap_menu",
+      "selector": "1",
+      "label": "Configure Swap",
+      "description": "Resize $SWAPFILE_PATH and set vm.swappiness",
+      "line": 7259
+    },
+    {
+      "function": "run_swap_menu",
+      "selector": "2",
+      "label": "Disable ZRAM & Enable ZSWAP",
+      "description": "lz4, 25% pool — needs reboot",
+      "line": 7260
+    },
+    {
+      "function": "run_swap_menu",
+      "selector": "3",
+      "label": "Revert Swap to Default",
+      "description": "Back to stock ${SWAPFILE_STOCK_SIZE_MB}M / swappiness=60",
+      "line": 7262
+    },
+    {
+      "function": "run_swap_menu",
+      "selector": "4",
+      "label": "Revert ZRAM/ZSWAP to Default",
+      "description": "Back to stock ZRAM — needs reboot",
+      "line": 7263
+    },
+    {
+      "function": "run_swap_menu",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 7264
+    },
+    {
+      "function": "run_aic8800_menu",
+      "selector": "I",
+      "label": "Install current AIC8800 driver",
+      "description": "For AIC8800D80 MCU0 USB WiFi/BT dongles",
+      "line": 7298
+    },
+    {
+      "function": "run_aic8800_menu",
+      "selector": "L",
+      "label": "Install legacy MCU1 driver",
+      "description": "For older AIC8800DC/DW chip_mcu_id=1 dongles",
+      "line": 7299
+    },
+    {
+      "function": "run_aic8800_menu",
+      "selector": "R",
+      "label": "Revert AIC8800 driver",
+      "description": "Remove either AIC8800 profile",
+      "line": 7300
+    },
+    {
+      "function": "run_aic8800_menu",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 7301
+    },
+    {
+      "function": "run_be200_menu",
+      "selector": "I",
+      "label": "Install BE200 Firmware",
+      "description": "For Intel BE200/BE201 PCIe Wi-Fi 7 cards missing -100/-101 ucode",
+      "line": 7324
+    },
+    {
+      "function": "run_be200_menu",
+      "selector": "R",
+      "label": "Revert BE200 Firmware",
+      "description": "Remove BE200 firmware files",
+      "line": 7325
+    },
+    {
+      "function": "run_be200_menu",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 7326
+    },
+    {
+      "function": "lichii_game_shortcut",
+      "selector": "1",
+      "label": "Ocarina of Time",
+      "description": "upstream-tuned wrapper env",
+      "line": 7651
+    },
+    {
+      "function": "lichii_game_shortcut",
+      "selector": "2",
+      "label": "Mario Kart World",
+      "description": "mkw_30fps patch + frame-gen → 60, native mesh option",
+      "line": 7652
+    },
+    {
+      "function": "lichii_game_shortcut",
+      "selector": "3",
+      "label": "Generic",
+      "description": "safe BC-250 knobs only — no OoT-specific tuning",
+      "line": 7653
+    },
+    {
+      "function": "run_emulators_menu",
+      "selector": "1",
+      "label": "KytyPS5-Native Beta",
+      "description": "PS5 emulator (dmorazasanchez AppImage) — status: $(kyty_installed && echo installed || echo ",
+      "line": 7795
+    },
+    {
+      "function": "run_emulators_menu",
+      "selector": "2",
+      "label": "KytyPS5 Status",
+      "description": "Driver options, GTT, GPU helper, upscalers",
+      "line": 7796
+    },
+    {
+      "function": "run_emulators_menu",
+      "selector": "3",
+      "label": "Revert KytyPS5",
+      "description": "Remove driver options + helper + AppImage (keeps saves)",
+      "line": 7797
+    },
+    {
+      "function": "run_emulators_menu",
+      "selector": "4",
+      "label": "Lichii BC-250",
+      "description": "Zelda OoT Switch 2 native — status: $(lichii_installed && echo installed || echo ",
+      "line": 7798
+    },
+    {
+      "function": "run_emulators_menu",
+      "selector": "5",
+      "label": "Lichii Game Shortcut",
+      "description": "ROM path (.nup/folder) → Linux menu + Steam shortcut",
+      "line": 7799
+    },
+    {
+      "function": "run_emulators_menu",
+      "selector": "6",
+      "label": "Revert Lichii",
+      "description": "Remove Lichii via upstream uninstaller",
+      "line": 7800
+    },
+    {
+      "function": "run_emulators_menu",
+      "selector": "7",
+      "label": "EmuDeck Installer",
+      "description": "Download official installer to Desktop (all other emulators)",
+      "line": 7801
+    },
+    {
+      "function": "run_emulators_menu",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 7802
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "A",
+      "label": "AIC8800 WiFi/BT Driver",
+      "description": "Current D80 and legacy DC/DW MCU1 profiles",
+      "line": 7829
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "E",
+      "label": "BE200 Wi-Fi 7 Firmware",
+      "description": "Install/revert Intel BE200 PCIe firmware (-100/-101 ucode)",
+      "line": 7830
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "F",
+      "label": "Sensors & Fan Control",
+      "description": "NCT6686D sensors / NCT6687 PWM fan control",
+      "line": 7831
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "H",
+      "label": "HDMI-CEC",
+      "description": "TV/receiver control + link-retrain daemon (fixes no-signal after AVR/TV switch)",
+      "line": 7832
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "K",
+      "label": "CoolerControl",
+      "description": "Install/revert CoolerControl fan-curve daemon + GUI",
+      "line": 7833
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "D",
+      "label": "DS5 Bridge PS Button Fix",
+      "description": "Install/revert patched hid-playstation.ko — DualSense PS button chord combos",
+      "line": 7834
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "X",
+      "label": "Xbox Wireless Adapter",
+      "description": "Install/revert xone driver for Xbox One/Series controllers",
+      "line": 7835
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "O",
+      "label": "OpenLinkHub",
+      "description": "Install/revert Corsair iCUE LINK Hub control — status: $(openlinkhub_status_label)",
+      "line": 7836
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "Z",
+      "label": "Toolkit SteamOS Control",
+      "description": "Install Decky fan profiles and LED bar controls",
+      "line": 7837
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "B",
+      "label": "Fix GRUB Boot Hang",
+      "description": "efi_uga.mod not found → boot stuck at 'Press any key to continue'",
+      "line": 7838
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "R",
+      "label": "GRUB Recovery Entries",
+      "description": "Boot entries: HDMI21-DSC off + full revert + menu toggle/timeout",
+      "line": 7839
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "Y",
+      "label": "Repair Pacman Keyring",
+      "description": "Fix PGP signature/keyring errors on package installs",
+      "line": 7840
+    },
+    {
+      "function": "run_extras_menu",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 7841
+    },
+    {
+      "function": "run_recovery_menu",
+      "selector": "I",
+      "label": "Install / Refresh Recovery Entries",
+      "description": "$(recovery_entries_installed && echo 'installed' || echo 'not installed')",
+      "line": 8374
+    },
+    {
+      "function": "run_recovery_menu",
+      "selector": "R",
+      "label": "Remove Recovery Entries",
+      "description": "Delete the entries, units and helper",
+      "line": 8375
+    },
+    {
+      "function": "run_recovery_menu",
+      "selector": "M",
+      "label": "GRUB Menu at Boot",
+      "description": "$(recovery_menu_visible && echo ",
+      "line": 8376
+    },
+    {
+      "function": "run_recovery_menu",
+      "selector": "T",
+      "label": "Menu Timeout",
+      "description": "${RECOVERY_TIMEOUT}s — change",
+      "line": 8377
+    },
+    {
+      "function": "run_recovery_menu",
+      "selector": "0",
+      "label": "Back",
+      "description": "",
+      "line": 8378
+    },
+    {
+      "function": "show_menu",
+      "selector": "1",
+      "label": "Install All",
+      "description": "Install all necessary optimizations: CPU/GPU governor, Mitigations, Swap/ZSWAP, Fixes, CU Unlock",
+      "line": 8436
+    },
+    {
+      "function": "show_menu",
+      "selector": "2",
+      "label": "Install / Revert Manual",
+      "description": "Same as Install All, one component at a time",
+      "line": 8437
+    },
+    {
+      "function": "show_menu",
+      "selector": "3",
+      "label": "Performance Profiles",
+      "description": "CPU & GPU performance profiles",
+      "line": 8438
+    },
+    {
+      "function": "show_menu",
+      "selector": "4",
+      "label": "Revert / Uninstall All",
+      "description": "Undo everything back to SteamOS defaults",
+      "line": 8439
+    },
+    {
+      "function": "show_menu",
+      "selector": "5",
+      "label": "Extras",
+      "description": "Sensors & fans, CoolerControl, HDMI-CEC, AIC8800 WiFi",
+      "line": 8440
+    },
+    {
+      "function": "show_menu",
+      "selector": "6",
+      "label": "Emulators",
+      "description": "KytyPS5-Native (PS5), Lichii (Zelda OoT native), EmuDeck",
+      "line": 8441
+    },
+    {
+      "function": "show_menu",
+      "selector": "V",
+      "label": "Verify My Setup",
+      "description": "Current system summary",
+      "line": 8444
+    },
+    {
+      "function": "show_menu",
+      "selector": "G",
+      "label": "Changelog",
+      "description": "Open the README changelog on GitHub",
+      "line": 8445
+    },
+    {
+      "function": "show_menu",
+      "selector": "I",
+      "label": "Help",
+      "description": "Open the repository (usage & troubleshooting)",
+      "line": 8446
+    },
+    {
+      "function": "show_menu",
+      "selector": "0",
+      "label": "Exit",
+      "description": "",
+      "line": 8447
+    }
+  ],
+  "external_components": [
+    "bc250-core-unlock",
+    "bc250-dual-audio",
+    "bc250-steamos",
+    "bc250-vrm",
+    "bc250_memcfg",
+    "bc250_smu_oc",
+    "nct6687d"
+  ],
+  "extras": [
+    "bc250-fsr4-launch-options",
+    "bc250-launch-coach",
+    "hdmi-ac3-encoding",
+    "hdmi-surround-encoding",
+    "toolkit-steamos-control"
+  ]
+}

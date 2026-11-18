@@ -17,8 +17,11 @@ from bc250cc.infrastructure.external_tools.catalog import EXTERNAL_TOOLS
 from bc250cc.infrastructure.gfx1013_compute_policy import (
     GFX1013_REVIEWED_COMMIT,
     GFX1013_UPSTREAM,
+    STEAMOS_GFX1013_ALTERNATIVE_BACKEND,
     STEAMOS_GFX1013_BACKEND,
+    STEAMOS_GFX1013_BACKEND_REVISION,
 )
+from bc250cc.infrastructure.steamos_real_toolkit import REPOSITORY, REVISION
 from bc250cc.infrastructure.tool_inventory import STANDARD_CU_URL, STEAMOS_CU_URL
 
 
@@ -39,7 +42,9 @@ def test_all_python_integration_inventories_share_manifest_provenance():
     assert STEAMOS_CU_URL == EXTERNAL_TOOLS["cu_manager_steamos"].upstream
     assert GFX1013_UPSTREAM == EXTERNAL_TOOLS["gfx1013_direct"].upstream
     assert GFX1013_REVIEWED_COMMIT == EXTERNAL_TOOLS["gfx1013_direct"].reviewed_revision
-    assert STEAMOS_GFX1013_BACKEND == EXTERNAL_TOOLS["steamos_amdgpu"].upstream
+    assert STEAMOS_GFX1013_BACKEND == EXTERNAL_TOOLS["steamos_real_toolkit"].upstream == REPOSITORY
+    assert STEAMOS_GFX1013_BACKEND_REVISION == REVISION
+    assert STEAMOS_GFX1013_ALTERNATIVE_BACKEND == EXTERNAL_TOOLS["steamos_amdgpu"].upstream
     assert REVIEWED_REVISION == EXTERNAL_TOOLS["core_unlock"].reviewed_revision
 
     repository = DependenciasRepository.__new__(DependenciasRepository)

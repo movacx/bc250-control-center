@@ -45,6 +45,7 @@ from .dashboard_widgets import (  # noqa: E402
     _UpscalerSection,
     _UpscalingGames,
 )
+from .real_toolkit import RealToolkitPanel, SteamOSAlternativePanel, action_label
 from .system_setup_controls import (
     VRAM_SIZE_CHOICES,
     is_bazzite_host,
@@ -752,9 +753,9 @@ class PreparationPagesMixin:
         self._build_directmesh_card()
         layout.addWidget(self.directmesh_card)
         self.steamos_proton_card = PreparationInfoCard(
-            "BC-250 GE-Proton · SteamOS",
-            "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.",
-            scope_text="SteamOS · keyboardspecialist upstream",
+            "Proton · SteamOS Real Toolkit",
+            action_label('proton-install'),
+            scope_text="SteamOS · rpf16rj",
             status_text="Optional",
         )
         for action, label in (
@@ -770,6 +771,36 @@ class PreparationPagesMixin:
         self.steamos_proton_card.hide()
         self.steamos_proton_card.setEnabled(False)
         layout.addWidget(self.steamos_proton_card)
+        self.real_toolkit_card = PreparationInfoCard(
+            'SteamOS Real Toolkit',
+            'Search installation, configuration and recovery tools by component.',
+            scope_text='SteamOS · rpf16rj', status_text='Optional',
+            action_text='Open', payload={'action': 'steamos_tools_browse', 'provider': 'real-toolkit'},
+            secondary_action_text='Check status', secondary_payload={'action': 'real_toolkit:verify', 'governor': ''},
+        )
+        self.real_toolkit_card.action_requested.connect(self._forward_dependency_action)
+        self.real_toolkit_panel = RealToolkitPanel(show_title=False)
+        self.real_toolkit_panel.action_requested.connect(self._forward_dependency_action)
+        self.real_toolkit_panel.hide()
+        self.real_toolkit_panel.setEnabled(False)
+        self.real_toolkit_card.layout().addWidget(self.real_toolkit_panel)
+        self.real_toolkit_card.hide()
+        layout.addWidget(self.real_toolkit_card)
+        self.steamos_alternative_card = PreparationInfoCard(
+            'SteamOS · keyboardspecialist',
+            'Maintain an existing kernel, Mesa / RADV, FSR4 or GE-Proton installation.',
+            scope_text='SteamOS · keyboardspecialist', status_text='Optional',
+            action_text='Open', payload={'action': 'steamos_tools_browse', 'provider': 'keyboardspecialist'},
+            secondary_action_text='Check status', secondary_payload={'action': 'steamos_alternative:graphics-status', 'governor': ''},
+        )
+        self.steamos_alternative_card.action_requested.connect(self._forward_dependency_action)
+        self.steamos_alternative_panel = SteamOSAlternativePanel(show_title=False)
+        self.steamos_alternative_panel.action_requested.connect(self._forward_dependency_action)
+        self.steamos_alternative_panel.hide()
+        self.steamos_alternative_panel.setEnabled(False)
+        self.steamos_alternative_card.layout().addWidget(self.steamos_alternative_panel)
+        self.steamos_alternative_card.hide()
+        layout.addWidget(self.steamos_alternative_card)
         self.cachyos_stack_card = PreparationInfoCard(
             "Arch / CachyOS BC-250 graphics stack · includes GFX1013 fix",
             "MastaG's matched kernel and Mesa/RADV include the GFX1013 async-compute fix. They can be installed separately or together; the current kernel stays as a boot fallback.",

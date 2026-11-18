@@ -14,7 +14,7 @@ def test_complete_public_catalog_schema_and_privacy():
     assert catalog["schema_version"] == 1
     modules = {module["id"] for module in catalog["modules"]}
     entries = handbook.load()
-    assert len(modules) == 15 and len(entries) == 76
+    assert len(modules) == 15 and len(entries) == 80
     assert len({entry["id"] for entry in entries}) == len(entries)
     assert not re.search(r"R-[0-9a-f]{8}|/home/movacx|\"reports\"", json.dumps(catalog))
     expected = {"fixed", "fixed-dev", "user", "pending", "expected", "analysis"}

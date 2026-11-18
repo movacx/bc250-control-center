@@ -6242,5 +6242,11 @@
   "Search by code, message or keyword": "Αναζήτηση με κωδικό, μήνυμα ή λέξη-κλειδί",
   "Matches: {term}": "Αντιστοιχία: {term}",
   "Did you mean: {term}?": "Μήπως εννοούσατε: {term};",
-  "Try another search or select a module.": "Δοκιμάστε άλλη αναζήτηση ή επιλέξτε μια ενότητα."
+  "Try another search or select a module.": "Δοκιμάστε άλλη αναζήτηση ή επιλέξτε μια ενότητα.",
+  "Search installation, configuration and recovery tools by component.": "Αναζητήστε εργαλεία εγκατάστασης, ρύθμισης και ανάκτησης ανά στοιχείο.",
+  "Maintain an existing kernel, Mesa / RADV, FSR4 or GE-Proton installation.": "Διαχειριστείτε μια υπάρχουσα εγκατάσταση πυρήνα, Mesa / RADV, FSR4 ή GE-Proton.",
+  "Restore the stock AMDGPU module for the running kernel only. Mesa, Proton and overrides for other kernels are preserved. Patched graphics features will be unavailable after restarting; review the remaining Mesa configuration before using games.": "Επαναφέρει την αρχική μονάδα AMDGPU μόνο για τον τρέχοντα πυρήνα. Τα Mesa, Proton και οι μονάδες άλλων πυρήνων διατηρούνται. Οι λειτουργίες γραφικών της ενημέρωσης δεν θα είναι διαθέσιμες μετά την επανεκκίνηση· ελέγξτε τη ρύθμιση Mesa πριν ανοίξετε παιχνίδια.",
+  "SteamOS Real Toolkit": "SteamOS Real Toolkit",
+  "SteamOS · keyboardspecialist": "SteamOS · keyboardspecialist",
+  "Use SteamOS Real Toolkit to select, check or revert graphics components.": "Χρησιμοποιήστε το SteamOS Real Toolkit για επιλογή, έλεγχο ή επαναφορά στοιχείων γραφικών."
 }

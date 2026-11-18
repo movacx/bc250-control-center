@@ -1302,6 +1302,18 @@ class GpuGovernorStateMixin:
         if action == "steamos_graphics_upstream":
             self._open_steamos_graphics_upstream(dialog_parent=dialog_parent)
             return
+        if action == "steamos_toolkit_changelog":
+            self._open_steamos_graphics_upstream(dialog_parent=dialog_parent, document='changelog')
+            return
+        if action == "steamos_alternative_upstream":
+            self._open_steamos_graphics_upstream(dialog_parent=dialog_parent, provider='keyboardspecialist')
+            return
+        if action.startswith("real_toolkit:"):
+            self._manage_real_toolkit(action.partition(":")[2], dialog_parent=dialog_parent)
+            return
+        if action.startswith("steamos_alternative:"):
+            self._manage_steamos_alternative(action.partition(":")[2], dialog_parent=dialog_parent)
+            return
         if action.startswith("steamos_proton_"):
             self._manage_steamos_proton(
                 action.removeprefix("steamos_proton_"), dialog_parent=dialog_parent

@@ -138,4 +138,24 @@ def test_steamos_graphics_guide_action_opens_documentation_without_running_a_too
 
     GpuGovernorPage._open_steamos_graphics_upstream(object(), dialog_parent=None)
 
-    assert opened == ["https://github.com/keyboardspecialist/bc250-steamos"]
+    assert opened == ["https://github.com/rpf16rj/bc250-steamos-real-toolkit"]
+    GpuGovernorPage._open_steamos_graphics_upstream(object(), dialog_parent=None, provider='keyboardspecialist')
+    assert opened[-1] == 'https://github.com/keyboardspecialist/bc250-steamos'
+    from bc250cc.infrastructure.steamos_real_toolkit import CHANGELOG_URL
+
+    GpuGovernorPage._open_steamos_graphics_upstream(object(), dialog_parent=None, document='changelog')
+    assert opened[-1] == CHANGELOG_URL
+
+
+def test_primary_steamos_compatibility_does_not_change_native_gpu_points():
+    from types import SimpleNamespace
+
+    calls = []
+    page = SimpleNamespace(
+        _manage_real_toolkit=lambda action, **kwargs: calls.append((action, kwargs)),
+        current_state={'high_frequency_points': {'enabled': True, 'enabled_frequencies': [2400]}},
+    )
+    GpuGovernorPage._prepare_steamos_compatibility(page, None, None)
+    assert calls == [('combined-install', {'dialog_parent': None})]
+    assert page.current_state['high_frequency_points']['enabled'] is True
+    assert page.current_state['high_frequency_points']['enabled_frequencies'] == [2400]

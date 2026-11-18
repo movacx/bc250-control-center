@@ -123,8 +123,10 @@ SYSTEM_DRIVER_DIRS = (
 )
 
 #: The same driver switched on by another installer: upstream's own scripts
-#: and boot unit, or keyboardspecialist's SteamOS toolkit. Never both.
+#: and boot unit, or either SteamOS toolkit provider. Never both.
 FOREIGN_FILES = (
+    Path("/etc/environment.d/99-bc250-vaapi.conf"),
+    Path("/etc/profile.d/zz-bc250-vaapi.sh"),
     Path("/etc/environment.d/99-bc250.conf"),
     Path("/etc/profile.d/bc250.sh"),
     Path("/etc/environment.d/90-bc250-video-codec.conf"),
@@ -246,7 +248,7 @@ def vaapi_state(
     foreign = [str(path) for path in FOREIGN_FILES if path.exists()]
     hardware_vcn = HARDWARE_VCN_ARGUMENT in cmdline.split()
     session = str(environ.get("LIBVA_DRIVER_NAME") or "") == "bc250"
-    if foreign and not ours:
+    if foreign:
         state = "managed-elsewhere"
     elif hardware_vcn and not ours:
         state = "hardware-vcn"
@@ -515,6 +517,7 @@ def _install32(family: str) -> str:
     )
     return "\n".join((
         *_header("add the 32-bit driver"),
+        *_foreign_guard(),
         _owned_guard(ENV_FILE),
         _owned_guard(PROFILE_FILE),
         f"test -f {shlex.quote(str(DRIVER))} || {{ echo 'ERROR: install the 64-bit driver first.'; exit 29; }}",
@@ -648,6 +651,7 @@ def _flatpak_workflow(action: str) -> str:
     enabling = action == "flatpak"
     return "\n".join((
         *_header("Flatpak apps" if enabling else "Flatpak apps · remove"),
+        *(_foreign_guard() if enabling else ()),
         *((
             f"test -f {shlex.quote(str(DRIVER))} || {{ echo 'ERROR: install the driver first.'; exit 29; }}",
         ) if enabling else ()),

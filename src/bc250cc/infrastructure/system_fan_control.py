@@ -79,10 +79,23 @@ def service_enabled() -> bool:
         return False
 
 
+
+TOOLKIT_FAN_CGROUP = Path("/sys/fs/cgroup/system.slice/toolkit-steamos-fan.service/cgroup.events")
+
+def toolkit_fan_running() -> bool:
+    try:
+        return 'populated 1' in TOOLKIT_FAN_CGROUP.read_text(encoding='ascii').splitlines()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        # An existing but unreadable runtime cannot safely grant PWM ownership.
+        return True
+
+
 def fan_handed_to_external() -> bool:
     """True while the user handed the fan to another program."""
     try:
-        return EXTERNAL_FILE.is_file()
+        return EXTERNAL_FILE.is_file() or toolkit_fan_running()
     except OSError:
         return False
 
@@ -90,10 +103,12 @@ def fan_handed_to_external() -> bool:
 def running_fan_managers(proc: Path = Path("/proc")) -> list[str]:
     """Other fan controllers running now, by display name, sorted."""
     found: set[str] = set()
+    if toolkit_fan_running():
+        found.add('Toolkit SteamOS Control')
     try:
         entries = list(proc.iterdir())
     except OSError:
-        return []
+        return sorted(found)
     for entry in entries:
         if not entry.name.isdigit():
             continue

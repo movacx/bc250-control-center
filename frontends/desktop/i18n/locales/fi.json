@@ -6242,5 +6242,11 @@
   "Search by code, message or keyword": "Hae koodilla, viestillä tai avainsanalla",
   "Matches: {term}": "Vastaavuus: {term}",
   "Did you mean: {term}?": "Tarkoititko: {term}?",
-  "Try another search or select a module.": "Kokeile toista hakua tai valitse moduuli."
+  "Try another search or select a module.": "Kokeile toista hakua tai valitse moduuli.",
+  "Search installation, configuration and recovery tools by component.": "Hae asennus-, määritys- ja palautustyökaluja komponentin mukaan.",
+  "Maintain an existing kernel, Mesa / RADV, FSR4 or GE-Proton installation.": "Hallitse olemassa olevaa ytimen, Mesa / RADV:n, FSR4:n tai GE-Protonin asennusta.",
+  "Restore the stock AMDGPU module for the running kernel only. Mesa, Proton and overrides for other kernels are preserved. Patched graphics features will be unavailable after restarting; review the remaining Mesa configuration before using games.": "Palauttaa alkuperäisen AMDGPU-moduulin vain nykyiselle ytimelle. Mesa, Proton ja muiden ytimien moduulit säilytetään. Korjauksen grafiikkaominaisuudet eivät ole käytettävissä uudelleenkäynnistyksen jälkeen; tarkista Mesa-asetukset ennen pelien käynnistämistä.",
+  "SteamOS Real Toolkit": "SteamOS Real Toolkit",
+  "SteamOS · keyboardspecialist": "SteamOS · keyboardspecialist",
+  "Use SteamOS Real Toolkit to select, check or revert graphics components.": "Valitse, tarkista tai palauta grafiikkakomponentit SteamOS Real Toolkitin avulla."
 }

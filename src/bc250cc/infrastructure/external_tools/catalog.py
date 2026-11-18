@@ -222,6 +222,17 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         rollback="Restore the factory 24-CU route and uninstall the persistent service.",
         validation_level="code-reviewed-mocked-hardware-gate-pending",
     ),
+    "steamos_real_toolkit": ExternalToolSpec(
+        key="steamos_real_toolkit",
+        upstream="https://github.com/rpf16rj/bc250-steamos-real-toolkit",
+        license="not-declared-upstream",
+        reviewed_revision="88abd200170c8855f45cc6883e72d243151ceb7a",
+        privilege_class="live-hardware-service-boot-kernel-initramfs",
+        hardware_writes=True,
+        automated=True,
+        rollback="Use the selected component's upstream revert/recovery path; preserve native Control Center services and other providers' installations.",
+        validation_level="code-reviewed-mocked-hardware-gate-pending",
+    ),
     "steamos_amdgpu": ExternalToolSpec(
         key="steamos_amdgpu",
         upstream="https://github.com/keyboardspecialist/bc250-steamos",
@@ -514,6 +525,14 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
         vocabulary="GPU compute units and factory restore",
         actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.APPLY, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
     ),
+    "steamos_real_toolkit": _lifecycle(
+        "Verify the pinned archive SHA-256 and adapt only its explicit action dispatch; retain upstream prompts.",
+        "Inspect provider metadata and actual component artifacts separately from native Control Center and the optional keyboardspecialist backend.",
+        "Use component-specific revert/recovery, checking shared files and service ownership before changes.",
+        conflicts=("Control Center CPU/GPU/CU persistence", "other providers' kernel/Mesa installations", "shared fan and Decky services"),
+        vocabulary="SteamOS Real Toolkit components, performance, graphics, devices and recovery",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
+    ),
     "steamos_amdgpu": _lifecycle(
         "Build the pinned kernel-matched override first, then the matched Mesa/RADV runtime in an explicit second stage.",
         "Verify AMDGPU capabilities, scheduler policy, RADV ownership and optional per-game FSR4 independently.",
@@ -698,6 +717,9 @@ class GitCheckoutReader:
 
 
 EXTERNAL_TOOL_DIRECTORIES = {
+    # Archive workspace, not a git checkout. Component evidence is reported by
+    # probe_real_toolkit; a folder alone must never count as verified code.
+    "steamos_real_toolkit": "/home/.bc250-control-center/real-toolkit/workspace",
     "cachyos_pahole": "cachyos-pahole",
     "cyan_smu": "cyan-skillfish-governor-smu",
     "cpu_smu_oc": "bc250_smu_oc",

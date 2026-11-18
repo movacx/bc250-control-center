@@ -39,6 +39,8 @@ required=(
   privileged/lib/governor_toml.py
   privileged/lib/bc250_fan_engine.py
   privileged/lib/bc250_smu_oc_vendor.zip
+  privileged/lib/bc250_steamos_toolkit_runtime.zip
+  scripts/development/generate_steamos_toolkit_runtime.py
   packaging/common/io.github.movacx.bc250-control-center.desktop
   packaging/common/io.github.movacx.bc250-control-center.metainfo.xml
   privileged/policies/io.github.movacx.bc250-control-center.policy
@@ -283,5 +285,7 @@ for operation in (
     if operation not in bundle:
         raise SystemExit(f"ERROR: Decky Quick Access bundle is stale or incomplete: {operation}")
 PY
+
+python3 -I "$PROJECT_ROOT/scripts/development/generate_steamos_toolkit_runtime.py" --check
 
 echo "OK: BC250 installation source passed structure, syntax and vendor checks."

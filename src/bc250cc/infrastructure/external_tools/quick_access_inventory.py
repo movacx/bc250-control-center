@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import os
 import re
 import stat
@@ -41,9 +42,11 @@ class QuickAccessInventory:
     helper_protected: bool
     helper_protocol: int | None
     plugin_protocol: int | None
-    protocol_compatible: bool
+    protocol_compatible: bool | None
     ready: bool
     next_action: str
+    provider: str = "bc250-quick-access"
+    helper_required: bool = True
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -285,4 +288,35 @@ def quick_access_inventory(
         protocol_compatible=protocol_compatible,
         ready=ready,
         next_action=next_action,
+    )
+
+
+def real_toolkit_inventory(home: Path, environ: Mapping[str, str]) -> QuickAccessInventory:
+    root = Path(environ.get('DECKY_PLUGIN_ROOT', home / 'homebrew/plugins'))
+    plugin = root / 'Toolkit SteamOS Control'
+    payload = (plugin / 'plugin.json', plugin / 'main.py', plugin / 'fan_manager.py', plugin / 'dist/index.js')
+    present = all(_decky_payload_present(path) for path in payload)
+    safe = (_decky_plugin_directory(root) and _decky_plugin_directory(plugin)
+            and _decky_plugin_directory(plugin / 'dist') and all(_decky_plugin_file(path) for path in payload))
+    try:
+        manifest = json.loads((plugin / 'plugin.json').read_text())
+        safe = bool(safe and manifest.get('name') == 'Toolkit SteamOS Control')
+    except (OSError, ValueError, AttributeError):
+        safe = False
+    version, build = _decky_loader_version(home), _steam_client_build(home)
+    parsed = _semantic_version(version)
+    compatible = bool(build is None or build < STEAM_RENAMED_INIT_API_BUILD
+                      or parsed is not None and parsed >= DECKY_RENAMED_INIT_API_MIN_VERSION)
+    ready = bool(present and safe and compatible)
+    return QuickAccessInventory(
+        supported=True, controls_supported=True, init_system=detect_init_manager().kind,
+        decky_plugin_root=str(root), decky_detected=root.is_dir(), decky_loader_version=version,
+        steam_client_build=build, decky_frontend_compatible=compatible,
+        decky_plugin_root_safe=_decky_plugin_directory(root), plugin_path=str(plugin),
+        plugin_present=present, plugin_safe=bool(safe), helper_path='', helper_present=False,
+        helper_protected=False, helper_protocol=None, plugin_protocol=None, protocol_compatible=None,
+        ready=ready, next_action=('Toolkit SteamOS Control is installed.' if ready else
+                     'Install Decky + Toolkit SteamOS Control.' if not root.is_dir() else
+                     'Install Toolkit SteamOS Control from SteamOS Real Toolkit.'),
+        provider='steamos-real-toolkit', helper_required=False,
     )

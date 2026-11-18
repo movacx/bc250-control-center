@@ -6242,5 +6242,11 @@
   "Search by code, message or keyword": "Nach Code, Meldung oder Stichwort suchen",
   "Matches: {term}": "Übereinstimmung: {term}",
   "Did you mean: {term}?": "Meinten Sie: {term}?",
-  "Try another search or select a module.": "Versuchen Sie eine andere Suche oder wählen Sie ein Modul."
+  "Try another search or select a module.": "Versuchen Sie eine andere Suche oder wählen Sie ein Modul.",
+  "Search installation, configuration and recovery tools by component.": "Installations-, Konfigurations- und Wiederherstellungswerkzeuge nach Komponente suchen.",
+  "Maintain an existing kernel, Mesa / RADV, FSR4 or GE-Proton installation.": "Eine bestehende Installation von Kernel, Mesa / RADV, FSR4 oder GE-Proton verwalten.",
+  "Restore the stock AMDGPU module for the running kernel only. Mesa, Proton and overrides for other kernels are preserved. Patched graphics features will be unavailable after restarting; review the remaining Mesa configuration before using games.": "Stellt das ursprüngliche AMDGPU-Modul nur für den laufenden Kernel wieder her. Mesa, Proton und Module anderer Kernel bleiben erhalten. Grafikfunktionen des Patches sind nach dem Neustart nicht verfügbar; prüfen Sie die Mesa-Konfiguration vor dem Spielen.",
+  "SteamOS Real Toolkit": "SteamOS Real Toolkit",
+  "SteamOS · keyboardspecialist": "SteamOS · keyboardspecialist",
+  "Use SteamOS Real Toolkit to select, check or revert graphics components.": "Mit SteamOS Real Toolkit kannst du Grafikkomponenten auswählen, prüfen oder zurücksetzen."
 }

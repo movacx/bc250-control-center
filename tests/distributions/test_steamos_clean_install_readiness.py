@@ -3,8 +3,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-import pytest
-
 import bc250cc.infrastructure.dependencias_repository as dependencies_module
 from bc250cc.infrastructure.dependencias_repository import (
     STEAMOS_CORE_UNLOCK_REVIEWED_COMMIT,
@@ -14,7 +12,6 @@ from bc250cc.infrastructure.dependencias_repository import (
     DependenciasRepository,
 )
 from bc250cc.platform.packages.strategies.factory import create_os_repository
-from bc250cc.shared.errors import ActionNeeded
 
 
 class SteamHost:
@@ -103,81 +100,105 @@ def test_explicit_steamos_compatibility_action_is_separate_and_pinned(tmp_path, 
     repository = _repository(tmp_path, monkeypatch)
     command = repository.preparar_compatibilidad_steamos()
 
-    assert STEAMOS_FIX_REVIEWED_COMMIT in command
-    assert "Building and installing the validated SteamOS fixes" in command
-    assert "Staging protected SteamOS AMDGPU backend" in command
-    assert "/usr/libexec/bc250-control-center/steamos-amdgpu-backend/bc250-audio-fix/patch-driver.sh" in command
-    assert "bc250-update-persistence.sh bc250-storage.sh" in command
-    assert "archive --format=tar" in command
-    # Only the atomic root-owned staging operation opens /usr.  The long
-    # upstream build runs afterwards from the protected copy, not directly
-    # from ResourceTools.
-    assert "with-steamos-writable-root.sh" in command
-    assert "sudo /usr/bin/bash /usr/libexec/bc250-control-center/steamos-amdgpu-backend/bc250-audio-fix/install.sh" in command
-    assert f"/usr/bin/bash {tmp_path}/ResourceTools/bc250-steamos/bc250-audio-fix/fetch-sources-bc250cc.sh" in command
-    assert f"/usr/bin/bash {tmp_path}/ResourceTools/bc250-steamos/bc250-audio-fix/build-bc250cc.sh" in command
-    assert f"sudo /usr/bin/bash {tmp_path}/ResourceTools" not in command
-    assert "Do not close this window; the process is still running." in command
-    assert "Configuration and compilation can take a while." in command
-    assert f"sudo /usr/bin/bash {tmp_path}/ResourceTools/bc250-steamos" not in command
-    assert "bc250-mesh-shader.sh" in command
-    assert "/usr/libexec/bc250-control-center/steamos-amdgpu-backend/bc250-mesh-shader.sh" in command
-    result = subprocess.run(
-        ["bash", "-n", "-c", command],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
+    from bc250cc.infrastructure.steamos_real_toolkit import launch_command
+    assert command == launch_command('combined-install')
+    assert 'keyboardspecialist' not in command
+    assert 'ResourceTools' not in command
 
 
-def test_steamos_graphics_status_never_updates_or_executes_the_checkout(tmp_path, monkeypatch):
+def test_alternative_kernel_uses_the_protected_reviewed_backend(tmp_path, monkeypatch):
+    from bc250cc.infrastructure.steamos_alternative import run_alternative
+
     repository = _repository(tmp_path, monkeypatch)
-    command = repository.gestionar_graficos_steamos("status")
-
-    assert "/usr/libexec/bc250-control-center/steamos-amdgpu-backend/bc250-mesh-shader.sh status-json" in command
-    assert "git clone" not in command
-    assert "archive --format=tar" not in command
-    assert f"/usr/bin/bash {tmp_path}/ResourceTools" not in command
-
-
-def test_steamos_graphics_install_stages_the_pin_before_protected_setup(tmp_path, monkeypatch):
-    repository = _repository(tmp_path, monkeypatch)
-    command = repository.gestionar_graficos_steamos("install")
-
+    command = run_alternative(repository, 'kernel-install')
     assert STEAMOS_FIX_REVIEWED_COMMIT in command
-    assert "archive --format=tar" in command
-    assert "bc250-mesh-shader.sh setup" in command
-    assert "/usr/libexec/bc250-control-center/steamos-amdgpu-backend" in command
-    assert f"/usr/bin/bash {tmp_path}/ResourceTools" not in command
-    result = subprocess.run(
-        ["bash", "-n", "-c", command], capture_output=True, text=True, check=False
-    )
-    assert result.returncode == 0, result.stderr
+    assert 'steamos-amdgpu-backend/bc250-audio-fix/install.sh' in command
+    assert 'with-steamos-writable-root.sh' in command
+    assert 'bc250-steamos-toolkit ' not in command
+    assert 'alternative-graphics' in command
+    assert command.index('alternative-graphics') < command.index('git clone')
+    assert subprocess.run(['bash', '-n', '-c', command]).returncode == 0
+
+
+def test_alternative_graphics_status_never_clones_or_switches_provider(tmp_path, monkeypatch):
+    from bc250cc.infrastructure.steamos_alternative import run_alternative
+
+    repository = _repository(tmp_path, monkeypatch)
+    command = run_alternative(repository, 'graphics-status')
+    assert 'bc250-mesh-shader.sh status-json' in command
+    assert 'git clone' not in command
+    assert 'bc250-steamos-toolkit ' not in command
+    assert 'alternative-graphics' not in command
+
+
+def test_alternative_kernel_preserves_control_center_frequency_guard(tmp_path, monkeypatch):
+    import pytest
+
+    from bc250cc.infrastructure.steamos_alternative import run_alternative
+    from bc250cc.shared.errors import ActionNeeded
+
+    repository = _repository(tmp_path, monkeypatch)
+    repository._steamos_module_frequency_blocker = lambda: 'Disable incompatible GPU points first'
+    repository._abrir_terminal = lambda *args: pytest.fail('Must stop before launching an installer')
+    with pytest.raises(ActionNeeded, match='Disable incompatible GPU points'):
+        run_alternative(repository, 'kernel-install')
+
+
+def test_stock_kernel_recovery_is_scoped_and_never_adopts_unknown_modules(tmp_path, monkeypatch):
+    from bc250cc.infrastructure.steamos_alternative import run_alternative
+
+    repository = _repository(tmp_path, monkeypatch)
+    command = run_alternative(repository, 'kernel-rollback')
+    assert STEAMOS_FIX_REVIEWED_COMMIT in command
+    assert 'rollback.sh "$(uname -r)"' in command
+    assert '--all' not in command and '--adopt-legacy' not in command
+    assert 'git clone' not in command
+    assert 'alternative-graphics' not in command, 'Stock recovery must remain available for mixed installations'
+    assert 'bc250-steamos-toolkit ' not in command
+    assert subprocess.run(['bash', '-n', '-c', command]).returncode == 0
+
+
+def test_stock_kernel_recovery_stops_when_the_protected_backend_is_untrusted(tmp_path, monkeypatch):
+    repository = _repository(tmp_path, monkeypatch)
+    command = repository.restaurar_kernel_steamos_alternativo()
+    # Every sudo request fails locally; the real sudo binary is never called.
+    result = subprocess.run(['bash', '-c', 'sudo() { return 1; };\n' + command],
+                            capture_output=True, text=True)
+    assert result.returncode == 39
+    assert 'No module was changed.' in result.stdout
+    assert 'Restart before relying' not in result.stdout
+
+
+def test_steamos_graphics_status_uses_real_toolkit_verification(tmp_path, monkeypatch):
+    from bc250cc.infrastructure.steamos_real_toolkit import launch_command
+    repository = _repository(tmp_path, monkeypatch)
+    assert repository.gestionar_graficos_steamos('status') == launch_command('verify')
+
+
+def test_steamos_graphics_install_uses_the_combined_upstream_transaction(tmp_path, monkeypatch):
+    repository = _repository(tmp_path, monkeypatch)
+    command = repository.gestionar_graficos_steamos('install')
+    assert 'bc250-steamos-toolkit combined-install' in command
+    assert 'ResourceTools' not in command and 'keyboardspecialist' not in command
+    assert subprocess.run(['bash', '-n', '-c', command]).returncode == 0
 
 
 def test_steamos_toolkit_inventory_is_read_only_and_pinned(tmp_path, monkeypatch):
     repository = _repository(tmp_path, monkeypatch)
     command = repository.diagnostico_steamos()
 
-    assert " status" in command
-    assert "patch-driver.sh status" in command
-    assert "/usr/libexec/bc250-control-center/steamos-amdgpu-backend/bc250-audio-fix/patch-driver.sh" in command
-    assert "protected SteamOS AMDGPU backend is unavailable or untrusted" in command
-    # The expected revision is checked against the root-owned stage marker;
-    # it is not used to refresh or execute a ResourceTools checkout.
-    assert STEAMOS_FIX_REVIEWED_COMMIT in command
+    assert "Native AMDGPU evidence" in command
+    assert "patch-driver.sh" not in command
+    assert "steamos-amdgpu-backend" not in command
+    assert STEAMOS_FIX_REVIEWED_COMMIT not in command
     assert "git clone" not in command
     assert "git archive" not in command
-    assert "ResourceTools/bc250-steamos" not in command
     assert "initramfs" not in command
     assert "steamos-readonly disable" not in command
     assert "Native BC250 Control Center SteamOS diagnostics" in command
-    assert "bc250-toolkit.sh status" not in command
-    assert "amdgpu.sched_policy=2" in command
-    assert "reboot is pending" in command
-    assert "/tmp/bc250-steamos-reconciled-amdgpu.last" not in command
-    assert "bc250-amdgpu-diagnostic.XXXXXX" in command
+    assert "Control Center services" in command
+    assert "Control Center UMR / CU backend" in command
+    assert "NCT hardware monitor" in command
     assert "UMR_DATABASE_PATH" in command
     result = subprocess.run(
         ["bash", "-n", "-c", command],
@@ -304,31 +325,18 @@ def test_steamos_cyan_source_and_release_are_pinned_for_reproducible_clean_insta
     assert dependencies_module.STEAMOS_CYAN_REVIEWED_RELEASE == "v0.4.15"
 
 
-def test_the_kernel_module_waits_until_gpu_points_above_its_limit_are_off(tmp_path, monkeypatch):
+def test_real_toolkit_owns_its_kernel_profile_prerequisites(tmp_path, monkeypatch):
     repository = _repository(tmp_path, monkeypatch)
-    repository._steamos_module_frequency_blocker = lambda: "turn the points off first"
+    def old_provider_gate():
+        raise AssertionError('The former backend limits must not govern Real Toolkit')
+    repository._steamos_module_frequency_blocker = old_provider_gate
+    assert 'combined-install' in repository.preparar_compatibilidad_steamos()
 
-    # An instruction for the user, not an error window with a code (R-dce0d0a0).
-    with pytest.raises(ActionNeeded, match="turn the points off first"):
-        repository.preparar_compatibilidad_steamos()
 
-
-def test_reviewed_kernel_patches_are_preserved_and_an_old_tree_is_cleaned_once(tmp_path, monkeypatch):
+def test_compatibility_uses_the_real_toolkit_build_lifecycle(tmp_path, monkeypatch):
     repository = _repository(tmp_path, monkeypatch)
     command = repository.preparar_compatibilidad_steamos()
-
-    # Runtime adapters preserve the reviewed kernel patches and protected installer.
-    assert "telemetry-oc-overlay" not in command
-    assert "bc250-steamos-amdgpu-overlay" not in command
-    assert "BC250_CONTROL_CENTER_OC_TELEMETRY" not in command
-    audio = f"{tmp_path}/ResourceTools/bc250-steamos/bc250-audio-fix"
-    # Exit 75 (tree prepared by an older toolkit) cleans and builds once more.
-    first = command.index(f"/usr/bin/bash {audio}/build-bc250cc.sh || bc250_build_rc=$?")
-    retry = command.index('if [ "$bc250_build_rc" = 75 ]; then', first)
-    clean = command.index(f"/usr/bin/bash {audio}/clean.sh;", retry)
-    recovery = command.index('repair-steamos-kernel-index.py', retry)
-    assert retry < recovery < clean
-    rebuild = command.index(f"/usr/bin/bash {audio}/build-bc250cc.sh || bc250_build_rc=$?", clean)
-    assert first < retry < clean < rebuild
-    assert 'STEAMOS_AMDGPU_BUILD_FAILED' in command
-    assert "clean.sh --all" not in command
+    assert 'bc250-steamos-toolkit combined-install' in command
+    assert 'build-bc250cc.sh' not in command
+    assert 'telemetry-oc-overlay' not in command
+    assert 'clean.sh --all' not in command

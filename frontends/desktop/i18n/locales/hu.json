@@ -6242,5 +6242,11 @@
   "Search by code, message or keyword": "Keresés kód, üzenet vagy kulcsszó alapján",
   "Matches: {term}": "Egyezés: {term}",
   "Did you mean: {term}?": "Erre gondolt: {term}?",
-  "Try another search or select a module.": "Próbáljon másik keresést, vagy válasszon egy modult."
+  "Try another search or select a module.": "Próbáljon másik keresést, vagy válasszon egy modult.",
+  "Search installation, configuration and recovery tools by component.": "Telepítési, beállítási és helyreállítási eszközök keresése összetevő szerint.",
+  "Maintain an existing kernel, Mesa / RADV, FSR4 or GE-Proton installation.": "Meglévő kernel-, Mesa / RADV-, FSR4- vagy GE-Proton-telepítés kezelése.",
+  "Restore the stock AMDGPU module for the running kernel only. Mesa, Proton and overrides for other kernels are preserved. Patched graphics features will be unavailable after restarting; review the remaining Mesa configuration before using games.": "Csak a jelenlegi kernel eredeti AMDGPU-modulját állítja vissza. A Mesa, a Proton és a többi kernel moduljai megmaradnak. Az újraindítás után a javítás grafikai funkciói nem lesznek elérhetők; játékindítás előtt ellenőrizze a Mesa beállításait.",
+  "SteamOS Real Toolkit": "SteamOS Real Toolkit",
+  "SteamOS · keyboardspecialist": "SteamOS · keyboardspecialist",
+  "Use SteamOS Real Toolkit to select, check or revert graphics components.": "A SteamOS Real Toolkit segítségével kiválaszthatja, ellenőrizheti vagy visszaállíthatja a grafikus összetevőket."
 }

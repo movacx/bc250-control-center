@@ -2607,8 +2607,8 @@
       },
       "owner": "expected",
       "developer": {
-        "es": "el ayudante comprueba el protocolo y se niega si no coincide (correcto). Mejora pendiente: decir qué versión tiene cada lado.",
-        "en": "The protocol check is intentional. Improve the message to show both installed versions."
+        "es": "el ayudante comprueba el protocolo y se niega si no coincide (correcto). Mejora pendiente: decir qué versión tiene cada lado. Los reportes de 1.22.9 en Bazzite ya muestran qué protocolo tiene cada lado (instalado 6, la app pide 7).",
+        "en": "The protocol check is intentional. Improve the message to show both installed versions. Reports from 1.22.9 on Bazzite already show each side's protocol (installed 6, the app needs 7)."
       },
       "status": "user",
       "status_flags": [
@@ -12684,7 +12684,8 @@
       ],
       "match": [
         "oberon-governor still has an executable",
-        "ExecStart=/usr/local/bin/oberon-governor"
+        "ExecStart=/usr/local/bin/oberon-governor",
+        "features\\.h: No such file or directory"
       ],
       "keywords": {
         "und": [
@@ -13043,8 +13044,8 @@
       },
       "owner": "both",
       "developer": {
-        "es": "pendiente: ofrecer quitar binarios sueltos y mostrar la última línea del journal de Oberon.",
-        "en": "Handle leftover unowned binaries explicitly and show the first relevant build or journal error."
+        "es": "pendiente: ofrecer quitar binarios sueltos y mostrar la última línea del journal de Oberon. En SteamOS faltan las cabeceras de C (features.h) al compilar Oberon; depende del backend de SteamOS, que está migrando.",
+        "en": "Handle leftover unowned binaries explicitly and show the first relevant build or journal error. On SteamOS the C headers (features.h) are missing when building Oberon; it depends on the SteamOS backend, which is being migrated."
       },
       "status": "user",
       "status_flags": [
@@ -16857,8 +16858,8 @@
       },
       "owner": "both",
       "developer": {
-        "es": "ampliar las bases soportadas en cada versión de SteamOS (ya se añadió 7.2 en versiones posteriores; muestra el paso siguiente funcionando).",
-        "en": "Review supported kernel bases when Valve publishes a new SteamOS branch."
+        "es": "ampliar las bases soportadas en cada versión de SteamOS (ya se añadió 7.2 en versiones posteriores; muestra el paso siguiente funcionando). Reportes de 1.22.9: kernels 7.3.1-valve2 y 7.3.1-valve3, fuera de las bases 6.16, 6.18 y 7.2. Se resuelve con la migración del backend, no aquí.",
+        "en": "Review supported kernel bases when Valve publishes a new SteamOS branch. Reports from 1.22.9: kernels 7.3.1-valve2 and 7.3.1-valve3, outside the 6.16, 6.18 and 7.2 bases. It is addressed by the backend migration, not here."
       },
       "status": "fixed",
       "status_flags": [
@@ -18768,8 +18769,8 @@
       },
       "owner": "user",
       "developer": {
-        "es": "corregido en 1.22.7. Se abrió un issue al autor de HelixSR pidiendo no reemplazar archivos de una versión publicada.",
-        "en": "Reviewed republished archives are handled without bypassing integrity verification."
+        "es": "corregido en 1.22.7. Se abrió un issue al autor de HelixSR pidiendo no reemplazar archivos de una versión publicada. Además, ante una discrepancia el instalador descarga el archivo una vez más por si llegó dañado antes de rechazarlo.",
+        "en": "Reviewed republished archives are handled without bypassing integrity verification. On a mismatch the installer also downloads the archive once more, in case it arrived damaged, before refusing it."
       },
       "status": "fixed",
       "status_flags": [
@@ -19724,8 +19725,8 @@
       },
       "owner": "both",
       "developer": {
-        "es": "pendiente: ante \"Internal compiler error\", reintentar ese shader una vez; elegir automáticamente un Proton con files/bin/wine válido; detectar Toolbx.",
-        "en": "Add one shader retry, select a genuinely executable Proton Wine path and detect Toolbx/Distrobox environments."
+        "es": "pendiente: ante \"Internal compiler error\", reintentar ese shader una vez; elegir automáticamente un Proton con files/bin/wine válido; detectar Toolbx. Si Wine se cierra a mitad (Connection reset by peer), ver UPS-08: se reintenta una vez.",
+        "en": "Add one shader retry, select a genuinely executable Proton Wine path and detect Toolbx/Distrobox environments. If Wine closes midway (Connection reset by peer), see UPS-08: it is retried once."
       },
       "status": "pending",
       "status_flags": [
@@ -29168,6 +29169,1538 @@
         "summary": {
           "es": "Ver los reportes enviados y su estado",
           "en": "Let users review their submitted reports."
+        }
+      }
+    },
+    {
+      "id": "UPS-08",
+      "module": "upscaling",
+      "title": {
+        "es": "Wine se cierra a mitad de la red de HelixSR (Connection reset by peer)",
+        "en": "Wine closes in the middle of the HelixSR network build (Connection reset by peer)"
+      },
+      "codes": [
+        "BC250-GENERAL-001"
+      ],
+      "match": [
+        "wine client error[^\\n]*Connection reset by peer",
+        "recvmsg: Connection reset by peer"
+      ],
+      "keywords": {
+        "und": [
+          "wine client error",
+          "Connection reset by peer",
+          "recvmsg",
+          "dxc-wine.sh",
+          "m8_hdr_mvdiff_mvlo",
+          "the setup stopped",
+          "network was not built",
+          "Build network files",
+          "wineserver"
+        ],
+        "en": [
+          "Wine closes in the middle of the HelixSR network build (Connection reset by peer)",
+          "In Steam, verify the files of the Proton version in use, or install Wine for this system. Inside a container, install the libraries Wine needs there, then run this action again."
+        ],
+        "es": [
+          "Wine se cierra a mitad de la red de HelixSR (Connection reset by peer)",
+          "En Steam, verifica los archivos de la versión de Proton en uso, o instala Wine para este sistema. Dentro de un contenedor, instala allí las bibliotecas que Wine necesita y ejecuta la acción de nuevo."
+        ],
+        "bg": [
+          "Мащабиране",
+          "Wine не може да стартира.",
+          "Wine не можа да зареди собствените си файлове на Windows, така че компилацията Proton, която използва, или неговият префикс Wine е непълен.",
+          "В Steam проверете файловете на използваната версия на Proton, след което изпълнете това действие отново.",
+          "Wine или Proton не могат да се изпълнят в тази среда.",
+          "Програмата Wine, с която HelixSR компилира своите шейдъри, съществува, но Linux не може да я изпълни тук: липсва зареждач или библиотека, от която зависи, което се случва в контейнер Toolbx или Distrobox или с непълен Proton.",
+          "В Steam проверете файловете на използваната версия на Proton или инсталирайте Wine за тази система. В контейнер инсталирайте там библиотеките, нужни на Wine, и изпълнете действието отново."
+        ],
+        "cs": [
+          "Upscaling",
+          "Wine nelze spustit.",
+          "Wine nemohl načíst své vlastní soubory Windows, takže sestavení Proton, které používá, nebo jeho předpona Wine je neúplná.",
+          "Ve službě Steam ověřte používané soubory verze Proton a poté spusťte tuto akci znovu.",
+          "Wine nebo Proton nelze v tomto prostředí spustit.",
+          "Program Wine, kterým HelixSR kompiluje své shadery, existuje, ale Linux ho zde nemůže spustit: chybí zavaděč nebo knihovna, na které závisí, což se stává v kontejneru Toolbx nebo Distrobox nebo s neúplným Protonem.",
+          "Ve Steamu ověřte soubory používané verze Protonu, nebo nainstalujte Wine pro tento systém. V kontejneru tam nainstalujte knihovny, které Wine potřebuje, a spusťte akci znovu."
+        ],
+        "da": [
+          "Opskalering",
+          "Wine kunne ikke starte.",
+          "Wine kunne ikke indlæse sine egne Windows-filer, så Proton-bygningen den bruger, eller dens Wine-præfiks er ufuldstændig.",
+          "I Steam skal du kontrollere filerne for Proton-versionen, der er i brug, og derefter køre denne handling igen.",
+          "Wine eller Proton kan ikke køre i dette miljø.",
+          "Det Wine-program, HelixSR bruger til at kompilere sine shaders, findes, men Linux kan ikke køre det her: en loader eller et bibliotek, det afhænger af, mangler, hvilket sker i en Toolbx- eller Distrobox-container eller med en ufuldstændig Proton.",
+          "Verificér i Steam filerne for den anvendte Proton-version, eller installér Wine til dette system. I en container skal du installere de biblioteker, Wine behøver, dér, og derefter køre handlingen igen."
+        ],
+        "de": [
+          "Hochskalierung",
+          "Wine konnte nicht gestartet werden.",
+          "Wine konnte seine eigenen Windows-Dateien nicht laden, daher ist der von ihm verwendete Proton-Build oder sein Wine-Präfix unvollständig.",
+          "Überprüfen Sie in Steam die Dateien der verwendeten Proton-Version und führen Sie diese Aktion dann erneut aus.",
+          "Wine oder Proton kann in dieser Umgebung nicht laufen.",
+          "Das Wine-Programm, mit dem HelixSR seine Shader kompiliert, ist vorhanden, aber Linux kann es hier nicht ausführen: Ein Loader oder eine Bibliothek, von der es abhängt, fehlt, was in einem Toolbx- oder Distrobox-Container oder bei einem unvollständigen Proton vorkommt.",
+          "Überprüfen Sie in Steam die Dateien der verwendeten Proton-Version oder installieren Sie Wine für dieses System. In einem Container installieren Sie dort die Bibliotheken, die Wine braucht, und führen die Aktion erneut aus."
+        ],
+        "el": [
+          "Upscaling",
+          "Δεν ήταν δυνατή η έναρξη του Wine.",
+          "Το Wine δεν μπόρεσε να φορτώσει τα δικά του αρχεία Windows, επομένως η κατασκευή Proton που χρησιμοποιεί ή το πρόθεμά του Wine δεν είναι ολοκληρωμένο.",
+          "Στο Steam, επαληθεύστε τα αρχεία της έκδοσης Proton που χρησιμοποιείται και, στη συνέχεια, εκτελέστε ξανά αυτήν την ενέργεια.",
+          "Το Wine ή το Proton δεν μπορεί να εκτελεστεί σε αυτό το περιβάλλον.",
+          "Το πρόγραμμα Wine που χρησιμοποιεί το HelixSR για να μεταγλωττίσει τα shaders του υπάρχει, αλλά το Linux δεν μπορεί να το εκτελέσει εδώ: λείπει ένας φορτωτής ή μια βιβλιοθήκη από την οποία εξαρτάται, κάτι που συμβαίνει σε container Toolbx ή Distrobox ή με ελλιπές Proton.",
+          "Στο Steam, επαληθεύστε τα αρχεία της έκδοσης Proton που χρησιμοποιείται, ή εγκαταστήστε το Wine για αυτό το σύστημα. Σε container, εγκαταστήστε εκεί τις βιβλιοθήκες που χρειάζεται το Wine και εκτελέστε ξανά την ενέργεια."
+        ],
+        "es-419": [
+          "Escalado",
+          "Wine no pudo iniciarse.",
+          "Wine no pudo cargar sus propios archivos de Windows, así que la versión de Proton que usa o su prefijo de Wine están incompletos.",
+          "En Steam, verifica los archivos de la versión de Proton en uso y vuelve a ejecutar esta acción.",
+          "Wine o Proton no pueden ejecutarse en este entorno.",
+          "El programa Wine que HelixSR usa para compilar sus shaders existe, pero Linux no puede ejecutarlo aquí: falta un cargador o una biblioteca de la que depende, lo que ocurre dentro de un contenedor Toolbx o Distrobox o con un Proton incompleto.",
+          "En Steam, verifica los archivos de la versión de Proton en uso, o instala Wine para este sistema. Dentro de un contenedor, instala allí las bibliotecas que Wine necesita y ejecuta la acción de nuevo."
+        ],
+        "fi": [
+          "Skaalaus",
+          "Wine ei voinut käynnistyä.",
+          "Wine ei voinut ladata omia Windows-tiedostojaan, joten sen käyttämä Proton-rakennus tai sen Wine-etuliite on epätäydellinen.",
+          "Tarkista Steamssa käytössä olevan Proton-version tiedostot ja suorita sitten tämä toiminto uudelleen.",
+          "Wine tai Proton ei voi toimia tässä ympäristössä.",
+          "Wine-ohjelma, jolla HelixSR kääntää varjostimensa, on olemassa, mutta Linux ei voi suorittaa sitä tässä: lataaja tai kirjasto, josta se riippuu, puuttuu; näin käy Toolbx- tai Distrobox-säiliössä tai puutteellisen Protonin kanssa.",
+          "Tarkista Steamissa käytössä olevan Proton-version tiedostot tai asenna Wine tälle järjestelmälle. Säiliössä asenna sinne Winen tarvitsemat kirjastot ja suorita toiminto uudelleen."
+        ],
+        "fr": [
+          "Upscaling",
+          "Wine n'a pas pu démarrer.",
+          "Wine n'a pas pu charger ses propres fichiers Windows, donc la version Proton qu'il utilise ou son préfixe Wine est incomplet.",
+          "Dans Steam, vérifiez les fichiers de la version Proton utilisée, puis réexécutez cette action.",
+          "Wine ou Proton ne peut pas s'exécuter dans cet environnement.",
+          "Le programme Wine qu'HelixSR utilise pour compiler ses shaders existe, mais Linux ne peut pas l'exécuter ici : un chargeur ou une bibliothèque dont il dépend manque, ce qui arrive dans un conteneur Toolbx ou Distrobox ou avec un Proton incomplet.",
+          "Dans Steam, vérifiez les fichiers de la version de Proton utilisée, ou installez Wine pour ce système. Dans un conteneur, installez-y les bibliothèques dont Wine a besoin, puis relancez l'action."
+        ],
+        "hu": [
+          "Felskálázás",
+          "A Wine nem indul el.",
+          "A Wine nem tudta betölteni a saját Windows fájljait, ezért az általa használt Proton build vagy a Wine előtagja hiányos.",
+          "A Steam alkalmazásban ellenőrizze a használt Proton verziójú fájlokat, majd futtassa újra ezt a műveletet.",
+          "A Wine vagy a Proton nem futtatható ebben a környezetben.",
+          "A Wine program, amellyel a HelixSR a shadereit fordítja, létezik, de a Linux itt nem tudja végrehajtani: hiányzik egy betöltő vagy egy könyvtár, amelytől függ; ez Toolbx vagy Distrobox konténerben, illetve hiányos Protonnal fordul elő.",
+          "A Steamben ellenőrizze a használt Proton-verzió fájljait, vagy telepítse a Wine-t erre a rendszerre. Konténerben telepítse oda a Wine-nak szükséges könyvtárakat, majd futtassa újra a műveletet."
+        ],
+        "id": [
+          "Upscaling",
+          "Wine tidak dapat dijalankan.",
+          "Wine tidak dapat memuat file Windowsnya sendiri, sehingga build Proton yang digunakannya atau awalan Wine-nya tidak lengkap.",
+          "Di Steam, verifikasi file versi Proton yang digunakan, lalu jalankan tindakan ini lagi.",
+          "Wine atau Proton tidak dapat berjalan di lingkungan ini.",
+          "Program Wine yang digunakan HelixSR untuk mengompilasi shader-nya ada, tetapi Linux tidak dapat menjalankannya di sini: loader atau pustaka yang dibutuhkannya hilang, yang terjadi di dalam kontainer Toolbx atau Distrobox atau dengan Proton yang tidak lengkap.",
+          "Di Steam, verifikasi file versi Proton yang digunakan, atau pasang Wine untuk sistem ini. Di dalam kontainer, pasang pustaka yang dibutuhkan Wine di sana, lalu jalankan tindakan lagi."
+        ],
+        "it": [
+          "Upscaling",
+          "Impossibile avviare Wine.",
+          "Wine non è riuscito a caricare i propri file Windows, quindi la build Proton che utilizza o il suo prefisso Wine è incompleto.",
+          "In Steam, verifica i file della versione di Proton in uso, quindi esegui nuovamente questa azione.",
+          "Wine o Proton non possono essere eseguiti in questo ambiente.",
+          "Il programma Wine che HelixSR usa per compilare i suoi shader esiste, ma Linux non può eseguirlo qui: manca un loader o una libreria da cui dipende, cosa che accade dentro un container Toolbx o Distrobox o con un Proton incompleto.",
+          "In Steam verifica i file della versione di Proton in uso, oppure installa Wine per questo sistema. Dentro un container installa lì le librerie che servono a Wine, poi esegui di nuovo l'azione."
+        ],
+        "ja": [
+          "アップスケーリング",
+          "Wine を開始できませんでした。",
+          "Wine は独自の Windows ファイルを読み込めなかったため、使用する Proton ビルドか、その Wine プレフィックスが不完全です。",
+          "Steam で、使用中の Proton バージョンのファイルを確認してから、このアクションを再度実行します。",
+          "Wine または Proton をこの環境で実行できません。",
+          "HelixSR がシェーダーのコンパイルに使う Wine プログラムは存在しますが、Linux はここでそれを実行できません。依存するローダーまたはライブラリが見つからないためで、Toolbx や Distrobox のコンテナ内、または不完全な Proton で起こります。",
+          "Steam で使用中の Proton バージョンのファイルを検証するか、このシステムに Wine をインストールしてください。コンテナ内では、Wine が必要とするライブラリをそこにインストールしてから、操作をもう一度実行してください。"
+        ],
+        "ko": [
+          "업스케일링",
+          "Wine을 시작할 수 없습니다.",
+          "Wine은 자체 Windows 파일을 로드할 수 없으므로 사용하는 Proton 빌드 또는 해당 Wine 접두사가 불완전합니다.",
+          "Steam에서 사용 중인 Proton 버전의 파일을 확인한 후 이 작업을 다시 실행하세요.",
+          "이 환경에서는 Wine 또는 Proton을 실행할 수 없습니다.",
+          "HelixSR이 셰이더를 컴파일하는 데 사용하는 Wine 프로그램은 존재하지만 Linux가 여기서 실행할 수 없습니다. 의존하는 로더나 라이브러리가 없기 때문이며, Toolbx나 Distrobox 컨테이너 안이나 불완전한 Proton에서 일어납니다.",
+          "Steam에서 사용 중인 Proton 버전의 파일을 검증하거나 이 시스템에 Wine을 설치하세요. 컨테이너 안이라면 Wine에 필요한 라이브러리를 그곳에 설치한 뒤 작업을 다시 실행하세요."
+        ],
+        "ms": [
+          "Penskalaan atas",
+          "Wine tidak dapat dimulakan.",
+          "Wine tidak dapat memuatkan fail Windowsnya sendiri, jadi binaan Proton yang digunakannya atau awalan Winenya tidak lengkap.",
+          "Dalam Steam, sahkan fail versi Proton yang sedang digunakan, kemudian jalankan tindakan ini sekali lagi.",
+          "Wine atau Proton tidak boleh berjalan dalam persekitaran ini.",
+          "Program Wine yang digunakan HelixSR untuk mengkompil shader-nya wujud, tetapi Linux tidak dapat melaksanakannya di sini: pemuat atau pustaka yang diperlukannya hilang, yang berlaku di dalam bekas Toolbx atau Distrobox atau dengan Proton yang tidak lengkap.",
+          "Dalam Steam, sahkan fail versi Proton yang digunakan, atau pasang Wine untuk sistem ini. Di dalam bekas, pasang pustaka yang diperlukan Wine di sana, kemudian jalankan tindakan sekali lagi."
+        ],
+        "nl": [
+          "Upscaling",
+          "Wine kan niet starten.",
+          "Wine kon zijn eigen Windows-bestanden niet laden, dus de Proton build die het gebruikt of het Wine voorvoegsel is onvolledig.",
+          "Controleer in Steam de bestanden van de gebruikte Proton-versie en voer deze actie vervolgens opnieuw uit.",
+          "Wine of Proton kan in deze omgeving niet draaien.",
+          "Het Wine-programma waarmee HelixSR zijn shaders compileert bestaat, maar Linux kan het hier niet uitvoeren: een loader of bibliotheek waarvan het afhangt ontbreekt, wat gebeurt in een Toolbx- of Distrobox-container of met een onvolledige Proton.",
+          "Controleer in Steam de bestanden van de gebruikte Proton-versie, of installeer Wine voor dit systeem. Installeer in een container daar de bibliotheken die Wine nodig heeft en voer de actie opnieuw uit."
+        ],
+        "no": [
+          "Oppskalering",
+          "Wine kunne ikke starte.",
+          "Wine kunne ikke laste inn sine egne Windows-filer, så Proton-bygget den bruker eller prefikset Wine er ufullstendig.",
+          "I Steam kontrollerer du filene til Proton-versjonen som er i bruk, og kjør deretter denne handlingen på nytt.",
+          "Wine eller Proton kan ikke kjøre i dette miljøet.",
+          "Wine-programmet HelixSR bruker til å kompilere shaderne sine finnes, men Linux kan ikke kjøre det her: en loader eller et bibliotek det er avhengig av mangler, noe som skjer i en Toolbx- eller Distrobox-container eller med en ufullstendig Proton.",
+          "Verifiser filene for Proton-versjonen i bruk i Steam, eller installer Wine for dette systemet. I en container installerer du bibliotekene Wine trenger der, og kjører handlingen igjen."
+        ],
+        "pl": [
+          "Skalowanie obrazu",
+          "Nie można uruchomić Wine.",
+          "Wine nie mogło załadować własnych plików Windows, więc używana przez niego kompilacja Proton lub jej przedrostek Wine jest niekompletny.",
+          "W Steam sprawdź pliki używanej wersji Proton, a następnie uruchom tę akcję ponownie.",
+          "Wine lub Proton nie mogą działać w tym środowisku.",
+          "Program Wine, którym HelixSR kompiluje swoje shadery, istnieje, ale Linux nie może go tu wykonać: brakuje loadera lub biblioteki, od której zależy, co zdarza się w kontenerze Toolbx lub Distrobox albo z niekompletnym Protonem.",
+          "W Steam sprawdź pliki używanej wersji Protona albo zainstaluj Wine dla tego systemu. W kontenerze zainstaluj tam biblioteki potrzebne Wine i uruchom akcję ponownie."
+        ],
+        "pt": [
+          "Upscaling",
+          "Wine não pôde ser iniciado.",
+          "Wine não pôde carregar seus próprios arquivos do Windows, então a compilação Proton que ele usa ou seu prefixo Wine está incompleto.",
+          "No Steam, verifique os arquivos da versão do Proton em uso e execute esta ação novamente.",
+          "O Wine ou o Proton não conseguem ser executados neste ambiente.",
+          "O programa Wine que o HelixSR usa para compilar os seus shaders existe, mas o Linux não consegue executá-lo aqui: falta um carregador ou uma biblioteca de que depende, o que acontece dentro de um contentor Toolbx ou Distrobox ou com um Proton incompleto.",
+          "No Steam, verifique os ficheiros da versão do Proton em uso, ou instale o Wine para este sistema. Dentro de um contentor, instale aí as bibliotecas de que o Wine precisa e execute a ação de novo."
+        ],
+        "pt-BR": [
+          "Upscaling",
+          "Wine não pôde ser iniciado.",
+          "Wine não pôde carregar seus próprios arquivos do Windows, então a compilação Proton que ele usa ou seu prefixo Wine está incompleto.",
+          "No Steam, verifique os arquivos da versão do Proton em uso e execute esta ação novamente.",
+          "O Wine ou o Proton não conseguem ser executados neste ambiente.",
+          "O programa Wine que o HelixSR usa para compilar seus shaders existe, mas o Linux não consegue executá-lo aqui: falta um carregador ou uma biblioteca da qual ele depende, o que acontece dentro de um contêiner Toolbx ou Distrobox ou com um Proton incompleto.",
+          "No Steam, verifique os arquivos da versão do Proton em uso, ou instale o Wine para este sistema. Dentro de um contêiner, instale lá as bibliotecas de que o Wine precisa e execute a ação de novo."
+        ],
+        "ro": [
+          "Upscaling",
+          "Wine nu a putut porni.",
+          "Wine nu și-a putut încărca propriile fișiere Windows, așa că versiunea Proton pe care o folosește sau prefixul său Wine este incomplet.",
+          "În Steam, verificați fișierele versiunii Proton în uz, apoi executați din nou această acțiune.",
+          "Wine sau Proton nu pot rula în acest mediu.",
+          "Programul Wine pe care HelixSR îl folosește pentru a-și compila shaderele există, dar Linux nu îl poate executa aici: lipsește un încărcător sau o bibliotecă de care depinde, ceea ce se întâmplă într-un container Toolbx sau Distrobox ori cu un Proton incomplet.",
+          "În Steam, verificați fișierele versiunii Proton folosite sau instalați Wine pentru acest sistem. Într-un container, instalați acolo bibliotecile de care Wine are nevoie, apoi rulați din nou acțiunea."
+        ],
+        "ru": [
+          "Апскейлинг",
+          "Wine не удалось запустить.",
+          "Wine не удалось загрузить собственные файлы Windows, поэтому используемая им сборка Proton или ее префикс Wine являются неполными.",
+          "В Steam проверьте файлы используемой версии Proton, затем запустите это действие еще раз.",
+          "Wine или Proton не могут запуститься в этом окружении.",
+          "Программа Wine, которой HelixSR компилирует свои шейдеры, существует, но Linux не может выполнить её здесь: отсутствует загрузчик или библиотека, от которой она зависит; так бывает внутри контейнера Toolbx или Distrobox или с неполным Proton.",
+          "В Steam проверьте файлы используемой версии Proton или установите Wine для этой системы. Внутри контейнера установите там библиотеки, нужные Wine, и запустите действие снова."
+        ],
+        "sv": [
+          "Uppskalning",
+          "Wine kunde inte starta.",
+          "Wine kunde inte ladda sina egna Windows-filer, så Proton-byggnaden den använder eller så är dess prefix Wine ofullständig.",
+          "I Steam, verifiera filerna för Proton-versionen som används och kör sedan den här åtgärden igen.",
+          "Wine eller Proton kan inte köras i den här miljön.",
+          "Wine-programmet som HelixSR använder för att kompilera sina shaders finns, men Linux kan inte köra det här: en laddare eller ett bibliotek det är beroende av saknas, vilket händer i en Toolbx- eller Distrobox-container eller med en ofullständig Proton.",
+          "Verifiera i Steam filerna för den Proton-version som används, eller installera Wine för det här systemet. I en container installerar du de bibliotek Wine behöver där och kör åtgärden igen."
+        ],
+        "th": [
+          "การอัปสเกล",
+          "Wine ไม่สามารถเริ่มทำงานได้",
+          "Wine ไม่สามารถโหลดไฟล์ Windows ของตัวเองได้ ดังนั้น Proton build ที่ใช้หรือคำนำหน้า Wine จึงไม่สมบูรณ์",
+          "ใน Steam ให้ตรวจสอบไฟล์ของเวอร์ชัน Proton ที่ใช้งานอยู่ จากนั้นให้ดำเนินการนี้อีกครั้ง",
+          "Wine หรือ Proton ไม่สามารถทำงานในสภาพแวดล้อมนี้ได้",
+          "โปรแกรม Wine ที่ HelixSR ใช้คอมไพล์เชเดอร์มีอยู่ แต่ Linux ไม่สามารถรันได้ที่นี่: ตัวโหลดหรือไลบรารีที่มันต้องพึ่งพาหายไป ซึ่งเกิดขึ้นในคอนเทนเนอร์ Toolbx หรือ Distrobox หรือกับ Proton ที่ไม่สมบูรณ์",
+          "ใน Steam ให้ตรวจสอบไฟล์ของ Proton รุ่นที่ใช้อยู่ หรือติดตั้ง Wine สำหรับระบบนี้ หากอยู่ในคอนเทนเนอร์ ให้ติดตั้งไลบรารีที่ Wine ต้องการไว้ที่นั่น แล้วรันการดำเนินการอีกครั้ง"
+        ],
+        "tr": [
+          "Yükseltme ölçekleme",
+          "Wine başlatılamadı.",
+          "Wine kendi Windows dosyalarını yükleyemedi, bu nedenle kullandığı Proton yapısı veya Wine öneki eksik.",
+          "Steam'de, kullanılan Proton sürümünün dosyalarını doğrulayın ve ardından bu işlemi tekrar çalıştırın.",
+          "Wine veya Proton bu ortamda çalışamıyor.",
+          "HelixSR'nin shader'larını derlemek için kullandığı Wine programı mevcut, ancak Linux onu burada çalıştıramıyor: bağlı olduğu bir yükleyici veya kütüphane eksik; bu, bir Toolbx ya da Distrobox konteynerinde veya eksik bir Proton ile olur.",
+          "Steam'de kullanılan Proton sürümünün dosyalarını doğrulayın veya bu sistem için Wine kurun. Bir konteynerde, Wine'ın ihtiyaç duyduğu kütüphaneleri oraya kurun ve eylemi yeniden çalıştırın."
+        ],
+        "uk": [
+          "Апскейлінг",
+          "Не вдалося запустити Wine.",
+          "Wine не може завантажити власні файли Windows, тому збірка Proton, яку він використовує, або його префікс Wine неповний.",
+          "У Steam перевірте файли використовуваної версії Proton, а потім знову виконайте цю дію.",
+          "Wine або Proton не можуть запуститися в цьому середовищі.",
+          "Програма Wine, якою HelixSR компілює свої шейдери, існує, але Linux не може виконати її тут: відсутній завантажувач або бібліотека, від якої вона залежить; так буває всередині контейнера Toolbx чи Distrobox або з неповним Proton.",
+          "У Steam перевірте файли використовуваної версії Proton або встановіть Wine для цієї системи. Усередині контейнера встановіть там бібліотеки, потрібні Wine, і запустіть дію знову."
+        ],
+        "vi": [
+          "Nâng độ phân giải",
+          "Wine không thể khởi động.",
+          "Wine không thể tải các tệp Windows của chính nó, do đó bản dựng Proton mà nó sử dụng hoặc tiền tố Wine của nó không đầy đủ.",
+          "Trong Steam, hãy xác minh các tệp của phiên bản Proton đang sử dụng, sau đó chạy lại hành động này.",
+          "Wine hoặc Proton không thể chạy trong môi trường này.",
+          "Chương trình Wine mà HelixSR dùng để biên dịch shader có tồn tại, nhưng Linux không thể thực thi nó ở đây: thiếu một trình nạp hoặc thư viện mà nó phụ thuộc, điều này xảy ra trong container Toolbx hoặc Distrobox hoặc với Proton không đầy đủ.",
+          "Trong Steam, hãy kiểm tra tệp của phiên bản Proton đang dùng, hoặc cài Wine cho hệ thống này. Trong container, hãy cài tại đó các thư viện Wine cần, rồi chạy lại hành động."
+        ],
+        "zh-CN": [
+          "画面超分",
+          "Wine 无法启动。",
+          "Wine 无法加载自己的 Windows 文件，因此它使用的 Proton 版本或其 Wine 前缀不完整。",
+          "在 Steam 中，验证正在使用的 Proton 版本的文件，然后再次运行此操作。",
+          "Wine 或 Proton 无法在此环境中运行。",
+          "HelixSR 用于编译着色器的 Wine 程序存在，但 Linux 无法在此执行它：它所依赖的加载器或库缺失，这在 Toolbx 或 Distrobox 容器内或 Proton 不完整时会发生。",
+          "在 Steam 中验证所用 Proton 版本的文件，或为此系统安装 Wine。在容器内，请在容器中安装 Wine 所需的库，然后再次运行该操作。"
+        ],
+        "zh-TW": [
+          "畫面超解析",
+          "Wine 無法啟動。",
+          "Wine 無法載入自己的 Windows 檔案，因此它使用的 Proton 版本或其 Wine 字首不完整。",
+          "在 Steam 中，驗證正在使用的 Proton 版本的檔案，然後再次執行此操作。",
+          "Wine 或 Proton 無法在此環境中執行。",
+          "HelixSR 用來編譯著色器的 Wine 程式存在，但 Linux 無法在此執行它：它所依賴的載入器或函式庫遺失，這會在 Toolbx 或 Distrobox 容器內，或 Proton 不完整時發生。",
+          "在 Steam 中驗證所用 Proton 版本的檔案，或為此系統安裝 Wine。在容器內，請在容器中安裝 Wine 所需的函式庫，然後再次執行該操作。"
+        ]
+      },
+      "symptom": {
+        "es": "La construcción de la red de HelixSR avanza durante más de 20 minutos (por ejemplo 386 de 389 shaders) y termina con «The network was not built».",
+        "en": "The HelixSR network build runs for more than 20 minutes (for example 386 of 389 shaders) and ends with “The network was not built”."
+      },
+      "cause": {
+        "es": "El proceso de Wine que compila los shaders se cae de golpe (wine client error: Connection reset by peer). No es un shader rechazado por el compilador: es Wine cerrándose, casi siempre por falta de memoria, un cierre del servidor de Wine o una sesión que lo mata. Se perdió todo el avance de esa ejecución.",
+        "en": "The Wine process that compiles the shaders drops suddenly (wine client error: Connection reset by peer). It is not a shader the compiler rejects: Wine itself closed, usually from low memory or a session that kills it."
+      },
+      "distros": {
+        "reported": [
+          "Bazzite"
+        ],
+        "possible": [
+          "arch",
+          "steamos",
+          "bazzite",
+          "fedora",
+          "ubuntu",
+          "debian",
+          "other"
+        ]
+      },
+      "fix": {
+        "arch": {
+          "steps": {
+            "es": "Cerrar otros programas pesados (juegos, navegador) para liberar memoria y volver a construir la red.",
+            "en": "Close heavy programs to free memory, then build the network again."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Comprueba cuánta memoria y swap quedan libres. En una BC-250 con poca memoria compartida, el compilador de shaders puede quedarse sin ella.",
+                "en": "Check free memory and swap. On a BC-250 with little shared memory the shader compiler can run out."
+              },
+              "commands": [
+                "free -h"
+              ]
+            },
+            {
+              "text": {
+                "es": "Vuelve a ejecutar «Construir archivos de red» en Ajustes adicionales › Escalado. Desde esta versión la app lo reintenta sola una vez si Wine se cierra a mitad.",
+                "en": "Run “Build network files” again in Additional settings > Upscaling. This version retries once by itself when Wine closes midway."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Si vuelve a fallar en el mismo shader, guarda el nombre del shader y el Proton usado, y envía el reporte desde Soporte.",
+                "en": "If it fails on the same shader again, keep the shader name and the Proton used, and send a report from Support."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "steamos": {
+          "steps": {
+            "es": "Cerrar otros programas pesados (juegos, navegador) para liberar memoria y volver a construir la red.",
+            "en": "Close heavy programs to free memory, then build the network again."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Comprueba cuánta memoria y swap quedan libres. En una BC-250 con poca memoria compartida, el compilador de shaders puede quedarse sin ella.",
+                "en": "Check free memory and swap. On a BC-250 with little shared memory the shader compiler can run out."
+              },
+              "commands": [
+                "free -h"
+              ]
+            },
+            {
+              "text": {
+                "es": "Vuelve a ejecutar «Construir archivos de red» en Ajustes adicionales › Escalado. Desde esta versión la app lo reintenta sola una vez si Wine se cierra a mitad.",
+                "en": "Run “Build network files” again in Additional settings > Upscaling. This version retries once by itself when Wine closes midway."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Si vuelve a fallar en el mismo shader, guarda el nombre del shader y el Proton usado, y envía el reporte desde Soporte.",
+                "en": "If it fails on the same shader again, keep the shader name and the Proton used, and send a report from Support."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "bazzite": {
+          "steps": {
+            "es": "Cerrar otros programas pesados (juegos, navegador) para liberar memoria y volver a construir la red.",
+            "en": "Close heavy programs to free memory, then build the network again."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Comprueba cuánta memoria y swap quedan libres. En una BC-250 con poca memoria compartida, el compilador de shaders puede quedarse sin ella.",
+                "en": "Check free memory and swap. On a BC-250 with little shared memory the shader compiler can run out."
+              },
+              "commands": [
+                "free -h"
+              ]
+            },
+            {
+              "text": {
+                "es": "Vuelve a ejecutar «Construir archivos de red» en Ajustes adicionales › Escalado. Desde esta versión la app lo reintenta sola una vez si Wine se cierra a mitad.",
+                "en": "Run “Build network files” again in Additional settings > Upscaling. This version retries once by itself when Wine closes midway."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Si vuelve a fallar en el mismo shader, guarda el nombre del shader y el Proton usado, y envía el reporte desde Soporte.",
+                "en": "If it fails on the same shader again, keep the shader name and the Proton used, and send a report from Support."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "fedora": {
+          "steps": {
+            "es": "Cerrar otros programas pesados (juegos, navegador) para liberar memoria y volver a construir la red.",
+            "en": "Close heavy programs to free memory, then build the network again."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Comprueba cuánta memoria y swap quedan libres. En una BC-250 con poca memoria compartida, el compilador de shaders puede quedarse sin ella.",
+                "en": "Check free memory and swap. On a BC-250 with little shared memory the shader compiler can run out."
+              },
+              "commands": [
+                "free -h"
+              ]
+            },
+            {
+              "text": {
+                "es": "Vuelve a ejecutar «Construir archivos de red» en Ajustes adicionales › Escalado. Desde esta versión la app lo reintenta sola una vez si Wine se cierra a mitad.",
+                "en": "Run “Build network files” again in Additional settings > Upscaling. This version retries once by itself when Wine closes midway."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Si vuelve a fallar en el mismo shader, guarda el nombre del shader y el Proton usado, y envía el reporte desde Soporte.",
+                "en": "If it fails on the same shader again, keep the shader name and the Proton used, and send a report from Support."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "ubuntu": {
+          "steps": {
+            "es": "Cerrar otros programas pesados (juegos, navegador) para liberar memoria y volver a construir la red.",
+            "en": "Close heavy programs to free memory, then build the network again."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Comprueba cuánta memoria y swap quedan libres. En una BC-250 con poca memoria compartida, el compilador de shaders puede quedarse sin ella.",
+                "en": "Check free memory and swap. On a BC-250 with little shared memory the shader compiler can run out."
+              },
+              "commands": [
+                "free -h"
+              ]
+            },
+            {
+              "text": {
+                "es": "Vuelve a ejecutar «Construir archivos de red» en Ajustes adicionales › Escalado. Desde esta versión la app lo reintenta sola una vez si Wine se cierra a mitad.",
+                "en": "Run “Build network files” again in Additional settings > Upscaling. This version retries once by itself when Wine closes midway."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Si vuelve a fallar en el mismo shader, guarda el nombre del shader y el Proton usado, y envía el reporte desde Soporte.",
+                "en": "If it fails on the same shader again, keep the shader name and the Proton used, and send a report from Support."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "debian": {
+          "steps": {
+            "es": "Cerrar otros programas pesados (juegos, navegador) para liberar memoria y volver a construir la red.",
+            "en": "Close heavy programs to free memory, then build the network again."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Comprueba cuánta memoria y swap quedan libres. En una BC-250 con poca memoria compartida, el compilador de shaders puede quedarse sin ella.",
+                "en": "Check free memory and swap. On a BC-250 with little shared memory the shader compiler can run out."
+              },
+              "commands": [
+                "free -h"
+              ]
+            },
+            {
+              "text": {
+                "es": "Vuelve a ejecutar «Construir archivos de red» en Ajustes adicionales › Escalado. Desde esta versión la app lo reintenta sola una vez si Wine se cierra a mitad.",
+                "en": "Run “Build network files” again in Additional settings > Upscaling. This version retries once by itself when Wine closes midway."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Si vuelve a fallar en el mismo shader, guarda el nombre del shader y el Proton usado, y envía el reporte desde Soporte.",
+                "en": "If it fails on the same shader again, keep the shader name and the Proton used, and send a report from Support."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "other": {
+          "steps": {
+            "es": "Cerrar otros programas pesados (juegos, navegador) para liberar memoria y volver a construir la red.",
+            "en": "Close heavy programs to free memory, then build the network again."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Comprueba cuánta memoria y swap quedan libres. En una BC-250 con poca memoria compartida, el compilador de shaders puede quedarse sin ella.",
+                "en": "Check free memory and swap. On a BC-250 with little shared memory the shader compiler can run out."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Vuelve a ejecutar «Construir archivos de red» en Ajustes adicionales › Escalado. Desde esta versión la app lo reintenta sola una vez si Wine se cierra a mitad.",
+                "en": "Run “Build network files” again in Additional settings > Upscaling. This version retries once by itself when Wine closes midway."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Si vuelve a fallar en el mismo shader, guarda el nombre del shader y el Proton usado, y envía el reporte desde Soporte.",
+                "en": "If it fails on the same shader again, keep the shader name and the Proton used, and send a report from Support."
+              },
+              "commands": []
+            }
+          ]
+        }
+      },
+      "owner": "both",
+      "developer": {
+        "es": "corregido en la rama de desarrollo: si el setup falla con «wine client error», se ejecuta una vez más antes de rendirse. Pendiente: aprovechar los .cso ya compilados para no repetir 23 minutos.",
+        "en": "Fixed on the development branch: when the setup fails with “wine client error” it is run once more before giving up. Pending: reuse the compiled .cso files so 23 minutes are not repeated."
+      },
+      "status": "fixed-dev",
+      "status_flags": [
+        "fixed-dev"
+      ],
+      "fixed_in": null,
+      "guide": {
+        "title": {
+          "es": "Wine se cierra al final de la red de HelixSR",
+          "en": "Wine closes near the end of the HelixSR network"
+        },
+        "summary": {
+          "es": "La red de HelixSR no termina de construirse porque Wine se cae a mitad.",
+          "en": "The HelixSR network never finishes because Wine drops midway."
+        }
+      }
+    },
+    {
+      "id": "STOR-02",
+      "module": "storage",
+      "title": {
+        "es": "Disco lleno al instalar un paquete grande (Write failed / No space left on device)",
+        "en": "Disk full while installing a large package (Write failed / No space left on device)"
+      },
+      "codes": [
+        "BC250-STORAGE-001",
+        "BC250-GENERAL-001"
+      ],
+      "match": [
+        "could not extract .*\\(Write failed\\)",
+        "write error: No space left on device"
+      ],
+      "keywords": {
+        "und": [
+          "Write failed",
+          "could not extract",
+          "No space left on device",
+          "write error",
+          "failed to commit transaction",
+          "transaction aborted",
+          "proton-cachyos-native-bc250",
+          "wine-mono",
+          "disco lleno",
+          "sin espacio"
+        ],
+        "en": [
+          "Disk full while installing a large package (Write failed / No space left on device)",
+          "Storage"
+        ],
+        "es": [
+          "Disco lleno al instalar un paquete grande (Write failed / No space left on device)",
+          "Almacenamiento"
+        ],
+        "bg": [
+          "Съхранение"
+        ],
+        "cs": [
+          "Skladování"
+        ],
+        "da": [
+          "Opbevaring"
+        ],
+        "de": [
+          "Speicherort"
+        ],
+        "el": [
+          "Αποθήκευση"
+        ],
+        "es-419": [
+          "Almacenamiento"
+        ],
+        "fi": [
+          "Varastointi"
+        ],
+        "fr": [
+          "Stockage"
+        ],
+        "hu": [
+          "Tárolás"
+        ],
+        "id": [
+          "Penyimpanan"
+        ],
+        "it": [
+          "Magazzinaggio"
+        ],
+        "ja": [
+          "ストレージ"
+        ],
+        "ko": [
+          "저장"
+        ],
+        "ms": [
+          "Penyimpanan"
+        ],
+        "nl": [
+          "Opslag"
+        ],
+        "no": [
+          "Oppbevaring"
+        ],
+        "pl": [
+          "Miejsce przechowywania"
+        ],
+        "pt": [
+          "Armazenamento"
+        ],
+        "pt-BR": [
+          "Armazenamento"
+        ],
+        "ro": [
+          "Depozitare"
+        ],
+        "ru": [
+          "Хранилище"
+        ],
+        "sv": [
+          "Förvaring"
+        ],
+        "th": [
+          "ที่เก็บของ"
+        ],
+        "tr": [
+          "Depolama"
+        ],
+        "uk": [
+          "Сховище"
+        ],
+        "vi": [
+          "Lưu trữ"
+        ],
+        "zh-CN": [
+          "存储"
+        ],
+        "zh-TW": [
+          "儲存"
+        ]
+      },
+      "symptom": {
+        "es": "Al instalar el Proton BC-250 (o cualquier paquete grande), pacman muestra decenas de «could not extract … (Write failed)» y la transacción se aborta.",
+        "en": "Installing the BC-250 Proton (or any large package), pacman prints dozens of “could not extract … (Write failed)” and aborts."
+      },
+      "cause": {
+        "es": "El sistema de archivos donde se instala (normalmente / o /usr) se quedó sin espacio a mitad de la extracción. El paquete de Proton ocupa varios GB y la descarga ya había llenado la caché de pacman.",
+        "en": "The filesystem receiving the package filled up during extraction. The Proton package needs several GB and the download had already filled pacman's cache."
+      },
+      "distros": {
+        "reported": [
+          "CachyOS"
+        ],
+        "possible": [
+          "arch",
+          "steamos",
+          "bazzite",
+          "fedora",
+          "ubuntu",
+          "debian",
+          "other"
+        ]
+      },
+      "fix": {
+        "arch": {
+          "steps": {
+            "es": "Liberar espacio en la partición llena y repetir la instalación.",
+            "en": "Free space on the full filesystem and repeat the installation."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué partición está llena y cuánto espacio libre queda.",
+                "en": "See which filesystem is full and how much space is left."
+              },
+              "commands": [
+                "df -h / /var /usr /home"
+              ]
+            },
+            {
+              "text": {
+                "es": "Libera espacio: vacía la caché de paquetes que ya no necesitas y recorta el registro del sistema.",
+                "en": "Free space: drop cached packages you no longer need and trim the system journal."
+              },
+              "commands": [
+                "sudo pacman -Sc",
+                "sudo journalctl --vacuum-size=200M"
+              ]
+            },
+            {
+              "text": {
+                "es": "Repite la instalación del Proton BC-250 desde Ajustes adicionales. Necesita varios GB libres en /.",
+                "en": "Repeat the BC-250 Proton installation from Additional settings. It needs several GB free on /."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "steamos": {
+          "steps": {
+            "es": "Liberar espacio en la partición llena y repetir la instalación.",
+            "en": "Free space on the full filesystem and repeat the installation."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué partición está llena y cuánto espacio libre queda.",
+                "en": "See which filesystem is full and how much space is left."
+              },
+              "commands": [
+                "df -h / /var /usr /home"
+              ]
+            },
+            {
+              "text": {
+                "es": "Libera espacio: vacía la caché de paquetes que ya no necesitas y recorta el registro del sistema.",
+                "en": "Free space: drop cached packages you no longer need and trim the system journal."
+              },
+              "commands": [
+                "sudo pacman -Sc",
+                "sudo journalctl --vacuum-size=200M"
+              ]
+            },
+            {
+              "text": {
+                "es": "Repite la instalación del Proton BC-250 desde Ajustes adicionales. Necesita varios GB libres en /.",
+                "en": "Repeat the BC-250 Proton installation from Additional settings. It needs several GB free on /."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "bazzite": {
+          "steps": {
+            "es": "Liberar espacio en la partición llena y repetir la instalación.",
+            "en": "Free space on the full filesystem and repeat the installation."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué partición está llena y cuánto espacio libre queda.",
+                "en": "See which filesystem is full and how much space is left."
+              },
+              "commands": [
+                "df -h / /var /usr /home"
+              ]
+            },
+            {
+              "text": {
+                "es": "Libera espacio: vacía la caché de paquetes que ya no necesitas y recorta el registro del sistema.",
+                "en": "Free space: drop cached packages you no longer need and trim the system journal."
+              },
+              "commands": [
+                "sudo journalctl --vacuum-size=200M"
+              ]
+            },
+            {
+              "text": {
+                "es": "Repite la instalación del Proton BC-250 desde Ajustes adicionales. Necesita varios GB libres en /.",
+                "en": "Repeat the BC-250 Proton installation from Additional settings. It needs several GB free on /."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "fedora": {
+          "steps": {
+            "es": "Liberar espacio en la partición llena y repetir la instalación.",
+            "en": "Free space on the full filesystem and repeat the installation."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué partición está llena y cuánto espacio libre queda.",
+                "en": "See which filesystem is full and how much space is left."
+              },
+              "commands": [
+                "df -h / /var /usr /home"
+              ]
+            },
+            {
+              "text": {
+                "es": "Libera espacio: vacía la caché de paquetes que ya no necesitas y recorta el registro del sistema.",
+                "en": "Free space: drop cached packages you no longer need and trim the system journal."
+              },
+              "commands": [
+                "sudo journalctl --vacuum-size=200M"
+              ]
+            },
+            {
+              "text": {
+                "es": "Repite la instalación del Proton BC-250 desde Ajustes adicionales. Necesita varios GB libres en /.",
+                "en": "Repeat the BC-250 Proton installation from Additional settings. It needs several GB free on /."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "ubuntu": {
+          "steps": {
+            "es": "Liberar espacio en la partición llena y repetir la instalación.",
+            "en": "Free space on the full filesystem and repeat the installation."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué partición está llena y cuánto espacio libre queda.",
+                "en": "See which filesystem is full and how much space is left."
+              },
+              "commands": [
+                "df -h / /var /usr /home"
+              ]
+            },
+            {
+              "text": {
+                "es": "Libera espacio: vacía la caché de paquetes que ya no necesitas y recorta el registro del sistema.",
+                "en": "Free space: drop cached packages you no longer need and trim the system journal."
+              },
+              "commands": [
+                "sudo journalctl --vacuum-size=200M"
+              ]
+            },
+            {
+              "text": {
+                "es": "Repite la instalación del Proton BC-250 desde Ajustes adicionales. Necesita varios GB libres en /.",
+                "en": "Repeat the BC-250 Proton installation from Additional settings. It needs several GB free on /."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "debian": {
+          "steps": {
+            "es": "Liberar espacio en la partición llena y repetir la instalación.",
+            "en": "Free space on the full filesystem and repeat the installation."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué partición está llena y cuánto espacio libre queda.",
+                "en": "See which filesystem is full and how much space is left."
+              },
+              "commands": [
+                "df -h / /var /usr /home"
+              ]
+            },
+            {
+              "text": {
+                "es": "Libera espacio: vacía la caché de paquetes que ya no necesitas y recorta el registro del sistema.",
+                "en": "Free space: drop cached packages you no longer need and trim the system journal."
+              },
+              "commands": [
+                "sudo journalctl --vacuum-size=200M"
+              ]
+            },
+            {
+              "text": {
+                "es": "Repite la instalación del Proton BC-250 desde Ajustes adicionales. Necesita varios GB libres en /.",
+                "en": "Repeat the BC-250 Proton installation from Additional settings. It needs several GB free on /."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "other": {
+          "steps": {
+            "es": "Liberar espacio en la partición llena y repetir la instalación.",
+            "en": "Free space on the full filesystem and repeat the installation."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué partición está llena y cuánto espacio libre queda.",
+                "en": "See which filesystem is full and how much space is left."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Libera espacio: vacía la caché de paquetes que ya no necesitas y recorta el registro del sistema.",
+                "en": "Free space: drop cached packages you no longer need and trim the system journal."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Repite la instalación del Proton BC-250 desde Ajustes adicionales. Necesita varios GB libres en /.",
+                "en": "Repeat the BC-250 Proton installation from Additional settings. It needs several GB free on /."
+              },
+              "commands": []
+            }
+          ]
+        }
+      },
+      "owner": "user",
+      "developer": {
+        "es": "desde versiones posteriores a 1.22.3 el mensaje «No space left on device» ya se reconoce como BC250-STORAGE-001 y la ventana pide liberar espacio. Pendiente: comprobar el espacio libre antes de descargar un paquete grande.",
+        "en": "Since later versions the message “No space left on device” is recognised as BC250-STORAGE-001. Pending: check free space before downloading a large package."
+      },
+      "status": "fixed-dev",
+      "status_flags": [
+        "fixed-dev",
+        "user"
+      ],
+      "fixed_in": null,
+      "guide": {
+        "title": {
+          "es": "Liberar espacio antes de instalar un paquete grande",
+          "en": "Free space before installing a large package"
+        },
+        "summary": {
+          "es": "pacman se detiene con «Write failed» porque el disco está lleno.",
+          "en": "pacman stops with “Write failed” because the disk is full."
+        }
+      }
+    },
+    {
+      "id": "STEAM-07",
+      "module": "steamos",
+      "title": {
+        "es": "SteamOS: la verificación de escritura necesita autorización interactiva de sudo",
+        "en": "SteamOS: write verification needs interactive sudo authorization"
+      },
+      "codes": [
+        "BC250-WORKFLOW-001"
+      ],
+      "match": [
+        "SteamOS write verification needs interactive sudo authorization"
+      ],
+      "keywords": {
+        "und": [
+          "interactive sudo authorization",
+          "SteamOS write verification",
+          "exit_status=77",
+          "Polkit prompt",
+          "sudo",
+          "passwd",
+          "contraseña de deck"
+        ],
+        "en": [
+          "SteamOS: write verification needs interactive sudo authorization",
+          "Follow the upstream message in this log, then retry Install / update. A missing tool in a status check does not require reinstalling Control Center."
+        ],
+        "es": [
+          "SteamOS: la verificación de escritura necesita autorización interactiva de sudo",
+          "Sigue el mensaje del toolkit en este registro y vuelve a intentar Instalar / actualizar. Si la herramienta no está instalada al comprobar su estado, no necesitas reinstalar Control Center."
+        ],
+        "bg": [
+          "Съвместимост с SteamOS",
+          "Действието SteamOS GE-Proton не завърши.",
+          "Инсталаторът нагоре по веригата спря. Предходното му съобщение идентифицира липсващата предпоставка за RADV, проблем с изтеглянето, целостта или инсталирането.",
+          "Следвайте съобщението нагоре в този журнал, след което опитайте отново Инсталиране / актуализиране. Липсващ инструмент при проверка на състоянието не изисква преинсталиране на Control Center."
+        ],
+        "cs": [
+          "Kompatibilita se SteamOS",
+          "Akce SteamOS GE-Proton nebyla dokončena.",
+          "Upstream instalační program se zastavil. Jeho předchozí zpráva identifikuje chybějící předpoklad RADV, problém stahování, integrity nebo instalace.",
+          "Postupujte podle upstream zprávy v tomto protokolu a poté zopakujte instalaci/aktualizaci. Chybějící nástroj v kontrole stavu nevyžaduje přeinstalaci Control Center."
+        ],
+        "da": [
+          "SteamOS-kompatibilitet",
+          "SteamOS GE-Proton-handlingen blev ikke fuldført.",
+          "Opstrømsinstallationsprogrammet stoppede. Dens foregående meddelelse identificerer den manglende RADV forudsætning, download, integritet eller installationsproblem.",
+          "Følg opstrømsmeddelelsen i denne log, og prøv derefter Installer/opdater igen. Et manglende værktøj i et statustjek kræver ikke geninstallation af Control Center."
+        ],
+        "de": [
+          "SteamOS-Kompatibilität",
+          "Die SteamOS GE-Proton-Aktion wurde nicht abgeschlossen.",
+          "Das Upstream-Installationsprogramm wurde gestoppt. Die vorangehende Meldung identifiziert das fehlende RADV-Voraussetzungs-, Download-, Integritäts- oder Installationsproblem.",
+          "Folgen Sie der Upstream-Meldung in diesem Protokoll und versuchen Sie dann die Installation/Aktualisierung erneut. Ein fehlendes Tool bei einer Statusprüfung erfordert keine Neuinstallation des Control Centers."
+        ],
+        "el": [
+          "Συμβατότητα SteamOS",
+          "Η ενέργεια SteamOS GE-Proton δεν ολοκληρώθηκε.",
+          "Το πρόγραμμα εγκατάστασης ανάντη σταμάτησε. Το προηγούμενο μήνυμά του προσδιορίζει το πρόβλημα που λείπει RADV προαπαιτούμενο, λήψη, ακεραιότητα ή πρόβλημα εγκατάστασης.",
+          "Ακολουθήστε το μήνυμα ανοδικής ροής σε αυτό το αρχείο καταγραφής και, στη συνέχεια, δοκιμάστε ξανά την εγκατάσταση / ενημέρωση. Ένα εργαλείο που λείπει σε έναν έλεγχο κατάστασης δεν απαιτεί επανεγκατάσταση του Κέντρου Ελέγχου."
+        ],
+        "es-419": [
+          "Compatibilidad de SteamOS",
+          "La operación de GE-Proton de SteamOS no se completó.",
+          "El instalador del toolkit se detuvo. El mensaje anterior identifica el requisito RADV pendiente o el problema de descarga, integridad o instalación.",
+          "Sigue el mensaje del toolkit en este registro y vuelve a intentar Instalar / actualizar. Si la herramienta no está instalada al comprobar su estado, no necesitas reinstalar Control Center."
+        ],
+        "fi": [
+          "SteamOS-yhteensopivuus",
+          "SteamOS GE-Proton -toimintoa ei suoritettu loppuun.",
+          "Ylävirran asennusohjelma pysähtyi. Sen edellinen viesti tunnistaa puuttuvan RADV-edellytyksen, lataus-, eheys- tai asennusongelman.",
+          "Seuraa tämän lokin ylävirran viestiä ja yritä sitten uudelleen Asenna/päivitä. Tilatarkistuksessa puuttuva työkalu ei vaadi Ohjauskeskuksen uudelleenasentamista."
+        ],
+        "fr": [
+          "Compatibilité SteamOS",
+          "L'action SteamOS GE-Proton n'a pas abouti.",
+          "Le programme d'installation en amont s'est arrêté. Son message précédent identifie le prérequis RADV manquant, le problème de téléchargement, d'intégrité ou d'installation.",
+          "Suivez le message en amont dans ce journal, puis réessayez l'installation/mise à jour. Un outil manquant lors d'une vérification d'état ne nécessite pas de réinstaller Control Center."
+        ],
+        "hu": [
+          "SteamOS kompatibilitás",
+          "A SteamOS GE-Proton művelet nem fejeződött be.",
+          "Az upstream telepítő leállt. Az előző üzenet a hiányzó RADV előfeltételt, letöltési, integritási vagy telepítési problémát azonosítja.",
+          "Kövesse a naplóban található felfelé irányuló üzenetet, majd próbálja újra a telepítést/frissítést. Az állapotellenőrzés során hiányzó eszköz nem igényli a Vezérlőközpont újratelepítését."
+        ],
+        "id": [
+          "Kompatibilitas SteamOS",
+          "Tindakan SteamOS GE-Proton tidak selesai.",
+          "Pemasang hulu berhenti. Pesan sebelumnya mengidentifikasi masalah prasyarat, pengunduhan, integritas, atau pemasangan RADV yang hilang.",
+          "Ikuti pesan upstream di log ini, lalu coba lagi Instal/perbarui. Alat yang hilang dalam pemeriksaan status tidak memerlukan instalasi ulang Pusat Kontrol."
+        ],
+        "it": [
+          "Compatibilità SteamOS",
+          "L'azione SteamOS GE-Proton non è stata completata.",
+          "Il programma di installazione upstream si è interrotto. Il messaggio precedente identifica il prerequisito RADV mancante, il download, l'integrità o il problema di installazione.",
+          "Segui il messaggio upstream in questo registro, quindi riprova a installare/aggiornare. Uno strumento mancante in un controllo dello stato non richiede la reinstallazione di Control Center."
+        ],
+        "ja": [
+          "SteamOSの互換性",
+          "SteamOS GE-Proton アクションは完了しませんでした。",
+          "上流のインストーラーが停止しました。前述のメッセージは、RADV の前提条件、ダウンロード、整合性、またはインストールの問題が欠落していることを示しています。",
+          "このログのアップストリーム メッセージに従って、インストール/アップデートを再試行してください。ステータス チェックでツールが欠落していても、コントロール センターを再インストールする必要はありません。"
+        ],
+        "ko": [
+          "SteamOS 호환성",
+          "SteamOS GE-Proton 작업이 완료되지 않았습니다.",
+          "업스트림 설치 프로그램이 중지되었습니다. 이전 메시지는 누락된 RADV 필수 구성 요소, 다운로드, 무결성 또는 설치 문제를 식별합니다.",
+          "이 로그의 업스트림 메시지를 따른 다음 설치/업데이트를 다시 시도하세요. 상태 확인에서 누락된 도구는 제어 센터를 다시 설치할 필요가 없습니다."
+        ],
+        "ms": [
+          "Keserasian SteamOS",
+          "Tindakan SteamOS GE-Proton tidak selesai.",
+          "Pemasang hulu berhenti. Mesej sebelumnya mengenal pasti RADV prasyarat, muat turun, integriti atau masalah pemasangan yang hilang.",
+          "Ikuti mesej huluan dalam log ini, kemudian cuba semula Pasang / kemas kini. Alat yang hilang dalam semakan status tidak memerlukan pemasangan semula Pusat Kawalan."
+        ],
+        "nl": [
+          "SteamOS-compatibiliteit",
+          "De SteamOS GE-Proton-actie is niet voltooid.",
+          "Het upstream-installatieprogramma is gestopt. Het voorgaande bericht identificeert het ontbrekende RADV vereiste, download-, integriteits- of installatieprobleem.",
+          "Volg het upstream-bericht in dit logboek en probeer vervolgens opnieuw te installeren/bijwerken. Als er een tool ontbreekt bij een statuscontrole, is het niet nodig om Control Center opnieuw te installeren."
+        ],
+        "no": [
+          "SteamOS-kompatibilitet",
+          "SteamOS GE-Proton-handlingen ble ikke fullført.",
+          "Oppstrømsinstallasjonsprogrammet stoppet. Den forrige meldingen identifiserer manglende RADV-forutsetning, nedlasting, integritet eller installasjonsproblem.",
+          "Følg oppstrømsmeldingen i denne loggen, og prøv deretter Installer/oppdater på nytt. Et manglende verktøy i en statussjekk krever ikke å installere kontrollsenteret på nytt."
+        ],
+        "pl": [
+          "Zgodność ze SteamOS",
+          "Akcja SteamOS GE-Proton nie została ukończona.",
+          "Instalator nadrzędny został zatrzymany. Poprzedzający go komunikat wskazuje brakujący problem z wymaganiami wstępnymi RADV, pobieraniem, integralnością lub instalacją.",
+          "Postępuj zgodnie z komunikatem źródłowym w tym dzienniku, a następnie ponów próbę instalacji/aktualizacji. Brakujące narzędzie w sprawdzaniu stanu nie wymaga ponownej instalacji Centrum sterowania."
+        ],
+        "pt": [
+          "Compatibilidade do SteamOS",
+          "A ação SteamOS GE-Proton não foi concluída.",
+          "O instalador upstream parou. Sua mensagem anterior identifica o pré-requisito RADV ausente, problema de download, integridade ou instalação.",
+          "Siga a mensagem upstream neste log e tente instalar/atualizar novamente. Uma ferramenta ausente em uma verificação de status não requer a reinstalação do Control Center."
+        ],
+        "pt-BR": [
+          "Compatibilidade do SteamOS",
+          "A ação SteamOS GE-Proton não foi concluída.",
+          "O instalador upstream parou. Sua mensagem anterior identifica o pré-requisito RADV ausente, problema de download, integridade ou instalação.",
+          "Siga a mensagem upstream neste log e tente instalar/atualizar novamente. Uma ferramenta ausente em uma verificação de status não requer a reinstalação do Control Center."
+        ],
+        "ro": [
+          "Compatibilitate cu SteamOS",
+          "Acțiunea SteamOS GE-Proton nu s-a finalizat.",
+          "Programul de instalare din amonte sa oprit. Mesajul său anterior identifică lipsa RADV cerința prealabilă, problema de descărcare, integritate sau instalare.",
+          "Urmați mesajul din amonte din acest jurnal, apoi încercați din nou Instalarea/actualizarea. Un instrument lipsă într-o verificare a stării nu necesită reinstalarea Centrului de control."
+        ],
+        "ru": [
+          "Совместимость SteamOS",
+          "Действие SteamOS GE-Proton не выполнено.",
+          "Вышестоящий установщик остановился. Предыдущее сообщение указывает на отсутствие необходимого RADV, проблемы с загрузкой, целостностью или установкой.",
+          "Следуйте восходящему сообщению в этом журнале, затем повторите попытку установки/обновления. Отсутствие инструмента в проверке состояния не требует переустановки Центра управления."
+        ],
+        "sv": [
+          "SteamOS-kompatibilitet",
+          "SteamOS GE-Proton-åtgärden slutfördes inte.",
+          "Uppströmsinstallatören stoppade. Dess föregående meddelande identifierar det saknade RADV-förutsättningen, nedladdningen, integriteten eller installationsproblemet.",
+          "Följ uppströmsmeddelandet i den här loggen och försök sedan installera / uppdatera igen. Ett saknat verktyg i en statuskontroll kräver ingen ominstallation av Control Center."
+        ],
+        "th": [
+          "ความเข้ากันได้ของ SteamOS",
+          "การทำงานของ SteamOS GE-Proton ไม่เสร็จสมบูรณ์",
+          "ตัวติดตั้งอัปสตรีมหยุดทำงาน ข้อความก่อนหน้าระบุถึงข้อกำหนดเบื้องต้น RADV ที่ขาดหายไป การดาวน์โหลด ความสมบูรณ์ หรือปัญหาการติดตั้ง",
+          "ปฏิบัติตามข้อความอัปสตรีมในบันทึกนี้ จากนั้นลองติดตั้ง / อัปเดตอีกครั้ง เครื่องมือที่ขาดหายไปในการตรวจสอบสถานะไม่จำเป็นต้องติดตั้งศูนย์ควบคุมใหม่"
+        ],
+        "tr": [
+          "SteamOS uyumluluğu",
+          "SteamOS GE-Proton işlemi tamamlanmadı.",
+          "Yukarı akış yükleyicisi durduruldu. Önceki mesajı, eksik RADV önkoşulu, indirme, bütünlük veya kurulum sorununu tanımlar.",
+          "Bu günlükteki yukarı akış mesajını takip edin ve ardından Kurulumu / güncellemeyi yeniden deneyin. Durum kontrolünde eksik olan bir araç, Kontrol Merkezinin yeniden kurulmasını gerektirmez."
+        ],
+        "uk": [
+          "Сумісність SteamOS",
+          "Дія SteamOS GE-Proton не завершена.",
+          "Верхній інсталятор зупинився. Його попереднє повідомлення визначає відсутню передумову RADV, проблему завантаження, цілісності чи встановлення.",
+          "Слідкуйте за повідомленням у цьому журналі, а потім повторіть спробу встановлення/оновлення. Відсутній інструмент під час перевірки стану не потребує перевстановлення Центру керування."
+        ],
+        "vi": [
+          "Khả năng tương thích của SteamOS",
+          "Tác vụ GE-Proton trên SteamOS chưa hoàn tất.",
+          "Trình cài đặt ngược dòng đã dừng. Thông báo trước đó xác định điều kiện tiên quyết, vấn đề tải xuống, tính toàn vẹn hoặc cài đặt RADV bị thiếu.",
+          "Hãy làm theo thông báo ngược dòng trong nhật ký này, sau đó thử lại Cài đặt/cập nhật. Công cụ bị thiếu trong kiểm tra trạng thái không yêu cầu cài đặt lại Control Center."
+        ],
+        "zh-CN": [
+          "SteamOS 兼容性",
+          "SteamOS GE-Proton 操作未完成。",
+          "上游安装程序已停止。其前面的消息标识了缺少的 RADV 先决条件、下载、完整性或安装问题。",
+          "按照此日志中的上游消息进行操作，然后重试安装/更新。状态检查中缺少工具不需要重新安装控制中心。"
+        ],
+        "zh-TW": [
+          "SteamOS 相容性",
+          "SteamOS GE-Proton 操作未完成。",
+          "上游安裝程式已停止。其前面的訊息標識了缺少的 RADV 先決條件、下載、完整性或安裝問題。",
+          "按照此日誌中的上游訊息進行操作，然後重試安裝/更新。狀態檢查中缺少工具不需要重新安裝控制中心。"
+        ]
+      },
+      "symptom": {
+        "es": "Preparar la compatibilidad de SteamOS se detiene con «SteamOS write verification needs interactive sudo authorization» (código de salida 77).",
+        "en": "Preparing SteamOS compatibility stops with “SteamOS write verification needs interactive sudo authorization” (exit status 77)."
+      },
+      "cause": {
+        "es": "El instalador necesita sudo para comprobar que puede escribir en el sistema de solo lectura, pero no pudo pedir la contraseña: se ejecutó sin terminal o la cuenta de SteamOS aún no tiene contraseña definida.",
+        "en": "The installer needs sudo to verify it can write to the read-only system, but could not ask for a password: it ran without a terminal or the SteamOS account has no password yet."
+      },
+      "distros": {
+        "reported": [
+          "SteamOS"
+        ],
+        "possible": [
+          "steamos"
+        ]
+      },
+      "fix": {
+        "arch": null,
+        "steamos": {
+          "steps": {
+            "es": "Definir una contraseña para el usuario de SteamOS y repetir la preparación desde una terminal.",
+            "en": "Set a password for the SteamOS user and repeat the preparation from a terminal."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Define una contraseña si nunca lo hiciste (SteamOS la trae vacía) y comprueba que sudo la acepta.",
+                "en": "Set a password if you never did (SteamOS ships without one) and check that sudo accepts it."
+              },
+              "commands": [
+                "passwd",
+                "sudo -v"
+              ]
+            },
+            {
+              "text": {
+                "es": "Repite «Preparar compatibilidad de SteamOS» desde el Panel y escribe la contraseña cuando se pida.",
+                "en": "Repeat “Prepare SteamOS compatibility” from the Dashboard and type the password when asked."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "bazzite": null,
+        "fedora": null,
+        "ubuntu": null,
+        "debian": null,
+        "other": null
+      },
+      "owner": "both",
+      "developer": {
+        "es": "en análisis: el backend de SteamOS está migrando a otro repositorio; no se toca aquí. Por ahora solo se documenta la solución del usuario.",
+        "en": "Under analysis: the SteamOS backend is moving to another repository, so it is not changed here. Only the user-side fix is documented."
+      },
+      "status": "analysis",
+      "status_flags": [
+        "analysis",
+        "user"
+      ],
+      "fixed_in": null,
+      "guide": {
+        "title": {
+          "es": "SteamOS pide una contraseña de sudo",
+          "en": "SteamOS asks for a sudo password"
+        },
+        "summary": {
+          "es": "La preparación de SteamOS necesita sudo con contraseña y no pudo pedirla.",
+          "en": "SteamOS preparation needs sudo with a password and could not ask for it."
+        }
+      }
+    },
+    {
+      "id": "IDEA-04",
+      "module": "ideas",
+      "title": {
+        "es": "Idea: mostrar las unidades de cómputo desbloqueadas en el registro del kernel",
+        "en": "Idea: show the unlocked compute units in the kernel log"
+      },
+      "codes": [],
+      "match": [],
+      "keywords": {
+        "und": [
+          "CU desbloqueadas",
+          "kernel",
+          "registro",
+          "dmesg",
+          "unidades de cómputo",
+          "Cus desbloqueadas ao kernel"
+        ],
+        "en": [
+          "Idea: show the unlocked compute units in the kernel log",
+          "Suggestions"
+        ],
+        "es": [
+          "Idea: mostrar las unidades de cómputo desbloqueadas en el registro del kernel",
+          "Sugerencias"
+        ],
+        "ko": [
+          "디스크 사용량",
+          "외장하드",
+          "디스크사용량체크",
+          "제안"
+        ],
+        "bg": [
+          "Предложения"
+        ],
+        "cs": [
+          "Návrhy"
+        ],
+        "da": [
+          "Forslag"
+        ],
+        "de": [
+          "Vorschläge"
+        ],
+        "el": [
+          "Προτάσεις"
+        ],
+        "es-419": [
+          "Sugerencias"
+        ],
+        "fi": [
+          "Ehdotukset"
+        ],
+        "fr": [
+          "Suggestions"
+        ],
+        "hu": [
+          "Javaslatok"
+        ],
+        "id": [
+          "Saran"
+        ],
+        "it": [
+          "Suggerimenti"
+        ],
+        "ja": [
+          "提案"
+        ],
+        "ms": [
+          "Cadangan"
+        ],
+        "nl": [
+          "Suggesties"
+        ],
+        "no": [
+          "Forslag"
+        ],
+        "pl": [
+          "Sugestie"
+        ],
+        "pt": [
+          "Sugestões"
+        ],
+        "pt-BR": [
+          "Sugestões"
+        ],
+        "ro": [
+          "Sugestii"
+        ],
+        "ru": [
+          "Предложения"
+        ],
+        "sv": [
+          "Förslag"
+        ],
+        "th": [
+          "ข้อเสนอแนะ"
+        ],
+        "tr": [
+          "Öneriler"
+        ],
+        "uk": [
+          "Пропозиції"
+        ],
+        "vi": [
+          "Đề xuất"
+        ],
+        "zh-CN": [
+          "建议"
+        ],
+        "zh-TW": [
+          "建議"
+        ]
+      },
+      "symptom": {
+        "es": "Un usuario sugiere que, al desbloquear unidades de cómputo, el kernel (o la app) deje constancia en el registro de cuántas quedaron activas.",
+        "en": "A user suggests that unlocking compute units should leave a record of how many are active in the kernel log or in the app."
+      },
+      "cause": {
+        "es": "Hoy el número de CU activas solo se ve en el mapa de la app (Unidades de cómputo); no queda registro del kernel de esa acción.",
+        "en": "Today the active CU count is only visible in the app's compute unit map; the kernel leaves no record of the action."
+      },
+      "distros": {
+        "reported": [],
+        "possible": [
+          "arch",
+          "steamos",
+          "bazzite",
+          "fedora",
+          "ubuntu",
+          "debian",
+          "other"
+        ]
+      },
+      "fix": {
+        "arch": {
+          "steps": {
+            "es": "Consultar el mapa de CU en la app y, si hace falta, el registro del kernel.",
+            "en": "Use the CU map in the app and, if needed, the kernel log."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira cuántas CU están activas en Unidades de cómputo.",
+                "en": "See how many CUs are active under Compute Units."
+              },
+              "commands": [
+                "sudo dmesg | grep -i amdgpu"
+              ]
+            }
+          ]
+        },
+        "steamos": {
+          "steps": {
+            "es": "Consultar el mapa de CU en la app y, si hace falta, el registro del kernel.",
+            "en": "Use the CU map in the app and, if needed, the kernel log."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira cuántas CU están activas en Unidades de cómputo.",
+                "en": "See how many CUs are active under Compute Units."
+              },
+              "commands": [
+                "sudo dmesg | grep -i amdgpu"
+              ]
+            }
+          ]
+        },
+        "bazzite": {
+          "steps": {
+            "es": "Consultar el mapa de CU en la app y, si hace falta, el registro del kernel.",
+            "en": "Use the CU map in the app and, if needed, the kernel log."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira cuántas CU están activas en Unidades de cómputo.",
+                "en": "See how many CUs are active under Compute Units."
+              },
+              "commands": [
+                "sudo dmesg | grep -i amdgpu"
+              ]
+            }
+          ]
+        },
+        "fedora": {
+          "steps": {
+            "es": "Consultar el mapa de CU en la app y, si hace falta, el registro del kernel.",
+            "en": "Use the CU map in the app and, if needed, the kernel log."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira cuántas CU están activas en Unidades de cómputo.",
+                "en": "See how many CUs are active under Compute Units."
+              },
+              "commands": [
+                "sudo dmesg | grep -i amdgpu"
+              ]
+            }
+          ]
+        },
+        "ubuntu": {
+          "steps": {
+            "es": "Consultar el mapa de CU en la app y, si hace falta, el registro del kernel.",
+            "en": "Use the CU map in the app and, if needed, the kernel log."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira cuántas CU están activas en Unidades de cómputo.",
+                "en": "See how many CUs are active under Compute Units."
+              },
+              "commands": [
+                "sudo dmesg | grep -i amdgpu"
+              ]
+            }
+          ]
+        },
+        "debian": {
+          "steps": {
+            "es": "Consultar el mapa de CU en la app y, si hace falta, el registro del kernel.",
+            "en": "Use the CU map in the app and, if needed, the kernel log."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira cuántas CU están activas en Unidades de cómputo.",
+                "en": "See how many CUs are active under Compute Units."
+              },
+              "commands": [
+                "sudo dmesg | grep -i amdgpu"
+              ]
+            }
+          ]
+        },
+        "other": {
+          "steps": {
+            "es": "Consultar el mapa de CU en la app y, si hace falta, el registro del kernel.",
+            "en": "Use the CU map in the app and, if needed, the kernel log."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Mira cuántas CU están activas en Unidades de cómputo.",
+                "en": "See how many CUs are active under Compute Units."
+              },
+              "commands": []
+            }
+          ]
+        }
+      },
+      "owner": "developer",
+      "developer": {
+        "es": "sugerencia: registrar en el journal (y en el historial de la app) el resultado de cada cambio de CU.",
+        "en": "Suggestion: write the result of every CU change to the journal and to the app history."
+      },
+      "status": "pending",
+      "status_flags": [
+        "pending"
+      ],
+      "fixed_in": null,
+      "guide": {
+        "title": {
+          "es": "Dejar constancia de las CU desbloqueadas",
+          "en": "Record the unlocked CUs"
+        },
+        "summary": {
+          "es": "Idea: registrar cuántas unidades de cómputo quedan activas tras desbloquear.",
+          "en": "Idea: record how many compute units end up active after unlocking."
         }
       }
     }

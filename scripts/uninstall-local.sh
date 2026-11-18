@@ -408,6 +408,9 @@ else
 fi
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-fan-pwm-helper" "$SYSTEM_PRIV_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-steamos-game-helper" "$SYSTEM_STEAMOS_GAME_HELPER"
+remove_managed_privileged_file "$APP_DIR/scripts/system/run-steamos-real-toolkit.py" "/usr/libexec/bc250-control-center/bc250-steamos-toolkit"
+remove_managed_privileged_file "$APP_DIR/scripts/system/check-steamos-toolkit-conflicts.py" "/usr/libexec/bc250-control-center/bc250-steamos-toolkit-check"
+remove_managed_privileged_file "$APP_DIR/privileged/lib/bc250_steamos_toolkit_runtime.zip" "/usr/libexec/bc250-control-center/lib/bc250_steamos_toolkit_runtime.zip"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-cu-helper" "$SYSTEM_CU_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-governor-config-helper" "$SYSTEM_GOVERNOR_CONFIG_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-core-unlock-helper" "$SYSTEM_CORE_UNLOCK_HELPER"

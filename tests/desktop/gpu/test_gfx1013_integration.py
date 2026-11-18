@@ -78,7 +78,9 @@ def test_steamos_uses_dedicated_backend_not_fedora_installer():
     assert state['direct_installer_allowed'] is False
     assert state['automatic_install_allowed'] is False
     assert state['reason_key'] == 'steamos-dedicated-backend'
-    assert 'keyboardspecialist/bc250-steamos' in state['steamos_backend']
+    assert 'rpf16rj/bc250-steamos-real-toolkit' in state['steamos_backend']
+    assert len(state['steamos_backend_revision']) == 40
+    assert 'keyboardspecialist/bc250-steamos' in state['steamos_alternative_backend']
 
 
 def test_other_distros_are_manual_only():
@@ -134,6 +136,7 @@ def test_gfx1013_visible_copy_is_translated_for_every_supported_language():
         'Upstream currently says Bazzite is not supported. Control Center blocks the direct installer on immutable systems.',
         'Reviewed upstream: {version} · {commit}',
         'Open upstream project',
+        'Use SteamOS Real Toolkit to select, check or revert graphics components.',
         'Could not open upstream project',
         'The upstream project link could not be opened by this desktop session.',
     )
@@ -144,3 +147,46 @@ def test_gfx1013_visible_copy_is_translated_for_every_supported_language():
         for language in SUPPORTED_LANGUAGES:
             assert tr(key, language).strip()
             assert key in load_locale_catalog(language)
+
+
+@pytest.mark.parametrize('old_kernel_ready', [False, True])
+def test_gpu_dependency_card_uses_primary_toolkit_routes_and_reviewed_metadata(qtbot, monkeypatch, old_kernel_ready):
+    from types import SimpleNamespace
+
+    from PyQt6.QtWidgets import QAbstractButton
+
+    from bc250cc.infrastructure.steamos_real_toolkit import (
+        REPOSITORY,
+        REVISION,
+        VERSION,
+    )
+    from frontends.desktop.i18n import tr
+    from frontends.desktop.pages import gpu_governor_widgets
+    from frontends.desktop.pages.gpu_governor_widgets import DependencyPreparationDialog
+
+    calls = []
+    dialog = SimpleNamespace(
+        tools={'gfx1013_compute': {
+            'reason_key': 'steamos-dedicated-backend',
+            'steamos_kernel_ready': old_kernel_ready,
+            'reviewed_commit': 'obsolete-provider-revision', 'reviewed_version': 'obsolete-version',
+            'steamos_real_toolkit': {'graphics': {'state': 'configured', 'active': None}},
+        }},
+        _choose=lambda action, governor: calls.append((action, governor)),
+        _open_gfx1013_upstream=lambda: None,
+    )
+    card = DependencyPreparationDialog._gfx1013_card(dialog)
+    qtbot.addWidget(card)
+    buttons = {button.text(): button for button in card.findChildren(QAbstractButton)}
+    for label in ['Install / update', 'Check', 'Uninstall']:
+        assert buttons[tr(label)].isEnabled()
+        buttons[tr(label)].click()
+    assert calls == [('real_toolkit:combined-install', ''), ('real_toolkit:verify', ''),
+                     ('real_toolkit:combined-revert', '')]
+    assert REVISION[:7] in card.toolTip() and VERSION in card.toolTip()
+    assert 'obsolete-provider-revision' not in card.toolTip()
+    assert not any(text.startswith(('1 ·', '2 ·')) for text in buttons)
+    links = []
+    monkeypatch.setattr(gpu_governor_widgets, 'open_external_url', lambda url: (links.append(url) or True, ''))
+    DependencyPreparationDialog._open_gfx1013_upstream(dialog)
+    assert links == [REPOSITORY]

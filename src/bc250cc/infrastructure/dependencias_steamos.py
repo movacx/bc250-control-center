@@ -24,7 +24,6 @@ from bc250cc.infrastructure.governor_conflicts import (
 )
 from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from bc250cc.infrastructure.steamos_amdgpu import (
-    build_steamos_amdgpu_diagnostic_command,
     build_steamos_compatibility_command,
     gpu_points_above_module_limit,
 )
@@ -45,19 +44,32 @@ from bc250cc.infrastructure.steamos_cu_shell import (
     status_probe_command,
     umr_database_path,
 )
+from bc250cc.infrastructure.steamos_graphics_ownership import alternative_guard_command
 from bc250cc.infrastructure.steamos_graphics_runtime import (
     build_steamos_graphics_command,
+)
+from bc250cc.infrastructure.steamos_native_diagnostics import (
+    graphics_diagnostic_command,
 )
 from bc250cc.infrastructure.steamos_proton import (
     STEAMOS_PROTON_DIRECTORY,
     build_steamos_proton_command,
 )
+from bc250cc.infrastructure.steamos_real_toolkit import action_for, launch_command
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
 from bc250cc.shared.errors import ActionNeeded
 
 
 class SteamosDependenciesMixin:
     """Methods of ``DependenciasRepository`` that deal with SteamOS and its CU backend."""
+
+    def gestionar_real_toolkit_steamos(self, action: str):
+        action_for(action)
+        if self._os_repository().info.family != 'steamos':
+            raise RuntimeError('SteamOS Real Toolkit is available only on SteamOS.')
+        require_bc250_hardware()
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(launch_command(action), 'SteamOS Real Toolkit · ' + action)
 
     def _es_steamos(self, os_info=None):
         if os_info is not None:
@@ -302,6 +314,73 @@ class SteamosDependenciesMixin:
         )
 
     def preparar_compatibilidad_steamos(self):
+        return self.gestionar_real_toolkit_steamos('combined-install')
+
+    def gestionar_graficos_steamos(self, action):
+        routes = {'status': 'verify', 'install': 'combined-install',
+                  'install-fsr4': 'proton-install', 'uninstall': 'combined-revert',
+                  'uninstall-fsr4': 'proton-revert'}
+        if action not in routes:
+            raise ValueError('Unsupported SteamOS graphics action: ' + str(action))
+        return self.gestionar_real_toolkit_steamos(routes[action])
+
+    def gestionar_proton_steamos(self, action: str):
+        routes = {'install': 'proton-install', 'update': 'proton-install',
+                  'status': 'verify', 'uninstall': 'proton-revert'}
+        if action not in routes:
+            raise ValueError('Unsupported SteamOS Proton action: ' + str(action))
+        return self.gestionar_real_toolkit_steamos(routes[action])
+
+    def diagnostico_steamos(self):
+        """Run Control Center's native SteamOS checks without toolkit ownership."""
+        os_repository = self._os_repository()
+        if os_repository.info.family != 'steamos':
+            raise RuntimeError('SteamOS toolkit diagnostics are available only on SteamOS.')
+        cu_spec = self._cu_manager_spec(os_repository)
+        cu_script = cu_spec['script']
+        command = self._join_shell_commands((
+            'set -Eeuo pipefail',
+            'export LC_ALL=C LANG=C',
+            'echo "== Native BC250 Control Center SteamOS diagnostics =="',
+            'echo "[INFO] Community toolkits are references; this report validates Control Center-owned paths and services."',
+            'echo "== Active kernel and scheduler =="',
+            'printf "Kernel: %s\\n" "$(uname -r)"',
+            graphics_diagnostic_command(),
+            'echo "== Control Center services =="',
+            'for unit in cyan-skillfish-governor-smu.service bc250-cu-live-manager.service nct6687-load.service bc250-smu-oc.service; do enabled="$(systemctl is-enabled "$unit" 2>/dev/null || true)"; active="$(systemctl is-active "$unit" 2>/dev/null || true)"; printf "%s: enabled=%s active=%s\\n" "$unit" "${enabled:-not-found}" "${active:-not-found}"; done',
+            'echo "== Control Center UMR / CU backend =="',
+            f'test -x {shlex.quote(str(cu_script))} || {{ echo "ERROR: Control Center SteamOS CU backend is missing"; exit 39; }}',
+            self._steamos_cu_status_probe_command(cu_script),
+            'echo "== NCT hardware monitor =="',
+            'if [ -r /sys/class/hwmon ]; then for node in /sys/class/hwmon/hwmon*/name; do [ -r "$node" ] && printf "%s: %s\\n" "${node%/name}" "$(cat "$node")"; done; fi',
+            'echo "[OK] Native SteamOS diagnostics completed; no system setting was changed."',
+        ))
+        return self._abrir_terminal(command, 'Diagnóstico SteamOS BC250')
+
+
+    def restaurar_kernel_steamos_alternativo(self):
+        """Explicit stock-module recovery, limited to the running kernel.
+
+        Do not infer module provenance from the shared hash marker. The
+        provider's rollback validates that marker before removing an override.
+        Never opt into legacy adoption or remove overrides for other kernels.
+        """
+        if self._os_repository().info.family != 'steamos':
+            raise RuntimeError('SteamOS kernel recovery is available only on SteamOS.')
+        guard = protected_backend_guard(reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT)
+        rollback = shlex.quote(str(STEAMOS_AMDGPU_AUDIO_FIX_ROOT / 'rollback.sh'))
+        command = self._join_shell_commands((
+            'set -Eeuo pipefail',
+            'export LC_ALL=C LANG=C',
+            guard + ' || { echo "ERROR: protected rollback backend is missing or untrusted. No module was changed."; exit 39; }',
+            'echo "Restoring the stock AMDGPU module for the running kernel only. Mesa, Proton and other kernels are preserved."',
+            f'sudo /usr/bin/bash {rollback} "$(uname -r)"',
+            'echo "Read the rollback result above. Restart before relying on the restored module."',
+        ))
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(command, 'SteamOS · restore stock kernel module')
+
+    def preparar_compatibilidad_steamos_alternativo(self):
         require_bc250_hardware()  # nothing to change on a computer without a BC-250
         os_repository = self._os_repository()
         if os_repository.info.family != 'steamos':
@@ -322,9 +401,11 @@ class SteamosDependenciesMixin:
         # read-only protection with EXIT traps.  Do not keep /usr writable
         # during the potentially long kernel build.
         self.estado_herramientas_cache = None
+        command = self._join_shell_commands(('set -Eeuo pipefail', alternative_guard_command(), command))
         return self._abrir_terminal(command, 'Preparar compatibilidad SteamOS BC250')
 
-    def gestionar_graficos_steamos(self, action):
+
+    def gestionar_graficos_steamos_alternativo(self, action):
         """Install, verify or remove the matched SteamOS RADV/FSR4 stage."""
         # BC-250 hardware actions stop here on a computer without one;
         # checking state and removing stay available.
@@ -373,9 +454,12 @@ class SteamosDependenciesMixin:
         }
         if action not in titles:
             raise ValueError(f'Unsupported SteamOS graphics action: {action}')
+        if action in {'install', 'uninstall', 'install-fsr4'}:
+            command = self._join_shell_commands(('set -Eeuo pipefail', alternative_guard_command(), command))
         return self._abrir_terminal(command, titles[action])
 
-    def gestionar_proton_steamos(self, action: str):
+
+    def gestionar_proton_steamos_alternativo(self, action: str):
         if self._os_repository().info.family != 'steamos':
             raise RuntimeError('The SteamOS Proton workflow is available only on SteamOS.')
         command = build_steamos_proton_command(
@@ -384,40 +468,6 @@ class SteamosDependenciesMixin:
             backend_guard=protected_backend_guard(reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT),
         )
         self.estado_herramientas_cache = None
+        if action in {'install', 'update'}:
+            command = self._join_shell_commands(('set -Eeuo pipefail', alternative_guard_command(), command))
         return self._abrir_terminal(command, 'SteamOS · BC-250 GE-Proton')
-
-    def diagnostico_steamos(self):
-        """Run Control Center's native SteamOS checks without toolkit ownership."""
-        os_repository = self._os_repository()
-        if os_repository.info.family != 'steamos':
-            raise RuntimeError('SteamOS toolkit diagnostics are available only on SteamOS.')
-        patch_status = STEAMOS_AMDGPU_BACKEND
-        cu_spec = self._cu_manager_spec(os_repository)
-        cu_script = cu_spec['script']
-        command = self._join_shell_commands((
-            'set -Eeuo pipefail',
-            'export LC_ALL=C LANG=C',
-            'echo "== Native BC250 Control Center SteamOS diagnostics =="',
-            'echo "[INFO] Community toolkits are references; this report validates Control Center-owned paths and services."',
-            'echo "== Active kernel and scheduler =="',
-            'printf "Kernel: %s\\n" "$(uname -r)"',
-            build_steamos_amdgpu_diagnostic_command(
-                script=patch_status,
-                backend_guard=protected_backend_guard(
-                    reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT
-                ),
-            ),
-            'echo "== Control Center services =="',
-            'for unit in cyan-skillfish-governor-smu.service bc250-cu-live-manager.service nct6687-load.service bc250-smu-oc.service; do enabled="$(systemctl is-enabled "$unit" 2>/dev/null || true)"; active="$(systemctl is-active "$unit" 2>/dev/null || true)"; printf "%s: enabled=%s active=%s\\n" "$unit" "${enabled:-not-found}" "${active:-not-found}"; done',
-            'echo "== Control Center UMR / CU backend =="',
-            f'test -x {shlex.quote(str(cu_script))} || {{ echo "ERROR: Control Center SteamOS CU backend is missing"; exit 39; }}',
-            self._steamos_cu_status_probe_command(cu_script),
-            'echo "== NCT hardware monitor =="',
-            'if [ -r /sys/class/hwmon ]; then for node in /sys/class/hwmon/hwmon*/name; do [ -r "$node" ] && printf "%s: %s\\n" "${node%/name}" "$(cat "$node")"; done; fi',
-            'echo "[OK] Native SteamOS diagnostics completed; no system setting was changed."',
-        ))
-        return self._abrir_terminal(command, 'Diagnóstico SteamOS BC250')
-
-    # Compatibility alias for controllers from builds that briefly exposed the
-    # upstream-oriented name. The implementation is fully native.
-    diagnostico_toolkit_steamos = diagnostico_steamos

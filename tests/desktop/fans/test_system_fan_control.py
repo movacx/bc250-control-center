@@ -733,6 +733,43 @@ def test_every_session_write_is_refused_until_the_fan_is_taken_back(board, monke
     assert not g["POLICY_FILE"].exists()
 
 
+def test_running_toolkit_curve_prevents_native_writes_and_takeback(board, monkeypatch, capsys):
+    module, g, nct, _k10 = board
+    events = g['STATE_DIR'] / 'toolkit.cgroup.events'
+    events.parent.mkdir(parents=True, exist_ok=True)
+    events.write_text('populated 1\nfrozen 0\n')
+    monkeypatch.setitem(g, 'TOOLKIT_FAN_CGROUP', events)
+    _write(nct / 'pwm2', 90)
+    _write(nct / 'pwm2_enable', 1)
+    replies = _session(module, g, monkeypatch, capsys, '2 255', 'AUTO 2', 'CONTROL ENABLE', 'EXTERNAL OFF')
+    assert replies[:3] == [g['EXTERNAL_REFUSAL']] * 3
+    assert 'Stop Toolkit SteamOS fan control' in replies[3]
+    assert (nct / 'pwm2').read_text().strip() == '90'
+    assert (nct / 'pwm2_enable').read_text().strip() == '1'
+    assert not g['EXTERNAL_FILE'].exists(), 'Detection is passive; no handoff file is invented'
+
+
+def test_stopped_toolkit_service_does_not_block_native_control(board, monkeypatch):
+    module, g, _nct, _k10 = board
+    events = g['STATE_DIR'] / 'toolkit.cgroup.events'
+    events.parent.mkdir(parents=True, exist_ok=True)
+    events.write_text('populated 0\nfrozen 0\n')
+    monkeypatch.setitem(g, 'TOOLKIT_FAN_CGROUP', events)
+    assert module['fan_external']() is False
+    assert module['external_command'](False) == 'OK EXTERNAL OFF'
+
+
+def test_desktop_detects_toolkit_without_a_native_handoff_file(tmp_path, monkeypatch):
+    events = tmp_path / 'cgroup.events'
+    events.write_text('populated 1\nfrozen 0\n')
+    monkeypatch.setattr(system_fan_control, 'TOOLKIT_FAN_CGROUP', events)
+    monkeypatch.setattr(system_fan_control, 'EXTERNAL_FILE', tmp_path / 'absent-marker')
+    assert system_fan_control.fan_handed_to_external() is True
+    assert system_fan_control.running_fan_managers(tmp_path / 'absent-proc') == ['Toolkit SteamOS Control']
+    events.write_text('populated 0\n')
+    assert system_fan_control.fan_handed_to_external() is False
+
+
 def test_restore_boot_replays_nothing_for_a_handed_over_fan(board, monkeypatch):
     module, g, nct, _k10 = board
     g["_remember_applied"](2, 60)

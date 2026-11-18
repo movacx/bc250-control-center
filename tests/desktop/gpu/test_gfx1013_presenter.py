@@ -12,11 +12,11 @@ from frontends.desktop.core.gfx1013_presenter import (
     [
         (
             {"reason_key": "steamos-dedicated-backend"},
-            "SteamOS backend", "blue", "Two steps: install the kernel",
+            "Unknown", "gray", "SteamOS Real Toolkit",
         ),
         (
             {"reason_key": "steamos-dedicated-backend", "steamos_kernel_ready": True},
-            "Kernel half ready", "blue", "Install Mesa/RADV to enable async compute",
+            "Unknown", "gray", "SteamOS Real Toolkit",
         ),
         (
             {
@@ -24,14 +24,14 @@ from frontends.desktop.core.gfx1013_presenter import (
                 "steamos_kernel_ready": True,
                 "steamos_safe_radv_detected": True,
             },
-            "Async compute detected", "green", "Another GFX1013 RADV is installed",
+            "Unknown", "gray", "SteamOS Real Toolkit",
         ),
         (
             {
                 "reason_key": "steamos-dedicated-backend",
                 "steamos_safe_radv_detected": True,
             },
-            "Review required", "orange", "Do not use",
+            "Unknown", "gray", "SteamOS Real Toolkit",
         ),
         (
             {"reason_key": "fedora-upstream-managed"},
@@ -70,43 +70,46 @@ def test_presenter_maps_supported_host_states(state, status, tone, detail_fragme
     assert detail_fragment in " ".join(presentation.detail)
 
 
-def test_legacy_radv_has_highest_warning_precedence():
+def test_alternative_legacy_flags_do_not_override_primary_toolkit_state():
     presentation = present_gfx1013({
         "reason_key": "steamos-dedicated-backend",
         "legacy_steamos_radv_detected": True,
+        "steamos_real_toolkit": {"graphics": {"state": "configured", "active": None}},
         "steamos_kernel_ready": True,
         "steamos_safe_radv_detected": True,
         "dryhopped_boot_active": True,
     })
 
-    assert presentation.status == "Review required"
-    assert "legacy SteamOS alternate RADV" in presentation.detail[0]
+    assert presentation.status == "Configured"
+    assert "SteamOS Real Toolkit" in presentation.detail[0]
 
 
-def test_current_external_steamos_radv_is_not_labelled_as_legacy():
+def test_configured_toolkit_graphics_do_not_claim_live_async_compute():
     presentation = present_gfx1013({
         "reason_key": "steamos-dedicated-backend",
         "steamos_kernel_ready": True,
+        "steamos_real_toolkit": {"graphics": {"state": "configured", "active": None}},
         "steamos_external_radv_state": "ready",
         "steamos_external_radv_current": True,
         "steamos_external_fsr4_state": "ready",
         "steamos_external_fsr4_current": True,
     })
 
-    assert presentation.status == "Async compute detected"
-    assert presentation.tone == "green"
-    assert "optional per-game FSR4 profile is also intact" in " ".join(presentation.detail)
+    assert presentation.status == "Configured"
+    assert presentation.tone == "blue"
+    assert "Async compute is ready" not in " ".join(presentation.detail)
 
 
-def test_incomplete_external_steamos_runtime_requires_review():
+def test_incomplete_toolkit_runtime_is_not_hidden_by_old_kernel_readiness():
     presentation = present_gfx1013({
         "reason_key": "steamos-dedicated-backend",
         "steamos_kernel_ready": True,
+        "steamos_real_toolkit": {"graphics": {"state": "incomplete"}},
         "steamos_external_fsr4_state": "invalid",
     })
 
-    assert presentation.status == "Review required"
-    assert "incomplete or changed" in presentation.detail[0]
+    assert presentation.status == "Incomplete"
+    assert presentation.tone == "orange"
 
 
 def test_hidden_fsr4_state_does_not_change_visible_gfx1013_presentation():
@@ -120,7 +123,7 @@ def test_hidden_fsr4_state_does_not_change_visible_gfx1013_presentation():
         include_fsr4=False,
     )
 
-    assert presentation.status == "Kernel half ready"
+    assert presentation.status == "Unknown"
     assert "FSR4" not in " ".join(presentation.detail)
 
 
@@ -135,7 +138,7 @@ def test_external_boot_state_precedes_an_inactive_external_install():
     assert inactive.status == "Installed"
 
 
-def test_steamos_actions_follow_kernel_readiness_only():
+def test_steamos_primary_action_is_independent_of_the_old_kernel_gate():
     missing = present_gfx1013({"reason_key": "steamos-dedicated-backend"})
     ready = present_gfx1013({
         "reason_key": "steamos-dedicated-backend",
@@ -144,8 +147,8 @@ def test_steamos_actions_follow_kernel_readiness_only():
     fedora = present_gfx1013({"reason_key": "fedora-upstream-managed"})
 
     assert missing.steamos_actions is True
-    assert missing.compatibility_action == "1 · Install kernel"
-    assert ready.compatibility_action == "1 · Repair kernel"
+    assert missing.compatibility_action == "Install / update"
+    assert ready.compatibility_action == "Install / update"
     assert fedora.steamos_actions is False
     assert fedora.fedora_actions is True
 

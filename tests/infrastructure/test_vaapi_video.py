@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -66,6 +67,50 @@ def test_another_installer_or_the_hardware_block_keeps_it_away(paths):
     assert state["state"] == "managed-elsewhere" and state["foreign"]
     vaapi.FOREIGN_FILES[1].unlink()
     assert _state(cmdline="quiet amdgpu.bc250_vcn=1")["state"] == "hardware-vcn"
+
+
+@pytest.mark.parametrize('activation_file', [
+    '/etc/environment.d/99-bc250-vaapi.conf', '/etc/profile.d/zz-bc250-vaapi.sh',
+])
+def test_real_toolkit_activation_prevents_native_video_takeover(tmp_path, monkeypatch, activation_file):
+    assert Path(activation_file) in vaapi.FOREIGN_FILES
+    monkeypatch.setattr(vaapi, 'FOREIGN_FILES', tuple(tmp_path / str(path).lstrip('/') for path in vaapi.FOREIGN_FILES))
+    monkeypatch.setattr(vaapi, 'ENV_FILE', tmp_path / 'native-env')
+    monkeypatch.setattr(vaapi, 'DRIVER', tmp_path / 'native-driver')
+    monkeypatch.setattr(vaapi, 'MANIFEST', tmp_path / 'native-version')
+    existing = tmp_path / activation_file.lstrip('/')
+    existing.parent.mkdir(parents=True, exist_ok=True)
+    existing.write_text('LIBVA_DRIVER_NAME=bc250\n')
+    state = _state(family='steamos')
+    assert state['state'] == 'managed-elsewhere'
+    assert str(existing) in state['foreign']
+    result = subprocess.run(['bash', '-c', '\n'.join(vaapi._foreign_guard()) + '\necho CONTINUED'],
+                            capture_output=True, text=True)
+    assert result.returncode == 65 and 'CONTINUED' not in result.stdout
+    assert existing.read_text() == 'LIBVA_DRIVER_NAME=bc250\n'
+
+
+def test_foreign_activation_is_not_reported_as_our_active_driver(paths):
+    _install(paths)
+    foreign = vaapi.FOREIGN_FILES[0]
+    foreign.parent.mkdir(parents=True, exist_ok=True)
+    foreign.write_text('LIBVA_DRIVER_NAME=bc250\nLIBVA_DRIVERS_PATH=/other/driver\n')
+    state = _state(environ={'LIBVA_DRIVER_NAME': 'bc250'})
+    assert state['installed'], 'Our files still exist and remain removable'
+    assert state['state'] == 'managed-elsewhere'
+
+
+@pytest.mark.parametrize('action', ['install', 'install32', 'flatpak'])
+def test_native_video_mutations_recheck_foreign_activation_before_tools_or_writes(monkeypatch, action):
+    monkeypatch.setattr(vaapi, 'vaapi_supported32', lambda family: (True, ''))
+    command = vaapi.build_vaapi_command(action, family='steamos')
+    guard = '\n'.join(vaapi._foreign_guard())
+    assert guard in command
+    # These operations can activate another path globally or for Flatpak;
+    # refusal must precede authentication, aliases and build dependencies.
+    remainder = command.split(guard, 1)[0]
+    assert 'sudo -v' not in remainder and 'command -v podman' not in remainder
+    assert 'sudo ln ' not in remainder
 
 
 @pytest.mark.parametrize("action", ["install", "test", "uninstall", "flatpak", "flatpak-remove"])

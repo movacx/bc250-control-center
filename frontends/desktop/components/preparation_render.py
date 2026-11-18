@@ -98,7 +98,7 @@ class PreparationRenderMixin:
             ))
         flatpak = _mapping(vaapi.get("flatpak"))
         flatpak_missing = (
-            installed and state != "invalid" and bool(flatpak.get("available"))
+            installed and state not in {"invalid", "managed-elsewhere"} and bool(flatpak.get("available"))
             # Without the radeonsi alias, programs that clear LIBVA_DRIVER_NAME
             # (GPU Screen Recorder) cannot find the driver even when allowed.
             and (not flatpak.get("applied") or not vaapi.get("alias", True))
@@ -111,7 +111,7 @@ class PreparationRenderMixin:
             )
         driver32 = _mapping(vaapi.get("driver32"))
         state32 = str(driver32.get("state") or "unsupported")
-        offer32 = installed and state != "invalid" and state32 in {"not-installed", "needs-libs"}
+        offer32 = installed and state not in {"invalid", "managed-elsewhere"} and state32 in {"not-installed", "needs-libs"}
         if offer32:
             self.vaapi_card.detail.setText(
                 self.vaapi_card.detail.text() + "\n" + tr(
@@ -1000,6 +1000,14 @@ class PreparationRenderMixin:
         self.cachyos_stack_card.setVisible(show_all or selected == "arch")
         self.steamos_proton_card.setVisible(show_all or selected == "steamos")
         self.steamos_proton_card.setEnabled(actual == "steamos" and not preview)
+        self.real_toolkit_panel.setVisible(show_all or selected == "steamos")
+        self.real_toolkit_panel.setEnabled(actual == "steamos" and not preview)
+        self.real_toolkit_card.setVisible(show_all or selected == "steamos")
+        self.real_toolkit_card.setEnabled(actual == "steamos" and not preview)
+        self.steamos_alternative_panel.setVisible(show_all or selected == "steamos")
+        self.steamos_alternative_panel.setEnabled(actual == "steamos" and not preview)
+        self.steamos_alternative_card.setVisible(show_all or selected == "steamos")
+        self.steamos_alternative_card.setEnabled(actual == "steamos" and not preview)
         self.fsr4_card.setVisible(FSR4_UI_ENABLED)
         self.helixsr_card.setVisible(HELIXSR_UI_ENABLED)
         self._refresh_compatibility_summary()
@@ -1083,6 +1091,7 @@ class PreparationRenderMixin:
             self.gfx_card,
             self.cachyos_stack_card,
             self.steamos_proton_card,
+            self.real_toolkit_panel,
         ):
             for button in card.findChildren(QPushButton):
                 action = str(getattr(button, "request_payload", {}).get("action") or "")
@@ -1429,121 +1438,32 @@ class PreparationRenderMixin:
         self.steamos_fsr4_launch_row.hide()
         self.bazzite_enable_row.hide()
         self.bazzite_launch_row.hide()
+        real_toolkit = _mapping(gfx_state.get("steamos_real_toolkit"))
+        self.real_toolkit_panel.set_provider_state(real_toolkit)
+        self.steamos_alternative_panel.set_provider_state(
+            _mapping(gfx_state.get("steamos_alternative_graphics")))
         if reason_key == "steamos-dedicated-backend":
-            kernel_ready = bool(gfx_state.get("steamos_kernel_ready"))
-            kernel_installed = bool(gfx_state.get("steamos_kernel_installed"))
-            radv_state = str(
-                gfx_state.get("steamos_external_radv_state") or "not-installed"
-            )
-            radv_current = bool(gfx_state.get("steamos_external_radv_current"))
-            fsr4_state = str(
-                gfx_state.get("steamos_external_fsr4_state") or "not-installed"
-            )
-            fsr4_current = bool(gfx_state.get("steamos_external_fsr4_current"))
-            self._steamos_fsr4_launch_option = str(
-                gfx_state.get("steamos_external_fsr4_launch_option") or ""
-            )
-            self.steamos_fsr4_launch_row.setVisible(
-                GFX1013_FSR4_UI_ENABLED
-                and fsr4_current
-                and bool(self._steamos_fsr4_launch_option)
-            )
-            self.steamos_fsr4_copy_button.setText("⧉")
-            self.steamos_fsr4_copy_button.setToolTip(
-                tr("Copy Steam launch option")
-            )
-            self.steamos_kernel_status.setText(
-                tr("Active")
-                if kernel_ready
-                else tr("Reboot required")
-                if kernel_installed
-                else tr("Not installed")
-            )
-            self.steamos_kernel_status.set_tone(
-                "green" if kernel_ready else "orange" if kernel_installed else "gray"
-            )
-            self.steamos_radv_status.setText(
-                tr("Ready")
-                if radv_current
-                else tr("Repair required")
-                if radv_state == "invalid"
-                else tr("Not installed")
-            )
-            self.steamos_radv_status.set_tone(
-                "green"
-                if radv_current
-                else "orange"
-                if radv_state == "invalid"
-                else "gray"
-            )
-            self.steamos_fsr4_status.setText(
-                tr("Ready")
-                if fsr4_current
-                else tr("Repair required")
-                if fsr4_state == "invalid"
-                else tr("Optional")
-            )
-            self.steamos_fsr4_status.set_tone(
-                "green"
-                if fsr4_current
-                else "orange"
-                if fsr4_state == "invalid"
-                else "gray"
-            )
-            self.gfx_card.update_action(
-                self.gfx_primary_button,
-                text=gfx.compatibility_action,
-                payload={"action": "steamos_compat", "governor": ""},
-            )
-            self.gfx_card.update_action(
-                self.gfx_secondary_button,
-                text="2 · Repair Mesa RADV"
-                if radv_state != "not-installed"
-                else "2 · Install Mesa RADV",
-                payload={"action": "steamos_graphics_install", "governor": ""},
-                enabled=kernel_ready,
-                tooltip="Install the kernel and reboot first."
-                if not kernel_ready
-                else "",
-            )
-            if GFX1013_FSR4_UI_ENABLED:
-                self.gfx_card.update_action(
-                    self.gfx_tertiary_button,
-                    text="Update per-game FSR4"
-                    if fsr4_current
-                    else "3 · Install per-game FSR4",
-                    payload={
-                        "action": "steamos_graphics_fsr4_install",
-                        "governor": "",
-                    },
-                    enabled=kernel_ready and radv_current,
-                    tooltip="Install and activate the matched Mesa/RADV stage first."
-                    if not (kernel_ready and radv_current)
-                    else "",
-                )
-            self.gfx_card.update_action(
-                self.gfx_quaternary_button,
-                text="Check full stack",
-                payload={"action": "steamos_graphics_status", "governor": ""},
-            )
-            self.gfx_card.update_action(
-                self.gfx_quinary_button,
-                text=(
-                    "Remove FSR4"
-                    if GFX1013_FSR4_UI_ENABLED and fsr4_state != "not-installed"
-                    else "Remove Mesa RADV"
-                ),
-                payload={
-                    "action": "steamos_graphics_fsr4_uninstall"
-                    if GFX1013_FSR4_UI_ENABLED and fsr4_state != "not-installed"
-                    else "steamos_graphics_uninstall",
-                    "governor": "",
-                },
-                visible=(
-                    (GFX1013_FSR4_UI_ENABLED and fsr4_state != "not-installed")
-                    or radv_state != "not-installed"
-                ),
-            )
+            proton = _mapping(real_toolkit.get("proton"))
+            graphics_label, graphics_tone = gfx.status, gfx.tone
+            self.gfx_card.set_scope("SteamOS Real Toolkit", "blue")
+            self.gfx_card.set_status(graphics_label, graphics_tone)
+            self.steamos_kernel_status.setText(tr("Unknown"))
+            self.steamos_kernel_status.set_tone("gray")
+            self.steamos_radv_status.setText(tr(graphics_label))
+            self.steamos_radv_status.set_tone(graphics_tone)
+            proton_state = str(proton.get("state") or "unknown")
+            self.steamos_fsr4_status.setText(tr({"installed": "Installed", "incomplete": "Incomplete",
+                                               "not-installed": "Optional"}.get(proton_state, "Unknown")))
+            self.steamos_fsr4_status.set_tone("blue" if proton_state == "installed" else
+                                            "orange" if proton_state == "incomplete" else "gray")
+            for button, text, action in (
+                (self.gfx_primary_button, "Install / update", "combined-install"),
+                (self.gfx_secondary_button, "Check", "verify"),
+                (self.gfx_tertiary_button, "Proton", "proton-install"),
+                (self.gfx_quaternary_button, "Uninstall", "combined-revert"),
+            ):
+                self.gfx_card.update_action(button, text=text,
+                    payload={"action": "real_toolkit:" + action, "governor": ""}, enabled=True, visible=True)
         elif reason_key == "fedora-upstream-managed" and gfx.radv_route is None:
             # Fedora on a kernel older than 7.2: DryhoppedIPA's installer. On
             # 7.2 or newer the patched RADV alone takes over (below).

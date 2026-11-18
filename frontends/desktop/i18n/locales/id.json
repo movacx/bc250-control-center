@@ -6242,5 +6242,11 @@
   "Search by code, message or keyword": "Cari berdasarkan kode, pesan, atau kata kunci",
   "Matches: {term}": "Cocok dengan: {term}",
   "Did you mean: {term}?": "Maksud Anda: {term}?",
-  "Try another search or select a module.": "Coba pencarian lain atau pilih modul."
+  "Try another search or select a module.": "Coba pencarian lain atau pilih modul.",
+  "Search installation, configuration and recovery tools by component.": "Cari alat pemasangan, konfigurasi, dan pemulihan berdasarkan komponen.",
+  "Maintain an existing kernel, Mesa / RADV, FSR4 or GE-Proton installation.": "Kelola pemasangan kernel, Mesa / RADV, FSR4, atau GE-Proton yang sudah ada.",
+  "Restore the stock AMDGPU module for the running kernel only. Mesa, Proton and overrides for other kernels are preserved. Patched graphics features will be unavailable after restarting; review the remaining Mesa configuration before using games.": "Memulihkan modul AMDGPU bawaan hanya untuk kernel saat ini. Mesa, Proton, dan modul kernel lain tetap dipertahankan. Fitur grafis dari patch tidak tersedia setelah memulai ulang; periksa konfigurasi Mesa sebelum menjalankan game.",
+  "SteamOS Real Toolkit": "SteamOS Real Toolkit",
+  "SteamOS · keyboardspecialist": "SteamOS · keyboardspecialist",
+  "Use SteamOS Real Toolkit to select, check or revert graphics components.": "Gunakan SteamOS Real Toolkit untuk memilih, memeriksa, atau memulihkan komponen grafis."
 }

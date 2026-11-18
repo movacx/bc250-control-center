@@ -6242,5 +6242,11 @@
   "Search by code, message or keyword": "Kod, mesaj veya anahtar kelimeyle ara",
   "Matches: {term}": "Eşleşme: {term}",
   "Did you mean: {term}?": "Şunu mu demek istediniz: {term}?",
-  "Try another search or select a module.": "Başka bir arama deneyin veya bir modül seçin."
+  "Try another search or select a module.": "Başka bir arama deneyin veya bir modül seçin.",
+  "Search installation, configuration and recovery tools by component.": "Bileşene göre kurulum, yapılandırma ve kurtarma araçlarını arayın.",
+  "Maintain an existing kernel, Mesa / RADV, FSR4 or GE-Proton installation.": "Mevcut çekirdek, Mesa / RADV, FSR4 veya GE-Proton kurulumunu yönetin.",
+  "Restore the stock AMDGPU module for the running kernel only. Mesa, Proton and overrides for other kernels are preserved. Patched graphics features will be unavailable after restarting; review the remaining Mesa configuration before using games.": "Yalnızca çalışan çekirdeğin özgün AMDGPU modülünü geri yükler. Mesa, Proton ve diğer çekirdeklerin modülleri korunur. Yama ile gelen grafik özellikleri yeniden başlatmadan sonra kullanılamaz; oyunları açmadan önce Mesa yapılandırmasını inceleyin.",
+  "SteamOS Real Toolkit": "SteamOS Real Toolkit",
+  "SteamOS · keyboardspecialist": "SteamOS · keyboardspecialist",
+  "Use SteamOS Real Toolkit to select, check or revert graphics components.": "Grafik bileşenlerini seçmek, denetlemek veya geri almak için SteamOS Real Toolkit kullanın."
 }
