@@ -863,6 +863,7 @@
    "classify_cpu_persistence_service": "CPU-0237"
   },
   "bc250cc/infrastructure/cpu_repository.py": {
+   "_core_mask_arguments": "CPU-0342",
    "_refuse_stress_waiting_for_reboot": "CPU-0296",
    "CPURepository._estimated_vid": "CPU-0238",
    "CPURepository._read_cpu_oc_config": "CPU-0239",
@@ -901,6 +902,7 @@
    "CPURepository.comando_cpu_scale_live_embebido": "CPU-0267",
    "CPURepository.comando_cpu_oc_manual_embebido": "CPU-0268",
    "CPURepository.comando_cpu_oc_manual_verificado_embebido": "CPU-0269",
+   "CPURepository._smu_oc_source_then": "CPU-0343",
    "CPURepository.registrar_aplicacion_manual_cpu": "CPU-0270",
    "CPURepository.comando_cpu_oc_persistente_embebido": "CPU-0271",
    "CPURepository.estado_cpu_oc_persistente": "CPU-0272",
@@ -1630,7 +1632,9 @@
    "is_bc250_platform": "SYS-0041",
    "bc250_identity": "SYS-0326",
    "require_bc250_hardware": "SYS-0327",
-   "cpu_threads_present": "SYS-0332"
+   "cpu_threads_present": "SYS-0332",
+   "amdgpu_blocked_by_cmdline": "SYS-0341",
+   "amdgpu_blocked_message": "SYS-0342"
   },
   "bc250cc/infrastructure/helixsr.py": {
    "_data_home": "UPS-0076",
@@ -1774,6 +1778,7 @@
    "helixsr_scaler_rows": "UPS-0193",
    "_scaler_versions": "UPS-0194",
    "_recorded_scaler_rows": "UPS-0195",
+   "_has_windows_exe": "UPS-0306",
    "_refuse_native_game": "UPS-0272",
    "_refuse_other_helixsr": "UPS-0196",
    "_scaler_result": "UPS-0197",
@@ -5349,6 +5354,12 @@
    "CheckLine.setEnabled": "CPU-0079",
    "CheckLine.retranslate": "CPU-0080",
    "CheckLine.eventFilter": "CPU-0081",
+   "CoreMaskLine.__init__": "CPU-0334",
+   "CoreMaskLine.mask": "CPU-0335",
+   "CoreMaskLine.force": "CPU-0336",
+   "CoreMaskLine.setToolTip": "CPU-0337",
+   "CoreMaskLine.setEnabled": "CPU-0338",
+   "CoreMaskLine.retranslate": "CPU-0339",
    "UnlockOption.__init__": "CPU-0316",
    "UnlockOption._pick": "CPU-0317",
    "UnlockOption.mouseReleaseEvent": "CPU-0318",
@@ -5415,6 +5426,8 @@
    "CpuControlView._reflow": "CPU-0125"
   },
   "frontends/desktop/pages/cpu_smu.py": {
+   "_accept_mask_for": "CPU-0340",
+   "_accepted_mask_note": "CPU-0341",
    "_dict": "CPU-0126",
    "_number": "CPU-0127",
    "CpuSummaryItem.__init__": "CPU-0128",

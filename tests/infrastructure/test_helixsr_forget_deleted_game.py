@@ -92,3 +92,52 @@ def test_a_missing_game_offers_only_to_come_off_the_list():
     dashboard_widgets._bridge_cells(row_for, [{"appid": "2", "name": "Gone", "missing": True}])
     text, _tone, _copy, actions = rows["2"]["helixsr"]
     assert text == "Not on disk" and actions == (("Remove from list", "helixsr_bridge_remove:2", True),)
+
+
+def test_an_uninstalled_game_whose_folder_was_left_behind_is_forgotten(tmp_path, stores, monkeypatch):
+    """R-76c35a55: Steam left the folder (saves, configs) but no .exe; the bridge refused."""
+    monkeypatch.setattr(helixsr, "helixsr_root", lambda: tmp_path)
+    leftovers = tmp_path / "Hogwarts Legacy"
+    (leftovers / "Phoenix" / "Saved").mkdir(parents=True)
+    (leftovers / "Phoenix" / "Saved" / "settings.ini").write_text("x")
+    monkeypatch.setattr(helixsr, "_game", lambda _appid: {"name": "Hogwarts Legacy", "path": str(leftovers)})
+    result = helixsr.remove_helixsr_bridge("990080")
+    assert result == {"game": "Hogwarts Legacy", "forgotten": True}
+    assert "990080" in helixsr._hidden_games()
+    assert leftovers.is_dir()  # nothing of the owner's is deleted
+
+
+def test_a_bridge_record_whose_game_left_only_leftovers_is_dropped(tmp_path, stores):
+    bridge, _ = stores
+    leftovers = tmp_path / "leftovers"
+    leftovers.mkdir()
+    (leftovers / "dxgi.dll").write_text("helix")
+    bridge.write_text(json.dumps({"7": {"name": "Gone game", "folder": str(leftovers)}}))
+    result = helixsr.remove_helixsr_bridge("7")
+    assert result == {"game": "Gone game", "forgotten": True}
+    assert json.loads(bridge.read_text()) == {}
+
+
+def test_a_game_that_is_still_installed_goes_through_the_bridge(tmp_path, stores, monkeypatch):
+    game = tmp_path / "Game"
+    game.mkdir()
+    (game / "Game.exe").write_text("mz")
+    monkeypatch.setattr(helixsr, "_game", lambda _appid: {"name": "Game", "path": str(game)})
+    monkeypatch.setattr(helixsr, "_refuse_running", lambda _folder: None)
+    calls = []
+    monkeypatch.setattr(helixsr, "_run_bridge", lambda *args: calls.append(args) or {"ok": True})
+    assert helixsr.remove_helixsr_bridge("55") == {"game": "Game"}
+    assert calls == [("remove", "--game", str(game))]
+
+
+def test_a_shader_compiler_crash_is_retried_once_like_a_wine_disconnect():
+    """R-72957d45: dxc under Wine crashed on one shader at 99%; R-3f6a7098: Wine closed."""
+    import subprocess
+
+    block = helixsr._setup_block("/x/HelixSR")
+    assert "grep -q 'wine client error'" in block
+    assert "grep -Eq '^failed: .*dxc-wine[.]sh|Internal compiler error'" in block
+    assert block.count('bc250_attempt=2') == 2  # one retry in total, whatever the cause
+    assert '> >(tee -a "$bc250_wine_log") 2> >(tee -a "$bc250_wine_log" >&2)' in block
+    result = subprocess.run(["bash", "-n", "-c", block], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr

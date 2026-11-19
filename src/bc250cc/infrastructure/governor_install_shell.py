@@ -44,6 +44,27 @@ def cyan_upstream_runtime_command(
     )
 
 
+#: One Python line, run with the Cyan config path: prints the first problem
+#: with the switches Control Center relies on, or nothing when they are usable.
+_CYAN_TOML_CHECK = (
+    "import sys,tomllib;"
+    "c=tomllib.load(open(sys.argv[1],'rb'));"
+    "u=c.get('gpu-usage',c.get('gpu_usage'));g=c.get('gpu');"
+    "u=u if isinstance(u,dict) else None;g=g if isinstance(g,dict) else None;"
+    "print(next((m for ok,m in ("
+    "(u is not None and g is not None,'Cyan config requires [gpu-usage] and [gpu] sections'),"
+    "(u is not None and isinstance(u.get('fix-freq',u.get('fix_freq')),bool),"
+    "'Cyan fix-freq is missing or invalid in config.toml'),"
+    "(u is not None and isinstance(u.get('fix-metrics'),bool),"
+    "'Cyan fix-metrics is missing or invalid in config.toml'),"
+    "(u is not None and u.get('method','busy-flag') in ('busy-flag','process','kernel'),"
+    "'Cyan gpu-usage.method is invalid in config.toml'),"
+    "(g is not None and g.get('set-method') in ('smu','kernel'),"
+    "'Cyan gpu.set-method is missing or invalid in config.toml'),"
+    ") if not ok),''))"
+)
+
+
 def cyan_runtime_verification_command() -> str:
     return " ".join(  # noqa: FLY002
         (
@@ -66,14 +87,25 @@ def cyan_runtime_verification_command() -> str:
             "  bc250_cyan_config=/etc/cyan-skillfish-governor-smu/config.toml;",
             '  test -r "$bc250_cyan_config" ||',
             '    { echo "ERROR: Cyan configuration is not readable"; exit 61; };',
-            '  grep -Eq "^[[:space:]]*(fix-freq|fix_freq)[[:space:]]*=[[:space:]]*(true|false)([[:space:]]*(#.*)?)?$" "$bc250_cyan_config" ||',
-            '    { echo "ERROR: Cyan fix-freq is missing or invalid in config.toml"; exit 61; };',
-            '  grep -Eq "^[[:space:]]*fix-metrics[[:space:]]*=[[:space:]]*(true|false)([[:space:]]*(#.*)?)?$" "$bc250_cyan_config" ||',
-            '    { echo "ERROR: Cyan fix-metrics is missing or invalid in config.toml"; exit 61; };',
-            '  if grep -Eq \'^[[:space:]]*method[[:space:]]*=\' "$bc250_cyan_config" && ! grep -Eq \'^[[:space:]]*method[[:space:]]*=[[:space:]]*"(busy-flag|process|kernel)"([[:space:]]*(#.*)?)?$\' "$bc250_cyan_config"; then',
-            '    echo "ERROR: Cyan gpu-usage.method is invalid in config.toml"; exit 61; fi;',
-            '  grep -Eq \'^[[:space:]]*set-method[[:space:]]*=[[:space:]]*"(smu|kernel)"([[:space:]]*(#.*)?)?$\' "$bc250_cyan_config" ||',
-            '    { echo "ERROR: Cyan gpu.set-method is missing or invalid in config.toml"; exit 61; };',
+            # The same reading the installer validated the file with: TOML
+            # allows a quoted key, a dotted key or an inline table that the
+            # line grep below rejected, so a config the installer had just
+            # accepted failed here with exit 61 (R-3a3bc0dc). The grep stays
+            # for a Python without tomllib (before 3.11).
+            "  if python3 -I -c 'import tomllib' >/dev/null 2>&1; then",
+            f"    bc250_cyan_toml_check=\"$(python3 -I -c {shlex.quote(_CYAN_TOML_CHECK)} \"$bc250_cyan_config\" 2>/dev/null)\" ||",
+            '      bc250_cyan_toml_check="Cyan configuration is not valid TOML";',
+            '    if [ -n "$bc250_cyan_toml_check" ]; then echo "ERROR: $bc250_cyan_toml_check"; exit 61; fi;',
+            '  else',
+            '    grep -Eq "^[[:space:]]*(fix-freq|fix_freq)[[:space:]]*=[[:space:]]*(true|false)([[:space:]]*(#.*)?)?$" "$bc250_cyan_config" ||',
+            '      { echo "ERROR: Cyan fix-freq is missing or invalid in config.toml"; exit 61; };',
+            '    grep -Eq "^[[:space:]]*fix-metrics[[:space:]]*=[[:space:]]*(true|false)([[:space:]]*(#.*)?)?$" "$bc250_cyan_config" ||',
+            '      { echo "ERROR: Cyan fix-metrics is missing or invalid in config.toml"; exit 61; };',
+            '    if grep -Eq \'^[[:space:]]*method[[:space:]]*=\' "$bc250_cyan_config" && ! grep -Eq \'^[[:space:]]*method[[:space:]]*=[[:space:]]*"(busy-flag|process|kernel)"([[:space:]]*(#.*)?)?$\' "$bc250_cyan_config"; then',
+            '      echo "ERROR: Cyan gpu-usage.method is invalid in config.toml"; exit 61; fi;',
+            '    grep -Eq \'^[[:space:]]*set-method[[:space:]]*=[[:space:]]*"(smu|kernel)"([[:space:]]*(#.*)?)?$\' "$bc250_cyan_config" ||',
+            '      { echo "ERROR: Cyan gpu.set-method is missing or invalid in config.toml"; exit 61; };',
+            '  fi;',
             textwrap.dedent(r"""
                 bc250_cyan_active=0;
                 if [ "$bc250_cyan_openrc" -eq 1 ]; then

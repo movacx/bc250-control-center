@@ -6319,5 +6319,15 @@
   "A toolkit action ended before it could lock the system files again.": "工具包操作在重新锁定系统文件之前就已结束。",
   "keyboardspecialist's kernel fix or Mesa / RADV is installed. Remove them first with its rows (Restore the stock module for the running kernel, then Remove Mesa / RADV), restart, and install this one.": "已安装 keyboardspecialist 的内核修复或 Mesa / RADV。请先用它自己的行移除（先“为当前运行的内核恢复原厂模块”，再“移除 Mesa / RADV”），重启后再安装此项。",
   "Its files are still in the system partition, but its install record in /home is gone (a SteamOS factory reset erases /home only). Remove Mesa / RADV checks those files and removes them.": "它的文件仍在系统分区中，但 /home 中的安装记录已不存在（SteamOS 恢复出厂设置只会清除 /home）。“移除 Mesa / RADV”会检查这些文件并将其移除。",
-  "Needs this toolkit's own patched Mesa / RADV, which is not set up: install Kernel and Mesa · GFX1013 first. keyboardspecialist's Mesa does not count.": "需要此 toolkit 自带的已打补丁 Mesa / RADV，但尚未设置：请先安装 内核和 Mesa · GFX1013。keyboardspecialist 的 Mesa 不算。"
+  "Needs this toolkit's own patched Mesa / RADV, which is not set up: install Kernel and Mesa · GFX1013 first. keyboardspecialist's Mesa does not count.": "需要此 toolkit 自带的已打补丁 Mesa / RADV，但尚未设置：请先安装 内核和 Mesa · GFX1013。keyboardspecialist 的 Mesa 不算。",
+  "Core mask of this board": "此主板的核心掩码",
+  "0x77 · standard (normal check)": "0x77 · 标准(常规检查)",
+  "0xB7 · reported by one user": "0xB7 · 一位用户报告",
+  "0x7E · other possible mask": "0x7E · 其他可能的掩码",
+  "The unlock tool refuses boards whose core mask is not 0x77, because a different mask usually means the factory disabled cores that were defective. If the tool reported 0xB7 or 0x7E for this board, pick it here: the unlock then goes ahead only when the board really reads that mask, and all 8 cores are enabled. 0xB7 was reported by a single owner whose board stayed stable; it is not verified.": "解锁工具会拒绝核心掩码不是 0x77 的主板，因为不同的掩码通常意味着工厂禁用了有缺陷的核心。如果工具为这块主板报告的是 0xB7 或 0x7E，请在这里选择：只有当主板确实读出该掩码时才会继续解锁，并启用全部 8 个核心。0xB7 仅由一位主板保持稳定的用户报告，尚未经过验证。",
+  "Only a board whose core mask reads {mask} is unlocked; with any other mask nothing is written. A mask other than 0x77 may mean the factory disabled cores that were defective, and they are enabled anyway. Stress test for a few hours and check dmesg for MCE errors before relying on them.": "只有核心掩码为 {mask} 的主板才会被解锁；其他任何掩码都不会写入任何内容。不是 0x77 的掩码可能意味着工厂禁用了有缺陷的核心，而它们仍会被启用。在依赖它们之前，请进行几个小时的压力测试，并检查 dmesg 中的 MCE 错误。",
+  "Only {mask}": "仅 {mask}",
+  "The same package repository is configured twice.": "同一个软件包仓库被配置了两次。",
+  "pacman found one repository defined twice: in /etc/pacman.conf and again in a file it includes, or in a section that was added by hand. It stops before installing anything.": "pacman 发现一个仓库被定义了两次：在 /etc/pacman.conf 中，以及在它包含的某个文件或手动添加的段落中。它在安装任何内容之前就停止了。",
+  "Run pacman-conf --repo-list | sort | uniq -d to see the repeated repository, keep one of its two definitions in /etc/pacman.conf or /etc/pacman.d, then run the action again.": "运行 pacman-conf --repo-list | sort | uniq -d 查看重复的仓库，在 /etc/pacman.conf 或 /etc/pacman.d 中只保留其两个定义之一，然后重新运行该操作。"
 }

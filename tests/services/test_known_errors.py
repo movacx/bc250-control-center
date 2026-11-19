@@ -14,7 +14,7 @@ def test_complete_public_catalog_schema_and_privacy():
     assert catalog["schema_version"] == 1
     modules = {module["id"] for module in catalog["modules"]}
     entries = handbook.load()
-    assert len(modules) == 15 and len(entries) == 80
+    assert len(modules) == 15 and len(entries) == 83
     assert len({entry["id"] for entry in entries}) == len(entries)
     assert not re.search(r"R-[0-9a-f]{8}|/home/movacx|\"reports\"", json.dumps(catalog))
     expected = {"fixed", "fixed-dev", "user", "pending", "expected", "analysis"}
@@ -148,3 +148,15 @@ def test_cyan_article_backs_up_edits_and_guards_restart_with_validation(tmp_path
     config.write_text("gpu-usage = 1\n[gpu-usage]\nfix-freq = true\n")
     invalid = subprocess.run(argv, text=True, capture_output=True)
     assert invalid.returncode != 0 and "TOML OK" not in invalid.stdout
+
+
+@pytest.mark.parametrize("text,identity", [
+    ("ERROR: Cyan fix-freq is missing or invalid in config.toml", "GOV-13"),
+    ("RuntimeError: The local bc250_smu_oc repository was not found. Use Prepare dependencies first", "CPU-01"),
+    ("error: database already registered", "PKG-11"),
+    ("dracut[F]: image generation failed for kernel '7.0.0-30-generic'.", "GFX-04"),
+    ("unexpected core mask 0xb7, expected 0x77; aborting", "CU-03"),
+    ("RuntimeError: no game (.exe) found in ~/.local/share/Steam/steamapps/common/Hogwarts Legacy", "UPS-07"),
+])
+def test_the_2026_11_19_reports_find_their_entries(text, identity):
+    assert handbook.search(text)[0]["id"] == identity

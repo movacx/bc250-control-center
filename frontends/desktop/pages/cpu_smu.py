@@ -64,9 +64,32 @@ from ..core.external_links import open_external_url
 from ..core.state import collect_named_sources, state_cache_for
 from ..i18n import tr, tr_format
 from ..theme import COLORS
-from .cpu_control_view import MANUAL_SCALE_HINT
+from .cpu_control_view import CORE_MASK_STOCK, MANUAL_SCALE_HINT
 
 logger = logging.getLogger(__name__)
+
+ACCEPTED_MASK_NOTE = (
+    "Only a board whose core mask reads {mask} is unlocked; with any other mask "
+    "nothing is written. A mask other than 0x77 may mean the factory disabled "
+    "cores that were defective, and they are enabled anyway. Stress test for a "
+    "few hours and check dmesg for MCE errors before relying on them."
+)
+
+
+def _accept_mask_for(core_mask, ignore_core_mask=False):
+    """The mask to send as --accept-mask, or None for the standard check
+    (or for the blunt -f, which takes precedence when it was asked for)."""
+    if ignore_core_mask:
+        return None
+    try:
+        mask = int(core_mask) & 0xFF
+    except (TypeError, ValueError):
+        return None
+    return None if mask == CORE_MASK_STOCK else mask
+
+
+def _accepted_mask_note(mask: int) -> str:
+    return tr_format(ACCEPTED_MASK_NOTE, mask=f"0x{mask:02X}")
 
 
 def _dict(value):
@@ -1671,8 +1694,11 @@ class CpuSmuPage(QWidget):
             "Could not build service command",
         )
 
-    def _request_core_unlock(self, ignore_core_mask: bool = False) -> None:
-        """``ignore_core_mask`` is the owner's box for upstream's ``-f``."""
+    def _request_core_unlock(self, core_mask: int = CORE_MASK_STOCK, ignore_core_mask: bool = False) -> None:
+        """``core_mask`` is the owner's pick in the danger zone: any mask but
+        0x77 is unlocked only when the board really reads it (--accept-mask).
+        ``ignore_core_mask`` is the older blunt ``-f`` (any mask)."""
+        accept_mask = _accept_mask_for(core_mask, ignore_core_mask)
         if (
             getattr(self, "_command_build_pending", False)
             or (
@@ -1723,6 +1749,9 @@ class CpuSmuPage(QWidget):
                 "relying on them."
             )
             summary.insert(1, ("Core mask check", "Skipped (-f)"))
+        elif accept_mask is not None:
+            message += "\n\n" + _accepted_mask_note(accept_mask)
+            summary.insert(1, ("Core mask check", tr_format("Only {mask}", mask=f"0x{accept_mask:02X}")))
         dialog = ConfirmDialog(
             "Unlock CPU cores and restart",
             message,
@@ -1734,7 +1763,9 @@ class CpuSmuPage(QWidget):
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self._build_and_start_process(
-            lambda: self.controller.comando_desbloquear_nucleos_cpu(ignore_core_mask=ignore_core_mask),
+            lambda: self.controller.comando_desbloquear_nucleos_cpu(
+                ignore_core_mask=ignore_core_mask, accept_mask=accept_mask
+            ),
             "Unlock CPU cores and restart",
             "Could not start CPU core unlock",
         )
@@ -1748,8 +1779,9 @@ class CpuSmuPage(QWidget):
             )
         )
 
-    def _request_core_persistence(self, ignore_core_mask: bool = False) -> None:
+    def _request_core_persistence(self, core_mask: int = CORE_MASK_STOCK, ignore_core_mask: bool = False) -> None:
         """Install the boot service that unlocks the cores on every cold boot."""
+        accept_mask = _accept_mask_for(core_mask, ignore_core_mask)
         if self._core_unlock_busy():
             self._show_info(
                 "CPU operation in progress",
@@ -1778,6 +1810,9 @@ class CpuSmuPage(QWidget):
                 "relying on them."
             )
             summary.insert(1, ("Core mask check", "Skipped (-f)"))
+        elif accept_mask is not None:
+            message += "\n\n" + _accepted_mask_note(accept_mask)
+            summary.insert(1, ("Core mask check", tr_format("Only {mask}", mask=f"0x{accept_mask:02X}")))
         dialog = ConfirmDialog(
             "Make the core unlock permanent",
             message,
@@ -1790,7 +1825,7 @@ class CpuSmuPage(QWidget):
             return
         self._build_and_start_process(
             lambda: self.controller.comando_persistir_desbloqueo_nucleos_cpu(
-                ignore_core_mask=ignore_core_mask
+                ignore_core_mask=ignore_core_mask, accept_mask=accept_mask
             ),
             "Make the core unlock permanent",
             "Could not install the persistent core unlock",

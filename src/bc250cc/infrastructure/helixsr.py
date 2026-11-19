@@ -2019,11 +2019,15 @@ test ! -d {target}/{HELIXSR_BUILD_FOLDER} || bc250_fg_args=(--no-fg)
 # R-3f6a7098: Wine died on shader 387 of 389 ("wine client error: Connection
 # reset by peer") and 23 minutes of work were lost. That is Wine closing, not a
 # shader the compiler rejects, so the setup is run once more before giving up.
+# R-72957d45: the Windows shader compiler under Wine crashed on one shader at
+# 99% ("failed: .../dxc-wine.sh ..."); the same shader builds on a second run,
+# so that is retried once too. Both streams go to the log: the setup prints
+# its "failed:" line on either.
 bc250_attempt=1
 bc250_wine_log="$bc250_work/setup-errors.log"
 while :; do
   : > "$bc250_wine_log"
-  if TMPDIR="$bc250_work" PATH="$bc250_shim:$PATH" HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} "${{bc250_dlss_args[@]}}" "${{bc250_fg_args[@]}}"{flags} </dev/null 2> >(tee -a "$bc250_wine_log" >&2); then
+  if TMPDIR="$bc250_work" PATH="$bc250_shim:$PATH" HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} "${{bc250_dlss_args[@]}}" "${{bc250_fg_args[@]}}"{flags} </dev/null > >(tee -a "$bc250_wine_log") 2> >(tee -a "$bc250_wine_log" >&2); then
     break
   fi
   sleep 1
@@ -2031,6 +2035,13 @@ while :; do
     bc250_attempt=2
     echo
     echo "Wine closed in the middle of the build; this is not a shader error. Trying once more..."
+    echo
+    continue
+  fi
+  if [ "$bc250_attempt" = 1 ] && grep -Eq '^failed: .*dxc-wine[.]sh|Internal compiler error' "$bc250_wine_log" 2>/dev/null; then
+    bc250_attempt=2
+    echo
+    echo "The shader compiler crashed on one shader; it usually builds on a second run. Trying once more..."
     echo
     continue
   fi
@@ -2926,13 +2937,21 @@ def remove_helixsr_bridge(appid: str) -> dict:
             _forget_bridge_games()
             return {"game": str((game or {}).get("name") or appid), "forgotten": True}
         folder = Path(str(game["path"]))
+        if not _has_windows_exe(folder):
+            # R-76c35a55: Steam uninstalled the game but left its folder
+            # (saves, configs, HelixSR's own files). The bridge then refused
+            # with "no game (.exe) found"; there is no game left to restore.
+            _hide_game(appid)
+            _forget_bridge_games()
+            return {"game": str(game["name"]), "forgotten": True}
         _refuse_running(folder)
         _run_bridge("remove", "--game", str(folder))
         _forget_bridge_games()
         return {"game": str(game["name"])}
     folder = Path(record["folder"])
-    if not folder.is_dir():
-        # The game's folder is gone (uninstalled or moved): no file of it is left to restore.
+    if not folder.is_dir() or not _has_windows_exe(folder):
+        # The game is gone (uninstalled or moved, perhaps leaving a folder of
+        # leftovers behind): no file of it is left to restore.
         del records[appid]
         _write_json(_bridge_records_path(), records)
         _forget_bridge_games()
@@ -3038,6 +3057,15 @@ def _recorded_scaler_rows() -> list[dict]:
     ]
 
 
+def _has_windows_exe(folder: Path) -> bool:
+    """A Windows .exe anywhere under ``folder``: the game HelixSR goes next to."""
+    if not folder.is_dir():
+        return False
+    return any(
+        name.lower().endswith(".exe") for _root, _dirs, names in os.walk(folder) for name in names
+    )
+
+
 def _refuse_native_game(folder: Path) -> None:
     """HelixSR Scaler goes next to a Windows .exe that runs through Proton.
 
@@ -3046,10 +3074,7 @@ def _refuse_native_game(folder: Path) -> None:
     """
     if not folder.is_dir():
         return
-    has_exe = any(
-        name.lower().endswith(".exe") for _root, _dirs, names in os.walk(folder) for name in names
-    )
-    if not has_exe:
+    if not _has_windows_exe(folder):
         raise ActionNeeded(
             "This game runs natively on Linux: it has no Windows .exe. "
             "HelixSR only works with games that run through Proton."

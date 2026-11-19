@@ -190,6 +190,19 @@ def test_the_force_box_becomes_the_tool_force_mask(persist, capsys):
     assert _ran(capsys)["argv"] == ["install", "--force-mask"]
 
 
+def test_a_chosen_mask_becomes_the_tool_accept_mask(persist, capsys):
+    helper, repository, *_ = persist
+    helper["main"](["helper", "--persist-install", "--repo", str(repository), "--accept-mask", "0xb7"])
+    assert _ran(capsys)["argv"] == ["install", "--accept-mask", "0xB7"]
+
+
+def test_a_mask_that_is_not_a_harvest_never_reaches_the_tool(persist):
+    helper, repository, _run, launched, state = persist
+    with pytest.raises(RuntimeError, match="not a 6-core harvest"):
+        helper["main"](["helper", "--persist-install", "--repo", str(repository), "--accept-mask", "0x3F"])
+    assert launched == [] and state["reboots"] == 0
+
+
 def test_a_clone_at_another_revision_is_refused_before_anything_runs(persist, monkeypatch):
     helper, repository, _run, launched, state = persist
     monkeypatch.setitem(helper, "PERSISTENT_REVIEWED_REVISION", "0" * 40)
@@ -447,10 +460,35 @@ def _view(qtbot, width=1440):
     return view
 
 
-@pytest.mark.parametrize("width", [1180, 1440])
+def _hosted_view(qtbot, width):
+    """The view inside the CPU page's own responsive scroll area, as the app
+    mounts it. A bare top-level view resizes itself to its content, which at
+    the 1180 px breakpoint settled one relayout later with the mask combo."""
+    from PyQt6.QtWidgets import QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+
+    from frontends.desktop.components.responsive import configure_responsive_scroll_area
+
+    outer = QWidget()
+    box = QVBoxLayout(outer)
+    box.setContentsMargins(0, 0, 0, 0)
+    scroll, content = QScrollArea(), QWidget()
+    configure_responsive_scroll_area(scroll, content)
+    content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+    view = CpuControlView()
+    QVBoxLayout(content).addWidget(view)
+    box.addWidget(scroll)
+    qtbot.addWidget(outer)
+    outer.resize(width, 900)
+    outer.show()
+    qtbot.waitExposed(outer)
+    view._test_host = (outer, scroll, content)  # pytest-qt holds widgets weakly
+    return view
+
+
+@pytest.mark.parametrize("width", [1100, 1180, 1440])
 def test_switching_mode_does_not_make_the_card_jump(qtbot, width):
     """The card may grow for a stopped service's note, never on a mode click."""
-    view = _view(qtbot, width)
+    view = _hosted_view(qtbot, width)
     panel = view._risk_panel
     for state in STATES.values():
         view.apply_state(replace(CpuControlState(), core_unlock=state))
@@ -518,13 +556,13 @@ def test_each_mode_sends_its_own_request(qtbot):
     view.unlock_button.click()
     view.firmware_button.click()
     view._choose_mode(UNLOCK_MODE_PERSISTENT)
-    view.ignore_mask_line.check.setChecked(True)
+    view.core_mask_line.combo.setCurrentIndex(1)
     view.unlock_button.click()
     assert not view.firmware_button.isVisible()  # nothing installed yet: no link
     view.apply_state(replace(CpuControlState(), core_unlock=STATES["persistent-gave-up"]))
     view.firmware_button.click()
 
-    assert sent == [("temporary", False), ("guide",), ("persist", True), ("remove",)]
+    assert sent == [("temporary", 0x77), ("guide",), ("persist", 0xB7), ("remove",)]
 
 
 def test_a_service_that_stopped_itself_offers_a_reinstall_and_shows_why(qtbot):

@@ -48,7 +48,11 @@ from bc250cc.infrastructure.gpu_state import (
     GpuGovernorEvidence,
     build_gpu_state_snapshot,
 )
-from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
+from bc250cc.infrastructure.hardware_identity import (
+    amdgpu_blocked_by_cmdline,
+    amdgpu_blocked_message,
+    require_bc250_hardware,
+)
 from bc250cc.infrastructure.polkit_session import pkexec_argv
 from bc250cc.infrastructure.telemetry_policy import (
     daemon_governor_probe_budget,
@@ -681,6 +685,10 @@ class GPURepository:
         servicio = str(spec["service"])
         if accion not in {"activar", "desactivar", "reiniciar"}:
             raise ValueError("Invalid governor action.")
+        if accion in {"activar", "reiniciar"}:
+            blocked = amdgpu_blocked_by_cmdline()
+            if blocked:
+                raise ActionNeeded(amdgpu_blocked_message(blocked))
         if not self._command_path(str(spec["binary"])):
             raise ActionNeeded(
                 f"{selected} is not installed. Use Prepare dependencies first."

@@ -409,3 +409,57 @@ def _sidebar_for(gfx_state):
     state.preparation_tools["gfx1013_compute"] = gfx_state
     sidebar.set_state(state)
     return sidebar
+
+
+def test_a_leftover_kernel_cannot_fail_the_install_but_the_running_one_must_rebuild(tmp_path):
+    """R-d74925cd: dracut --regenerate-all failed on an old 7.0.0-30 that had lost
+    its modules and its ESP folder, after the whole 15-minute build."""
+    import subprocess
+
+    script = (Path(__file__).resolve().parents[2] / "scripts" / "system" / "bc250-gfx1013-source.sh").read_text()
+    body = "other_kernels() {" + script.split("other_kernels() {", 1)[1].split("\n}\n\nregenerate_initramfs() {", 1)[0]
+    body += "\n}\n\nregenerate_initramfs() {" + script.split("regenerate_initramfs() {", 1)[1].split("\n}\n", 1)[0] + "\n}\n"
+    modules = tmp_path / "modules"
+    for kernel in ("7.0.0-43-generic", "7.0.0-30-generic", "6.9.0-1-generic"):
+        (modules / kernel).mkdir(parents=True)
+    (modules / "7.0.0-43-generic" / "modules.dep").write_text("")
+    (modules / "7.0.0-30-generic" / "modules.dep").write_text("")  # leftover: dracut fails on it
+    # 6.9.0-1 has no modules.dep at all: an empty folder, skipped.
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    log = tmp_path / "dracut.log"
+    (bin_dir / "dracut").write_text(
+        "#!/bin/bash\n"
+        f'echo "$*" >> {log}\n'
+        'case "$*" in *"$FAIL_KVER"*) exit 1 ;; esac\n'
+    )
+    (bin_dir / "dracut").chmod(0o755)
+    # Only the stubs: a real mkinitcpio or update-initramfs on the test machine
+    # must never be found (and run) by the function under test.
+    import shutil
+
+    (bin_dir / "basename").symlink_to(shutil.which("basename"))
+
+    def run(fail_kver):
+        program = (
+            "set -Eeuo pipefail\n"
+            "KVER=7.0.0-43-generic\n"
+            "die() { printf '[ERROR] %s\\n' \"$*\" >&2; exit 1; }\n"
+            "say() { printf '== %s\\n' \"$*\"; }\n"
+            + body.replace("/usr/lib/modules/", f"{modules}/")
+            + "regenerate_initramfs\n"
+        )
+        log.write_text("")
+        return subprocess.run(
+            [shutil.which("bash"), "-c", program], capture_output=True, text=True, check=False,
+            env={"PATH": str(bin_dir), "FAIL_KVER": fail_kver},
+        )
+
+    leftover = run("7.0.0-30-generic")
+    assert leftover.returncode == 0, leftover.stderr
+    assert "[WARN] the initramfs of kernel 7.0.0-30-generic could not be rebuilt" in leftover.stdout
+    assert log.read_text().splitlines() == ["--force --kver 7.0.0-43-generic", "--force --kver 7.0.0-30-generic"]
+
+    running = run("7.0.0-43-generic")
+    assert running.returncode == 1
+    assert "running kernel (7.0.0-43-generic) could not be rebuilt" in running.stderr

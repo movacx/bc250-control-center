@@ -70,3 +70,12 @@ def test_a_damaged_package_is_not_called_a_signature_problem():
     text = DAMAGED.format(cache="/var/cache/pacman/pkg")
     assert diagnose_error(text).code == "BC250-PKG-006"
     assert error_catalog.BY_CODE["BC250-PKG-006"].summary == "A downloaded package was damaged."
+
+
+def test_a_repository_defined_twice_is_named_as_such_on_both_surfaces():
+    """R-d0e4fa7c: paru stopped with pacman's "database already registered"."""
+    text = "error: database already registered"
+    diagnosis = diagnose_error(text)
+    assert diagnosis.code == "BC250-PKG-007"
+    assert "pacman-conf --repo-list | sort | uniq -d" in diagnosis.action
+    assert error_catalog.for_marker(text).code == "BC250-PKG-007"

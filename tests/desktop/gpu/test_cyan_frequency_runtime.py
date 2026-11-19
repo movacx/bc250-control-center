@@ -2,6 +2,8 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from bc250cc.infrastructure.cyan_governor_runtime import (
     CYAN_FREQUENCY_FIX_MARKER,
     CYAN_METRICS_FIX_FAILURE_MARKER,
@@ -521,3 +523,45 @@ def test_installer_refuses_conflicting_legacy_tables_without_writing(tmp_path):
     assert "Conflicting [gpu-usage] fix-metrics" in result.stderr
     assert not target.exists()
     assert config.read_text() == original
+
+
+@pytest.mark.parametrize(
+    ("toml", "problem"),
+    [
+        ('[gpu-usage]\nfix-freq = false\nfix-metrics = true\n[gpu]\nset-method = "smu"\n', ""),
+        # R-3a3bc0dc: valid TOML the line grep rejected after the installer accepted it.
+        ('[gpu-usage]\n"fix-freq" = false\nfix-metrics = true\n[gpu]\nset-method = "smu"\n', ""),
+        ('gpu-usage = { fix-freq = true, fix-metrics = false }\n[gpu]\nset-method = "kernel"\n', ""),
+        ('[gpu-usage]\nfix-metrics = true\n[gpu]\nset-method = "smu"\n', "fix-freq is missing or invalid"),
+        ('[gpu-usage]\nfix-freq = "yes"\nfix-metrics = true\n[gpu]\nset-method = "smu"\n', "fix-freq is missing or invalid"),
+        ('[gpu-usage]\nfix-freq = false\nfix-metrics = true\nmethod = "magic"\n[gpu]\nset-method = "smu"\n',
+         "gpu-usage.method is invalid"),
+        ('[gpu-usage]\nfix-freq = false\nfix-metrics = true\n[gpu]\n', "gpu.set-method is missing or invalid"),
+        ('[timing]\nburst-samples = 20\n', "requires [gpu-usage] and [gpu]"),
+    ],
+)
+def test_cyan_runtime_verification_reads_the_toml_like_the_installer(tmp_path, toml, problem):
+    from bc250cc.infrastructure.governor_install_shell import _CYAN_TOML_CHECK
+
+    config = tmp_path / "config.toml"
+    config.write_text(toml, encoding="utf-8")
+    result = subprocess.run(
+        ["python3", "-I", "-c", _CYAN_TOML_CHECK, str(config)],
+        check=False, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    if problem:
+        assert problem in result.stdout
+    else:
+        assert result.stdout.strip() == ""
+
+
+def test_cyan_runtime_verification_reports_broken_toml_instead_of_a_traceback(tmp_path):
+    from bc250cc.infrastructure.governor_install_shell import _CYAN_TOML_CHECK
+
+    config = tmp_path / "config.toml"
+    config.write_text("[gpu-usage\nfix-freq = \n", encoding="utf-8")
+    result = subprocess.run(["python3", "-I", "-c", _CYAN_TOML_CHECK, str(config)], capture_output=True, text=True)
+    assert result.returncode != 0  # the shell turns this into "not valid TOML"
+    command = DependenciasRepository._cyan_runtime_verification_command()
+    assert 'bc250_cyan_toml_check="Cyan configuration is not valid TOML"' in command

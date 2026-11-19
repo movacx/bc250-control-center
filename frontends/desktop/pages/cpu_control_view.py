@@ -51,6 +51,7 @@ from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
+    QComboBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -81,6 +82,7 @@ from ..components.core_monitor import CoreGrid, CoreReading
 from ..components.page_widgets import SectionCard, caption, subpanel
 from ..components.resize_grip import ResizeGrip
 from ..components.style_state import set_style_property
+from ..components.wheel_guard import GuardedComboBox
 from ..components.widgets import icon
 from ..core.preferences import application_settings
 from ..i18n import shipped_name, tr, tr_format
@@ -96,12 +98,24 @@ MANUAL_SCALE_HINT = (
     "before it stays applied, the way automatic detection tests its own."
 )
 
-#: The danger zone's box for the upstream core-unlock tool's "-f".
-IGNORE_CORE_MASK_LABEL = "Force a non-standard core mask (-f)"
-IGNORE_CORE_MASK_HINT = (
+#: The danger zone's core-mask choice. The owner names the mask the tool
+#: printed ("unexpected core mask 0xb7, expected 0x77"); the helper then
+#: unlocks only a board that really reads that mask (--accept-mask) instead of
+#: skipping the check for any mask.
+CORE_MASK_LABEL = "Core mask of this board"
+CORE_MASK_STOCK = 0x77
+CORE_MASK_CHOICES = (
+    (0x77, "0x77 · standard (normal check)"),
+    (0xB7, "0xB7 · reported by one user"),
+    (0x7E, "0x7E · other possible mask"),
+)
+CORE_MASK_HINT = (
     "The unlock tool refuses boards whose core mask is not 0x77, because a "
     "different mask usually means the factory disabled cores that were "
-    "defective. This passes -f to skip that check: all 8 cores are enabled."
+    "defective. If the tool reported 0xB7 or 0x7E for this board, pick it here: "
+    "the unlock then goes ahead only when the board really reads that mask, and "
+    "all 8 cores are enabled. 0xB7 was reported by a single owner whose board "
+    "stayed stable; it is not verified."
 )
 
 #: Width below which the two workspace columns stack. Same breakpoint the GPU
@@ -505,6 +519,60 @@ class CheckLine(QWidget):
         return super().eventFilter(watched, event)
 
 
+class CoreMaskLine(QWidget):
+    """The core mask the owner's board reports, as a short drop-down.
+
+    ``0x77`` keeps the tool's own check; any other entry is unlocked only when
+    the board really reads that mask (the helper's ``--accept-mask``).
+    """
+
+    def __init__(self, label: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._source = label
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 3, 0, 4)
+        row.setSpacing(10)
+        self.label = QLabel(tr(label))
+        self.label.setWordWrap(True)
+        row.addWidget(self.label, 1)
+        self.combo = GuardedComboBox()
+        self.combo.setProperty("settingsCombo", True)
+        self.combo.setProperty("narrowCombo", True)
+        # Up to 210 px, and able to shrink with a narrow column instead of
+        # insisting on its longest entry's width.
+        self.combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.combo.setMinimumContentsLength(6)
+        self.combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.combo.setMaximumWidth(210)
+        self.combo.setAccessibleName(tr(label))
+        for mask, text in CORE_MASK_CHOICES:
+            self.combo.addItem(tr(text), mask)
+        row.addWidget(self.combo, 0, Qt.AlignmentFlag.AlignVCenter)
+
+    def mask(self) -> int:
+        return int(self.combo.currentData())
+
+    def force(self) -> bool:
+        """True when the chosen mask is not the stock one."""
+        return self.mask() != CORE_MASK_STOCK
+
+    def setToolTip(self, text: str) -> None:  # noqa: N802 (Qt)
+        super().setToolTip(text)
+        self.combo.setToolTip(text)
+        self.label.setToolTip(text)
+
+    def setEnabled(self, enabled: bool) -> None:  # noqa: N802 (Qt)
+        super().setEnabled(enabled)
+        if not enabled:
+            self.combo.setCurrentIndex(0)
+
+    def retranslate(self) -> None:
+        self.label.setText(tr(self._source))
+        self.combo.setAccessibleName(tr(self._source))
+        for index, (_mask, text) in enumerate(CORE_MASK_CHOICES):
+            self.combo.setItemText(index, tr(text))
+
+
 class UnlockOption(QFrame):
     """One way to unlock the cores: a radio, its name, one line on what it does,
     and its state on the right ("In use", "Active", "Stopped").
@@ -823,9 +891,9 @@ class CpuControlView(QWidget):
         apply_requested(object CpuTuningRequest)
         profile_changed(object CpuProfile)
         persistence_requested(str)     # 'save' | 'remove' | 'review'
-        unlock_cores_requested(bool ignore_core_mask)
+        unlock_cores_requested(int core_mask)      # 0x77 = standard check
         firmware_persistence_requested()
-        persist_unlock_requested(bool ignore_core_mask)
+        persist_unlock_requested(int core_mask)
         remove_persistence_requested()
 
     Inputs::
@@ -837,9 +905,9 @@ class CpuControlView(QWidget):
     apply_requested = pyqtSignal(object)
     profile_changed = pyqtSignal(object)
     persistence_requested = pyqtSignal(str)
-    unlock_cores_requested = pyqtSignal(bool)
+    unlock_cores_requested = pyqtSignal(int)
     firmware_persistence_requested = pyqtSignal()
-    persist_unlock_requested = pyqtSignal(bool)
+    persist_unlock_requested = pyqtSignal(int)
     remove_persistence_requested = pyqtSignal()
     export_to_decky_requested = pyqtSignal()
 
@@ -1272,11 +1340,11 @@ class CpuControlView(QWidget):
 
         # Upstream's "-f": its tool refuses a core mask other than 0x77, and
         # some owners run boards that pass stress tests anyway.
-        self.ignore_mask_line = CheckLine(IGNORE_CORE_MASK_LABEL, risk_panel)
-        self.ignore_mask_line.label.setProperty("unlockMaskLabel", True)
-        self.ignore_mask_line.setToolTip(tr(IGNORE_CORE_MASK_HINT))
-        self.ignore_mask_line.setEnabled(False)
-        risk_box.addWidget(self.ignore_mask_line)
+        self.core_mask_line = CoreMaskLine(CORE_MASK_LABEL, risk_panel)
+        self.core_mask_line.label.setProperty("unlockMaskLabel", True)
+        self.core_mask_line.setToolTip(tr(CORE_MASK_HINT))
+        self.core_mask_line.setEnabled(False)
+        risk_box.addWidget(self.core_mask_line)
 
         actions = QHBoxLayout()
         actions.setSpacing(8)
@@ -1482,11 +1550,11 @@ class CpuControlView(QWidget):
             self.firmware_persistence_requested.emit()
 
     def _action_clicked(self) -> None:
-        force = self.ignore_mask_line.check.isChecked()
+        mask = self.core_mask_line.mask()
         if self._unlock_mode == UNLOCK_MODE_PERSISTENT:
-            self.persist_unlock_requested.emit(force)
+            self.persist_unlock_requested.emit(mask)
         else:
-            self.unlock_cores_requested.emit(force)
+            self.unlock_cores_requested.emit(mask)
 
     def _apply_unlock(self, unlock: CoreUnlockState) -> None:
         # Open on Persistence once when a service is already installed, so its
@@ -1562,8 +1630,8 @@ class CpuControlView(QWidget):
             )
         )
         self.unlock_button.setEnabled(bool(unlock.unlock_allowed))
-        # Unchecks itself whenever the unlock is not available.
-        self.ignore_mask_line.setEnabled(bool(unlock.unlock_allowed))
+        # Back to the stock mask whenever the unlock is not available.
+        self.core_mask_line.setEnabled(bool(unlock.unlock_allowed))
 
     def _apply_persistent_unlock(self, unlock: CoreUnlockState) -> None:
         stopped = unlock.persistence_installed and not unlock.persistence_active
@@ -1600,7 +1668,7 @@ class CpuControlView(QWidget):
         self.unlock_button.setText(text)
         self.unlock_button.setToolTip(tip)
         self.unlock_button.setEnabled(bool(allowed))
-        self.ignore_mask_line.setEnabled(bool(allowed))
+        self.core_mask_line.setEnabled(bool(allowed))
 
     def _select_profile_matching(
         self, frequency: int, vid: int, temperature: int
@@ -1625,8 +1693,8 @@ class CpuControlView(QWidget):
             self.identity_rows[key].set_label(label)
         for key, label in self.RUNTIME_ROWS:
             self.runtime_cards[key].set_label(label)
-        self.ignore_mask_line.retranslate()
-        self.ignore_mask_line.setToolTip(tr(IGNORE_CORE_MASK_HINT))
+        self.core_mask_line.retranslate()
+        self.core_mask_line.setToolTip(tr(CORE_MASK_HINT))
         for option in self._mode_buttons.values():
             option.retranslate()
         self._busy_badge.retranslate()

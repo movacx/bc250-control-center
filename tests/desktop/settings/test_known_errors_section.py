@@ -37,7 +37,7 @@ def test_third_card_opens_index_with_all_fifteen_modules(page):
     cards[2].click()
     assert page._section_pages["support_errors"].isVisibleTo(page)
     listing = page.known_errors_list
-    assert listing.module_combo.count() == 16 and len(listing.rows) == 80
+    assert listing.module_combo.count() == 16 and len(listing.rows) == 83
     assert not listing.findChildren(QScrollArea)
     assert not listing.findChildren(DistributionSelector)
     assert not hasattr(listing, "all_distributions")
@@ -54,7 +54,7 @@ def test_search_debounces_typing_and_explains_the_match(page, qtbot):
     listing = page.known_errors_list
     listing.search_field.setText("no gira")
     assert listing.search_timer.isActive() and listing.search_timer.interval() == 150
-    assert sum(not row.isHidden() for row in listing.rows.values()) == 80
+    assert sum(not row.isHidden() for row in listing.rows.values()) == 83
     qtbot.waitUntil(lambda: not listing.search_timer.isActive())
     assert {key for key, row in listing.rows.items() if not row.isHidden()} == {
         "FAN-01", "FAN-02", "FAN-03", "FAN-04"}

@@ -95,3 +95,37 @@ def cpu_threads_present(path: Path = Path("/sys/devices/system/cpu/present")) ->
         except ValueError:
             return 0
     return total
+
+
+#: Kernel options that keep amdgpu from starting at all. Fedora's "basic
+#: graphics" install mode leaves ``nomodeset`` behind; with it the BC-250 has
+#: no render node, so the video driver build and the GPU governor both failed
+#: with errors that never named the cause (R-26b082c7, R-6cecd644).
+_AMDGPU_BLOCKING_OPTIONS = frozenset({"nomodeset", "amdgpu.modeset=0"})
+
+
+def amdgpu_blocked_by_cmdline(cmdline: str | None = None) -> str:
+    """The kernel option that stops amdgpu this boot, or ``""``."""
+    if cmdline is None:
+        try:
+            cmdline = Path("/proc/cmdline").read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return ""
+    for option in str(cmdline).split():
+        if option in _AMDGPU_BLOCKING_OPTIONS:
+            return option
+        key, _, value = option.partition("=")
+        if key in {"modprobe.blacklist", "module_blacklist"} and "amdgpu" in value.split(","):
+            return option
+    return ""
+
+
+def amdgpu_blocked_message(option: str) -> str:
+    """Plain words for :func:`amdgpu_blocked_by_cmdline`'s answer."""
+    return (
+        f"The kernel was started with {option}, which keeps the GPU driver (amdgpu) "
+        "from loading, so the BC-250's GPU is not available. Remove "
+        f"{option} from the kernel command line (GRUB: GRUB_CMDLINE_LINUX in "
+        "/etc/default/grub, then regenerate the GRUB configuration), restart, "
+        "and try again. Nothing was changed."
+    )

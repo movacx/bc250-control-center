@@ -58,6 +58,7 @@ from typing import Mapping
 
 from . import container_network
 from .accessories._shared import download_and_verify
+from .hardware_identity import amdgpu_blocked_by_cmdline, amdgpu_blocked_message
 from .steamos_readonly import (
     STEAMOS_PACMAN_INSTALL,
     STEAMOS_PASSWORD_GUARD,
@@ -194,7 +195,7 @@ def _bc250(root: Path = Path("/sys/bus/pci/devices")) -> bool:
 
 def vaapi_supported(
     *, family: str, machine: str | None = None, glibc: tuple[int, int] | None = None,
-    bc250: bool | None = None,
+    bc250: bool | None = None, cmdline: str | None = None,
 ) -> tuple[bool, str]:
     """Whether this system can build and run the driver, and why not."""
     family = str(family or "").strip().lower()
@@ -208,6 +209,9 @@ def vaapi_supported(
         return False, "Offered on SteamOS, Bazzite, Arch, CachyOS, Manjaro, Fedora, Debian and Ubuntu."
     if glibc is not None and glibc < MIN_GLIBC:
         return False, "The driver needs glibc 2.38 or newer; this system is older."
+    blocked = amdgpu_blocked_by_cmdline(cmdline)
+    if blocked:
+        return False, amdgpu_blocked_message(blocked)
     return True, ""
 
 
@@ -237,7 +241,7 @@ def vaapi_state(
     """Read-only: what is installed, switched on, and live in this session."""
     environ = os.environ if environ is None else environ
     cmdline = _read(Path("/proc/cmdline")) if cmdline is None else cmdline
-    ok, reason = supported if supported is not None else vaapi_supported(family=family)
+    ok, reason = supported if supported is not None else vaapi_supported(family=family, cmdline=cmdline)
     env_text = _read(ENV_FILE)
     ours = MARKER in env_text
     installed_version = ""

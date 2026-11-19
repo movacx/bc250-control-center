@@ -163,6 +163,7 @@ UMR_REPAIR_SOURCES = (
 # Same wording as the terminal diagnosis, so both surfaces say one thing.
 _GFX_RELEASE_INSTALLED = error_catalog.BY_CODE["BC250-GFX-001"]
 _PKG_DAMAGED = error_catalog.BY_CODE["BC250-PKG-006"]
+_PKG_DUPLICATE_REPO = error_catalog.BY_CODE["BC250-PKG-007"]
 
 _RULES = (
     # First on purpose. Cyan's fix-metrics / fix-freq replace two GPU sensor
@@ -386,6 +387,15 @@ _RULES = (
         "The package manager is busy.",
         "A system update, software center, or another terminal is already changing packages.",
         "Let that update finish, close the other package tool, and retry. Do not delete package-manager lock files by hand.",
+    ),
+    # A repository defined twice is fixed in pacman.conf, not by waiting or
+    # updating keys (R-d0e4fa7c).
+    _Rule(
+        _PKG_DUPLICATE_REPO.code,
+        (r"database already registered",),
+        _PKG_DUPLICATE_REPO.summary,
+        _PKG_DUPLICATE_REPO.cause,
+        _PKG_DUPLICATE_REPO.action,
     ),
     # Before the signature rule: "invalid or corrupted package" is in both, and
     # a damaged download is not fixed by updating the keyring (R-f193b192).

@@ -90,6 +90,9 @@ EVIDENCE: dict[str, tuple[str, ...]] = {
         "(invalid or corrupted package (checksum)).\n"
         "error: failed to commit transaction (invalid or corrupted package)",
     ),
+    "BC250-PKG-007": (
+        "error: database already registered",
+    ),
     "BC250-PKG-005": (
         "error: failed retrieving file 'a.pkg.tar.zst' from mirror : The requested URL returned error: 404\n"
         "error: failed to commit transaction (failed to retrieve some files)",

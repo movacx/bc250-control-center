@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_version": "2026-11-15.3",
+  "catalog_version": "2026-11-19.1",
   "modules": [
     {
       "id": "installation",
@@ -7969,6 +7969,244 @@
       }
     },
     {
+      "id": "PKG-11",
+      "module": "packages",
+      "title": {
+        "es": "pacman: «database already registered» (repositorio duplicado)",
+        "en": "pacman: “database already registered” (repository defined twice)"
+      },
+      "codes": [
+        "BC250-PKG-007",
+        "BC250-GENERAL-001"
+      ],
+      "match": [
+        "database already registered"
+      ],
+      "keywords": {
+        "und": [
+          "database already registered",
+          "pacman.conf",
+          "pacman-conf",
+          "paru",
+          "yay",
+          "repo-list",
+          "repositorio duplicado",
+          "bc250-cachyos"
+        ],
+        "en": [
+          "pacman: “database already registered” (repository defined twice)",
+          "Packages"
+        ],
+        "es": [
+          "pacman: «database already registered» (repositorio duplicado)",
+          "Paquetes"
+        ],
+        "bg": [
+          "Пакети"
+        ],
+        "cs": [
+          "Balíčky"
+        ],
+        "da": [
+          "Pakker"
+        ],
+        "de": [
+          "Pakete"
+        ],
+        "el": [
+          "Πακέτα"
+        ],
+        "es-419": [
+          "Paquetes"
+        ],
+        "fi": [
+          "Paketit"
+        ],
+        "fr": [
+          "Forfaits"
+        ],
+        "hu": [
+          "Csomagok"
+        ],
+        "id": [
+          "Paket"
+        ],
+        "it": [
+          "Pacchetti"
+        ],
+        "ja": [
+          "パッケージ"
+        ],
+        "ko": [
+          "패키지"
+        ],
+        "ms": [
+          "Pakej"
+        ],
+        "nl": [
+          "Pakketten"
+        ],
+        "no": [
+          "Pakker"
+        ],
+        "pl": [
+          "Pakiety"
+        ],
+        "pt": [
+          "Pacotes"
+        ],
+        "pt-BR": [
+          "Pacotes"
+        ],
+        "ro": [
+          "Pachete"
+        ],
+        "ru": [
+          "Пакеты"
+        ],
+        "sv": [
+          "Paket"
+        ],
+        "th": [
+          "แพ็คเกจ"
+        ],
+        "tr": [
+          "Paketler"
+        ],
+        "uk": [
+          "Пакунки"
+        ],
+        "vi": [
+          "Gói"
+        ],
+        "zh-CN": [
+          "套餐"
+        ],
+        "zh-TW": [
+          "套餐"
+        ]
+      },
+      "symptom": {
+        "es": "La actualización de Control Center (paru/yay) o una instalación con pacman se detiene con «error: database already registered».",
+        "en": "The Control Center update (paru/yay) or a pacman install stops with “error: database already registered”."
+      },
+      "cause": {
+        "es": "El mismo repositorio está definido dos veces: en /etc/pacman.conf y otra vez en un archivo incluido, o en una sección añadida a mano. pacman se detiene antes de instalar nada.",
+        "en": "The same repository is defined twice: in /etc/pacman.conf and again in an included file, or in a section added by hand. pacman stops before installing anything."
+      },
+      "distros": {
+        "reported": [
+          "arch"
+        ],
+        "possible": [
+          "arch",
+          "steamos"
+        ]
+      },
+      "fix": {
+        "arch": {
+          "steps": {
+            "es": "Buscar el repositorio repetido y dejar una sola definición.",
+            "en": "Find the repeated repository and keep a single definition."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Lista los repositorios repetidos.",
+                "en": "List the repeated repositories."
+              },
+              "commands": [
+                "pacman-conf --repo-list | sort | uniq -d"
+              ]
+            },
+            {
+              "text": {
+                "es": "Busca dónde está definido cada uno: en /etc/pacman.conf y en los archivos de /etc/pacman.d.",
+                "en": "Find where each one is defined: in /etc/pacman.conf and in the files under /etc/pacman.d."
+              },
+              "commands": [
+                "grep -rn '^\\[' /etc/pacman.conf /etc/pacman.d"
+              ]
+            },
+            {
+              "text": {
+                "es": "Edita el archivo y deja solo una de las dos secciones (o la línea Include que la repite); luego vuelve a ejecutar la acción.",
+                "en": "Edit the file and keep only one of the two sections (or the Include line that repeats it); then run the action again."
+              },
+              "commands": [
+                "sudoedit /etc/pacman.conf"
+              ]
+            }
+          ]
+        },
+        "steamos": {
+          "steps": {
+            "es": "Buscar el repositorio repetido y dejar una sola definición.",
+            "en": "Find the repeated repository and keep a single definition."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Lista los repositorios repetidos.",
+                "en": "List the repeated repositories."
+              },
+              "commands": [
+                "pacman-conf --repo-list | sort | uniq -d"
+              ]
+            },
+            {
+              "text": {
+                "es": "Busca dónde está definido cada uno: en /etc/pacman.conf y en los archivos de /etc/pacman.d.",
+                "en": "Find where each one is defined: in /etc/pacman.conf and in the files under /etc/pacman.d."
+              },
+              "commands": [
+                "grep -rn '^\\[' /etc/pacman.conf /etc/pacman.d"
+              ]
+            },
+            {
+              "text": {
+                "es": "Edita el archivo y deja solo una de las dos secciones (o la línea Include que la repite); luego vuelve a ejecutar la acción.",
+                "en": "Edit the file and keep only one of the two sections (or the Include line that repeats it); then run the action again."
+              },
+              "commands": [
+                "sudoedit /etc/pacman.conf"
+              ]
+            }
+          ]
+        },
+        "bazzite": null,
+        "fedora": null,
+        "ubuntu": null,
+        "debian": null,
+        "other": null
+      },
+      "owner": "user",
+      "developer": {
+        "es": "diagnóstico nuevo BC250-PKG-007 en terminal y ventana: nombra el repositorio duplicado y cómo encontrarlo. No se edita pacman.conf automáticamente: cuál copia dejar es decisión del usuario.",
+        "en": "New diagnosis BC250-PKG-007 on both surfaces: names the duplicate repository and how to find it. pacman.conf is not edited automatically: which copy to keep is the owner's call."
+      },
+      "status": "user",
+      "status_flags": [
+        "fixed-dev",
+        "user"
+      ],
+      "fixed_in": null,
+      "guide": {
+        "title": {
+          "es": "Quitar un repositorio de pacman definido dos veces",
+          "en": "Remove a pacman repository defined twice"
+        },
+        "summary": {
+          "es": "pacman.conf repite un repositorio; deja una sola definición.",
+          "en": "pacman.conf repeats a repository; keep a single definition."
+        }
+      }
+    },
+    {
       "id": "STOR-01",
       "module": "storage",
       "title": {
@@ -11506,13 +11744,21 @@
         "BC250-WORKFLOW-001"
       ],
       "match": [
-        "GPU driver \\(amdgpu\\) did not start"
+        "GPU driver \\(amdgpu\\) did not start",
+        "render node was not found",
+        "\\bnomodeset\\b"
       ],
       "keywords": {
         "und": [
           "The GPU driver (amdgpu) did not start in this boot",
           "amdgpu",
-          "arranque"
+          "arranque",
+          "nomodeset",
+          "vga=791",
+          "render node",
+          "amdgpu.modeset=0",
+          "Dependency failed",
+          "basic graphics"
         ],
         "en": [
           "amdgpu did not start in this boot",
@@ -11874,13 +12120,14 @@
       },
       "owner": "user",
       "developer": {
-        "es": "Conservar el estado indicado. Si persiste, obtener evidencia de la acción actual; esta ficha no implica que haya un arreglo nuevo publicado.",
-        "en": "Keep the driver-not-started message clear and separate it from a governor configuration fault."
+        "es": "Conservar el estado indicado. Si persiste, obtener evidencia de la acción actual; esta ficha no implica que haya un arreglo nuevo publicado. Nuevo: con nomodeset, amdgpu.modeset=0 o amdgpu en la lista negra del kernel, el governor y el vídeo por hardware se detienen antes de empezar y dicen qué opción quitar (Fedora la deja tras instalar en modo de gráficos básicos).",
+        "en": "Keep the driver-not-started message clear and separate it from a governor configuration fault. New: with nomodeset, amdgpu.modeset=0 or amdgpu blacklisted on the kernel command line, the governor and hardware video stop before starting and name the option to remove (Fedora leaves it after a basic-graphics install)."
       },
       "status": "fixed",
       "status_flags": [
         "fixed",
-        "user"
+        "user",
+        "fixed-dev"
       ],
       "fixed_in": null,
       "guide": {
@@ -13452,6 +13699,394 @@
       }
     },
     {
+      "id": "GOV-13",
+      "module": "governor",
+      "title": {
+        "es": "La verificación de Cyan rechazó un fix-freq válido (código 61)",
+        "en": "Cyan's verification rejected a valid fix-freq (exit 61)"
+      },
+      "codes": [
+        "BC250-WORKFLOW-001"
+      ],
+      "match": [
+        "Cyan fix-freq is missing or invalid in config\\.toml"
+      ],
+      "keywords": {
+        "und": [
+          "fix-freq",
+          "config.toml",
+          "exit 61",
+          "exit_status=61",
+          "Cyan fix-freq is missing or invalid",
+          "BC250_CYAN_RUNTIME_REVISION",
+          "gpu-usage",
+          "tomllib"
+        ],
+        "en": [
+          "Cyan's verification rejected a valid fix-freq (exit 61)",
+          "For an unpatched kernel, select busy-flag or process. Use kernel only when gpu_busy_percent is readable, then apply Fix metrics or Fix frequencies only when needed."
+        ],
+        "es": [
+          "La verificación de Cyan rechazó un fix-freq válido (código 61)",
+          "Para un kernel sin parches, seleccione indicador de ocupado o proceso. Utilice el kernel solo cuando gpu_busy_percent sea legible, luego aplique Corregir métricas o Corregir frecuencias solo cuando sea necesario."
+        ],
+        "bg": [
+          "За ядро без корекция изберете флаг за заетост или процес. Използвайте ядрото само когато gpu_busy_percent е четим, след това приложете Fix metrics или Fix frequencies само когато е необходимо."
+        ],
+        "cs": [
+          "Pro neopravené jádro vyberte busy-flag nebo process. Použijte jádro, pouze když je gpu_busy_percent čitelný, a poté použijte Fix metrics nebo Fix Frequency pouze v případě potřeby."
+        ],
+        "da": [
+          "For en ikke-patchet kerne skal du vælge optaget-flag eller proces. Brug kun kerne, når gpu_busy_percent er læsbar, og anvend derefter Fix-metrics eller Fix-frekvenser, når det er nødvendigt."
+        ],
+        "de": [
+          "Für einen ungepatchten Kernel wählen Sie „Busy-Flag“ oder „Prozess“. Verwenden Sie den Kernel nur, wenn gpu_busy_percent lesbar ist, und wenden Sie dann Fix-Metriken oder Fix-Häufigkeiten nur bei Bedarf an."
+        ],
+        "el": [
+          "Για έναν μη επιδιορθωμένο πυρήνα, επιλέξτε busy-flag ή process. Χρησιμοποιήστε τον πυρήνα μόνο όταν το gpu_busy_percent είναι αναγνώσιμο και, στη συνέχεια, εφαρμόστε μετρήσεις Διόρθωσης ή Διορθώστε τις συχνότητες μόνο όταν χρειάζεται."
+        ],
+        "es-419": [
+          "Para un kernel sin parches, seleccione indicador de ocupado o proceso. Utilice el kernel solo cuando gpu_busy_percent sea legible, luego aplique Corregir métricas o Corregir frecuencias solo cuando sea necesario."
+        ],
+        "fi": [
+          "Jos ydin on korjaamaton, valitse varattu lippu tai prosessi. Käytä ydintä vain, kun gpu_busy_percent on luettavissa, ja käytä sitten korjausmittareita tai Fix Frequency -tietoja vain tarvittaessa."
+        ],
+        "fr": [
+          "Pour un noyau non corrigé, sélectionnez l'indicateur occupé ou le processus. Utilisez le noyau uniquement lorsque gpu_busy_percent est lisible, puis appliquez les métriques Fix ou les fréquences Fix uniquement lorsque cela est nécessaire."
+        ],
+        "hu": [
+          "Kijavítatlan kernel esetén válassza a busy-flag vagy folyamat lehetőséget. Csak akkor használja a kernelt, ha a gpu_busy_percent olvasható, majd csak szükség esetén alkalmazza a Fix metrikákat vagy a Fix frekvenciákat."
+        ],
+        "id": [
+          "Untuk kernel yang belum dipatch, pilih busy-flag atau process. Gunakan kernel hanya ketika gpu_busy_percent dapat dibaca, lalu terapkan metrik Perbaiki atau Perbaiki frekuensi hanya jika diperlukan."
+        ],
+        "it": [
+          "Per un kernel senza patch, seleziona busy-flag o process. Utilizza il kernel solo quando gpu_busy_percent è leggibile, quindi applica le metriche Correggi o le frequenze Correggi solo quando necessario."
+        ],
+        "ja": [
+          "パッチが適用されていないカーネルの場合は、busy-flag または process を選択します。 gpu_busy_percent が読み取り可能な場合にのみカーネルを使用し、必要な場合にのみ [メトリクスの修正] または [頻度の修正] を適用します。"
+        ],
+        "ko": [
+          "패치되지 않은 커널의 경우 busy-flag 또는 프로세스를 선택하십시오. gpu_busy_percent를 읽을 수 있는 경우에만 커널을 사용하고 필요한 경우에만 측정항목 수정 또는 빈도 수정을 적용하세요."
+        ],
+        "ms": [
+          "Untuk kernel yang tidak ditambal, pilih sibuk-bendera atau proses. Gunakan kernel hanya apabila gpu_busy_percent boleh dibaca, kemudian gunakan metrik Betulkan atau Betulkan frekuensi hanya apabila diperlukan."
+        ],
+        "nl": [
+          "Voor een kernel zonder patch selecteert u busy-flag of process. Gebruik de kernel alleen als gpu_busy_percent leesbaar is en pas vervolgens Fix-metrieken of Fix-frequenties alleen toe als dat nodig is."
+        ],
+        "no": [
+          "For en uopprettet kjerne, velg opptatt-flagg eller prosess. Bruk kjernen bare når gpu_busy_percent er lesbar, og bruk deretter Fix-metrikker eller Fix-frekvenser bare når det er nødvendig."
+        ],
+        "pl": [
+          "W przypadku niezałatanego jądra wybierz flagę zajętości lub proces. Używaj jądra tylko wtedy, gdy można odczytać gpu_busy_percent, a następnie zastosuj Napraw metryki lub Napraw częstotliwości tylko wtedy, gdy jest to konieczne."
+        ],
+        "pt": [
+          "Para um kernel sem patch, selecione sinalizador ocupado ou processo. Use o kernel somente quando gpu_busy_percent estiver legível e, em seguida, aplique métricas de correção ou frequências de correção somente quando necessário."
+        ],
+        "pt-BR": [
+          "Para um kernel sem patch, selecione sinalizador ocupado ou processo. Use o kernel somente quando gpu_busy_percent estiver legível e, em seguida, aplique métricas de correção ou frequências de correção somente quando necessário."
+        ],
+        "ro": [
+          "Pentru un nucleu nepatchat, selectați busy-flag sau process. Utilizați nucleul numai atunci când gpu_busy_percent este lizibil, apoi aplicați valorile Fix sau frecvențele Fix numai când este necesar."
+        ],
+        "ru": [
+          "Для непропатченного ядра выберите флаг занятости или процесс. Используйте ядро ​​только тогда, когда gpu_busy_percent доступен для чтения, затем применяйте метрики Fix или частоты Fix только при необходимости."
+        ],
+        "sv": [
+          "För en oparpad kärna, välj busy-flagga eller process. Använd kärnan endast när gpu_busy_percent är läsbar, använd sedan Fix-mått eller Fix-frekvenser endast när det behövs."
+        ],
+        "th": [
+          "สำหรับเคอร์เนลที่ไม่ได้รับแพตช์ ให้เลือกสถานะไม่ว่างหรือกระบวนการ ใช้เคอร์เนลเมื่อสามารถอ่าน gpu_busy_percent ได้เท่านั้น จากนั้นใช้เมตริก Fix หรือ Fix frequencies เมื่อจำเป็นเท่านั้น"
+        ],
+        "tr": [
+          "Düzeltme eki uygulanmamış bir çekirdek için meşgul bayrağını veya işlemi seçin. Çekirdeği yalnızca gpu_busy_percent okunabilir olduğunda kullanın, ardından yalnızca gerektiğinde Metrikleri düzelt veya Frekansları düzelt seçeneğini uygulayın."
+        ],
+        "uk": [
+          "Для ядра без виправлень виберіть позначку зайнятості або процес. Використовуйте ядро, лише коли gpu_busy_percent доступний для читання, а потім застосовуйте Fix metrics або Fix frequencies лише за потреби."
+        ],
+        "vi": [
+          "Đối với hạt nhân chưa được vá, hãy chọn cờ bận hoặc tiến trình. Chỉ sử dụng kernel khi gpu_busy_percent có thể đọc được, sau đó áp dụng Sửa số liệu hoặc Chỉ sửa tần số khi cần."
+        ],
+        "zh-CN": [
+          "对于未打补丁的内核，选择 busy-flag 或 process。仅当 gpu_busy_percent 可读时才使用内核，然后仅在需要时应用修复指标或修复频率。"
+        ],
+        "zh-TW": [
+          "對於未打補丁的內核，選擇 busy-flag 或 process。僅當 gpu_busy_percent 可讀時才使用內核，然後僅在需要時套用修復指標或修復頻率。"
+        ]
+      },
+      "symptom": {
+        "es": "Preparar dependencias instala Cyan, dice que conservó el TOML y luego se detiene con «Cyan fix-freq is missing or invalid in config.toml» (código 61).",
+        "en": "Prepare dependencies stages Cyan, says it kept the TOML, then stops with “Cyan fix-freq is missing or invalid in config.toml” (exit 61)."
+      },
+      "cause": {
+        "es": "El instalador validaba el TOML con Python (tomllib), pero la verificación posterior de la app buscaba la línea con grep. Un TOML válido escrito de otra forma (clave entre comillas, clave con punto, tabla en línea) pasaba la primera y fallaba la segunda.",
+        "en": "The installer validated the TOML with Python (tomllib), but the app's later check searched for the line with grep. Valid TOML written another way (a quoted key, a dotted key, an inline table) passed the first and failed the second."
+      },
+      "distros": {
+        "reported": [
+          "arch"
+        ],
+        "possible": [
+          "arch",
+          "steamos",
+          "bazzite",
+          "fedora",
+          "ubuntu",
+          "debian"
+        ]
+      },
+      "fix": {
+        "arch": {
+          "steps": {
+            "es": "Actualizar Control Center y volver a pulsar Preparar dependencias.",
+            "en": "Update Control Center and press Prepare dependencies again."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué valores tiene la sección [gpu-usage] del TOML de Cyan.",
+                "en": "See the values in the [gpu-usage] section of Cyan's TOML."
+              },
+              "commands": [
+                "grep -n -A6 'gpu-usage' /etc/cyan-skillfish-governor-smu/config.toml"
+              ]
+            },
+            {
+              "text": {
+                "es": "Comprueba que el archivo es TOML válido y que fix-freq es true o false; si no sale ningún error, el archivo está bien y basta con actualizar Control Center.",
+                "en": "Check that the file is valid TOML and fix-freq is true or false; if no error is printed, the file is fine and updating Control Center is enough."
+              },
+              "commands": [
+                "python3 -c \"import tomllib; c=tomllib.load(open('/etc/cyan-skillfish-governor-smu/config.toml','rb')); print(c.get('gpu-usage'))\""
+              ]
+            },
+            {
+              "text": {
+                "es": "Con la versión corregida, pulsa otra vez Preparar dependencias en el Panel.",
+                "en": "With the fixed version, press Prepare dependencies on the Dashboard again."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "steamos": {
+          "steps": {
+            "es": "Actualizar Control Center y volver a pulsar Preparar dependencias.",
+            "en": "Update Control Center and press Prepare dependencies again."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué valores tiene la sección [gpu-usage] del TOML de Cyan.",
+                "en": "See the values in the [gpu-usage] section of Cyan's TOML."
+              },
+              "commands": [
+                "grep -n -A6 'gpu-usage' /etc/cyan-skillfish-governor-smu/config.toml"
+              ]
+            },
+            {
+              "text": {
+                "es": "Comprueba que el archivo es TOML válido y que fix-freq es true o false; si no sale ningún error, el archivo está bien y basta con actualizar Control Center.",
+                "en": "Check that the file is valid TOML and fix-freq is true or false; if no error is printed, the file is fine and updating Control Center is enough."
+              },
+              "commands": [
+                "python3 -c \"import tomllib; c=tomllib.load(open('/etc/cyan-skillfish-governor-smu/config.toml','rb')); print(c.get('gpu-usage'))\""
+              ]
+            },
+            {
+              "text": {
+                "es": "Con la versión corregida, pulsa otra vez Preparar dependencias en el Panel.",
+                "en": "With the fixed version, press Prepare dependencies on the Dashboard again."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "bazzite": {
+          "steps": {
+            "es": "Actualizar Control Center y volver a pulsar Preparar dependencias.",
+            "en": "Update Control Center and press Prepare dependencies again."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué valores tiene la sección [gpu-usage] del TOML de Cyan.",
+                "en": "See the values in the [gpu-usage] section of Cyan's TOML."
+              },
+              "commands": [
+                "grep -n -A6 'gpu-usage' /etc/cyan-skillfish-governor-smu/config.toml"
+              ]
+            },
+            {
+              "text": {
+                "es": "Comprueba que el archivo es TOML válido y que fix-freq es true o false; si no sale ningún error, el archivo está bien y basta con actualizar Control Center.",
+                "en": "Check that the file is valid TOML and fix-freq is true or false; if no error is printed, the file is fine and updating Control Center is enough."
+              },
+              "commands": [
+                "python3 -c \"import tomllib; c=tomllib.load(open('/etc/cyan-skillfish-governor-smu/config.toml','rb')); print(c.get('gpu-usage'))\""
+              ]
+            },
+            {
+              "text": {
+                "es": "Con la versión corregida, pulsa otra vez Preparar dependencias en el Panel.",
+                "en": "With the fixed version, press Prepare dependencies on the Dashboard again."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "fedora": {
+          "steps": {
+            "es": "Actualizar Control Center y volver a pulsar Preparar dependencias.",
+            "en": "Update Control Center and press Prepare dependencies again."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué valores tiene la sección [gpu-usage] del TOML de Cyan.",
+                "en": "See the values in the [gpu-usage] section of Cyan's TOML."
+              },
+              "commands": [
+                "grep -n -A6 'gpu-usage' /etc/cyan-skillfish-governor-smu/config.toml"
+              ]
+            },
+            {
+              "text": {
+                "es": "Comprueba que el archivo es TOML válido y que fix-freq es true o false; si no sale ningún error, el archivo está bien y basta con actualizar Control Center.",
+                "en": "Check that the file is valid TOML and fix-freq is true or false; if no error is printed, the file is fine and updating Control Center is enough."
+              },
+              "commands": [
+                "python3 -c \"import tomllib; c=tomllib.load(open('/etc/cyan-skillfish-governor-smu/config.toml','rb')); print(c.get('gpu-usage'))\""
+              ]
+            },
+            {
+              "text": {
+                "es": "Con la versión corregida, pulsa otra vez Preparar dependencias en el Panel.",
+                "en": "With the fixed version, press Prepare dependencies on the Dashboard again."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "ubuntu": {
+          "steps": {
+            "es": "Actualizar Control Center y volver a pulsar Preparar dependencias.",
+            "en": "Update Control Center and press Prepare dependencies again."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué valores tiene la sección [gpu-usage] del TOML de Cyan.",
+                "en": "See the values in the [gpu-usage] section of Cyan's TOML."
+              },
+              "commands": [
+                "grep -n -A6 'gpu-usage' /etc/cyan-skillfish-governor-smu/config.toml"
+              ]
+            },
+            {
+              "text": {
+                "es": "Comprueba que el archivo es TOML válido y que fix-freq es true o false; si no sale ningún error, el archivo está bien y basta con actualizar Control Center.",
+                "en": "Check that the file is valid TOML and fix-freq is true or false; if no error is printed, the file is fine and updating Control Center is enough."
+              },
+              "commands": [
+                "python3 -c \"import tomllib; c=tomllib.load(open('/etc/cyan-skillfish-governor-smu/config.toml','rb')); print(c.get('gpu-usage'))\""
+              ]
+            },
+            {
+              "text": {
+                "es": "Con la versión corregida, pulsa otra vez Preparar dependencias en el Panel.",
+                "en": "With the fixed version, press Prepare dependencies on the Dashboard again."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "debian": {
+          "steps": {
+            "es": "Actualizar Control Center y volver a pulsar Preparar dependencias.",
+            "en": "Update Control Center and press Prepare dependencies again."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué valores tiene la sección [gpu-usage] del TOML de Cyan.",
+                "en": "See the values in the [gpu-usage] section of Cyan's TOML."
+              },
+              "commands": [
+                "grep -n -A6 'gpu-usage' /etc/cyan-skillfish-governor-smu/config.toml"
+              ]
+            },
+            {
+              "text": {
+                "es": "Comprueba que el archivo es TOML válido y que fix-freq es true o false; si no sale ningún error, el archivo está bien y basta con actualizar Control Center.",
+                "en": "Check that the file is valid TOML and fix-freq is true or false; if no error is printed, the file is fine and updating Control Center is enough."
+              },
+              "commands": [
+                "python3 -c \"import tomllib; c=tomllib.load(open('/etc/cyan-skillfish-governor-smu/config.toml','rb')); print(c.get('gpu-usage'))\""
+              ]
+            },
+            {
+              "text": {
+                "es": "Con la versión corregida, pulsa otra vez Preparar dependencias en el Panel.",
+                "en": "With the fixed version, press Prepare dependencies on the Dashboard again."
+              },
+              "commands": []
+            }
+          ]
+        },
+        "other": {
+          "steps": {
+            "es": "Actualizar Control Center y volver a preparar dependencias.",
+            "en": "Update Control Center and prepare dependencies again."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "La verificación corregida lee el TOML igual que el instalador.",
+                "en": "The fixed check reads the TOML the same way the installer does."
+              },
+              "commands": []
+            }
+          ]
+        }
+      },
+      "owner": "developer",
+      "developer": {
+        "es": "corregido en desarrollo: la verificación usa la misma lectura tomllib que el instalador; grep queda solo si Python no tiene tomllib.",
+        "en": "Fixed in development: the check uses the same tomllib reading as the installer; grep remains only when Python has no tomllib."
+      },
+      "status": "fixed-dev",
+      "status_flags": [
+        "fixed-dev"
+      ],
+      "fixed_in": null,
+      "guide": {
+        "title": {
+          "es": "Cyan: verificación del TOML tras preparar dependencias",
+          "en": "Cyan: TOML check after preparing dependencies"
+        },
+        "summary": {
+          "es": "El TOML era válido; la verificación de la app lo leía distinto.",
+          "en": "The TOML was valid; the app's check read it differently."
+        }
+      }
+    },
+    {
       "id": "CU-01",
       "module": "compute_units",
       "title": {
@@ -14295,7 +14930,8 @@
         "BC250-CU-001"
       ],
       "match": [
-        "non-0x77 presence mask detected"
+        "non-0x77 presence mask detected",
+        "unexpected core mask 0x[0-9a-fA-F]{2}, expected 0x77"
       ],
       "keywords": {
         "und": [
@@ -14303,7 +14939,14 @@
           "high probability of defective cores - STOPPING",
           "pass -f to ignore",
           "núcleos defectuosos",
-          "defective cores"
+          "defective cores",
+          "0xB7",
+          "0x7E",
+          "0x77",
+          "--accept-mask",
+          "core mask",
+          "máscara de núcleos",
+          "unexpected core mask"
         ],
         "en": [
           "The core-unlock tool refused a non-0x77 presence mask",
@@ -14654,13 +15297,14 @@
       },
       "owner": "expected",
       "developer": {
-        "es": "pendiente: que una acción ajena (HelixSR, memoria) no muestre este error de otra herramienta como causa propia; mensaje en el idioma del usuario.",
-        "en": "Treat this as protection and prevent an old unlock failure from appearing as the cause of HelixSR or memory actions."
+        "es": "en desarrollo: la zona de peligro de CPU tiene un selector de máscara (0x77, 0xB7, 0x7E). Con una máscara distinta de 0x77, el desbloqueo temporal primero lee la máscara y solo sigue si la placa tiene exactamente esa; el servicio de arranque (bc250-core-unlock 0.3.0, --accept-mask) hace lo mismo en cada arranque. 0xB7 lo reportó un solo usuario con la placa estable; no está verificado en más placas. La herramienta cpu-unlock de bc250-cu-live-manager (otro proyecto) no tiene esta opción. Sigue pendiente: que una acción ajena (HelixSR, memoria) no muestre este error de otra herramienta como causa propia; mensaje en el idioma del usuario.",
+        "en": "In development: the CPU danger zone has a mask selector (0x77, 0xB7, 0x7E). With a mask other than 0x77 the temporary unlock first reads the mask and only goes on when the board reads exactly that one; the boot service (bc250-core-unlock 0.3.0, --accept-mask) does the same on every boot. 0xB7 was reported by a single owner whose board stayed stable; it is not verified on more boards. bc250-cu-live-manager's cpu-unlock (another project) has no such option. Still pending: Treat this as protection and prevent an old unlock failure from appearing as the cause of HelixSR or memory actions."
       },
-      "status": "pending",
+      "status": "fixed-dev",
       "status_flags": [
         "pending",
-        "expected"
+        "expected",
+        "fixed-dev"
       ],
       "fixed_in": null,
       "guide": {
@@ -14682,7 +15326,8 @@
         "en": "CPU persistence has no validated overclock.conf"
       },
       "codes": [
-        "BC250-CONFIG-001"
+        "BC250-CONFIG-001",
+        "BC250-CMD-001"
       ],
       "match": [
         "No validated overclock\\.conf",
@@ -14694,7 +15339,10 @@
           "The local bc250_smu_oc repository was not found",
           "bc250-detect",
           "overclock.conf",
-          "ResourceTools"
+          "ResourceTools",
+          "Manual CPU configuration rejected",
+          "manual scale",
+          "escala manual"
         ],
         "en": [
           "CPU persistence has no validated overclock.conf",
@@ -15032,13 +15680,14 @@
       },
       "owner": "both",
       "developer": {
-        "es": "pendiente: encadenar los pasos (ofrecer la detección desde el error).",
-        "en": "Offer temporary detection directly before persistence rather than making the user infer the missing sequence."
+        "es": "pendiente: encadenar los pasos (ofrecer la detección desde el error). Nuevo: la prueba manual de escala ya no se detiene si falta el clon bc250_smu_oc; lo descarga en la revisión fijada como usuario y luego corre la misma verificación con pkexec.",
+        "en": "Offer temporary detection directly before persistence rather than making the user infer the missing sequence. New: the manual scale test no longer stops when the bc250_smu_oc clone is missing; it fetches it at the pinned revision as the user and then runs the same pkexec check."
       },
       "status": "user",
       "status_flags": [
         "user",
-        "pending"
+        "pending",
+        "fixed-dev"
       ],
       "fixed_in": null,
       "guide": {
@@ -19725,13 +20374,14 @@
       },
       "owner": "both",
       "developer": {
-        "es": "pendiente: ante \"Internal compiler error\", reintentar ese shader una vez; elegir automáticamente un Proton con files/bin/wine válido; detectar Toolbx. Si Wine se cierra a mitad (Connection reset by peer), ver UPS-08: se reintenta una vez.",
-        "en": "Add one shader retry, select a genuinely executable Proton Wine path and detect Toolbx/Distrobox environments. If Wine closes midway (Connection reset by peer), see UPS-08: it is retried once."
+        "es": "parcial en desarrollo: si el compilador de shaders se cae (\"failed: ...dxc-wine.sh\" o \"Internal compiler error\"), la compilación se repite una vez. Pendiente: elegir automáticamente un Proton con files/bin/wine válido y detectar Toolbx. Si Wine se cierra a mitad (Connection reset by peer), ver UPS-08.",
+        "en": "Partly in development: when the shader compiler crashes (\"failed: ...dxc-wine.sh\" or \"Internal compiler error\"), the build is retried once. Pending: pick a Proton with a working files/bin/wine automatically and detect Toolbx. If Wine closes midway (Connection reset by peer), see UPS-08."
       },
       "status": "pending",
       "status_flags": [
         "pending",
-        "analysis"
+        "analysis",
+        "fixed-dev"
       ],
       "fixed_in": null,
       "guide": {
@@ -20879,14 +21529,22 @@
         "es": "Juegos borrados del disco se quedan en la lista de HelixSR (sugerencia)",
         "en": "An uninstalled game remains in the HelixSR list"
       },
-      "codes": [],
-      "match": [],
+      "codes": [
+        "BC250-GPU-900"
+      ],
+      "match": [
+        "no game \\(\\.exe\\) found"
+      ],
       "keywords": {
         "und": [
           "quitar de la lista",
           "remove from list",
           "видалення ігор зі списку",
-          "juegos desinstalados"
+          "juegos desinstalados",
+          "no game (.exe) found",
+          "Could not change the game's files",
+          "BC250-GPU-900",
+          "desinstalado"
         ],
         "en": [
           "An uninstalled game remains in the HelixSR list",
@@ -21223,8 +21881,8 @@
       },
       "owner": "developer",
       "developer": {
-        "es": "Conservar el estado indicado. Si persiste, obtener evidencia de la acción actual; esta ficha no implica que haya un arreglo nuevo publicado.",
-        "en": "Development builds identify games missing from disk and allow removing their records."
+        "es": "Conservar el estado indicado. Si persiste, obtener evidencia de la acción actual; esta ficha no implica que haya un arreglo nuevo publicado. Nuevo: si Steam dejó la carpeta del juego sin ningún .exe (restos de partidas o configuración), Quitar lo saca de la lista en vez de fallar con «no game (.exe) found»; no borra nada de la carpeta.",
+        "en": "Development builds identify games missing from disk and allow removing their records. New: when Steam left the game's folder with no .exe (saves or settings left behind), Remove takes it off the list instead of failing with “no game (.exe) found”; nothing in the folder is deleted."
       },
       "status": "fixed-dev",
       "status_flags": [
@@ -24781,6 +25439,277 @@
         "summary": {
           "es": "La descarga falló dos veces.",
           "en": "The GFX1013 tool download returned HTTP 504."
+        }
+      }
+    },
+    {
+      "id": "GFX-04",
+      "module": "video",
+      "title": {
+        "es": "GFX1013: falla el initramfs de un kernel viejo (dracut)",
+        "en": "GFX1013: an old kernel's initramfs fails to rebuild (dracut)"
+      },
+      "codes": [
+        "BC250-GENERAL-001"
+      ],
+      "match": [
+        "dracut\\[F\\]: image generation failed for kernel",
+        "kmod_module_parse_depline"
+      ],
+      "keywords": {
+        "und": [
+          "dracut",
+          "image generation failed",
+          "kmod_module_parse_depline",
+          "initramfs",
+          "update-initramfs",
+          "/boot/efi",
+          "GFX1013 fix",
+          "kernel viejo",
+          "old kernel"
+        ],
+        "en": [
+          "GFX1013: an old kernel's initramfs fails to rebuild (dracut)",
+          "Hardware video"
+        ],
+        "es": [
+          "GFX1013: falla el initramfs de un kernel viejo (dracut)",
+          "Vídeo por hardware"
+        ],
+        "bg": [
+          "Хардуерно видео"
+        ],
+        "cs": [
+          "Hardwarové video"
+        ],
+        "da": [
+          "Hardwarevideo"
+        ],
+        "de": [
+          "Hardware-Video"
+        ],
+        "el": [
+          "Βίντεο υλικού"
+        ],
+        "es-419": [
+          "Vídeo por hardware"
+        ],
+        "fi": [
+          "Laitteistovideo"
+        ],
+        "fr": [
+          "Vidéo matérielle"
+        ],
+        "hu": [
+          "Hardveres videó"
+        ],
+        "id": [
+          "Video perangkat keras"
+        ],
+        "it": [
+          "Video hardware"
+        ],
+        "ja": [
+          "ハードウェア動画"
+        ],
+        "ko": [
+          "하드웨어 비디오"
+        ],
+        "ms": [
+          "Video perkakasan"
+        ],
+        "nl": [
+          "Hardwarevideo"
+        ],
+        "no": [
+          "Maskinvarevideo"
+        ],
+        "pl": [
+          "Sprzętowe wideo"
+        ],
+        "pt": [
+          "Vídeo por hardware"
+        ],
+        "pt-BR": [
+          "Vídeo por hardware"
+        ],
+        "ro": [
+          "Video hardware"
+        ],
+        "ru": [
+          "Аппаратное видео"
+        ],
+        "sv": [
+          "Hårdvaruvideo"
+        ],
+        "th": [
+          "วิดีโอฮาร์ดแวร์"
+        ],
+        "tr": [
+          "Donanım video"
+        ],
+        "uk": [
+          "Апаратне відео"
+        ],
+        "vi": [
+          "Video phần cứng"
+        ],
+        "zh-CN": [
+          "硬件视频"
+        ],
+        "zh-TW": [
+          "硬體視訊"
+        ]
+      },
+      "symptom": {
+        "es": "Tras compilar 15-30 minutos, la instalación del fix GFX1013 termina con «dracut[F]: image generation failed for kernel» para un kernel que no es el que está en uso.",
+        "en": "After 15-30 minutes of building, the GFX1013 fix install ends with “dracut[F]: image generation failed for kernel” for a kernel that is not the running one."
+      },
+      "cause": {
+        "es": "El script regeneraba el initramfs de todos los kernels (dracut --regenerate-all). Un kernel viejo sin sus módulos ni su carpeta en la ESP no se puede regenerar y tumbaba toda la instalación.",
+        "en": "The script rebuilt every kernel's initramfs (dracut --regenerate-all). An old kernel without its modules or its ESP folder cannot be rebuilt and failed the whole install."
+      },
+      "distros": {
+        "reported": [
+          "ubuntu"
+        ],
+        "possible": [
+          "ubuntu",
+          "debian",
+          "arch"
+        ]
+      },
+      "fix": {
+        "arch": {
+          "steps": {
+            "es": "Actualizar Control Center y repetir la instalación.",
+            "en": "Update Control Center and repeat the install."
+          },
+          "command": "",
+          "scope": "conditional",
+          "article": [
+            {
+              "text": {
+                "es": "En Arch se usa mkinitcpio -P; si un preset viejo falla, quítalo de /etc/mkinitcpio.d.",
+                "en": "Arch uses mkinitcpio -P; if an old preset fails, remove it from /etc/mkinitcpio.d."
+              },
+              "commands": [
+                "ls /etc/mkinitcpio.d"
+              ]
+            }
+          ]
+        },
+        "steamos": null,
+        "bazzite": null,
+        "fedora": null,
+        "ubuntu": {
+          "steps": {
+            "es": "Actualizar Control Center y repetir la instalación; quitar el kernel viejo si ya no se usa.",
+            "en": "Update Control Center and repeat the install; remove the old kernel if it is no longer used."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué kernels quedan instalados y cuál está en uso.",
+                "en": "See which kernels are installed and which one is running."
+              },
+              "commands": [
+                "uname -r",
+                "ls /usr/lib/modules"
+              ]
+            },
+            {
+              "text": {
+                "es": "Con la versión corregida, solo el initramfs del kernel en uso tiene que regenerarse; un kernel viejo que falla deja un aviso y la instalación sigue.",
+                "en": "With the fixed version only the running kernel's initramfs must be rebuilt; an old kernel that fails leaves a warning and the install continues."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Si el kernel viejo ya no se usa, quítalo con el gestor de paquetes.",
+                "en": "If the old kernel is no longer used, remove it with the package manager."
+              },
+              "commands": [
+                "sudo apt autoremove --purge"
+              ]
+            }
+          ]
+        },
+        "debian": {
+          "steps": {
+            "es": "Actualizar Control Center y repetir la instalación; quitar el kernel viejo si ya no se usa.",
+            "en": "Update Control Center and repeat the install; remove the old kernel if it is no longer used."
+          },
+          "command": "",
+          "scope": "applicable",
+          "article": [
+            {
+              "text": {
+                "es": "Mira qué kernels quedan instalados y cuál está en uso.",
+                "en": "See which kernels are installed and which one is running."
+              },
+              "commands": [
+                "uname -r",
+                "ls /usr/lib/modules"
+              ]
+            },
+            {
+              "text": {
+                "es": "Con la versión corregida, solo el initramfs del kernel en uso tiene que regenerarse; un kernel viejo que falla deja un aviso y la instalación sigue.",
+                "en": "With the fixed version only the running kernel's initramfs must be rebuilt; an old kernel that fails leaves a warning and the install continues."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Si el kernel viejo ya no se usa, quítalo con el gestor de paquetes.",
+                "en": "If the old kernel is no longer used, remove it with the package manager."
+              },
+              "commands": [
+                "sudo apt autoremove --purge"
+              ]
+            }
+          ]
+        },
+        "other": {
+          "steps": {
+            "es": "Actualizar Control Center y repetir la instalación.",
+            "en": "Update Control Center and repeat the install."
+          },
+          "command": "",
+          "scope": "equivalent",
+          "article": [
+            {
+              "text": {
+                "es": "Solo el kernel en uso tiene que regenerarse.",
+                "en": "Only the running kernel must be rebuilt."
+              },
+              "commands": []
+            }
+          ]
+        }
+      },
+      "owner": "developer",
+      "developer": {
+        "es": "corregido en desarrollo: dracut/update-initramfs se ejecuta para el kernel en uso (obligatorio) y para los demás como mejor esfuerzo con aviso.",
+        "en": "Fixed in development: dracut/update-initramfs runs for the running kernel (required) and for the others best effort with a warning."
+      },
+      "status": "fixed-dev",
+      "status_flags": [
+        "fixed-dev"
+      ],
+      "fixed_in": null,
+      "guide": {
+        "title": {
+          "es": "GFX1013: kernels viejos y el initramfs",
+          "en": "GFX1013: old kernels and the initramfs"
+        },
+        "summary": {
+          "es": "Un kernel viejo ya no tumba la instalación.",
+          "en": "An old kernel no longer fails the install."
         }
       }
     },

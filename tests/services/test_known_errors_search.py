@@ -88,7 +88,7 @@ def test_versions_use_only_published_fixed_in_and_distro_aliases_use_applicabili
 
 
 def test_empty_queries_and_stopwords_do_not_guess_a_repair():
-    assert len(handbook.search("")) == 80
+    assert len(handbook.search("")) == 83
     assert handbook.search("el la no the") == ()
     assert handbook.search("qxzxq wvwvw xyzxyz") == ()
     assert handbook.search("no gira", module="packages") == ()
