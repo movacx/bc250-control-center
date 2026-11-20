@@ -460,6 +460,8 @@ class DriversRepository:
             "thermalright": "Thermalright LCD",
             "corsair": "Corsair devices (OpenLinkHub)",
             "hdmi_ac3": "HDMI audio (Dolby Digital 5.1)",
+            "vram_sensor": "VRAM temperature (bc250-memory)",
+            "vrm_sensor": "Power delivery readings (bc250-vrm)",
             "hdmi_cec": "TV control (HDMI-CEC)",
         }
         title = {

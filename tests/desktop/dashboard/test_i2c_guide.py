@@ -77,13 +77,14 @@ def test_the_dashboard_routes_the_install_to_settings(qtbot, monkeypatch):
         TELEMETRY = I2cGuideDialog.TELEMETRY
         INSTALL = I2cGuideDialog.INSTALL
 
-        def __init__(self, parent, *, message, can_install):
+        def __init__(self, parent, *, message, can_install, **_options):
             pass
 
         def exec(self):
             return self.INSTALL
 
     monkeypatch.setattr(dashboard_module, "I2cGuideDialog", Dialog)
+    monkeypatch.setattr(dashboard_module, "kernel_sensor_drivers", dict)
     monkeypatch.setattr(dashboard_module, "kernel_vrm_driver_present", lambda: False)
     monkeypatch.setattr(dashboard_module, "sondear_telemetria_vrm", lambda: {"daemon": "missing"})
     routed = []

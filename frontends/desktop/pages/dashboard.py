@@ -118,16 +118,29 @@ VRM_HELP_SERVICE = (
     "a few seconds after it starts."
 )
 VRM_HELP_KERNEL = (
-    "Your kernel reads the voltage regulator itself (bc250_vrm), so no service is "
-    "needed: with the physical I2C modification wired, the readings appear here on "
-    "their own. The BC250-Telemetry service cannot open the bus on this kernel; if it "
-    "is installed, remove it in Settings › Telemetry."
+    "Your kernel has its own driver for the voltage regulator (bc250_vrm), but the "
+    "regulator does not answer it. Version 1.1.0 and later read it through the fan chip "
+    "without wires; older versions need the I2C modification. Update the kernel, or see "
+    "the bc250-vrm tab. The BC250-Telemetry service cannot open the bus on this kernel."
 )
 VRM_HELP_NO_ANSWER = (
     "The BC250-Telemetry service is running, but the voltage regulator does not answer "
     "over I2C. Check the two wires of the I2C modification between I2C_HEADER1 and "
     "TPMS1, then look at Settings › Telemetry › Automatic detection."
 )
+
+
+def kernel_sensor_drivers() -> dict:
+    """Hexxeh's two kernel drivers' state on this board, read without privileges."""
+    try:
+        from bc250cc.infrastructure.accessories import vram_sensor, vrm_sensor
+        from bc250cc.platform.packages.strategies.detector import detect_os_info
+
+        family = detect_os_info().family
+        return {"vrm_sensor": vrm_sensor.inventory(family), "vram_sensor": vram_sensor.inventory(family)}
+    except Exception:  # noqa: BLE001 - the window still opens on the I2C guide
+        logger.debug("Could not read the kernel sensor drivers", exc_info=True)
+        return {}
 
 
 class DashboardPage(QWidget):
@@ -1281,8 +1294,8 @@ class DashboardPage(QWidget):
         return self._format_temperature(state.vrm_cpu_temperature_c), ""
 
     def _show_vrm_help(self) -> None:
-        """Where the power delivery readings come from on this board, the
-        photo guide of the I2C modification, and the service that reads it."""
+        """Where the power delivery readings come from on this board: the I2C
+        modification with its photo guide, and Hexxeh's two kernel drivers."""
         kernel = kernel_vrm_driver_present()
         daemon = str(sondear_telemetria_vrm().get("daemon") or "missing")
         if kernel:
@@ -1291,12 +1304,20 @@ class DashboardPage(QWidget):
             message = VRM_HELP_NO_ANSWER
         else:
             message = VRM_HELP_SERVICE
-        # One window: what this board needs beside the photo guide of the mod.
-        result = I2cGuideDialog(self, message=message, can_install=message == VRM_HELP_SERVICE).exec()
+        drivers = kernel_sensor_drivers()
+        # No wires at all is the shortest way, where this system can build it.
+        tab = "vrm" if str((drivers.get("vrm_sensor") or {}).get("state")) == "not-installed" else "i2c"
+        result = I2cGuideDialog(
+            self, message=message, can_install=message == VRM_HELP_SERVICE, drivers=drivers, tab=tab,
+        ).exec()
         if result == I2cGuideDialog.INSTALL:
             self.action_requested.emit("telemetry_install")
         elif result == I2cGuideDialog.TELEMETRY:
             self.action_requested.emit("telemetry_settings")
+        elif result == I2cGuideDialog.BUILD_VRM:
+            self.driver_support_requested.emit("vrm_sensor:install")
+        elif result == I2cGuideDialog.BUILD_VRAM:
+            self.driver_support_requested.emit("vram_sensor:install")
 
     def _update_vrm_strip(self, state) -> None:
         """The rails, whether or not this board can measure them.

@@ -37,6 +37,9 @@ def _directmesh_version(tag: object) -> tuple[int, ...]:
     return tuple(int(part) for part in parts) if all(part.isdigit() for part in parts) else ()
 
 
+#: Hexxeh's kernel drivers (bc250-vrm, bc250-memory) listed on Compatibility.
+SENSOR_DRIVERS = frozenset({"vram_sensor", "vrm_sensor"})
+
 class PreparationRenderMixin:
     """Methods of ``PreparationSidebar`` split out of ``dashboard_widgets``."""
 
@@ -186,6 +189,11 @@ class PreparationRenderMixin:
                 payload={"accessory": key, "op": "configure"},
                 visible=bool(configure_text) and (installed or state == "managed-elsewhere"),
                 enabled=state != "relogin-required",
+            )
+            # The kernel sensor drivers have nothing to open once they work:
+            # Remove is their row's action, not an entry under "More".
+            buttons["remove"].setProperty(
+                "rowAction", installed and key in SENSOR_DRIVERS and state != "update-available"
             )
             card.update_action(
                 buttons["remove"], text="Remove",

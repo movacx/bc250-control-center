@@ -40,7 +40,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMenu,
     QScrollArea,
     QSizePolicy,
     QSpinBox,
@@ -59,6 +58,7 @@ from ..components.page_widgets import (
     caption,
     subpanel,
 )
+from ..components.picker_row import PickerRow
 from ..components.style_state import set_style_properties, set_style_property
 from ..components.widgets import icon
 from ..i18n import governor_fix_label, shipped_name, tr, tr_format
@@ -296,115 +296,6 @@ class CheckRow(QAbstractButton):
     def leaveEvent(self, event) -> None:  # noqa: N802 (Qt)
         super().leaveEvent(event)
         self.update()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Picker row — the mockup's boxed ``caption ......... value`` selector
-# ─────────────────────────────────────────────────────────────────────────────
-
-class PickerRow(QFrame):
-    """A boxed row that reads ``caption ... value`` and opens its options.
-
-    The mockup draws these two selectors with the caption on the left and the
-    current value on the right, without a drop-down arrow.  A ``QComboBox``
-    cannot render two independently styled halves, so this reimplements just
-    enough of its API (``addItem``/``findData``/``setCurrentIndex``/
-    ``currentData``/``currentIndexChanged``) for the existing wiring to keep
-    working unchanged.
-    """
-
-    currentIndexChanged = pyqtSignal(int)  # noqa: N815 (QComboBox-compatible)
-
-    def __init__(self, caption: str, parent: QWidget | None = None):
-        super().__init__(parent)
-        self._caption_source = caption
-        self._items: list[tuple[str, str]] = []
-        self._index = -1
-        self.setProperty("pickerRow", True)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-
-        row = QHBoxLayout(self)
-        row.setContentsMargins(12, 9, 12, 9)
-        row.setSpacing(10)
-        self._caption = QLabel(tr(caption))
-        self._caption.setProperty("pickerCaption", True)
-        self._caption.setMinimumWidth(0)
-        row.addWidget(self._caption, 1)
-        self._value = QLabel("")
-        self._value.setProperty("pickerValue", True)
-        self._value.setAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
-        row.addWidget(self._value, 0)
-
-    # -- QComboBox-compatible surface ---------------------------------------
-    def addItem(self, text: str, data: str) -> None:  # noqa: N802 (Qt naming)
-        self._items.append((text, data))
-        if self._index < 0:
-            self.setCurrentIndex(0)
-
-    def findData(self, data: object) -> int:  # noqa: N802 (Qt naming)
-        for index, (_text, value) in enumerate(self._items):
-            if value == data:
-                return index
-        return -1
-
-    def setCurrentIndex(self, index: int) -> None:  # noqa: N802 (Qt naming)
-        if not self._items:
-            return
-        index = max(0, min(len(self._items) - 1, int(index)))
-        changed = index != self._index
-        self._index = index
-        self._value.setText(self._items[index][0])
-        if changed and not self.signalsBlocked():
-            self.currentIndexChanged.emit(index)
-
-    def currentData(self) -> object:  # noqa: N802 (Qt naming)
-        if 0 <= self._index < len(self._items):
-            return self._items[self._index][1]
-        return None
-
-    def retranslate(self) -> None:
-        self._caption.setText(tr(self._caption_source))
-
-    # -- interaction ---------------------------------------------------------
-    def open_options(self) -> None:
-        """Show the choices. Reached by a click, a controller, or Enter."""
-        if not self._items or not self.isEnabled():
-            return
-        menu = QMenu(self)
-        for index, (text, _data) in enumerate(self._items):
-            action = menu.addAction(text)
-            action.setCheckable(True)
-            action.setChecked(index == self._index)
-            action.triggered.connect(
-                lambda _checked=False, position=index: self.setCurrentIndex(position)
-            )
-        menu.setMinimumWidth(self.width())
-        menu.exec(self.mapToGlobal(self.rect().bottomLeft()))
-
-    def gamepad_activate(self) -> None:
-        """A controller press must reach the same list.
-
-        Without this the row was a focus stop that answered nothing: it is not
-        a QComboBox, so the navigation's fallback of opening a popup never
-        applied to it. Written as a method rather than bound to
-        ``open_options`` at class level, so that replacing one replaces both.
-        """
-        self.open_options()
-
-    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt)
-        if event.button() != Qt.MouseButton.LeftButton:
-            return
-        self.open_options()
-
-    def keyPressEvent(self, event) -> None:  # noqa: N802 (Qt)
-        if event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            self.open_options()
-            event.accept()
-            return
-        super().keyPressEvent(event)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -53,21 +53,34 @@ def test_core_unlock_button_explains_missing_privileged_helper():
     assert calls[0][2]["tone"] == "orange"
 
 
-def test_core_unlock_button_requires_official_upstream_clone_first():
-    calls = []
+def test_core_unlock_button_requires_official_upstream_clone_first(monkeypatch):
+    from PyQt6.QtWidgets import QDialog
+
+    from frontends.desktop.pages import cpu_smu
+
+    calls, started = [], []
+
+    class Dialog:
+        def __init__(self, title, message, **options):
+            calls.append((title, message, options))
+
+        def exec(self):
+            return QDialog.DialogCode.Rejected
+
+    monkeypatch.setattr(cpu_smu, "ConfirmDialog", Dialog)
     page = type("Page", (), {
         "_request_core_unlock": CpuSmuPage._request_core_unlock,
+        "_offer_core_unlock_preparation": CpuSmuPage._offer_core_unlock_preparation,
         "process": None,
         "current_state": {
             "core_unlock_repository_ready": False,
             "core_unlock_helper_ready": True,
         },
-        "_show_info": lambda self, title, message, **options: calls.append(
-            (title, message, options)
-        ),
+        "_build_and_start_process": lambda self, *args: started.append(args),
     })()
     page._request_core_unlock()
     assert calls
     assert calls[0][0] == "Official CPU core unlock tool is not prepared"
     assert "rw-r-r-0644/bc250-core-unlock" in calls[0][1]
-    assert calls[0][2]["tone"] == "orange"
+    assert calls[0][2]["confirm_text"] == "Prepare dependencies"
+    assert started == []

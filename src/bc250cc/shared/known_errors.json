@@ -313,8 +313,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -544,8 +544,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -577,8 +577,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -634,7 +634,8 @@
       ],
       "match": [
         "cannot be verified and repo",
-        "GPG check FAILED"
+        "GPG check FAILED",
+        "GPG error: [^\\n]*(?:signatures couldn.t be verified|NO_PUBKEY|EXPKEYSIG)"
       ],
       "keywords": {
         "und": [
@@ -920,11 +921,12 @@
             },
             {
               "text": {
-                "es": "Actualiza los metadatos con el comando indicado. Si continúa el error de firma, recupera la clave desde la página oficial de ese repositorio o desactiva solo la fuente que ya no utilices.",
-                "en": "Refresh metadata and restore the correct key from the repository publisher. Keep signature verification enabled and distinguish this from a damaged download. Use packages for the actual Ubuntu base of this system, including Mint and other derivatives."
+                "es": "Ejecuta apt update y busca la línea «GPG error» o «NO_PUBKEY»: nombra el repositorio que falla. Si es una fuente que ya no usas (por ejemplo el repositorio de un programa que desinstalaste), desactiva solo esa fuente en /etc/apt/sources.list.d. Si la necesitas, instala su clave nueva desde la página oficial de ese repositorio.",
+                "en": "Run apt update and look for the “GPG error” or “NO_PUBKEY” line: it names the failing repository. If it is a source you no longer use (the repository of a program you removed, for example), disable only that source in /etc/apt/sources.list.d. If you need it, install its new key from that repository's official page."
               },
               "commands": [
-                "sudo apt update"
+                "sudo apt update",
+                "ls /etc/apt/sources.list.d/"
               ]
             },
             {
@@ -955,11 +957,12 @@
             },
             {
               "text": {
-                "es": "Actualiza los metadatos con el comando indicado. Si continúa el error de firma, recupera la clave desde la página oficial de ese repositorio o desactiva solo la fuente que ya no utilices.",
-                "en": "Refresh metadata and restore the correct key from the repository publisher. Keep signature verification enabled and distinguish this from a damaged download. Use packages for this Debian release; an Ubuntu PPA is not a Debian repair."
+                "es": "Ejecuta apt update y busca la línea «GPG error» o «NO_PUBKEY»: nombra el repositorio que falla. Si es una fuente que ya no usas (por ejemplo el repositorio de un programa que desinstalaste), desactiva solo esa fuente en /etc/apt/sources.list.d. Si la necesitas, instala su clave nueva desde la página oficial de ese repositorio.",
+                "en": "Run apt update and look for the “GPG error” or “NO_PUBKEY” line: it names the failing repository. If it is a source you no longer use (the repository of a program you removed, for example), disable only that source in /etc/apt/sources.list.d. If you need it, install its new key from that repository's official page."
               },
               "commands": [
-                "sudo apt update"
+                "sudo apt update",
+                "ls /etc/apt/sources.list.d/"
               ]
             },
             {
@@ -981,8 +984,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -1036,7 +1039,8 @@
         "BC250-BUSY-001"
       ],
       "match": [
-        "Transaction in progress"
+        "Transaction in progress",
+        "Another rpm-ostree transaction"
       ],
       "keywords": {
         "und": [
@@ -1173,8 +1177,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -1204,8 +1208,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -1268,8 +1272,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -1299,8 +1303,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -1330,8 +1334,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -1361,8 +1365,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -1416,7 +1420,8 @@
         "BC250-GENERAL-001"
       ],
       "match": [
-        "Updating deployment: Timeout was reached"
+        "Updating deployment: Timeout was reached",
+        "Updating deployment: (?:Timeout was reached|Przekroczono czas oczekiwania|Se agotó el tiempo|Zeitüberschreitung|Délai d.attente)"
       ],
       "keywords": {
         "und": [
@@ -1589,8 +1594,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -1817,8 +1822,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -2204,8 +2209,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -2259,7 +2264,8 @@
         "BC250-PERM-001"
       ],
       "match": [
-        "interface and protected helper.*different versions"
+        "interface and protected helper.*different versions",
+        "usage: bc250-system-setup-helper"
       ],
       "keywords": {
         "und": [
@@ -2365,8 +2371,8 @@
         ]
       },
       "symptom": {
-        "es": "En Linux Mint, opciones de arranque del kernel y Memoria y swap fallan con BC250-PROTOCOL-001; el historial mezcla errores de Cyan anteriores.",
-        "en": "The interface and protected helper have different versions."
+        "es": "Acciones como Memoria y swap u Opciones de arranque del kernel fallan con BC250-PROTOCOL-001 y la salida muestra «usage: bc250-system-setup-helper …»: el ayudante no reconoce la opción que le pidió la interfaz.",
+        "en": "Actions such as Memory and swap or Kernel boot options fail with BC250-PROTOCOL-001 and the output shows “usage: bc250-system-setup-helper …”: the helper does not know the option the interface asked for."
       },
       "cause": {
         "es": "La interfaz se actualizó (o se ejecuta desde una carpeta de código) pero el ayudante privilegiado de /usr/libexec/bc250-control-center es de otra versión, o se instaló a mano y quedó a medias.",
@@ -2583,8 +2589,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -2652,7 +2658,6 @@
         "protected backend guard",
         "unsafe ownership",
         "unsafe.*permissions",
-        "traceback \\(most recent call last\\)",
         "helper is not installed",
         "protected bc250 openrc service helper is missing",
         "needs the installed, root-owned bc250 fan helper",
@@ -2661,19 +2666,11 @@
         "installation permission repair is unavailable",
         "install the local name repair helper",
         "install the lan firewall helper",
-        "systemctl.*(?:failed|exited)",
-        "rc-service.*(?:failed|exited)",
-        "service.*failed",
-        "failed to start",
-        "job for .*(?:failed|exited)",
-        "control process exited",
         "invalid openrc .*action",
         "requires an active systemd",
         "boot persistence is not supported",
         "no service action was run",
         "invalid .*service action",
-        "journalctl.*(?:failed|error|cannot)",
-        "failed.*(?:unit|job)",
         "starting with the session needs systemd",
         "the web server (?:did not start|could not restart)",
         "systemctl is not available",
@@ -3205,8 +3202,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -3469,8 +3466,8 @@
         "en": "Linux denied access to a required file or device."
       },
       "cause": {
-        "es": "Un ayudante no tiene permiso sobre un archivo o dispositivo: ayudante de otra versión, despliegue sin reiniciar (Bazzite/SteamOS), SELinux, o archivos de un juego creados por otro usuario/Flatpak. En el UID reenviado a polkit no coincidía con el usuario que llamaba.",
-        "en": "Possible causes include mismatched helpers, a pending deployment, SELinux or game files belonging to another user or sandbox."
+        "es": "Un ayudante de la app no tiene permiso sobre un archivo o dispositivo. Suele deberse a un ayudante de otra versión, a un despliegue de Bazzite o SteamOS que espera un reinicio, a una denegación de SELinux, a archivos de un juego creados por otro usuario o por Flatpak, o a que el usuario que llega a polkit no es el que lanzó la acción.",
+        "en": "A helper was denied access to a file or device: a helper from another version, a Bazzite or SteamOS deployment waiting for a reboot, an SELinux denial, game files created by another user or by Flatpak, or a polkit request whose user is not the one who started the action."
       },
       "distros": {
         "reported": [
@@ -3684,8 +3681,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -3753,27 +3750,11 @@
         "authentication.*(?:cancel|fail|dismiss)",
         "authorization.*(?:cancel|fail|dismiss)",
         "sudo: .*(?:timed out reading password|a password is required|incorrect password)",
-        "fatal error: [^\\n]*: no such file or directory",
-        "compilation terminated",
-        "collect2: error",
-        "ninja: build stopped",
-        "ld returned 1 exit status",
-        "undefined reference to",
-        "make(?:\\[\\d+\\])?: \\*\\*\\* \\[[^\\n]*\\] error \\d+",
-        "exit (?:code|status) 65",
-        "exited with code 65",
-        "already exists",
-        "will not be overwritten",
-        "duplicates will fail to load",
         "sudo:\\ timed\\ out\\ reading\\ password",
         "sudo:\\ a\\ password\\ is\\ required",
         "Error\\ executing\\ command\\ as\\ another\\ user:\\ Not\\ authorized",
         "QUICK_ACCESS_AUTH",
-        "compilation\\ terminated\\.",
-        "collect2:\\ error",
-        "ninja:\\ build\\ stopped",
-        "ld\\ returned\\ 1\\ exit\\ status",
-        "\\]\\ Error\\ "
+        "sudo: [^\\n]*(?:mot de passe|contraseña|senha|Passwort|пароль|hasło|parola|wachtwoord)"
       ],
       "keywords": {
         "und": [
@@ -4386,8 +4367,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -4434,8 +4415,8 @@
       "id": "PKG-01",
       "module": "packages",
       "title": {
-        "es": "pacman está bloqueado (db.lck)",
-        "en": "The package database is locked"
+        "es": "El gestor de paquetes está bloqueado (pacman o apt)",
+        "en": "The package manager is locked (pacman or apt)"
       },
       "codes": [
         "BC250-PKG-001",
@@ -4444,7 +4425,14 @@
       ],
       "match": [
         "unable to lock database",
-        "could not lock database"
+        "could not lock database",
+        "failed to synchronize all databases \\(unable to lock database\\)",
+        "Could not get lock /var/lib/dpkg/lock",
+        "nie udało się zablokować bazy danych",
+        "no se (?:pudo|puede) bloquear la base de datos",
+        "impossible de verrouiller la base de données",
+        "Datenbank (?:konnte nicht|nicht) (?:gesperrt|sperren)",
+        "A package manager is still running"
       ],
       "keywords": {
         "und": [
@@ -4553,8 +4541,8 @@
         ]
       },
       "symptom": {
-        "es": "Cualquier instalación en Arch/CachyOS/SteamOS falla con error: could not lock database: File exists o failed to synchronize all databases (unable to lock database).",
-        "en": "The package database is locked."
+        "es": "La instalación falla con «could not lock database» o «failed to synchronize all databases (unable to lock database)» en pacman, o con «Could not get lock /var/lib/dpkg/lock-frontend» en apt.",
+        "en": "Installing fails with “could not lock database” or “failed to synchronize all databases (unable to lock database)” in pacman, or with “Could not get lock /var/lib/dpkg/lock-frontend” in apt."
       },
       "cause": {
         "es": "1) Otro gestor de paquetes está corriendo (pacman, yay, paru, Discover, la actualización automática de CachyOS). 2) Una actualización anterior se cortó (corte de luz, ventana cerrada) y dejó /var/lib/pacman/db.lck.",
@@ -4652,8 +4640,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": [
                 "ps -C pacman,yay,paru,pamac,apt,apt-get,dpkg,dnf -o pid,comm"
@@ -4685,8 +4673,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": [
                 "ps -C pacman,yay,paru,pamac,apt,apt-get,dpkg,dnf -o pid,comm"
@@ -4718,8 +4706,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": [
                 "ps -C pacman,yay,paru,pamac,apt,apt-get,dpkg,dnf -o pid,comm"
@@ -4751,8 +4739,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": [
                 "ps -C pacman,yay,paru,pamac,apt,apt-get,dpkg,dnf -o pid,comm"
@@ -4784,8 +4772,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -4839,7 +4827,8 @@
         "BC250-GENERAL-001"
       ],
       "match": [
-        "could not remove lock file /usr/lib/holo/pacmandb/db\\.lck"
+        "could not remove lock file /usr/lib/holo/pacmandb/db\\.lck",
+        "/usr/lib/holo/pacmandb/[^\\n]*Read-only file system"
       ],
       "keywords": {
         "und": [
@@ -5034,7 +5023,8 @@
       "match": [
         "failed to synchronize all databases",
         "returned error: 404[\\s\\S]*failed to commit transaction \\(failed to retrieve some files\\)",
-        "failed\\ to\\ retrieve\\ some\\ files"
+        "failed\\ to\\ retrieve\\ some\\ files",
+        "signature from \"[^\"]+\" is invalid"
       ],
       "keywords": {
         "und": [
@@ -5474,8 +5464,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -5532,11 +5522,8 @@
       "match": [
         "steamdeck-packages\\.steamos\\.cloud.*(?:504|timed out)",
         "Connection timed out after 10000 milliseconds",
-        "rpm-ostree[^\\n]*(?:pending|staged|failed|error|refused|busy)",
-        "ostree[^\\n]*(?:pending|staged|failed|error)",
         "deployment.*pending",
         "pending deployment",
-        "transaction in progress",
         "steamos reports a writable root",
         "steamos read-only state",
         "failed to restore steamos read-only protection",
@@ -5769,8 +5756,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -5833,8 +5820,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -5864,8 +5851,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -5895,8 +5882,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -5926,8 +5913,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -5957,8 +5944,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -6307,8 +6294,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -6338,8 +6325,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -6369,8 +6356,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -6400,8 +6387,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -6431,8 +6418,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -6594,8 +6581,8 @@
         "en": "pacman installation stopped at confirmation."
       },
       "cause": {
-        "es": "pacman no recibió una respuesta válida (en se escribió yy, que pacman toma como \"no\"), o la ventana se cerró en la pregunta. Los demás reportes del grupo (Proton BC-250, mismo usuario y fecha) muestran el mismo corte; no se vio un conflicto real de paquetes.",
-        "en": "pacman did not receive a valid affirmative response, or the terminal was closed at the question."
+        "es": "pacman no recibió una respuesta afirmativa válida en «Proceed with installation? [Y/n]» (por ejemplo, se escribió «yy», que pacman toma como «no»), o la terminal se cerró en esa pregunta. No es un conflicto de paquetes: no se instaló nada.",
+        "en": "pacman did not get a valid yes at “Proceed with installation? [Y/n]” (typing “yy”, for example, counts as no), or the terminal was closed at that question. It is not a package conflict: nothing was installed."
       },
       "distros": {
         "reported": [
@@ -6653,8 +6640,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -6684,8 +6671,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -6715,8 +6702,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -6746,8 +6733,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -6777,8 +6764,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -6808,8 +6795,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -7031,8 +7018,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -7062,8 +7049,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -7093,8 +7080,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -7124,8 +7111,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -7727,8 +7714,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -7980,7 +7967,9 @@
         "BC250-GENERAL-001"
       ],
       "match": [
-        "database already registered"
+        "database already registered",
+        "base de dados já registrada",
+        "base de datos ya (?:está )?registrada"
       ],
       "keywords": {
         "und": [
@@ -8219,7 +8208,8 @@
       ],
       "match": [
         "Free some space.*journalctl",
-        "not enough.*space.*/var"
+        "not enough.*space.*/var",
+        "/var has only \\d+ MB free"
       ],
       "keywords": {
         "und": [
@@ -8357,8 +8347,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -8421,8 +8411,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -8452,8 +8442,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -8483,8 +8473,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -8514,8 +8504,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -8545,8 +8535,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -8603,14 +8593,6 @@
       "match": [
         "Cannot declare.*twice",
         "Duplicate gpu-usage\\.fix-freq key",
-        "gpu_busy_percent",
-        "gpu busy",
-        "busy-flag",
-        "frequency.*(?:unavailable|not detected)",
-        "sensor unavailable",
-        "no recorded metrics",
-        "current metrics sample could not be recorded",
-        "temp-read",
         "QUICK_ACCESS_GPU_BUSY"
       ],
       "keywords": {
@@ -9092,8 +9074,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -9532,8 +9514,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -9590,7 +9572,8 @@
       ],
       "match": [
         "does not contain every required packaged safe-point",
-        "is not loaded by Cyan"
+        "is not loaded by Cyan",
+        "does not contain any safe-point above"
       ],
       "keywords": {
         "und": [
@@ -9916,8 +9899,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -10303,8 +10286,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -10360,11 +10343,8 @@
       ],
       "match": [
         "Unit cyan-skillfish-governor-smu\\.service does not exist",
-        "unit .*not found",
-        "service.*not[- ]found",
-        "service.*does not exist",
-        "no such.*service",
-        "unit not found"
+        "unit not found",
+        "Unit [\\w@.-]+\\.service (?:does not exist|not found|could not be found)"
       ],
       "keywords": {
         "und": [
@@ -10797,8 +10777,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -10844,8 +10824,8 @@
       "id": "GOV-06",
       "module": "governor",
       "title": {
-        "es": "Linux Mint: configuración de Cyan ausente o no protegida por root",
-        "en": "Cyan's configuration is missing or is not root-protected"
+        "es": "La configuración de Cyan falta o no pertenece a root",
+        "en": "Cyan's configuration is missing or not owned by root"
       },
       "codes": [
         "BC250-WORKFLOW-001",
@@ -11053,12 +11033,12 @@
         ]
       },
       "symptom": {
-        "es": "En un mismo equipo con Linux Mint casi todas las acciones (Cyan, CU, GFX1013, kisak-mesa, ventiladores, juegos) muestran este error en el historial.",
-        "en": "Cyan's configuration is missing or is not root-protected."
+        "es": "Iniciar Cyan, aplicar un perfil de GPU u otras acciones del governor fallan con «Governor configuration is unavailable» o «Governor configuration is not protected by root».",
+        "en": "Starting Cyan, applying a GPU profile or other governor actions fail with “Governor configuration is unavailable” or “Governor configuration is not protected by root”."
       },
       "cause": {
-        "es": "Cyan instalado a mano de forma incompleta: falta /etc/cyan-skillfish-governor-smu/config.toml, o la ruta resuelta era / porque la configuración no existía. El error de Cyan quedó en el historial y aparece en los reportes de otras acciones.",
-        "en": "An incomplete installation left no valid config.toml; old Cyan failures also contaminated reports from other actions."
+        "es": "Falta /etc/cyan-skillfish-governor-smu/config.toml, o existe pero no pertenece a root. Suele pasar cuando Cyan se instaló a mano o a medias, fuera de la app. La app no usa una configuración que cualquier usuario podría cambiar, porque de ella dependen el voltaje y las frecuencias de la GPU.",
+        "en": "/etc/cyan-skillfish-governor-smu/config.toml is missing, or exists but is not owned by root. It usually happens when Cyan was installed by hand or only partly, outside the app. The app will not use a configuration any user could change, because the GPU voltage and clocks depend on it."
       },
       "distros": {
         "reported": [
@@ -11283,8 +11263,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -11313,8 +11293,7 @@
       "status": "fixed",
       "status_flags": [
         "fixed",
-        "user",
-        "pending"
+        "user"
       ],
       "fixed_in": null,
       "guide": {
@@ -11447,8 +11426,8 @@
         ]
       },
       "symptom": {
-        "es": "Cyan no arranca y el fix GFX1013 dice que no hay BC-250.",
-        "en": "The BC-250 GPU is not visible where the governor expects it."
+        "es": "Cyan no arranca con «Cyan Skillfish GPU not found at expected PCI bus location», o el arreglo GFX1013 dice «AMD BC-250 (PCI 1002:13fe) was not found».",
+        "en": "Cyan does not start with “Cyan Skillfish GPU not found at expected PCI bus location”, or the GFX1013 fix says “AMD BC-250 (PCI 1002:13fe) was not found”."
       },
       "cause": {
         "es": "El sistema no ve la GPU en 1002:13fe: amdgpu no cargó, la GPU está en otra ruta (máquina virtual, passthrough), o el equipo no es una BC-250.",
@@ -11689,8 +11668,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -11858,8 +11837,8 @@
         "en": "amdgpu did not start in this boot."
       },
       "cause": {
-        "es": "amdgpu falló al iniciar (a veces tras un reinicio en caliente de la BC-250).",
-        "en": "The driver failed to initialize, sometimes after a warm reboot."
+        "es": "El driver amdgpu no se cargó en este arranque. A veces pasa tras un reinicio en caliente de la BC-250, y pasa siempre que el arranque lleva nomodeset, amdgpu.modeset=0 o amdgpu en la lista negra. Fedora deja nomodeset si se instaló en «modo de gráficos básicos».",
+        "en": "The amdgpu driver did not load in this boot. It sometimes happens after a warm restart of the BC-250, and always when the boot line has nomodeset, amdgpu.modeset=0 or amdgpu blacklisted. Fedora keeps nomodeset after an install in “basic graphics mode”."
       },
       "distros": {
         "reported": [
@@ -11895,10 +11874,12 @@
             },
             {
               "text": {
-                "es": "Apaga completamente la BC-250 y arranca de nuevo. Si el driver sigue sin iniciar, revisa los parámetros de arranque y el kernel que estás usando.",
-                "en": "Power the board off completely, boot again and collect amdgpu kernel messages if initialization still fails."
+                "es": "Revisa la línea de arranque. Si aparece nomodeset, amdgpu.modeset=0 o modprobe.blacklist=amdgpu, quítalo del gestor de arranque y reinicia. Si no aparece nada de eso, apaga la BC-250 por completo (no reiniciar) y vuelve a encenderla.",
+                "en": "Check the boot line. If it has nomodeset, amdgpu.modeset=0 or modprobe.blacklist=amdgpu, remove it in the boot loader and reboot. If none of those are there, power the BC-250 off completely (not a restart) and start it again."
               },
-              "commands": []
+              "commands": [
+                "cat /proc/cmdline"
+              ]
             },
             {
               "text": {
@@ -11930,10 +11911,12 @@
             },
             {
               "text": {
-                "es": "Apaga completamente la BC-250 y arranca de nuevo. Si el driver sigue sin iniciar, revisa los parámetros de arranque y el kernel que estás usando.",
-                "en": "Power the board off completely, boot again and collect amdgpu kernel messages if initialization still fails."
+                "es": "Revisa la línea de arranque. Si aparece nomodeset, amdgpu.modeset=0 o modprobe.blacklist=amdgpu, quítalo del gestor de arranque y reinicia. Si no aparece nada de eso, apaga la BC-250 por completo (no reiniciar) y vuelve a encenderla.",
+                "en": "Check the boot line. If it has nomodeset, amdgpu.modeset=0 or modprobe.blacklist=amdgpu, remove it in the boot loader and reboot. If none of those are there, power the BC-250 off completely (not a restart) and start it again."
               },
-              "commands": []
+              "commands": [
+                "cat /proc/cmdline"
+              ]
             },
             {
               "text": {
@@ -11965,10 +11948,12 @@
             },
             {
               "text": {
-                "es": "Apaga completamente la BC-250 y arranca de nuevo. Si el driver sigue sin iniciar, revisa los parámetros de arranque y el kernel que estás usando.",
-                "en": "Power the board off completely, boot again and collect amdgpu kernel messages if initialization still fails."
+                "es": "Revisa la línea de arranque. Si aparece nomodeset, amdgpu.modeset=0 o modprobe.blacklist=amdgpu, quítalo del gestor de arranque y reinicia. Si no aparece nada de eso, apaga la BC-250 por completo (no reiniciar) y vuelve a encenderla.",
+                "en": "Check the boot line. If it has nomodeset, amdgpu.modeset=0 or modprobe.blacklist=amdgpu, remove it in the boot loader and reboot. If none of those are there, power the BC-250 off completely (not a restart) and start it again."
               },
-              "commands": []
+              "commands": [
+                "cat /proc/cmdline"
+              ]
             },
             {
               "text": {
@@ -12000,10 +11985,12 @@
             },
             {
               "text": {
-                "es": "Apaga completamente la BC-250 y arranca de nuevo. Si el driver sigue sin iniciar, revisa los parámetros de arranque y el kernel que estás usando.",
-                "en": "Power the board off completely, boot again and collect amdgpu kernel messages if initialization still fails."
+                "es": "Revisa la línea de arranque. Si aparece nomodeset, amdgpu.modeset=0 o modprobe.blacklist=amdgpu, quítalo del gestor de arranque y reinicia. Si no aparece nada de eso, apaga la BC-250 por completo (no reiniciar) y vuelve a encenderla.",
+                "en": "Check the boot line. If it has nomodeset, amdgpu.modeset=0 or modprobe.blacklist=amdgpu, remove it in the boot loader and reboot. If none of those are there, power the BC-250 off completely (not a restart) and start it again."
               },
-              "commands": []
+              "commands": [
+                "cat /proc/cmdline"
+              ]
             },
             {
               "text": {
@@ -12035,10 +12022,12 @@
             },
             {
               "text": {
-                "es": "Apaga completamente la BC-250 y arranca de nuevo. Si el driver sigue sin iniciar, revisa los parámetros de arranque y el kernel que estás usando.",
-                "en": "Power the board off completely, boot again and collect amdgpu kernel messages if initialization still fails."
+                "es": "Revisa la línea de arranque. Si aparece nomodeset, amdgpu.modeset=0 o modprobe.blacklist=amdgpu, quítalo del gestor de arranque y reinicia. Si no aparece nada de eso, apaga la BC-250 por completo (no reiniciar) y vuelve a encenderla.",
+                "en": "Check the boot line. If it has nomodeset, amdgpu.modeset=0 or modprobe.blacklist=amdgpu, remove it in the boot loader and reboot. If none of those are there, power the BC-250 off completely (not a restart) and start it again."
               },
-              "commands": []
+              "commands": [
+                "cat /proc/cmdline"
+              ]
             },
             {
               "text": {
@@ -12070,10 +12059,12 @@
             },
             {
               "text": {
-                "es": "Apaga completamente la BC-250 y arranca de nuevo. Si el driver sigue sin iniciar, revisa los parámetros de arranque y el kernel que estás usando.",
-                "en": "Power the board off completely, boot again and collect amdgpu kernel messages if initialization still fails."
+                "es": "Revisa la línea de arranque. Si aparece nomodeset, amdgpu.modeset=0 o modprobe.blacklist=amdgpu, quítalo del gestor de arranque y reinicia. Si no aparece nada de eso, apaga la BC-250 por completo (no reiniciar) y vuelve a encenderla.",
+                "en": "Check the boot line. If it has nomodeset, amdgpu.modeset=0 or modprobe.blacklist=amdgpu, remove it in the boot loader and reboot. If none of those are there, power the BC-250 off completely (not a restart) and start it again."
               },
-              "commands": []
+              "commands": [
+                "cat /proc/cmdline"
+              ]
             },
             {
               "text": {
@@ -12096,8 +12087,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -12153,7 +12144,8 @@
         "BC250-DBUS-001"
       ],
       "match": [
-        "Cyan's active D-Bus range could not be read"
+        "Cyan's active D-Bus range could not be read",
+        "patched_gpu_metrics[^\\n]*gpu_metrics failed"
       ],
       "keywords": {
         "und": [
@@ -12498,8 +12490,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -12553,7 +12545,8 @@
       ],
       "match": [
         "GPU load or live clock telemetry is unavailable",
-        "Cyan is not running"
+        "Cyan is not running",
+        "Cyan governor must be active"
       ],
       "keywords": {
         "und": [
@@ -12875,8 +12868,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -12932,7 +12925,8 @@
       "match": [
         "oberon-governor still has an executable",
         "ExecStart=/usr/local/bin/oberon-governor",
-        "features\\.h: No such file or directory"
+        "features\\.h: No such file or directory",
+        "_deps/yaml-cpp-build"
       ],
       "keywords": {
         "und": [
@@ -13039,8 +13033,8 @@
         "en": "Oberon could not be removed, built or started."
       },
       "cause": {
-        "es": "Binario instalado fuera del paquete (a mano en /usr/bin); compilador de SteamOS incompatible con yaml-cpp; Oberon sin GPU/telemetría o en conflicto con Cyan.",
-        "en": "Different subcases involve a manually installed executable, yaml-cpp build failure or a failed service/conflicting governor."
+        "es": "Son tres casos distintos. Si al desinstalar queda el binario, es porque se instaló a mano fuera del paquete. En SteamOS la compilación falla con «features.h: No such file or directory» porque el sistema no trae las cabeceras de glibc que necesita yaml-cpp. En Bazzite el servicio puede salir al instante si no ve la GPU o si Cyan está activo a la vez.",
+        "en": "Three different cases. If the binary stays after uninstalling, it was installed by hand outside the package. On SteamOS the build fails with “features.h: No such file or directory” because the system lacks the glibc headers yaml-cpp needs. On Bazzite the service can exit at once if it cannot see the GPU or if Cyan is running at the same time."
       },
       "distros": {
         "reported": [
@@ -13267,8 +13261,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -13428,8 +13422,8 @@
         "en": "Cyan does not start automatically or load the requested frequencies."
       },
       "cause": {
-        "es": "Probable: el servicio arranca antes que amdgpu y sale (ver GOV-09). Lo de las frecuencias es GOV-03: los puntos por encima de 2000 MHz (o los pedidos) no están activos en el TOML.",
-        "en": "Early service startup is suspected; inactive safe-points are a separate configuration issue."
+        "es": "Hay dos problemas distintos. Que Cyan no arranque solo suele deberse a que el servicio se inicia antes de que la GPU esté lista y se cierra (ver GOV-09). Que falten frecuencias altas es otra cosa: los puntos por encima de 2000 MHz no están activos en el TOML de Cyan (ver GOV-03).",
+        "en": "Two separate problems. Cyan not starting on its own usually means the service starts before the GPU is ready and exits (see GOV-09). Missing high clocks is something else: the points above 2000 MHz are not enabled in Cyan's TOML (see GOV-03)."
       },
       "distros": {
         "reported": [
@@ -13654,8 +13648,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -14101,7 +14095,8 @@
       "match": [
         "cannot find the UMR executable",
         "umr was not found",
-        "umr not found"
+        "umr not found",
+        "could not install umr automatically"
       ],
       "keywords": {
         "und": [
@@ -14461,8 +14456,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -14620,8 +14615,8 @@
         ]
       },
       "symptom": {
-        "es": "No puede leer la máscara WGP; opciones de arranque o el kernel BC-250 lo arrastran en el historial.",
-        "en": "UMR cannot start after an LLVM change."
+        "es": "Unidades de cómputo no puede leer la máscara WGP y umr falla al abrir con «error while loading shared libraries: libLLVM…».",
+        "en": "Compute Units cannot read the WGP mask and umr fails to start with “error while loading shared libraries: libLLVM…”."
       },
       "cause": {
         "es": "Una actualización del sistema cambió la versión de LLVM y UMR quedó enlazado a la vieja.",
@@ -14874,8 +14869,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -15042,12 +15037,12 @@
         ]
       },
       "symptom": {
-        "es": "Al preparar memoria, instalar HelixSR (que arrastra el SMU) o desbloquear núcleos, la herramienta de desbloqueo se detiene sin escribir nada.",
-        "en": "The core-unlock tool refused a non-0x77 presence mask."
+        "es": "Desbloquear núcleos se detiene sin escribir nada y la salida dice «non-0x77 presence mask detected» o «unexpected core mask 0x…, expected 0x77».",
+        "en": "Unlocking cores stops without writing anything and the output says “non-0x77 presence mask detected” or “unexpected core mask 0x…, expected 0x77”."
       },
       "cause": {
-        "es": "La herramienta de desbloqueo de núcleos lee una máscara que no es la de 8 núcleos sanos y se niega por seguridad. La BC-250 de ese usuario puede tener núcleos dañados o bloqueados de fábrica.",
-        "en": "The board may have disabled or defective cores, so the tool stops deliberately."
+        "es": "De fábrica, la BC-250 tiene 6 de sus 8 núcleos activos, con la máscara 0x77: tres núcleos en cada grupo (CCX). La herramienta oficial solo desbloquea placas con esa máscara. Si la tuya lee otra, como 0xB7 o 0x7E, la fábrica apagó otros dos núcleos, y pudo hacerlo porque estaban defectuosos. Por eso la herramienta se niega a seguir.",
+        "en": "From the factory the BC-250 runs 6 of its 8 cores, with the mask 0x77: three cores in each group (CCX). The official tool only unlocks boards with that mask. If yours reads another one, such as 0xB7 or 0x7E, the factory switched off two other cores, possibly because they were defective. That is why the tool refuses to go on."
       },
       "distros": {
         "reported": [
@@ -15075,8 +15070,8 @@
           "article": [
             {
               "text": {
-                "es": "Comprueba que el aviso dice «non-0x77 presence mask». Consulta la topología actual sin intentar otro desbloqueo.",
-                "en": "The core-unlock tool refused a non-0x77 presence mask. Check the current operation before proceeding."
+                "es": "Busca en el mensaje la máscara que leyó la herramienta («core presence mask: 0x…»). Este comando muestra cuántos núcleos e hilos tienes ahora.",
+                "en": "Find the mask the tool read in the message (“core presence mask: 0x…”). This command shows how many cores and threads you have now."
               },
               "commands": [
                 "lscpu"
@@ -15084,15 +15079,24 @@
             },
             {
               "text": {
-                "es": "Mantén los núcleos de fábrica y utiliza la placa con esa configuración. La negativa puede proteger frente a núcleos bloqueados o defectuosos.",
-                "en": "Keep the factory configuration and do not bypass the check with -f. Check the actual CPU topology without forcing an unlock. Use the Arch-family package workflow for this distribution; do not mix derivative repositories."
+                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "Comprueba que la configuración de fábrica funciona estable. Si el aviso apareció al usar HelixSR o memoria, reporta esa acción para separar el historial.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, keep the new output and keep the current output for a report."
+                "es": "Los dos núcleos que se activan no vienen probados de fábrica. Después de desbloquear, haz una prueba de estrés de unas horas y revisa el registro del kernel por errores de hardware (MCE). Si aparece alguno, vuelve a la configuración de fábrica.",
+                "en": "The two cores this enables were not tested by the factory. After unlocking, run a stress test for a few hours and check the kernel log for hardware errors (MCE). If any appear, go back to the factory configuration."
+              },
+              "commands": [
+                "sudo dmesg | grep -iE 'mce|machine check'"
+              ]
+            },
+            {
+              "text": {
+                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15108,8 +15112,8 @@
           "article": [
             {
               "text": {
-                "es": "Comprueba que el aviso dice «non-0x77 presence mask». Consulta la topología actual sin intentar otro desbloqueo.",
-                "en": "The core-unlock tool refused a non-0x77 presence mask. Check the current operation before proceeding."
+                "es": "Busca en el mensaje la máscara que leyó la herramienta («core presence mask: 0x…»). Este comando muestra cuántos núcleos e hilos tienes ahora.",
+                "en": "Find the mask the tool read in the message (“core presence mask: 0x…”). This command shows how many cores and threads you have now."
               },
               "commands": [
                 "lscpu"
@@ -15117,15 +15121,24 @@
             },
             {
               "text": {
-                "es": "Mantén los núcleos de fábrica y utiliza la placa con esa configuración. La negativa puede proteger frente a núcleos bloqueados o defectuosos.",
-                "en": "Keep the factory configuration and do not bypass the check with -f. Check the actual CPU topology without forcing an unlock. Use the SteamOS workflow, which handles its protected root and Valve package environment."
+                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "Comprueba que la configuración de fábrica funciona estable. Si el aviso apareció al usar HelixSR o memoria, reporta esa acción para separar el historial.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, keep the new output and keep the current output for a report."
+                "es": "Los dos núcleos que se activan no vienen probados de fábrica. Después de desbloquear, haz una prueba de estrés de unas horas y revisa el registro del kernel por errores de hardware (MCE). Si aparece alguno, vuelve a la configuración de fábrica.",
+                "en": "The two cores this enables were not tested by the factory. After unlocking, run a stress test for a few hours and check the kernel log for hardware errors (MCE). If any appear, go back to the factory configuration."
+              },
+              "commands": [
+                "sudo dmesg | grep -iE 'mce|machine check'"
+              ]
+            },
+            {
+              "text": {
+                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15141,8 +15154,8 @@
           "article": [
             {
               "text": {
-                "es": "Comprueba que el aviso dice «non-0x77 presence mask». Consulta la topología actual sin intentar otro desbloqueo.",
-                "en": "The core-unlock tool refused a non-0x77 presence mask. Check the current operation before proceeding."
+                "es": "Busca en el mensaje la máscara que leyó la herramienta («core presence mask: 0x…»). Este comando muestra cuántos núcleos e hilos tienes ahora.",
+                "en": "Find the mask the tool read in the message (“core presence mask: 0x…”). This command shows how many cores and threads you have now."
               },
               "commands": [
                 "lscpu"
@@ -15150,15 +15163,24 @@
             },
             {
               "text": {
-                "es": "Mantén los núcleos de fábrica y utiliza la placa con esa configuración. La negativa puede proteger frente a núcleos bloqueados o defectuosos.",
-                "en": "Keep the factory configuration and do not bypass the check with -f. Check the actual CPU topology without forcing an unlock. Use the image/deployment workflow. If the needed package is only in a pending deployment, reboot into it."
+                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "Comprueba que la configuración de fábrica funciona estable. Si el aviso apareció al usar HelixSR o memoria, reporta esa acción para separar el historial.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, keep the new output and keep the current output for a report."
+                "es": "Los dos núcleos que se activan no vienen probados de fábrica. Después de desbloquear, haz una prueba de estrés de unas horas y revisa el registro del kernel por errores de hardware (MCE). Si aparece alguno, vuelve a la configuración de fábrica.",
+                "en": "The two cores this enables were not tested by the factory. After unlocking, run a stress test for a few hours and check the kernel log for hardware errors (MCE). If any appear, go back to the factory configuration."
+              },
+              "commands": [
+                "sudo dmesg | grep -iE 'mce|machine check'"
+              ]
+            },
+            {
+              "text": {
+                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15174,8 +15196,8 @@
           "article": [
             {
               "text": {
-                "es": "Comprueba que el aviso dice «non-0x77 presence mask». Consulta la topología actual sin intentar otro desbloqueo.",
-                "en": "The core-unlock tool refused a non-0x77 presence mask. Check the current operation before proceeding."
+                "es": "Busca en el mensaje la máscara que leyó la herramienta («core presence mask: 0x…»). Este comando muestra cuántos núcleos e hilos tienes ahora.",
+                "en": "Find the mask the tool read in the message (“core presence mask: 0x…”). This command shows how many cores and threads you have now."
               },
               "commands": [
                 "lscpu"
@@ -15183,15 +15205,24 @@
             },
             {
               "text": {
-                "es": "Mantén los núcleos de fábrica y utiliza la placa con esa configuración. La negativa puede proteger frente a núcleos bloqueados o defectuosos.",
-                "en": "Keep the factory configuration and do not bypass the check with -f. Check the actual CPU topology without forcing an unlock. Use Fedora/Nobara packages and dnf for host dependencies."
+                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "Comprueba que la configuración de fábrica funciona estable. Si el aviso apareció al usar HelixSR o memoria, reporta esa acción para separar el historial.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, keep the new output and keep the current output for a report."
+                "es": "Los dos núcleos que se activan no vienen probados de fábrica. Después de desbloquear, haz una prueba de estrés de unas horas y revisa el registro del kernel por errores de hardware (MCE). Si aparece alguno, vuelve a la configuración de fábrica.",
+                "en": "The two cores this enables were not tested by the factory. After unlocking, run a stress test for a few hours and check the kernel log for hardware errors (MCE). If any appear, go back to the factory configuration."
+              },
+              "commands": [
+                "sudo dmesg | grep -iE 'mce|machine check'"
+              ]
+            },
+            {
+              "text": {
+                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15207,8 +15238,8 @@
           "article": [
             {
               "text": {
-                "es": "Comprueba que el aviso dice «non-0x77 presence mask». Consulta la topología actual sin intentar otro desbloqueo.",
-                "en": "The core-unlock tool refused a non-0x77 presence mask. Check the current operation before proceeding."
+                "es": "Busca en el mensaje la máscara que leyó la herramienta («core presence mask: 0x…»). Este comando muestra cuántos núcleos e hilos tienes ahora.",
+                "en": "Find the mask the tool read in the message (“core presence mask: 0x…”). This command shows how many cores and threads you have now."
               },
               "commands": [
                 "lscpu"
@@ -15216,15 +15247,24 @@
             },
             {
               "text": {
-                "es": "Mantén los núcleos de fábrica y utiliza la placa con esa configuración. La negativa puede proteger frente a núcleos bloqueados o defectuosos.",
-                "en": "Keep the factory configuration and do not bypass the check with -f. Check the actual CPU topology without forcing an unlock. Use packages for the actual Ubuntu base of this system, including Mint and other derivatives."
+                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "Comprueba que la configuración de fábrica funciona estable. Si el aviso apareció al usar HelixSR o memoria, reporta esa acción para separar el historial.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, keep the new output and keep the current output for a report."
+                "es": "Los dos núcleos que se activan no vienen probados de fábrica. Después de desbloquear, haz una prueba de estrés de unas horas y revisa el registro del kernel por errores de hardware (MCE). Si aparece alguno, vuelve a la configuración de fábrica.",
+                "en": "The two cores this enables were not tested by the factory. After unlocking, run a stress test for a few hours and check the kernel log for hardware errors (MCE). If any appear, go back to the factory configuration."
+              },
+              "commands": [
+                "sudo dmesg | grep -iE 'mce|machine check'"
+              ]
+            },
+            {
+              "text": {
+                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15240,8 +15280,8 @@
           "article": [
             {
               "text": {
-                "es": "Comprueba que el aviso dice «non-0x77 presence mask». Consulta la topología actual sin intentar otro desbloqueo.",
-                "en": "The core-unlock tool refused a non-0x77 presence mask. Check the current operation before proceeding."
+                "es": "Busca en el mensaje la máscara que leyó la herramienta («core presence mask: 0x…»). Este comando muestra cuántos núcleos e hilos tienes ahora.",
+                "en": "Find the mask the tool read in the message (“core presence mask: 0x…”). This command shows how many cores and threads you have now."
               },
               "commands": [
                 "lscpu"
@@ -15249,15 +15289,24 @@
             },
             {
               "text": {
-                "es": "Mantén los núcleos de fábrica y utiliza la placa con esa configuración. La negativa puede proteger frente a núcleos bloqueados o defectuosos.",
-                "en": "Keep the factory configuration and do not bypass the check with -f. Check the actual CPU topology without forcing an unlock. Use packages for this Debian release; an Ubuntu PPA is not a Debian repair."
+                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "Comprueba que la configuración de fábrica funciona estable. Si el aviso apareció al usar HelixSR o memoria, reporta esa acción para separar el historial.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, keep the new output and keep the current output for a report."
+                "es": "Los dos núcleos que se activan no vienen probados de fábrica. Después de desbloquear, haz una prueba de estrés de unas horas y revisa el registro del kernel por errores de hardware (MCE). Si aparece alguno, vuelve a la configuración de fábrica.",
+                "en": "The two cores this enables were not tested by the factory. After unlocking, run a stress test for a few hours and check the kernel log for hardware errors (MCE). If any appear, go back to the factory configuration."
+              },
+              "commands": [
+                "sudo dmesg | grep -iE 'mce|machine check'"
+              ]
+            },
+            {
+              "text": {
+                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15273,22 +15322,36 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "Respetar la negativa de la herramienta ante máscara no-0x77. Usar la configuración de fábrica; no ofrecer -f como reparación. Distinguir esta protección del historial adjunto a HelixSR/memoria.",
-                "en": "Keep the factory configuration and do not bypass the check with -f. Check the actual CPU topology without forcing an unlock. Confirm that this integration is supported, then adapt its package manager and init system."
+                "es": "Busca en el mensaje la máscara que leyó la herramienta («core presence mask: 0x…»). Este comando muestra cuántos núcleos e hilos tienes ahora.",
+                "en": "Find the mask the tool read in the message (“core presence mask: 0x…”). This command shows how many cores and threads you have now."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "Comprueba que la configuración de fábrica funciona estable. Si el aviso apareció al usar HelixSR o memoria, reporta esa acción para separar el historial.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, keep the new output and keep the current output for a report."
+                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Los dos núcleos que se activan no vienen probados de fábrica. Después de desbloquear, haz una prueba de estrés de unas horas y revisa el registro del kernel por errores de hardware (MCE). Si aparece alguno, vuelve a la configuración de fábrica.",
+                "en": "The two cores this enables were not tested by the factory. After unlocking, run a stress test for a few hours and check the kernel log for hardware errors (MCE). If any appear, go back to the factory configuration."
+              },
+              "commands": []
+            },
+            {
+              "text": {
+                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15302,7 +15365,6 @@
       },
       "status": "fixed-dev",
       "status_flags": [
-        "pending",
         "expected",
         "fixed-dev"
       ],
@@ -15656,8 +15718,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -15686,7 +15748,6 @@
       "status": "user",
       "status_flags": [
         "user",
-        "pending",
         "fixed-dev"
       ],
       "fixed_in": null,
@@ -15847,8 +15908,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -15878,8 +15939,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": [
                 "findmnt -no FSTYPE /var"
@@ -15944,8 +16005,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -15975,8 +16036,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -16006,8 +16067,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -16037,8 +16098,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -16095,7 +16156,8 @@
       "match": [
         "GiB is more than.*system memory",
         "insufficient free space;.*must remain free after creating swap",
-        "QUICK_ACCESS_TTM"
+        "QUICK_ACCESS_TTM",
+        "Insufficient disk space: a \\d+ GiB swapfile must still leave"
       ],
       "keywords": {
         "und": [
@@ -16520,8 +16582,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -16918,8 +16980,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -17292,8 +17354,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -17449,12 +17511,12 @@
         ]
       },
       "symptom": {
-        "es": "Preparar la compatibilidad de SteamOS se detiene al principio.",
-        "en": "The SteamOS kernel base is not supported by this backend."
+        "es": "Preparar la compatibilidad de SteamOS se detiene al principio con «the reviewed SteamOS kernel backend supports kernel bases …; running: …».",
+        "en": "Preparing SteamOS compatibility stops at the start with “the reviewed SteamOS kernel backend supports kernel bases …; running: …”."
       },
       "cause": {
-        "es": "SteamOS (canal beta/preview) trae un kernel 7.2 que el backend aún no conocía.",
-        "en": "A newer SteamOS channel introduced a kernel outside the reviewed compatibility range."
+        "es": "El backend de SteamOS que la app revisó cubre bases de kernel concretas (por ejemplo 6.16, 6.18 y 7.2). Los canales beta y preview de SteamOS pueden traer una base más nueva, como 7.3, que todavía no está revisada. La app se detiene antes de descargar o compilar nada, así que el sistema queda como estaba.",
+        "en": "The SteamOS backend the app reviewed covers specific kernel bases (6.16, 6.18 and 7.2, for example). SteamOS beta and preview channels can ship a newer base, such as 7.3, that is not reviewed yet. The app stops before downloading or building anything, so the system is left as it was."
       },
       "distros": {
         "reported": [
@@ -17510,9 +17572,8 @@
         "es": "ampliar las bases soportadas en cada versión de SteamOS (ya se añadió 7.2 en versiones posteriores; muestra el paso siguiente funcionando). Reportes de 1.22.9: kernels 7.3.1-valve2 y 7.3.1-valve3, fuera de las bases 6.16, 6.18 y 7.2. Se resuelve con la migración del backend, no aquí.",
         "en": "Review supported kernel bases when Valve publishes a new SteamOS branch. Reports from 1.22.9: kernels 7.3.1-valve2 and 7.3.1-valve3, outside the 6.16, 6.18 and 7.2 bases. It is addressed by the backend migration, not here."
       },
-      "status": "fixed",
+      "status": "pending",
       "status_flags": [
-        "fixed",
         "pending"
       ],
       "fixed_in": null,
@@ -17672,8 +17733,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -17734,8 +17795,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -17765,8 +17826,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -17796,8 +17857,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -17827,8 +17888,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma el mensaje y el gestor o componente que utiliza tu sistema. Esta variante corresponde a un problema equivalente.",
-                "en": "Confirm the message and the manager or component used on this system. This variant addresses an equivalent issue."
+                "es": "En tu sistema este problema aparece con otro gestor de paquetes o componente, pero la causa y la solución son las mismas. Usa el equivalente de tu distribución en los comandos.",
+                "en": "On your system this problem shows up with another package manager or component, but the cause and the fix are the same. Use your distribution's equivalent in the commands."
               },
               "commands": []
             },
@@ -17858,8 +17919,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -17917,7 +17978,8 @@
       "match": [
         "tools/bpf/resolve_btfids",
         "STEAMOS_AMDGPU_BUILD_FAILED",
-        "STEAMOS_BUILD_RUNTIME_INCOMPATIBLE"
+        "STEAMOS_BUILD_RUNTIME_INCOMPATIBLE",
+        "bc250-audio-fix/valve-kernel[\\s\\S]*make(?:\\[\\d+\\])?: \\*\\*\\*"
       ],
       "keywords": {
         "und": [
@@ -18519,12 +18581,12 @@
         ]
       },
       "symptom": {
-        "es": "Ventana de error con traceback.",
-        "en": "SteamOS preparation rejected a value."
+        "es": "Una acción de SteamOS, del acceso rápido o del editor de GPU se niega con un mensaje de valor fuera de rango («out of range», «must be between…»).",
+        "en": "A SteamOS, Quick Access or GPU editor action refuses with an out-of-range message (“out of range”, “must be between…”)."
       },
       "cause": {
-        "es": "No visible en el resumen del reporte (traceback de 1.21.3).",
-        "en": "The available report summary does not expose the underlying range failure."
+        "es": "El valor pedido está fuera de los límites que la app considera seguros para esa opción, o viene de un perfil guardado con una versión anterior que permitía otros límites.",
+        "en": "The requested value is outside the limits the app treats as safe for that option, or it comes from a profile saved by an older version that allowed other limits."
       },
       "distros": {
         "reported": [
@@ -18560,8 +18622,8 @@
             },
             {
               "text": {
-                "es": "Envía el valor y el traceback del intento actual: el resumen histórico no permite identificar una reparación concreta.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, include the current output if you send a report."
+                "es": "Si un valor que la interfaz ofrece también se rechaza, copia el detalle completo de la ventana de error y envíalo desde Soporte: eso indica un límite mal calculado.",
+                "en": "If a value the interface itself offers is also refused, copy the full detail from the error window and send it from Support: that points to a miscalculated limit."
               },
               "commands": []
             }
@@ -19394,8 +19456,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -19767,8 +19829,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -20122,8 +20184,8 @@
         "en": "The HelixSR shader compiler or Wine runtime failed."
       },
       "cause": {
-        "es": "Varias: (a) el Proton elegido no tiene files/bin/wine usable (Proton 10 con otra estructura, o un contenedor Toolbx sin las bibliotecas de 32 bits); (b) DXC de Windows bajo Wine se cae con un error interno de acceso a memoria en un shader concreto (, 15 nov).",
-        "en": "DXC can crash on a shader; alternatively Proton/Wine exists but cannot execute in this runtime or container."
+        "es": "Hay dos causas distintas. (a) El Proton elegido no tiene un files/bin/wine que se pueda ejecutar: Proton 10 cambió su estructura, o la app corre dentro de Toolbx sin las bibliotecas de 32 bits. (b) El compilador DXC de Windows, ejecutado con Wine, se cae con un error interno en un shader concreto; en ese caso suele pasar al reintentar.",
+        "en": "Two different causes. (a) The chosen Proton has no files/bin/wine that can run: Proton 10 changed its layout, or the app runs inside Toolbx without the 32-bit libraries. (b) Windows DXC, run through Wine, crashes with an internal error on one shader; that one usually passes on a retry."
       },
       "distros": {
         "reported": [
@@ -20350,8 +20412,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -20377,10 +20439,8 @@
         "es": "parcial en desarrollo: si el compilador de shaders se cae (\"failed: ...dxc-wine.sh\" o \"Internal compiler error\"), la compilación se repite una vez. Pendiente: elegir automáticamente un Proton con files/bin/wine válido y detectar Toolbx. Si Wine se cierra a mitad (Connection reset by peer), ver UPS-08.",
         "en": "Partly in development: when the shader compiler crashes (\"failed: ...dxc-wine.sh\" or \"Internal compiler error\"), the build is retried once. Pending: pick a Proton with a working files/bin/wine automatically and detect Toolbx. If Wine closes midway (Connection reset by peer), see UPS-08."
       },
-      "status": "pending",
+      "status": "fixed-dev",
       "status_flags": [
-        "pending",
-        "analysis",
         "fixed-dev"
       ],
       "fixed_in": null,
@@ -20726,8 +20786,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -20780,8 +20840,7 @@
         "BC250-GENERAL-001"
       ],
       "match": [
-        "helixsr_weights\\.bin",
-        "The network was not built"
+        "helixsr_weights\\.bin"
       ],
       "keywords": {
         "und": [
@@ -20884,8 +20943,8 @@
         ]
       },
       "symptom": {
-        "es": "Tras 4 minutos compilando shaders, el setup de HelixSR 3.3.0 falla porque falta el archivo de pesos; en el historial aparece además un error de DNS hacia AUR.",
-        "en": "HelixSR network weights disappeared during the build."
+        "es": "Tras varios minutos compilando shaders, el setup de HelixSR falla porque falta helixsr_weights.bin.",
+        "en": "After several minutes compiling shaders, the HelixSR setup fails because helixsr_weights.bin is missing."
       },
       "cause": {
         "es": "El script de HelixSR crea los pesos al principio y los borra al incrustarlos en la DLL; dos construcciones simultáneas en la misma carpeta se los borran mutuamente.",
@@ -21102,8 +21161,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -21156,8 +21215,7 @@
         "BC250-GENERAL-001"
       ],
       "match": [
-        "Nothing was downloaded",
-        "Download it now\\? \\[y/N\\]"
+        "Nothing was downloaded"
       ],
       "keywords": {
         "und": [
@@ -21478,8 +21536,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -21641,12 +21699,12 @@
         ]
       },
       "symptom": {
-        "es": "Un juego desinstalado sigue ocupando una fila y quitarlo daba error.",
-        "en": "An uninstalled game remains in the HelixSR list."
+        "es": "Un juego que ya desinstalaste sigue en la lista de HelixSR, y al intentar quitarlo aparece «no game (.exe) found».",
+        "en": "A game you already uninstalled is still in the HelixSR list, and removing it shows “no game (.exe) found”."
       },
       "cause": {
-        "es": "No se confirmó una causa técnica; se conserva como sugerencia o caso pendiente de análisis.",
-        "en": "The request concerns removing a stale game record; the original report does not establish a deeper technical cause."
+        "es": "La lista recuerda los juegos en los que instalaste HelixSR. Si borras el juego desde Steam, la app no se enteraba y seguía buscando su ejecutable.",
+        "en": "The list remembers the games you installed HelixSR in. When a game is deleted from Steam, the app did not notice and kept looking for its executable."
       },
       "distros": {
         "reported": [],
@@ -21671,22 +21729,15 @@
           "article": [
             {
               "text": {
-                "es": "Comprueba que la carpeta del juego ya no está en disco y que la fila corresponde al juego que deseas retirar.",
-                "en": "An uninstalled game remains in the HelixSR list. Check the current operation before proceeding."
+                "es": "La próxima versión de Control Center quita sola de la lista los juegos cuya carpeta ya no tiene ningún .exe. Actualiza la app cuando esté disponible.",
+                "en": "The next Control Center release removes games whose folder no longer has any .exe from the list on its own. Update the app when it is available."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "En una versión que incluya esta función, pulsa Quitar de la lista. La acción solo elimina el registro que conserva la app.",
-                "en": "Use Remove from list for a game absent from disk. This removes the record without deleting game files."
-              },
-              "commands": []
-            },
-            {
-              "text": {
-                "es": "Refresca la lista y comprueba que la fila desapareció; los archivos del disco no deben cambiar.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, include the current output if you send a report."
+                "es": "Mientras tanto, esa fila no afecta a nada: no ocupa espacio ni cambia otros juegos. Puedes ignorarla sin riesgo.",
+                "en": "Until then the row does no harm: it uses no space and does not touch other games. You can safely ignore it."
               },
               "commands": []
             }
@@ -21702,22 +21753,15 @@
           "article": [
             {
               "text": {
-                "es": "Comprueba que la carpeta del juego ya no está en disco y que la fila corresponde al juego que deseas retirar.",
-                "en": "An uninstalled game remains in the HelixSR list. Check the current operation before proceeding."
+                "es": "La próxima versión de Control Center quita sola de la lista los juegos cuya carpeta ya no tiene ningún .exe. Actualiza la app cuando esté disponible.",
+                "en": "The next Control Center release removes games whose folder no longer has any .exe from the list on its own. Update the app when it is available."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "En una versión que incluya esta función, pulsa Quitar de la lista. La acción solo elimina el registro que conserva la app.",
-                "en": "Use Remove from list for a game absent from disk. This removes the record without deleting game files."
-              },
-              "commands": []
-            },
-            {
-              "text": {
-                "es": "Refresca la lista y comprueba que la fila desapareció; los archivos del disco no deben cambiar.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, include the current output if you send a report."
+                "es": "Mientras tanto, esa fila no afecta a nada: no ocupa espacio ni cambia otros juegos. Puedes ignorarla sin riesgo.",
+                "en": "Until then the row does no harm: it uses no space and does not touch other games. You can safely ignore it."
               },
               "commands": []
             }
@@ -21733,22 +21777,15 @@
           "article": [
             {
               "text": {
-                "es": "Comprueba que la carpeta del juego ya no está en disco y que la fila corresponde al juego que deseas retirar.",
-                "en": "An uninstalled game remains in the HelixSR list. Check the current operation before proceeding."
+                "es": "La próxima versión de Control Center quita sola de la lista los juegos cuya carpeta ya no tiene ningún .exe. Actualiza la app cuando esté disponible.",
+                "en": "The next Control Center release removes games whose folder no longer has any .exe from the list on its own. Update the app when it is available."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "En una versión que incluya esta función, pulsa Quitar de la lista. La acción solo elimina el registro que conserva la app.",
-                "en": "Use Remove from list for a game absent from disk. This removes the record without deleting game files."
-              },
-              "commands": []
-            },
-            {
-              "text": {
-                "es": "Refresca la lista y comprueba que la fila desapareció; los archivos del disco no deben cambiar.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, include the current output if you send a report."
+                "es": "Mientras tanto, esa fila no afecta a nada: no ocupa espacio ni cambia otros juegos. Puedes ignorarla sin riesgo.",
+                "en": "Until then the row does no harm: it uses no space and does not touch other games. You can safely ignore it."
               },
               "commands": []
             }
@@ -21764,22 +21801,15 @@
           "article": [
             {
               "text": {
-                "es": "Comprueba que la carpeta del juego ya no está en disco y que la fila corresponde al juego que deseas retirar.",
-                "en": "An uninstalled game remains in the HelixSR list. Check the current operation before proceeding."
+                "es": "La próxima versión de Control Center quita sola de la lista los juegos cuya carpeta ya no tiene ningún .exe. Actualiza la app cuando esté disponible.",
+                "en": "The next Control Center release removes games whose folder no longer has any .exe from the list on its own. Update the app when it is available."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "En una versión que incluya esta función, pulsa Quitar de la lista. La acción solo elimina el registro que conserva la app.",
-                "en": "Use Remove from list for a game absent from disk. This removes the record without deleting game files."
-              },
-              "commands": []
-            },
-            {
-              "text": {
-                "es": "Refresca la lista y comprueba que la fila desapareció; los archivos del disco no deben cambiar.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, include the current output if you send a report."
+                "es": "Mientras tanto, esa fila no afecta a nada: no ocupa espacio ni cambia otros juegos. Puedes ignorarla sin riesgo.",
+                "en": "Until then the row does no harm: it uses no space and does not touch other games. You can safely ignore it."
               },
               "commands": []
             }
@@ -21795,22 +21825,15 @@
           "article": [
             {
               "text": {
-                "es": "Comprueba que la carpeta del juego ya no está en disco y que la fila corresponde al juego que deseas retirar.",
-                "en": "An uninstalled game remains in the HelixSR list. Check the current operation before proceeding."
+                "es": "La próxima versión de Control Center quita sola de la lista los juegos cuya carpeta ya no tiene ningún .exe. Actualiza la app cuando esté disponible.",
+                "en": "The next Control Center release removes games whose folder no longer has any .exe from the list on its own. Update the app when it is available."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "En una versión que incluya esta función, pulsa Quitar de la lista. La acción solo elimina el registro que conserva la app.",
-                "en": "Use Remove from list for a game absent from disk. This removes the record without deleting game files."
-              },
-              "commands": []
-            },
-            {
-              "text": {
-                "es": "Refresca la lista y comprueba que la fila desapareció; los archivos del disco no deben cambiar.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, include the current output if you send a report."
+                "es": "Mientras tanto, esa fila no afecta a nada: no ocupa espacio ni cambia otros juegos. Puedes ignorarla sin riesgo.",
+                "en": "Until then the row does no harm: it uses no space and does not touch other games. You can safely ignore it."
               },
               "commands": []
             }
@@ -21826,22 +21849,15 @@
           "article": [
             {
               "text": {
-                "es": "Comprueba que la carpeta del juego ya no está en disco y que la fila corresponde al juego que deseas retirar.",
-                "en": "An uninstalled game remains in the HelixSR list. Check the current operation before proceeding."
+                "es": "La próxima versión de Control Center quita sola de la lista los juegos cuya carpeta ya no tiene ningún .exe. Actualiza la app cuando esté disponible.",
+                "en": "The next Control Center release removes games whose folder no longer has any .exe from the list on its own. Update the app when it is available."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "En una versión que incluya esta función, pulsa Quitar de la lista. La acción solo elimina el registro que conserva la app.",
-                "en": "Use Remove from list for a game absent from disk. This removes the record without deleting game files."
-              },
-              "commands": []
-            },
-            {
-              "text": {
-                "es": "Refresca la lista y comprueba que la fila desapareció; los archivos del disco no deben cambiar.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, include the current output if you send a report."
+                "es": "Mientras tanto, esa fila no afecta a nada: no ocupa espacio ni cambia otros juegos. Puedes ignorarla sin riesgo.",
+                "en": "Until then the row does no harm: it uses no space and does not touch other games. You can safely ignore it."
               },
               "commands": []
             }
@@ -21857,22 +21873,22 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "Usar «Quitar de la lista» cuando el juego ya no exista en disco; la función figura en desarrollo. Solo quitar el registro, sin borrar archivos ni reinstalar el juego.",
-                "en": "Use Remove from list for a game absent from disk. This removes the record without deleting game files."
+                "es": "La próxima versión de Control Center quita sola de la lista los juegos cuya carpeta ya no tiene ningún .exe. Actualiza la app cuando esté disponible.",
+                "en": "The next Control Center release removes games whose folder no longer has any .exe from the list on its own. Update the app when it is available."
               },
               "commands": []
             },
             {
               "text": {
-                "es": "Refresca la lista y comprueba que la fila desapareció; los archivos del disco no deben cambiar.",
-                "en": "Repeat the original action after completing the steps. If the same error returns, include the current output if you send a report."
+                "es": "Mientras tanto, esa fila no afecta a nada: no ocupa espacio ni cambia otros juegos. Puedes ignorarla sin riesgo.",
+                "en": "Until then the row does no harm: it uses no space and does not touch other games. You can safely ignore it."
               },
               "commands": []
             }
@@ -22246,8 +22262,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -22742,8 +22758,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -23120,8 +23136,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -23530,8 +23546,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -23581,9 +23597,7 @@
         "en": "Video installation stopped at the password prompt"
       },
       "codes": [],
-      "match": [
-        "\\[sudo\\] password for"
-      ],
+      "match": [],
       "keywords": {
         "und": [
           "[sudo] password for",
@@ -23901,8 +23915,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -24277,8 +24291,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -24650,8 +24664,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -24867,8 +24881,7 @@
       },
       "status": "fixed",
       "status_flags": [
-        "fixed",
-        "pending"
+        "fixed"
       ],
       "fixed_in": null,
       "guide": {
@@ -25398,8 +25411,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -26064,8 +26077,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -26121,15 +26134,11 @@
       "match": [
         "Do not copy a kernel-devel tree from another deployment",
         "Install headers for exactly",
-        "kernel headers",
         "module.*(?:not found|invalid format|unknown symbol)",
         "modprobe.*(?:failed|fatal)",
         "dkms.*(?:failed|error)",
-        "vermagic",
-        "version magic",
         "headers .*(?:not found|were not found)",
         "invalid module format",
-        "-ogc\\d",
         "boot the patched entry",
         "headers for another kernel",
         "exact neptune headers",
@@ -26587,8 +26596,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -26744,8 +26753,8 @@
         "en": "Fan PWM control could not be activated."
       },
       "cause": {
-        "es": "Probable lectura de vuelta del PWM distinta de lo escrito (1.22.3).",
-        "en": "The old report suggests a read-back mismatch, but the cause and current validity are unconfirmed."
+        "es": "Al escribir el PWM, la app vuelve a leerlo para confirmar que el chip lo aceptó. En algunas versiones antiguas esa lectura no coincidía con lo escrito y la app daba el cambio por fallido.",
+        "en": "After writing the PWM value the app reads it back to confirm the chip accepted it. In some older versions that read-back did not match what was written and the app treated the change as failed."
       },
       "distros": {
         "reported": [
@@ -26958,8 +26967,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -27005,8 +27014,8 @@
       "id": "FAN-04",
       "module": "fans",
       "title": {
-        "es": "La entrega del ventilador a otro programa falló (Linux Mint)",
-        "en": "Handing the fan to another program failed"
+        "es": "No se pudo pasar el ventilador a otro programa",
+        "en": "The fan could not be handed to another program"
       },
       "codes": [
         "BC250-HW-001"
@@ -27114,12 +27123,12 @@
         ]
       },
       "symptom": {
-        "es": "Pasar el control a CoolerControl falló; el historial arrastra errores de Cyan y kisak-mesa del mismo equipo.",
-        "en": "Handing the fan to another program failed."
+        "es": "Al pasar el control del ventilador a otro programa (por ejemplo CoolerControl), la app muestra «Fan hand-off failed».",
+        "en": "Handing the fan to another program (CoolerControl, for example) shows “Fan hand-off failed”."
       },
       "cause": {
-        "es": "Mismo equipo de GOV-06/GOV-07: el hardware no se detecta bien.",
-        "en": "The reported system also had hardware detection problems; the exact hand-off cause needs confirmation."
+        "es": "La app solo entrega el canal del ventilador si detecta la BC-250 y su chip de ventiladores (NCT6687). Si la placa no se detecta bien, por ejemplo porque el driver de la GPU o el del chip no cargó, cancela la entrega para no dejar el ventilador sin control.",
+        "en": "The app only hands the fan channel over when it detects the BC-250 and its fan chip (NCT6687). If the board is not detected properly, for example because the GPU or chip driver did not load, it cancels the hand-off so the fan is never left without control."
       },
       "distros": {
         "reported": [
@@ -27332,8 +27341,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -27720,8 +27729,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -28128,8 +28137,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -28290,8 +28299,8 @@
         "en": "HDMI-CEC control requires cec-ctl."
       },
       "cause": {
-        "es": "Falta v4l-utils. En Mint el reporte arrastra la PPA kisak (PKG-10).",
-        "en": "The v4l-utils dependency is missing or another package problem prevents its installation."
+        "es": "Falta el paquete v4l-utils, que es el que trae cec-ctl, o el gestor de paquetes no pudo instalarlo porque otro problema lo bloqueó (una PPA rota o el gestor ocupado por otra instalación).",
+        "en": "The v4l-utils package, which provides cec-ctl, is missing, or the package manager could not install it because something else blocked it (a broken PPA or another installation holding the lock)."
       },
       "distros": {
         "reported": [
@@ -28539,8 +28548,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -28944,8 +28953,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -29315,8 +29324,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -29694,8 +29703,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },
@@ -30058,8 +30067,8 @@
           "article": [
             {
               "text": {
-                "es": "Confirma que tu distribución ofrece este componente y revisa el mensaje de la operación actual.",
-                "en": "Confirm that this distribution supports the component and inspect the current operation’s message."
+                "es": "Tu distribución no está entre las que la app prueba directamente, así que estos pasos son una guía: los comandos de paquetes y de servicios pueden llamarse distinto en tu sistema.",
+                "en": "Your distribution is not one the app tests directly, so these steps are a guide: package and service commands may have different names on your system."
               },
               "commands": []
             },

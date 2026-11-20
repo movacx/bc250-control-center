@@ -261,6 +261,9 @@ class ControlCenterWindow(QMainWindow):
             self._dashboard_driver_support
         )
         self.dashboard.update_requested.connect(self.open_update_dialog)
+        self.cpu_page.prepare_dependencies_requested.connect(
+            lambda: self._dashboard_action("prepare_dependencies")
+        )
         self.dashboard.state_applied.connect(self.extras_page.apply_state)
         self.extras_page.dependency_action_requested.connect(
             self._dashboard_dependency_action
@@ -1570,6 +1573,8 @@ class ControlCenterWindow(QMainWindow):
         "corsair": ("https://github.com/jurkovic-nikola/OpenLinkHub", "OpenLinkHub"),
         "hdmi_ac3": ("https://github.com/keyboardspecialist/bc250-steamos/tree/main/hdmi-ac3", "Dolby Digital 5.1"),
         "hdmi_cec": ("https://gitlab.steamos.cloud/holo/linux-cec", "cecd"),
+        "vram_sensor": ("https://github.com/Hexxeh/bc250-memory-dkms", "bc250-memory"),
+        "vrm_sensor": ("https://github.com/Hexxeh/bc250-vrm-dkms", "bc250-vrm"),
     }
 
     def _dashboard_accessory(self, accessory: str, operation: str) -> None:
@@ -1602,7 +1607,10 @@ class ControlCenterWindow(QMainWindow):
                 # profiles stay, which the dialog says. Audio and TV settings
                 # have no profiles: what Control Center added goes, nothing else.
                 body = (
-                    "The settings Control Center added are removed and the previous behaviour returns. "
+                    "The driver and its DKMS build are removed. Its readings stop showing until you "
+                    "install it again; dkms and the kernel headers stay."
+                    if accessory in {"vram_sensor", "vrm_sensor"}
+                    else "The settings Control Center added are removed and the previous behaviour returns. "
                     "Packages installed for it stay."
                     if accessory in {"hdmi_ac3", "hdmi_cec"}
                     else "The program and the service Control Center set up for it are removed. "

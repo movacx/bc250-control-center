@@ -153,13 +153,14 @@ def test_an_empty_band_explains_how_to_enable_it(page, monkeypatch, kernel, daem
         TELEMETRY = dashboard_module.I2cGuideDialog.TELEMETRY
         INSTALL = dashboard_module.I2cGuideDialog.INSTALL
 
-        def __init__(self, parent, *, message, can_install):
+        def __init__(self, parent, *, message, can_install, **_options):
             shown.update(message=message, can_install=can_install)
 
         def exec(self):
             return self.TELEMETRY
 
     monkeypatch.setattr(dashboard_module, "I2cGuideDialog", Dialog)
+    monkeypatch.setattr(dashboard_module, "kernel_sensor_drivers", dict)
     monkeypatch.setattr(dashboard_module, "kernel_vrm_driver_present", lambda: kernel)
     monkeypatch.setattr(dashboard_module, "sondear_telemetria_vrm", lambda: {"daemon": daemon})
     routed = []

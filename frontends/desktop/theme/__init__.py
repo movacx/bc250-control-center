@@ -3956,8 +3956,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {'#F6E7E5' if light else '#382929'};
         border-color: {'#D9BDB9' if light else '#493838'};
     }}
-    QFrame#CpuCoreUnlockPanel QLabel[panelHeadline='true'],
-    QFrame#CpuCoreUnlockPanel QLabel[unlockMaskLabel='true'] {{
+    QFrame#CpuCoreUnlockPanel QLabel[panelHeadline='true'] {{
         color: {'#211416' if light else c['text']};
         background: transparent;
     }}

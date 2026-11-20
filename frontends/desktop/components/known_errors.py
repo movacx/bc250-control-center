@@ -346,6 +346,7 @@ class KnownErrorDetail(QWidget):
         title_row.addWidget(identifier, 0, Qt.AlignmentFlag.AlignVCenter)
         header_layout.addWidget(title_host)
         header_layout.addWidget(_label(known_errors.localized(entry["guide"]["summary"], language), "guideLead", literal=True))
+        header_layout.addWidget(self._facts(entry))
         if entry["owner"] == "expected":
             header_layout.addWidget(_label(tr("A protection, not an error"), "guideNotice"))
         if known_errors.needs_update(entry, __version__):
@@ -387,18 +388,61 @@ class KnownErrorDetail(QWidget):
         self.select_tab(self.active_tab)
         return True
 
+    def _facts(self, entry: dict) -> QFrame:
+        """Code, status and where it was reported, read at a glance."""
+        box = QFrame()
+        box.setProperty("supportTable", True)
+        row = QHBoxLayout(box)
+        row.setContentsMargins(14, 10, 14, 10)
+        row.setSpacing(28)
+        seen = ", ".join((entry.get("distros") or {}).get("reported") or ()) or "—"
+        facts = (
+            ("Code", ", ".join(entry["codes"]) or "—", True),
+            ("Status", " · ".join(tr(STATUS_LABELS[flag]) for flag in entry["status_flags"]), False),
+            ("Seen on", seen, True),
+        )
+        for heading, value, literal in facts:
+            cell = QVBoxLayout()
+            cell.setSpacing(3)
+            cell.addWidget(_label(tr(heading).upper(), "supportSummaryHeading"))
+            fact = _label(value, "supportFact", literal=literal)
+            # A code broken at its hyphen no longer reads as a code.
+            fact.setWordWrap(heading != "Code")
+            cell.addWidget(fact)
+            row.addLayout(cell)
+        row.addStretch(1)
+        return box
+
     def _build_solution(self, entry: dict, language: str, column: QVBoxLayout) -> None:
+        # Already on screen: the title and the summary under it.
+        shown = {
+            known_errors.localized(entry["title"], language).strip(),
+            known_errors.localized(entry["guide"]["summary"], language).strip(),
+        }
+        for heading, field in (("What you see", "symptom"), ("Why it happens", "cause")):
+            text = known_errors.localized(entry.get(field) or {}, language).strip()
+            if text and text not in shown:
+                self._section(column, heading, text)
+        fixes = QWidget()
+        steps = QVBoxLayout(fixes)
+        steps.setContentsMargins(0, 0, 0, 0)
+        steps.setSpacing(12)
+        steps.addWidget(_label(tr("How to fix it"), "guideSectionTitle"))
+        column.addWidget(fixes)
         fix = known_errors.fix_for(entry, self.distro)
         if fix is None:
-            column.addWidget(_label(tr("Not applicable"), "guideSectionTitle"))
+            steps.addWidget(_label(tr("Not applicable"), "guideNotice"))
             return
+        steps.addWidget(_label(
+            tr_format("Steps for {distribution}", distribution=tr(DISTRO_LABELS[known_errors.family_for(self.distro)])),
+            "guideMeta",
+        ))
         if fix["scope"] == "equivalent":
-            column.addWidget(_label(tr("Equivalent issue"), "guideNotice"))
-        column.setSpacing(14)
+            steps.addWidget(_label(tr("Equivalent issue"), "guideNotice"))
         for block in fix["article"]:
-            column.addWidget(_label(known_errors.localized(block["text"], language), literal=True))
+            steps.addWidget(_label(known_errors.localized(block["text"], language), literal=True))
             for command in block["commands"]:
-                column.addWidget(command_box(command))
+                steps.addWidget(command_box(command))
 
     def select_tab(self, key: str) -> None:
         self.active_tab = key

@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import hdmi_ac3, hdmi_cec, openlinkhub, thermalright
+from . import hdmi_ac3, hdmi_cec, openlinkhub, thermalright, vram_sensor, vrm_sensor
 
-ACCESSORIES = ("thermalright", "corsair", "hdmi_ac3", "hdmi_cec")
+ACCESSORIES = ("thermalright", "corsair", "hdmi_ac3", "hdmi_cec", "vram_sensor", "vrm_sensor")
 #: What TV control adds to install and remove: the TV waking at session start and standing by at power-off.
 CEC_AUTOMATION = frozenset({"wake-install", "wake-remove", "poweroff-install", "poweroff-remove"})
 
@@ -23,6 +23,8 @@ def accessory_inventory(family: str, tool_dir: Path) -> dict:
         "corsair": openlinkhub.inventory(tool_dir),
         "hdmi_ac3": hdmi_ac3.inventory(family),
         "hdmi_cec": hdmi_cec.inventory(family, tool_dir),
+        "vram_sensor": vram_sensor.inventory(family),
+        "vrm_sensor": vrm_sensor.inventory(family),
     }
 
 
@@ -46,4 +48,8 @@ def accessory_command(component: str, action: str, *, family: str, tool_dir: Pat
         return (hdmi_ac3.install_command if action == "install" else hdmi_ac3.remove_command)(family)
     if component == "hdmi_cec":
         return (hdmi_cec.install_command if action == "install" else hdmi_cec.remove_command)(family, tool_dir)
+    if component == "vram_sensor":
+        return (vram_sensor.install_command if action == "install" else vram_sensor.remove_command)(family)
+    if component == "vrm_sensor":
+        return (vrm_sensor.install_command if action == "install" else vrm_sensor.remove_command)(family)
     raise ValueError(f"Unsupported accessory: {component or '--'}")

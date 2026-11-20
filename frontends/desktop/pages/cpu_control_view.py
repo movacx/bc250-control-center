@@ -51,7 +51,6 @@ from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
-    QComboBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -80,9 +79,9 @@ from ..components.buttons import WrappingButton as QPushButton
 from ..components.card_navigation import EditableCardNavigation
 from ..components.core_monitor import CoreGrid, CoreReading
 from ..components.page_widgets import SectionCard, caption, subpanel
+from ..components.picker_row import PickerRow
 from ..components.resize_grip import ResizeGrip
 from ..components.style_state import set_style_property
-from ..components.wheel_guard import GuardedComboBox
 from ..components.widgets import icon
 from ..core.preferences import application_settings
 from ..i18n import shipped_name, tr, tr_format
@@ -520,7 +519,8 @@ class CheckLine(QWidget):
 
 
 class CoreMaskLine(QWidget):
-    """The core mask the owner's board reports, as a short drop-down.
+    """The core mask the owner's board reports, as the boxed picker row the
+    GPU governor uses for its methods (``caption ...... value``).
 
     ``0x77`` keeps the tool's own check; any other entry is unlocked only when
     the board really reads that mask (the helper's ``--accept-mask``).
@@ -531,23 +531,13 @@ class CoreMaskLine(QWidget):
         self._source = label
         row = QHBoxLayout(self)
         row.setContentsMargins(0, 3, 0, 4)
-        row.setSpacing(10)
-        self.label = QLabel(tr(label))
-        self.label.setWordWrap(True)
-        row.addWidget(self.label, 1)
-        self.combo = GuardedComboBox()
-        self.combo.setProperty("settingsCombo", True)
-        self.combo.setProperty("narrowCombo", True)
-        # Up to 210 px, and able to shrink with a narrow column instead of
-        # insisting on its longest entry's width.
-        self.combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-        self.combo.setMinimumContentsLength(6)
-        self.combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.combo.setMaximumWidth(210)
+        row.setSpacing(0)
+        self.combo = PickerRow(label)
         self.combo.setAccessibleName(tr(label))
+        # The value is the short mask; the menu keeps the full explanation.
         for mask, text in CORE_MASK_CHOICES:
-            self.combo.addItem(tr(text), mask)
-        row.addWidget(self.combo, 0, Qt.AlignmentFlag.AlignVCenter)
+            self.combo.addItem(tr(text), mask, f"0x{mask:02X}")
+        row.addWidget(self.combo, 1)
 
     def mask(self) -> int:
         return int(self.combo.currentData())
@@ -559,7 +549,6 @@ class CoreMaskLine(QWidget):
     def setToolTip(self, text: str) -> None:  # noqa: N802 (Qt)
         super().setToolTip(text)
         self.combo.setToolTip(text)
-        self.label.setToolTip(text)
 
     def setEnabled(self, enabled: bool) -> None:  # noqa: N802 (Qt)
         super().setEnabled(enabled)
@@ -567,7 +556,7 @@ class CoreMaskLine(QWidget):
             self.combo.setCurrentIndex(0)
 
     def retranslate(self) -> None:
-        self.label.setText(tr(self._source))
+        self.combo.retranslate()
         self.combo.setAccessibleName(tr(self._source))
         for index, (_mask, text) in enumerate(CORE_MASK_CHOICES):
             self.combo.setItemText(index, tr(text))
@@ -1341,7 +1330,6 @@ class CpuControlView(QWidget):
         # Upstream's "-f": its tool refuses a core mask other than 0x77, and
         # some owners run boards that pass stress tests anyway.
         self.core_mask_line = CoreMaskLine(CORE_MASK_LABEL, risk_panel)
-        self.core_mask_line.label.setProperty("unlockMaskLabel", True)
         self.core_mask_line.setToolTip(tr(CORE_MASK_HINT))
         self.core_mask_line.setEnabled(False)
         risk_box.addWidget(self.core_mask_line)

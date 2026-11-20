@@ -3249,6 +3249,7 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
                 *self.steamos_alternative_rows.cards_for("graphics"),
             )),
             ("Video", (self.vaapi_card, *self.real_toolkit_rows.cards_for("video"))),
+            ("Board sensors", (self.vrm_sensor_card, self.vram_sensor_card)),
             ("SteamOS toolkit", tuple(self.real_toolkit_rows.cards_for("toolkit"))),
         )
         layout.setSpacing(0)
@@ -3342,6 +3343,14 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         ("hdmi_ac3", "managed-elsewhere"): "Another toolkit already switches the AC-3 profile on, so it is left as it is.",
         ("hdmi_cec", "managed-elsewhere"): "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.",
         ("hdmi_cec", "unsupported"): "The running kernel was built without CEC over DisplayPort.",
+        ("vram_sensor", "unsupported"): "Needs an Arch-based system (Arch, CachyOS, Manjaro) on a BC-250 with BIOS P3.00: the driver patches the SMU at addresses reviewed for that BIOS only.",
+        ("vram_sensor", "managed-elsewhere"): "Your kernel already includes this driver (MastaG's BC-250 kernels do), so there is nothing to build.",
+        ("vrm_sensor", "unsupported"): "Builds on Arch-based systems (Arch, CachyOS, Manjaro) on a BC-250.",
+        ("vrm_sensor", "managed-elsewhere"): "Your kernel already includes this driver (MastaG's BC-250 kernels do), so there is nothing to build.",
+        ("vrm_sensor", "installed"): "Installed, but the regulator does not answer through the fan chip. Run sudo dmesg | grep bc250_vrm to see why.",
+        ("vrm_sensor", "update-available"): "This copy was built by an earlier version of Control Center. Press Update to build it again with the current fixes.",
+        ("vram_sensor", "update-available"): "This copy was built by an earlier version of Control Center. Press Update to build it again with the current fixes.",
+        ("vram_sensor", "installed"): "Installed, but not reading. It needs a BIOS that allows SMU access; run sudo dmesg | grep bc250_memory to see why.",
     }
     #: What the configure button reads as, per accessory; empty hides it.
     _ACCESSORY_CONFIGURE = {
@@ -3349,6 +3358,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         "corsair": "Open control panel",
         "hdmi_ac3": "",
         "hdmi_cec": "Open TV control",
+        "vram_sensor": "",
+        "vrm_sensor": "",
     }
 
 

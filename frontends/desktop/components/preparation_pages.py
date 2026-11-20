@@ -943,11 +943,38 @@ class PreparationPagesMixin:
         layout.addWidget(self.mesa_card)
         self._build_vaapi_card()
         layout.addWidget(self.vaapi_card)
+        self._build_vram_sensor_card()
+        layout.addWidget(self.vrm_sensor_card)
+        layout.addWidget(self.vram_sensor_card)
         layout.addStretch(1)
         if self._standalone:
             # DirectMesh is listed right after the GFX1013 fix it builds on.
             self._organise_compatibility(layout)
         return page
+
+    def _build_vram_sensor_card(self) -> None:
+        """Hexxeh's bc250-memory driver: the GDDR6 temperatures as a kernel sensor.
+
+        Listed with the kernel tools on Compatibility, where owners look for a
+        kernel module. Its buttons are an accessory's (install, remove,
+        upstream), wired with the others in ``_build_accessory_cards``.
+        """
+        self.vrm_sensor_card = PreparationInfoCard(
+            "Power delivery readings (kernel driver)",
+            "Author: Liam McLoughlin (Hexxeh), bc250-vrm-dkms. Reads the voltage regulator through "
+            "the fan chip, without the I2C wires: input voltage, CPU and GPU rails and VRM "
+            "temperatures. Builds with DKMS on Arch, CachyOS and Manjaro.",
+            scope_text="Board sensor",
+            status_text="Checking",
+        )
+        self.vram_sensor_card = PreparationInfoCard(
+            "VRAM temperature (kernel driver)",
+            "Author: Liam McLoughlin (Hexxeh), bc250-memory-dkms. Reads the eight GDDR6 chips "
+            "through the SMU and shows them as a normal sensor in Control Center, sensors and "
+            "MangoHud. Builds with DKMS on Arch, CachyOS and Manjaro, and follows kernel updates.",
+            scope_text="Board sensor",
+            status_text="Checking",
+        )
 
     def _build_directmesh_card(self) -> None:
         """DirectMesh (lonewolf0622): Mesh shaders through upstream's installer.
@@ -1503,12 +1530,16 @@ class PreparationPagesMixin:
             "corsair": self.corsair_card,
             "hdmi_ac3": self.hdmi_ac3_card,
             "hdmi_cec": self.hdmi_cec_card,
+            "vram_sensor": self.vram_sensor_card,
+            "vrm_sensor": self.vrm_sensor_card,
         }
         for key, card, configure_text in (
             ("thermalright", self.thermalright_card, "Open configuration"),
             ("corsair", self.corsair_card, "Open control panel"),
             ("hdmi_ac3", self.hdmi_ac3_card, "Open configuration"),
             ("hdmi_cec", self.hdmi_cec_card, "Open TV control"),
+            ("vram_sensor", self.vram_sensor_card, "Open configuration"),
+            ("vrm_sensor", self.vrm_sensor_card, "Open configuration"),
         ):
             buttons = {
                 "install": card.add_action("Install", {"accessory": key, "op": "install"}),
@@ -1523,7 +1554,8 @@ class PreparationPagesMixin:
             card.layout().insertWidget(2, note)
             self._accessory_notes[key] = note
             card.action_requested.connect(self._forward_accessory_action)
-            layout.addWidget(card)
+            if card not in (self.vram_sensor_card, self.vrm_sensor_card):  # they live on Compatibility
+                layout.addWidget(card)
 
 
 #: What reads pacman's lock; a test replaces it so it never reads the real one.

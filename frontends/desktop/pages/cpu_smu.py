@@ -4,7 +4,7 @@ import logging
 import time
 from datetime import datetime
 
-from PyQt6.QtCore import QProcess, QSize, Qt, QTimer
+from PyQt6.QtCore import QProcess, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QIntValidator, QTextCursor
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -67,6 +67,16 @@ from ..theme import COLORS
 from .cpu_control_view import CORE_MASK_STOCK, MANUAL_SCALE_HINT
 
 logger = logging.getLogger(__name__)
+
+#: The tool's clone is there but older than the revision this version reviewed:
+#: what an owner sees right after updating Control Center.
+CORE_UNLOCK_UPDATE_TITLE = "A new version of the CPU core unlock tool is available"
+CORE_UNLOCK_UPDATE_MESSAGE = (
+    "This version of Control Center uses a newer reviewed copy of the official "
+    "core unlock tool. Press Prepare dependencies to update it, then unlock the "
+    "cores again."
+)
+CORE_UNLOCK_MISSING_EYEBROW = "TOOL NOT FOUND"
 
 ACCEPTED_MASK_NOTE = (
     "Only a board whose core mask reads {mask} is unlocked; with any other mask "
@@ -315,6 +325,9 @@ class CpuValueField(QFrame):
 
 class CpuSmuPage(QWidget):
     """CPU / SMU control restyled to mirror the GPU governor studio layout."""
+
+    #: The owner chose to prepare a missing or outdated tool from a dialog here.
+    prepare_dependencies_requested = pyqtSignal()
 
     PROFILE_VALUES = (
         ("Placa media", "3550 MHz · 1050 mV", (3550, 1050, 90)),
@@ -1713,11 +1726,7 @@ class CpuSmuPage(QWidget):
             )
             return
         if not self.current_state.get("core_unlock_repository_ready", False):
-            self._show_info(
-                "Official CPU core unlock tool is not prepared",
-                "Use Prepare dependencies to clone and validate the official rw-r-r-0644/bc250-core-unlock repository, then refresh this page.",
-                tone="orange",
-            )
+            self._offer_core_unlock_preparation()
             return
         if not self.current_state.get("core_unlock_helper_ready", False):
             self._show_info(
@@ -1769,6 +1778,35 @@ class CpuSmuPage(QWidget):
             "Unlock CPU cores and restart",
             "Could not start CPU core unlock",
         )
+
+    def _offer_core_unlock_preparation(self) -> None:
+        """The unlock tool is missing or older than this version reviewed.
+
+        Either way the fix is the same button, so the dialog offers it instead
+        of only naming it: an older copy after an app update reads as a new
+        version to fetch, a missing one as a tool to prepare.
+        """
+        if self.current_state.get("core_unlock_repository_present", False):
+            title = CORE_UNLOCK_UPDATE_TITLE
+            message = CORE_UNLOCK_UPDATE_MESSAGE
+            eyebrow = "UPDATE AVAILABLE"
+        else:
+            title = "Official CPU core unlock tool is not prepared"
+            message = (
+                "Use Prepare dependencies to clone and validate the official "
+                "rw-r-r-0644/bc250-core-unlock repository, then refresh this page."
+            )
+            eyebrow = CORE_UNLOCK_MISSING_EYEBROW
+        dialog = ConfirmDialog(
+            title,
+            message,
+            confirm_text="Prepare dependencies",
+            eyebrow=eyebrow,
+            tone="blue",
+            parent=self,
+        )
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.prepare_dependencies_requested.emit()
 
     def _core_unlock_busy(self) -> bool:
         return bool(
@@ -2544,6 +2582,9 @@ class CpuSmuPage(QWidget):
             "tool_path": tool_path,
             "core_unlock_helper_ready": bool(core_unlock.get("helper_ready")),
             "core_unlock_repository_ready": bool(core_unlock.get("repository_ready")),
+            # A clone that is there but not at the reviewed revision is an
+            # older copy: the owner updated the app, not the tool.
+            "core_unlock_repository_present": bool(core_unlock.get("script_path")),
             "core_unlock_allowed": self._apply_core_unlock_state(core_unlock),
             "live_frequency_mhz": telemetry.live_frequency_mhz,
             "live_temperature_c": telemetry.live_temperature_c,
