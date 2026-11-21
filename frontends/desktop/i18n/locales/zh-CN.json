@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "终端会显示传感器是否恢复读数。",
   "Could not restart the power sensor": "无法重启供电传感器",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "传感器的驱动卡住了：读取超时，或者对所有项目都返回同一个数值（例如 797 °C），所以隐藏了它的读数。此操作会在终端中用你的密码重启驱动，然后检查读数是否恢复为真实值。系统的其他部分不会改变。",
-  "The power sensor is stuck. Repair sensor restarts it.": "供电传感器卡住了。“修复传感器”会重启它。"
+  "The power sensor is stuck. Repair sensor restarts it.": "供电传感器卡住了。“修复传感器”会重启它。",
+  "Kernel headers · DKMS": "内核头文件 · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "用 DKMS 构建的驱动（风扇、供电和内存传感器）需要当前运行内核的头文件。部分更新可能让头文件变成另一个版本，这些驱动在下次重启后就不再加载。",
+  "Mismatched": "不匹配",
+  "Drivers not built": "驱动未构建",
+  "Restart needed": "需要重启",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "当前内核：{kernel}。已安装的头文件：{headers}。",
+  "No headers for the running kernel {kernel}.": "当前内核 {kernel} 没有头文件。",
+  "Not built for this kernel: {names}.": "未为此内核构建：{names}。",
+  "The kernel was updated. Restart the computer to use it.": "内核已更新。请重启电脑以使用它。",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "当前运行的内核与其头文件不匹配，因此用 DKMS 构建的驱动（风扇、传感器）在下次重启后将无法加载。此操作会在终端中用你的密码安装正确的头文件；如果你的发行版已不再提供，则会同时更新内核和头文件。然后重新构建 DKMS 驱动。如果内核已更新，完成后请重启电脑。",
+  "The terminal says whether a restart is needed.": "终端会提示是否需要重启。",
+  "Could not repair the kernel headers": "无法修复内核头文件",
+  "Kernel headers do not match": "内核头文件不匹配",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "风扇驱动等驱动在下次重启后将无法加载。请在 兼容性 › 系统 › 内核头文件 中修复。",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "使用 pacman, dnf / apt 的系统：Arch、CachyOS、Manjaro、Fedora、Ubuntu、Linux Mint、Debian"
 }

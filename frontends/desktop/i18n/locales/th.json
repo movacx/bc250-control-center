@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "เทอร์มินัลจะแสดงว่าเซนเซอร์อ่านค่าได้อีกครั้งหรือไม่",
   "Could not restart the power sensor": "ไม่สามารถเริ่มเซนเซอร์พลังงานใหม่ได้",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "ไดรเวอร์ของเซนเซอร์ค้าง: การอ่านค่าหมดเวลา หรือส่งค่าเดียวกันกลับมาทุกรายการ (เช่น 797 °C) จึงซ่อนค่าที่อ่านได้ไว้ ขั้นตอนนี้จะเริ่มไดรเวอร์ใหม่โดยใช้รหัสผ่านของคุณในเทอร์มินัล แล้วตรวจว่าค่าที่อ่านได้กลับมาเป็นค่าจริง ไม่มีการเปลี่ยนส่วนอื่นของระบบ",
-  "The power sensor is stuck. Repair sensor restarts it.": "เซนเซอร์พลังงานค้าง \"ซ่อมเซนเซอร์\" จะเริ่มใหม่ให้"
+  "The power sensor is stuck. Repair sensor restarts it.": "เซนเซอร์พลังงานค้าง \"ซ่อมเซนเซอร์\" จะเริ่มใหม่ให้",
+  "Kernel headers · DKMS": "เฮดเดอร์เคอร์เนล · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "ไดรเวอร์ที่สร้างด้วย DKMS (พัดลม เซนเซอร์พลังงานและหน่วยความจำ) ต้องใช้เฮดเดอร์ของเคอร์เนลที่กำลังทำงาน การอัปเดตเพียงบางส่วนอาจทำให้เฮดเดอร์เป็นอีกเวอร์ชัน และไดรเวอร์เหล่านั้นจะไม่ถูกโหลดในการรีสตาร์ทครั้งถัดไป",
+  "Mismatched": "ไม่ตรงกัน",
+  "Drivers not built": "ไดรเวอร์ยังไม่ได้สร้าง",
+  "Restart needed": "ต้องรีสตาร์ท",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "เคอร์เนลที่ทำงานอยู่: {kernel} เฮดเดอร์ที่ติดตั้ง: {headers}",
+  "No headers for the running kernel {kernel}.": "ไม่มีเฮดเดอร์สำหรับเคอร์เนลที่ทำงานอยู่ {kernel}",
+  "Not built for this kernel: {names}.": "ยังไม่ได้สร้างสำหรับเคอร์เนลนี้: {names}",
+  "The kernel was updated. Restart the computer to use it.": "เคอร์เนลได้รับการอัปเดตแล้ว รีสตาร์ทเครื่องเพื่อใช้งาน",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "เคอร์เนลที่ทำงานอยู่และเฮดเดอร์ของมันไม่ตรงกัน ไดรเวอร์ที่สร้างด้วย DKMS (พัดลม เซนเซอร์) จึงจะไม่ถูกโหลดหลังการรีสตาร์ทครั้งถัดไป ขั้นตอนนี้จะติดตั้งเฮดเดอร์ที่ถูกต้องด้วยรหัสผ่านของคุณในเทอร์มินัล หากดิสทริบิวชันของคุณไม่มีแล้ว จะอัปเดตเคอร์เนลและเฮดเดอร์พร้อมกัน จากนั้นสร้างไดรเวอร์ DKMS ใหม่ หากเคอร์เนลถูกอัปเดต ให้รีสตาร์ทเครื่องเมื่อเสร็จ",
+  "The terminal says whether a restart is needed.": "เทอร์มินัลจะบอกว่าต้องรีสตาร์ทหรือไม่",
+  "Could not repair the kernel headers": "ไม่สามารถซ่อมเฮดเดอร์เคอร์เนลได้",
+  "Kernel headers do not match": "เฮดเดอร์เคอร์เนลไม่ตรงกัน",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "ไดรเวอร์อย่างไดรเวอร์พัดลมจะไม่ถูกโหลดหลังการรีสตาร์ทครั้งถัดไป ซ่อมได้ที่ ความเข้ากันได้ › ระบบ › เฮดเดอร์เคอร์เนล",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "ระบบที่ใช้ pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

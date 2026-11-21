@@ -383,6 +383,12 @@ class DependenciasRepository(SteamosDependenciesMixin):
         )
         return self._abrir_terminal(command, 'pacman lock')
 
+    def reparar_cabeceras_kernel(self):
+        """Match the running kernel's headers and rebuild its DKMS modules, in a terminal."""
+        from bc250cc.infrastructure.kernel_headers import repair_command
+
+        return self._abrir_terminal(repair_command(), 'kernel headers')
+
     def reiniciar_sensor_vrm(self):
         """Restart a wedged bc250_vrm in a terminal and check its readings."""
         from bc250cc.infrastructure.accessories.vrm_sensor import repair_command

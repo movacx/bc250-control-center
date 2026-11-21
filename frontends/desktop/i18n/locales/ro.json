@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Terminalul arată dacă senzorul citește din nou.",
   "Could not restart the power sensor": "Senzorul de alimentare nu a putut fi repornit",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Driverul senzorului s-a blocat: citirile lui expiră sau întoarce aceeași valoare pentru tot (de exemplu 797 °C), așa că citirile lui sunt ascunse. Aceasta repornește driverul cu parola ta în terminal și apoi verifică dacă citirile sunt din nou reale. Nimic altceva din sistem nu se schimbă.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Senzorul de alimentare s-a blocat. Repară senzorul îl repornește."
+  "The power sensor is stuck. Repair sensor restarts it.": "Senzorul de alimentare s-a blocat. Repară senzorul îl repornește.",
+  "Kernel headers · DKMS": "Antetele nucleului · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Driverele compilate cu DKMS (ventilatoare, senzori de alimentare și de memorie) au nevoie de antetele nucleului care rulează. O actualizare parțială le poate lăsa la altă versiune, iar acele drivere nu se mai încarcă la următoarea repornire.",
+  "Mismatched": "Nu se potrivesc",
+  "Drivers not built": "Drivere necompilate",
+  "Restart needed": "Necesită repornire",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Nucleu în uz: {kernel}. Antete instalate: {headers}.",
+  "No headers for the running kernel {kernel}.": "Nu există antete pentru nucleul în uz {kernel}.",
+  "Not built for this kernel: {names}.": "Necompilate pentru acest nucleu: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Nucleul a fost actualizat. Repornește computerul pentru a-l folosi.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Nucleul în uz și antetele lui nu se potrivesc, așa că driverele compilate cu DKMS (ventilatoare, senzori) nu se mai încarcă după următoarea repornire. Aceasta instalează antetele corecte cu parola ta în terminal; dacă distribuția ta nu le mai are, actualizează nucleul și antetele împreună. Apoi recompilează driverele DKMS. Dacă nucleul a fost actualizat, repornește computerul la final.",
+  "The terminal says whether a restart is needed.": "Terminalul spune dacă e nevoie de repornire.",
+  "Could not repair the kernel headers": "Antetele nucleului nu au putut fi reparate",
+  "Kernel headers do not match": "Antetele nucleului nu se potrivesc",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Driverele, precum cel al ventilatoarelor, nu se vor încărca după următoarea repornire. Repară-l în Compatibilitate › Sistem › Antetele nucleului.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Sisteme cu pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

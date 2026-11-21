@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Le terminal indique si le capteur mesure de nouveau.",
   "Could not restart the power sensor": "Impossible de redémarrer le capteur d'alimentation",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Le pilote du capteur est bloqué : ses lectures expirent, ou il renvoie la même valeur pour tout (par exemple 797 °C), ses mesures sont donc masquées. Ceci redémarre le pilote avec votre mot de passe dans le terminal, puis vérifie que les mesures sont de nouveau réelles. Rien d'autre n'est modifié sur le système.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Le capteur d'alimentation est bloqué. Réparer le capteur le redémarre."
+  "The power sensor is stuck. Repair sensor restarts it.": "Le capteur d'alimentation est bloqué. Réparer le capteur le redémarre.",
+  "Kernel headers · DKMS": "En-têtes du noyau · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Les pilotes compilés avec DKMS (ventilateurs, capteurs d'alimentation et de mémoire) ont besoin des en-têtes du noyau en cours. Une mise à jour partielle peut les laisser dans une autre version, et ces pilotes ne se chargent plus au prochain redémarrage.",
+  "Mismatched": "Ne correspondent pas",
+  "Drivers not built": "Pilotes non compilés",
+  "Restart needed": "Redémarrage nécessaire",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Noyau en cours : {kernel}. En-têtes installés : {headers}.",
+  "No headers for the running kernel {kernel}.": "Aucun en-tête pour le noyau en cours {kernel}.",
+  "Not built for this kernel: {names}.": "Non compilés pour ce noyau : {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Le noyau a été mis à jour. Redémarrez l'ordinateur pour l'utiliser.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Le noyau en cours et ses en-têtes ne correspondent pas, donc les pilotes compilés avec DKMS (ventilateurs, capteurs) ne se chargeront plus après le prochain redémarrage. Ceci installe les bons en-têtes avec votre mot de passe dans le terminal ; si votre distribution ne les a plus, le noyau et ses en-têtes sont mis à jour ensemble. Ensuite, les pilotes DKMS sont recompilés. Si le noyau a été mis à jour, redémarrez l'ordinateur à la fin.",
+  "The terminal says whether a restart is needed.": "Le terminal indique si un redémarrage est nécessaire.",
+  "Could not repair the kernel headers": "Impossible de réparer les en-têtes du noyau",
+  "Kernel headers do not match": "Les en-têtes du noyau ne correspondent pas",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Des pilotes comme celui des ventilateurs ne se chargeront pas après le prochain redémarrage. Réparez-le dans Compatibilité › Système › En-têtes du noyau.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Systèmes avec pacman, dnf / apt : Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

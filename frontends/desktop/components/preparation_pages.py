@@ -620,6 +620,7 @@ class PreparationPagesMixin:
         self.acpi_remove_button.setEnabled(False)
         layout.addWidget(self.acpi_card)
         self._build_pacman_lock_card(layout)
+        self._build_kernel_headers_card(layout)
         self.cyan_card = PreparationInfoCard(
             "Cyan Skillfish Governor",
             "Recommended GPU governor. Supports SMU or patched-kernel controls, selectable load monitoring and D-Bus ranges.",
@@ -1632,6 +1633,18 @@ def _pacman_lock_probe():
     return lock_state()
 
 
+#: What reads the kernel headers' state; a test replaces it.
+KERNEL_HEADERS_PROBE = None
+
+
+def _kernel_headers_probe():
+    if KERNEL_HEADERS_PROBE is not None:
+        return KERNEL_HEADERS_PROBE()
+    from bc250cc.infrastructure.kernel_headers import headers_state
+
+    return headers_state()
+
+
 class PacmanLockCardMixin:
     """The pacman lock row under System (R-1bf75324, R-d8d8dc3d, R-48d27e43)."""
 
@@ -1670,6 +1683,78 @@ class PacmanLockCardMixin:
         self.pacman_unlock_button.hide()
         layout.addWidget(card)
         self.pacman_lock_state: dict = {}
+
+    def _build_kernel_headers_card(self, layout) -> None:
+        self.kernel_headers_card = PreparationInfoCard(
+            "Kernel headers · DKMS",
+            "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running "
+            "kernel. A partial update can leave them for another version, and those drivers stop "
+            "loading at the next restart.",
+            scope_text="Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+            status_text="Checking",
+        )
+        card = self.kernel_headers_card
+        self.kernel_headers_detail = QLabel("")
+        self.kernel_headers_detail.setProperty("dashboardComponentDetail", True)
+        self.kernel_headers_detail.setWordWrap(True)
+        self.kernel_headers_detail.hide()
+        card.layout().insertWidget(card.layout().indexOf(card.actions_panel), self.kernel_headers_detail)
+        self.kernel_headers_repair_button = card.add_action("Repair", {"action": "kernel-headers-repair"})
+        self.kernel_headers_check_button = card.add_action("Check again", {"action": "kernel-headers-check"})
+        card.action_requested.connect(self._kernel_headers_action)
+        self.kernel_headers_repair_button.hide()
+        layout.addWidget(card)
+        self.kernel_headers_state: dict = {}
+
+    def _kernel_headers_action(self, payload: object) -> None:
+        values = dict(payload) if isinstance(payload, Mapping) else {}
+        if values.get("action") == "kernel-headers-check":
+            self.refresh_kernel_headers()
+            return
+        self._forward_dependency_action(values)
+
+    def refresh_kernel_headers(self, state: Mapping | None = None) -> dict:
+        """Read whether the running kernel can build DKMS drivers, and show it."""
+        from bc250cc.infrastructure import kernel_headers as headers
+
+        try:
+            current = dict(state) if state is not None else dict(_kernel_headers_probe())
+        except Exception:  # noqa: BLE001 - a failed read must not break the page
+            current = {"state": headers.NOT_APPLICABLE}
+        self.kernel_headers_state = current
+        card = self.kernel_headers_card
+        kind = current.get("state")
+        if kind == headers.NOT_APPLICABLE:
+            card.hide()
+            return current
+        card.show()
+        detail = ""
+        if kind == headers.MISMATCH:
+            card.set_status("Mismatched", "orange")
+            detail = tr_format(
+                "Running kernel: {kernel}. Installed headers: {headers}.",
+                kernel=current.get("kernel_package") or current.get("kernel"), headers=current.get("headers"),
+            )
+        elif kind == headers.MISSING:
+            card.set_status("Missing", "orange")
+            detail = tr_format("No headers for the running kernel {kernel}.", kernel=current.get("kernel"))
+        elif kind == headers.MODULES_MISSING:
+            card.set_status("Drivers not built", "orange")
+            detail = tr_format("Not built for this kernel: {names}.", names=", ".join(current.get("modules") or ()))
+        elif kind == headers.REBOOT_PENDING:
+            card.set_status("Restart needed", "orange")
+            detail = tr("The kernel was updated. Restart the computer to use it.")
+        else:
+            card.set_status("Ready", "green")
+        self.kernel_headers_detail.setText(detail)
+        self.kernel_headers_detail.setVisible(bool(detail))
+        repairable = kind in {headers.MISMATCH, headers.MISSING, headers.MODULES_MISSING}
+        card.update_action(self.kernel_headers_repair_button, text="Repair", visible=repairable)
+        if repairable:
+            browser = getattr(self, "compatibility_browser", None)
+            if browser is not None:
+                browser.show_details(card)
+        return current
 
     def _pacman_lock_action(self, payload: object) -> None:
         values = dict(payload) if isinstance(payload, Mapping) else {}

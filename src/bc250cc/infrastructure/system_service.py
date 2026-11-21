@@ -542,6 +542,9 @@ class SistemaService:
     def liberar_bloqueo_pacman(self):
         return self.repo.liberar_bloqueo_pacman()
 
+    def reparar_cabeceras_kernel(self):
+        return self.repo.reparar_cabeceras_kernel()
+
     def reiniciar_sensor_vrm(self):
         return self.repo.reiniciar_sensor_vrm()
 

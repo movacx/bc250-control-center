@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Terminal pokaże, czy czujnik znów odczytuje.",
   "Could not restart the power sensor": "Nie udało się ponownie uruchomić czujnika zasilania",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Sterownik czujnika się zawiesił: jego odczyty przekraczają limit czasu albo zwraca tę samą wartość dla wszystkiego (np. 797 °C), więc jego odczyty są ukryte. To uruchamia ponownie sterownik z twoim hasłem w terminalu, a potem sprawdza, czy odczyty znów są prawdziwe. Nic innego w systemie się nie zmienia.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Czujnik zasilania się zawiesił. Napraw czujnik uruchamia go ponownie."
+  "The power sensor is stuck. Repair sensor restarts it.": "Czujnik zasilania się zawiesił. Napraw czujnik uruchamia go ponownie.",
+  "Kernel headers · DKMS": "Nagłówki jądra · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Sterowniki budowane przez DKMS (wentylatory, czujniki zasilania i pamięci) potrzebują nagłówków działającego jądra. Częściowa aktualizacja może zostawić je w innej wersji i te sterowniki przestaną się ładować po następnym restarcie.",
+  "Mismatched": "Niezgodne",
+  "Drivers not built": "Sterowniki niezbudowane",
+  "Restart needed": "Wymagany restart",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Działające jądro: {kernel}. Zainstalowane nagłówki: {headers}.",
+  "No headers for the running kernel {kernel}.": "Brak nagłówków dla działającego jądra {kernel}.",
+  "Not built for this kernel: {names}.": "Niezbudowane dla tego jądra: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Jądro zostało zaktualizowane. Uruchom ponownie komputer, aby go użyć.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Działające jądro i jego nagłówki się nie zgadzają, więc sterowniki budowane przez DKMS (wentylatory, czujniki) przestaną się ładować po następnym restarcie. To zainstaluje właściwe nagłówki z twoim hasłem w terminalu; jeśli twoja dystrybucja już ich nie ma, zaktualizuje razem jądro i nagłówki. Potem przebuduje sterowniki DKMS. Jeśli jądro zostało zaktualizowane, uruchom ponownie komputer na końcu.",
+  "The terminal says whether a restart is needed.": "Terminal pokaże, czy potrzebny jest restart.",
+  "Could not repair the kernel headers": "Nie udało się naprawić nagłówków jądra",
+  "Kernel headers do not match": "Nagłówki jądra się nie zgadzają",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Sterowniki, takie jak sterownik wentylatorów, nie załadują się po następnym restarcie. Napraw to w Zgodność › System › Nagłówki jądra.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Systemy z pacmanem, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

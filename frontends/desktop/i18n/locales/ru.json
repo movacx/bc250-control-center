@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Терминал покажет, снова ли датчик выдаёт показания.",
   "Could not restart the power sensor": "Не удалось перезапустить датчик питания",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Драйвер датчика завис: его чтения завершаются по тайм-ауту или он возвращает одно и то же значение для всего (например, 797 °C), поэтому его показания скрыты. Это перезапустит драйвер с вашим паролем в терминале, а затем проверит, что показания снова настоящие. Больше ничего в системе не меняется.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Датчик питания завис. «Починить датчик» перезапустит его."
+  "The power sensor is stuck. Repair sensor restarts it.": "Датчик питания завис. «Починить датчик» перезапустит его.",
+  "Kernel headers · DKMS": "Заголовки ядра · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Драйверам, собранным через DKMS (вентиляторы, датчики питания и памяти), нужны заголовки работающего ядра. Частичное обновление может оставить их от другой версии, и эти драйверы перестанут загружаться после следующей перезагрузки.",
+  "Mismatched": "Не совпадают",
+  "Drivers not built": "Драйверы не собраны",
+  "Restart needed": "Нужна перезагрузка",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Работающее ядро: {kernel}. Установленные заголовки: {headers}.",
+  "No headers for the running kernel {kernel}.": "Нет заголовков для работающего ядра {kernel}.",
+  "Not built for this kernel: {names}.": "Не собраны для этого ядра: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Ядро обновлено. Перезагрузите компьютер, чтобы использовать его.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Работающее ядро и его заголовки не совпадают, поэтому драйверы, собранные через DKMS (вентиляторы, датчики), перестанут загружаться после следующей перезагрузки. Это установит правильные заголовки с вашим паролем в терминале; если в вашем дистрибутиве их уже нет, ядро и заголовки обновятся вместе. Затем драйверы DKMS будут пересобраны. Если ядро обновилось, перезагрузите компьютер в конце.",
+  "The terminal says whether a restart is needed.": "Терминал покажет, нужна ли перезагрузка.",
+  "Could not repair the kernel headers": "Не удалось исправить заголовки ядра",
+  "Kernel headers do not match": "Заголовки ядра не совпадают",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Драйверы, например драйвер вентиляторов, не загрузятся после следующей перезагрузки. Исправьте это в разделе Совместимость › Система › Заголовки ядра.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Системы с pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

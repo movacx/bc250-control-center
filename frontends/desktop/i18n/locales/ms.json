@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Terminal menunjukkan sama ada penderia membaca semula.",
   "Could not restart the power sensor": "Penderia kuasa tidak dapat dimulakan semula",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Pemacu penderia tersekat: bacaannya tamat masa, atau ia memulangkan nilai yang sama untuk semua (contohnya 797 °C), jadi bacaannya disembunyikan. Ini memulakan semula pemacu dengan kata laluan anda di terminal, kemudian menyemak bahawa bacaan kembali sebenar. Tiada perkara lain dalam sistem diubah.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Penderia kuasa tersekat. Baiki penderia memulakannya semula."
+  "The power sensor is stuck. Repair sensor restarts it.": "Penderia kuasa tersekat. Baiki penderia memulakannya semula.",
+  "Kernel headers · DKMS": "Pengepala kernel · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Pemacu yang dibina dengan DKMS (kipas, penderia kuasa dan memori) memerlukan pengepala kernel yang sedang berjalan. Kemas kini separa boleh meninggalkannya pada versi lain, dan pemacu itu tidak dimuatkan lagi pada mula semula seterusnya.",
+  "Mismatched": "Tidak sepadan",
+  "Drivers not built": "Pemacu belum dibina",
+  "Restart needed": "Perlu mula semula",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Kernel berjalan: {kernel}. Pengepala dipasang: {headers}.",
+  "No headers for the running kernel {kernel}.": "Tiada pengepala untuk kernel berjalan {kernel}.",
+  "Not built for this kernel: {names}.": "Belum dibina untuk kernel ini: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Kernel telah dikemas kini. Mulakan semula komputer untuk menggunakannya.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Kernel yang berjalan dan pengepalanya tidak sepadan, jadi pemacu yang dibina dengan DKMS (kipas, penderia) tidak dimuatkan lagi selepas mula semula seterusnya. Ini memasang pengepala yang betul dengan kata laluan anda di terminal; jika pengedaran anda tidak lagi memilikinya, kernel dan pengepala dikemas kini bersama. Kemudian pemacu DKMS dibina semula. Jika kernel dikemas kini, mulakan semula komputer selepas itu.",
+  "The terminal says whether a restart is needed.": "Terminal memberitahu sama ada perlu mula semula.",
+  "Could not repair the kernel headers": "Pengepala kernel tidak dapat dibaiki",
+  "Kernel headers do not match": "Pengepala kernel tidak sepadan",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Pemacu seperti pemacu kipas tidak akan dimuatkan selepas mula semula seterusnya. Baikinya di Keserasian › Sistem › Pengepala kernel.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Sistem dengan pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

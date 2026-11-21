@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "센서가 다시 읽히는지는 터미널에 표시됩니다.",
   "Could not restart the power sensor": "전원 센서를 다시 시작할 수 없습니다",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "센서 드라이버가 멈췄습니다. 읽기가 시간 초과되거나 모든 항목에 같은 값(예: 797 °C)을 돌려주고 있어 측정값을 숨겼습니다. 터미널에서 비밀번호로 드라이버를 다시 시작한 뒤 측정값이 다시 정상인지 확인합니다. 시스템의 다른 부분은 바꾸지 않습니다.",
-  "The power sensor is stuck. Repair sensor restarts it.": "전원 센서가 멈췄습니다. 센서 복구로 다시 시작합니다."
+  "The power sensor is stuck. Repair sensor restarts it.": "전원 센서가 멈췄습니다. 센서 복구로 다시 시작합니다.",
+  "Kernel headers · DKMS": "커널 헤더 · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "DKMS로 빌드한 드라이버(팬, 전원·메모리 센서)는 실행 중인 커널의 헤더가 필요합니다. 부분 업데이트로 헤더가 다른 버전이 되면, 다음 재시작부터 해당 드라이버가 로드되지 않습니다.",
+  "Mismatched": "일치하지 않음",
+  "Drivers not built": "드라이버 미빌드",
+  "Restart needed": "재시작 필요",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "실행 중인 커널: {kernel}. 설치된 헤더: {headers}.",
+  "No headers for the running kernel {kernel}.": "실행 중인 커널 {kernel}의 헤더가 없습니다.",
+  "Not built for this kernel: {names}.": "이 커널용으로 빌드되지 않음: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "커널이 업데이트되었습니다. 사용하려면 컴퓨터를 다시 시작하세요.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "실행 중인 커널과 헤더가 일치하지 않아 DKMS로 빌드한 드라이버(팬, 센서)가 다음 재시작 후 로드되지 않습니다. 터미널에서 비밀번호로 올바른 헤더를 설치하고, 배포판에 더 이상 없으면 커널과 헤더를 함께 업데이트합니다. 그다음 DKMS 드라이버를 다시 빌드합니다. 커널이 업데이트되었다면 마지막에 컴퓨터를 다시 시작하세요.",
+  "The terminal says whether a restart is needed.": "재시작이 필요한지는 터미널에 표시됩니다.",
+  "Could not repair the kernel headers": "커널 헤더를 복구할 수 없습니다",
+  "Kernel headers do not match": "커널 헤더가 일치하지 않습니다",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "팬 드라이버 같은 드라이버가 다음 재시작 후 로드되지 않습니다. 호환성 › 시스템 › 커널 헤더에서 복구하세요.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "pacman을, dnf / apt 쓰는 시스템: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "The terminal shows whether the sensor reads again.",
   "Could not restart the power sensor": "Could not restart the power sensor",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.",
-  "The power sensor is stuck. Repair sensor restarts it.": "The power sensor is stuck. Repair sensor restarts it."
+  "The power sensor is stuck. Repair sensor restarts it.": "The power sensor is stuck. Repair sensor restarts it.",
+  "Kernel headers · DKMS": "Kernel headers · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.",
+  "Mismatched": "Mismatched",
+  "Drivers not built": "Drivers not built",
+  "Restart needed": "Restart needed",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Running kernel: {kernel}. Installed headers: {headers}.",
+  "No headers for the running kernel {kernel}.": "No headers for the running kernel {kernel}.",
+  "Not built for this kernel: {names}.": "Not built for this kernel: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "The kernel was updated. Restart the computer to use it.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.",
+  "The terminal says whether a restart is needed.": "The terminal says whether a restart is needed.",
+  "Could not repair the kernel headers": "Could not repair the kernel headers",
+  "Kernel headers do not match": "Kernel headers do not match",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

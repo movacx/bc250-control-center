@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "A terminál megmutatja, hogy az érzékelő újra mér-e.",
   "Could not restart the power sensor": "A tápellátás érzékelőjét nem sikerült újraindítani",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Az érzékelő illesztőprogramja beragadt: az olvasásai időtúllépéssel végződnek, vagy mindenre ugyanazt az értéket adja (például 797 °C), ezért a mérései rejtve vannak. Ez a jelszavaddal újraindítja az illesztőprogramot a terminálban, majd ellenőrzi, hogy a mérések ismét valósak-e. A rendszerben semmi más nem változik.",
-  "The power sensor is stuck. Repair sensor restarts it.": "A tápellátás érzékelője beragadt. Az Érzékelő javítása újraindítja."
+  "The power sensor is stuck. Repair sensor restarts it.": "A tápellátás érzékelője beragadt. Az Érzékelő javítása újraindítja.",
+  "Kernel headers · DKMS": "Kernelfejlécek · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "A DKMS-sel fordított illesztőprogramoknak (ventilátorok, táp- és memóriaérzékelők) a futó kernel fejléceire van szükségük. Egy részleges frissítés más verzióban hagyhatja őket, és ezek az illesztőprogramok a következő újraindításkor már nem töltődnek be.",
+  "Mismatched": "Nem egyeznek",
+  "Drivers not built": "Nem fordított illesztőprogramok",
+  "Restart needed": "Újraindítás szükséges",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Futó kernel: {kernel}. Telepített fejlécek: {headers}.",
+  "No headers for the running kernel {kernel}.": "Nincsenek fejlécek a futó kernelhez ({kernel}).",
+  "Not built for this kernel: {names}.": "Nincs lefordítva ehhez a kernelhez: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "A kernel frissült. Indítsd újra a számítógépet a használatához.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "A futó kernel és a fejlécei nem egyeznek, ezért a DKMS-sel fordított illesztőprogramok (ventilátorok, érzékelők) a következő újraindítás után nem töltődnek be. Ez a jelszavaddal telepíti a megfelelő fejléceket a terminálban; ha a disztribúciód már nem tartalmazza őket, a kernelt és a fejléceket együtt frissíti. Ezután újrafordítja a DKMS-illesztőprogramokat. Ha a kernel frissült, a végén indítsd újra a számítógépet.",
+  "The terminal says whether a restart is needed.": "A terminál megmondja, kell-e újraindítás.",
+  "Could not repair the kernel headers": "A kernelfejléceket nem sikerült kijavítani",
+  "Kernel headers do not match": "A kernelfejlécek nem egyeznek",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Az olyan illesztőprogramok, mint a ventilátoré, a következő újraindítás után nem töltődnek be. Javítsd a Kompatibilitás › Rendszer › Kernelfejlécek alatt.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "A pacmant, dnf / apt használó rendszerek: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

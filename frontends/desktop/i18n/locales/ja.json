@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "センサーが再び読み取れるかはターミナルに表示されます。",
   "Could not restart the power sensor": "電源センサーを再起動できませんでした",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "センサーのドライバーが止まっています。読み取りがタイムアウトするか、すべてに同じ値（例: 797 °C）を返しているため、読み取り値を非表示にしています。ターミナルでパスワードを入力してドライバーを再起動し、読み取り値が正しく戻ったかを確認します。システムのほかの部分は変更しません。",
-  "The power sensor is stuck. Repair sensor restarts it.": "電源センサーが止まっています。「センサーを修復」で再起動します。"
+  "The power sensor is stuck. Repair sensor restarts it.": "電源センサーが止まっています。「センサーを修復」で再起動します。",
+  "Kernel headers · DKMS": "カーネルヘッダー · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "DKMS でビルドしたドライバー（ファン、電源・メモリセンサー）には、実行中のカーネルのヘッダーが必要です。部分的な更新でヘッダーが別のバージョンになると、次回の再起動からそれらのドライバーが読み込まれなくなります。",
+  "Mismatched": "一致しません",
+  "Drivers not built": "ドライバー未ビルド",
+  "Restart needed": "再起動が必要",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "実行中のカーネル: {kernel}。インストール済みのヘッダー: {headers}。",
+  "No headers for the running kernel {kernel}.": "実行中のカーネル {kernel} のヘッダーがありません。",
+  "Not built for this kernel: {names}.": "このカーネル向けに未ビルド: {names}。",
+  "The kernel was updated. Restart the computer to use it.": "カーネルが更新されました。使用するにはコンピューターを再起動してください。",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "実行中のカーネルとそのヘッダーが一致していないため、DKMS でビルドしたドライバー（ファン、センサー）が次回の再起動から読み込まれなくなります。ターミナルでパスワードを入力して正しいヘッダーをインストールします。ディストリビューションにもうない場合は、カーネルとヘッダーをまとめて更新します。その後 DKMS ドライバーを再ビルドします。カーネルが更新された場合は、最後にコンピューターを再起動してください。",
+  "The terminal says whether a restart is needed.": "再起動が必要かどうかはターミナルに表示されます。",
+  "Could not repair the kernel headers": "カーネルヘッダーを修復できませんでした",
+  "Kernel headers do not match": "カーネルヘッダーが一致しません",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "ファンドライバーなどのドライバーが次回の再起動後に読み込まれません。互換性 › システム › カーネルヘッダー で修復してください。",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "pacman, dnf / apt を使うシステム: Arch、CachyOS、Manjaro、Fedora、Ubuntu、Linux Mint、Debian"
 }

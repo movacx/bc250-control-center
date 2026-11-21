@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Terminalen visar om sensorn mäter igen.",
   "Could not restart the power sensor": "Strömsensorn kunde inte startas om",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Sensorns drivrutin har hängt sig: dess läsningar får tidsgräns, eller den returnerar samma värde för allt (till exempel 797 °C), så dess mätvärden är dolda. Detta startar om drivrutinen med ditt lösenord i terminalen och kontrollerar sedan att mätvärdena är riktiga igen. Inget annat i systemet ändras.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Strömsensorn har hängt sig. Reparera sensorn startar om den."
+  "The power sensor is stuck. Repair sensor restarts it.": "Strömsensorn har hängt sig. Reparera sensorn startar om den.",
+  "Kernel headers · DKMS": "Kärnhuvuden · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Drivrutiner byggda med DKMS (fläktar, ström- och minnessensorer) behöver huvudfilerna för den körande kärnan. En delvis uppdatering kan lämna dem för en annan version, och de drivrutinerna laddas inte längre vid nästa omstart.",
+  "Mismatched": "Matchar inte",
+  "Drivers not built": "Drivrutiner inte byggda",
+  "Restart needed": "Omstart krävs",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Körande kärna: {kernel}. Installerade huvuden: {headers}.",
+  "No headers for the running kernel {kernel}.": "Inga huvuden för den körande kärnan {kernel}.",
+  "Not built for this kernel: {names}.": "Inte byggda för den här kärnan: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Kärnan har uppdaterats. Starta om datorn för att använda den.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Den körande kärnan och dess huvuden matchar inte, så drivrutiner byggda med DKMS (fläktar, sensorer) slutar laddas efter nästa omstart. Detta installerar rätt huvuden med ditt lösenord i terminalen; om din distribution inte längre har dem uppdateras kärnan och huvudena tillsammans. Sedan byggs DKMS-drivrutinerna om. Om kärnan uppdaterades, starta om datorn efteråt.",
+  "The terminal says whether a restart is needed.": "Terminalen visar om en omstart behövs.",
+  "Could not repair the kernel headers": "Kärnhuvudena kunde inte repareras",
+  "Kernel headers do not match": "Kärnhuvudena matchar inte",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Drivrutiner som fläktdrivrutinen laddas inte efter nästa omstart. Reparera det under Kompatibilitet › System › Kärnhuvuden.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "System med pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

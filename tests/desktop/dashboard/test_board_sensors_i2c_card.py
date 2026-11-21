@@ -146,3 +146,17 @@ def test_a_power_sensor_whose_reads_all_time_out_also_offers_repair(qtbot):
     }}
     page._update_vrm_strip(replace(page.state, vrm_source="nct", vrm_probe=silent))
     assert not page.vrm_repair_button.isHidden() and page.vrm_help_button.isHidden()
+
+
+def test_the_kernel_headers_row_offers_repair_only_when_needed(qtbot):
+    page = PreparationSidebar()
+    qtbot.addWidget(page)
+    page.refresh_kernel_headers({"state": "mismatch", "kernel": "7.3.4-arch1-2",
+                                 "kernel_package": "linux 7.3.4.arch1-2", "headers": "linux-headers 7.3.5.arch1-1"})
+    assert not page.kernel_headers_card.isHidden()
+    assert not page.kernel_headers_repair_button.isHidden()
+    assert "7.3.5" in page.kernel_headers_detail.text()
+    page.refresh_kernel_headers({"state": "ok", "kernel": "7.3.5-arch1-1"})
+    assert page.kernel_headers_repair_button.isHidden()
+    page.refresh_kernel_headers({"state": "not-applicable"})
+    assert page.kernel_headers_card.isHidden()

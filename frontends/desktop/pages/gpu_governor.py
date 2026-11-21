@@ -1415,6 +1415,29 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             tr("Could not release the pacman lock"), controls=(), error_parent=dialog_parent,
         )
 
+    def _repair_kernel_headers(self, dialog_parent: QWidget | None = None) -> None:
+        confirmation = ConfirmDialog(
+            tr("Kernel headers · DKMS"),
+            tr(
+                "The running kernel and its headers do not match, so drivers built with DKMS (fans, "
+                "sensors) stop loading after the next restart. This installs the right headers with "
+                "your password in the terminal; when your distribution no longer has them, it updates "
+                "the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel "
+                "was updated, restart the computer afterwards."
+            ),
+            confirm_text=tr("Repair"),
+            tone="orange", parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.reparar_cabeceras_kernel(),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self, tr("Kernel headers · DKMS"), tr("The terminal says whether a restart is needed.")
+            ),
+            tr("Could not repair the kernel headers"), controls=(), error_parent=dialog_parent,
+        )
+
     def repair_vrm_sensor(self, dialog_parent: QWidget | None = None) -> None:
         """The dashboard's Repair sensor: restart a wedged bc250_vrm and check it."""
         confirmation = ConfirmDialog(

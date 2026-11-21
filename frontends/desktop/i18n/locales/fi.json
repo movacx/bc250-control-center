@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Pääte näyttää, mittaako anturi taas.",
   "Could not restart the power sensor": "Virta-anturia ei voitu käynnistää uudelleen",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Anturin ajuri on jumissa: sen luvut aikakatkaistaan, tai se palauttaa saman arvon kaikelle (esimerkiksi 797 °C), joten sen lukemat on piilotettu. Tämä käynnistää ajurin uudelleen salasanallasi päätteessä ja tarkistaa sitten, että lukemat ovat taas todellisia. Mitään muuta järjestelmässä ei muuteta.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Virta-anturi on jumissa. Korjaa anturi käynnistää sen uudelleen."
+  "The power sensor is stuck. Repair sensor restarts it.": "Virta-anturi on jumissa. Korjaa anturi käynnistää sen uudelleen.",
+  "Kernel headers · DKMS": "Ytimen otsakkeet · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "DKMS:llä rakennetut ajurit (tuulettimet, virta- ja muistianturit) tarvitsevat käynnissä olevan ytimen otsakkeet. Osittainen päivitys voi jättää ne toiseen versioon, eikä näitä ajureita enää ladata seuraavassa uudelleenkäynnistyksessä.",
+  "Mismatched": "Eivät täsmää",
+  "Drivers not built": "Ajureita ei rakennettu",
+  "Restart needed": "Uudelleenkäynnistys tarvitaan",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Käynnissä oleva ydin: {kernel}. Asennetut otsakkeet: {headers}.",
+  "No headers for the running kernel {kernel}.": "Käynnissä olevalle ytimelle {kernel} ei ole otsakkeita.",
+  "Not built for this kernel: {names}.": "Ei rakennettu tälle ytimelle: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Ydin päivitettiin. Käynnistä tietokone uudelleen käyttääksesi sitä.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Käynnissä oleva ydin ja sen otsakkeet eivät täsmää, joten DKMS:llä rakennettuja ajureita (tuulettimet, anturit) ei ladata seuraavan uudelleenkäynnistyksen jälkeen. Tämä asentaa oikeat otsakkeet salasanallasi päätteessä; jos jakelussasi niitä ei enää ole, ydin ja otsakkeet päivitetään yhdessä. Sitten DKMS-ajurit rakennetaan uudelleen. Jos ydin päivitettiin, käynnistä tietokone lopuksi uudelleen.",
+  "The terminal says whether a restart is needed.": "Pääte kertoo, tarvitaanko uudelleenkäynnistys.",
+  "Could not repair the kernel headers": "Ytimen otsakkeita ei voitu korjata",
+  "Kernel headers do not match": "Ytimen otsakkeet eivät täsmää",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Ajurit, kuten tuuletinajuri, eivät lataudu seuraavan uudelleenkäynnistyksen jälkeen. Korjaa se kohdassa Yhteensopivuus › Järjestelmä › Ytimen otsakkeet.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Järjestelmät, joissa on pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

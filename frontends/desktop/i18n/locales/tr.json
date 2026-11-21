@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Terminal, sensörün yeniden okuyup okumadığını gösterir.",
   "Could not restart the power sensor": "Güç sensörü yeniden başlatılamadı",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Sensörün sürücüsü takıldı: okumaları zaman aşımına uğruyor veya her şey için aynı değeri döndürüyor (ör. 797 °C), bu yüzden okumaları gizlendi. Bu, sürücüyü terminalde parolanızla yeniden başlatır ve ardından okumaların yeniden gerçek olduğunu denetler. Sistemde başka hiçbir şey değişmez.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Güç sensörü takıldı. Sensörü onar onu yeniden başlatır."
+  "The power sensor is stuck. Repair sensor restarts it.": "Güç sensörü takıldı. Sensörü onar onu yeniden başlatır.",
+  "Kernel headers · DKMS": "Çekirdek başlıkları · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "DKMS ile derlenen sürücüler (fanlar, güç ve bellek sensörleri) çalışan çekirdeğin başlık dosyalarına ihtiyaç duyar. Kısmi bir güncelleme onları başka bir sürümde bırakabilir ve bu sürücüler bir sonraki yeniden başlatmada yüklenmez.",
+  "Mismatched": "Eşleşmiyor",
+  "Drivers not built": "Sürücüler derlenmedi",
+  "Restart needed": "Yeniden başlatma gerekli",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Çalışan çekirdek: {kernel}. Kurulu başlıklar: {headers}.",
+  "No headers for the running kernel {kernel}.": "Çalışan çekirdek {kernel} için başlık yok.",
+  "Not built for this kernel: {names}.": "Bu çekirdek için derlenmedi: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Çekirdek güncellendi. Kullanmak için bilgisayarı yeniden başlatın.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Çalışan çekirdek ile başlıkları eşleşmiyor, bu yüzden DKMS ile derlenen sürücüler (fanlar, sensörler) bir sonraki yeniden başlatmadan sonra yüklenmez. Bu, terminalde parolanızla doğru başlıkları kurar; dağıtımınızda artık yoksa çekirdeği ve başlıkları birlikte günceller. Ardından DKMS sürücülerini yeniden derler. Çekirdek güncellendiyse sonunda bilgisayarı yeniden başlatın.",
+  "The terminal says whether a restart is needed.": "Terminal yeniden başlatma gerekip gerekmediğini söyler.",
+  "Could not repair the kernel headers": "Çekirdek başlıkları onarılamadı",
+  "Kernel headers do not match": "Çekirdek başlıkları eşleşmiyor",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Fan sürücüsü gibi sürücüler bir sonraki yeniden başlatmadan sonra yüklenmez. Uyumluluk › Sistem › Çekirdek başlıkları altında onarın.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Pacman, dnf / apt kullanan sistemler: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

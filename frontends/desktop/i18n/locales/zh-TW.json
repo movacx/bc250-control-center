@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "終端機會顯示感測器是否恢復讀數。",
   "Could not restart the power sensor": "無法重新啟動供電感測器",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "感測器的驅動程式卡住了：讀取逾時，或者對所有項目都回傳同一個數值（例如 797 °C），所以隱藏了它的讀數。此操作會在終端機中用你的密碼重新啟動驅動程式，然後檢查讀數是否恢復為真實值。系統的其他部分不會改變。",
-  "The power sensor is stuck. Repair sensor restarts it.": "供電感測器卡住了。「修復感測器」會重新啟動它。"
+  "The power sensor is stuck. Repair sensor restarts it.": "供電感測器卡住了。「修復感測器」會重新啟動它。",
+  "Kernel headers · DKMS": "核心標頭檔 · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "以 DKMS 建置的驅動程式（風扇、供電與記憶體感測器）需要目前執行中核心的標頭檔。部分更新可能讓標頭檔變成另一個版本，這些驅動程式在下次重新開機後就不再載入。",
+  "Mismatched": "不相符",
+  "Drivers not built": "驅動程式未建置",
+  "Restart needed": "需要重新開機",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "執行中的核心：{kernel}。已安裝的標頭檔：{headers}。",
+  "No headers for the running kernel {kernel}.": "執行中的核心 {kernel} 沒有標頭檔。",
+  "Not built for this kernel: {names}.": "未為此核心建置：{names}。",
+  "The kernel was updated. Restart the computer to use it.": "核心已更新。請重新開機以使用它。",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "執行中的核心與其標頭檔不相符，因此以 DKMS 建置的驅動程式（風扇、感測器）在下次重新開機後將無法載入。此操作會在終端機中用你的密碼安裝正確的標頭檔；若你的發行版已不再提供，則會同時更新核心與標頭檔。接著重新建置 DKMS 驅動程式。若核心已更新，完成後請重新開機。",
+  "The terminal says whether a restart is needed.": "終端機會說明是否需要重新開機。",
+  "Could not repair the kernel headers": "無法修復核心標頭檔",
+  "Kernel headers do not match": "核心標頭檔不相符",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "風扇驅動程式等驅動程式在下次重新開機後將無法載入。請在 相容性 › 系統 › 核心標頭檔 中修復。",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "使用 pacman, dnf / apt 的系統：Arch、CachyOS、Manjaro、Fedora、Ubuntu、Linux Mint、Debian"
 }

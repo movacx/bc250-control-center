@@ -1169,6 +1169,9 @@ class GpuGovernorStateMixin:
         if action == "pacman-unlock":
             self._release_pacman_lock(dialog_parent)
             return
+        if action == "kernel-headers-repair":
+            self._repair_kernel_headers(dialog_parent)
+            return
         if action in {"memory_swap", "memory_ttm"}:
             self._prepare_bazzite_memory_tuning(
                 policy=memory_policy,

@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "La terminal muestra si el sensor vuelve a leer.",
   "Could not restart the power sensor": "No se pudo reiniciar el sensor de alimentación",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "El driver del sensor se trabó: sus lecturas se quedan sin respuesta o devuelve el mismo valor para todo (por ejemplo 797 °C), así que sus lecturas están ocultas. Esto reinicia el driver con tu contraseña en la terminal y después comprueba que las lecturas vuelvan a ser reales. No se cambia nada más en el sistema.",
-  "The power sensor is stuck. Repair sensor restarts it.": "El sensor de alimentación se trabó. Reparar sensor lo reinicia."
+  "The power sensor is stuck. Repair sensor restarts it.": "El sensor de alimentación se trabó. Reparar sensor lo reinicia.",
+  "Kernel headers · DKMS": "Cabeceras del kernel · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Los drivers compilados con DKMS (ventiladores, sensores de alimentación y de memoria) necesitan las cabeceras del kernel en uso. Una actualización parcial puede dejarlas de otra versión, y esos drivers dejan de cargar en el siguiente reinicio.",
+  "Mismatched": "No coinciden",
+  "Drivers not built": "Drivers sin compilar",
+  "Restart needed": "Hay que reiniciar",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Kernel en uso: {kernel}. Cabeceras instaladas: {headers}.",
+  "No headers for the running kernel {kernel}.": "No hay cabeceras para el kernel en uso {kernel}.",
+  "Not built for this kernel: {names}.": "Sin compilar para este kernel: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "El kernel se actualizó. Reinicia el equipo para usarlo.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "El kernel en uso y sus cabeceras no coinciden, así que los drivers compilados con DKMS (ventiladores, sensores) dejan de cargar después del próximo reinicio. Esto instala las cabeceras correctas con tu contraseña en la terminal; si tu distribución ya no las tiene, actualiza el kernel y sus cabeceras juntos. Después recompila los drivers DKMS. Si se actualizó el kernel, reinicia el equipo al terminar.",
+  "The terminal says whether a restart is needed.": "La terminal indica si hace falta reiniciar.",
+  "Could not repair the kernel headers": "No se pudieron reparar las cabeceras del kernel",
+  "Kernel headers do not match": "Las cabeceras del kernel no coinciden",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Drivers como el de los ventiladores no cargarán después del próximo reinicio. Repáralo en Compatibilidad › Sistema › Cabeceras del kernel.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Sistemas con pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

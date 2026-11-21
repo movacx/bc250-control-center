@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Terminal menunjukkan apakah sensor membaca lagi.",
   "Could not restart the power sensor": "Sensor daya tidak dapat dimulai ulang",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Driver sensor macet: pembacaannya habis waktu, atau mengembalikan nilai yang sama untuk semuanya (misalnya 797 °C), jadi pembacaannya disembunyikan. Ini memulai ulang driver dengan kata sandi Anda di terminal, lalu memeriksa bahwa pembacaannya kembali nyata. Tidak ada hal lain di sistem yang diubah.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Sensor daya macet. Perbaiki sensor memulainya ulang."
+  "The power sensor is stuck. Repair sensor restarts it.": "Sensor daya macet. Perbaiki sensor memulainya ulang.",
+  "Kernel headers · DKMS": "Header kernel · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Driver yang dibangun dengan DKMS (kipas, sensor daya dan memori) membutuhkan header kernel yang sedang berjalan. Pembaruan sebagian bisa meninggalkannya di versi lain, dan driver itu tidak dimuat lagi saat mulai ulang berikutnya.",
+  "Mismatched": "Tidak cocok",
+  "Drivers not built": "Driver belum dibangun",
+  "Restart needed": "Perlu mulai ulang",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Kernel berjalan: {kernel}. Header terpasang: {headers}.",
+  "No headers for the running kernel {kernel}.": "Tidak ada header untuk kernel berjalan {kernel}.",
+  "Not built for this kernel: {names}.": "Belum dibangun untuk kernel ini: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Kernel telah diperbarui. Mulai ulang komputer untuk menggunakannya.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Kernel yang berjalan dan header-nya tidak cocok, jadi driver yang dibangun dengan DKMS (kipas, sensor) tidak dimuat lagi setelah mulai ulang berikutnya. Ini memasang header yang benar dengan kata sandi Anda di terminal; jika distribusi Anda tidak lagi memilikinya, kernel dan header diperbarui bersama. Lalu driver DKMS dibangun ulang. Jika kernel diperbarui, mulai ulang komputer setelahnya.",
+  "The terminal says whether a restart is needed.": "Terminal memberi tahu apakah perlu mulai ulang.",
+  "Could not repair the kernel headers": "Header kernel tidak dapat diperbaiki",
+  "Kernel headers do not match": "Header kernel tidak cocok",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Driver seperti driver kipas tidak akan dimuat setelah mulai ulang berikutnya. Perbaiki di Kompatibilitas › Sistem › Header kernel.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Sistem dengan pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

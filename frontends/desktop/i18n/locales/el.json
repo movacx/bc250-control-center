@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Το τερματικό δείχνει αν ο αισθητήρας μετρά ξανά.",
   "Could not restart the power sensor": "Δεν ήταν δυνατή η επανεκκίνηση του αισθητήρα ισχύος",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Ο οδηγός του αισθητήρα κόλλησε: οι αναγνώσεις του λήγουν ή επιστρέφει την ίδια τιμή για όλα (π.χ. 797 °C), γι' αυτό οι μετρήσεις του κρύβονται. Αυτό επανεκκινεί τον οδηγό με τον κωδικό σας στο τερματικό και μετά ελέγχει ότι οι μετρήσεις είναι ξανά πραγματικές. Τίποτε άλλο στο σύστημα δεν αλλάζει.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Ο αισθητήρας ισχύος κόλλησε. Η «Επισκευή αισθητήρα» τον επανεκκινεί."
+  "The power sensor is stuck. Repair sensor restarts it.": "Ο αισθητήρας ισχύος κόλλησε. Η «Επισκευή αισθητήρα» τον επανεκκινεί.",
+  "Kernel headers · DKMS": "Κεφαλίδες πυρήνα · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Οι οδηγοί που χτίζονται με DKMS (ανεμιστήρες, αισθητήρες ισχύος και μνήμης) χρειάζονται τις κεφαλίδες του πυρήνα που τρέχει. Μια μερική ενημέρωση μπορεί να τις αφήσει σε άλλη έκδοση, και αυτοί οι οδηγοί σταματούν να φορτώνουν στην επόμενη επανεκκίνηση.",
+  "Mismatched": "Δεν ταιριάζουν",
+  "Drivers not built": "Οδηγοί μη χτισμένοι",
+  "Restart needed": "Χρειάζεται επανεκκίνηση",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Πυρήνας σε χρήση: {kernel}. Εγκατεστημένες κεφαλίδες: {headers}.",
+  "No headers for the running kernel {kernel}.": "Δεν υπάρχουν κεφαλίδες για τον πυρήνα σε χρήση {kernel}.",
+  "Not built for this kernel: {names}.": "Δεν έχουν χτιστεί για αυτόν τον πυρήνα: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Ο πυρήνας ενημερώθηκε. Επανεκκινήστε τον υπολογιστή για να τον χρησιμοποιήσετε.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Ο πυρήνας σε χρήση και οι κεφαλίδες του δεν ταιριάζουν, οπότε οι οδηγοί που χτίζονται με DKMS (ανεμιστήρες, αισθητήρες) σταματούν να φορτώνουν μετά την επόμενη επανεκκίνηση. Αυτό εγκαθιστά τις σωστές κεφαλίδες με τον κωδικό σας στο τερματικό· αν η διανομή σας δεν τις έχει πια, ενημερώνει πυρήνα και κεφαλίδες μαζί. Μετά χτίζει ξανά τους οδηγούς DKMS. Αν ο πυρήνας ενημερώθηκε, επανεκκινήστε τον υπολογιστή στο τέλος.",
+  "The terminal says whether a restart is needed.": "Το τερματικό λέει αν χρειάζεται επανεκκίνηση.",
+  "Could not repair the kernel headers": "Δεν ήταν δυνατή η επισκευή των κεφαλίδων του πυρήνα",
+  "Kernel headers do not match": "Οι κεφαλίδες του πυρήνα δεν ταιριάζουν",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Οδηγοί όπως αυτός των ανεμιστήρων δεν θα φορτώσουν μετά την επόμενη επανεκκίνηση. Επισκευάστε το στο Συμβατότητα › Σύστημα › Κεφαλίδες πυρήνα.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Συστήματα με pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

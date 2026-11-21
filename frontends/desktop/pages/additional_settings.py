@@ -77,6 +77,7 @@ class AdditionalSettingsPage(QWidget):
         # Cheap (a stat; /proc only when the lock is there), and it is how the
         # row follows a release that finished in the terminal.
         self.panel.refresh_pacman_lock()
+        self.panel.refresh_kernel_headers()
 
     def _on_compatibility(self) -> bool:
         keys = self.panel.TAB_KEYS
@@ -86,10 +87,20 @@ class AdditionalSettingsPage(QWidget):
     def _tab_selected(self, key: str) -> None:
         if key == "compatibility" and self.isVisible():
             self.panel.refresh_pacman_lock()
+            self.panel.refresh_kernel_headers()
             self._notify_pacman_lock()
 
     def _notify_pacman_lock(self) -> None:
-        """Say so each time Compatibility opens while pacman is locked."""
+        """Say so each time Compatibility opens while pacman is locked,
+        or while the kernel's headers would leave the DKMS drivers out."""
+        headers = (self.panel.kernel_headers_state or {}).get("state")
+        if headers in {"mismatch", "missing", "modules-missing"}:
+            show_toast(
+                self, "Kernel headers do not match",
+                "Drivers such as the fan driver will not load after the next restart. "
+                "Repair it under Compatibility › System › Kernel headers.",
+                tone="orange",
+            )
         state = self.panel.pacman_lock_state or {}
         if state.get("state") == "stale":
             show_toast(

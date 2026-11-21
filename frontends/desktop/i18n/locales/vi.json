@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Terminal cho biết cảm biến đã đọc lại được chưa.",
   "Could not restart the power sensor": "Không thể khởi động lại cảm biến nguồn",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Trình điều khiển của cảm biến bị kẹt: các lần đọc bị hết thời gian chờ, hoặc nó trả về cùng một giá trị cho mọi thứ (ví dụ 797 °C), nên các số đo của nó bị ẩn. Thao tác này khởi động lại trình điều khiển bằng mật khẩu của bạn trong terminal, rồi kiểm tra xem số đo đã thật trở lại chưa. Không có gì khác trong hệ thống bị thay đổi.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Cảm biến nguồn bị kẹt. Sửa cảm biến sẽ khởi động lại nó."
+  "The power sensor is stuck. Repair sensor restarts it.": "Cảm biến nguồn bị kẹt. Sửa cảm biến sẽ khởi động lại nó.",
+  "Kernel headers · DKMS": "Header kernel · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Các trình điều khiển dựng bằng DKMS (quạt, cảm biến nguồn và bộ nhớ) cần header của kernel đang chạy. Một lần cập nhật dở dang có thể để chúng ở phiên bản khác, và các trình điều khiển đó không còn được nạp ở lần khởi động lại tiếp theo.",
+  "Mismatched": "Không khớp",
+  "Drivers not built": "Chưa dựng trình điều khiển",
+  "Restart needed": "Cần khởi động lại",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Kernel đang chạy: {kernel}. Header đã cài: {headers}.",
+  "No headers for the running kernel {kernel}.": "Không có header cho kernel đang chạy {kernel}.",
+  "Not built for this kernel: {names}.": "Chưa dựng cho kernel này: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Kernel đã được cập nhật. Hãy khởi động lại máy để dùng nó.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Kernel đang chạy và header của nó không khớp, nên các trình điều khiển dựng bằng DKMS (quạt, cảm biến) sẽ không được nạp sau lần khởi động lại tiếp theo. Thao tác này cài đúng header bằng mật khẩu của bạn trong terminal; nếu bản phân phối của bạn không còn chúng, kernel và header sẽ được cập nhật cùng nhau. Sau đó các trình điều khiển DKMS được dựng lại. Nếu kernel được cập nhật, hãy khởi động lại máy khi xong.",
+  "The terminal says whether a restart is needed.": "Terminal cho biết có cần khởi động lại không.",
+  "Could not repair the kernel headers": "Không thể sửa header kernel",
+  "Kernel headers do not match": "Header kernel không khớp",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Các trình điều khiển như trình điều khiển quạt sẽ không được nạp sau lần khởi động lại tiếp theo. Hãy sửa ở Tương thích › Hệ thống › Header kernel.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Hệ thống dùng pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

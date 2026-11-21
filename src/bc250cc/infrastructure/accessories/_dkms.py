@@ -213,7 +213,23 @@ def install_command(driver: Driver, family: str, *, board_name_path: Path, bios_
         'bc250_owner="$(pacman -Qqo "/usr/lib/modules/$bc250_kernel/vmlinuz" 2>/dev/null || true)"',
         '[ -n "$bc250_owner" ] || { echo "ERROR: no package owns the running kernel $bc250_kernel, so its headers '
         'cannot be installed. Boot a kernel from your distribution and press Install again."; exit 66; }',
-        'bc250_packages=(dkms git base-devel "${bc250_owner}-headers")',
+        # Never let this install move the headers past the kernel: with --needed
+        # pacman still upgrades them to the repository's newer version, and the
+        # DKMS hook then drops every module built for the running kernel
+        # (2026-11-21: linux 7.3.4 with linux-headers 7.3.5). Checked before
+        # anything is installed; the Compatibility row repairs it.
+        'bc250_packages=(dkms git base-devel)',
+        'if [ ! -e "/usr/lib/modules/$bc250_kernel/build/Makefile" ]; then',
+        '  bc250_kver="$(pacman -Q "$bc250_owner" | awk \'{print $2}\')"',
+        '  bc250_repo="$(LC_ALL=C pacman -Si "${bc250_owner}-headers" 2>/dev/null | awk -F\': \' \'/^Version/{print $2; exit}\' || true)"',
+        '  if [ "$bc250_repo" != "$bc250_kver" ]; then',
+        '    echo "ERROR: the running kernel ($bc250_owner $bc250_kver) has no headers, and the repository only has '
+        '${bc250_repo:-none}. Nothing was installed. Open Additional settings › Compatibility › Kernel headers and '
+        'press Repair: it updates the kernel and its headers together."',
+        '    exit 67',
+        '  fi',
+        '  bc250_packages+=("${bc250_owner}-headers")',
+        'fi',
         # A clang-built kernel (CachyOS) has to build its modules with clang.
         "if grep -qi clang /proc/version; then bc250_packages+=(clang llvm lld); fi",
         'echo "Installing ${bc250_packages[*]}..."',

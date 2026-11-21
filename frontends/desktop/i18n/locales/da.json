@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Terminalen viser, om sensoren måler igen.",
   "Could not restart the power sensor": "Strømsensoren kunne ikke genstartes",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Sensorens driver sidder fast: dens aflæsninger timer ud, eller den returnerer den samme værdi for alt (f.eks. 797 °C), så dens målinger er skjult. Dette genstarter driveren med din adgangskode i terminalen og kontrollerer derefter, at målingerne er rigtige igen. Intet andet på systemet ændres.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Strømsensoren sidder fast. Reparer sensor genstarter den."
+  "The power sensor is stuck. Repair sensor restarts it.": "Strømsensoren sidder fast. Reparer sensor genstarter den.",
+  "Kernel headers · DKMS": "Kerneheaders · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Drivere bygget med DKMS (blæsere, strøm- og hukommelsessensorer) skal bruge headerne til den kørende kerne. En delvis opdatering kan efterlade dem i en anden version, og de drivere indlæses ikke længere ved næste genstart.",
+  "Mismatched": "Passer ikke",
+  "Drivers not built": "Drivere ikke bygget",
+  "Restart needed": "Genstart nødvendig",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Kørende kerne: {kernel}. Installerede headers: {headers}.",
+  "No headers for the running kernel {kernel}.": "Ingen headers til den kørende kerne {kernel}.",
+  "Not built for this kernel: {names}.": "Ikke bygget til denne kerne: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Kernen er opdateret. Genstart computeren for at bruge den.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Den kørende kerne og dens headers passer ikke sammen, så drivere bygget med DKMS (blæsere, sensorer) indlæses ikke efter næste genstart. Dette installerer de rigtige headers med din adgangskode i terminalen; hvis din distribution ikke længere har dem, opdateres kerne og headers sammen. Derefter genopbygges DKMS-driverne. Hvis kernen blev opdateret, så genstart computeren bagefter.",
+  "The terminal says whether a restart is needed.": "Terminalen viser, om en genstart er nødvendig.",
+  "Could not repair the kernel headers": "Kerneheaderne kunne ikke repareres",
+  "Kernel headers do not match": "Kerneheaderne passer ikke",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Drivere som blæserdriveren indlæses ikke efter næste genstart. Reparer det under Kompatibilitet › System › Kerneheaders.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Systemer med pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

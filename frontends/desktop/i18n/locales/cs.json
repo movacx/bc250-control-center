@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Terminál ukáže, zda senzor znovu měří.",
   "Could not restart the power sensor": "Senzor napájení se nepodařilo restartovat",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Ovladač senzoru se zasekl: jeho čtení vyprší, nebo vrací pro všechno stejnou hodnotu (například 797 °C), proto jsou jeho údaje skryté. Tímto se ovladač restartuje s vaším heslem v terminálu a pak se ověří, že údaje jsou znovu skutečné. Nic jiného v systému se nemění.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Senzor napájení se zasekl. „Opravit senzor“ ho restartuje."
+  "The power sensor is stuck. Repair sensor restarts it.": "Senzor napájení se zasekl. „Opravit senzor“ ho restartuje.",
+  "Kernel headers · DKMS": "Hlavičky jádra · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Ovladače sestavené přes DKMS (ventilátory, senzory napájení a paměti) potřebují hlavičky běžícího jádra. Částečná aktualizace je může nechat v jiné verzi a tyto ovladače se po dalším restartu přestanou načítat.",
+  "Mismatched": "Neshodují se",
+  "Drivers not built": "Ovladače nesestaveny",
+  "Restart needed": "Nutný restart",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Běžící jádro: {kernel}. Nainstalované hlavičky: {headers}.",
+  "No headers for the running kernel {kernel}.": "Pro běžící jádro {kernel} nejsou hlavičky.",
+  "Not built for this kernel: {names}.": "Nesestaveno pro toto jádro: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Jádro bylo aktualizováno. Restartujte počítač, abyste ho použili.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Běžící jádro a jeho hlavičky se neshodují, takže ovladače sestavené přes DKMS (ventilátory, senzory) se po dalším restartu přestanou načítat. Tímto se s vaším heslem v terminálu nainstalují správné hlavičky; pokud je vaše distribuce už nemá, aktualizuje se jádro i hlavičky společně. Poté se ovladače DKMS znovu sestaví. Pokud se jádro aktualizovalo, restartujte nakonec počítač.",
+  "The terminal says whether a restart is needed.": "Terminál ukáže, zda je nutný restart.",
+  "Could not repair the kernel headers": "Hlavičky jádra se nepodařilo opravit",
+  "Kernel headers do not match": "Hlavičky jádra se neshodují",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Ovladače, jako je ovladač ventilátorů, se po dalším restartu nenačtou. Opravte to v Kompatibilita › Systém › Hlavičky jádra.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Systémy s pacmanem, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }

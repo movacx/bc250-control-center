@@ -6494,5 +6494,20 @@
   "The terminal shows whether the sensor reads again.": "Терминалът показва дали сензорът отново отчита.",
   "Could not restart the power sensor": "Сензорът за захранване не можа да се рестартира",
   "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "Драйверът на сензора е блокирал: четенията му изтичат или връща една и съща стойност за всичко (например 797 °C), затова показанията му са скрити. Това рестартира драйвера с вашата парола в терминала и после проверява дали показанията отново са истински. Нищо друго в системата не се променя.",
-  "The power sensor is stuck. Repair sensor restarts it.": "Сензорът за захранване е блокирал. „Поправи сензора“ го рестартира."
+  "The power sensor is stuck. Repair sensor restarts it.": "Сензорът за захранване е блокирал. „Поправи сензора“ го рестартира.",
+  "Kernel headers · DKMS": "Заглавни файлове на ядрото · DKMS",
+  "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running kernel. A partial update can leave them for another version, and those drivers stop loading at the next restart.": "Драйверите, компилирани с DKMS (вентилатори, сензори за захранване и памет), се нуждаят от заглавните файлове на работещото ядро. Частично обновяване може да ги остави от друга версия и тези драйвери спират да се зареждат при следващото рестартиране.",
+  "Mismatched": "Не съвпадат",
+  "Drivers not built": "Драйверите не са компилирани",
+  "Restart needed": "Нужно е рестартиране",
+  "Running kernel: {kernel}. Installed headers: {headers}.": "Работещо ядро: {kernel}. Инсталирани заглавни файлове: {headers}.",
+  "No headers for the running kernel {kernel}.": "Няма заглавни файлове за работещото ядро {kernel}.",
+  "Not built for this kernel: {names}.": "Не са компилирани за това ядро: {names}.",
+  "The kernel was updated. Restart the computer to use it.": "Ядрото е обновено. Рестартирайте компютъра, за да го използвате.",
+  "The running kernel and its headers do not match, so drivers built with DKMS (fans, sensors) stop loading after the next restart. This installs the right headers with your password in the terminal; when your distribution no longer has them, it updates the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel was updated, restart the computer afterwards.": "Работещото ядро и заглавните му файлове не съвпадат, затова драйверите, компилирани с DKMS (вентилатори, сензори), спират да се зареждат след следващото рестартиране. Това инсталира правилните заглавни файлове с вашата парола в терминала; ако дистрибуцията ви вече ги няма, обновява ядрото и заглавните файлове заедно. После прекомпилира драйверите DKMS. Ако ядрото е обновено, рестартирайте компютъра накрая.",
+  "The terminal says whether a restart is needed.": "Терминалът показва дали е нужно рестартиране.",
+  "Could not repair the kernel headers": "Заглавните файлове на ядрото не можаха да се поправят",
+  "Kernel headers do not match": "Заглавните файлове на ядрото не съвпадат",
+  "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Драйвери като този на вентилаторите няма да се заредят след следващото рестартиране. Поправете го в Съвместимост › Система › Заглавни файлове на ядрото.",
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Системи с pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
 }
