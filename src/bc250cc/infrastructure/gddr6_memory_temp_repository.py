@@ -63,6 +63,25 @@ BIOS_VERSION_PATH = Path('/sys/class/dmi/id/bios_version')
 #: Loaded, it owns the SMU patch: the helpers read its sensors and need no
 #: checkout (see KERNEL_DRIVER_MODULE in bc250-gddr6-temp-reader).
 KERNEL_DRIVER_MODULE = Path('/sys/module/bc250_memory')
+HWMON_ROOT = Path('/sys/class/hwmon')
+
+
+def kernel_driver_publishing(module=None, root=None):
+    """bc250_memory loaded *and* publishing its sensor.
+
+    On a BIOS without SMU debug access it loads, refuses to patch and
+    registers nothing; then it is not the one reading, and Control Center's
+    own route (which patches, then wakes the driver) has to run.
+    """
+    if not Path(module or KERNEL_DRIVER_MODULE).is_dir():
+        return False
+    for entry in sorted(Path(root or HWMON_ROOT).glob('hwmon*')):
+        try:
+            if (entry / 'name').read_text(encoding='utf-8').strip() == 'bc250_memory':
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def board_bios_version():
@@ -100,8 +119,8 @@ class Gddr6MemoryTempRepository:
         return ''
 
     def _gddr6_kernel_driver_loaded(self):
-        """Overridable seam: whether the kernel's bc250_memory driver is loaded."""
-        return KERNEL_DRIVER_MODULE.is_dir()
+        """Overridable seam: whether the kernel's bc250_memory driver reads the chips."""
+        return kernel_driver_publishing()
 
     def _board_bios_version(self):
         """Overridable seam: tests must not depend on the host's real DMI."""

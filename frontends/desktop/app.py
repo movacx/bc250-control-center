@@ -516,6 +516,12 @@ class ControlCenterWindow(QMainWindow):
             # been laid out yet has nothing to photograph.
             self._first_run_pending = False
             QTimer.singleShot(140, self.open_welcome)
+        else:
+            # An update, or any start after the first: the developer's note
+            # opens by itself once (a clean install gets it after the tour).
+            dashboard = getattr(self, "dashboard", None)
+            if dashboard is not None:
+                dashboard.present_developer_note_once()
 
     def _apply_gamemode_window_mode(self) -> None:
         if not self._gamemode_session:
@@ -827,6 +833,7 @@ class ControlCenterWindow(QMainWindow):
             self.start_tour()
         else:
             self.dashboard.announce_pending_attention()
+            self.dashboard.present_developer_note_once()
 
     # ------------------------------------------------------------ the tour
 
@@ -971,6 +978,8 @@ class ControlCenterWindow(QMainWindow):
         self._sync_current_page_layout()
         # The notices held back while the tour pointed at the pages.
         self.dashboard.announce_pending_attention()
+        # Then, once ever, the developer's note.
+        self.dashboard.present_developer_note_once()
 
     def _apply_language(self, language: str, *, persist: bool = True) -> None:
         requested = normalize_language(language)
@@ -980,6 +989,12 @@ class ControlCenterWindow(QMainWindow):
             self._save_backend_preference("idioma", resolved)
         if hasattr(self, "sidebar"):
             self._retranslate_interface()
+
+    def _apply_gpu_interface(self, style: str) -> None:
+        """Settings › Appearance › Interface style: swap the GPU screen in place."""
+        from .pages.gpu_governor_integration import switch_gpu_interface
+
+        switch_gpu_interface(self.gpu_page, style)
 
     def _queue_appearance(self, mode: str, accent: str, density: str) -> None:
         """Let the chosen option paint first; of quick clicks, apply the last.
@@ -1315,6 +1330,8 @@ class ControlCenterWindow(QMainWindow):
             dialog.language_changed.connect(self._apply_language)
             dialog.appearance_changed.connect(self._queue_appearance)
             dialog.scale_changed.connect(self._apply_scale)
+            dialog.gpu_interface_changed.connect(self._apply_gpu_interface)
+            dialog.driver_support_requested.connect(self._dashboard_driver_support)
             dialog.smart_alerts_changed.connect(self.alert_monitor.set_enabled)
             dialog.diagnostics_changed.connect(self._set_detailed_diagnostics)
             dialog.sidebar_collapsed_changed.connect(self.sidebar.set_collapsed)
@@ -1575,6 +1592,7 @@ class ControlCenterWindow(QMainWindow):
         "hdmi_cec": ("https://gitlab.steamos.cloud/holo/linux-cec", "cecd"),
         "vram_sensor": ("https://github.com/Hexxeh/bc250-memory-dkms", "bc250-memory"),
         "vrm_sensor": ("https://github.com/Hexxeh/bc250-vrm-dkms", "bc250-vrm"),
+        "apu_telemetry": ("https://github.com/onlinermm/BC250-Telemetry", "BC250-Telemetry"),
     }
 
     def _dashboard_accessory(self, accessory: str, operation: str) -> None:
@@ -1586,6 +1604,14 @@ class ControlCenterWindow(QMainWindow):
             return
         upstream, program = self._ACCESSORY_LINKS[accessory]
         try:
+            if accessory == "apu_telemetry" and operation in {"install", "remove"}:
+                # Its own workflow, with the same confirmation as Settings › Telemetry.
+                from .pages.settings import confirm_apu_telemetry
+
+                action = "install" if operation == "install" else "uninstall"
+                if confirm_apu_telemetry(action, self):
+                    self.controller.gestionar_apu_telemetry(action)
+                return
             if operation == "upstream":
                 open_external_url(upstream)
             elif operation == "configure" and accessory == "hdmi_cec":
@@ -1764,6 +1790,12 @@ class ControlCenterWindow(QMainWindow):
         self.close()
 
     def _dashboard_action(self, action: str) -> None:
+        if action.startswith("sensor_guide"):
+            tab = action.partition(":")[2] or "i2c"
+            self._open_settings_dialog(
+                "telemetry_guide", then=lambda dialog: dialog.page.open_sensor_guide(tab),
+            )
+            return
         if action == "telemetry_settings":
             self._open_settings_dialog("telemetry")
             return

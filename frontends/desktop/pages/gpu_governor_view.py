@@ -1274,6 +1274,8 @@ class GpuGovernorView(QWidget):
     high_points_toggle_requested = pyqtSignal(bool)
     voltage_lab_requested = pyqtSignal()
     config_open_requested = pyqtSignal()
+    #: The foot-of-page Modern | Classic buttons ("modern" or "original").
+    interface_style_requested = pyqtSignal(str)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -1323,6 +1325,11 @@ class GpuGovernorView(QWidget):
 
         layout.addWidget(self._build_advanced_card())
         layout.addStretch(1)
+        from ..components.interface_style_switch import InterfaceStyleSwitch
+
+        self.interface_switch = InterfaceStyleSwitch("modern")
+        self.interface_switch.chosen.connect(self.interface_style_requested)
+        layout.addWidget(self.interface_switch)
         self.apply_state(self._state)
 
     # ── GPU configuration ──────────────────────────────────────────────────
@@ -1833,6 +1840,7 @@ class GpuGovernorView(QWidget):
         Two kinds: strings already interpolated at build time (no source to map
         back to) and the fix-labels, which live in their own catalogue.
         """
+        self.interface_switch.retranslate()
         # Labels change length between languages; keep the pair one size.
         self._match_range_button_widths()
         self._metrics_toggle.setText(governor_fix_label("metrics"))

@@ -80,7 +80,7 @@ from ..components.card_navigation import EditableCardNavigation
 from ..components.core_monitor import CoreGrid, CoreReading
 from ..components.page_widgets import SectionCard, caption, subpanel
 from ..components.picker_row import PickerRow
-from ..components.resize_grip import ResizeGrip
+from ..components.resize_grip import ResizeGrip, SideGrip
 from ..components.style_state import set_style_property
 from ..components.widgets import icon
 from ..core.preferences import application_settings
@@ -130,6 +130,11 @@ PROFILE_STACK_WIDTH = 700
 #: window manager ends with the same proportions as one that opened wide.
 CONTROLS_STRETCH = 18
 TELEMETRY_STRETCH = 12
+#: The monitoring column's width when the user dragged it (Settings key), and
+#: how far either column may be squeezed.
+SIDE_WIDTH_KEY = "layout/cpu_side_width"
+SIDE_MIN_WIDTH = 300
+CONTROLS_MIN_WIDTH = 560
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -952,7 +957,7 @@ class CpuControlView(QWidget):
 
         self._workspace = QGridLayout()
         self._workspace.setContentsMargins(0, 0, 0, 0)
-        self._workspace.setHorizontalSpacing(12)
+        self._workspace.setHorizontalSpacing(0)
         self._workspace.setVerticalSpacing(12)
         layout.addLayout(self._workspace)
 
@@ -975,10 +980,21 @@ class CpuControlView(QWidget):
         left.addItem(self._left_spacer)
         self._left_column_box = left
 
+        # Between the columns, a bar to drag sideways; the width is remembered.
+        self._side_grip = SideGrip()
+        self._side_grip.pressed.connect(self._side_drag_started)
+        self._side_grip.dragged.connect(self._side_dragged)
+        self._side_grip.released.connect(self._side_drag_finished)
+        self._side_grip.double_clicked.connect(self.reset_side_width)
+        self._side_width = self._stored_side_width()
+        self._side_press_width = 0
+
         self._workspace.addWidget(self._left_column, 0, 0)
-        self._workspace.addWidget(self._telemetry, 0, 1)
+        self._workspace.addWidget(self._side_grip, 0, 1)
+        self._workspace.addWidget(self._telemetry, 0, 2)
         self._workspace.setColumnStretch(0, CONTROLS_STRETCH)
-        self._workspace.setColumnStretch(1, TELEMETRY_STRETCH)
+        self._workspace.setColumnStretch(2, TELEMETRY_STRETCH)
+        self._apply_side_width()
 
         layout.addStretch(1)
         self.apply_state(self._state)
@@ -1690,6 +1706,58 @@ class CpuControlView(QWidget):
             profile_card.retranslate()
         self._apply_unlock(self._state.core_unlock)
 
+    # ── monitoring column width ────────────────────────────────────────────
+    def _layout_settings(self):
+        """The view's own settings (injected in tests), the app's otherwise."""
+        return self._view_settings()
+
+    def _stored_side_width(self) -> int:
+        try:
+            value = int(self._layout_settings().value(SIDE_WIDTH_KEY, 0) or 0)
+        except (TypeError, ValueError):
+            return 0
+        return value if value >= SIDE_MIN_WIDTH else 0
+
+    def _side_bounds(self) -> tuple[int, int]:
+        available = max(self.width(), STACK_WIDTH)
+        return SIDE_MIN_WIDTH, max(SIDE_MIN_WIDTH, available - CONTROLS_MIN_WIDTH - self._side_grip.width())
+
+    def _apply_side_width(self) -> None:
+        """A dragged width holds the column; otherwise the columns share by stretch."""
+        stacked = self._workspace.itemAtPosition(1, 0) is not None
+        if self._side_width and not stacked:
+            low, high = self._side_bounds()
+            width = max(low, min(high, self._side_width))
+            self._telemetry.setFixedWidth(width)
+            self._workspace.setColumnStretch(2, 0)
+        else:
+            self._telemetry.setMinimumWidth(0)
+            self._telemetry.setMaximumWidth(16777215)
+            if not stacked:
+                self._workspace.setColumnStretch(2, TELEMETRY_STRETCH)
+
+    def _side_drag_started(self) -> None:
+        self._side_press_width = self._telemetry.width()
+
+    def _side_dragged(self, delta: int) -> None:
+        # Dragging left widens the monitoring column.
+        low, high = self._side_bounds()
+        self._side_width = max(low, min(high, self._side_press_width - delta))
+        self._apply_side_width()
+
+    def _side_drag_finished(self) -> None:
+        if self._side_width:
+            self._layout_settings().setValue(SIDE_WIDTH_KEY, int(self._side_width))
+
+    def reset_side_width(self) -> None:
+        self._side_width = 0
+        self._layout_settings().remove(SIDE_WIDTH_KEY)
+        self._apply_side_width()
+
+    def side_width(self) -> int:
+        """The stored width, or 0 while the columns share the space."""
+        return self._side_width
+
     # ── lifecycle ──────────────────────────────────────────────────────────
     def showEvent(self, event) -> None:  # noqa: N802 (Qt)
         super().showEvent(event)
@@ -1707,15 +1775,22 @@ class CpuControlView(QWidget):
         telemetry_stacked = self._workspace.itemAtPosition(1, 0) is not None
         if stacked and not telemetry_stacked:
             self._workspace.removeWidget(self._telemetry)
-            self._workspace.addWidget(self._telemetry, 1, 0)
-            self._workspace.setColumnStretch(1, 0)
+            self._workspace.addWidget(self._telemetry, 1, 0, 1, 3)
+            self._workspace.setColumnStretch(2, 0)
+            self._workspace.setVerticalSpacing(12)
+            self._side_grip.hide()
+            self._apply_side_width()
         elif not stacked and telemetry_stacked:
             self._workspace.removeWidget(self._telemetry)
-            self._workspace.addWidget(self._telemetry, 0, 1)
+            self._workspace.addWidget(self._telemetry, 0, 2)
             # Not 1: against the controls' 18 that squeezed the monitoring
             # column to its minimum after every narrow-to-wide reflow — the
             # "stretched" layout seen when the app reopened and was maximized.
-            self._workspace.setColumnStretch(1, TELEMETRY_STRETCH)
+            self._workspace.setColumnStretch(2, TELEMETRY_STRETCH)
+            self._side_grip.show()
+            self._apply_side_width()
+        elif not stacked and self._side_width:
+            self._apply_side_width()  # keep the stored width inside the new window
 
         columns = 1 if width < PROFILE_STACK_WIDTH else 3
         current = 1 if self._profiles_grid.itemAtPosition(1, 0) is not None else 3

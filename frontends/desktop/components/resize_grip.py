@@ -57,3 +57,66 @@ class ResizeGrip(QFrame):
         centre_x, centre_y = self.width() // 2, self.height() // 2
         for offset in (-10, 0, 10):
             painter.drawEllipse(centre_x + offset - 2, centre_y - 1, 4, 4)
+
+
+class SideGrip(QFrame):
+    """The same bar standing up, between two columns: drag sideways to resize.
+
+    Used on the CPU screen between the controls and the monitoring column.
+    It only reports the horizontal distance from the press; the page decides
+    the width, stores it, and a double-click asks for the default back.
+    """
+
+    pressed = pyqtSignal()
+    dragged = pyqtSignal(int)
+    released = pyqtSignal()
+    double_clicked = pyqtSignal()
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setProperty("diagGrip", True)
+        self.setFixedWidth(12)
+        self.setCursor(Qt.CursorShape.SizeHorCursor)
+        self.setToolTip(tr("Drag to resize. Double-click to restore the default width."))
+        self._press_x = 0
+        self._hover = False
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._press_x = round(event.globalPosition().x())
+            self.pressed.emit()
+            event.accept()
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        if event.buttons() & Qt.MouseButton.LeftButton:
+            self.dragged.emit(round(event.globalPosition().x()) - self._press_x)
+            event.accept()
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.released.emit()
+            event.accept()
+
+    def mouseDoubleClickEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.double_clicked.emit()
+            event.accept()
+
+    def enterEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        self._hover = True
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        self._hover = False
+        self.update()
+        super().leaveEvent(event)
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(COLORS["blue" if self._hover else "muted"]))
+        centre_x, centre_y = self.width() // 2, self.height() // 2
+        for offset in (-10, 0, 10):
+            painter.drawEllipse(centre_x - 2, centre_y + offset - 2, 4, 4)

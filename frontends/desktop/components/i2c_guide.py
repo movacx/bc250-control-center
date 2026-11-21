@@ -76,7 +76,7 @@ DRIVER_STATES = {
     "vram": {
         "unsupported": "Needs an Arch-based system (Arch, CachyOS, Manjaro) on a BC-250 with BIOS P3.00: the driver patches the SMU at addresses reviewed for that BIOS only.",
         "managed-elsewhere": "Your kernel already includes this driver (MastaG's BC-250 kernels do), so there is nothing to build.",
-        "installed": "Installed, but not reading. It needs a BIOS that allows SMU access; run sudo dmesg | grep bc250_memory to see why.",
+        "installed": "Installed, but this BIOS keeps the SMU locked, so the driver waits. Press Monitor live on the dashboard once after each power-on: Control Center patches the SMU and the driver reads from then on.",
         "update-available": "This copy was built by an earlier version of Control Center. Press Update to build it again with the current fixes.",
     },
 }

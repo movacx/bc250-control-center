@@ -175,6 +175,7 @@ from bc250cc.infrastructure.helixsr import (
     save_helixsr_settings,
     scan_helixsr_games,
     select_helixsr_release,
+    set_helixsr_bridge_frame_generation,
     set_helixsr_scaler_frame_generation,
     update_all_helixsr_games,
     update_helixsr_game,
@@ -680,7 +681,9 @@ class DependenciasRepository(SteamosDependenciesMixin):
             self.estado_herramientas_cache = None
             return result
         for prefix, operation in (('bridge_remove:', remove_helixsr_bridge),
-                                  ('bridge_rollback:', rollback_helixsr_bridge)):
+                                  ('bridge_rollback:', rollback_helixsr_bridge),
+                                  ('bridge_fg_on:', lambda game: set_helixsr_bridge_frame_generation(game, True)),
+                                  ('bridge_fg_off:', lambda game: set_helixsr_bridge_frame_generation(game, False))):
             if action.startswith(prefix):
                 result = operation(action[len(prefix):])
                 self.estado_herramientas_cache = None
@@ -1435,7 +1438,11 @@ class DependenciasRepository(SteamosDependenciesMixin):
             ),
             'external_integrations': external_integrations,
             'accessories': self._optional_inventory_probe(
-                lambda: accessory_inventory(os_info.family, self._tool_dir()), {},
+                lambda: accessory_inventory(
+                    os_info.family, self._tool_dir(),
+                    distro_id=getattr(os_info, 'distro_id', ''),
+                    immutable=bool(getattr(os_info, 'immutable', False)),
+                ), {},
             ),
             'missing_optional_features': [
                 item

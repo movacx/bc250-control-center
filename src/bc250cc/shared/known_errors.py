@@ -12,6 +12,9 @@ from functools import lru_cache
 from pathlib import Path
 
 CATALOG_PATH = Path(__file__).with_name("known_errors.json")
+#: Reports per entry, regenerated with the error README: the list leads
+#: with what people actually run into, not with the catalog's order.
+FREQUENCY_PATH = Path(__file__).with_name("known_errors_frequency.json")
 FAMILIES = ("arch", "steamos", "bazzite", "fedora", "ubuntu", "debian", "other")
 _FAMILY_ALIASES = {
     "cachyos": "arch", "manjaro": "arch", "endeavouros": "arch", "garuda": "arch",
@@ -36,6 +39,23 @@ def localized(value: dict, language: str = "en") -> str:
 @lru_cache(maxsize=1)
 def catalog() -> dict:
     return json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+
+
+@lru_cache(maxsize=1)
+def frequency() -> dict[str, int]:
+    """How many reports each entry has; empty when the file is missing."""
+    try:
+        reports = json.loads(FREQUENCY_PATH.read_text(encoding="utf-8")).get("reports", {})
+        return {str(key): int(value) for key, value in reports.items()}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return {}
+
+
+def by_frequency(identities) -> list[str]:
+    """Most reported first; entries with the same count keep the catalog's order."""
+    counts = frequency()
+    order = list(identities)
+    return sorted(order, key=lambda identity: (-counts.get(identity, 0), order.index(identity)))
 
 
 def load() -> tuple[dict, ...]:

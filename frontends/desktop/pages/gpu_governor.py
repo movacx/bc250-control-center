@@ -2135,7 +2135,28 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         name = str(game.get("name") or key)
         installed = str(game.get("installed_way") or "")
         version = str(helixsr.get("version") or "")
-        names = {"scaler": "DLSS · HelixSR Scaler", "fsr": "HLX FSR 4"}
+        names = {"scaler": "HelixSR Scaler (DLSS)", "fsr": "HLX FSR 4"}
+        if game_action in {"bridge_fg_on", "bridge_fg_off"}:
+            # HelixSR's own frame generation in a game with HelixSR Scaler: a
+            # setting in its files, nothing to confirm; the game must be closed.
+            on = game_action == "bridge_fg_on"
+
+            def toggled(result: object) -> None:
+                game_name = str(_dict(result).get("game") or name)
+                message = (
+                    tr_format("Frame generation is on in {game}. Turn on DLSS Frame Generation in the game.", game=game_name)
+                    if on else tr_format("Frame generation is off in {game}.", game=game_name)
+                )
+                GpuGovernorPage._record_preparation_result(self, "HelixSR", message)
+
+            self._run_backend_action(
+                lambda: self.controller.gestionar_helixsr(action),
+                toggled,
+                "Could not change the game's files",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         pick = {"scaler": "In the game, choose DLSS.", "fsr": "In the game, choose AMD FSR."}
         if game_action == "bridge_install" and game.get("managed_by") == "app-2x":
             copy = (

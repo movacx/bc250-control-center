@@ -1186,9 +1186,10 @@ class FansPage(QWidget):
         self.profile_apply = _button("Apply profile", "primary")
         self.profile_apply.clicked.connect(self._apply_profile)
         profile_row.addWidget(self.profile_apply)
-        self.profile_save = _button("Save as…")
-        self.profile_save.clicked.connect(self._save_profile)
-        profile_row.addWidget(self.profile_save)
+        # Delete sits right after Apply; Save as… lives in More.
+        self.profile_delete = _button("Delete profile")
+        self.profile_delete.clicked.connect(self._delete_profile)
+        profile_row.addWidget(self.profile_delete)
         self.toolbar_box.addLayout(profile_row, 0)
         self.toolbar_box.addStretch(1)
 
@@ -1338,7 +1339,7 @@ class FansPage(QWidget):
         for column in (BIOS, FOLLOWS, TEMPERATURE):
             self.table.setColumnHidden(column, narrow)
         self.profile_label.setVisible(not narrow)
-        self.profile_save.setVisible(not narrow)  # also in More
+        self.profile_delete.setVisible(not narrow)  # also in More
         self.boot_label.setWordWrap(narrow)
         vertical = self.width() < STACK_BREAKPOINT
         orientation = Qt.Orientation.Vertical if vertical else Qt.Orientation.Horizontal
@@ -1633,6 +1634,7 @@ class FansPage(QWidget):
     def _profile_choice_changed(self, _index) -> None:
         self._profile_selection_pending = True
         self.profile_apply.setEnabled(bool(self.profile_combo.currentData()) and self._channels_service is not None and not self._fan_external())
+        self.profile_delete.setEnabled(self._can_delete_profile())
 
     def _render_profiles(self) -> None:
         board = self._board
@@ -1651,9 +1653,17 @@ class FansPage(QWidget):
         _set_combo(self.profile_combo, selected or ("" if custom else "Balanced"))
         self.profile_combo.blockSignals(False)
         usable = self._channels_service is not None and not self._fan_external() and not self._busy
-        for widget in (self.profile_combo, self.profile_apply, self.profile_save):
-            widget.setEnabled(usable)
+        self.profile_combo.setEnabled(usable)
         self.profile_apply.setEnabled(usable and bool(self.profile_combo.currentData()))
+        self.profile_delete.setEnabled(self._can_delete_profile())
+
+    def _can_delete_profile(self) -> bool:
+        """Only a profile the user saved: the built-in three stay."""
+        name = self.profile_combo.currentData()
+        return (
+            bool(name) and name not in BUILTIN_MODE_NAMES.values()
+            and self._channels_service is not None and not self._fan_external() and not self._busy
+        )
 
     # ----------------------------------------------------------- changes
 
@@ -1802,8 +1812,16 @@ class FansPage(QWidget):
 
     def _delete_profile(self) -> None:
         name = self.profile_combo.currentData()
-        if not name or self._channels_service is None or name in BUILTIN_MODE_NAMES.values():
+        if not self._can_delete_profile():
             return
+        dialog = ConfirmDialog(
+            "Delete profile",
+            tr_format("Delete the fan profile “{name}”? This cannot be undone.", name=str(name)),
+            confirm_text="Delete", eyebrow="DELETE PROFILE", tone="red", parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._profile_selection_pending = False
         self._board = self._channels_service.delete_mode(str(name))
         self._render()
 
@@ -2189,14 +2207,15 @@ class FansPage(QWidget):
     def _fill_more_menu(self) -> None:
         menu = self.more_menu
         menu.clear()
+        menu.addAction(tr("Save profile as…"), self._save_profile).setEnabled(
+            self._channels_service is not None and not self._fan_external() and not self._busy
+        )
+        if self.profile_delete.isHidden():
+            menu.addAction(tr("Delete profile"), self._delete_profile).setEnabled(self._can_delete_profile())
+        menu.addSeparator()
         menu.addAction(tr("Export fan profiles"), self.export_profiles_to_file)
         menu.addAction(tr("Import fan profiles"), self.import_profiles_from_file)
         menu.addAction(tr("Export to Decky"), self.export_profiles_to_decky)
-        saved = self.profile_combo.currentData()
-        if self.profile_save.isHidden():
-            menu.addAction(tr("Save as…"), self._save_profile)
-        delete = menu.addAction(tr("Delete"), self._delete_profile)
-        delete.setEnabled(bool(saved) and saved not in BUILTIN_MODE_NAMES.values())
         menu.addSeparator()
         diagnostics = menu.addMenu(tr("Diagnostics"))
         diagnostics.addAction(tr("Prepare PWM driver"), lambda: self.prepare_pwm_driver())

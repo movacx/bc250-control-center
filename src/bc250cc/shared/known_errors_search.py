@@ -223,7 +223,9 @@ def matches(text: str, *, module: str = "") -> tuple[SearchMatch, ...]:
     allowed = index.modules.get(module, set()) if module else set(index.entries)
     query = handbook.normalize(text)
     if not query:
-        return tuple(SearchMatch(entry, "", "") for key, entry in index.entries.items() if key in allowed)
+        # Nothing typed: the most reported errors first.
+        ordered = handbook.by_frequency(key for key in index.entries if key in allowed)
+        return tuple(SearchMatch(index.entries[key], "", "") for key in ordered)
     ranked = {}
 
     def offer(identity: str, rank: int, kind: str, term: str, coverage: int = 0):
@@ -282,8 +284,13 @@ def matches(text: str, *, module: str = "") -> tuple[SearchMatch, ...]:
                       corrected if rank == 8 else text.strip()[:90], maximum)
     if any(score[0] <= 5 for score, _ in ranked.values()):
         ranked = {key: value for key, value in ranked.items() if value[0][0] <= 5}
-    return tuple(item[1] for _, item in sorted(ranked.items(),
-                 key=lambda pair: (*pair[1][0], tuple(index.entries).index(pair[0]))))
+    counts = handbook.frequency()
+    catalog_order = tuple(index.entries)
+    # Equally good matches: the more often reported one first.
+    return tuple(item[1] for _, item in sorted(
+        ranked.items(),
+        key=lambda pair: (*pair[1][0], -counts.get(pair[0], 0), catalog_order.index(pair[0])),
+    ))
 
 
 def suggestions(text: str, *, module: str = "") -> tuple[str, ...]:

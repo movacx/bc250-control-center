@@ -156,6 +156,8 @@ class KnownErrorsList(QWidget):
         self.rows_layout.setSpacing(10)
         self.rows_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.rows, self.titles, self.subtitles, self.view_buttons = {}, {}, {}, {}
+        #: The numbers follow the order shown: 01 is the most reported.
+        self.numbers = {}
         for index, entry in enumerate(known_errors.load(), start=1):
             row = QFrame()
             row.setProperty("repositoryRow", True)
@@ -165,6 +167,7 @@ class KnownErrorsList(QWidget):
             row_layout.setSpacing(16)
             number = _label(f"{index:02d}", "repositoryIndex", literal=True)
             number.setFixedWidth(25)
+            self.numbers[entry["id"]] = number
             row_layout.addWidget(number)
             copy = QVBoxLayout()
             copy.setSpacing(7)
@@ -264,6 +267,7 @@ class KnownErrorsList(QWidget):
                           else tr_format("Matches: {term}", term=term))
                 metadata += "  ·  " + reason
             self.subtitles[entry["id"]].setText(metadata)
+            self.numbers[entry["id"]].setText(f"{position + 1:02d}")
             self.rows_layout.insertWidget(position, self.rows[entry["id"]])
         self.empty.setVisible(not matches)
         suggestions = known_errors.search_suggestions(query, module=self.module) if not matches else ()

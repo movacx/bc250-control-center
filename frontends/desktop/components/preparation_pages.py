@@ -944,6 +944,7 @@ class PreparationPagesMixin:
         self._build_vaapi_card()
         layout.addWidget(self.vaapi_card)
         self._build_vram_sensor_card()
+        layout.addWidget(self.apu_telemetry_card)
         layout.addWidget(self.vrm_sensor_card)
         layout.addWidget(self.vram_sensor_card)
         layout.addStretch(1)
@@ -959,6 +960,16 @@ class PreparationPagesMixin:
         kernel module. Its buttons are an accessory's (install, remove,
         upstream), wired with the others in ``_build_accessory_cards``.
         """
+        # The wired route first: it works on every distribution the service
+        # installs on, the two kernel drivers only on Arch-based systems.
+        self.apu_telemetry_card = PreparationInfoCard(
+            "Power delivery readings (I2C mod)",
+            "Author: onlinermm, BC250-Telemetry. A service that reads the voltage regulators over the "
+            "I2C wires soldered to the board: input voltage, rails and VRM temperatures. Needs the "
+            "physical modification.",
+            scope_text="Board sensor",
+            status_text="Checking",
+        )
         self.vrm_sensor_card = PreparationInfoCard(
             "Power delivery readings (kernel driver)",
             "Author: Liam McLoughlin (Hexxeh), bc250-vrm-dkms. Reads the voltage regulator through "
@@ -1283,6 +1294,7 @@ class PreparationPagesMixin:
         # Every game against both upscalers, across the page.
         self.upscaling_games = _UpscalingGames()
         self.upscaling_games.action_requested.connect(self._forward_dependency_action)
+        self.upscaling_games.hide_requested.connect(self._hide_upscaling_game)
         self.upscaling_games.body.insertWidget(0, self.fsr4_launch_panel)
         # Every game with another HelixSR release than the installed one.
         self.helixsr_update_all_button = self.upscaling_games.add_header_button(
@@ -1396,8 +1408,49 @@ class PreparationPagesMixin:
         row.addWidget(button)
         return host
 
+    def _hide_upscaling_game(self, key: str, name: str, installed: bool) -> None:
+        """The row's trash button: off this list, nothing in the game changes.
+
+        A game with HelixSR or FSR4 in it is asked about first: it keeps
+        them, and Add game › Show hidden games brings the row back to manage them.
+        """
+        from .preparation_render import (
+            hidden_upscaling_games,
+            set_hidden_upscaling_games,
+        )
+
+        if installed:
+            from PyQt6.QtWidgets import QDialog
+
+            from .page_widgets import ConfirmDialog
+
+            dialog = ConfirmDialog(
+                "Remove from this list?",
+                tr_format(
+                    "{game} keeps what it has installed: HelixSR or FSR4 stay in the game. "
+                    "To update or remove them later, show it again from Add game.",
+                    game=name,
+                ),
+                confirm_text="Remove from list",
+                eyebrow="UPSCALING",
+                tone="orange",
+                parent=self,
+            )
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+        set_hidden_upscaling_games([*hidden_upscaling_games(), key])
+        self._render_upscaling()
+
+    def _show_hidden_upscaling_games(self) -> None:
+        from .preparation_render import set_hidden_upscaling_games
+
+        set_hidden_upscaling_games([])
+        self._render_upscaling()
+
     def _open_add_game_menu(self) -> None:
         """Add game: a folder outside Steam, or a game with OptiScaler put in by hand."""
+        from .preparation_render import hidden_upscaling_games
+
         menu = QMenu(self.upscaling_add_button)
         menu.setProperty("upscalingMenu", True)
         for button in (self.helixsr_folder_button, self.helixsr_opti_folder_button):
@@ -1406,6 +1459,13 @@ class PreparationPagesMixin:
             action = menu.addAction(button.text())
             action.setToolTip(button.toolTip())
             action.triggered.connect(lambda _checked=False, source=button: source.click())
+        hidden = len(hidden_upscaling_games())
+        if hidden:
+            if not menu.isEmpty():
+                menu.addSeparator()
+            menu.addAction(
+                tr_format("Show hidden games ({count})", count=hidden), self._show_hidden_upscaling_games
+            )
         if not menu.isEmpty():
             self._add_game_menu = menu
             menu.popup(self.upscaling_add_button.mapToGlobal(self.upscaling_add_button.rect().bottomLeft()))
@@ -1532,6 +1592,7 @@ class PreparationPagesMixin:
             "hdmi_cec": self.hdmi_cec_card,
             "vram_sensor": self.vram_sensor_card,
             "vrm_sensor": self.vrm_sensor_card,
+            "apu_telemetry": self.apu_telemetry_card,
         }
         for key, card, configure_text in (
             ("thermalright", self.thermalright_card, "Open configuration"),
@@ -1540,6 +1601,7 @@ class PreparationPagesMixin:
             ("hdmi_cec", self.hdmi_cec_card, "Open TV control"),
             ("vram_sensor", self.vram_sensor_card, "Open configuration"),
             ("vrm_sensor", self.vrm_sensor_card, "Open configuration"),
+            ("apu_telemetry", self.apu_telemetry_card, "Open configuration"),
         ):
             buttons = {
                 "install": card.add_action("Install", {"accessory": key, "op": "install"}),
@@ -1554,7 +1616,7 @@ class PreparationPagesMixin:
             card.layout().insertWidget(2, note)
             self._accessory_notes[key] = note
             card.action_requested.connect(self._forward_accessory_action)
-            if card not in (self.vram_sensor_card, self.vrm_sensor_card):  # they live on Compatibility
+            if card not in (self.vram_sensor_card, self.vrm_sensor_card, self.apu_telemetry_card):  # on Compatibility
                 layout.addWidget(card)
 
 

@@ -261,6 +261,25 @@ def test_hottest_does_not_hide_a_lost_sensor():
     assert ticks[2][2].source == "failsafe"
 
 
+def test_hottest_never_follows_the_board_alone():
+    """Reported 2026-11-16 (Discord): Hottest chip read VRM 38.5 C and the fan
+    stayed at 31 % while the APU heated. Without a GPU or CPU reading the
+    curve waits, then fails safe, instead of trusting the cooler board."""
+    policy = _policy(**{"2": {"mode": "curve", "points": [[37, 28], [55, 65], [80, 100]]}})
+    board_only = {"vrm": 38.5, "board": 36.0}
+    ticks = _run(policy, [(0.0, board_only), (6.0, board_only), (21.0, board_only)], expected=set(board_only))
+
+    assert ticks[1][2].percent <= 31  # grace period
+    assert ticks[2][2].source == "failsafe" and ticks[2][2].percent == 100
+    assert "GPU or CPU" in ticks[2][2].reason
+
+
+def test_hottest_with_the_apu_present_follows_the_hottest_chip():
+    policy = _policy(**{"2": {"mode": "curve", "points": [[37, 28], [55, 65], [80, 100]]}})
+    ticks = _run(policy, [(0.0, {"cpu": 36.0, "vrm": 38.5, "board": 36.0})])
+    assert ticks[0][2].source == "curve" and ticks[0][2].sensor == "vrm"
+
+
 def test_a_mix_member_lost_never_lowers_the_duty_during_grace():
     policy = _policy(**{
         "2": {"mode": "mix", "mix": [

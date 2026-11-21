@@ -6,6 +6,7 @@ from typing import NamedTuple
 
 from PyQt6.QtCore import QPoint, QRect, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
+    QApplication,
     QGridLayout,
     QLabel,
     QSizePolicy,
@@ -17,10 +18,6 @@ from bc250cc.infrastructure.install_source import detect_install_source
 from bc250cc.infrastructure.release_check import (
     RELEASES_PAGE_URL,
     check_for_update,
-)
-from bc250cc.infrastructure.vrm_telemetry_reader import (
-    kernel_vrm_driver_present,
-    sondear_telemetria_vrm,
 )
 
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
@@ -39,7 +36,6 @@ from ..components.dashboard_widgets import (
     PreparationSidebar,
     UpdateCallout,
 )
-from ..components.i2c_guide import I2cGuideDialog
 from ..components.responsive import (
     clear_grid,
     configure_responsive_scroll_area,
@@ -99,7 +95,7 @@ def _look_for_update() -> _UpdateLookup:
     source = detect_install_source() if status.update_available else None
     return _UpdateLookup(status=status, source=source)
 
-CONTACT_URL = "https://discord.com/channels/1315924807128449065/1526169299490836510"
+CONTACT_URL = "https://discord.com/invite/8eZfFWhczz"
 SUPPORT_URL = "https://ko-fi.com/movacx"
 #: The BC-250 community's Telegram group.
 TELEGRAM_URL = "https://t.me/+LJAp9e4cpPs3Mzky"
@@ -350,6 +346,7 @@ class DashboardPage(QWidget):
         self.footer.telegram_clicked.connect(self._open_telegram)
         self.footer.report_clicked.connect(self._open_report)
         self.footer.support_clicked.connect(self._open_support)
+        self.footer.note_clicked.connect(self._open_developer_note)
         self.footer.update_clicked.connect(self._badge_clicked)
         self.readiness.set_header_actions(self.footer)
         self.footer.set_report_glow(report_glow_enabled())
@@ -357,6 +354,7 @@ class DashboardPage(QWidget):
         self.telegram_button = self.footer.telegram_button
         self.report_button = self.footer.report_button
         self.support_button = self.footer.support_button
+        self.note_button = self.footer.note_button
         self.update_button = self.footer.update_button
         # The only place this application reaches the network itself, so it is
         # kept off the UI thread and never reports a failure. See
@@ -734,6 +732,47 @@ class DashboardPage(QWidget):
     def _open_report(self) -> None:
         # The form is a page of Settings (Support), not a window of its own.
         self.action_requested.emit("support")
+
+    def _open_developer_note(self) -> None:
+        """Support is paused while the developer's board is broken."""
+        from ..components.developer_note import DeveloperNoteDialog, mark_note_seen
+
+        mark_note_seen()
+        DeveloperNoteDialog(self).exec()
+
+    def present_developer_note_once(self, delay_ms: int = 1200) -> None:
+        """Open the note by itself, once ever, when nothing else is in front.
+
+        A clean install gets it after the welcome screen and the tour; an
+        update gets it on the first start of the new version. After that it
+        only opens from its button.
+        """
+        from ..components.developer_note import note_seen
+
+        if note_seen():
+            return
+
+        def present() -> None:
+            from ..components.developer_note import DeveloperNoteDialog, mark_note_seen
+
+            window = self.window()
+            presenting = getattr(window, "is_presenting_overlay", None)
+            if (
+                note_seen()
+                or window is None
+                or not window.isVisible()
+                or getattr(window, "_first_run_pending", False)
+                or (callable(presenting) and presenting())
+                or QApplication.activeModalWidget() is not None
+            ):
+                # Something else has the screen; the next chance asks again.
+                return
+            mark_note_seen()
+            dialog = DeveloperNoteDialog(window)
+            dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+            dialog.open()
+
+        QTimer.singleShot(delay_ms, present)
 
     def _open_support(self) -> None:
         opened, message = open_external_url(SUPPORT_URL)
@@ -1296,28 +1335,12 @@ class DashboardPage(QWidget):
     def _show_vrm_help(self) -> None:
         """Where the power delivery readings come from on this board: the I2C
         modification with its photo guide, and Hexxeh's two kernel drivers."""
-        kernel = kernel_vrm_driver_present()
-        daemon = str(sondear_telemetria_vrm().get("daemon") or "missing")
-        if kernel:
-            message = VRM_HELP_KERNEL
-        elif daemon in {"running", "stale"}:
-            message = VRM_HELP_NO_ANSWER
-        else:
-            message = VRM_HELP_SERVICE
+        # The guide lives in Settings › Telemetry now, next to the rows that
+        # install what it describes. No wires at all is the shortest way,
+        # where this system can build it, so that tab opens first.
         drivers = kernel_sensor_drivers()
-        # No wires at all is the shortest way, where this system can build it.
         tab = "vrm" if str((drivers.get("vrm_sensor") or {}).get("state")) == "not-installed" else "i2c"
-        result = I2cGuideDialog(
-            self, message=message, can_install=message == VRM_HELP_SERVICE, drivers=drivers, tab=tab,
-        ).exec()
-        if result == I2cGuideDialog.INSTALL:
-            self.action_requested.emit("telemetry_install")
-        elif result == I2cGuideDialog.TELEMETRY:
-            self.action_requested.emit("telemetry_settings")
-        elif result == I2cGuideDialog.BUILD_VRM:
-            self.driver_support_requested.emit("vrm_sensor:install")
-        elif result == I2cGuideDialog.BUILD_VRAM:
-            self.driver_support_requested.emit("vram_sensor:install")
+        self.action_requested.emit(f"sensor_guide:{tab}")
 
     def _update_vrm_strip(self, state) -> None:
         """The rails, whether or not this board can measure them.
@@ -1428,6 +1451,12 @@ class DashboardPage(QWidget):
             return tr_format(
                 "Manual mode · BC250-Telemetry's last snapshot is {age} s old",
                 age=f"{float(probe.get('age_s') or 0):.0f}",
+            )
+        if any(rail.get("implausible") for rail in rails):
+            # A wedged SMBus hands back one stale word for every register.
+            return tr(
+                "Manual mode · the regulator returns values the board cannot produce (such as 797 °C), "
+                "so they are shown here as received and used nowhere else"
             )
         if not any(rail.get("valid") for rail in rails):
             return tr("Manual mode · no valid answer from the PMIC; values as BC250-Telemetry reports them")

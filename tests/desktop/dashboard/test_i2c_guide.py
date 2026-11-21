@@ -7,6 +7,7 @@ and the guide credits and links the original.
 
 from __future__ import annotations
 
+import pytest
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QLabel, QPushButton
 
@@ -70,23 +71,13 @@ def test_the_install_button_shows_only_when_it_can_install(qtbot):
     assert offered.result() == I2cGuideDialog.INSTALL
 
 
-def test_the_dashboard_routes_the_install_to_settings(qtbot, monkeypatch):
+@pytest.mark.parametrize(("vrm_state", "tab"), [("not-installed", "vrm"), ("unsupported", "i2c"), (None, "i2c")])
+def test_the_dashboard_opens_the_guide_in_settings(monkeypatch, vrm_state, tab):
+    """The guide lives in Settings › Telemetry now; "How to enable" opens it there."""
     import frontends.desktop.pages.dashboard as dashboard_module
 
-    class Dialog:
-        TELEMETRY = I2cGuideDialog.TELEMETRY
-        INSTALL = I2cGuideDialog.INSTALL
-
-        def __init__(self, parent, *, message, can_install, **_options):
-            pass
-
-        def exec(self):
-            return self.INSTALL
-
-    monkeypatch.setattr(dashboard_module, "I2cGuideDialog", Dialog)
-    monkeypatch.setattr(dashboard_module, "kernel_sensor_drivers", dict)
-    monkeypatch.setattr(dashboard_module, "kernel_vrm_driver_present", lambda: False)
-    monkeypatch.setattr(dashboard_module, "sondear_telemetria_vrm", lambda: {"daemon": "missing"})
+    drivers = {"vrm_sensor": {"state": vrm_state}} if vrm_state else {}
+    monkeypatch.setattr(dashboard_module, "kernel_sensor_drivers", lambda: drivers)
     routed = []
 
     class Signal:
@@ -95,4 +86,4 @@ def test_the_dashboard_routes_the_install_to_settings(qtbot, monkeypatch):
 
     fake = type("Fake", (), {"action_requested": Signal()})()
     dashboard_module.DashboardPage._show_vrm_help(fake)
-    assert routed == ["telemetry_install"]
+    assert routed == [f"sensor_guide:{tab}"]

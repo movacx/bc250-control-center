@@ -111,6 +111,8 @@ EXTERNAL_GUARD_BENIGN = (
 #: Queue 3 messages from the kernel without the locks above, so this helper
 #: never patches next to it: the reader relays the driver's hwmon readings.
 KERNEL_DRIVER_MODULE = pathlib.Path("/sys/module/bc250_memory")
+KERNEL_DRIVER_NAME = "bc250_memory"
+HWMON_ROOT = pathlib.Path("/sys/class/hwmon")
 
 #: A monitoring session is bounded on purpose. One Polkit prompt buys this
 #: much live sampling and no more: an authenticated root process that samples
@@ -626,9 +628,53 @@ def _patch_status(repository: pathlib.Path, uid: int, *, ignore_governor: bool) 
     )
 
 
-def kernel_driver_loaded(module: pathlib.Path | None = None) -> bool:
-    """Whether the kernel's own bc250_memory driver owns the SMU patch."""
-    return (module or KERNEL_DRIVER_MODULE).is_dir()
+def kernel_driver_hwmon(root: pathlib.Path | None = None) -> pathlib.Path | None:
+    for entry in sorted((root or HWMON_ROOT).glob("hwmon*")):
+        try:
+            if (entry / "name").read_text(encoding="utf-8").strip() == KERNEL_DRIVER_NAME:
+                return entry
+        except OSError:
+            continue
+    return None
+
+
+def kernel_driver_loaded(
+    module: pathlib.Path | None = None, root: pathlib.Path | None = None,
+) -> bool:
+    """Whether the kernel's own bc250_memory driver owns the SMU patch.
+
+    Loaded is not enough: without SMU debug access (a stock P3.00 BIOS) the
+    driver logs "SMU debug access is locked" and registers no sensor. Only a
+    driver that publishes its hwmon owns the patch; a silent one is treated
+    as absent, so Control Center patches and then wakes it (reprobe).
+    """
+    return (module or KERNEL_DRIVER_MODULE).is_dir() and kernel_driver_hwmon(root) is not None
+
+
+def kernel_driver_silent(module: pathlib.Path | None = None, root: pathlib.Path | None = None) -> bool:
+    """Loaded, but it bailed out at probe and publishes nothing."""
+    return (module or KERNEL_DRIVER_MODULE).is_dir() and kernel_driver_hwmon(root) is None
+
+
+def _wake_kernel_driver() -> None:
+    """Reload a silent bc250_memory once the SMU carries a payload.
+
+    Its probe first asks the SMU for a reading; with the payload in place
+    that answers, so it skips its own (refused) patch and publishes its
+    sensor for the rest of the boot: sensors, MangoHud and the dashboard
+    then read it without another prompt. Done under the SMN window lock so
+    its probe message never lands in the middle of another SMU client.
+    """
+    if not kernel_driver_silent():
+        return
+    with smn_window_lock():
+        for argv in (["modprobe", "-r", KERNEL_DRIVER_NAME], ["modprobe", KERNEL_DRIVER_NAME]):
+            subprocess.run(argv, capture_output=True, text=True, check=False, timeout=30,
+                           env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C", "LC_ALL": "C"})
+    if kernel_driver_loaded():
+        print("The kernel's bc250_memory driver now reads the memory temperature for this boot.")
+    else:
+        print("bc250_memory still publishes no sensor; Control Center keeps reading the chips itself.")
 
 
 def _patch_arguments(status: dict) -> tuple[str, ...] | None:
@@ -689,6 +735,7 @@ def _do_apply(
             arguments = _patch_arguments(status)
             if arguments is None:
                 print("The runtime SMU patch is already active for this boot.")
+                _wake_kernel_driver()
                 return 0
             # Held across the whole patch run: the payload is written one 32-bit
             # word at a time, and another SMU client redirecting the window
@@ -733,6 +780,7 @@ def _do_apply(
         "Runtime SMU patch applied. This lives in volatile SMU RAM only; a full "
         "power cycle restores the factory Queue 3 handlers."
     )
+    _wake_kernel_driver()
     return 0
 
 

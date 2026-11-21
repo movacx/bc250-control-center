@@ -1,4 +1,4 @@
-"""The report button glows softly by default, rests when hidden, and obeys Settings."""
+"""The support (report) button pings by default, rests when hidden, and obeys Settings."""
 
 from __future__ import annotations
 
@@ -8,24 +8,31 @@ from frontends.desktop.components.dashboard_widgets import DashboardFooter
 
 
 def test_the_glow_runs_while_shown_and_stops_with_the_switch(qtbot):
+    from PyQt6.QtCore import Qt
+
     footer = DashboardFooter()
     qtbot.addWidget(footer)
     button = footer.report_button
     footer.set_report_glow(True)
     footer.show()
     qtbot.waitExposed(footer)
+    button.setAttribute(Qt.WidgetAttribute.WA_UnderMouse, False)
     assert button.glowing()
-    assert button._glow.state() == QAbstractAnimation.State.Running
+    # It moves in its turn, which the footer gives it.
+    assert button.play()
+    assert button.motion.state() == QAbstractAnimation.State.Running
 
     footer.hide()
-    assert button._glow.state() == QAbstractAnimation.State.Stopped
+    assert button.motion.state() == QAbstractAnimation.State.Stopped
+    assert not button.play()
     footer.show()
-    assert button._glow.state() == QAbstractAnimation.State.Running
+    assert button.play()
 
     footer.set_report_glow(False)
     assert not button.glowing()
-    assert button._glow.state() == QAbstractAnimation.State.Stopped
-    assert button._level == 0.0
+    assert button.motion.state() == QAbstractAnimation.State.Stopped
+    assert button._at_rest()
+    assert not button.play()
 
 
 def test_the_glow_is_on_unless_settings_switch_it_off(monkeypatch):

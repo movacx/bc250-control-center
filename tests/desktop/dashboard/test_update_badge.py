@@ -47,7 +47,7 @@ def test_the_badge_is_absent_until_there_is_something_to_say(footer):
 
 
 def test_it_sits_with_the_other_links(footer):
-    """One row: this leads, then repositories, Discord, Telegram, report, support."""
+    """One row: this leads, then repositories, Discord, Telegram, report, the note, support."""
     order = [footer.layout.itemAt(i).widget() for i in range(footer.layout.count())]
     assert order == [
         footer.update_button,
@@ -55,6 +55,7 @@ def test_it_sits_with_the_other_links(footer):
         footer.contact_button,
         footer.telegram_button,
         footer.report_button,
+        footer.note_button,
         footer.support_button,
     ]
 
@@ -97,10 +98,17 @@ def test_it_glows_while_visible(footer):
     assert footer.update_button._glow.loopCount() == -1
 
 
-def test_it_lights_up_every_two_seconds_like_the_report_button(footer):
+def test_it_launches_with_its_own_animation(qtbot, footer):
+    """A comet laps the edge, then the board hops, chevrons rise and sparks fly."""
     badge = footer.update_button
-    assert type(badge).__mro__[1] is type(footer.report_button).__mro__[1]
-    assert badge._glow.duration() == 2000
+    assert badge.motion.duration() == badge.COMET_MS + badge.POP_MS + 1 + badge.REST_MS
+    # Its own time, and the alert switch does not stop it.
+    footer.announce_update("1.20.0")
+    footer.set_report_glow(False)
+    assert _running(badge)
+    for comet, rise, burst in ((0.4, 0.0, 0.0), (1.0, 0.5, 0.5)):
+        badge._comet, badge._rise, badge._burst = comet, rise, burst
+        assert not badge.grab().isNull()
 
 
 def test_the_glow_really_moves(qtbot, footer):

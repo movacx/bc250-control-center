@@ -8,24 +8,47 @@ its own configuration (for TV control, a test that wakes the TV).
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from . import hdmi_ac3, hdmi_cec, openlinkhub, thermalright, vram_sensor, vrm_sensor
 
-ACCESSORIES = ("thermalright", "corsair", "hdmi_ac3", "hdmi_cec", "vram_sensor", "vrm_sensor")
+logger = logging.getLogger(__name__)
+
+ACCESSORIES = ("thermalright", "corsair", "hdmi_ac3", "hdmi_cec", "vram_sensor", "vrm_sensor", "apu_telemetry")
+#: Installed through its own workflow (``gestionar_apu_telemetry``), not a
+#: terminal command from here; listed for its card's state only.
+SERVICE_ACCESSORIES = frozenset({"apu_telemetry"})
 #: What TV control adds to install and remove: the TV waking at session start and standing by at power-off.
 CEC_AUTOMATION = frozenset({"wake-install", "wake-remove", "poweroff-install", "poweroff-remove"})
 
 
-def accessory_inventory(family: str, tool_dir: Path) -> dict:
-    return {
-        "thermalright": thermalright.inventory(family),
-        "corsair": openlinkhub.inventory(tool_dir),
-        "hdmi_ac3": hdmi_ac3.inventory(family),
-        "hdmi_cec": hdmi_cec.inventory(family, tool_dir),
-        "vram_sensor": vram_sensor.inventory(family),
-        "vrm_sensor": vrm_sensor.inventory(family),
+def accessory_inventory(family: str, tool_dir: Path, *, distro_id: str = "", immutable: bool = False) -> dict:
+    """Each accessory's state, probed on its own.
+
+    One probe that fails (an unexpected exception on a system nobody tested)
+    must not blank every card: that accessory reports ``error`` with the
+    reason, which is logged, and the others still answer.
+    """
+    from ..apu_telemetry_service import accessory_state
+
+    probes = {
+        "thermalright": lambda: thermalright.inventory(family),
+        "corsair": lambda: openlinkhub.inventory(tool_dir),
+        "hdmi_ac3": lambda: hdmi_ac3.inventory(family),
+        "hdmi_cec": lambda: hdmi_cec.inventory(family, tool_dir),
+        "vram_sensor": lambda: vram_sensor.inventory(family),
+        "vrm_sensor": lambda: vrm_sensor.inventory(family),
+        "apu_telemetry": lambda: accessory_state(family=family, distro_id=distro_id, immutable=immutable),
     }
+    states = {}
+    for key, probe in probes.items():
+        try:
+            states[key] = probe()
+        except Exception as error:  # noqa: BLE001 - isolated per accessory, and logged
+            logger.warning("Accessory probe %s failed on %s", key, family or "unknown", exc_info=True)
+            states[key] = {"state": "error", "error": f"{type(error).__name__}: {error}"}
+    return states
 
 
 def accessory_command(component: str, action: str, *, family: str, tool_dir: Path) -> str:

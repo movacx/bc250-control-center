@@ -278,7 +278,11 @@ class _ComponentRow(QFrame):
             self.action.setEnabled(self._target.isEnabled())
             self.action.setToolTip(self._target.toolTip())
             # Filled when it is the next step: not for a tool already working.
-            accent = tone != "green" and self._target.isEnabled()
+            # Never for a removal named as the row action: that is not a next step.
+            accent = (
+                tone != "green" and self._target.isEnabled()
+                and not self._target.property("dangerAction")
+            )
             if self.action.property("primary") != accent:
                 self.action.setProperty("primary", accent)
                 self.action.style().unpolish(self.action)

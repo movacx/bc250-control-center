@@ -60,8 +60,9 @@ DRIVER = _dkms.Driver(
     reading=("temp1_input", 1000, "°C"),
     bios=SUPPORTED_BIOS,
     silent_hint=(
-        '"SMU debug access is locked" means this BIOS does not allow the SMU patch; a BIOS with SMU '
-        "unlock is needed. The driver stays installed and does nothing on such a board."
+        '"SMU debug access is locked" means this BIOS does not let the driver patch the SMU. Press '
+        "Monitor live on the dashboard once after each power-on: Control Center patches the SMU and "
+        "reloads the driver, which then reads until the board is switched off."
     ),
 )
 DKMS_CONF = DRIVER.dkms_conf()

@@ -82,6 +82,28 @@ _RAIL_MEASUREMENTS = (
 )
 
 
+#: What a BC-250 rail can physically report, per measurement (base units).
+#: Outside these the regulator did not answer: a wedged Nuvoton SMBus master
+#: hands back the same stale word for every register (R-2026-11-21: 797 for
+#: VIN, VOUT, IOUT and TEMP alike, so 7.97 V in, 79.7 A and 797 °C).
+_PLAUSIBLE = {
+    "vin": (9.0, 14.0),
+    "vout": (0.2, 1.8),
+    "iout": (0.0, 120.0),
+    "temp": (1.0, 150.0),
+    "pout": (0.0, 250.0),
+}
+
+
+def _plausible(data: dict[str, Any]) -> bool:
+    """Whether every reading of one rail is something the board can produce."""
+    for key, (low, high) in _PLAUSIBLE.items():
+        value = _number(data.get(key))
+        if value is not None and not low <= value <= high:
+            return False
+    return True
+
+
 def _empty_result() -> dict[str, Any]:
     empty: dict[str, Any] = {
         "vrm_available": False,
@@ -182,11 +204,15 @@ def _kernel_vrm_hardware(
             iout = _attribute(device, f"curr{index}_input", 1000.0)
             temp = _attribute(device, f"temp{index}_input", 1000.0)
             pout = _attribute(device, f"power{index}_input", 1_000_000.0)
-            valid = None not in (vin, vout, iout, temp, pout)
             hardware[rail] = {
-                "valid": valid,
                 "vin": vin, "vout": vout, "iout": iout, "temp": temp, "pout": pout,
             }
+            plausible = _plausible(hardware[rail])
+            valid = None not in (vin, vout, iout, temp, pout) and plausible
+            hardware[rail]["valid"] = valid
+            if not plausible:
+                # Shown as "no reading", never as 797 °C; the probe says why.
+                hardware[rail]["implausible"] = True
             if valid:
                 powers.append(pout)
         hardware["total_power_valid"] = len(powers) == 2
@@ -230,7 +256,7 @@ def leer_telemetria_vrm(
     input_voltages: list[float] = []
     for rail in ("cpu", "gpu"):
         data = hardware.get(rail)
-        if not isinstance(data, dict) or not data.get("valid"):
+        if not isinstance(data, dict) or not data.get("valid") or not _plausible(data):
             continue
         for field, source in _RAIL_MEASUREMENTS:
             result[f"vrm_{rail}_{field}"] = _number(data.get(source))
@@ -273,6 +299,7 @@ def sondear_telemetria_vrm(
     rails = {
         rail: {
             "valid": bool(hardware[rail]["valid"]),
+            "implausible": bool(hardware[rail].get("implausible")),
             **{key: _number(hardware[rail].get(key)) for key in ("vin", "vout", "iout", "pout", "temp")},
         }
         for rail in ("cpu", "gpu")

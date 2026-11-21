@@ -57,6 +57,18 @@ class PreviewController:
                 },
             },
             'prepare_components': {},
+            # What accessory_inventory() answers on SteamOS: the wired service
+            # installs there (it lives under /var/lib), Hexxeh's DKMS drivers
+            # are Arch-only and TRCC publishes no SteamOS package.
+            'accessories': {
+                'thermalright': {'state': 'unsupported', 'device': False},
+                'corsair': {'state': 'not-installed', 'device': False},
+                'hdmi_ac3': {'state': 'not-installed', 'device': False},
+                'hdmi_cec': {'state': 'not-installed', 'device': False},
+                'apu_telemetry': {'state': 'not-installed', 'supported': True, 'device': True},
+                'vrm_sensor': {'state': 'unsupported', 'device': True},
+                'vram_sensor': {'state': 'unsupported', 'device': True, 'bios_supported': True},
+            },
         })
 
     def __getattr__(self, name):

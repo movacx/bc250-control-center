@@ -94,3 +94,28 @@ def test_empty_queries_and_stopwords_do_not_guess_a_repair():
     assert handbook.search("no gira", module="packages") == ()
     assert handbook.search_suggestions("ventiladr", module="packages") == ()
     assert "fans" in engine.suggested_modules("ventiladres")
+
+
+def test_with_nothing_typed_the_most_reported_errors_come_first(monkeypatch):
+    from bc250cc.shared import known_errors, known_errors_search
+
+    entries = [entry["id"] for entry in known_errors.load()]
+    rare, common = entries[0], entries[-1]
+    monkeypatch.setattr(known_errors, "frequency", lambda: {common: 40, rare: 0})
+    known_errors_search.matches.cache_clear()
+    try:
+        listed = [match.entry["id"] for match in known_errors_search.matches("")]
+        assert listed[0] == common
+        assert len(listed) == len(entries)
+    finally:
+        known_errors_search.matches.cache_clear()
+
+
+def test_the_shipped_counts_only_name_real_entries():
+    from bc250cc.shared import known_errors
+
+    known_errors.frequency.cache_clear()
+    counts = known_errors.frequency()
+    ids = {entry["id"] for entry in known_errors.load()}
+    assert counts and set(counts) <= ids
+    assert all(isinstance(n, int) and n > 0 for n in counts.values())

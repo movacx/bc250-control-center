@@ -881,9 +881,17 @@ def _sample_smu(
             smu.close()
 
 
-def kernel_driver_loaded(module: pathlib.Path | None = None) -> bool:
-    """Whether the kernel's own bc250_memory driver owns the SMU patch."""
-    return (module or KERNEL_DRIVER_MODULE).is_dir()
+def kernel_driver_loaded(
+    module: pathlib.Path | None = None, root: pathlib.Path | None = None,
+) -> bool:
+    """Whether the kernel's own bc250_memory driver owns the SMU patch.
+
+    Loaded is not enough: without SMU debug access (a stock P3.00 BIOS) the
+    driver logs "SMU debug access is locked" and registers no sensor. Only a
+    driver that publishes its hwmon owns the patch; a silent one is treated
+    as absent, so Control Center patches and then wakes it (reprobe).
+    """
+    return (module or KERNEL_DRIVER_MODULE).is_dir() and _kernel_driver_hwmon(root or HWMON_ROOT) is not None
 
 
 def _kernel_driver_hwmon(root: pathlib.Path) -> pathlib.Path | None:

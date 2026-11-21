@@ -38,7 +38,36 @@ def _directmesh_version(tag: object) -> tuple[int, ...]:
 
 
 #: Hexxeh's kernel drivers (bc250-vrm, bc250-memory) listed on Compatibility.
-SENSOR_DRIVERS = frozenset({"vram_sensor", "vrm_sensor"})
+SENSOR_DRIVERS = frozenset({"vram_sensor", "vrm_sensor", "apu_telemetry"})
+
+
+#: Games taken off the Upscaling table with their trash button, by key.
+HIDDEN_GAMES_KEY = "upscaling/hidden_games"
+
+
+def _hidden_store():
+    from ..core.preferences import application_settings
+
+    return application_settings()
+
+
+def hidden_upscaling_games() -> list[str]:
+    try:
+        value = _hidden_store().value(HIDDEN_GAMES_KEY, [])
+    except (OSError, RuntimeError):
+        return []
+    if isinstance(value, str):
+        value = [value] if value else []
+    return [str(item) for item in value or () if str(item)]
+
+
+def set_hidden_upscaling_games(keys) -> None:
+    keys = sorted({str(key) for key in keys if str(key)})
+    store = _hidden_store()
+    if keys:
+        store.setValue(HIDDEN_GAMES_KEY, keys)
+    else:
+        store.remove(HIDDEN_GAMES_KEY)
 
 class PreparationRenderMixin:
     """Methods of ``PreparationSidebar`` split out of ``dashboard_widgets``."""
@@ -160,7 +189,7 @@ class PreparationRenderMixin:
                 continue
             status, tone, install_text = self._ACCESSORY_STATES[state]
             installed = state in {"update-available", "relogin-required", "installed", "active"}
-            if state == "not-installed" and info.get("device"):
+            if state == "not-installed" and info.get("device") and key not in SENSOR_DRIVERS:
                 # The hardware is there and only the software is missing.
                 status, tone = "Device detected", "blue"
             card.set_status(status, tone)
@@ -174,13 +203,37 @@ class PreparationRenderMixin:
                 note = "Nothing is plugged in right now; it starts by itself when the device is connected."
             elif key == "hdmi_cec" and installed and info.get("foreign"):
                 note = "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one."
+            elif state == "error":
+                note = tr_format(
+                    "Control Center could not check this on your system ({error}). Send a report from "
+                    "Settings › Support so it can be fixed.",
+                    error=str(info.get("error") or "unknown error"),
+                )
+            elif key == "apu_telemetry" and state == "unsupported" and info.get("blocked_reason"):
+                # SteamOS, an image-based system, or a kernel already reading the VRM.
+                note = str(info["blocked_reason"])
             elif key == "hdmi_cec" and state == "not-installed" and not info.get("device"):
                 note = "No CEC adapter is connected. CEC needs a DisplayPort-to-HDMI adapter that passes it, such as a Club3D CAC-1080 or CAC-1085."
+            install_enabled = True
+            install_tooltip = ""
+            if key == "apu_telemetry" and install_text:
+                install_text = "Install service"
+            if key in SENSOR_DRIVERS and not install_text and state in {"unsupported", "managed-elsewhere"}:
+                # A board sensor row keeps its action in place, greyed, so the
+                # row never ends in an empty gap; the note and the tooltip say why.
+                install_enabled = False
+                if state == "managed-elsewhere":
+                    install_text = "Installed separately" if key == "apu_telemetry" else "Built into this kernel"
+                else:
+                    install_text = "Install service" if key == "apu_telemetry" else "Install"
+                    install_tooltip = str(info.get("blocked_reason") or note or "")
             card.update_action(
                 buttons["install"],
                 text=install_text or "Install",
                 payload={"accessory": key, "op": "install"},
                 visible=bool(install_text),
+                enabled=install_enabled,
+                tooltip=install_tooltip,
             )
             configure_text = self._ACCESSORY_CONFIGURE.get(key, "")
             card.update_action(
@@ -196,7 +249,7 @@ class PreparationRenderMixin:
                 "rowAction", installed and key in SENSOR_DRIVERS and state != "update-available"
             )
             card.update_action(
-                buttons["remove"], text="Remove",
+                buttons["remove"], text="Remove service" if key == "apu_telemetry" else "Remove",
                 payload={"accessory": key, "op": "remove"}, visible=installed,
             )
             self._accessory_notes[key].setText(tr(note))
@@ -678,7 +731,15 @@ class PreparationRenderMixin:
             )
             self.helixsr_settings.set_settings(*self._helixsr_settings_state)
             self.helixsr_settings.set_game_count(self._helixsr_game_count)
-            self.helixsr_settings.set_bridge_mode(getattr(self, "_helixsr_bridge", None) is not None)
+            bridge = getattr(self, "_helixsr_bridge", None) is not None
+            self.helixsr_settings.set_bridge_settings(list(helixsr.get("bridge_settings") or ()) if bridge else [])
+            self.helixsr_settings.set_bridge_mode(bridge)
+            # HelixSR 3: the settings reach every game the bridge put it in.
+            if bridge:
+                self.helixsr_settings.set_game_count(sum(
+                    1 for game in self._helixsr_bridge
+                    if game.get("managed_by") == "bridge" and game.get("installed_way")
+                ))
 
     def _render_upscaling(self) -> None:
         """Both upscalers' cards, then the games table shared by both."""
@@ -904,6 +965,7 @@ class PreparationRenderMixin:
             bool(fsr4.get("current")) or any(getattr(self, "_fsr4_records", ([], [])))
         )
         columns = tuple(key for key, on in (("fsr4", fsr4_on), ("helixsr", helixsr_on)) if on)
+        hidden = set(hidden_upscaling_games())
         table = []
         for row in rows:
             folder = row.get("folder") or ""
@@ -927,6 +989,9 @@ class PreparationRenderMixin:
                 fsr4_cell = {"text": text or "Available", "tone": tone, "tooltip": tooltip,
                              "actions": actions}
             if helixsr_cell is None and fsr4_cell is None:
+                continue
+            if str(row["appid"] or row["name"]) in hidden:
+                # Taken off the list with its trash button (Add game shows it again).
                 continue
             table.append({
                 "key": row["appid"] or row["name"], "name": row["name"],

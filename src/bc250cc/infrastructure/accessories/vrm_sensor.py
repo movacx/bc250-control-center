@@ -93,7 +93,9 @@ DKMS_CONF = DRIVER.dkms_conf()
 
 
 def cpu_vrm_celsius() -> float | None:
-    return _dkms.hwmon_reading(HWMON_ROOT, HWMON_NAME, "temp1_input", 1000)
+    """The CPU rail's temperature, or None when the regulator gave an impossible word."""
+    reading = _dkms.hwmon_reading(HWMON_ROOT, HWMON_NAME, "temp1_input", 1000)
+    return reading if reading is not None and 1.0 <= reading <= 150.0 else None
 
 
 def _module_file() -> str:

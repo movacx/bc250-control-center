@@ -30,3 +30,26 @@ def test_an_existing_standard_choice_is_not_moved_to_formal(tmp_path):
     settings.setValue("settings/style", "standard")
     UiPreferences(settings).initialize()
     assert UiPreferences(settings).style() == "standard"
+
+
+def test_settings_shows_the_style_the_app_actually_starts_in(tmp_path, qtbot, monkeypatch):
+    """2026-11-21: a clean install ran in Standard while Settings showed Formal selected."""
+    from frontends.desktop.pages import settings as settings_module
+    from frontends.desktop.pages.settings import SettingsPage
+
+    class _Service:
+        def read_local_config(self):
+            return {}
+
+    class _Activity:
+        def clear(self):
+            return None
+
+    monkeypatch.setattr(settings_module, "board_bios_version", lambda: "P3.00")
+    stored = _settings(tmp_path)
+    page = SettingsPage(object(), settings_service=_Service(), activity_service=_Activity(), app_settings=stored)
+    qtbot.addWidget(page)
+    page._ensure_section("appearance")
+    control = page.controls["settings/style"]
+    shown = control.currentData() if hasattr(control, "currentData") else control.value()
+    assert shown == UiPreferences(stored).style() == "standard"

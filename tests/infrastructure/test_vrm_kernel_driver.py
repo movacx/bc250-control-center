@@ -208,3 +208,29 @@ def test_a_sample_in_flight_does_not_count_as_a_run(tmp_path):
     finally:
         fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
+
+
+def test_a_wedged_bus_reads_as_no_reading_not_797_degrees(tmp_path):
+    """2026-11-21: bc250_vrm returned the raw word 797 for every register."""
+    from bc250cc.infrastructure import vrm_telemetry_reader as reader
+
+    device = tmp_path / "hwmon4"
+    device.mkdir()
+    (device / "name").write_text("bc250_vrm\n")
+    for name, value in {
+        "in0_input": 7970, "in1_input": 797, "in2_input": 797,
+        "curr1_input": 79700, "curr2_input": 79700,
+        "temp1_input": 797000, "temp2_input": 797000,
+        "power1_input": 63520900, "power2_input": 63520900,
+    }.items():
+        (device / name).write_text(f"{value}\n")
+    reader._kernel_cache.clear()
+    missing = tmp_path / "no-snapshot.json"
+    lock = tmp_path / "no-lock"
+    result = reader.leer_telemetria_vrm(missing, hwmon_root=tmp_path, run_lock=lock)
+    assert result["vrm_cpu_temperature_c"] is None and result["vrm_gpu_temperature_c"] is None
+    assert result["vrm_input_voltage_v"] is None and not result["vrm_available"]
+    reader._kernel_cache.clear()
+    probe = reader.sondear_telemetria_vrm(missing, hwmon_root=tmp_path, run_lock=lock)
+    assert probe["rails"]["cpu"]["implausible"] and not probe["rails"]["cpu"]["valid"]
+    assert not probe["total_power_valid"]

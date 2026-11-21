@@ -94,7 +94,7 @@ from ..core.diagnostic_history import (
     diagnostic_report,
     history_entries,
 )
-from ..core.preferences import REPORT_GLOW_KEY, application_settings
+from ..core.preferences import REPORT_GLOW_KEY, UiPreferences, application_settings
 from ..core.raw_errors import remember
 from ..core.state import state_cache_for
 from ..i18n import (
@@ -801,6 +801,41 @@ class ActionGrid(QWidget):
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().resizeEvent(event)
         self._reflow()
+
+
+def confirm_apu_telemetry(action: str, parent: QWidget | None) -> bool:
+    """Ask before installing or removing BC250-Telemetry.
+
+    Shared by Settings › Telemetry and Additional settings › Compatibility,
+    so both say the same thing about what is built and what touches the board.
+    """
+    if action == "install":
+        confirmation = ConfirmDialog(
+            "Install the BC250-Telemetry service?",
+            "Control Center builds the daemon from the reviewed upstream source and "
+            "installs it as a root service that reads the voltage regulators over "
+            "I2C. Without the physical I2C modification it finds nothing and only "
+            "keeps retrying. Building needs your password and an internet connection.",
+            summary=(
+                ("Source", "github.com/onlinermm/BC250-Telemetry"),
+                ("Installs", "apu-telemetry.service"),
+                ("Not installed", "Web server, fan module and memory collector"),
+                ("Writes to the board", "One PMBus page-select register; no regulator setting"),
+            ),
+            confirm_text="Build and install",
+            tone="orange",
+            parent=parent,
+        )
+    else:
+        confirmation = ConfirmDialog(
+            "Remove the BC250-Telemetry service?",
+            "Stops and removes the service and its binary. The power delivery "
+            "readings stop until it is installed again.",
+            confirm_text="Remove",
+            tone="orange",
+            parent=parent,
+        )
+    return confirmation.exec() == QDialog.DialogCode.Accepted
 
 
 class SettingRow(QFrame):
@@ -1599,6 +1634,8 @@ class SettingsPage(QWidget):
     language_changed = pyqtSignal(str)
     appearance_changed = pyqtSignal(str, str, str)
     scale_changed = pyqtSignal(int)
+    gpu_interface_changed = pyqtSignal(str)
+    driver_support_requested = pyqtSignal(str)
     smart_alerts_changed = pyqtSignal(bool)
     desktop_notifications_changed = pyqtSignal(bool)
     diagnostics_changed = pyqtSignal(bool)
@@ -1995,6 +2032,7 @@ class SettingsPage(QWidget):
         "overview": "about", "repositories": "about", "support": "about",
         "support_report": "about", "support_reports": "about", "support_detail": "about",
         "support_errors": "about", "support_error_detail": "about",
+        "telemetry_guide": "telemetry",
     }
     #: Sections that moved into Support: the old key opens its tab.
     SECTION_ALIASES = {"diagnostics": ("support_reports", 0), "reports": ("support_reports", 1)}
@@ -2022,8 +2060,11 @@ class SettingsPage(QWidget):
             self.known_errors_list.refresh_language()
         elif key == "support_error_detail" and self.known_error_detail.identity:
             self.known_error_detail.show_entry(self.known_error_detail.identity)
+        elif key == "telemetry_guide":
+            self.refresh_sensor_guide()
         elif key == "telemetry":
             self._refresh_gddr6_kernel_driver()
+            self.refresh_kernel_sensor_drivers()
             self._load_daemon_config()
             self.refresh_daemon_status()
             self.refresh_vrm_detection()
@@ -2045,6 +2086,7 @@ class SettingsPage(QWidget):
             "about": self._build_about_page,
             "overview": self._build_overview_page,
             "repositories": self._build_repositories_page,
+            "telemetry_guide": self._build_sensor_guide_page,
         }
         self._built_sections: set[str] = set()
         self._section_pages: dict[str, QWidget] = {}
@@ -2127,8 +2169,8 @@ class SettingsPage(QWidget):
             self._button("Start the tour", self.tour_requested.emit),
         ))
         help_group.add_row(SettingRow(
-            "Highlight the report button",
-            "A soft glow every few seconds around the dashboard's button for reporting a problem or suggesting an idea.",
+            "Alert animations",
+            "On the dashboard, the buttons take turns moving: the support button sends out a ping, the developer's megaphone sends out sound waves, Ko-fi beats like a heart, and GitHub, Discord and Telegram move too. Turn it off to keep them all still.",
             self._switch(REPORT_GLOW_KEY, True, self.report_glow_changed.emit),
         ))
         help_group.add_row(SettingRow(
@@ -2363,7 +2405,10 @@ class SettingsPage(QWidget):
         buttons: list[QPushButton] = []
         for index in range(combo.count()):
             text = labels[index] if labels else combo.itemText(index)
-            button = QPushButton(text)
+            # A plain button: one or two words never need to wrap, and the
+            # wrapping button could stay stuck at a narrow width and clip them.
+            button = _PlainButton(text)
+            button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
             button.setCheckable(True)
             button.setProperty("segment", True)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -2378,7 +2423,7 @@ class SettingsPage(QWidget):
 
         combo.currentIndexChanged.connect(sync)
         sync(combo.currentIndex())
-        host.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        host.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         return host
 
     @staticmethod
@@ -2400,7 +2445,8 @@ class SettingsPage(QWidget):
         ), page)
         style_combo = self._stored(self._coded_combo(
             [("Standard", "standard"), ("Formal", "formal")],
-            "settings/style", "formal", self._appearance_control_changed,
+            # The look a new installation starts in: one constant for both.
+            "settings/style", UiPreferences.DEFAULT_STYLE, self._appearance_control_changed,
         ), page)
         accent_combo = self._stored(self._coded_combo(
             [(name.capitalize(), name) for name in _theme.ACCENTS],
@@ -2492,83 +2538,214 @@ class SettingsPage(QWidget):
             scale_combo,
         ))
         layout.addWidget(sizing)
+
+        # Last on the page: it only concerns one screen.
+        interface = SettingsGroup("Interface style")
+        interface.add_row(SettingRow(
+            "GPU screen",
+            "Only applies to the GPU screen. Original brings back the layout it had before the redesign.",
+            self._segmented(self._stored(self._coded_combo(
+                [("Original style", "original"), ("Modern", "modern")],
+                "settings/gpu_interface", "modern",
+                lambda value: self.gpu_interface_changed.emit(str(value)),
+            ), page)),
+        ))
+        layout.addWidget(interface)
         layout.addStretch(1)
         return page
 
     def _build_telemetry_page(self) -> QWidget:
-        # Telemetry and optional daemon
         page, layout = self._build_page_frame(
             "Telemetry",
-            "Sampling, refresh cadence, passive monitoring, and the optional user daemon.",
+            "Where the board readings come from, and the background monitor.",
         )
-        daemon_group = SettingsGroup("Optional daemon")
+        # Sources first: they decide what the rest of the page can show.
+        layout.addWidget(self._build_sensor_sources_group())
+        layout.addWidget(self._build_vrm_manual_group())
+        layout.addWidget(self._build_gddr6_manual_group())
+        # The optional daemon is the least needed, so it goes last.
+        layout.addWidget(self._build_daemon_group())
+        layout.addStretch(1)
+        return page
+
+    def _state_and_action(self, state_attribute: str, button_attribute: str, text: str, callback) -> QWidget:
+        """A short state word and its one action, side by side on the right."""
+        host = QWidget()
+        row = QHBoxLayout(host)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(10)
+        state = QLabel(tr("Checking…"))
+        state.setProperty("rowDescription", True)
+        button = self._small_button(text, callback)
+        row.addWidget(state)
+        row.addWidget(button)
+        setattr(self, state_attribute, state)
+        setattr(self, button_attribute, button)
+        return host
+
+    #: Hexxeh's DKMS drivers, offered here as on Additional settings › Compatibility.
+    KERNEL_SENSOR_ROWS = (
+        ("vrm_sensor", "bc250-vrm", "Regulator temperatures read through the fan chip. No wires needed."),
+        ("vram_sensor", "bc250-memory", "GDDR6 temperature read through the SMU. BIOS P3.00 only."),
+    )
+
+    def _build_sensor_sources_group(self) -> QWidget:
+        group = SettingsGroup("Sensor sources")
+        self.apu_telemetry_button = self._small_button("Install service", self._apu_telemetry_clicked)
+        self.apu_telemetry_state_label = QLabel(tr("Checking…"))
+        self.apu_telemetry_state_label.setProperty("rowDescription", True)
+        host = QWidget()
+        row = QHBoxLayout(host)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(10)
+        row.addWidget(self.apu_telemetry_state_label)
+        row.addWidget(self.apu_telemetry_button)
+        group.add_row(SettingRow(
+            "BC250-Telemetry",
+            "Power delivery readings over the I2C modification. Needs the wires on the board.",
+            host,
+        ))
+        self.kernel_sensor_states: dict[str, QLabel] = {}
+        self.kernel_sensor_buttons: dict[str, QPushButton] = {}
+        for key, title, description in self.KERNEL_SENSOR_ROWS:
+            control = self._state_and_action(
+                f"_{key}_state", f"_{key}_button", "Install",
+                lambda _checked=False, item=key: self._kernel_sensor_clicked(item),
+            )
+            self.kernel_sensor_states[key] = getattr(self, f"_{key}_state")
+            self.kernel_sensor_buttons[key] = getattr(self, f"_{key}_button")
+            group.add_row(SettingRow(
+                tr_format("{driver} · by Hexxeh", driver=title), tr(description), control,
+            ))
+        hint = QLabel(tr("The kernel drivers are built with DKMS on Arch, CachyOS and Manjaro."))
+        hint.setProperty("fieldHint", True)
+        hint.setWordWrap(True)
+        group.layout_root.addWidget(hint)
+        group.layout_root.addSpacing(6)
+        # The step-by-step guide (wiring photos, both drivers) as a page of its own.
+        guide = LinkRow("Board sensors guide: I2C wiring, bc250-vrm and bc250-memory", lambda: self.open_sensor_guide())
+        guide.setProperty("lastRow", True)
+        group.layout_root.addWidget(guide)
+        self.refresh_kernel_sensor_drivers()
+        return group
+
+    def _build_sensor_guide_page(self) -> QWidget:
+        from ..components.sensor_guide_page import SensorGuidePage
+
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Board sensors guide", "telemetry", "Telemetry")
+        self.sensor_guide = SensorGuidePage()
+        self.sensor_guide.install_service_requested.connect(self._apu_telemetry_clicked)
+        self.sensor_guide.driver_requested.connect(self.driver_support_requested.emit)
+        layout.addWidget(self.sensor_guide)
+        layout.addStretch(1)
+        return page
+
+    def open_sensor_guide(self, tab: str = "i2c") -> None:
+        """The guide, on the tab asked for (the dashboard picks the shortest way)."""
+        self.select_section("telemetry_guide")
+        self.sensor_guide.select_tab(tab)
+
+    def sensor_guide_status(self) -> str:
+        """The dashboard's own words for why the band is empty on this board."""
+        from .dashboard import VRM_HELP_KERNEL, VRM_HELP_NO_ANSWER, VRM_HELP_SERVICE
+
+        if kernel_vrm_driver_present():
+            return VRM_HELP_KERNEL
+        if str(sondear_telemetria_vrm().get("daemon") or "missing") in {"running", "stale"}:
+            return VRM_HELP_NO_ANSWER
+        return VRM_HELP_SERVICE
+
+    def refresh_sensor_guide(self) -> None:
+        guide = getattr(self, "sensor_guide", None)
+        if guide is None:
+            return
+        from .dashboard import kernel_sensor_drivers
+
+        guide.set_state(
+            status=self.sensor_guide_status(),
+            service=self._apu_telemetry_state(),
+            drivers=kernel_sensor_drivers(),
+        )
+
+    def refresh_kernel_sensor_drivers(self) -> None:
+        states = getattr(self, "kernel_sensor_states", None)
+        if not states:
+            return
+        from .dashboard import kernel_sensor_drivers
+
+        drivers = kernel_sensor_drivers()
+        for key, label in states.items():
+            info = dict(drivers.get(key) or {})
+            text, action, enabled = self.describe_kernel_sensor(key, info)
+            label.setText(tr(text) if "{" not in text else text)
+            button = self.kernel_sensor_buttons[key]
+            button.setVisible(bool(action))
+            button.setEnabled(enabled)
+            button.setProperty("sensorAction", action)
+            if action:
+                button.setText(tr({"install": "Install", "update": "Update", "remove": "Remove"}[action]))
+
+    @staticmethod
+    def describe_kernel_sensor(key: str, info: dict) -> tuple[str, str, bool]:
+        """(state text, action, enabled) for one kernel sensor driver."""
+        state = str(info.get("state") or "")
+        reading = info.get("reading")
+        if state == "active" and isinstance(reading, (int, float)):
+            return tr_format("Reading {value} °C", value=f"{reading:.0f}"), "remove", True
+        if state in {"active", "installed"}:
+            return "Installed, no reading yet", "remove", True
+        if state == "update-available":
+            return "Update available", "update", True
+        if state == "not-installed":
+            return "Not installed", "install", True
+        if state == "managed-elsewhere":
+            return "Built into this kernel", "", False
+        if state == "unsupported":
+            if key == "vram_sensor" and info.get("device") and not info.get("bios_supported", True):
+                return "Needs BIOS P3.00", "", False
+            if not info.get("device", True):
+                return "Not a BC-250", "", False
+            return "Arch-based systems only", "", False
+        return "Unavailable", "", False
+
+    def _kernel_sensor_clicked(self, key: str) -> None:
+        action = str(self.kernel_sensor_buttons[key].property("sensorAction") or "")
+        if action:
+            # The app runs the same flow as the Compatibility card: its own
+            # confirmation, then the build in the terminal.
+            self.driver_support_requested.emit(f"{key}:{'remove' if action == 'remove' else 'install'}")
+
+    def _build_daemon_group(self) -> QWidget:
+        group = SettingsGroup("Optional daemon")
         self.daemon_status_label = QLabel("Checking…")
         self.daemon_status_label.setProperty("daemonState", True)
-        daemon_group.add_row(SettingRow(
-            "Daemon status",
-            "Current user-service state for bc250-control-centerd.",
+        group.add_row(SettingRow(
+            "Status",
+            "bc250-control-centerd keeps sampling while the app is closed.",
             self.daemon_status_label,
         ))
         daemon_interval = int(self.app_settings.value("settings/daemon_interval", 2) or 2)
         self.app_settings.setValue("settings/daemon_interval", daemon_interval)
-        daemon_group.add_row(SettingRow(
+        group.add_row(SettingRow(
             "Sampling interval",
-            "Controls the conservative monitoring loop used while the optional service is running.",
+            "How often the daemon reads the sensors.",
             self._coded_combo(
                 [("1 second", 1), ("2 seconds", 2), ("5 seconds", 5), ("10 seconds", 10)],
                 "settings/daemon_interval", daemon_interval, self._save_daemon_interval,
             ),
         ))
-        # What the daemon does and its buttons belong to the daemon, so they sit
-        # inside its group instead of in a second, unrelated card below.
-        daemon_group.layout_root.addSpacing(8)
-        daemon_actions = ActionGrid(columns=2, fit_content=True)
-        self.daemon_enable_button = self._button("Enable daemon", lambda: self._change_daemon(True))
-        self.daemon_disable_button = self._button("Disable daemon", lambda: self._change_daemon(False))
-        daemon_actions.addWidget(self.daemon_enable_button)
-        daemon_actions.addWidget(self.daemon_disable_button)
-        daemon_actions.addWidget(self._button("View daemon details", self._show_daemon_details))
-        daemon_group.layout_root.addWidget(daemon_actions)
-        daemon_group.layout_root.addSpacing(8)
-        self._action_grids.append(daemon_actions)
-        # Everyday monitoring first; the readings that need hardware or carry
-        # a warning come after it.
-        layout.addWidget(daemon_group)
-        layout.addWidget(self._build_vrm_manual_group())
-        layout.addWidget(self._build_gddr6_manual_group())
-        layout.addStretch(1)
-        return page
-
-    #: The plain-language account shown under the switch, one idea a line.
-    GDDR6_MANUAL_EXPLANATION = (
-        (
-            "Why there is a check",
-            "Memory temperatures are asked of the SMU, a small chip on the board that "
-            "also takes orders from Cyan, the GPU frequency service, and from CPU "
-            "overclocking. "
-            "It has a single mailbox. If two programs write to it at the same moment, "
-            "the messages get mixed, the SMU stops answering and the board freezes "
-            "until it is switched off at the plug.",
-        ),
-        (
-            "When it makes you wait",
-            "While Cyan is starting or restarting, which is when it writes to that "
-            "mailbox, and while BC250-Telemetry's memory service holds it without "
-            "publishing readings. If Cyan keeps restarting (for example Fix metrics "
-            "on a kernel without gpu_metrics), the wait never ends.",
-        ),
-        (
-            "What manual mode changes",
-            "The Live button starts anyway. The locks between programs still apply, "
-            "a board whose firmware is not P3 is still refused, and so is a board "
-            "where BC250-Telemetry was interrupted halfway through a change.",
-        ),
-        (
-            "If the board freezes",
-            "Hold the power button, unplug it for ten seconds and start it again. The "
-            "runtime SMU patch is lost with the power, nothing is written to the BIOS.",
-        ),
-    )
+        actions = QWidget()
+        row = QHBoxLayout(actions)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        self.daemon_enable_button = self._small_button("Enable", lambda: self._change_daemon(True))
+        self.daemon_disable_button = self._small_button("Disable", lambda: self._change_daemon(False))
+        row.addWidget(self.daemon_enable_button)
+        row.addWidget(self.daemon_disable_button)
+        row.addWidget(self._small_button("Details", self._show_daemon_details))
+        group.add_row(SettingRow("Service", "Turn the daemon on or off for this user.", actions))
+        return group
 
     def _refresh_gddr6_kernel_driver(self) -> None:
         """Where the bc250_memory boot option stands, read in the background."""
@@ -2604,6 +2781,12 @@ class SettingsPage(QWidget):
         self.gddr6_kernel_button.setText(tr("Stop loading at boot" if managed else "Load at boot"))
         self.gddr6_kernel_button.setEnabled(enabled)
 
+    #: The one thing worth knowing before touching this group.
+    GDDR6_NOTE = (
+        "The SMU has one mailbox, shared with Cyan and CPU overclocking. If two programs use it "
+        "at once the board can freeze until it is unplugged. Nothing is written to the BIOS."
+    )
+
     def _build_gddr6_manual_group(self) -> QWidget:
         """GDDR6 monitoring without the SMU channel check, for those who ask."""
         group = SettingsGroup("GDDR6 memory temperature")
@@ -2611,13 +2794,11 @@ class SettingsPage(QWidget):
             "settings/gddr6_manual_override", False, self._gddr6_manual_toggled
         )
         group.add_row(SettingRow(
-            "Manual GDDR6 monitoring",
-            "Enable the memory temperature button even when the SMU channel check "
-            "says to wait. It can make the board unstable or freeze it.",
+            "Manual monitoring",
+            "Read the memory temperature even when the SMU check says to wait.",
             self.gddr6_manual_switch,
         ))
-        # The same switch as Compatibility › Kernel boot options: one place to
-        # read about the memory temperature, one boot option underneath.
+        # The same switch as Compatibility › Kernel boot options.
         driver = QWidget()
         driver_row = QHBoxLayout(driver)
         driver_row.setContentsMargins(0, 0, 0, 0)
@@ -2631,15 +2812,11 @@ class SettingsPage(QWidget):
         driver_row.addWidget(self.gddr6_kernel_state)
         driver_row.addWidget(self.gddr6_kernel_button)
         group.add_row(SettingRow(
-            "Kernel memory driver (bc250_memory)",
-            "Loads the BC-250 kernel's GDDR6 driver at every boot, so the memory temperature shows "
-            "all the time. It patches the SMU firmware in memory and shares its mailbox with Cyan; "
-            "leave it off unless you need it.",
+            "Load bc250_memory at boot",
+            "BC-250 kernels only. Keeps the temperature on screen all the time.",
             driver,
         ))
-        # Manual mode lifts only the channel check. On a board that is not on
-        # P3.00 the button stays grey whatever this switch says, and the one
-        # place that was never said was right here, next to the switch.
+        # Manual mode lifts only the channel check: off P3.00 the button stays grey.
         version = board_bios_version()
         self.gddr6_firmware_note = QLabel(
             tr_format(
@@ -2654,91 +2831,29 @@ class SettingsPage(QWidget):
         self.gddr6_firmware_note.setWordWrap(True)
         self.gddr6_firmware_note.setVisible(bool(version) and not gddr6_firmware_supported(version))
         group.layout_root.addWidget(self.gddr6_firmware_note)
-        group.layout_root.addSpacing(6)
-        explanation = QFrame()
-        self.gddr6_help_panel = explanation
-        explanation.setProperty("banner", True)
-        explanation_layout = QVBoxLayout(explanation)
-        explanation_layout.setContentsMargins(14, 12, 14, 14)
-        explanation_layout.setSpacing(0)
-        for index, (heading, text) in enumerate(self.GDDR6_MANUAL_EXPLANATION):
-            if index:
-                explanation_layout.addSpacing(14)
-            title = WrappedLabel(tr(heading))
-            title.setProperty("bannerTitle", True)
-            body = WrappedLabel(tr(text))
-            body.setProperty("bannerText", True)
-            explanation_layout.addWidget(title)
-            explanation_layout.addSpacing(4)
-            explanation_layout.addWidget(body)
-        # Four long paragraphs under a single switch buried the controls, so
-        # they fold away until asked for. The choice is remembered.
-        self.gddr6_help_toggle = QPushButton("")
-        self.gddr6_help_toggle.setProperty("ghostAction", True)
-        self.gddr6_help_toggle.setCheckable(True)
-        self.gddr6_help_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        def show_help(opened: bool) -> None:
-            explanation.setVisible(opened)
-            self.gddr6_help_toggle.setText(("\u25be  " if opened else "\u25b8  ") + tr("Details"))
-
-        def help_toggled(opened: bool) -> None:
-            self.app_settings.setValue("settings/gddr6_help_open", "true" if opened else "false")
-            show_help(opened)
-
-        opened = self._bool_value(self.app_settings.value("settings/gddr6_help_open", False), False)
-        self.gddr6_help_toggle.setChecked(opened)
-        show_help(opened)
-        self.gddr6_help_toggle.toggled.connect(help_toggled)
-        toggle_row = QWidget()
-        toggle_layout = QHBoxLayout(toggle_row)
-        toggle_layout.setContentsMargins(0, 0, 0, 0)
-        toggle_layout.addWidget(self.gddr6_help_toggle)
-        toggle_layout.addStretch(1)
-        # One container, so the gap between the button and the panel exists
-        # only while the panel is open instead of lingering when it is folded.
-        help_block = QWidget()
-        help_layout = QVBoxLayout(help_block)
-        help_layout.setContentsMargins(0, 4, 0, 0)
-        help_layout.setSpacing(8)
-        help_layout.addWidget(toggle_row)
-        help_layout.addWidget(explanation)
-        group.layout_root.addWidget(help_block)
+        self.gddr6_note = QLabel(tr(self.GDDR6_NOTE))
+        self.gddr6_note.setProperty("fieldHint", True)
+        self.gddr6_note.setWordWrap(True)
+        group.layout_root.addWidget(self.gddr6_note)
         group.layout_root.addSpacing(10)
         return group
 
     def _build_vrm_manual_group(self) -> QWidget:
         """Power delivery shown by hand, for a mod being wired or tested."""
-        group = SettingsGroup("Power delivery (I2C mod)")
+        group = SettingsGroup("Power delivery")
         self.vrm_manual_switch = self._switch(
             "settings/vrm_manual", False, self.vrm_manual_changed.emit
         )
         group.add_row(SettingRow(
-            "Manual power delivery readings",
-            "Show the Power delivery band on the dashboard even when automatic detection "
-            "finds no I2C modification. It shows everything BC250-Telemetry reports, "
-            "invalid readings included and marked, which is what you need while testing "
-            "the wiring. Nothing is written to the board.",
+            "Show readings by hand",
+            "Show the dashboard band even when no source is detected, invalid readings included. "
+            "Useful while wiring the I2C mod.",
             self.vrm_manual_switch,
         ))
         self.vrm_detection_label = QLabel("")
         self.vrm_detection_label.setProperty("daemonState", True)
         self.vrm_detection_label.setWordWrap(True)
-        group.add_row(SettingRow(
-            "Automatic detection",
-            "What the dashboard finds right now in BC250-Telemetry's snapshot.",
-            self.vrm_detection_label,
-        ))
-        self.apu_telemetry_button = QPushButton("")
-        self.apu_telemetry_button.setProperty("ghostAction", True)
-        self.apu_telemetry_button.clicked.connect(self._apu_telemetry_clicked)
-        group.add_row(SettingRow(
-            "BC250-Telemetry service",
-            "Installs the daemon that publishes the power delivery readings. Control "
-            "Center builds the reviewed version and installs only that service. It "
-            "needs the physical I2C modification on the board.",
-            self.apu_telemetry_button,
-        ))
+        group.add_row(SettingRow("Detection", "What the app finds right now.", self.vrm_detection_label))
         self.refresh_vrm_detection()
         return group
 
@@ -2758,6 +2873,17 @@ class SettingsPage(QWidget):
         state = self._apu_telemetry_state()
         kind = state.get("state")
         button.setToolTip("")
+        label = getattr(self, "apu_telemetry_state_label", None)
+        if label is not None:
+            if kind == "publishing":
+                text = "Running"
+            elif kind == "external" or state.get("managed"):
+                text = "Installed"
+            elif state.get("supported"):
+                text = "Not installed"
+            else:
+                text = "Not available here"
+            label.setText(tr(text))
         if kind == "external":
             button.setText(tr("Installed separately"))
             button.setEnabled(False)
@@ -2778,7 +2904,7 @@ class SettingsPage(QWidget):
             supported = bool(state.get("supported"))
             button.setEnabled(supported)
             if not supported and state.get("blocked_reason"):
-                button.setToolTip(str(state["blocked_reason"]))
+                button.setToolTip(tr(str(state["blocked_reason"])))
 
     def install_apu_telemetry(self) -> None:
         """Start the install from elsewhere (the power delivery guide).
@@ -2794,38 +2920,13 @@ class SettingsPage(QWidget):
 
     def _apu_telemetry_clicked(self) -> None:
         action = "uninstall" if self._apu_telemetry_state().get("managed") else "install"
-        if action == "install":
-            confirmation = ConfirmDialog(
-                "Install the BC250-Telemetry service?",
-                "Control Center builds the daemon from the reviewed upstream source and "
-                "installs it as a root service that reads the voltage regulators over "
-                "I2C. Without the physical I2C modification it finds nothing and only "
-                "keeps retrying. Building needs your password and an internet connection.",
-                summary=(
-                    ("Source", "github.com/onlinermm/BC250-Telemetry"),
-                    ("Installs", "apu-telemetry.service"),
-                    ("Not installed", "Web server, fan module and memory collector"),
-                    ("Writes to the board", "One PMBus page-select register; no regulator setting"),
-                ),
-                confirm_text="Build and install",
-                tone="orange",
-                parent=self,
-            )
-        else:
-            confirmation = ConfirmDialog(
-                "Remove the BC250-Telemetry service?",
-                "Stops and removes the service and its binary. The power delivery "
-                "readings stop until it is installed again.",
-                confirm_text="Remove",
-                tone="orange",
-                parent=self,
-            )
-        if confirmation.exec() != QDialog.DialogCode.Accepted:
+        if not confirm_apu_telemetry(action, self):
             return
 
         def success(_result: object) -> None:
             self._state_cache.invalidate("tools")
             self.refresh_apu_telemetry_button()
+            self.refresh_sensor_guide()
 
         def failure(message: str) -> None:
             InfoDialog(
@@ -3945,7 +4046,7 @@ class SettingsPage(QWidget):
             "settings/density": "comfortable",
             "settings/scale": 100,
             "settings/accent": "blue",
-            "settings/style": "formal",
+            "settings/style": UiPreferences.DEFAULT_STYLE,
             "settings/language": "auto",
             "settings/smart_alerts": "false",
             "settings/desktop_notifications": "false",
@@ -3988,6 +4089,8 @@ class SettingsDialog(QDialog):
     language_changed = pyqtSignal(str)
     appearance_changed = pyqtSignal(str, str, str)
     scale_changed = pyqtSignal(int)
+    gpu_interface_changed = pyqtSignal(str)
+    driver_support_requested = pyqtSignal(str)
     smart_alerts_changed = pyqtSignal(bool)
     desktop_notifications_changed = pyqtSignal(bool)
     diagnostics_changed = pyqtSignal(bool)
@@ -4042,6 +4145,8 @@ class SettingsDialog(QDialog):
         self.page.language_changed.connect(self.language_changed.emit)
         self.page.appearance_changed.connect(self.appearance_changed.emit)
         self.page.scale_changed.connect(self.scale_changed.emit)
+        self.page.gpu_interface_changed.connect(self.gpu_interface_changed.emit)
+        self.page.driver_support_requested.connect(self.driver_support_requested.emit)
         self.page.smart_alerts_changed.connect(self.smart_alerts_changed.emit)
         self.page.desktop_notifications_changed.connect(self.desktop_notifications_changed.emit)
         self.page.diagnostics_changed.connect(self.diagnostics_changed.emit)

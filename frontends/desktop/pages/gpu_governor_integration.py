@@ -41,6 +41,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Callable
 
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QWidget
 
 from bc250cc.domain.gpu.oberon import (
@@ -64,6 +65,28 @@ from .gpu_governor_view import (
 )
 
 _ATTRIBUTE = "_redesigned_gpu_view"
+_WRAPPED = "_gpu_view_state_wrapped"
+
+#: Settings › Appearance › Interface style. Modern is the current layout;
+#: Original is the GPU screen from before the 2026-11-14 redesign.
+GPU_INTERFACE_KEY = "settings/gpu_interface"
+GPU_INTERFACES = ("original", "modern")
+DEFAULT_GPU_INTERFACE = "modern"
+
+
+def gpu_interface() -> str:
+    from ..core.preferences import application_settings
+
+    value = str(application_settings().value(GPU_INTERFACE_KEY, DEFAULT_GPU_INTERFACE) or "")
+    return value if value in GPU_INTERFACES else DEFAULT_GPU_INTERFACE
+
+
+def _view_class(style: str) -> type[GpuGovernorView]:
+    if style == "original":
+        from .gpu_governor_view_classic import GpuGovernorView as ClassicGpuGovernorView
+
+        return ClassicGpuGovernorView
+    return GpuGovernorView
 
 
 def _is_oberon(gpu: dict) -> bool:
@@ -347,7 +370,7 @@ def _service_action(page, action: str) -> None:
 # State push — wraps the page's existing hooks
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _wrap_apply_state(page, view: GpuGovernorView) -> None:
+def _wrap_apply_state(page) -> None:
     """After every refresh, translates the backend dict into the view.
 
     Both backends are shown here now. Oberon used to keep the original screen,
@@ -355,10 +378,16 @@ def _wrap_apply_state(page, view: GpuGovernorView) -> None:
     with the Cyan-only panels hidden, so the buttons sit in the same places on
     either board. Cyan's own behaviour is unchanged.
     """
+    if getattr(page, _WRAPPED, False):
+        return  # the interface style was switched: the wrapper finds the new view itself
+    setattr(page, _WRAPPED, True)
     original = page._apply_state
 
     def patched(gpu: dict, perf: dict) -> None:
         original(gpu, perf)
+        view = getattr(page, _ATTRIBUTE, None)
+        if view is None:
+            return
         is_oberon = _is_oberon(gpu)
         legacy_scroll = getattr(page, "overview_scroll", None)
         view.setVisible(True)
@@ -383,7 +412,7 @@ def _wrap_apply_state(page, view: GpuGovernorView) -> None:
 # Entry point
 # ─────────────────────────────────────────────────────────────────────────────
 
-def install_redesigned_gpu_view(page) -> GpuGovernorView:
+def install_redesigned_gpu_view(page, style: str | None = None) -> GpuGovernorView:
     """Mounts the redesigned view over an already-built ``GpuGovernorPage``.
 
     Idempotent: if it is already installed, returns the same instance.
@@ -392,7 +421,7 @@ def install_redesigned_gpu_view(page) -> GpuGovernorView:
     if existing is not None:
         return existing
 
-    view = GpuGovernorView(page)
+    view = _view_class(style or gpu_interface())(page)
     setattr(page, _ATTRIBUTE, view)
 
     # 1 · take over the overview page without touching page_stack. The swap
@@ -431,9 +460,13 @@ def install_redesigned_gpu_view(page) -> GpuGovernorView:
     view.export_to_decky_requested.connect(lambda: _export_profiles_to_decky(page, view))
     view.voltage_lab_requested.connect(page.open_voltage_lab)
     view.config_open_requested.connect(page._open_governor_config)
+    # Deferred: switching deletes the view whose button sent the signal.
+    view.interface_style_requested.connect(
+        lambda style: QTimer.singleShot(0, lambda: choose_gpu_interface(page, style))
+    )
 
     # 4 · backend → view
-    _wrap_apply_state(page, view)
+    _wrap_apply_state(page)
 
     # 5 · initial state if a refresh already happened
     current = getattr(page, "current_state", None)
@@ -449,3 +482,34 @@ def install_redesigned_gpu_view(page) -> GpuGovernorView:
         )
     return view
 
+
+
+def choose_gpu_interface(page, style: str) -> GpuGovernorView | None:
+    """The foot-of-page buttons: store the choice, as Settings would, and switch."""
+    from ..core.preferences import application_settings
+
+    if style not in GPU_INTERFACES:
+        return None
+    application_settings().setValue(GPU_INTERFACE_KEY, style)
+    return switch_gpu_interface(page, style)
+
+
+def switch_gpu_interface(page, style: str) -> GpuGovernorView | None:
+    """Swap the GPU screen for the other layout, keeping the page and its state.
+
+    Called when Settings › Appearance › Interface style changes. The old view
+    is taken off the page and a fresh one is installed with the same wiring;
+    nothing on the backend side is touched.
+    """
+    wanted = _view_class(style if style in GPU_INTERFACES else DEFAULT_GPU_INTERFACE)
+    current = getattr(page, _ATTRIBUTE, None)
+    if current is None or type(current) is wanted:
+        return current
+    layout = page.overview_page.layout()
+    if layout is not None:
+        layout.removeWidget(current)
+    current.hide()
+    current.setParent(None)
+    current.deleteLater()
+    setattr(page, _ATTRIBUTE, None)
+    return install_redesigned_gpu_view(page, style)

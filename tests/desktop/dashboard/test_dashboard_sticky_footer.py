@@ -105,22 +105,27 @@ def test_header_actions_are_compact_and_scale_without_clipping(qtbot, scale, mod
         page.show()
         qtbot.wait(100)
         assert page.width() == 360
-        # Five square links (the update badge stays hidden): 60 px each at most.
-        assert page.footer.width() < 300
+        # Six square links (the update badge stays hidden); a phone-width
+        # window at 150 % folds Telegram away rather than overlap them.
         assert page.footer.height() < 70
-        assert page.footer.repositories_button.geometry().right() < page.contact_button.x()
-        assert page.contact_button.y() == page.telegram_button.y() == page.report_button.y() == page.support_button.y()
-        assert page.contact_button.geometry().right() < page.telegram_button.x()
-        assert page.telegram_button.geometry().right() < page.report_button.x()
-        assert page.report_button.geometry().right() < page.support_button.x()
-        for button in (
-            page.footer.repositories_button, page.contact_button, page.telegram_button,
-            page.report_button, page.support_button,
-        ):
+        links = [
+            button for button in (
+                page.footer.repositories_button, page.contact_button, page.telegram_button,
+                page.report_button, page.footer.note_button, page.support_button,
+            ) if not button.isHidden()
+        ]
+        assert page.footer.note_button in links and page.support_button in links and page.report_button in links
+        assert page.footer.width() < 360
+        assert len({button.y() for button in links}) == 1
+        for left, right in zip(links, links[1:]):
+            assert left.geometry().right() < right.x()
+        for button in links:
             assert abs(button.width() - button.height()) <= 2
             assert button.iconSize().width() == round(22 * scale / 100)
             assert button.iconSize().width() < button.width()
             assert not button.icon().pixmap(button.iconSize()).isNull()
+        if scale < 150:
+            assert not page.telegram_button.isHidden()
         if scale == 100:
             assert page.footer.height() <= 48
             assert 34 <= page.support_button.width() <= 38
