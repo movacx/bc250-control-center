@@ -6512,5 +6512,6 @@
   "Temperature unit": "Đơn vị nhiệt độ",
   "Celsius": "Độ C",
   "Fahrenheit": "Độ F",
-  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Cách hiển thị nhiệt độ trong toàn bộ ứng dụng. Các giới hạn và đường cong quạt vẫn được lưu theo độ C."
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Cách hiển thị nhiệt độ trong toàn bộ ứng dụng. Các giới hạn và đường cong quạt vẫn được lưu theo độ C.",
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Nếu một trò chơi không có gì khác biệt, biến của phiên có thể chưa được kích hoạt: hãy sao chép tùy chọn khởi chạy bên dưới cho trò chơi đó."
 }

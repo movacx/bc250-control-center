@@ -6512,5 +6512,6 @@
   "Temperature unit": "온도 단위",
   "Celsius": "섭씨",
   "Fahrenheit": "화씨",
-  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "앱 전체에서 온도를 표시하는 방식입니다. 한도와 팬 곡선은 계속 섭씨로 저장됩니다."
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "앱 전체에서 온도를 표시하는 방식입니다. 한도와 팬 곡선은 계속 섭씨로 저장됩니다.",
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "게임에서 차이가 없다면 세션 변수가 활성화되지 않았을 수 있습니다. 해당 게임에 아래 실행 옵션을 복사하세요."
 }

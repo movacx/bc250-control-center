@@ -20,7 +20,11 @@ from ..core.feature_visibility import (
     GFX1013_FSR4_UI_ENABLED,
     HELIXSR_UI_ENABLED,
 )
-from ..core.gfx1013_presenter import present_gfx1013, present_radv_route
+from ..core.gfx1013_presenter import (
+    RADV_ROUTE_PER_GAME_TIP,
+    present_gfx1013,
+    present_radv_route,
+)
 from ..i18n import tr, tr_format
 from .buttons import WrappingButton as QPushButton
 from .dashboard_widgets import (  # noqa: E402
@@ -479,9 +483,16 @@ class PreparationRenderMixin:
         )
         self.gfx_card.set_scope(route.scope, "blue")
         self.gfx_card.set_status(route.status, route.tone)
-        self.gfx_card.detail.setText(
-            " ".join(tr_format(part, **route.values) for part in route.detail)
-        )
+        state = str(radv.get("state") or "")
+        # Installed, but this session does not run it: the same tip as
+        # Bazzite's, one game at a time with the launch option below.
+        per_game = route.installed and state in {"relogin-required", "switched-off"}
+        detail = [tr_format(part, **route.values) for part in route.detail]
+        if state == "relogin-required":
+            detail.append(tr(RADV_ROUTE_PER_GAME_TIP))
+        self.gfx_card.detail.setText(" ".join(detail))
+        self.radv_launch_row.setVisible(per_game)
+        self._reveal_next_step(self.gfx_card, "radv_async", per_game)
         if route.build:
             self.gfx_card.update_action(
                 self.gfx_primary_button,
@@ -518,6 +529,18 @@ class PreparationRenderMixin:
             payload={"action": "bazzite_async_upstream", "governor": ""},
         )
 
+    def _reveal_next_step(self, card, key: str, active: bool) -> None:
+        """Open a row's details when its tool is installed but still needs to be
+        turned on (a command to copy, a launch option to paste): behind "Show
+        details" nobody finds them. Only on the change, so a row the user
+        closed stays closed on the next refresh."""
+        shown = self.__dict__.setdefault("_revealed_steps", {})
+        if active and not shown.get(key):
+            browser = getattr(self, "compatibility_browser", None)
+            if browser is not None:
+                browser.show_details(card)
+        shown[key] = bool(active)
+
     def _render_directmesh(self, state: Mapping) -> None:
         """DirectMesh's row: title-row status, launch option, version, actions."""
         supported = bool(state.get("supported"))
@@ -544,10 +567,9 @@ class PreparationRenderMixin:
         detail = tr("Mesh shaders for DX12 Ultimate games on the BC-250. Development build: a game can hang the GPU.")
         reason = str(state.get("reason") or "")
         card.detail.setText(detail + (" " + tr(reason) if not supported and reason else ""))
-        self.directmesh_launch_field.setText(str(state.get("launch_option") or ""))
-        # The start of the option is what people recognise; the end is %command%.
-        self.directmesh_launch_field.setCursorPosition(0)
+        self._directmesh_launch_option = str(state.get("launch_option") or "")
         self.directmesh_launch_row.setVisible(installed)
+        self._reveal_next_step(card, "directmesh", installed)
         self._render_version_picker(
             self.directmesh_version_combo, self.directmesh_releases_button,
             {**state, "tag": state.get("selected_tag"), "installer_available": supported},
@@ -1571,6 +1593,7 @@ class PreparationRenderMixin:
         self.steamos_fsr4_launch_row.hide()
         self.bazzite_enable_row.hide()
         self.bazzite_launch_row.hide()
+        self.radv_launch_row.hide()
         real_toolkit = _mapping(gfx_state.get("steamos_real_toolkit"))
         self.real_toolkit_rows.set_provider_state(real_toolkit)
         # Someone who installed with an earlier version has keyboardspecialist's kernel
@@ -1687,6 +1710,7 @@ class PreparationRenderMixin:
             )
             self.bazzite_enable_row.setVisible(per_game)
             self.bazzite_launch_row.setVisible(per_game)
+            self._reveal_next_step(self.gfx_card, "bazzite_async", per_game)
         elif (
             _mapping(gfx_state.get("radv_async")).get("supported")
             and not bool(gfx_state.get("masta_async_compute_ready"))

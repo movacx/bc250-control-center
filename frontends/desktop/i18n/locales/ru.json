@@ -6512,5 +6512,6 @@
   "Temperature unit": "Единица температуры",
   "Celsius": "Цельсий",
   "Fahrenheit": "Фаренгейт",
-  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Как температуры отображаются во всём приложении. Пределы и кривые вентиляторов по-прежнему хранятся в градусах Цельсия."
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Как температуры отображаются во всём приложении. Пределы и кривые вентиляторов по-прежнему хранятся в градусах Цельсия.",
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Если в игре нет разницы, переменная сеанса может быть не активна: скопируйте параметр запуска ниже для этой игры."
 }

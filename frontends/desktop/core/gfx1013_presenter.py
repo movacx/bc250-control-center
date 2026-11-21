@@ -51,6 +51,10 @@ RADV_ROUTE_COPY: dict[str, tuple[str, str, str]] = {
     ),
 }
 RADV_ROUTE_OUTDATED = "A newer build (RADV {version}) is available: build and install again to update."
+RADV_ROUTE_PER_GAME_TIP = (
+    "If a game shows no difference, the session variable may not be active: copy the "
+    "launch option below for that game."
+)
 RADV_ROUTE_SECOND_FIX = (
     "The GFX1013 kernel-side fix is installed too; on kernel 7.2 or newer it is not needed, "
     "and one route is enough."

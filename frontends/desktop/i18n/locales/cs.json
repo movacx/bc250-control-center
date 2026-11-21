@@ -6512,5 +6512,6 @@
   "Temperature unit": "Jednotka teploty",
   "Celsius": "Celsius",
   "Fahrenheit": "Fahrenheit",
-  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Jak se teploty zobrazují v celé aplikaci. Limity a křivky ventilátorů se dál ukládají ve stupních Celsia."
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Jak se teploty zobrazují v celé aplikaci. Limity a křivky ventilátorů se dál ukládají ve stupních Celsia.",
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Pokud ve hře nevidíte žádný rozdíl, proměnná relace možná není aktivní: zkopírujte pro tu hru spouštěcí volbu níže."
 }

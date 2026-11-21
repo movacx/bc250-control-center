@@ -6512,5 +6512,6 @@
   "Temperature unit": "Unit suhu",
   "Celsius": "Celsius",
   "Fahrenheit": "Fahrenheit",
-  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Cara suhu dipaparkan di seluruh aplikasi. Had dan lengkung kipas tetap disimpan dalam Celsius."
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Cara suhu dipaparkan di seluruh aplikasi. Had dan lengkung kipas tetap disimpan dalam Celsius.",
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Jika permainan tidak menunjukkan sebarang perbezaan, pemboleh ubah sesi mungkin tidak aktif: salin pilihan pelancaran di bawah untuk permainan itu."
 }

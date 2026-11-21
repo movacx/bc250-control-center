@@ -6512,5 +6512,6 @@
   "Temperature unit": "Sıcaklık birimi",
   "Celsius": "Santigrat",
   "Fahrenheit": "Fahrenhayt",
-  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Sıcaklıkların uygulamanın her yerinde nasıl gösterileceği. Sınırlar ve fan eğrileri yine Santigrat olarak saklanır."
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Sıcaklıkların uygulamanın her yerinde nasıl gösterileceği. Sınırlar ve fan eğrileri yine Santigrat olarak saklanır.",
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Bir oyunda fark görmüyorsanız oturum değişkeni etkin olmayabilir: o oyun için aşağıdaki başlatma seçeneğini kopyalayın."
 }

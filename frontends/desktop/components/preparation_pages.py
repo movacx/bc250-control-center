@@ -8,13 +8,11 @@ from PyQt6.QtCore import (
     Qt,
 )
 from PyQt6.QtWidgets import (
-    QApplication,
     QBoxLayout,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMenu,
     QProgressBar,
     QSizePolicy,
@@ -24,6 +22,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtWidgets import QPushButton as IconButton
 
 from bc250cc.infrastructure.bazzite_async_compute import BAZZITE_ASYNC_COMPUTE_ICD
+from bc250cc.infrastructure.radv_async_compute import RADV_ASYNC_LAUNCH_OPTION
 from bc250cc.infrastructure.system_setup import CU_UNLOCK_THERMAL_NOTE
 
 from ..core.feature_visibility import (
@@ -750,9 +749,17 @@ class PreparationPagesMixin:
             "Per-game launch option", "Copy launch option",
             lambda: self._bazzite_async_launch_option,
         )
+        # The Arch/Fedora route's own per-game option: the same patched RADV
+        # for one game, when the session does not use it (switched off, or
+        # not logged out yet, or Steam started without the session variable).
+        self.radv_launch_row, self.radv_launch_copy_button = self._copy_row(
+            "Per-game launch option", "Copy launch option",
+            lambda: RADV_ASYNC_LAUNCH_OPTION,
+        )
         # Above the action buttons, whichever optional rows came before.
         gfx_layout = self.gfx_card.layout()
         actions_index = gfx_layout.indexOf(self.gfx_card.actions_panel)
+        gfx_layout.insertWidget(actions_index, self.radv_launch_row)
         gfx_layout.insertWidget(actions_index, self.bazzite_launch_row)
         gfx_layout.insertWidget(actions_index, self.bazzite_enable_row)
         layout.addWidget(self.gfx_card)
@@ -993,8 +1000,7 @@ class PreparationPagesMixin:
 
         The title row matches every other Compatibility row (title, where it
         applies, status). Inside: one line on what it is, the Steam launch
-        option with how to use it right under it, the version row, then the
-        actions.
+        option to copy, the version row, then the actions.
         """
         card = PreparationInfoCard(
             "Mesh shaders · DirectMesh",
@@ -1004,41 +1010,18 @@ class PreparationPagesMixin:
         self.directmesh_card = card
         body = card.layout()
 
-        # The launch option, labelled, with how to use it beneath.
-        self.directmesh_launch_row = QFrame()
-        self.directmesh_launch_row.setProperty("launchStrip", True)
-        launch = QVBoxLayout(self.directmesh_launch_row)
-        launch.setContentsMargins(10, 8, 10, 8)
-        launch.setSpacing(6)
-        launch_title = _label("Steam launch option", "dashboardComponentDetail", wrap=False)
-        launch_title.setProperty("settingHint", True)
-        launch.addWidget(launch_title)
-        field_row = QHBoxLayout()
-        field_row.setSpacing(6)
-        self.directmesh_launch_field = QLineEdit()
-        self.directmesh_launch_field.setReadOnly(True)
-        self.directmesh_launch_field.setProperty("launchOption", True)
-        self.directmesh_launch_field.setAccessibleName(tr("Steam launch option"))
-        self.directmesh_launch_field.setMinimumWidth(0)
-        self.directmesh_launch_field.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        field_row.addWidget(self.directmesh_launch_field, 1)
-        self.directmesh_copy_button = IconButton("⧉")
-        self.directmesh_copy_button.setProperty("fsr4LaunchCopy", True)
-        self.directmesh_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.directmesh_copy_button.setAccessibleName(tr("Copy Steam launch option"))
-        self.directmesh_copy_button.setToolTip(tr("Copy Steam launch option"))
-        self.directmesh_copy_button.clicked.connect(
-            lambda: QApplication.clipboard().setText(self.directmesh_launch_field.text())
+        # The launch option as a compact "label ··· ⧉" row, like GFX1013's:
+        # the long path is not worth reading, only copying. Where to paste it
+        # is the row's tooltip.
+        self._directmesh_launch_option = ""
+        self.directmesh_launch_row, self.directmesh_copy_button = self._copy_row(
+            "Steam launch option", "Copy Steam launch option",
+            lambda: self._directmesh_launch_option,
         )
-        field_row.addWidget(self.directmesh_copy_button)
-        launch.addLayout(field_row)
-        launch_hint = _label(
+        self.directmesh_launch_row.setToolTip(tr(
             "Paste it in Steam > right-click the game > Properties > Launch options. "
-            "Remove it to turn DirectMesh off for that game.",
-            "dashboardComponentDetail",
-        )
-        launch_hint.setProperty("settingHint", True)
-        launch.addWidget(launch_hint)
+            "Remove it to turn DirectMesh off for that game."
+        ))
         body.insertWidget(2, self.directmesh_launch_row)
 
         # The release Install brings in, GitHub's list, and a newer one.
@@ -1061,10 +1044,6 @@ class PreparationPagesMixin:
             lambda _index: self._sync_directmesh_main_action()
         )
         version_row.addWidget(self.directmesh_version_combo)
-        self.directmesh_releases_button = self._releases_button(
-            "Check for new DirectMesh releases", "directmesh_releases"
-        )
-        version_row.addWidget(self.directmesh_releases_button)
         version_row.addStretch(1)
         body.insertWidget(3, version_host)
 
@@ -1075,6 +1054,11 @@ class PreparationPagesMixin:
         )
         self.directmesh_check_button = card.add_action(
             "Check mesh shaders", {"action": "directmesh_check", "governor": ""}
+        )
+        # Reading GitHub's list again is rare: it lives in More, not beside
+        # the version picker.
+        self.directmesh_releases_button = card.add_action(
+            "Check for new releases", {"action": "directmesh_releases", "governor": ""}
         )
         card.add_action("Open upstream project", {"action": "directmesh_upstream", "governor": ""})
         self.directmesh_remove_button = card.add_action(

@@ -6512,5 +6512,6 @@
   "Temperature unit": "Unidade de temperatura",
   "Celsius": "Celsius",
   "Fahrenheit": "Fahrenheit",
-  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Como as temperaturas são mostradas em toda a aplicação. Os limites e as curvas das ventoinhas continuam guardados em Celsius."
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Como as temperaturas são mostradas em toda a aplicação. Os limites e as curvas das ventoinhas continuam guardados em Celsius.",
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Se um jogo não mostrar diferença, a variável da sessão pode não estar ativa: copie a opção de arranque abaixo para esse jogo."
 }

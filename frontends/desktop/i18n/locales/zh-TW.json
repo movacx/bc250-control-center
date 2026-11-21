@@ -6512,5 +6512,6 @@
   "Temperature unit": "溫度單位",
   "Celsius": "攝氏",
   "Fahrenheit": "華氏",
-  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "整個應用程式中溫度的顯示方式。上限與風扇曲線仍以攝氏儲存。"
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "整個應用程式中溫度的顯示方式。上限與風扇曲線仍以攝氏儲存。",
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "如果某個遊戲沒有任何變化，可能是工作階段變數未生效：請為該遊戲複製下方的啟動選項。"
 }

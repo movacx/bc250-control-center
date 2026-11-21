@@ -6512,5 +6512,6 @@
   "Temperature unit": "Temperaturenhed",
   "Celsius": "Celsius",
   "Fahrenheit": "Fahrenheit",
-  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Sådan vises temperaturer overalt i appen. Grænser og blæserkurver gemmes stadig i Celsius."
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Sådan vises temperaturer overalt i appen. Grænser og blæserkurver gemmes stadig i Celsius.",
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Hvis et spil ikke viser nogen forskel, er sessionsvariablen måske ikke aktiv: kopiér startindstillingen nedenfor til det spil."
 }

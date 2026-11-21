@@ -6512,5 +6512,6 @@
   "Temperature unit": "温度の単位",
   "Celsius": "摂氏",
   "Fahrenheit": "華氏",
-  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "アプリ全体での温度の表示方法です。上限やファンカーブは引き続き摂氏で保存されます。"
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "アプリ全体での温度の表示方法です。上限やファンカーブは引き続き摂氏で保存されます。",
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "ゲームで違いが感じられない場合は、セッション変数が有効になっていない可能性があります。そのゲームには下の起動オプションをコピーしてください。"
 }

@@ -4021,6 +4021,7 @@
    "PreparationRenderMixin._render_gfx1013_source": "UPS-0022",
    "PreparationRenderMixin._render_debian_kernel": "UPS-0023",
    "PreparationRenderMixin._render_radv_async": "UPS-0024",
+   "PreparationRenderMixin._reveal_next_step": "UPS-0322",
    "PreparationRenderMixin._render_directmesh": "UPS-0274",
    "PreparationRenderMixin._sync_directmesh_main_action": "UPS-0277",
    "PreparationRenderMixin._render_helixsr": "UPS-0025",

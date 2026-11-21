@@ -6512,5 +6512,6 @@
   "Temperature unit": "Unitate de temperatură",
   "Celsius": "Celsius",
   "Fahrenheit": "Fahrenheit",
-  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Cum sunt afișate temperaturile în toată aplicația. Limitele și curbele ventilatoarelor rămân salvate în Celsius."
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Cum sunt afișate temperaturile în toată aplicația. Limitele și curbele ventilatoarelor rămân salvate în Celsius.",
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Dacă un joc nu arată nicio diferență, este posibil ca variabila sesiunii să nu fie activă: copiază opțiunea de lansare de mai jos pentru acel joc."
 }
