@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "Не вдалося виправити заголовки ядра",
   "Kernel headers do not match": "Заголовки ядра не збігаються",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Драйвери, як-от драйвер вентиляторів, не завантажаться після наступного перезапуску. Виправте це в розділі Сумісність › Система › Заголовки ядра.",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Системи з pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Системи з pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "Одиниця температури",
+  "Celsius": "Цельсій",
+  "Fahrenheit": "Фаренгейт",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Як температури показуються в усьому застосунку. Межі та криві вентиляторів і далі зберігаються в градусах Цельсія."
 }

@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "Nie udało się naprawić nagłówków jądra",
   "Kernel headers do not match": "Nagłówki jądra się nie zgadzają",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Sterowniki, takie jak sterownik wentylatorów, nie załadują się po następnym restarcie. Napraw to w Zgodność › System › Nagłówki jądra.",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Systemy z pacmanem, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Systemy z pacmanem, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "Jednostka temperatury",
+  "Celsius": "Celsjusz",
+  "Fahrenheit": "Fahrenheit",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Jak temperatury są pokazywane w całej aplikacji. Limity i krzywe wentylatorów nadal są zapisywane w stopniach Celsjusza."
 }

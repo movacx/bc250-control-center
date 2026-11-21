@@ -54,7 +54,7 @@ it does not need SSH or Node.js for normal use.
 - System preparation per distribution, run in a built-in terminal
 - Compatibility fixes for GFX1013, async compute, ACPI and Mesa; Dolby Digital 5.1 over HDMI; TV control over HDMI-CEC
 - In-app problem reports with error codes, origin codes and the raw error attached
-- 30 languages, light and dark themes, UI scaling and controller navigation
+- 30 languages, light and dark themes, UI scaling, temperatures in °C or °F, and controller navigation
 - Terminal interface with keyboard navigation, mouse support, live telemetry and an embedded operation console
 - Local-network HTTPS web interface with mobile layouts, pairing QR and per-device hardware permissions
 
@@ -144,7 +144,7 @@ bash scripts/uninstall-local.sh
 
 ## Getting started
 
-1. Launch BC250 Control Center. The first-run screen sets the language and appearance and offers to install the required components.
+1. Launch BC250 Control Center. The first-run screen sets the language, the temperature unit (°C or °F) and the appearance, and offers to install the required components.
 2. Optionally take the guided tour, which explains what each module changes on the board.
 3. On the Dashboard, run **Prepare BC250 system**. It shows what will be installed for your distribution and runs it in the built-in terminal.
 4. Read the status line of a module before applying changes; it reports what is ready and what is missing.

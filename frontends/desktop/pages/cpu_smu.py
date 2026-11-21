@@ -62,6 +62,14 @@ from ..core.diagnostic_history import record_diagnosis
 from ..core.error_diagnostics import diagnose_error
 from ..core.external_links import open_external_url
 from ..core.state import collect_named_sources, state_cache_for
+from ..core.temperature_unit import (
+    format_temperature,
+    from_display_int,
+    localize_temperature_text,
+    temperature_unit,
+    to_display_int,
+    unit_symbol,
+)
 from ..i18n import tr, tr_format
 from ..theme import COLORS
 from .cpu_control_view import CORE_MASK_STOCK, MANUAL_SCALE_HINT
@@ -254,6 +262,10 @@ class CpuValueField(QFrame):
         self.minimum = int(minimum)
         self.maximum = int(maximum)
         self.unit = unit
+        #: A temperature field is typed in the unit on screen and read back in
+        #: °C: ``value()`` and ``setValue()`` always speak Celsius.
+        self.is_temperature = unit == "°C"
+        self._display_unit = temperature_unit()
         self.setProperty("frequencyField", True)
         if compact:
             self.setProperty("compactFrequencyField", True)
@@ -294,33 +306,52 @@ class CpuValueField(QFrame):
             copy.addWidget(detail)
         row.addLayout(copy, 1)
 
-        self.input = QLineEdit(str(int(value)))
+        self.input = QLineEdit(str(self._shown(int(value))))
         self.input.setProperty("frequencyInput", True)
         self.input.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.input.setMinimumWidth(88)
         self.input.setMaximumWidth(128)
         self.input.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        self.input.setValidator(QIntValidator(self.minimum, self.maximum, self.input))
+        self._apply_validator()
         row.addWidget(self.input, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        unit_label = QLabel(tr(unit))
-        unit_label.setProperty("frequencyUnit", True)
-        row.addWidget(unit_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.unit_label = QLabel(tr(unit))
+        self.unit_label.setProperty("frequencyUnit", True)
+        row.addWidget(self.unit_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+    def _shown(self, celsius_or_value: int) -> int:
+        return to_display_int(celsius_or_value) if self.is_temperature else int(celsius_or_value)
+
+    def _apply_validator(self) -> None:
+        self.input.setValidator(
+            QIntValidator(self._shown(self.minimum), self._shown(self.maximum), self.input)
+        )
 
     def value(self) -> int:
         try:
-            return int(self.input.text())
+            typed = int(self.input.text())
         except (TypeError, ValueError):
             return 0
+        return from_display_int(typed, self._display_unit) if self.is_temperature else typed
 
     def setValue(self, value: int) -> None:
         bounded = max(self.minimum, min(self.maximum, int(value)))
-        self.input.setText(str(bounded))
+        self._display_unit = temperature_unit()
+        self.input.setText(str(self._shown(bounded)))
 
     def setRange(self, minimum: int, maximum: int) -> None:
         self.minimum = int(minimum)
         self.maximum = max(self.minimum, int(maximum))
-        self.input.setValidator(QIntValidator(self.minimum, self.maximum, self.input))
+        self._apply_validator()
+
+    def refresh_temperature_unit(self) -> None:
+        """Show the same Celsius setting in the unit just chosen."""
+        if not self.is_temperature or self._display_unit == temperature_unit():
+            return
+        celsius = self.value() if self.input.text().strip() else self.minimum
+        self._apply_validator()
+        self.setValue(celsius)
+        self.unit_label.setText(unit_symbol())
 
 
 class CpuSmuPage(QWidget):
@@ -1350,7 +1381,11 @@ class CpuSmuPage(QWidget):
         if not (CPU_TEMPERATURE_RANGE[0] <= temperature <= CPU_TEMPERATURE_RANGE[1]):
             self._show_info(
                 "Invalid temperature limit",
-                tr_format("Enter a value between {minimum} and {maximum} °C.", minimum=CPU_TEMPERATURE_RANGE[0], maximum=CPU_TEMPERATURE_RANGE[1]),
+                # Both ends in the unit on screen; tr() already swapped the symbol.
+                tr("Enter a value between {minimum} and {maximum} °C.").format(
+                    minimum=to_display_int(CPU_TEMPERATURE_RANGE[0]),
+                    maximum=to_display_int(CPU_TEMPERATURE_RANGE[1]),
+                ),
                 tone="orange",
             )
             return
@@ -1420,7 +1455,7 @@ class CpuSmuPage(QWidget):
             summary=(
                 ("Frequency", f"{frequency} MHz"),
                 ("VID", f"{vid} mV"),
-                ("Temperature limit", f"{temperature} °C"),
+                ("Temperature limit", format_temperature(temperature, 0)),
                 ("Persistence", "Temporary — bc250-detect --keep"),
             ),
             confirm_text="Authenticate and apply",
@@ -1470,7 +1505,7 @@ class CpuSmuPage(QWidget):
                 ("Frequency", f"{frequency} MHz"),
                 ("Manual scale", str(scale)),
                 ("Estimated VID", f"~{estimated_vid} mV" if estimated_vid is not None else "Not available"),
-                ("Temperature limit", f"{temperature} °C"),
+                ("Temperature limit", format_temperature(temperature, 0)),
                 ("Persistence", "Temporary now — the tested result can then be saved for boot"),
             ),
             confirm_text="Authenticate and apply manual OC",
@@ -1906,6 +1941,11 @@ class CpuSmuPage(QWidget):
 
     def retranslate_dynamic_copy(self) -> None:
         self._retranslate_firmware_persistence_button()
+
+    def refresh_temperature_unit(self) -> None:
+        """°C ↔ °F: the cap field keeps its Celsius value in the new unit."""
+        self.temperature_control.refresh_temperature_unit()
+        self._update_staged_target()
 
     def _open_firmware_persistence_guide(self) -> None:
         """Open the external UEFI workflow; never execute firmware actions here."""
@@ -2513,7 +2553,7 @@ class CpuSmuPage(QWidget):
     @staticmethod
     def _render_cpu_text(text: CpuText) -> str:
         if getattr(text, "literal", False):
-            return text.template
+            return localize_temperature_text(text.template)
         values = dict(text.values)
         return tr_format(text.template, **values) if values else tr(text.template)
 

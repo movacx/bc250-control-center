@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "Δεν ήταν δυνατή η επισκευή των κεφαλίδων του πυρήνα",
   "Kernel headers do not match": "Οι κεφαλίδες του πυρήνα δεν ταιριάζουν",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Οδηγοί όπως αυτός των ανεμιστήρων δεν θα φορτώσουν μετά την επόμενη επανεκκίνηση. Επισκευάστε το στο Συμβατότητα › Σύστημα › Κεφαλίδες πυρήνα.",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Συστήματα με pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Συστήματα με pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "Μονάδα θερμοκρασίας",
+  "Celsius": "Κελσίου",
+  "Fahrenheit": "Φαρενάιτ",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Πώς εμφανίζονται οι θερμοκρασίες σε όλη την εφαρμογή. Τα όρια και οι καμπύλες των ανεμιστήρων εξακολουθούν να αποθηκεύονται σε βαθμούς Κελσίου."
 }

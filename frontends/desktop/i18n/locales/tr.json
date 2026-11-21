@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "Çekirdek başlıkları onarılamadı",
   "Kernel headers do not match": "Çekirdek başlıkları eşleşmiyor",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Fan sürücüsü gibi sürücüler bir sonraki yeniden başlatmadan sonra yüklenmez. Uyumluluk › Sistem › Çekirdek başlıkları altında onarın.",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Pacman, dnf / apt kullanan sistemler: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Pacman, dnf / apt kullanan sistemler: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "Sıcaklık birimi",
+  "Celsius": "Santigrat",
+  "Fahrenheit": "Fahrenhayt",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Sıcaklıkların uygulamanın her yerinde nasıl gösterileceği. Sınırlar ve fan eğrileri yine Santigrat olarak saklanır."
 }

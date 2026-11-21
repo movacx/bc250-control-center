@@ -51,7 +51,7 @@ La instalación normal incluye la interfaz del terminal y los recursos web compi
 - Preparación del sistema según la distribución, ejecutada en una terminal integrada
 - Correcciones de compatibilidad para GFX1013, async compute, ACPI y Mesa; Dolby Digital 5.1 por HDMI; control de la TV por HDMI-CEC
 - Informes de problemas dentro de la aplicación, con códigos de error, códigos de origen y el error sin procesar adjunto
-- 30 idiomas, temas claro y oscuro, escalado de la interfaz y navegación con mando
+- 30 idiomas, temas claro y oscuro, escalado de la interfaz, temperaturas en °C o °F y navegación con mando
 - Interfaz de terminal con navegación por teclado, compatibilidad con mouse, telemetría en vivo y una consola de operación integrada
 - Interfaz web HTTPS de red local con diseños móviles, emparejamiento de QR y permisos de hardware por dispositivo
 
@@ -141,7 +141,7 @@ bash scripts/uninstall-local.sh
 
 ## Primeros pasos
 
-1. Abre BC250 Control Center. La pantalla de primer inicio elige el idioma y la apariencia, y ofrece instalar los componentes necesarios.
+1. Abre BC250 Control Center. La pantalla de primer inicio elige el idioma, la unidad de temperatura (°C o °F) y la apariencia, y ofrece instalar los componentes necesarios.
 2. Opcionalmente, haz el recorrido guiado, que explica qué cambia cada módulo en la placa.
 3. En el Panel, ejecuta **Prepare BC250 system**. Muestra lo que se instalará para tu distribución y lo ejecuta en la terminal integrada.
 4. Lee la línea de estado de un módulo antes de aplicar cambios; indica qué está listo y qué falta.

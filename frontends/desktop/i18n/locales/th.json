@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "ไม่สามารถซ่อมเฮดเดอร์เคอร์เนลได้",
   "Kernel headers do not match": "เฮดเดอร์เคอร์เนลไม่ตรงกัน",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "ไดรเวอร์อย่างไดรเวอร์พัดลมจะไม่ถูกโหลดหลังการรีสตาร์ทครั้งถัดไป ซ่อมได้ที่ ความเข้ากันได้ › ระบบ › เฮดเดอร์เคอร์เนล",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "ระบบที่ใช้ pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "ระบบที่ใช้ pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "หน่วยอุณหภูมิ",
+  "Celsius": "เซลเซียส",
+  "Fahrenheit": "ฟาเรนไฮต์",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "รูปแบบการแสดงอุณหภูมิทั่วทั้งแอป ขีดจำกัดและเส้นโค้งพัดลมยังคงบันทึกเป็นเซลเซียส"
 }

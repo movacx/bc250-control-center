@@ -87,6 +87,7 @@ from ..core.performance_model import (
 )
 from ..core.preferences import application_settings
 from ..core.sensor_log import SensorEntry, SensorLog, format_sensor_value
+from ..core.temperature_unit import to_display, to_display_delta
 from ..i18n import tr, tr_format
 from ..theme import COLORS
 
@@ -410,12 +411,18 @@ class SensorTrace(QWidget):
         plot = QRectF(frame.left() + 10, header.bottom() + 6, frame.width() - 20 - label_room, frame.bottom() - header.bottom() - 14)
         if plot.height() < 12 or not trace:
             return
-        values = [value for _moment, value in trace]
+        # Heat is stored in °C and drawn in the unit on screen, ticks included.
+        heat = reading.unit == "°C"
+        shown = to_display if heat else float
+        values = [shown(value) for _moment, value in trace]
         low, high = min(values), max(values)
         if reading.unit == "%":
             axis_low, axis_high, ticks = 0.0, 100.0, (0.0, 50.0, 100.0)
         else:
-            axis = range_axis(low, high, minimum_span=_TRACE_SPAN.get(reading.unit, max(1.0, abs(high) * 0.05)), target_ticks=2)
+            minimum_span = _TRACE_SPAN.get(reading.unit, max(1.0, abs(high) * 0.05))
+            if heat:
+                minimum_span = to_display_delta(minimum_span)
+            axis = range_axis(low, high, minimum_span=minimum_span, target_ticks=2)
             axis_low, axis_high, ticks = axis.minimum, axis.maximum, axis.ticks
         span = max(1e-9, axis_high - axis_low)
         now = trace[-1][0]
@@ -445,7 +452,7 @@ class SensorTrace(QWidget):
         for moment, value in trace:
             if moment - previous > 3.5:
                 runs.append([])
-            runs[-1].append(QPointF(x_for(moment), y_for(value)))
+            runs[-1].append(QPointF(x_for(moment), y_for(shown(value))))
             previous = moment
         gradient = QLinearGradient(0.0, plot.top(), 0.0, plot.bottom())
         top_fill, bottom_fill = QColor(color), QColor(color)
@@ -466,7 +473,7 @@ class SensorTrace(QWidget):
         painter.drawLine(QPointF(x, plot.top()), QPointF(x, plot.bottom()))
         painter.setPen(QPen(QColor(COLORS["chart_surface"]), 1.5))
         painter.setBrush(color)
-        painter.drawEllipse(QPointF(x, y_for(value)), 3.5, 3.5)
+        painter.drawEllipse(QPointF(x, y_for(shown(value))), 3.5, 3.5)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         age = round(now - moment)
         text = format_sensor_value(value, reading.unit) + (f"  -{age} s" if age else "")

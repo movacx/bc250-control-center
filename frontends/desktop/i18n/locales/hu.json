@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "A kernelfejléceket nem sikerült kijavítani",
   "Kernel headers do not match": "A kernelfejlécek nem egyeznek",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Az olyan illesztőprogramok, mint a ventilátoré, a következő újraindítás után nem töltődnek be. Javítsd a Kompatibilitás › Rendszer › Kernelfejlécek alatt.",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "A pacmant, dnf / apt használó rendszerek: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "A pacmant, dnf / apt használó rendszerek: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "Hőmérséklet mértékegysége",
+  "Celsius": "Celsius",
+  "Fahrenheit": "Fahrenheit",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Hogyan jelennek meg a hőmérsékletek az egész alkalmazásban. A határértékek és a ventilátorgörbék továbbra is Celsiusban tárolódnak."
 }

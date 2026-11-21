@@ -93,6 +93,13 @@ from ..core.performance_views import (
 )
 from ..core.sensor_log import SensorLog, format_sensor_value
 from ..core.state import state_cache_for
+from ..core.temperature_unit import (
+    from_display,
+    is_fahrenheit,
+    localize_temperature_text,
+    to_display,
+    unit_symbol,
+)
 from ..i18n import tr, tr_format
 from ..theme import COLORS, palette_color, scale_stylesheet
 from .performance_sensors import SensorBoard
@@ -640,21 +647,34 @@ class DetailGraph(QWidget):
         if definition.rate_scale:
             return rate_axis(peak, target_ticks=target_ticks)
         if definition.unit != "%":
+            low, unit, span = self.history.low(), definition.unit, _MINIMUM_SPAN.get(definition.unit, 1.0)
+            if self._shown_in_fahrenheit():
+                # Round ticks in the unit on screen, not converted °C ticks.
+                low, peak, unit, span = to_display(low), to_display(peak), unit_symbol(), span * 9 / 5
             if self.scale_mode == "full":
-                return value_axis(peak, target_ticks=target_ticks), definition.unit, 1.0
+                return value_axis(peak, target_ticks=target_ticks), unit, 1.0
             return (
-                range_axis(
-                    self.history.low(),
-                    peak,
-                    minimum_span=_MINIMUM_SPAN.get(definition.unit, 1.0),
-                    target_ticks=target_ticks,
-                ),
-                definition.unit,
+                range_axis(low, peak, minimum_span=span, target_ticks=target_ticks),
+                unit,
                 1.0,
             )
         if self.scale_mode == "full" or definition.fixed_maximum is None:
             return value_axis(0, fixed_maximum=definition.fixed_maximum or 100, target_ticks=target_ticks), "%", 1.0
         return zoomed_percent_axis(peak, target_ticks=target_ticks), "%", 1.0
+
+    def _shown_in_fahrenheit(self) -> bool:
+        return (
+            self.history is not None
+            and self.history.definition.unit == "°C"
+            and is_fahrenheit()
+        )
+
+    def _to_axis(self, raw: float, factor: float) -> float:
+        """A stored value (°C for heat) in the axis's unit."""
+        return to_display(raw) if self._shown_in_fahrenheit() else raw / factor
+
+    def _from_axis(self, tick: float, factor: float) -> float:
+        return from_display(tick) if self._shown_in_fahrenheit() else tick * factor
 
     def _format_value(self, value: float) -> str:
         if self.history is not None and self.history.definition.rate_scale:
@@ -942,7 +962,7 @@ class DetailGraph(QWidget):
         span = max(1e-9, axis.maximum - axis.minimum)
 
         def y_for(raw: float) -> float:
-            value = min(axis.maximum, max(axis.minimum, raw / factor))
+            value = min(axis.maximum, max(axis.minimum, self._to_axis(raw, factor)))
             return plot.bottom() - plot.height() * (value - axis.minimum) / span
 
         window = MetricHistory.WINDOW_SECONDS
@@ -968,10 +988,10 @@ class DetailGraph(QWidget):
         minor.setAlpha(90)
         painter.setPen(QPen(minor, 1, Qt.PenStyle.DotLine))
         for tick in axis.minor_ticks:
-            y = y_for(tick * factor)
+            y = y_for(self._from_axis(tick, factor))
             painter.drawLine(QPointF(plot.left(), y), QPointF(plot.right(), y))
         for tick, label in zip(axis.ticks, labels):
-            y = y_for(tick * factor)
+            y = y_for(self._from_axis(tick, factor))
             painter.setPen(QPen(grid, 1))
             painter.drawLine(QPointF(plot.left(), y), QPointF(plot.right(), y))
             if any(abs(y - tag[0]) < tag_height / 2 + 5 for tag in tags):
@@ -1322,8 +1342,8 @@ class DetailPanel(QFrame):
         self.graph.update()
 
     def set_values(self, primary: str, context: str, values: Iterable[str], *, sampled_at: str) -> None:
-        self.primary.setText(primary)
-        self.context.setText(context)
+        self.primary.setText(localize_temperature_text(primary))
+        self.context.setText(localize_temperature_text(context))
         for stat, value in zip(self.stats, values):
             stat.set_value(value)
         self.footer_right.setText(tr_format("Last sample {time}", time=sampled_at))

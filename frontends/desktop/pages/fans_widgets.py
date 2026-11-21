@@ -56,9 +56,17 @@ from ..components.dialogs import (
     reflow_wrapped_labels,
 )
 from ..components.style_state import set_style_property
+from ..components.temperature_spin import TemperatureSpinBox
 from ..components.widgets import IconBadge, icon
 from ..core.preferences import application_settings
 from ..core.raw_errors import remember
+from ..core.temperature_unit import (
+    format_temperature,
+    from_display,
+    is_fahrenheit,
+    to_display,
+    unit_symbol,
+)
 from ..i18n import localize_widget_tree, shipped_name, tr, tr_format
 from ..theme import COLORS, application_stylesheet
 from .fans_helpers import _dict, _hairline, _integer, _percent_to_pwm, _pwm_to_percent  # noqa: E402
@@ -575,10 +583,8 @@ class CurvePoint(QFrame):
         copy.addWidget(self.title_label)
         copy.addWidget(hint)
         row.addLayout(copy, 1)
-        self.temperature = QSpinBox()
-        self.temperature.setRange(30, 95)
-        self.temperature.setSuffix(" °C")
-        self.temperature.setValue(int(temperature))
+        # Edited in °C or °F as chosen; the point itself stays in °C.
+        self.temperature = TemperatureSpinBox(30, 95, int(temperature))
         self.temperature.setMinimumWidth(88)
         self.speed = QSpinBox()
         self.speed.setRange(0, 100)
@@ -591,12 +597,16 @@ class CurvePoint(QFrame):
         self.speed.valueChanged.connect(lambda _value: self.changed.emit())
 
     def values(self) -> tuple[int, int]:
-        return self.temperature.value(), self.speed.value()
+        """(threshold °C, duty %), whatever unit the row is shown in."""
+        return self.temperature.celsius(), self.speed.value()
+
+    def refresh_temperature_unit(self) -> None:
+        self.temperature.refresh_unit()
 
     def set_values(self, temperature: int, speed: int) -> None:
         self.temperature.blockSignals(True)
         self.speed.blockSignals(True)
-        self.temperature.setValue(int(temperature))
+        self.temperature.set_celsius(int(temperature))
         self.speed.setValue(int(speed))
         self.temperature.blockSignals(False)
         self.speed.blockSignals(False)
@@ -797,7 +807,7 @@ class FanCurveScale(QWidget):
         tag_height = metrics.height() + 8
         left = float(metrics.horizontalAdvance("100%") + 14)
         top = float(tag_height + 14)
-        right = float(metrics.horizontalAdvance(f"{int(high)} °C") / 2 + 10)
+        right = float(metrics.horizontalAdvance(format_temperature(high, 0)) / 2 + 10)
         bottom = float(metrics.height() + 14)
         plot = QRectF(
             left,
@@ -831,19 +841,24 @@ class FanCurveScale(QWidget):
                     Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
                     f"{duty}%",
                 )
-        # Temperature: a line every 5 °C, labelled every 5 or 10 °C as the
-        # width allows.
-        first = int(math.ceil(low / 5) * 5)
-        ticks = list(range(first, int(high) + 1, 5))
+        # Temperature: a line every 5 °C (10 °F), labelled every one or
+        # every other line as the width allows. The ticks are round numbers
+        # in the unit on screen; the plot itself stays in °C.
+        fahrenheit = is_fahrenheit()
+        step = 10 if fahrenheit else 5
+        shown_low, shown_high = to_display(low), to_display(high)
+        first = int(math.ceil(shown_low / step) * step)
+        ticks = list(range(first, int(math.floor(shown_high)) + 1, step))
         per_step = plot.width() / max(1, len(ticks) - 1)
-        name_step = 5 if per_step >= metrics.horizontalAdvance("100 °C") + 12 else 10
-        for temperature in ticks:
-            x = x_for(temperature)
-            painter.setPen(QPen(grid if temperature % 10 == 0 else minor, 1))
+        widest = metrics.horizontalAdvance(f"{200 if fahrenheit else 100} {unit_symbol()}")
+        name_step = step if per_step >= widest + 12 else step * 2
+        for shown in ticks:
+            x = x_for(from_display(shown))
+            painter.setPen(QPen(grid if shown % (step * 2) == 0 else minor, 1))
             painter.drawLine(QPointF(x, plot.top()), QPointF(x, plot.bottom()))
-            if temperature % name_step:
+            if shown % name_step:
                 continue
-            text = f"{temperature} °C"
+            text = f"{shown} {unit_symbol()}"
             width = metrics.horizontalAdvance(text) + 6
             painter.setPen(QColor(COLORS["subtle"]))
             painter.drawText(
@@ -924,7 +939,7 @@ class FanCurveScale(QWidget):
         if self.hovered is not None and self.hovered < len(points):
             threshold, duty = points[self.hovered]
             center = QPointF(x_for(threshold), y_for(duty))
-            text = tr_format("Point {index}", index=self.hovered + 1) + f" · {threshold} °C → {duty}%"
+            text = tr_format("Point {index}", index=self.hovered + 1) + f" · {format_temperature(threshold, 0)} → {duty}%"
             width = metrics.horizontalAdvance(text) + 16
             height = metrics.height() + 10
             box_x = min(max(plot.left(), center.x() - width / 2), plot.right() - width)
@@ -943,7 +958,7 @@ class FanCurveScale(QWidget):
         duty = self.live_duty if self.live_duty is not None else (self.points or [(0, 0)])[0][1]
         sensor = f"{self.live_sensor.upper()} " if self.live_sensor else ""
         channel = f"PWM {self.target_pwm} · " if self.target_pwm else ""
-        return f"{channel}{sensor}{self.live_temperature:.1f} °C → {int(duty)}%"
+        return f"{channel}{sensor}{format_temperature(self.live_temperature)} → {int(duty)}%"
 
 
 class FanCurvePlot(QWidget):

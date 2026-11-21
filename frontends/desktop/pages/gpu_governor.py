@@ -87,6 +87,7 @@ from ..core.gfx1013_presenter import RADV_ROUTE_SECOND_FIX, present_gfx1013
 from ..core.operation_gate import OperationGate
 from ..core.preferences import application_settings
 from ..core.state import state_cache_for
+from ..core.temperature_unit import localize_temperature_text
 from ..core.voltage_keypad_guard import (
     clear_voltage_keypad_state,
     voltage_keypad_edit_active,
@@ -3588,7 +3589,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
     @staticmethod
     def _render_telemetry_text(value: TelemetryText) -> str:
         return (
-            value.template
+            localize_temperature_text(value.template)
             if value.literal
             else tr_format(value.template, **dict(value.values))
         )
@@ -3619,7 +3620,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
     @staticmethod
     def _render_runtime_text(value: RuntimeText) -> str:
         return (
-            value.template
+            localize_temperature_text(value.template)
             if value.literal
             else tr_format(value.template, **dict(value.values))
         )
@@ -3739,7 +3740,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
     @staticmethod
     def _render_safety_message(message: SafetyMessage) -> str:
         if message.literal:
-            return message.template
+            return localize_temperature_text(message.template)
         return tr_format(message.template, **dict(message.values))
 
 
@@ -3755,7 +3756,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
     @staticmethod
     def _render_diagnostic_text(value: DiagnosticText) -> str:
         if value.literal:
-            return value.template
+            return localize_temperature_text(value.template)
         translated_values = set(value.translate_values)
         values = {
             key: tr(item) if key in translated_values else item

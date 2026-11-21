@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "Die Kernel-Header konnten nicht repariert werden",
   "Kernel headers do not match": "Die Kernel-Header passen nicht",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Treiber wie der Lüftertreiber laden nach dem nächsten Neustart nicht. Repariere es unter Kompatibilität › System › Kernel-Header.",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Systeme mit pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Systeme mit pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "Temperatureinheit",
+  "Celsius": "Celsius",
+  "Fahrenheit": "Fahrenheit",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Wie Temperaturen überall in der App angezeigt werden. Grenzwerte und Lüfterkurven werden weiterhin in Celsius gespeichert."
 }

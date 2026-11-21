@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "Ytimen otsakkeita ei voitu korjata",
   "Kernel headers do not match": "Ytimen otsakkeet eivät täsmää",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Ajurit, kuten tuuletinajuri, eivät lataudu seuraavan uudelleenkäynnistyksen jälkeen. Korjaa se kohdassa Yhteensopivuus › Järjestelmä › Ytimen otsakkeet.",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Järjestelmät, joissa on pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Järjestelmät, joissa on pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "Lämpötilan yksikkö",
+  "Celsius": "Celsius",
+  "Fahrenheit": "Fahrenheit",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Miten lämpötilat näytetään kaikkialla sovelluksessa. Rajat ja tuuletinkäyrät tallennetaan edelleen celsiusasteina."
 }

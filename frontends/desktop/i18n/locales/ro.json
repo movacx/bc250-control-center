@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "Antetele nucleului nu au putut fi reparate",
   "Kernel headers do not match": "Antetele nucleului nu se potrivesc",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Driverele, precum cel al ventilatoarelor, nu se vor încărca după următoarea repornire. Repară-l în Compatibilitate › Sistem › Antetele nucleului.",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Sisteme cu pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Sisteme cu pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "Unitate de temperatură",
+  "Celsius": "Celsius",
+  "Fahrenheit": "Fahrenheit",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Cum sunt afișate temperaturile în toată aplicația. Limitele și curbele ventilatoarelor rămân salvate în Celsius."
 }

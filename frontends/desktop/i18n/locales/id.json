@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "Header kernel tidak dapat diperbaiki",
   "Kernel headers do not match": "Header kernel tidak cocok",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Driver seperti driver kipas tidak akan dimuat setelah mulai ulang berikutnya. Perbaiki di Kompatibilitas › Sistem › Header kernel.",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Sistem dengan pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Sistem dengan pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "Satuan suhu",
+  "Celsius": "Celsius",
+  "Fahrenheit": "Fahrenheit",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Cara suhu ditampilkan di seluruh aplikasi. Batas dan kurva kipas tetap disimpan dalam Celsius."
 }

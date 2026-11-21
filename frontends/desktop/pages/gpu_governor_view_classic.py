@@ -35,6 +35,7 @@ from ..components.picker_row import PickerRow
 from ..components.resize_grip import SideGrip
 from ..components.style_state import set_style_properties
 from ..components.widgets import icon
+from ..core.temperature_unit import format_temperature
 from ..i18n import governor_fix_label, tr, tr_format
 from .gpu_governor_view import (  # noqa: F401 (shared with the modern layout)
     ABSOLUTE_CEILING,
@@ -993,7 +994,7 @@ class GpuGovernorView(QWidget):
         self._tiles["core"].set_values(f"{state.core_clock} MHz")
         self._tiles["voltage"].set_values(f"{state.voltage} mV")
         self._tiles["temperature"].set_values(
-            f"{state.temperature:.1f} °C",
+            format_temperature(state.temperature),
             temperature_detail(state.temperature),
         )
         self._tiles["load"].set_values(f"{state.load} %")

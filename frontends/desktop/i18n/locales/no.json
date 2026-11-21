@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "Kjerneheaderne kunne ikke repareres",
   "Kernel headers do not match": "Kjerneheaderne stemmer ikke",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Drivere som viftedriveren lastes ikke etter neste omstart. Reparer det under Kompatibilitet › System › Kjerneheadere.",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Systemer med pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Systemer med pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "Temperaturenhet",
+  "Celsius": "Celsius",
+  "Fahrenheit": "Fahrenheit",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Slik vises temperaturer overalt i appen. Grenser og viftekurver lagres fortsatt i Celsius."
 }

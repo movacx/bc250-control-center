@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "無法修復核心標頭檔",
   "Kernel headers do not match": "核心標頭檔不相符",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "風扇驅動程式等驅動程式在下次重新開機後將無法載入。請在 相容性 › 系統 › 核心標頭檔 中修復。",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "使用 pacman, dnf / apt 的系統：Arch、CachyOS、Manjaro、Fedora、Ubuntu、Linux Mint、Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "使用 pacman, dnf / apt 的系統：Arch、CachyOS、Manjaro、Fedora、Ubuntu、Linux Mint、Debian",
+  "Temperature unit": "溫度單位",
+  "Celsius": "攝氏",
+  "Fahrenheit": "華氏",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "整個應用程式中溫度的顯示方式。上限與風扇曲線仍以攝氏儲存。"
 }

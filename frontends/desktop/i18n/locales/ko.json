@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "커널 헤더를 복구할 수 없습니다",
   "Kernel headers do not match": "커널 헤더가 일치하지 않습니다",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "팬 드라이버 같은 드라이버가 다음 재시작 후 로드되지 않습니다. 호환성 › 시스템 › 커널 헤더에서 복구하세요.",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "pacman을, dnf / apt 쓰는 시스템: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "pacman을, dnf / apt 쓰는 시스템: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "온도 단위",
+  "Celsius": "섭씨",
+  "Fahrenheit": "화씨",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "앱 전체에서 온도를 표시하는 방식입니다. 한도와 팬 곡선은 계속 섭씨로 저장됩니다."
 }

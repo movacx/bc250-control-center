@@ -82,8 +82,10 @@ from ..components.page_widgets import SectionCard, caption, subpanel
 from ..components.picker_row import PickerRow
 from ..components.resize_grip import ResizeGrip, SideGrip
 from ..components.style_state import set_style_property
+from ..components.temperature_spin import TemperatureSpinBox
 from ..components.widgets import icon
 from ..core.preferences import application_settings
+from ..core.temperature_unit import format_temperature, localize_temperature_text
 from ..i18n import shipped_name, tr, tr_format
 from ..theme import COLORS
 
@@ -252,7 +254,7 @@ class CpuProfile:
         return f"{self.frequency_mhz} MHz"
 
     def detail(self) -> str:
-        return f"{self.vid_mv} mV · {self.temperature_c} °C"
+        return f"{self.vid_mv} mV · {format_temperature(self.temperature_c, 0)}"
 
     def values(self) -> tuple[int, int, int]:
         return (self.frequency_mhz, self.vid_mv, self.temperature_c)
@@ -378,7 +380,7 @@ class StatCard(QFrame):
             box.addWidget(widget)
 
     def set_values(self, value: str, detail: str = "") -> None:
-        self.value.setText(value or "--")
+        self.value.setText(localize_temperature_text(value) or "--")
         # The explanation is no longer printed under every reading: it stays
         # one hover away, so the tile reads as a label and a number.
         self.setToolTip(detail)
@@ -738,9 +740,9 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
         self._vid_spin = self._build_spin(
             *CPU_VID_RANGE, CPU_VID_STEP_MV, profile.vid_mv
         )
-        self._temperature_spin = self._build_spin(
-            *CPU_TEMPERATURE_RANGE, 1, profile.temperature_c
-        )
+        # Typed in °C or °F, whichever is on screen; read back in °C.
+        self._temperature_spin = TemperatureSpinBox(*CPU_TEMPERATURE_RANGE, profile.temperature_c)
+        self._temperature_spin.setMinimumWidth(70)
         spins.addWidget(self._labelled(tr("CPU frequency"), self._frequency_spin), 0, 0)
         spins.addWidget(self._labelled(tr("VID limit"), self._vid_spin), 0, 1)
         spins.addWidget(
@@ -809,7 +811,8 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
         self._name_edit.setText(self._profile.shown_name())
         self._frequency_spin.setValue(self._profile.frequency_mhz)
         self._vid_spin.setValue(self._profile.vid_mv)
-        self._temperature_spin.setValue(self._profile.temperature_c)
+        self._temperature_spin.refresh_unit()
+        self._temperature_spin.set_celsius(self._profile.temperature_c)
         self._refresh_hint()
         self._view.setVisible(False)
         self._editor.setVisible(True)
@@ -824,6 +827,7 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
 
     def retranslate(self) -> None:
         """Rebuilds the interpolated hint after a live language change."""
+        self._temperature_spin.refresh_unit()
         self._refresh_hint()
         self._sync_view()
 
@@ -832,7 +836,7 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
         self._name_edit.setText(self._default.shown_name())
         self._frequency_spin.setValue(self._default.frequency_mhz)
         self._vid_spin.setValue(self._default.vid_mv)
-        self._temperature_spin.setValue(self._default.temperature_c)
+        self._temperature_spin.set_celsius(self._default.temperature_c)
 
     def _refresh_hint(self) -> None:
         self._hint.setText(
@@ -853,7 +857,7 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
             name=name,
             frequency_mhz=self._frequency_spin.value(),
             vid_mv=self._vid_spin.value(),
-            temperature_c=self._temperature_spin.value(),
+            temperature_c=self._temperature_spin.celsius(),
         )
         self.cancel_edit()
         self._sync_view()

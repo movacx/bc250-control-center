@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "Không thể sửa header kernel",
   "Kernel headers do not match": "Header kernel không khớp",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "Các trình điều khiển như trình điều khiển quạt sẽ không được nạp sau lần khởi động lại tiếp theo. Hãy sửa ở Tương thích › Hệ thống › Header kernel.",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Hệ thống dùng pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "Hệ thống dùng pacman, dnf / apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+  "Temperature unit": "Đơn vị nhiệt độ",
+  "Celsius": "Độ C",
+  "Fahrenheit": "Độ F",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Cách hiển thị nhiệt độ trong toàn bộ ứng dụng. Các giới hạn và đường cong quạt vẫn được lưu theo độ C."
 }

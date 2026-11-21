@@ -38,6 +38,7 @@ from PyQt6.QtWidgets import (
 )
 
 from .. import theme as theme_module
+from ..core.temperature_unit import localize_temperature_text
 from ..i18n import tr
 from .buttons import WrappingButton as QPushButton
 from .core_monitor import CoreGrid
@@ -95,7 +96,7 @@ class Reading(QFrame):
 
     #: Suffixes worth setting in small type after the number rather than
     #: inside it, so a column of readings lines up on its digits.
-    UNITS = ("°C", "MHz", "GHz", "RPM", "mV", "W", "V", "A", "%")
+    UNITS = ("°C", "°F", "MHz", "GHz", "RPM", "mV", "W", "V", "A", "%")
 
     #: Characters a value may take before it is shortened. Chosen so the
     #: longest real reading on this board — a governor backend name — stops
@@ -145,7 +146,8 @@ class Reading(QFrame):
 
     def set_value(self, text: str, detail: str = "") -> None:
         """Show a formatted reading, lifting its unit out of the number."""
-        value = str(text).strip()
+        # Readings arrive in °C; the number is shown in the unit chosen.
+        value = localize_temperature_text(str(text).strip())
         unit = ""
         for candidate in self.UNITS:
             if value.endswith(candidate) and len(value) > len(candidate):

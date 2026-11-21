@@ -58,6 +58,7 @@ from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 from .. import theme
 from ..core.preferences import application_settings
+from ..core.temperature_unit import format_temperature
 from ..i18n import tr, tr_format
 from .buttons import WrappingButton as QPushButton
 from .dashboard_instruments import HeadingLabel
@@ -515,7 +516,7 @@ class _MemoryChipCell(QFrame):
             self.code.setText("")
             self.separator.setVisible(False)
             return
-        self.temperature.setText(f"{temperature:.1f} °C")
+        self.temperature.setText(format_temperature(temperature))
         # The only other per-device value MR3 gives back. The memory clock is
         # not one: all eight chips share a single MCLK, which the hero already
         # reports once.
@@ -725,7 +726,7 @@ class DashboardMemorySummary(QFrame):
         """
         probe = self.cells[0]
         needed = (
-            probe.temperature.fontMetrics().horizontalAdvance("88.8 °C")
+            probe.temperature.fontMetrics().horizontalAdvance("188.8 °F")
             + probe.separator.fontMetrics().horizontalAdvance(" · ")
             + probe.code.fontMetrics().horizontalAdvance("MR3 0x33")
             + 24

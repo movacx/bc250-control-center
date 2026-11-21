@@ -80,6 +80,7 @@ from ..components.buttons import WrappingButton as QPushButton
 from ..components.dialogs import enable_adaptive_dialog
 from ..components.page_widgets import ConfirmDialog, SectionCard
 from ..components.responsive import configure_responsive_scroll_area
+from ..components.temperature_spin import TemperatureSpinBox
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
 from ..components.wheel_guard import GuardedComboBox
@@ -91,6 +92,13 @@ from ..core.decky_export_feedback import (
     fan_export_notes,
 )
 from ..core.state import state_cache_for
+from ..core.temperature_unit import (
+    from_display_delta,
+    temperature_number,
+    temperature_unit,
+    to_display_delta,
+    unit_symbol,
+)
 from ..i18n import shipped_name, tr, tr_format
 from ..theme import COLORS, scale_stylesheet
 from .fans_helpers import (  # noqa: F401  (re-exported: other modules and tests import them from here)
@@ -497,7 +505,7 @@ class PointsEditor(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._rows: list[tuple[QSpinBox, QSpinBox, QPushButton]] = []
+        self._rows: list[tuple[TemperatureSpinBox, QSpinBox, QPushButton]] = []
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(4)
@@ -532,25 +540,30 @@ class PointsEditor(QWidget):
         self._sync()
 
     def points(self) -> list[list[int]]:
-        return [[temperature.value(), speed.value()] for temperature, speed, _remove in self._rows]
+        """The curve in °C, as the daemon reads it, whatever unit is shown."""
+        return [[temperature.celsius(), speed.value()] for temperature, speed, _remove in self._rows]
+
+    def refresh_temperature_unit(self) -> None:
+        """Show the same points in the unit just chosen; nothing is re-rounded."""
+        for temperature, _speed, _remove in self._rows:
+            temperature.refresh_unit()
 
     def set_point(self, index: int, temperature: int, speed: int) -> None:
         """A point moved on the chart: show it here, and say so once."""
         if not 0 <= index < len(self._rows):
             return
         temp, duty, _remove = self._rows[index]
-        for widget, value in ((temp, temperature), (duty, speed)):
-            widget.blockSignals(True)
-            widget.setValue(int(value))
-            widget.blockSignals(False)
+        temp.blockSignals(True)
+        temp.set_celsius(int(temperature))
+        temp.blockSignals(False)
+        duty.blockSignals(True)
+        duty.setValue(int(speed))
+        duty.blockSignals(False)
         self.changed.emit()
 
     def _append(self, temperature: int, speed: int) -> None:
         row = len(self._rows)
-        temp = _field(QSpinBox())
-        temp.setRange(0, 120)
-        temp.setSuffix(" °C")
-        temp.setValue(temperature)
+        temp = _field(TemperatureSpinBox(0, 120, temperature))
         duty = _field(QSpinBox())
         duty.setRange(0, 100)
         duty.setSuffix(" %")
@@ -578,7 +591,7 @@ class PointsEditor(QWidget):
         if len(self._rows) <= engine.CURVE_MIN_POINTS:
             return
         points = [
-            [temperature.value(), speed.value()]
+            [temperature.celsius(), speed.value()]
             for temperature, speed, remove in self._rows if remove is not target
         ]
         self.set_points(points)
@@ -849,7 +862,11 @@ class ChannelEditor(QFrame):
 
         self.min_percent = spin(0, 100, " %")
         self.max_percent = spin(0, 100, " %")
+        # A difference of temperatures: shown in the chosen unit, kept in °C.
         self.hysteresis = spin(0, 10, " °C", 1)
+        self._hysteresis_c = 1.0
+        self._hysteresis_unit = temperature_unit()
+        self._configure_hysteresis()
         self.delay = spin(0, 30, " s", 1)
         self.up_step = spin(1, 100, " %")
         self.down_step = spin(1, 100, " %")
@@ -897,7 +914,7 @@ class ChannelEditor(QFrame):
         pump = saved.get("role") == "pump"
         self.min_percent.setValue(int(saved.get("min_percent", engine.PUMP_DEFAULT_MIN_PERCENT if pump else 0)))
         self.max_percent.setValue(int(saved.get("max_percent", 100)))
-        self.hysteresis.setValue(float(saved.get("hysteresis_c", 1.0)))
+        self._set_hysteresis_c(float(saved.get("hysteresis_c", 1.0)))
         self.delay.setValue(float(saved.get("response_delay_seconds", 0.0)))
         self.up_step.setValue(int(saved.get("max_up_step_percent", 100)))
         self.down_step.setValue(int(saved.get("max_down_step_percent", 10)))
@@ -945,7 +962,7 @@ class ChannelEditor(QFrame):
             entry.update({
                 "min_percent": self.min_percent.value(),
                 "max_percent": self.max_percent.value(),
-                "hysteresis_c": float(self.hysteresis.value()),
+                "hysteresis_c": self._hysteresis_celsius(),
                 "response_delay_seconds": float(self.delay.value()),
                 "max_up_step_percent": self.up_step.value(),
                 "max_down_step_percent": self.down_step.value(),
@@ -1044,6 +1061,43 @@ class ChannelEditor(QFrame):
             self.rename_requested.emit(self.pwm, self.name.text().strip())
 
     # ------------------------------------------------------------------ mix
+
+    # ------------------------------------------------------- temperature unit
+
+    def _configure_hysteresis(self) -> None:
+        self.hysteresis.blockSignals(True)
+        try:
+            self.hysteresis.setRange(0.0, round(to_display_delta(10.0, self._hysteresis_unit), 1))
+            self.hysteresis.setSuffix(f" {unit_symbol(self._hysteresis_unit)}")
+        finally:
+            self.hysteresis.blockSignals(False)
+
+    def _set_hysteresis_c(self, celsius: float) -> None:
+        self._hysteresis_c = max(0.0, min(10.0, float(celsius)))
+        self.hysteresis.setValue(round(to_display_delta(self._hysteresis_c, self._hysteresis_unit), 1))
+
+    def _hysteresis_celsius(self) -> float:
+        """The hysteresis in °C; untouched, exactly the value that was loaded."""
+        shown = round(float(self.hysteresis.value()), 1)
+        if shown == round(to_display_delta(self._hysteresis_c, self._hysteresis_unit), 1):
+            return float(self._hysteresis_c)
+        return round(max(0.0, min(10.0, from_display_delta(shown, self._hysteresis_unit))), 2)
+
+    def refresh_temperature_unit(self) -> None:
+        """°C ↔ °F with a draft open: the same values, in the other unit."""
+        self.points.refresh_temperature_unit()
+        self.member_points.refresh_temperature_unit()
+        if self._hysteresis_unit != temperature_unit():
+            celsius = self._hysteresis_celsius()
+            self._hysteresis_unit = temperature_unit()
+            self._configure_hysteresis()
+            self.hysteresis.blockSignals(True)
+            try:
+                self._set_hysteresis_c(celsius)
+            finally:
+                self.hysteresis.blockSignals(False)
+        for plot in (self.plot, self.mix_plot):
+            plot.scale.update()
 
     def _fill_members(self, current: int) -> None:
         self.member.blockSignals(True)
@@ -1306,6 +1360,13 @@ class FansPage(QWidget):
     def retranslate_dynamic_copy(self) -> None:
         self._render()
 
+    def refresh_temperature_unit(self) -> None:
+        """Redraw readings, the curve editor and its chart in the new unit."""
+        self.editor.refresh_temperature_unit()
+        self._render()
+        # The column heading names the unit.
+        self.model.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, len(COLUMNS) - 1)
+
     def set_updates_active(self, active: bool) -> None:
         self._updates_active = bool(active)
         if self._updates_active:
@@ -1477,7 +1538,7 @@ class FansPage(QWidget):
                 str(BC250_FAN_HEADERS[pwm].bios_number) if pwm in BC250_FAN_HEADERS else "—",
                 mode_text,
                 follows,
-                f"{temperature:.1f}" if temperature is not None else "—",
+                temperature_number(temperature) if temperature is not None else "—",
                 str(duty) if duty is not None else "—",
                 str(_integer(rpm)) if rpm is not None else "—",
                 state,

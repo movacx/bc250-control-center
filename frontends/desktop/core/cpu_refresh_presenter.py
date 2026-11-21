@@ -8,6 +8,8 @@ from typing import Mapping
 
 from bc250cc.domain.cpu.active_tuning import resolve_active_cpu_tuning
 
+from .temperature_unit import format_temperature
+
 
 @dataclass(frozen=True)
 class CpuText:
@@ -122,12 +124,12 @@ def present_cpu_telemetry(perf: Mapping[str, object]) -> CpuTelemetryPresentatio
         power_w=power,
         frequency_text=_literal(f"{frequency / 1000:.2f} GHz") if frequency else _text("Not detected"),
         voltage_text=_literal(f"{voltage / 1000:.3f} V") if voltage else _text("Not exposed"),
-        temperature_text=_literal(f"{temperature:.1f} °C") if temperature else _text("Not detected"),
+        temperature_text=_literal(format_temperature(temperature)) if temperature else _text("Not detected"),
         power_text=_literal(f"{power:.0f} W") if power else _text("Not detected"),
         power_label=_text(str(perf.get("power_label") or "Power sensor unavailable")),
         power_detail=_text(power_detail),
         live_frequency_text=f"{frequency_int} MHz" if frequency_int is not None else "-- MHz",
-        live_temperature_text=f"{temperature_int} °C" if temperature_int is not None else "-- °C",
+        live_temperature_text=format_temperature(temperature_int, 0),
         live_frequency_mhz=frequency_int,
         live_temperature_c=temperature_int,
     )

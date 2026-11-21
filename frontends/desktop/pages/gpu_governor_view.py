@@ -61,6 +61,7 @@ from ..components.page_widgets import (
 from ..components.picker_row import PickerRow
 from ..components.style_state import set_style_properties, set_style_property
 from ..components.widgets import icon
+from ..core.temperature_unit import localize_temperature_text
 from ..i18n import governor_fix_label, shipped_name, tr, tr_format
 from ..theme import COLORS
 
@@ -352,7 +353,7 @@ class FrequencyField(QFrame):
         row.addWidget(self._unit, 0)
 
     def set_values(self, value: str, detail: str | None = None) -> None:
-        self.value.setText(value)
+        self.value.setText(localize_temperature_text(value))
         if detail is not None:
             self.detail.setText(tr(detail))
             self.detail.setVisible(bool(detail))

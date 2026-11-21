@@ -30,6 +30,12 @@ from .core.diagnostic_history import record_terminal_failure
 from .core.gamepad import GamepadNavigationController
 from .core.preferences import UiPreferences
 from .core.state import state_cache_for
+from .core.temperature_unit import (
+    load_temperature_unit,
+    set_temperature_unit,
+    temperature_unit,
+    temperature_unit_notifier,
+)
 from .core.workflow_watch import WorkflowCompletionWatcher
 from .i18n import (
     localize_top_levels,
@@ -127,6 +133,9 @@ class ControlCenterWindow(QMainWindow):
         self._missing_backend_language = migration.missing_backend_language
         self._missing_backend_appearance = migration.missing_backend_appearance
         self._apply_language(str(self.settings.value("settings/language", "auto")), persist=False)
+        # °C or °F, for display only; the pages redraw when it changes.
+        load_temperature_unit(self.settings)
+        temperature_unit_notifier().changed.connect(self._apply_temperature_unit)
         self._apply_appearance(
             str(self.settings.value("settings/appearance", "system")),
             str(self.settings.value("settings/accent", "blue")),
@@ -643,7 +652,9 @@ class ControlCenterWindow(QMainWindow):
             style=self.preferences.style(),
             scale=self.preferences.scale(),
             terminal_theme=str(self.settings.value("settings/console_theme", "app") or "app"),
+            temperature_unit=temperature_unit(),
         )
+        overlay.temperature_unit_chosen.connect(self._welcome_temperature_unit)
         overlay.terminal_theme_chosen.connect(self._welcome_terminal_theme)
         overlay.language_chosen.connect(self._welcome_language)
         # Live, behind the panel: the shell is restyled as the options are
@@ -682,6 +693,9 @@ class ControlCenterWindow(QMainWindow):
         self._apply_language(language)
         if self.welcome is not None:
             self.welcome.retranslate()
+
+    def _welcome_temperature_unit(self, unit: str) -> None:
+        set_temperature_unit(unit, self.settings)
 
     def _apply_style(self, style: str) -> None:
         """Store the style and repaint with it, keeping theme and accent."""
@@ -989,6 +1003,25 @@ class ControlCenterWindow(QMainWindow):
             self._save_backend_preference("idioma", resolved)
         if hasattr(self, "sidebar"):
             self._retranslate_interface()
+
+    def _apply_temperature_unit(self, _unit: str) -> None:
+        """°C ↔ °F: redraw what is on screen, nothing else changes.
+
+        Copy that goes through the translation layer converts itself on the
+        same pass a language change uses; pages that draw temperatures of
+        their own (charts, the fan curve, live readings) redraw from the
+        values they already hold, in Celsius.
+        """
+        if not hasattr(self, "sidebar"):
+            return
+        self._retranslate_interface()
+        for page in getattr(self, "pages", {}).values():
+            refresh = getattr(page, "refresh_temperature_unit", None)
+            if callable(refresh):
+                refresh()
+        settings_dialog = getattr(self, "settings_dialog", None)
+        if settings_dialog is not None:
+            localize_widget_tree(settings_dialog)
 
     def _apply_gpu_interface(self, style: str) -> None:
         """Settings › Appearance › Interface style: swap the GPU screen in place."""

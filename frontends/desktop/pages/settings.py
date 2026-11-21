@@ -97,6 +97,8 @@ from ..core.diagnostic_history import (
 from ..core.preferences import REPORT_GLOW_KEY, UiPreferences, application_settings
 from ..core.raw_errors import remember
 from ..core.state import state_cache_for
+from ..core.temperature_unit import CELSIUS, FAHRENHEIT, set_temperature_unit
+from ..core.temperature_unit import SETTINGS_KEY as TEMPERATURE_UNIT_KEY
 from ..i18n import (
     LANGUAGE_OPTIONS,
     count_label,
@@ -2138,6 +2140,16 @@ class SettingsPage(QWidget):
             "Set the interface language. The change is applied immediately to the interface and its dialogs.",
             self._coded_combo([(name, code) for code, name in LANGUAGE_OPTIONS], "settings/language", "auto", self._language_control_changed),
         ))
+        language.add_row(SettingRow(
+            "Temperature unit",
+            "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.",
+            self._coded_combo(
+                [("Celsius", CELSIUS), ("Fahrenheit", FAHRENHEIT)],
+                TEMPERATURE_UNIT_KEY,
+                CELSIUS,
+                self._temperature_unit_control_changed,
+            ),
+        ))
         layout.addWidget(language)
 
         startup = SettingsGroup("Startup")
@@ -3407,6 +3419,9 @@ class SettingsPage(QWidget):
     def _language_control_changed(self, value: object) -> None:
         self.language_changed.emit(str(value))
 
+    def _temperature_unit_control_changed(self, value: object) -> None:
+        set_temperature_unit(value, self.app_settings)
+
     def _load_daemon_config(self) -> None:
         if self._daemon_config_loaded or self._daemon_config_busy:
             return
@@ -4048,6 +4063,7 @@ class SettingsPage(QWidget):
             "settings/accent": "blue",
             "settings/style": UiPreferences.DEFAULT_STYLE,
             "settings/language": "auto",
+            TEMPERATURE_UNIT_KEY: CELSIUS,
             "settings/smart_alerts": "false",
             "settings/desktop_notifications": "false",
             "settings/detailed_diagnostics": "false",
@@ -4064,6 +4080,7 @@ class SettingsPage(QWidget):
         self.app_settings.sync()
         self.apply_density("comfortable")
         self.language_changed.emit("auto")
+        set_temperature_unit(CELSIUS, self.app_settings)
         self.appearance_changed.emit("system", "blue", "comfortable")
         self.scale_changed.emit(100)
         self.smart_alerts_changed.emit(False)

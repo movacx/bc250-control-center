@@ -57,6 +57,7 @@ from ..core.external_links import open_external_url, update_checks_enabled
 from ..core.gddr6_monitor import EXTERNAL_SOURCE, KERNEL_SOURCE, gddr6_monitor_for
 from ..core.preferences import report_glow_enabled
 from ..core.state import DashboardState, state_cache_for
+from ..core.temperature_unit import format_temperature
 from ..i18n import tr, tr_format
 
 logger = logging.getLogger(__name__)
@@ -470,6 +471,14 @@ class DashboardPage(QWidget):
 
     def retranslate_dynamic_copy(self) -> None:
         self.readiness.retranslate_dynamic_copy()
+
+    def refresh_temperature_unit(self) -> None:
+        """°C ↔ °F: draw the last state again rather than wait for a sample."""
+        if getattr(self.state, "loaded", False):
+            self._unrendered_state = self.state
+            if not offscreen_in_shown_window(self):
+                self._render_state()
+        self._apply_memory_reading(self.memory_monitor.reading)
 
     def _apply_live_sample(self, sample) -> None:
         sampled_at, metrics = sample
@@ -1503,7 +1512,7 @@ class DashboardPage(QWidget):
 
     @staticmethod
     def _format_temperature(value_c: float, *, decimals: int = 1) -> str:
-        return f"{value_c:.{decimals}f} °C" if value_c > 0 else "Not detected"
+        return format_temperature(value_c, decimals) if value_c > 0 else "Not detected"
 
     @staticmethod
     def _format_power(value_w: float) -> str:

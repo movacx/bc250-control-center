@@ -6509,5 +6509,9 @@
   "Could not repair the kernel headers": "カーネルヘッダーを修復できませんでした",
   "Kernel headers do not match": "カーネルヘッダーが一致しません",
   "Drivers such as the fan driver will not load after the next restart. Repair it under Compatibility › System › Kernel headers.": "ファンドライバーなどのドライバーが次回の再起動後に読み込まれません。互換性 › システム › カーネルヘッダー で修復してください。",
-  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "pacman, dnf / apt を使うシステム: Arch、CachyOS、Manjaro、Fedora、Ubuntu、Linux Mint、Debian"
+  "Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian": "pacman, dnf / apt を使うシステム: Arch、CachyOS、Manjaro、Fedora、Ubuntu、Linux Mint、Debian",
+  "Temperature unit": "温度の単位",
+  "Celsius": "摂氏",
+  "Fahrenheit": "華氏",
+  "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "アプリ全体での温度の表示方法です。上限やファンカーブは引き続き摂氏で保存されます。"
 }
