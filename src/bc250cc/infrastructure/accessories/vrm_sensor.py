@@ -8,16 +8,15 @@ temperatures as an ordinary hwmon device, which the Dashboard already reads
 (``vrm_telemetry_reader``). Built with ``_dkms``.
 
 The fan chip's embedded controller has two equal register windows, port 0
-(base) and port 1 (base + 4). Upstream takes port 0, assuming the fan driver
-uses port 1, but the nct6687 driver that Control Center installs for fan
-control uses port 0 too. Loaded after it, bc250-vrm could not reserve the
-port and gave up (``failed to request EC port 0x0a20``); loaded before it,
-the fan driver failed instead, and once both were up they drove the same
-registers without a shared lock. So the installer looks at which window a
-fan driver already holds (/proc/ioports, read with sudo) and builds
-bc250-vrm on the other one: port 1 as a rule, port 0 where a fan driver
-already sits on port 1 (mainline nct6683 does). One line, changed after the
-source's checksum and checked. The fan driver is never touched.
+(base) and port 1 (base + 4). Upstream takes port 0, and that is right: the
+nct6687 fan driver reserves the port 0 range but drives port 1 (all its
+accesses are at base + 4, + 5, + 6). 1.22.10's first build went by the
+reservation, moved bc250-vrm to port 1 and so put both drivers on the same
+registers without a shared lock: readings turned to one repeated word (797
+everywhere), then the EC's SMBus master stopped answering (2026-11-21). So
+bc250-vrm stays on port 0, and the fan driver's idle reservation of it no
+longer stops it loading (it is noted, and not released on unload). Patched
+after the source's checksum and checked. The fan driver is never touched.
 
 What must not run beside it is the BC250-Telemetry service on the wired bus:
 two masters paging the same regulator mix up each other's readings, so the
@@ -67,21 +66,30 @@ DRIVER = _dkms.Driver(
     # The CPU VRM temperature: the one value every board reports at idle.
     reading=("temp1_input", 1000, "°C"),
     preflight=(
-        # The fan chip has two equal EC windows: take the one no fan driver holds.
-        "bc250_ec_port=1",
-        "if sudo grep -qE '^[[:space:]]*0a24-0a27 : nct668[0-9]$' /proc/ioports; then bc250_ec_port=0; fi",
-        'echo "bc250-vrm uses EC port $bc250_ec_port of the fan chip; the fan driver keeps the other one."',
         f"if systemctl is-active --quiet {TELEMETRY_SERVICE} 2>/dev/null; then "
         "echo 'ERROR: the BC250-Telemetry service is running and reads the same regulator over the I2C "
         "modification. Two readers on one regulator mix up each other'\"'\"'s readings: remove the service "
         "in Settings › Telemetry, then press Install again.'; exit 68; fi",
     ),
+    # Port 0, as upstream; only the fan driver's idle reservation of it is
+    # made non-fatal, and released only if this driver took it.
     patches=(
         (
             "nct6687_smbus.c",
-            r"s|^\tnct6687_ec_base = base;$|\tnct6687_ec_base = base + 4; /* EC port 1: the fan driver owns port 0 */|",
-            "nct6687_ec_base = base + 4;",
-            '[ "$bc250_ec_port" = 1 ]',
+            r"s|^static u16 nct6687_ec_base = NCT6687_EC_BASE_DEFAULT;$|&\nstatic bool nct6687_ec_reserved = true;|",
+            "static bool nct6687_ec_reserved = true;",
+        ),
+        (
+            "nct6687_smbus.c",
+            r"/failed to request EC port/{s|pr_err(\"nct6687_smbus: failed to request EC port 0x%04x\\n\"|"
+            r"pr_info(\"nct6687_smbus: EC port 0x%04x is reserved by the fan driver, which uses the other port\\n\"|;"
+            r"n;s|^\t\treturn -EBUSY;$|\t\tnct6687_ec_reserved = false;|}",
+            "nct6687_ec_reserved = false;",
+        ),
+        (
+            "nct6687_smbus.c",
+            r"s|^\(\t*\)release_region(nct6687_ec_base, NCT6687_EC_PORT_LEN);$|\1if (nct6687_ec_reserved)\n\1\trelease_region(nct6687_ec_base, NCT6687_EC_PORT_LEN);|",
+            "if (nct6687_ec_reserved)",
         ),
     ),
     silent_hint=(
@@ -158,12 +166,12 @@ def reload_command() -> str:
         "  exit 1",
         "fi",
         f"sudo modprobe -r {module} || {{",
-        '  echo "ERROR: the driver could not be stopped. Turn the computer off completely and on again to reset the sensor."',
+        '  echo "ERROR: the driver could not be stopped. Unplug the computer for 30 seconds to reset the sensor."',
         "  exit 1",
         "}",
         "sleep 1",
         f"sudo modprobe {module} || {{",
-        '  echo "ERROR: the driver did not start again. Turn the computer off completely and on again."',
+        '  echo "ERROR: the driver did not start again. Unplug the computer for 30 seconds and start it again."',
         "  exit 1",
         "}",
         "sleep 2",
@@ -172,7 +180,7 @@ def reload_command() -> str:
         f'  [ "$(cat "$bc250_hwmon/name" 2>/dev/null)" = {module} ] && bc250_dir="$bc250_hwmon" && break',
         "done",
         'if [ -z "$bc250_dir" ]; then',
-        '  echo "ERROR: the driver started but no regulator answered. Turn the computer off completely and on again."',
+        '  echo "ERROR: the driver started but no regulator answered. Unplug the computer for 30 seconds and start it again."',
         "  exit 2",
         "fi",
         'bc250_temp="$(cat "$bc250_dir/temp1_input" 2>/dev/null || echo -1)"',
@@ -188,6 +196,25 @@ def reload_command() -> str:
         "else",
         '  echo "ERROR: the sensor still returns impossible values ($((bc250_temp / 1000)) °C, $bc250_vin mV input)."',
         "fi",
-        'echo "Turn the computer off completely, wait ten seconds and turn it on again: that resets the chip the sensor is read through."',
+        'echo "Shut down, unplug the computer (or switch the power supply off) for 30 seconds and start it again. The chip the sensor is read through stays powered while the computer is only turned off."',
         "exit 2",
     ))
+
+
+def needs_rebuild() -> bool:
+    """The installed build is not this version's (1.22.10's first build shared
+    the fan driver's EC port, which is what wedges the sensor)."""
+    installed = _installed_build()
+    return bool(installed) and installed != DRIVER.build_id
+
+
+def repair_command(family: str) -> str:
+    """Repair sensor: rebuild an out-of-date driver, otherwise restart it."""
+    if needs_rebuild():
+        return "\n".join((
+            'echo "The installed power sensor driver shares a port with the fan driver; rebuilding it on its own port."',
+            install_command(family),
+            'echo "If the readings do not come back, unplug the computer for 30 seconds and start it again: '
+            'the old driver left the fan chip stuck."',
+        ))
+    return reload_command()

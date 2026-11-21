@@ -91,36 +91,38 @@ def test_both_drivers_share_one_makefile():
     assert "LLVM=1 modules" not in vrm_sensor.DKMS_CONF
 
 
-def test_it_is_built_on_the_ec_port_the_fan_driver_leaves_free():
-    """The fan driver (nct6687) holds EC port 0; bc250-vrm moves to port 1.
+def test_it_stays_on_port_0_and_tolerates_the_fan_drivers_idle_reservation():
+    """nct6687 reserves port 0 (0x0a20) but drives port 1; bc250-vrm keeps port 0.
 
-    Reported 2026-11-20: installed after the fan driver, bc250-vrm logged
-    "failed to request EC port 0x0a20" and never read anything.
+    2026-11-20: loaded after the fan driver, upstream failed with "failed to
+    request EC port 0x0a20". 2026-11-21: moving to port 1 shared the fan
+    driver's registers and wedged the EC.
     """
     script = vrm_sensor.install_command("arch")
-    assert "nct6687_ec_base = base + 4;" in script
+    assert "nct6687_ec_base = base + 4;" not in script
+    assert "nct6687_ec_reserved = false;" in script
     # Patched only after the source is proven, and checked before it is built.
     assert script.index("sha256sum --check") < script.index("sed -i") < script.index("sudo dkms add")
     assert "changed upstream; Control Center did not patch it" in script
 
 
-def test_the_patch_matches_the_reviewed_line(tmp_path):
-    """The sed expression changes exactly the upstream line it names."""
-    name, expression, expected, _only_on_port_1 = vrm_sensor.DRIVER.patches[0]
-    source = tmp_path / name
-    source.write_text("\tif (x)\n\t\treturn;\n\tnct6687_ec_base = base;\n\n\t/* Reserve EC Port 0 */\n")
-    subprocess.run(["sed", "-i", expression, str(source)], check=True)
+def test_the_patches_apply_to_the_reviewed_source(tmp_path):
+    """The three expressions, on the lines of the reviewed nct6687_smbus.c."""
+    source = tmp_path / "nct6687_smbus.c"
+    source.write_text("\n".join((
+        "static u16 nct6687_ec_base = NCT6687_EC_BASE_DEFAULT;",
+        '\tif (!request_region(nct6687_ec_base, NCT6687_EC_PORT_LEN, "nct6687_smbus")) {',
+        '\t\tpr_err("nct6687_smbus: failed to request EC port 0x%04x\\n", nct6687_ec_base);',
+        "\t\treturn -EBUSY;",
+        "\t}",
+        "\t\trelease_region(nct6687_ec_base, NCT6687_EC_PORT_LEN);",
+        "\trelease_region(nct6687_ec_base, NCT6687_EC_PORT_LEN);",
+    )) + "\n")
+    for _name, expression, expected, *_ in vrm_sensor.DRIVER.patches:
+        subprocess.run(["sed", "-i", expression, str(source)], check=True)
+        assert expected in source.read_text()
     text = source.read_text()
-    assert expected in text and "nct6687_ec_base = base;" not in text
-
-
-def test_the_port_is_chosen_on_the_board_not_assumed():
-    """Port 1 unless a fan driver already sits there (mainline nct6683 does)."""
-    script = vrm_sensor.install_command("arch")
-    assert "bc250_ec_port=1" in script
-    # Only a fan driver's region counts, never bc250-vrm's own smbus window.
-    assert "0a24-0a27 : nct668[0-9]$" in script
-    assert 'if [ "$bc250_ec_port" = 1 ]; then sed -i' in script
+    assert "return -EBUSY;" not in text and text.count("if (nct6687_ec_reserved)") == 2
 
 
 def test_an_earlier_build_that_does_not_read_is_offered_as_an_update(board):
@@ -153,5 +155,24 @@ def test_the_repair_restarts_the_driver_and_checks_the_readings():
     assert "sudo modprobe -r bc250_vrm" in script and "sudo modprobe bc250_vrm" in script
     # It checks the result, and names the power cycle when a restart is not enough.
     assert "temp1_input" in script and "in0_input" in script
-    assert "Turn the computer off completely" in script
+    assert "Unplug the computer" in script
     assert subprocess.run(["bash", "-n", "-c", script], check=False).returncode == 0
+
+
+def test_the_driver_stays_on_port_0_beside_the_fan_driver():
+    """nct6687 reserves port 0 but drives port 1 (base + 4..6). 1.22.10's first
+    build moved bc250-vrm to port 1: same registers, no shared lock, a wedged EC."""
+    from bc250cc.infrastructure.accessories import vrm_sensor
+
+    recipe = repr(vrm_sensor.DRIVER.patches) + "".join(vrm_sensor.DRIVER.preflight)
+    assert "base + 4" not in recipe and "bc250_ec_port" not in recipe
+    assert "nct6687_ec_reserved = false;" in recipe
+
+
+def test_repair_rebuilds_a_driver_from_the_old_recipe(monkeypatch):
+    from bc250cc.infrastructure.accessories import vrm_sensor
+
+    monkeypatch.setattr(vrm_sensor, "_installed_build", lambda: "964b83aa067b6f54")
+    assert "dkms install" in vrm_sensor.repair_command("arch")
+    monkeypatch.setattr(vrm_sensor, "_installed_build", lambda: vrm_sensor.DRIVER.build_id)
+    assert vrm_sensor.repair_command("arch") == vrm_sensor.reload_command()

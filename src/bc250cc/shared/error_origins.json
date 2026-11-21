@@ -700,7 +700,9 @@
    "_installed_build": "DRV-0181",
    "install_command": "DRV-0175",
    "remove_command": "DRV-0176",
-   "reload_command": "DRV-0182"
+   "reload_command": "DRV-0182",
+   "needs_rebuild": "DRV-0183",
+   "repair_command": "DRV-0184"
   },
   "bc250cc/infrastructure/apu_telemetry.py": {
    "_read": "TEL-0273",
