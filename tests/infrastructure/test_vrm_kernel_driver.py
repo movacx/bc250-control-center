@@ -234,3 +234,15 @@ def test_a_wedged_bus_reads_as_no_reading_not_797_degrees(tmp_path):
     probe = reader.sondear_telemetria_vrm(missing, hwmon_root=tmp_path, run_lock=lock)
     assert probe["rails"]["cpu"]["implausible"] and not probe["rails"]["cpu"]["valid"]
     assert not probe["total_power_valid"]
+
+
+def test_a_driver_whose_every_read_fails_is_reported_as_unresponsive(tmp_path):
+    """The device exists (its regulator answered at load) but every attribute errors now."""
+    from bc250cc.infrastructure import vrm_telemetry_reader as reader
+
+    device = tmp_path / "hwmon4"
+    device.mkdir()
+    (device / "name").write_text("bc250_vrm\n")  # no readable attribute at all
+    reader._kernel_cache.clear()
+    probe = reader.sondear_telemetria_vrm(tmp_path / "none.json", hwmon_root=tmp_path, run_lock=tmp_path / "lock")
+    assert probe["rails"]["cpu"]["unresponsive"] and not probe["rails"]["cpu"]["valid"]

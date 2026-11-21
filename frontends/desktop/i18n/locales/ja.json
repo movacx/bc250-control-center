@@ -6489,10 +6489,10 @@
   "I'm paying for the repair with the scholarship I get in January, so it will most likely be back around then, and everything goes back to normal. Meanwhile, if something breaks, report it anyway; just bear with me a bit.": "修理代は1月にもらう奨学金で払うので、ボードが戻るのはたぶんその頃で、そこからは元どおりです。それまでの間、何か壊れたら気にせず報告してください。少しだけ待ってもらえると助かります。",
   "Manual mode · the regulator returns values the board cannot produce (such as 797 °C), so they are shown here as received and used nowhere else": "手動モード · レギュレーターがボードではありえない値（797 °C など）を返しているため、ここでは受け取ったまま表示し、ほかでは使用しません",
   "Repair sensor": "センサーを修復",
-  "The power sensor is stuck repeating one value, so its readings are hidden. Repair sensor restarts its driver.": "電源センサーが同じ値を繰り返したまま止まっているため、読み取り値を非表示にしています。「センサーを修復」でドライバーを再起動します。",
   "Power sensor · bc250_vrm": "電源センサー · bc250_vrm",
-  "The sensor's driver keeps returning the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "センサーのドライバーがすべてに同じ値（例: 797 °C）を返しているため、読み取り値を非表示にしています。ターミナルでパスワードを入力してドライバーを再起動し、読み取り値が正しく戻ったかを確認します。システムのほかの部分は変更しません。",
   "Restart driver": "ドライバーを再起動",
   "The terminal shows whether the sensor reads again.": "センサーが再び読み取れるかはターミナルに表示されます。",
-  "Could not restart the power sensor": "電源センサーを再起動できませんでした"
+  "Could not restart the power sensor": "電源センサーを再起動できませんでした",
+  "The power sensor is stuck: it gives no reading or the same value for everything, so its readings are hidden. Repair sensor restarts its driver.": "電源センサーが止まっています。値を返さないか、すべてに同じ値を返しているため、読み取り値を非表示にしています。「センサーを修復」でドライバーを再起動します。",
+  "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "センサーのドライバーが止まっています。読み取りがタイムアウトするか、すべてに同じ値（例: 797 °C）を返しているため、読み取り値を非表示にしています。ターミナルでパスワードを入力してドライバーを再起動し、読み取り値が正しく戻ったかを確認します。システムのほかの部分は変更しません。"
 }

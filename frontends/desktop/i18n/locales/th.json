@@ -6489,10 +6489,10 @@
   "I'm paying for the repair with the scholarship I get in January, so it will most likely be back around then, and everything goes back to normal. Meanwhile, if something breaks, report it anyway; just bear with me a bit.": "ค่าซ่อมผมจะจ่ายด้วยทุนการศึกษาที่ได้ในเดือนมกราคม บอร์ดจึงน่าจะกลับมาราว ๆ ช่วงนั้น แล้วทุกอย่างก็จะกลับมาเป็นปกติ ระหว่างนี้ถ้ามีอะไรพังก็รายงานมาได้เลย แค่รอผมนิดนึงนะครับ",
   "Manual mode · the regulator returns values the board cannot produce (such as 797 °C), so they are shown here as received and used nowhere else": "โหมดกำหนดเอง · ตัวควบคุมแรงดันส่งค่าที่บอร์ดไม่มีทางให้ได้ (เช่น 797 °C) จึงแสดงไว้ที่นี่ตามที่ได้รับและไม่ถูกใช้ที่อื่น",
   "Repair sensor": "ซ่อมเซนเซอร์",
-  "The power sensor is stuck repeating one value, so its readings are hidden. Repair sensor restarts its driver.": "เซนเซอร์พลังงานค้างและส่งค่าเดิมซ้ำ ๆ จึงซ่อนค่าที่อ่านได้ไว้ \"ซ่อมเซนเซอร์\" จะเริ่มไดรเวอร์ใหม่",
   "Power sensor · bc250_vrm": "เซนเซอร์พลังงาน · bc250_vrm",
-  "The sensor's driver keeps returning the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "ไดรเวอร์ของเซนเซอร์ส่งค่าเดียวกันกลับมาทุกรายการ (เช่น 797 °C) จึงซ่อนค่าที่อ่านได้ไว้ ขั้นตอนนี้จะเริ่มไดรเวอร์ใหม่โดยใช้รหัสผ่านของคุณในเทอร์มินัล แล้วตรวจว่าค่าที่อ่านได้กลับมาเป็นค่าจริง ไม่มีการเปลี่ยนส่วนอื่นของระบบ",
   "Restart driver": "เริ่มไดรเวอร์ใหม่",
   "The terminal shows whether the sensor reads again.": "เทอร์มินัลจะแสดงว่าเซนเซอร์อ่านค่าได้อีกครั้งหรือไม่",
-  "Could not restart the power sensor": "ไม่สามารถเริ่มเซนเซอร์พลังงานใหม่ได้"
+  "Could not restart the power sensor": "ไม่สามารถเริ่มเซนเซอร์พลังงานใหม่ได้",
+  "The power sensor is stuck: it gives no reading or the same value for everything, so its readings are hidden. Repair sensor restarts its driver.": "เซนเซอร์พลังงานค้าง: ไม่ส่งค่าที่อ่านได้หรือส่งค่าเดียวกันทุกรายการ จึงซ่อนค่าที่อ่านได้ไว้ \"ซ่อมเซนเซอร์\" จะเริ่มไดรเวอร์ใหม่",
+  "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "ไดรเวอร์ของเซนเซอร์ค้าง: การอ่านค่าหมดเวลา หรือส่งค่าเดียวกันกลับมาทุกรายการ (เช่น 797 °C) จึงซ่อนค่าที่อ่านได้ไว้ ขั้นตอนนี้จะเริ่มไดรเวอร์ใหม่โดยใช้รหัสผ่านของคุณในเทอร์มินัล แล้วตรวจว่าค่าที่อ่านได้กลับมาเป็นค่าจริง ไม่มีการเปลี่ยนส่วนอื่นของระบบ"
 }

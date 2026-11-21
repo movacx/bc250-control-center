@@ -130,3 +130,19 @@ def test_a_wedged_power_sensor_offers_repair_instead_of_how_to_enable(qtbot):
     # No driver at all: the usual "How to enable", no repair.
     page._update_vrm_strip(replace(page.state, vrm_source="", vrm_probe={}))
     assert page.vrm_repair_button.isHidden() and not page.vrm_help_button.isHidden()
+
+
+def test_a_power_sensor_whose_reads_all_time_out_also_offers_repair(qtbot):
+    """2026-11-21, later: every bc250_vrm read failed with "Connection timed out"."""
+    from dataclasses import replace
+
+    from frontends.desktop.pages.dashboard import DashboardPage
+
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    silent = {"daemon": "kernel", "rails": {
+        "cpu": {"valid": False, "implausible": False, "unresponsive": True},
+        "gpu": {"valid": False, "implausible": False, "unresponsive": True},
+    }}
+    page._update_vrm_strip(replace(page.state, vrm_source="nct", vrm_probe=silent))
+    assert not page.vrm_repair_button.isHidden() and page.vrm_help_button.isHidden()

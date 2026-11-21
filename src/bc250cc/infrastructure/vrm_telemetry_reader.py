@@ -213,6 +213,11 @@ def _kernel_vrm_hardware(
             if not plausible:
                 # Shown as "no reading", never as 797 °C; the probe says why.
                 hardware[rail]["implausible"] = True
+            if all(value is None for value in (vin, vout, iout, temp, pout)):
+                # The driver only registers a device whose regulator answered
+                # when it loaded, so a rail where every read now fails (they
+                # time out) is the same wedged bus, not a missing sensor.
+                hardware[rail]["unresponsive"] = True
             if valid:
                 powers.append(pout)
         hardware["total_power_valid"] = len(powers) == 2
@@ -300,6 +305,7 @@ def sondear_telemetria_vrm(
         rail: {
             "valid": bool(hardware[rail]["valid"]),
             "implausible": bool(hardware[rail].get("implausible")),
+            "unresponsive": bool(hardware[rail].get("unresponsive")),
             **{key: _number(hardware[rail].get(key)) for key in ("vin", "vout", "iout", "pout", "temp")},
         }
         for rail in ("cpu", "gpu")

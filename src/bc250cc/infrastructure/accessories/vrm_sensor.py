@@ -183,7 +183,11 @@ def reload_command() -> str:
         '$((bc250_vin / 1000)).$(( (bc250_vin % 1000) / 10 )) V input."',
         "  exit 0",
         "fi",
-        'echo "ERROR: the sensor still returns impossible values ($((bc250_temp / 1000)) °C, $bc250_vin mV input)."',
+        'if [ "$bc250_temp" -lt 0 ]; then',
+        '  echo "ERROR: the sensor still does not answer after the restart."',
+        "else",
+        '  echo "ERROR: the sensor still returns impossible values ($((bc250_temp / 1000)) °C, $bc250_vin mV input)."',
+        "fi",
         'echo "Turn the computer off completely, wait ten seconds and turn it on again: that resets the chip the sensor is read through."',
         "exit 2",
     ))

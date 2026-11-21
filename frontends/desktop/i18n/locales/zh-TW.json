@@ -6489,10 +6489,10 @@
   "I'm paying for the repair with the scholarship I get in January, so it will most likely be back around then, and everything goes back to normal. Meanwhile, if something breaks, report it anyway; just bear with me a bit.": "修理費我會用一月拿到的獎學金來付，所以板子大概也是那時候回來，到時候一切就恢復正常了。在那之前，如果有東西壞了，照樣回報就好，只是要多給我一點時間。",
   "Manual mode · the regulator returns values the board cannot produce (such as 797 °C), so they are shown here as received and used nowhere else": "手動模式 · 穩壓器回傳了板卡不可能產生的數值（例如 797 °C），因此這裡照原樣顯示，其他地方都不會使用",
   "Repair sensor": "修復感測器",
-  "The power sensor is stuck repeating one value, so its readings are hidden. Repair sensor restarts its driver.": "供電感測器卡住了，一直重複同一個數值，所以隱藏了它的讀數。「修復感測器」會重新啟動它的驅動程式。",
   "Power sensor · bc250_vrm": "供電感測器 · bc250_vrm",
-  "The sensor's driver keeps returning the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "感測器的驅動程式對所有項目都回傳同一個數值（例如 797 °C），所以隱藏了它的讀數。此操作會在終端機中用你的密碼重新啟動驅動程式，然後檢查讀數是否恢復為真實值。系統的其他部分不會改變。",
   "Restart driver": "重新啟動驅動程式",
   "The terminal shows whether the sensor reads again.": "終端機會顯示感測器是否恢復讀數。",
-  "Could not restart the power sensor": "無法重新啟動供電感測器"
+  "Could not restart the power sensor": "無法重新啟動供電感測器",
+  "The power sensor is stuck: it gives no reading or the same value for everything, so its readings are hidden. Repair sensor restarts its driver.": "供電感測器卡住了：它不給讀數，或者對所有項目都給同一個數值，所以隱藏了它的讀數。「修復感測器」會重新啟動它的驅動程式。",
+  "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "感測器的驅動程式卡住了：讀取逾時，或者對所有項目都回傳同一個數值（例如 797 °C），所以隱藏了它的讀數。此操作會在終端機中用你的密碼重新啟動驅動程式，然後檢查讀數是否恢復為真實值。系統的其他部分不會改變。"
 }

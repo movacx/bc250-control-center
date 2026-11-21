@@ -1420,8 +1420,8 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         confirmation = ConfirmDialog(
             tr("Power sensor · bc250_vrm"),
             tr(
-                "The sensor's driver keeps returning the same value for everything (for example "
-                "797 °C), so its readings are hidden. This restarts the driver with your password "
+                "The sensor's driver is stuck: its reads time out, or it returns the same value for "
+                "everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password "
                 "in the terminal and then checks that the readings are real again. Nothing else "
                 "on the system is changed."
             ),
