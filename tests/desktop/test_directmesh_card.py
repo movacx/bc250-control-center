@@ -115,3 +115,22 @@ def test_the_arch_route_offers_its_own_launch_option_like_bazzite():
     assert sidebar.radv_launch_row.isHidden()
     sidebar._render_radv_async({**radv, 'enabled': False, 'state': 'switched-off'}, {})
     assert not sidebar.radv_launch_row.isHidden()
+
+
+def test_the_version_picker_hides_behind_more_and_comes_back():
+    sidebar = PreparationSidebar(standalone=True)
+    releases = [{'tag': 'directmesh-v1.4', 'version': '1.4', 'default': True},
+                {'tag': 'directmesh-v1.3', 'version': '1.3'}]
+    sidebar._render_directmesh(dict(supported=True, platform='host', installed=True, installed_version='1.4',
+                                    installed_tag='directmesh-v1.4', selected_tag='directmesh-v1.4',
+                                    releases=releases, launch_option='x %command%'))
+    row, button = sidebar.directmesh_version_row, sidebar.directmesh_version_button
+    assert row.isHidden() and button.text() == 'Choose version'
+    button.click()
+    assert not row.isHidden() and button.text() == 'Hide versions'
+    combo = sidebar.directmesh_version_combo
+    combo.setCurrentIndex(combo.findData('directmesh-v1.3'))
+    assert _main(sidebar)[0] == 'Switch to 1.3'
+    button.click()
+    # Hidden again, the pick goes back so the main button never names a hidden version.
+    assert row.isHidden() and _main(sidebar)[0] == 'Reinstall'

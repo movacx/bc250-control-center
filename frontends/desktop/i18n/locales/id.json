@@ -6513,5 +6513,7 @@
   "Celsius": "Celsius",
   "Fahrenheit": "Fahrenheit",
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Cara suhu ditampilkan di seluruh aplikasi. Batas dan kurva kipas tetap disimpan dalam Celsius.",
-  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Jika sebuah game tidak menunjukkan perbedaan, variabel sesi mungkin belum aktif: salin opsi peluncuran di bawah untuk game itu."
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Jika sebuah game tidak menunjukkan perbedaan, variabel sesi mungkin belum aktif: salin opsi peluncuran di bawah untuk game itu.",
+  "Choose version": "Pilih versi",
+  "Hide versions": "Sembunyikan versi"
 }

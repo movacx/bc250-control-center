@@ -6513,5 +6513,7 @@
   "Celsius": "Celsius",
   "Fahrenheit": "Fahrenheit",
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Hur temperaturer visas överallt i appen. Gränser och fläktkurvor sparas fortfarande i Celsius.",
-  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Om ett spel inte visar någon skillnad är sessionsvariabeln kanske inte aktiv: kopiera startalternativet nedan för det spelet."
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Om ett spel inte visar någon skillnad är sessionsvariabeln kanske inte aktiv: kopiera startalternativet nedan för det spelet.",
+  "Choose version": "Välj version",
+  "Hide versions": "Dölj versioner"
 }

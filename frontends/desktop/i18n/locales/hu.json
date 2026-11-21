@@ -6513,5 +6513,7 @@
   "Celsius": "Celsius",
   "Fahrenheit": "Fahrenheit",
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Hogyan jelennek meg a hőmérsékletek az egész alkalmazásban. A határértékek és a ventilátorgörbék továbbra is Celsiusban tárolódnak.",
-  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Ha egy játékban nincs különbség, lehet, hogy a munkamenet-változó nem aktív: másold ki az alábbi indítási beállítást ahhoz a játékhoz."
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Ha egy játékban nincs különbség, lehet, hogy a munkamenet-változó nem aktív: másold ki az alábbi indítási beállítást ahhoz a játékhoz.",
+  "Choose version": "Verzió kiválasztása",
+  "Hide versions": "Verziók elrejtése"
 }

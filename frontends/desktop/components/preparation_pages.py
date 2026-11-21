@@ -1025,7 +1025,9 @@ class PreparationPagesMixin:
         body.insertWidget(2, self.directmesh_launch_row)
 
         # The release Install brings in, GitHub's list, and a newer one.
+        # Rarely needed: hidden until More › Choose version opens it.
         version_host = QWidget()
+        self.directmesh_version_row = version_host
         version_row = QHBoxLayout(version_host)
         version_row.setContentsMargins(0, 0, 0, 0)
         version_row.setSpacing(6)
@@ -1046,6 +1048,7 @@ class PreparationPagesMixin:
         version_row.addWidget(self.directmesh_version_combo)
         version_row.addStretch(1)
         body.insertWidget(3, version_host)
+        version_host.hide()
 
         # Its text and payload follow the version picked above (see
         # _sync_directmesh_main_action): install, reinstall, update or go back.
@@ -1054,6 +1057,9 @@ class PreparationPagesMixin:
         )
         self.directmesh_check_button = card.add_action(
             "Check mesh shaders", {"action": "directmesh_check", "governor": ""}
+        )
+        self.directmesh_version_button = card.add_action(
+            "Choose version", {"action": "directmesh_version_toggle", "governor": ""}
         )
         # Reading GitHub's list again is rare: it lives in More, not beside
         # the version picker.
@@ -1064,9 +1070,41 @@ class PreparationPagesMixin:
         self.directmesh_remove_button = card.add_action(
             "Remove", {"action": "directmesh_uninstall", "governor": ""}, danger=True
         )
-        card.action_requested.connect(self._forward_dependency_action)
+        card.action_requested.connect(self._directmesh_action)
         card.setProperty("listRow", True)
         card.make_collapsible()
+
+    def _directmesh_action(self, payload: object) -> None:
+        values = dict(payload) if isinstance(payload, Mapping) else {}
+        action = values.get("action")
+        if action == "directmesh_version_toggle":
+            self.set_directmesh_versions_visible(self.directmesh_version_row.isHidden())
+            return
+        if action == "directmesh_releases":
+            # The list it reads is shown in the picker.
+            self.set_directmesh_versions_visible(True)
+        self._forward_dependency_action(values)
+
+    def set_directmesh_versions_visible(self, visible: bool) -> None:
+        """Show the version picker (with the row's details), or hide it again.
+        Hidden, the pick returns to the release Install would use, so the main
+        button never offers a version nobody can see."""
+        self.directmesh_version_row.setVisible(bool(visible))
+        if visible:
+            browser = getattr(self, "compatibility_browser", None)
+            if browser is not None:
+                browser.show_details(self.directmesh_card)
+        else:
+            combo = self.directmesh_version_combo
+            index = combo.findData(getattr(self, "_directmesh_selected_tag", ""))
+            if index >= 0 and index != combo.currentIndex():
+                combo.setCurrentIndex(index)
+        self.directmesh_card.update_action(
+            self.directmesh_version_button,
+            text="Hide versions" if visible else "Choose version",
+            payload={"action": "directmesh_version_toggle", "governor": ""},
+            enabled=bool((getattr(self, "_directmesh_view", None) or {}).get("supported", True)),
+        )
 
     def _build_mesa_card(self) -> None:
         """Mesa older than 26.1: Vulkan runs on the GPU but the desktop is drawn by the CPU."""

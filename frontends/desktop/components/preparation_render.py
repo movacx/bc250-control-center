@@ -574,6 +574,13 @@ class PreparationRenderMixin:
             self.directmesh_version_combo, self.directmesh_releases_button,
             {**state, "tag": state.get("selected_tag"), "installer_available": supported},
         )
+        self._directmesh_selected_tag = str(state.get("selected_tag") or "")
+        self.directmesh_card.update_action(
+            self.directmesh_version_button,
+            text="Choose version" if self.directmesh_version_row.isHidden() else "Hide versions",
+            payload={"action": "directmesh_version_toggle", "governor": ""},
+            enabled=supported,
+        )
         self._directmesh_view = {"installed": installed, "supported": supported,
                                  "installed_tag": str(state.get("installed_tag") or "")}
         self._sync_directmesh_main_action()

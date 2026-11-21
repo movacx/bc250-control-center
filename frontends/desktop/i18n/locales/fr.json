@@ -6513,5 +6513,7 @@
   "Celsius": "Celsius",
   "Fahrenheit": "Fahrenheit",
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Comment les températures s’affichent dans toute l’application. Les limites et les courbes de ventilateur restent enregistrées en Celsius.",
-  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Si un jeu ne montre aucune différence, la variable de session n'est peut-être pas active : copiez l'option de lancement ci-dessous pour ce jeu."
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Si un jeu ne montre aucune différence, la variable de session n'est peut-être pas active : copiez l'option de lancement ci-dessous pour ce jeu.",
+  "Choose version": "Choisir la version",
+  "Hide versions": "Masquer les versions"
 }

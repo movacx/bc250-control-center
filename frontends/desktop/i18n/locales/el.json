@@ -6513,5 +6513,7 @@
   "Celsius": "Κελσίου",
   "Fahrenheit": "Φαρενάιτ",
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Πώς εμφανίζονται οι θερμοκρασίες σε όλη την εφαρμογή. Τα όρια και οι καμπύλες των ανεμιστήρων εξακολουθούν να αποθηκεύονται σε βαθμούς Κελσίου.",
-  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Αν ένα παιχνίδι δεν δείχνει καμία διαφορά, η μεταβλητή της συνεδρίας ίσως δεν είναι ενεργή: αντιγράψτε την επιλογή εκκίνησης παρακάτω για εκείνο το παιχνίδι."
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Αν ένα παιχνίδι δεν δείχνει καμία διαφορά, η μεταβλητή της συνεδρίας ίσως δεν είναι ενεργή: αντιγράψτε την επιλογή εκκίνησης παρακάτω για εκείνο το παιχνίδι.",
+  "Choose version": "Επιλογή έκδοσης",
+  "Hide versions": "Απόκρυψη εκδόσεων"
 }

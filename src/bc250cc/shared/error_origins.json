@@ -3986,6 +3986,8 @@
    "PreparationPagesMixin._compatibility_page": "UPS-0006",
    "PreparationPagesMixin._build_vram_sensor_card": "UPS-0307",
    "PreparationPagesMixin._build_directmesh_card": "UPS-0275",
+   "PreparationPagesMixin._directmesh_action": "UPS-0323",
+   "PreparationPagesMixin.set_directmesh_versions_visible": "UPS-0324",
    "PreparationPagesMixin._build_mesa_card": "UPS-0007",
    "PreparationPagesMixin._build_vaapi_card": "UPS-0008",
    "PreparationPagesMixin._build_helixsr_card": "UPS-0009",

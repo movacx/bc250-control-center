@@ -6513,5 +6513,7 @@
   "Celsius": "摄氏度",
   "Fahrenheit": "华氏度",
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "应用中所有温度的显示方式。限值和风扇曲线仍以摄氏度保存。",
-  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "如果某个游戏没有任何变化，可能是会话变量未生效：请为该游戏复制下方的启动选项。"
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "如果某个游戏没有任何变化，可能是会话变量未生效：请为该游戏复制下方的启动选项。",
+  "Choose version": "选择版本",
+  "Hide versions": "隐藏版本"
 }

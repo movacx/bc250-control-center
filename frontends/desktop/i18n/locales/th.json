@@ -6513,5 +6513,7 @@
   "Celsius": "เซลเซียส",
   "Fahrenheit": "ฟาเรนไฮต์",
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "รูปแบบการแสดงอุณหภูมิทั่วทั้งแอป ขีดจำกัดและเส้นโค้งพัดลมยังคงบันทึกเป็นเซลเซียส",
-  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "หากเกมไม่มีความแตกต่าง ตัวแปรของเซสชันอาจยังไม่ทำงาน: คัดลอกตัวเลือกการเปิดด้านล่างสำหรับเกมนั้น"
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "หากเกมไม่มีความแตกต่าง ตัวแปรของเซสชันอาจยังไม่ทำงาน: คัดลอกตัวเลือกการเปิดด้านล่างสำหรับเกมนั้น",
+  "Choose version": "เลือกเวอร์ชัน",
+  "Hide versions": "ซ่อนเวอร์ชัน"
 }

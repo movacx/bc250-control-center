@@ -6513,5 +6513,7 @@
   "Celsius": "Celsius",
   "Fahrenheit": "Fahrenheit",
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Miten lämpötilat näytetään kaikkialla sovelluksessa. Rajat ja tuuletinkäyrät tallennetaan edelleen celsiusasteina.",
-  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Jos pelissä ei näy eroa, istunnon muuttuja ei ehkä ole käytössä: kopioi alla oleva käynnistysasetus sille pelille."
+  "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Jos pelissä ei näy eroa, istunnon muuttuja ei ehkä ole käytössä: kopioi alla oleva käynnistysasetus sille pelille.",
+  "Choose version": "Valitse versio",
+  "Hide versions": "Piilota versiot"
 }
