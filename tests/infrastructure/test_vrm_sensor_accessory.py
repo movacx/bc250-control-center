@@ -141,3 +141,17 @@ def test_the_installer_leaves_its_mark_after_the_files():
     script = vrm_sensor.install_command("cachyos")
     assert f"printf '%s\\n' {vrm_sensor.DRIVER.build_id} | sudo tee" in script
     assert script.index(f"/usr/src/bc250-vrm-1.1.0/{_dkms.BUILD_MARKER}") > script.index("sudo install -m 0644")
+
+
+def test_the_repair_restarts_the_driver_and_checks_the_readings():
+    """A wedged bc250_vrm is fixed from the app, not by typing modprobe."""
+    import subprocess
+
+    from bc250cc.infrastructure.accessories.vrm_sensor import reload_command
+
+    script = reload_command()
+    assert "sudo modprobe -r bc250_vrm" in script and "sudo modprobe bc250_vrm" in script
+    # It checks the result, and names the power cycle when a restart is not enough.
+    assert "temp1_input" in script and "in0_input" in script
+    assert "Turn the computer off completely" in script
+    assert subprocess.run(["bash", "-n", "-c", script], check=False).returncode == 0

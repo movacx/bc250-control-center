@@ -1415,6 +1415,29 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             tr("Could not release the pacman lock"), controls=(), error_parent=dialog_parent,
         )
 
+    def repair_vrm_sensor(self, dialog_parent: QWidget | None = None) -> None:
+        """The dashboard's Repair sensor: restart a wedged bc250_vrm and check it."""
+        confirmation = ConfirmDialog(
+            tr("Power sensor · bc250_vrm"),
+            tr(
+                "The sensor's driver keeps returning the same value for everything (for example "
+                "797 °C), so its readings are hidden. This restarts the driver with your password "
+                "in the terminal and then checks that the readings are real again. Nothing else "
+                "on the system is changed."
+            ),
+            confirm_text=tr("Restart driver"),
+            tone="orange", parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.reiniciar_sensor_vrm(),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self, tr("Power sensor · bc250_vrm"), tr("The terminal shows whether the sensor reads again.")
+            ),
+            tr("Could not restart the power sensor"), controls=(), error_parent=dialog_parent,
+        )
+
     def _manage_acpi(self, action: str, dialog_parent: QWidget | None = None) -> None:
         if action == "acpi-status":
             self._run_backend_action(

@@ -6487,5 +6487,12 @@
   "On the dashboard, the buttons take turns moving: the support button sends out a ping, the developer's megaphone sends out sound waves, Ko-fi beats like a heart, and GitHub, Discord and Telegram move too. Turn it off to keep them all still.": "在儀表板上，按鈕會輪流動起來：支援按鈕發出脈衝，開發者的擴音器發出聲波，Ko-fi 像心臟一樣跳動，GitHub、Discord 和 Telegram 也會動。關閉後全部保持靜止。",
   "Quick story: my BC-250 died. The fans spin, but there's no video and it doesn't even react to the keyboard, not even the Caps Lock light. I've spent three days trying everything: another power supply, another HDMI cable, a full cleaning... nothing. In a few days I'm taking it to a technician to have it checked.": "簡單說：我的 BC-250 壞了。風扇有在轉，但沒有畫面，連鍵盤都沒反應，Caps Lock 燈也不亮。這三天我什麼都試過了：換電源、換 HDMI 線、徹底清潔……都沒用。過幾天要送去給師傅檢查。",
   "I'm paying for the repair with the scholarship I get in January, so it will most likely be back around then, and everything goes back to normal. Meanwhile, if something breaks, report it anyway; just bear with me a bit.": "修理費我會用一月拿到的獎學金來付，所以板子大概也是那時候回來，到時候一切就恢復正常了。在那之前，如果有東西壞了，照樣回報就好，只是要多給我一點時間。",
-  "Manual mode · the regulator returns values the board cannot produce (such as 797 °C), so they are shown here as received and used nowhere else": "手動模式 · 穩壓器回傳了板卡不可能產生的數值（例如 797 °C），因此這裡照原樣顯示，其他地方都不會使用"
+  "Manual mode · the regulator returns values the board cannot produce (such as 797 °C), so they are shown here as received and used nowhere else": "手動模式 · 穩壓器回傳了板卡不可能產生的數值（例如 797 °C），因此這裡照原樣顯示，其他地方都不會使用",
+  "Repair sensor": "修復感測器",
+  "The power sensor is stuck repeating one value, so its readings are hidden. Repair sensor restarts its driver.": "供電感測器卡住了，一直重複同一個數值，所以隱藏了它的讀數。「修復感測器」會重新啟動它的驅動程式。",
+  "Power sensor · bc250_vrm": "供電感測器 · bc250_vrm",
+  "The sensor's driver keeps returning the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "感測器的驅動程式對所有項目都回傳同一個數值（例如 797 °C），所以隱藏了它的讀數。此操作會在終端機中用你的密碼重新啟動驅動程式，然後檢查讀數是否恢復為真實值。系統的其他部分不會改變。",
+  "Restart driver": "重新啟動驅動程式",
+  "The terminal shows whether the sensor reads again.": "終端機會顯示感測器是否恢復讀數。",
+  "Could not restart the power sensor": "無法重新啟動供電感測器"
 }

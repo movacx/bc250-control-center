@@ -542,6 +542,9 @@ class SistemaService:
     def liberar_bloqueo_pacman(self):
         return self.repo.liberar_bloqueo_pacman()
 
+    def reiniciar_sensor_vrm(self):
+        return self.repo.reiniciar_sensor_vrm()
+
     def reparar_telemetria_8core(self, action: str = "telemetry-fix"):
         return self.repo.reparar_telemetria_8core(action)
 

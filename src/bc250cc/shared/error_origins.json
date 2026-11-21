@@ -699,7 +699,8 @@
    "inventory": "DRV-0174",
    "_installed_build": "DRV-0181",
    "install_command": "DRV-0175",
-   "remove_command": "DRV-0176"
+   "remove_command": "DRV-0176",
+   "reload_command": "DRV-0182"
   },
   "bc250cc/infrastructure/apu_telemetry.py": {
    "_read": "TEL-0273",
@@ -1103,6 +1104,7 @@
    "DependenciasRepository.gestionar_smt_vivo": "PREP-0030",
    "DependenciasRepository.gestionar_acpi": "PREP-0031",
    "DependenciasRepository.liberar_bloqueo_pacman": "PREP-0128",
+   "DependenciasRepository.reiniciar_sensor_vrm": "PREP-0140",
    "DependenciasRepository.reparar_telemetria_8core": "PREP-0032",
    "DependenciasRepository._hardware_source_checkout_command": "PREP-0033",
    "DependenciasRepository._configured_gpu_governor": "PREP-0034",
@@ -2653,6 +2655,7 @@
    "SistemaService.gestionar_smt_vivo": "SYS-0183",
    "SistemaService.gestionar_acpi": "SYS-0184",
    "SistemaService.liberar_bloqueo_pacman": "SYS-0331",
+   "SistemaService.reiniciar_sensor_vrm": "SYS-0343",
    "SistemaService.reparar_telemetria_8core": "SYS-0185",
    "SistemaService.preparar_compatibilidad_steamos": "SYS-0186",
    "SistemaService.gestionar_graficos_steamos": "SYS-0187",
@@ -5741,6 +5744,7 @@
    "DashboardPage._cpu_rail": "DASH-0289",
    "DashboardPage._show_vrm_help": "DASH-0290",
    "DashboardPage._update_vrm_strip": "DASH-0291",
+   "DashboardPage._vrm_stuck": "DASH-0370",
    "DashboardPage.set_vrm_manual": "DASH-0292",
    "DashboardPage._show_vrm_probe": "DASH-0293",
    "DashboardPage._vrm_probe_note": "DASH-0294",
@@ -6143,6 +6147,7 @@
    "GpuGovernorPage._manage_smt_live": "GPU-0071",
    "GpuGovernorPage._manage_steamos_readonly": "GPU-0072",
    "GpuGovernorPage._release_pacman_lock": "GPU-0645",
+   "GpuGovernorPage.repair_vrm_sensor": "GPU-0723",
    "GpuGovernorPage._manage_acpi": "GPU-0073",
    "GpuGovernorPage._prepare_steamos_quick_access": "GPU-0074",
    "GpuGovernorPage._prepare_cachyos_bc250": "GPU-0075",

@@ -1829,6 +1829,10 @@ class ControlCenterWindow(QMainWindow):
         if action == "support":
             self._open_settings_dialog("support")
             return
+        if action == "repair_vrm_sensor":
+            # A wedged bc250_vrm: the terminal workflow restarts the driver.
+            self.gpu_page.repair_vrm_sensor(dialog_parent=self)
+            return
         if action == "open_logs":
             self._open_settings_dialog("reports")
             return

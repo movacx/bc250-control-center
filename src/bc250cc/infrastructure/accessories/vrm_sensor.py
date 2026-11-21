@@ -137,3 +137,53 @@ def remove_command(family: str) -> str:
         "echo 'OK: the power delivery driver was removed. The Dashboard stops showing the rails until it is "
         "installed again.'",
     ))
+
+
+def reload_command() -> str:
+    """Restart a wedged bc250_vrm, then check that the readings are real again.
+
+    The driver talks to the regulator through the fan chip's SMBus master;
+    when that master wedges it hands back one stale word for every register
+    (2026-11-21: 797 for VIN, VOUT, IOUT and TEMP alike). Unloading and
+    loading the driver resets it. Plausible means what a BC-250 rail can
+    produce; when it still is not, only a full power cycle resets the chip.
+    """
+    module = MODULE
+    return "\n".join((
+        "set -u",
+        'echo "== Power sensor (bc250_vrm): restart the driver =="',
+        f"if ! grep -q '^{module} ' /proc/modules; then",
+        '  echo "ERROR: the bc250_vrm driver is not loaded, so there is nothing to restart."',
+        '  echo "Install it in Additional settings › Compatibility › Board sensors."',
+        "  exit 1",
+        "fi",
+        f"sudo modprobe -r {module} || {{",
+        '  echo "ERROR: the driver could not be stopped. Turn the computer off completely and on again to reset the sensor."',
+        "  exit 1",
+        "}",
+        "sleep 1",
+        f"sudo modprobe {module} || {{",
+        '  echo "ERROR: the driver did not start again. Turn the computer off completely and on again."',
+        "  exit 1",
+        "}",
+        "sleep 2",
+        "bc250_dir=''",
+        "for bc250_hwmon in /sys/class/hwmon/hwmon*; do",
+        f'  [ "$(cat "$bc250_hwmon/name" 2>/dev/null)" = {module} ] && bc250_dir="$bc250_hwmon" && break',
+        "done",
+        'if [ -z "$bc250_dir" ]; then',
+        '  echo "ERROR: the driver started but no regulator answered. Turn the computer off completely and on again."',
+        "  exit 2",
+        "fi",
+        'bc250_temp="$(cat "$bc250_dir/temp1_input" 2>/dev/null || echo -1)"',
+        'bc250_vin="$(cat "$bc250_dir/in0_input" 2>/dev/null || echo -1)"',
+        'if [ "$bc250_temp" -ge 1000 ] && [ "$bc250_temp" -le 150000 ] '
+        '&& [ "$bc250_vin" -ge 9000 ] && [ "$bc250_vin" -le 14000 ]; then',
+        '  echo "OK: the power sensor reads again: $((bc250_temp / 1000)) °C on the CPU rail, '
+        '$((bc250_vin / 1000)).$(( (bc250_vin % 1000) / 10 )) V input."',
+        "  exit 0",
+        "fi",
+        'echo "ERROR: the sensor still returns impossible values ($((bc250_temp / 1000)) °C, $bc250_vin mV input)."',
+        'echo "Turn the computer off completely, wait ten seconds and turn it on again: that resets the chip the sensor is read through."',
+        "exit 2",
+    ))

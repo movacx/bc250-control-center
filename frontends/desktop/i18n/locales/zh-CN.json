@@ -6487,5 +6487,12 @@
   "On the dashboard, the buttons take turns moving: the support button sends out a ping, the developer's megaphone sends out sound waves, Ko-fi beats like a heart, and GitHub, Discord and Telegram move too. Turn it off to keep them all still.": "在仪表板上，按钮会轮流动起来：支持按钮发出脉冲，开发者的扩音器发出声波，Ko-fi 像心脏一样跳动，GitHub、Discord 和 Telegram 也会动。关闭后全部保持静止。",
   "Quick story: my BC-250 died. The fans spin, but there's no video and it doesn't even react to the keyboard, not even the Caps Lock light. I've spent three days trying everything: another power supply, another HDMI cable, a full cleaning... nothing. In a few days I'm taking it to a technician to have it checked.": "简单说：我的 BC-250 坏了。风扇在转，但没有画面，连键盘都没反应，Caps Lock 灯也不亮。这三天我什么都试过了：换电源、换 HDMI 线、彻底清洁……都没用。过几天要送去给师傅检查。",
   "I'm paying for the repair with the scholarship I get in January, so it will most likely be back around then, and everything goes back to normal. Meanwhile, if something breaks, report it anyway; just bear with me a bit.": "修理费我会用一月份拿到的奖学金来付，所以板子大概也是那时候回来，到时候一切就恢复正常了。在那之前，如果有东西坏了，照样报告就好，只是要多给我一点时间。",
-  "Manual mode · the regulator returns values the board cannot produce (such as 797 °C), so they are shown here as received and used nowhere else": "手动模式 · 稳压器返回了板卡不可能产生的数值（例如 797 °C），因此这里按原样显示，其他地方都不会使用"
+  "Manual mode · the regulator returns values the board cannot produce (such as 797 °C), so they are shown here as received and used nowhere else": "手动模式 · 稳压器返回了板卡不可能产生的数值（例如 797 °C），因此这里按原样显示，其他地方都不会使用",
+  "Repair sensor": "修复传感器",
+  "The power sensor is stuck repeating one value, so its readings are hidden. Repair sensor restarts its driver.": "供电传感器卡住了，一直重复同一个数值，所以隐藏了它的读数。“修复传感器”会重启它的驱动。",
+  "Power sensor · bc250_vrm": "供电传感器 · bc250_vrm",
+  "The sensor's driver keeps returning the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "传感器的驱动对所有项目都返回同一个数值（例如 797 °C），所以隐藏了它的读数。此操作会在终端中用你的密码重启驱动，然后检查读数是否恢复为真实值。系统的其他部分不会改变。",
+  "Restart driver": "重启驱动",
+  "The terminal shows whether the sensor reads again.": "终端会显示传感器是否恢复读数。",
+  "Could not restart the power sensor": "无法重启供电传感器"
 }

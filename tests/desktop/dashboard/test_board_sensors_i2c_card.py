@@ -107,3 +107,26 @@ def test_a_probe_that_failed_says_so_instead_of_checking_forever(sidebar):
     _show(sidebar, vram_sensor={"state": "error", "error": "KeyError: 'x'"})
     assert sidebar.vram_sensor_card.status.text() in {"Could not check", "No se pudo comprobar"}
     assert "KeyError" in sidebar._accessory_notes["vram_sensor"].text()
+
+
+def test_a_wedged_power_sensor_offers_repair_instead_of_how_to_enable(qtbot):
+    """2026-11-21: bc250_vrm stuck at 797 everywhere; the user cannot type modprobe."""
+    from dataclasses import replace
+
+    from frontends.desktop.pages.dashboard import DashboardPage
+
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    stuck = {"daemon": "kernel", "rails": {
+        "cpu": {"valid": False, "implausible": True, "temp": 797.0},
+        "gpu": {"valid": False, "implausible": True, "temp": 797.0},
+    }}
+    page._update_vrm_strip(replace(page.state, vrm_source="", vrm_probe=stuck))
+    assert not page.vrm_repair_button.isHidden() and page.vrm_help_button.isHidden()
+    emitted = []
+    page.action_requested.connect(emitted.append)
+    page.vrm_repair_button.click()
+    assert emitted == ["repair_vrm_sensor"]
+    # No driver at all: the usual "How to enable", no repair.
+    page._update_vrm_strip(replace(page.state, vrm_source="", vrm_probe={}))
+    assert page.vrm_repair_button.isHidden() and not page.vrm_help_button.isHidden()

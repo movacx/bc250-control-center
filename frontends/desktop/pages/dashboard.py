@@ -329,6 +329,13 @@ class DashboardPage(QWidget):
         # the title like the GDDR6 card's "Monitor live": the dialog says that
         # and what to do about it.
         self.vrm_strip.head.addWidget(self.vrm_help_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        # The driver is there but wedged (one stale word for every register):
+        # the fix is a driver restart, which nobody should have to type.
+        self.vrm_repair_button = QPushButton(tr("Repair sensor"))
+        self.vrm_repair_button.setProperty("dashboardCardAction", True)
+        self.vrm_repair_button.clicked.connect(lambda: self.action_requested.emit("repair_vrm_sensor"))
+        self.vrm_repair_button.hide()
+        self.vrm_strip.head.addWidget(self.vrm_repair_button, 0, Qt.AlignmentFlag.AlignVCenter)
         self.main_layout.addWidget(self.vrm_strip)
 
         self.readiness = PreparationSidebar()
@@ -1353,11 +1360,17 @@ class DashboardPage(QWidget):
         """
         strip = self.vrm_strip
         available = state.vrm_source == "pmbus"
+        stuck = not available and self._vrm_stuck(state.vrm_probe)
+        self.vrm_repair_button.setVisible(stuck)
         if not available and self._vrm_manual:
+            self.vrm_help_button.setVisible(not stuck)
             self._show_vrm_probe(state.vrm_probe)
             return
-        strip.set_note("")
-        self.vrm_help_button.setVisible(not available)
+        strip.set_note(
+            tr("The power sensor is stuck repeating one value, so its readings are hidden. "
+               "Repair sensor restarts its driver.") if stuck else ""
+        )
+        self.vrm_help_button.setVisible(not available and not stuck)
         # Without the link the band is one line that says so, not eight
         # cells repeating "Not detected".
         strip.set_readings_visible(available)
@@ -1393,6 +1406,14 @@ class DashboardPage(QWidget):
             strip[key].set_tone("warning" if state.vrm_alerts else "")
         # A note only when the PMIC has something to say.
         strip.set_note(tr("Attention") if state.vrm_alerts else "")
+
+    @staticmethod
+    def _vrm_stuck(probe) -> bool:
+        """The driver answers, but with values no BC-250 rail can produce."""
+        rails = probe.get("rails") if isinstance(probe, dict) else None
+        return isinstance(rails, dict) and any(
+            isinstance(rail, dict) and rail.get("implausible") for rail in rails.values()
+        )
 
     def set_vrm_manual(self, enabled: bool) -> None:
         """Settings › Telemetry: the rails on screen even when undetected."""

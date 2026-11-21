@@ -383,6 +383,12 @@ class DependenciasRepository(SteamosDependenciesMixin):
         )
         return self._abrir_terminal(command, 'pacman lock')
 
+    def reiniciar_sensor_vrm(self):
+        """Restart a wedged bc250_vrm in a terminal and check its readings."""
+        from bc250cc.infrastructure.accessories.vrm_sensor import reload_command
+
+        return self._abrir_terminal(reload_command(), 'bc250_vrm')
+
     def reparar_telemetria_8core(self, action: str = "telemetry-fix"):
         if action not in {"telemetry-fix", "telemetry-restore"}:
             raise ValueError("Unsupported eight-core telemetry action")
