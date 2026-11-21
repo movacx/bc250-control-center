@@ -2087,6 +2087,19 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton#DialogSecondary:hover {{
         background: {c['control_hover']};
     }}
+    QPushButton#DialogSecondary[iconOnly="true"] {{
+        padding: 0px;
+    }}
+    QPushButton#DialogLink {{
+        background: transparent;
+        border: none;
+        padding: 4px 2px;
+        color: {c['blue']};
+        font-weight: 680;
+    }}
+    QPushButton#DialogLink:hover {{
+        color: {c['blue_hover']};
+    }}
     QPushButton#DialogClose {{
         background: transparent;
         border: none;

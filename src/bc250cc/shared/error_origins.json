@@ -3716,6 +3716,7 @@
    "_text": "UI-0834",
    "DeveloperNoteDialog.__init__": "UI-0835",
    "DeveloperNoteDialog._open_profile": "UI-0838",
+   "DeveloperNoteDialog._open_kofi": "UI-0841",
    "DeveloperNoteDialog._copy_handle": "UI-0836",
    "DeveloperNoteDialog.showEvent": "UI-0837"
   },

@@ -1,15 +1,16 @@
 """A note from the developer, behind the footer's heart button.
 
-Support for BC250 Control Center is paused while the developer's own BC-250
+Support for BC250 Control Center is limited while the developer's own BC-250
 is broken: every fix and every new tool is tried on that board before it
 ships. The note says so plainly, what still works (reports from the app),
-how to help (testing on Discord; Ko-fi stays on the dashboard), and when it
+how to help (testing on Discord, Ko-fi beside Close), and when it
 should end.
 """
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
@@ -25,15 +26,17 @@ from ..core.preferences import application_settings
 from ..i18n import localize_widget_tree, tr
 from .buttons import WrappingButton as QPushButton
 from .dialogs import center_dialog, enable_adaptive_dialog
-from .widgets import dialog_card, icon
+from .widgets import ICON_DIR, dialog_card, icon
 
 #: Once the note has been opened, the button stops glowing.
 SEEN_KEY = "notes/support_pause_2026_seen"
 DISCORD_HANDLE = "@_movacx"
 #: Opens the profile, where a message or a friend request can be sent.
 DISCORD_PROFILE_URL = "https://discord.com/users/719291715369959445"
+#: The same page as the dashboard's Ko-fi button.
+KOFI_URL = "https://ko-fi.com/movacx"
 
-TITLE = "Support is paused until further notice"
+TITLE = "Support is limited until further notice"
 WHEN = "Probably until January 2027."
 #: The note, told plainly in a few paragraphs. The Discord box follows the
 #: last one, where it asks for help.
@@ -52,13 +55,6 @@ PARAGRAPHS = (
     "Discord. And if you'd like to support me, the Ko-fi link is on the dashboard.",
 )
 THANKS = "Thanks for your patience!"
-#: Why the pause should not be felt much: what the app does on its own.
-POSTSCRIPT = (
-    "P.S. Don't worry too much, the app pretty much takes care of itself. Things like the Cyan governor are "
-    "installed from their own official projects, and Control Center's own parts, like compute unit unlock and "
-    "CPU overclocking, don't depend on anything outside, so they'll keep working. And if something fails, "
-    "Settings › About › Support › Known errors explains how to fix the most common problems."
-)
 SIGNATURE = "— movacx"
 
 
@@ -86,7 +82,7 @@ def _text(text: str, name: str = "DialogBody") -> QLabel:
 
 
 class DeveloperNoteDialog(QDialog):
-    """The note itself: it informs and points to Discord; Ko-fi stays on the dashboard."""
+    """The note itself: it informs, points to Discord and offers Ko-fi."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -174,12 +170,30 @@ class DeveloperNoteDialog(QDialog):
         signature.setObjectName("DialogBody")
         signature.setProperty("i18nLiteral", True)
         text.addWidget(signature)
-        text.addSpacing(4)
-        text.addWidget(_text(POSTSCRIPT))
         text.addStretch(1)
 
         footer = QHBoxLayout()
         footer.setSpacing(8)
+        # Ko-fi at hand, the cup and a link beside it, across from Close.
+        self.kofi_button = QPushButton()
+        self.kofi_button.setObjectName("DialogSecondary")
+        self.kofi_button.setProperty("iconOnly", True)
+        self.kofi_button.setIcon(QIcon(str(ICON_DIR / "kofi_cup.png")))
+        self.kofi_button.setIconSize(QSize(20, 20))
+        self.kofi_button.setFixedSize(38, 38)
+        self.kofi_button.setAccessibleName(tr("Support on Ko-fi"))
+        self.kofi_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.kofi_button.setToolTip(tr("Support on Ko-fi"))
+        self.kofi_button.clicked.connect(self._open_kofi)
+        footer.addWidget(self.kofi_button)
+        # The same link look as the Sensor guide's sources: a page that opens outside.
+        self.kofi_link = QPushButton("Ko-fi  ↗")
+        self.kofi_link.setObjectName("DialogLink")
+        self.kofi_link.setProperty("i18nLiteral", True)
+        self.kofi_link.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.kofi_link.setToolTip(tr("Support on Ko-fi"))
+        self.kofi_link.clicked.connect(self._open_kofi)
+        footer.addWidget(self.kofi_link)
         footer.addStretch(1)
         close = QPushButton(tr("Close"))
         close.setObjectName("DialogPrimary")
@@ -199,6 +213,16 @@ class DeveloperNoteDialog(QDialog):
             if clipboard is not None:
                 clipboard.setText(DISCORD_PROFILE_URL)
             self.profile_button.setText(tr("Copied"))
+
+    def _open_kofi(self) -> None:
+        from ..core.external_links import open_external_url
+
+        opened, _message = open_external_url(KOFI_URL)
+        if not opened:
+            clipboard = QApplication.clipboard()
+            if clipboard is not None:
+                clipboard.setText(KOFI_URL)
+            self.kofi_button.setToolTip(tr("Copied"))
 
     def _copy_handle(self) -> None:
         clipboard = QApplication.clipboard()

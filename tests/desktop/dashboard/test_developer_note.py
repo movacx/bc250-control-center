@@ -1,7 +1,7 @@
-"""The footer's note: support paused while the developer's board is broken.
+"""The footer's note: support limited while the developer's board is broken.
 
 It sits between Report a problem and Ko-fi, glows until it is read once,
-and only mentions that Ko-fi is on the dashboard: it asks for nothing.
+and offers Ko-fi from a button beside Close.
 """
 
 from __future__ import annotations
@@ -29,9 +29,31 @@ def test_the_note_says_why_when_and_how_to_help(qtbot):
     assert "2027" in text and "@_movacx" in text and "BC-250" in text
     dialog.copy_button.click()
     assert QApplication.clipboard().text() == "@_movacx"
-    # No coffee button in the note: Ko-fi stays on the dashboard.
-    assert not hasattr(dialog, "kofi_button")
     assert "Ko-fi" in text
+
+
+def test_kofi_sits_at_the_bottom_left_across_from_close(monkeypatch, qtbot):
+    from frontends.desktop.core import external_links
+    from frontends.desktop.pages.dashboard import SUPPORT_URL
+
+    opened = []
+    monkeypatch.setattr(external_links, "open_external_url", lambda url: (opened.append(url) or True, ""))
+    dialog = DeveloperNoteDialog()
+    qtbot.addWidget(dialog)
+    dialog.resize(640, 780)
+    dialog.show()
+    qtbot.wait(50)
+    from frontends.desktop.components.buttons import WrappingButton
+
+    close = next(b for b in dialog.findChildren(WrappingButton) if b.objectName() == "DialogPrimary")
+    assert not dialog.kofi_button.text()
+    assert abs(dialog.kofi_button.geometry().center().y() - close.geometry().center().y()) <= 2
+    assert dialog.kofi_button.x() < close.x()
+    assert dialog.kofi_button.x() < dialog.kofi_link.x() < close.x()
+    assert dialog.kofi_link.text() == "Ko-fi  ↗"
+    dialog.kofi_button.click()
+    dialog.kofi_link.click()
+    assert opened == [SUPPORT_URL] * 2 and SUPPORT_URL == developer_note.KOFI_URL
 
 
 def test_reading_the_note_stops_the_glow(monkeypatch, qtbot):
@@ -76,15 +98,15 @@ def test_the_profile_button_opens_the_discord_profile(monkeypatch, qtbot):
     assert "HDMI" in text and "Caps Lock" in text
 
 
-def test_the_note_reads_like_a_letter_with_a_postscript(qtbot):
+def test_the_note_reads_like_a_letter_and_ends_with_the_signature(qtbot):
     dialog = DeveloperNoteDialog()
     qtbot.addWidget(dialog)
     labels = dialog.findChildren(QLabel)
-    # No section headings: just paragraphs, the Discord box and a P.S.
+    # No section headings and no P.S.: paragraphs, the Discord box, thanks and the signature.
     assert not [label for label in labels if label.objectName() == "DialogSectionLabel"]
     paragraphs = [label.text() for label in labels if label.objectName() == "DialogBody"]
-    assert paragraphs[-1].startswith("P.S.")
-    assert "Cyan" in paragraphs[-1] and "Known errors" in paragraphs[-1]
+    assert paragraphs[-1] == "— movacx"
+    assert not hasattr(developer_note, "POSTSCRIPT")
 
 
 def test_kofi_beats_the_note_rings_and_the_switch_stills_both(qtbot):

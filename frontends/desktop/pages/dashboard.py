@@ -750,7 +750,7 @@ class DashboardPage(QWidget):
         self.action_requested.emit("support")
 
     def _open_developer_note(self) -> None:
-        """Support is paused while the developer's board is broken."""
+        """Support is limited while the developer's board is broken."""
         from ..components.developer_note import DeveloperNoteDialog, mark_note_seen
 
         mark_note_seen()
