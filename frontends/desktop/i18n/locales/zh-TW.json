@@ -6493,6 +6493,6 @@
   "Restart driver": "重新啟動驅動程式",
   "The terminal shows whether the sensor reads again.": "終端機會顯示感測器是否恢復讀數。",
   "Could not restart the power sensor": "無法重新啟動供電感測器",
-  "The power sensor is stuck: it gives no reading or the same value for everything, so its readings are hidden. Repair sensor restarts its driver.": "供電感測器卡住了：它不給讀數，或者對所有項目都給同一個數值，所以隱藏了它的讀數。「修復感測器」會重新啟動它的驅動程式。",
-  "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "感測器的驅動程式卡住了：讀取逾時，或者對所有項目都回傳同一個數值（例如 797 °C），所以隱藏了它的讀數。此操作會在終端機中用你的密碼重新啟動驅動程式，然後檢查讀數是否恢復為真實值。系統的其他部分不會改變。"
+  "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "感測器的驅動程式卡住了：讀取逾時，或者對所有項目都回傳同一個數值（例如 797 °C），所以隱藏了它的讀數。此操作會在終端機中用你的密碼重新啟動驅動程式，然後檢查讀數是否恢復為真實值。系統的其他部分不會改變。",
+  "The power sensor is stuck. Repair sensor restarts it.": "供電感測器卡住了。「修復感測器」會重新啟動它。"
 }

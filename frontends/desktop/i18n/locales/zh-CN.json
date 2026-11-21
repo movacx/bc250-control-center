@@ -6493,6 +6493,6 @@
   "Restart driver": "重启驱动",
   "The terminal shows whether the sensor reads again.": "终端会显示传感器是否恢复读数。",
   "Could not restart the power sensor": "无法重启供电传感器",
-  "The power sensor is stuck: it gives no reading or the same value for everything, so its readings are hidden. Repair sensor restarts its driver.": "供电传感器卡住了：它不给读数，或者对所有项目都给同一个数值，所以隐藏了它的读数。“修复传感器”会重启它的驱动。",
-  "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "传感器的驱动卡住了：读取超时，或者对所有项目都返回同一个数值（例如 797 °C），所以隐藏了它的读数。此操作会在终端中用你的密码重启驱动，然后检查读数是否恢复为真实值。系统的其他部分不会改变。"
+  "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "传感器的驱动卡住了：读取超时，或者对所有项目都返回同一个数值（例如 797 °C），所以隐藏了它的读数。此操作会在终端中用你的密码重启驱动，然后检查读数是否恢复为真实值。系统的其他部分不会改变。",
+  "The power sensor is stuck. Repair sensor restarts it.": "供电传感器卡住了。“修复传感器”会重启它。"
 }

@@ -1367,8 +1367,7 @@ class DashboardPage(QWidget):
             self._show_vrm_probe(state.vrm_probe)
             return
         strip.set_note(
-            tr("The power sensor is stuck: it gives no reading or the same value for everything, "
-               "so its readings are hidden. Repair sensor restarts its driver.") if stuck else ""
+            tr("The power sensor is stuck. Repair sensor restarts it.") if stuck else ""
         )
         self.vrm_help_button.setVisible(not available and not stuck)
         # Without the link the band is one line that says so, not eight

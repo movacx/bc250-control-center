@@ -288,6 +288,7 @@ def sondear_telemetria_vrm(
     max_age: float = DEFAULT_MAX_AGE_SECONDS,
     hwmon_root: Path = HWMON_ROOT,
     run_lock: Path = SMU_RUN_LOCK,
+    module: Path = KERNEL_VRM_MODULE,
 ) -> dict[str, Any]:
     """What the rails report right now, from the daemon or else from the kernel.
 
@@ -300,6 +301,14 @@ def sondear_telemetria_vrm(
         return probe
     hardware = _kernel_vrm_hardware(hwmon_root, run_lock=run_lock)
     if hardware is None:
+        if kernel_vrm_driver_present(module) and not _smu_run_in_progress(run_lock):
+            # Loaded, but no regulator answered when it started: on a BC-250
+            # the regulator is always there, so its bus is wedged (seen right
+            # after restarting a driver whose reads were timing out).
+            silent = {"valid": False, "implausible": False, "unresponsive": True,
+                      **dict.fromkeys(("vin", "vout", "iout", "pout", "temp"))}
+            return {"daemon": "kernel", "age_s": 0.0, "rails": {"cpu": dict(silent), "gpu": dict(silent)},
+                    "total_power_w": None, "total_power_valid": False}
         return probe
     rails = {
         rail: {

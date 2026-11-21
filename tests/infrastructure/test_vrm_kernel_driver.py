@@ -105,7 +105,8 @@ def test_a_daemon_that_gets_no_answer_does_not_hide_the_kernels_reading(tmp_path
 def test_without_a_driver_device_nothing_changes(tmp_path):
     (tmp_path / "hwmon").mkdir()
     _driver(tmp_path / "hwmon", name="k10temp")  # some other hwmon device
-    probe = sondear_telemetria_vrm(tmp_path / "absent.json", hwmon_root=tmp_path / "hwmon")
+    probe = sondear_telemetria_vrm(tmp_path / "absent.json", hwmon_root=tmp_path / "hwmon",
+                                   module=tmp_path / "no-module")
     assert probe["daemon"] == "missing" and probe["rails"] == {}
     assert leer_telemetria_vrm(tmp_path / "absent.json", hwmon_root=tmp_path / "hwmon")["vrm_available"] is False
 
@@ -246,3 +247,19 @@ def test_a_driver_whose_every_read_fails_is_reported_as_unresponsive(tmp_path):
     reader._kernel_cache.clear()
     probe = reader.sondear_telemetria_vrm(tmp_path / "none.json", hwmon_root=tmp_path, run_lock=tmp_path / "lock")
     assert probe["rails"]["cpu"]["unresponsive"] and not probe["rails"]["cpu"]["valid"]
+
+
+def test_a_loaded_driver_with_no_regulator_is_reported_as_unresponsive(tmp_path):
+    """After a restart the regulator did not answer, so no hwmon device exists."""
+    from bc250cc.infrastructure import vrm_telemetry_reader as reader
+
+    module = tmp_path / "module"
+    module.mkdir()
+    reader._kernel_cache.clear()
+    probe = reader.sondear_telemetria_vrm(tmp_path / "none.json", hwmon_root=tmp_path,
+                                          run_lock=tmp_path / "lock", module=module)
+    assert probe["rails"]["cpu"]["unresponsive"]
+    reader._kernel_cache.clear()
+    missing = reader.sondear_telemetria_vrm(tmp_path / "none.json", hwmon_root=tmp_path,
+                                            run_lock=tmp_path / "lock", module=tmp_path / "absent")
+    assert missing["rails"] == {}

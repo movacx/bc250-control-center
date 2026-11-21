@@ -6493,6 +6493,6 @@
   "Restart driver": "ドライバーを再起動",
   "The terminal shows whether the sensor reads again.": "センサーが再び読み取れるかはターミナルに表示されます。",
   "Could not restart the power sensor": "電源センサーを再起動できませんでした",
-  "The power sensor is stuck: it gives no reading or the same value for everything, so its readings are hidden. Repair sensor restarts its driver.": "電源センサーが止まっています。値を返さないか、すべてに同じ値を返しているため、読み取り値を非表示にしています。「センサーを修復」でドライバーを再起動します。",
-  "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "センサーのドライバーが止まっています。読み取りがタイムアウトするか、すべてに同じ値（例: 797 °C）を返しているため、読み取り値を非表示にしています。ターミナルでパスワードを入力してドライバーを再起動し、読み取り値が正しく戻ったかを確認します。システムのほかの部分は変更しません。"
+  "The sensor's driver is stuck: its reads time out, or it returns the same value for everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password in the terminal and then checks that the readings are real again. Nothing else on the system is changed.": "センサーのドライバーが止まっています。読み取りがタイムアウトするか、すべてに同じ値（例: 797 °C）を返しているため、読み取り値を非表示にしています。ターミナルでパスワードを入力してドライバーを再起動し、読み取り値が正しく戻ったかを確認します。システムのほかの部分は変更しません。",
+  "The power sensor is stuck. Repair sensor restarts it.": "電源センサーが止まっています。「センサーを修復」で再起動します。"
 }
