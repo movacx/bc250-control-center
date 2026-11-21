@@ -1779,10 +1779,26 @@ def test_steamos_takes_mitigations_and_smt_but_not_the_cu_unlock(sandbox):
 
 def test_only_the_reviewed_arguments_exist(sandbox):
     sandbox.grub()
-    with pytest.raises(SetupError, match="Only mitigations=off, nosmt, loglevel=0 and the BC-250 amdgpu switches"):
+    with pytest.raises(SetupError, match="Only mitigations=off, nosmt, loglevel=0, the BC-250 amdgpu switches and the GDDR6 memory driver"):
         kernel_args.apply(sandbox.host, ["init=/bin/sh"])
     with pytest.raises(SetupError, match="Only mitigations=off"):
         kernel_args.apply(sandbox.host, ["amdgpu.bc250_cc_write_mode=2"])
+
+
+def test_the_memory_driver_is_offered_only_where_the_kernel_ships_it(sandbox):
+    import os
+
+    sandbox.grub()
+    option = kernel_args.MEMORY_SENSOR
+    assert option == "modules-load=bc250_memory"
+    assert kernel_args.status(sandbox.host)["parameters"][option]["supported"] is False
+    with pytest.raises(SetupError, match="no bc250_memory driver"):
+        kernel_args.apply(sandbox.host, [option])
+    release = os.uname().release
+    sandbox.put(f"/usr/lib/modules/{release}/modules.dep", "kernel/drivers/hwmon/bc250_memory.ko.zst:\n")
+    assert kernel_args.status(sandbox.host)["parameters"][option]["supported"] is True
+    kernel_args.apply(sandbox.host, [option])
+    assert kernel_args.status(sandbox.host)["arguments"][option]["managed"] is True
 
 
 # ---------------------------------------------- the kernel's own CU unlock

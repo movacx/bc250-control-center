@@ -32,6 +32,11 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
+    <release version="1.22.10" date="2026-11-21">
+      <description>
+        <p>Guía de errores conocidos dentro de la aplicación, ordenada por los errores más frecuentes. Sensores de alimentación y de memoria GDDR6 que se compilan en Arch, CachyOS y Manjaro, y las lecturas imposibles del regulador ya no se muestran. Selector de máscara de núcleos para placas que no son 0x77, HelixSR 3.4 y 3.3.0 vuelve a instalarse, botón para quitar juegos de la lista, estilo clásico para la pantalla de GPU y una nota del desarrollador. Incluye arreglos de SteamOS, pacman, Bazzite y Podman a partir de los reportes recibidos.</p>
+      </description>
+    </release>
     <release version="1.22.9" date="2026-11-14">
       <description>
         <p>El uso de disco muestra cada disco montado, incluidos los externos. Nueva pantalla del governor de GPU con el rango de voltaje real de cada perfil. El desbloqueo permanente de núcleos funciona en Bazzite y SteamOS, se repara solo y avisa cuando hay una versión más nueva del servicio. Control de ventiladores v2 en la web, la TUI y Decky, y mejor contraste en modo oscuro.</p>

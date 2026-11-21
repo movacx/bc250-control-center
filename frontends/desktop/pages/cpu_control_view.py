@@ -79,10 +79,13 @@ from ..components.buttons import WrappingButton as QPushButton
 from ..components.card_navigation import EditableCardNavigation
 from ..components.core_monitor import CoreGrid, CoreReading
 from ..components.page_widgets import SectionCard, caption, subpanel
-from ..components.resize_grip import ResizeGrip
+from ..components.picker_row import PickerRow
+from ..components.resize_grip import ResizeGrip, SideGrip
 from ..components.style_state import set_style_property
+from ..components.temperature_spin import TemperatureSpinBox
 from ..components.widgets import icon
 from ..core.preferences import application_settings
+from ..core.temperature_unit import format_temperature, localize_temperature_text
 from ..i18n import shipped_name, tr, tr_format
 from ..theme import COLORS
 
@@ -96,12 +99,24 @@ MANUAL_SCALE_HINT = (
     "before it stays applied, the way automatic detection tests its own."
 )
 
-#: The danger zone's box for the upstream core-unlock tool's "-f".
-IGNORE_CORE_MASK_LABEL = "Force a non-standard core mask (-f)"
-IGNORE_CORE_MASK_HINT = (
+#: The danger zone's core-mask choice. The owner names the mask the tool
+#: printed ("unexpected core mask 0xb7, expected 0x77"); the helper then
+#: unlocks only a board that really reads that mask (--accept-mask) instead of
+#: skipping the check for any mask.
+CORE_MASK_LABEL = "Core mask of this board"
+CORE_MASK_STOCK = 0x77
+CORE_MASK_CHOICES = (
+    (0x77, "0x77 · standard (normal check)"),
+    (0xB7, "0xB7 · reported by one user"),
+    (0x7E, "0x7E · other possible mask"),
+)
+CORE_MASK_HINT = (
     "The unlock tool refuses boards whose core mask is not 0x77, because a "
     "different mask usually means the factory disabled cores that were "
-    "defective. This passes -f to skip that check: all 8 cores are enabled."
+    "defective. If the tool reported 0xB7 or 0x7E for this board, pick it here: "
+    "the unlock then goes ahead only when the board really reads that mask, and "
+    "all 8 cores are enabled. 0xB7 was reported by a single owner whose board "
+    "stayed stable; it is not verified."
 )
 
 #: Width below which the two workspace columns stack. Same breakpoint the GPU
@@ -117,6 +132,11 @@ PROFILE_STACK_WIDTH = 700
 #: window manager ends with the same proportions as one that opened wide.
 CONTROLS_STRETCH = 18
 TELEMETRY_STRETCH = 12
+#: The monitoring column's width when the user dragged it (Settings key), and
+#: how far either column may be squeezed.
+SIDE_WIDTH_KEY = "layout/cpu_side_width"
+SIDE_MIN_WIDTH = 300
+CONTROLS_MIN_WIDTH = 560
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -234,7 +254,7 @@ class CpuProfile:
         return f"{self.frequency_mhz} MHz"
 
     def detail(self) -> str:
-        return f"{self.vid_mv} mV · {self.temperature_c} °C"
+        return f"{self.vid_mv} mV · {format_temperature(self.temperature_c, 0)}"
 
     def values(self) -> tuple[int, int, int]:
         return (self.frequency_mhz, self.vid_mv, self.temperature_c)
@@ -360,7 +380,7 @@ class StatCard(QFrame):
             box.addWidget(widget)
 
     def set_values(self, value: str, detail: str = "") -> None:
-        self.value.setText(value or "--")
+        self.value.setText(localize_temperature_text(value) or "--")
         # The explanation is no longer printed under every reading: it stays
         # one hover away, so the tile reads as a label and a number.
         self.setToolTip(detail)
@@ -503,6 +523,50 @@ class CheckLine(QWidget):
             self.check.toggle()
             return True
         return super().eventFilter(watched, event)
+
+
+class CoreMaskLine(QWidget):
+    """The core mask the owner's board reports, as the boxed picker row the
+    GPU governor uses for its methods (``caption ...... value``).
+
+    ``0x77`` keeps the tool's own check; any other entry is unlocked only when
+    the board really reads that mask (the helper's ``--accept-mask``).
+    """
+
+    def __init__(self, label: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._source = label
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 3, 0, 4)
+        row.setSpacing(0)
+        self.combo = PickerRow(label)
+        self.combo.setAccessibleName(tr(label))
+        # The value is the short mask; the menu keeps the full explanation.
+        for mask, text in CORE_MASK_CHOICES:
+            self.combo.addItem(tr(text), mask, f"0x{mask:02X}")
+        row.addWidget(self.combo, 1)
+
+    def mask(self) -> int:
+        return int(self.combo.currentData())
+
+    def force(self) -> bool:
+        """True when the chosen mask is not the stock one."""
+        return self.mask() != CORE_MASK_STOCK
+
+    def setToolTip(self, text: str) -> None:  # noqa: N802 (Qt)
+        super().setToolTip(text)
+        self.combo.setToolTip(text)
+
+    def setEnabled(self, enabled: bool) -> None:  # noqa: N802 (Qt)
+        super().setEnabled(enabled)
+        if not enabled:
+            self.combo.setCurrentIndex(0)
+
+    def retranslate(self) -> None:
+        self.combo.retranslate()
+        self.combo.setAccessibleName(tr(self._source))
+        for index, (_mask, text) in enumerate(CORE_MASK_CHOICES):
+            self.combo.setItemText(index, tr(text))
 
 
 class UnlockOption(QFrame):
@@ -676,9 +740,9 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
         self._vid_spin = self._build_spin(
             *CPU_VID_RANGE, CPU_VID_STEP_MV, profile.vid_mv
         )
-        self._temperature_spin = self._build_spin(
-            *CPU_TEMPERATURE_RANGE, 1, profile.temperature_c
-        )
+        # Typed in °C or °F, whichever is on screen; read back in °C.
+        self._temperature_spin = TemperatureSpinBox(*CPU_TEMPERATURE_RANGE, profile.temperature_c)
+        self._temperature_spin.setMinimumWidth(70)
         spins.addWidget(self._labelled(tr("CPU frequency"), self._frequency_spin), 0, 0)
         spins.addWidget(self._labelled(tr("VID limit"), self._vid_spin), 0, 1)
         spins.addWidget(
@@ -747,7 +811,8 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
         self._name_edit.setText(self._profile.shown_name())
         self._frequency_spin.setValue(self._profile.frequency_mhz)
         self._vid_spin.setValue(self._profile.vid_mv)
-        self._temperature_spin.setValue(self._profile.temperature_c)
+        self._temperature_spin.refresh_unit()
+        self._temperature_spin.set_celsius(self._profile.temperature_c)
         self._refresh_hint()
         self._view.setVisible(False)
         self._editor.setVisible(True)
@@ -762,6 +827,7 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
 
     def retranslate(self) -> None:
         """Rebuilds the interpolated hint after a live language change."""
+        self._temperature_spin.refresh_unit()
         self._refresh_hint()
         self._sync_view()
 
@@ -770,7 +836,7 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
         self._name_edit.setText(self._default.shown_name())
         self._frequency_spin.setValue(self._default.frequency_mhz)
         self._vid_spin.setValue(self._default.vid_mv)
-        self._temperature_spin.setValue(self._default.temperature_c)
+        self._temperature_spin.set_celsius(self._default.temperature_c)
 
     def _refresh_hint(self) -> None:
         self._hint.setText(
@@ -791,7 +857,7 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
             name=name,
             frequency_mhz=self._frequency_spin.value(),
             vid_mv=self._vid_spin.value(),
-            temperature_c=self._temperature_spin.value(),
+            temperature_c=self._temperature_spin.celsius(),
         )
         self.cancel_edit()
         self._sync_view()
@@ -823,9 +889,9 @@ class CpuControlView(QWidget):
         apply_requested(object CpuTuningRequest)
         profile_changed(object CpuProfile)
         persistence_requested(str)     # 'save' | 'remove' | 'review'
-        unlock_cores_requested(bool ignore_core_mask)
+        unlock_cores_requested(int core_mask)      # 0x77 = standard check
         firmware_persistence_requested()
-        persist_unlock_requested(bool ignore_core_mask)
+        persist_unlock_requested(int core_mask)
         remove_persistence_requested()
 
     Inputs::
@@ -837,9 +903,9 @@ class CpuControlView(QWidget):
     apply_requested = pyqtSignal(object)
     profile_changed = pyqtSignal(object)
     persistence_requested = pyqtSignal(str)
-    unlock_cores_requested = pyqtSignal(bool)
+    unlock_cores_requested = pyqtSignal(int)
     firmware_persistence_requested = pyqtSignal()
-    persist_unlock_requested = pyqtSignal(bool)
+    persist_unlock_requested = pyqtSignal(int)
     remove_persistence_requested = pyqtSignal()
     export_to_decky_requested = pyqtSignal()
 
@@ -895,7 +961,7 @@ class CpuControlView(QWidget):
 
         self._workspace = QGridLayout()
         self._workspace.setContentsMargins(0, 0, 0, 0)
-        self._workspace.setHorizontalSpacing(12)
+        self._workspace.setHorizontalSpacing(0)
         self._workspace.setVerticalSpacing(12)
         layout.addLayout(self._workspace)
 
@@ -918,10 +984,21 @@ class CpuControlView(QWidget):
         left.addItem(self._left_spacer)
         self._left_column_box = left
 
+        # Between the columns, a bar to drag sideways; the width is remembered.
+        self._side_grip = SideGrip()
+        self._side_grip.pressed.connect(self._side_drag_started)
+        self._side_grip.dragged.connect(self._side_dragged)
+        self._side_grip.released.connect(self._side_drag_finished)
+        self._side_grip.double_clicked.connect(self.reset_side_width)
+        self._side_width = self._stored_side_width()
+        self._side_press_width = 0
+
         self._workspace.addWidget(self._left_column, 0, 0)
-        self._workspace.addWidget(self._telemetry, 0, 1)
+        self._workspace.addWidget(self._side_grip, 0, 1)
+        self._workspace.addWidget(self._telemetry, 0, 2)
         self._workspace.setColumnStretch(0, CONTROLS_STRETCH)
-        self._workspace.setColumnStretch(1, TELEMETRY_STRETCH)
+        self._workspace.setColumnStretch(2, TELEMETRY_STRETCH)
+        self._apply_side_width()
 
         layout.addStretch(1)
         self.apply_state(self._state)
@@ -1272,11 +1349,10 @@ class CpuControlView(QWidget):
 
         # Upstream's "-f": its tool refuses a core mask other than 0x77, and
         # some owners run boards that pass stress tests anyway.
-        self.ignore_mask_line = CheckLine(IGNORE_CORE_MASK_LABEL, risk_panel)
-        self.ignore_mask_line.label.setProperty("unlockMaskLabel", True)
-        self.ignore_mask_line.setToolTip(tr(IGNORE_CORE_MASK_HINT))
-        self.ignore_mask_line.setEnabled(False)
-        risk_box.addWidget(self.ignore_mask_line)
+        self.core_mask_line = CoreMaskLine(CORE_MASK_LABEL, risk_panel)
+        self.core_mask_line.setToolTip(tr(CORE_MASK_HINT))
+        self.core_mask_line.setEnabled(False)
+        risk_box.addWidget(self.core_mask_line)
 
         actions = QHBoxLayout()
         actions.setSpacing(8)
@@ -1482,11 +1558,11 @@ class CpuControlView(QWidget):
             self.firmware_persistence_requested.emit()
 
     def _action_clicked(self) -> None:
-        force = self.ignore_mask_line.check.isChecked()
+        mask = self.core_mask_line.mask()
         if self._unlock_mode == UNLOCK_MODE_PERSISTENT:
-            self.persist_unlock_requested.emit(force)
+            self.persist_unlock_requested.emit(mask)
         else:
-            self.unlock_cores_requested.emit(force)
+            self.unlock_cores_requested.emit(mask)
 
     def _apply_unlock(self, unlock: CoreUnlockState) -> None:
         # Open on Persistence once when a service is already installed, so its
@@ -1562,8 +1638,8 @@ class CpuControlView(QWidget):
             )
         )
         self.unlock_button.setEnabled(bool(unlock.unlock_allowed))
-        # Unchecks itself whenever the unlock is not available.
-        self.ignore_mask_line.setEnabled(bool(unlock.unlock_allowed))
+        # Back to the stock mask whenever the unlock is not available.
+        self.core_mask_line.setEnabled(bool(unlock.unlock_allowed))
 
     def _apply_persistent_unlock(self, unlock: CoreUnlockState) -> None:
         stopped = unlock.persistence_installed and not unlock.persistence_active
@@ -1600,7 +1676,7 @@ class CpuControlView(QWidget):
         self.unlock_button.setText(text)
         self.unlock_button.setToolTip(tip)
         self.unlock_button.setEnabled(bool(allowed))
-        self.ignore_mask_line.setEnabled(bool(allowed))
+        self.core_mask_line.setEnabled(bool(allowed))
 
     def _select_profile_matching(
         self, frequency: int, vid: int, temperature: int
@@ -1625,14 +1701,66 @@ class CpuControlView(QWidget):
             self.identity_rows[key].set_label(label)
         for key, label in self.RUNTIME_ROWS:
             self.runtime_cards[key].set_label(label)
-        self.ignore_mask_line.retranslate()
-        self.ignore_mask_line.setToolTip(tr(IGNORE_CORE_MASK_HINT))
+        self.core_mask_line.retranslate()
+        self.core_mask_line.setToolTip(tr(CORE_MASK_HINT))
         for option in self._mode_buttons.values():
             option.retranslate()
         self._busy_badge.retranslate()
         for profile_card in self._profile_cards:
             profile_card.retranslate()
         self._apply_unlock(self._state.core_unlock)
+
+    # ── monitoring column width ────────────────────────────────────────────
+    def _layout_settings(self):
+        """The view's own settings (injected in tests), the app's otherwise."""
+        return self._view_settings()
+
+    def _stored_side_width(self) -> int:
+        try:
+            value = int(self._layout_settings().value(SIDE_WIDTH_KEY, 0) or 0)
+        except (TypeError, ValueError):
+            return 0
+        return value if value >= SIDE_MIN_WIDTH else 0
+
+    def _side_bounds(self) -> tuple[int, int]:
+        available = max(self.width(), STACK_WIDTH)
+        return SIDE_MIN_WIDTH, max(SIDE_MIN_WIDTH, available - CONTROLS_MIN_WIDTH - self._side_grip.width())
+
+    def _apply_side_width(self) -> None:
+        """A dragged width holds the column; otherwise the columns share by stretch."""
+        stacked = self._workspace.itemAtPosition(1, 0) is not None
+        if self._side_width and not stacked:
+            low, high = self._side_bounds()
+            width = max(low, min(high, self._side_width))
+            self._telemetry.setFixedWidth(width)
+            self._workspace.setColumnStretch(2, 0)
+        else:
+            self._telemetry.setMinimumWidth(0)
+            self._telemetry.setMaximumWidth(16777215)
+            if not stacked:
+                self._workspace.setColumnStretch(2, TELEMETRY_STRETCH)
+
+    def _side_drag_started(self) -> None:
+        self._side_press_width = self._telemetry.width()
+
+    def _side_dragged(self, delta: int) -> None:
+        # Dragging left widens the monitoring column.
+        low, high = self._side_bounds()
+        self._side_width = max(low, min(high, self._side_press_width - delta))
+        self._apply_side_width()
+
+    def _side_drag_finished(self) -> None:
+        if self._side_width:
+            self._layout_settings().setValue(SIDE_WIDTH_KEY, int(self._side_width))
+
+    def reset_side_width(self) -> None:
+        self._side_width = 0
+        self._layout_settings().remove(SIDE_WIDTH_KEY)
+        self._apply_side_width()
+
+    def side_width(self) -> int:
+        """The stored width, or 0 while the columns share the space."""
+        return self._side_width
 
     # ── lifecycle ──────────────────────────────────────────────────────────
     def showEvent(self, event) -> None:  # noqa: N802 (Qt)
@@ -1651,15 +1779,22 @@ class CpuControlView(QWidget):
         telemetry_stacked = self._workspace.itemAtPosition(1, 0) is not None
         if stacked and not telemetry_stacked:
             self._workspace.removeWidget(self._telemetry)
-            self._workspace.addWidget(self._telemetry, 1, 0)
-            self._workspace.setColumnStretch(1, 0)
+            self._workspace.addWidget(self._telemetry, 1, 0, 1, 3)
+            self._workspace.setColumnStretch(2, 0)
+            self._workspace.setVerticalSpacing(12)
+            self._side_grip.hide()
+            self._apply_side_width()
         elif not stacked and telemetry_stacked:
             self._workspace.removeWidget(self._telemetry)
-            self._workspace.addWidget(self._telemetry, 0, 1)
+            self._workspace.addWidget(self._telemetry, 0, 2)
             # Not 1: against the controls' 18 that squeezed the monitoring
             # column to its minimum after every narrow-to-wide reflow — the
             # "stretched" layout seen when the app reopened and was maximized.
-            self._workspace.setColumnStretch(1, TELEMETRY_STRETCH)
+            self._workspace.setColumnStretch(2, TELEMETRY_STRETCH)
+            self._side_grip.show()
+            self._apply_side_width()
+        elif not stacked and self._side_width:
+            self._apply_side_width()  # keep the stored width inside the new window
 
         columns = 1 if width < PROFILE_STACK_WIDTH else 3
         current = 1 if self._profiles_grid.itemAtPosition(1, 0) is not None else 3

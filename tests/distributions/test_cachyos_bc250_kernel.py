@@ -1,3 +1,5 @@
+import pytest  # noqa: E402
+
 from bc250cc.infrastructure.cachyos_bc250_kernel import (
     CACHYOS_BC250_ACTIONS,
     CACHYOS_BC250_INCLUDE,
@@ -6,6 +8,15 @@ from bc250cc.infrastructure.cachyos_bc250_kernel import (
     masta_bc250_stack_state,
     masta_bc250_stack_supported,
 )
+
+
+@pytest.fixture(autouse=True)
+def _fresh_stack_state():
+    import bc250cc.infrastructure.cachyos_bc250_kernel as module
+
+    module._stack_state_cache.clear()
+    yield
+    module._stack_state_cache.clear()
 
 
 def test_masta_stack_state_reports_kernel_and_repository_mesa(monkeypatch, tmp_path):
@@ -24,7 +35,8 @@ def test_masta_stack_state_reports_kernel_and_repository_mesa(monkeypatch, tmp_p
 
     def run(args, **_kwargs):
         if args[1] == "-Qq":
-            return Result(args[2] + "\n")
+            # One query for every package: pacman lists the installed ones.
+            return Result("".join(f"{package}\n" for package in args[2:]))
         return Result(
             "bc250-cachyos mesa 26.2.0 [installed]\n"
             "bc250-cachyos vulkan-radeon 26.2.0 [installed]\n"
@@ -32,6 +44,7 @@ def test_masta_stack_state_reports_kernel_and_repository_mesa(monkeypatch, tmp_p
 
     monkeypatch.setattr(module.subprocess, "run", run)
     monkeypatch.setattr(module, "_fallback_kernels", lambda _release: ["7.1.4-1-cachyos"])
+    monkeypatch.setattr(module, "pahole_dependency_state", lambda: {"ready": True})
     state = masta_bc250_stack_state(distro_id="cachyos", family="cachyos")
 
     assert state == {
@@ -49,6 +62,7 @@ def test_masta_stack_state_reports_kernel_and_repository_mesa(monkeypatch, tmp_p
         "kernel_active": True,
         "kernel_variant": "stable",
         "mesa_installed": True,
+        "pahole_dependency": {"ready": True},
     }
 
 
@@ -86,7 +100,8 @@ def test_masta_stack_state_recognizes_an_exact_external_repository(monkeypatch, 
                 "DatabaseOptional\nDatabaseTrustAll\n"
             )
         if args[1] == "-Qq":
-            return Result(args[2] + "\n")
+            # One query for every package: pacman lists the installed ones.
+            return Result("".join(f"{package}\n" for package in args[2:]))
         return Result(
             "bc250-cachyos mesa 26.2.0 [installed]\n"
             "bc250-cachyos vulkan-radeon 26.2.0 [installed]\n"
@@ -287,7 +302,8 @@ def test_masta_stack_counts_an_rc_kernel_installed_alone(monkeypatch, tmp_path):
 
     def run(args, **_kwargs):
         if args[1] == "-Qq":
-            return Result(0, args[2] + "\n") if args[2] == "linux-cachyos-rc-bc250" else Result(1)
+            # One query: only the rc kernel is installed, so pacman lists it alone.
+            return Result(1, "linux-cachyos-rc-bc250\n" if "linux-cachyos-rc-bc250" in args[2:] else "")
         return Result(0, "")
 
     monkeypatch.setattr(module.subprocess, "run", run)
@@ -335,3 +351,25 @@ def test_every_extra_action_is_a_known_action_and_nothing_else_is():
     for bad in ("extra-flash", "extra-fixes;rm", "remove-extra-"):
         with pytest.raises(ValueError):
             build_cachyos_bc250_kernel_command(bad)
+
+
+def test_installed_packages_are_asked_in_one_pacman_query(monkeypatch, tmp_path):
+    import bc250cc.infrastructure.cachyos_bc250_kernel as module
+
+    monkeypatch.setattr(module, "CACHYOS_BC250_INCLUDE", str(tmp_path / "absent"))
+    monkeypatch.setattr(module, "pahole_dependency_state", lambda: {})
+    calls = []
+
+    class Result:
+        returncode = 1
+        stdout = "linux-cachyos-bc250\n"
+
+    def run(args, **_kwargs):
+        calls.append(tuple(args))
+        return Result()
+
+    monkeypatch.setattr(module.subprocess, "run", run)
+    state = masta_bc250_stack_state(distro_id="cachyos", family="cachyos")
+    masta_bc250_stack_state(distro_id="cachyos", family="cachyos")
+    assert [call for call in calls if call[:2] == ("pacman", "-Qq")].__len__() == 1
+    assert state["variants_installed"]["stable"] is True and state["meta_installed"] is False

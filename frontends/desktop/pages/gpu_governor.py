@@ -57,6 +57,7 @@ from bc250cc.infrastructure.system_setup import (
     CU_UNLOCK_THERMAL_NOTE,
     HDMI21_OFF_OPTION,
     HIDE_BOOT_MESSAGES_OPTION,
+    MEMORY_SENSOR_OPTION,
     PCON_FORCE_DSC_OPTION,
     RELINK_AT_BOOT_OPTION,
     RELINK_OFF_OPTION,
@@ -86,11 +87,12 @@ from ..core.gfx1013_presenter import RADV_ROUTE_SECOND_FIX, present_gfx1013
 from ..core.operation_gate import OperationGate
 from ..core.preferences import application_settings
 from ..core.state import state_cache_for
+from ..core.temperature_unit import localize_temperature_text
 from ..core.voltage_keypad_guard import (
     clear_voltage_keypad_state,
     voltage_keypad_edit_active,
 )
-from ..i18n import shipped_name, tr, tr_format
+from ..i18n import current_language, shipped_name, tr, tr_format
 from .gpu_governor_helpers import (  # noqa: F401  (re-exported: other modules and tests import them from here)
     _dict,
     _integer,
@@ -1263,6 +1265,19 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                     "reboot and can be restored from Control Center."
                 )
                 confirm_text, tone = "Recover at boot", "orange"
+            elif changed == MEMORY_SENSOR_OPTION:
+                title = "Load the GDDR6 memory driver at boot"
+                body = (
+                    "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 "
+                    "chips all the time, without pressing Monitor live. To read it, the driver patches the "
+                    "SMU firmware in memory, and it asks the SMU for readings through the same single "
+                    "mailbox that Cyan and CPU overclocking use. It does not make the board more stable: "
+                    "it adds one more user to that mailbox, and if two of them collide the board can "
+                    "freeze until it is switched off at the plug. Leave it off unless you need the "
+                    "temperature all the time. The change applies after reboot; to undo the patch, "
+                    "switch the board off completely."
+                )
+                confirm_text, tone = "Load at boot", "orange"
             else:
                 title = "Disable simultaneous multithreading"
                 body = (
@@ -1401,6 +1416,52 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             tr("Could not release the pacman lock"), controls=(), error_parent=dialog_parent,
         )
 
+    def _repair_kernel_headers(self, dialog_parent: QWidget | None = None) -> None:
+        confirmation = ConfirmDialog(
+            tr("Kernel headers · DKMS"),
+            tr(
+                "The running kernel and its headers do not match, so drivers built with DKMS (fans, "
+                "sensors) stop loading after the next restart. This installs the right headers with "
+                "your password in the terminal; when your distribution no longer has them, it updates "
+                "the kernel and its headers together. Then it rebuilds the DKMS drivers. If the kernel "
+                "was updated, restart the computer afterwards."
+            ),
+            confirm_text=tr("Repair"),
+            tone="orange", parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.reparar_cabeceras_kernel(),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self, tr("Kernel headers · DKMS"), tr("The terminal says whether a restart is needed.")
+            ),
+            tr("Could not repair the kernel headers"), controls=(), error_parent=dialog_parent,
+        )
+
+    def repair_vrm_sensor(self, dialog_parent: QWidget | None = None) -> None:
+        """The dashboard's Repair sensor: restart a wedged bc250_vrm and check it."""
+        confirmation = ConfirmDialog(
+            tr("Power sensor · bc250_vrm"),
+            tr(
+                "The sensor's driver is stuck: its reads time out, or it returns the same value for "
+                "everything (for example 797 °C), so its readings are hidden. This restarts the driver with your password "
+                "in the terminal and then checks that the readings are real again. Nothing else "
+                "on the system is changed."
+            ),
+            confirm_text=tr("Restart driver"),
+            tone="orange", parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.reiniciar_sensor_vrm(),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self, tr("Power sensor · bc250_vrm"), tr("The terminal shows whether the sensor reads again.")
+            ),
+            tr("Could not restart the power sensor"), controls=(), error_parent=dialog_parent,
+        )
+
     def _manage_acpi(self, action: str, dialog_parent: QWidget | None = None) -> None:
         if action == "acpi-status":
             self._run_backend_action(
@@ -1525,7 +1586,10 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
     ) -> None:
         action = str(action or "kernel").strip().lower()
         if action == "pahole":
-            from bc250cc.infrastructure.cachyos_pahole import DEPENDENCY_NOTE, PAHOLE_VERSION
+            from bc250cc.infrastructure.cachyos_pahole import (
+                DEPENDENCY_NOTE,
+                PAHOLE_VERSION,
+            )
 
             confirmation = ConfirmDialog(
                 "Prepare dependencies", tr(DEPENDENCY_NOTE),
@@ -2118,7 +2182,28 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         name = str(game.get("name") or key)
         installed = str(game.get("installed_way") or "")
         version = str(helixsr.get("version") or "")
-        names = {"scaler": "DLSS · HelixSR Scaler", "fsr": "HLX FSR 4"}
+        names = {"scaler": "HelixSR Scaler (DLSS)", "fsr": "HLX FSR 4"}
+        if game_action in {"bridge_fg_on", "bridge_fg_off"}:
+            # HelixSR's own frame generation in a game with HelixSR Scaler: a
+            # setting in its files, nothing to confirm; the game must be closed.
+            on = game_action == "bridge_fg_on"
+
+            def toggled(result: object) -> None:
+                game_name = str(_dict(result).get("game") or name)
+                message = (
+                    tr_format("Frame generation is on in {game}. Turn on DLSS Frame Generation in the game.", game=game_name)
+                    if on else tr_format("Frame generation is off in {game}.", game=game_name)
+                )
+                GpuGovernorPage._record_preparation_result(self, "HelixSR", message)
+
+            self._run_backend_action(
+                lambda: self.controller.gestionar_helixsr(action),
+                toggled,
+                "Could not change the game's files",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         pick = {"scaler": "In the game, choose DLSS.", "fsr": "In the game, choose AMD FSR."}
         if game_action == "bridge_install" and game.get("managed_by") == "app-2x":
             copy = (
@@ -2151,6 +2236,10 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 tr("The game gets back the version it had before its last update. You can undo this the same way."),
                 "Go back", "orange",
             )
+        elif game_action == "bridge_remove" and game.get("missing"):
+            copy = ("Remove this game from the list",
+                    tr("Its folder is no longer on disk, so there is nothing to put back."),
+                    "Remove from list", "blue")
         elif game_action == "bridge_remove":
             copy = ("Remove HelixSR from this game", tr("Every file HelixSR replaced is put back."),
                     "Remove", "orange")
@@ -2159,7 +2248,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         title, body, confirm, tone = copy
         confirmation = ConfirmDialog(
             title,
-            body + " " + tr("Close the game first."),
+            body if game.get("missing") else body + " " + tr("Close the game first."),
             summary=((tr("Game"), name),),
             confirm_text=confirm,
             eyebrow="HelixSR",
@@ -2172,7 +2261,9 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         def done(result: object) -> None:
             result = _dict(result)
             game_name = str(result.get("game") or name)
-            if game_action == "bridge_remove":
+            if game_action == "bridge_remove" and result.get("forgotten"):
+                message = tr_format("{game} was removed from the list.", game=game_name)
+            elif game_action == "bridge_remove":
                 message = tr_format("HelixSR was removed from {game}; its own files are back.", game=game_name)
             elif game_action == "bridge_rollback":
                 message = tr_format("{game} now has HelixSR {version}.", game=game_name,
@@ -2822,12 +2913,20 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         ).exec()
 
     def _open_steamos_graphics_upstream(
-        self, *, dialog_parent: QWidget | None
+        self, *, dialog_parent: QWidget | None, provider: str = 'real-toolkit', document: str = 'project'
     ) -> None:
         """Open the external SteamOS graphics documentation without executing it."""
-        opened, message = open_external_url(
-            "https://github.com/keyboardspecialist/bc250-steamos"
+        from bc250cc.infrastructure.steamos_real_toolkit import (
+            CHANGELOG_URL,
+            REPOSITORY,
         )
+
+        urls = {('real-toolkit', 'project'): REPOSITORY,
+                ('real-toolkit', 'changelog'): CHANGELOG_URL,
+                ('keyboardspecialist', 'project'): 'https://github.com/keyboardspecialist/bc250-steamos'}
+        if (provider, document) not in urls:
+            raise ValueError('Unknown SteamOS documentation provider.')
+        opened, message = open_external_url(urls[provider, document])
         if opened:
             return
         InfoDialog(
@@ -2958,205 +3057,76 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         plan: GpuDependencyPlan,
         dialog_parent: QWidget | None,
     ) -> None:
-        high_points = _dict(self.current_state.get("high_frequency_points"))
-        high_point_frequencies = tuple(
-            int(value)
-            for value in high_points.get("enabled_frequencies")
-            or high_points.get("frequencies")
-            or ()
-            if str(value).isdigit() and int(value) > 2230
-        )
-        needs_module_safe_points = bool(high_points.get("enabled")) and bool(
-            high_point_frequencies
-        )
+        """Open the provider's patch selector without editing native GPU profiles."""
+        self._manage_real_toolkit('combined-install', dialog_parent=dialog_parent)
 
-        def start_preparation() -> None:
-            self._run_backend_action(
-                self.controller.preparar_compatibilidad_steamos,
-                lambda _result: GpuGovernorPage._record_preparation_result(
-                    self,
-                    "SteamOS compatibility",
-                    "Opened the explicit SteamOS kernel compatibility workflow. Review the terminal result and reboot only when it reports a successful installation.",
-                ),
-                "Could not prepare SteamOS compatibility",
-                controls=(),
-                error_parent=dialog_parent,
-            )
 
-        if plan.requires_kernel_confirmation:
+    def _manage_steamos_alternative(self, action: str, *, dialog_parent=None) -> None:
+        from bc250cc.infrastructure.steamos_alternative import ALTERNATIVE_ACTIONS
+
+        if action not in ALTERNATIVE_ACTIONS:
+            raise ValueError('Unknown SteamOS alternative action.')
+        if not action.endswith('-status'):
+            description = ALTERNATIVE_ACTIONS[action][1 if current_language().startswith('es') else 0]
+            if action == 'kernel-rollback':
+                description = (
+                    'Restore the stock AMDGPU module for the running kernel only. '
+                    'Mesa, Proton and overrides for other kernels are preserved. '
+                    'Patched graphics features will be unavailable after restarting; '
+                    'review the remaining Mesa configuration before using games.'
+                )
             confirmation = ConfirmDialog(
-                "Prepare SteamOS kernel compatibility",
-                tr(
-                    "This explicit SteamOS repair builds and installs a kernel-matched amdgpu override for DisplayPort/audio, GPU telemetry and GFX1013 compute-queue support. It regenerates initramfs and requires a reboot. If exact headers are unavailable, the upstream fallback can require about 40 GiB of temporary space. The legacy mesh/task RADV path is not installed."
-                ),
-                summary=(
-                    ("Distribution", plan.os_label),
-                    ("Running kernel", plan.kernel),
-                    ("Kernel change", "amdgpu override + initramfs"),
-                    ("RADV mesh/task", "Not installed"),
-                    ("Reboot", "Required after installation"),
-                    *((
-                        ("Safe-points", "Disable +2000 MHz TOML points"),
-                    ) if needs_module_safe_points else ()),
-                ),
-                confirm_text="Prepare SteamOS compatibility",
-                tone="orange",
-                parent=dialog_parent or self,
-            )
-            if confirmation.exec() != QDialog.DialogCode.Accepted:
-                return
-        if not needs_module_safe_points:
-            start_preparation()
-            return
-
-        confirmation = ConfirmDialog(
-            "Disable advanced +2000 MHz points",
-            "This comments the TOML safe-point blocks above 2000 MHz and validates the complete "
-            "file. Active 3D workloads must be stopped first. This does not reload Cyan or "
-            "change the live GPU range.",
-            summary=(
-                ("Safe-points", ", ".join(map(str, high_point_frequencies))),
-                ("Requested state", "Commented"),
-                ("Service", "No restart or clock change"),
-            ),
-            confirm_text="Disable +2000 MHz TOML points",
-            tone="orange",
-            parent=dialog_parent or self,
-        )
-        if confirmation.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        def disabled_points(_result: object) -> None:
-            self._apply_high_points_toggle_feedback(False)
-            start_preparation()
-
-        self._run_backend_action(
-            lambda: self.controller.alternar_puntos_gpu_altos(False),
-            disabled_points,
-            "Could not update advanced safe-points",
-            controls=(),
-            error_parent=dialog_parent,
-        )
-
-    def _manage_steamos_proton(
-        self,
-        action: str,
-        *,
-        dialog_parent: QWidget | None,
-    ) -> None:
-        if action not in {"install", "update", "status", "uninstall"}:
-            raise ValueError("Unsupported SteamOS Proton action.")
-        if action != "status":
-            removing = action == "uninstall"
-            confirmation = ConfirmDialog(
-                "Remove BC-250 GE-Proton" if removing else "Install / update BC-250 GE-Proton",
-                (
-                    "The upstream toolkit removes its managed GE-Proton tool. Steam prefixes and saved games are preserved. Restart Steam afterwards."
-                    if removing else
-                    "Downloads and runs keyboardspecialist's current upstream Proton installer. It verifies the BC-250 GE-Proton download and installs it in your Steam folder. The toolkit checks that FSR4 RADV is active first. Restart Steam and select BC-250 GE-Proton per game. Do not use FSR4 injection in anti-cheat games."
-                ),
-                confirm_text="Remove Proton" if removing else "Install / update",
-                tone="red" if removing else "orange",
+                'SteamOS · keyboardspecialist',
+                tr(description),
+                confirm_text=tr('Continue'),
+                tone='red' if 'uninstall' in action or action == 'kernel-rollback' else 'orange',
                 parent=dialog_parent or self,
             )
             if confirmation.exec() != QDialog.DialogCode.Accepted:
                 return
         self._run_backend_action(
-            lambda: self.controller.gestionar_proton_steamos(action),
+            lambda: self.controller.gestionar_alternativa_steamos(action),
             lambda _result: GpuGovernorPage._record_preparation_result(
-                self,
-                "BC-250 GE-Proton · SteamOS",
-                "Opened the upstream Proton workflow. Read the terminal result; restart Steam after installing, updating or removing the tool.",
-            ),
-            "Could not manage SteamOS GE-Proton",
-            controls=(),
-            error_parent=dialog_parent,
+                self, 'SteamOS · keyboardspecialist', 'Review the terminal output.'),
+            'SteamOS · keyboardspecialist', controls=(), error_parent=dialog_parent,
         )
 
-    def _manage_steamos_graphics(
-        self,
-        action: str,
-        *,
-        dialog_parent: QWidget | None,
-    ) -> None:
-        if action == "status":
-            self._run_backend_action(
-                lambda: self.controller.gestionar_graficos_steamos("status"),
-                lambda _result: GpuGovernorPage._record_preparation_result(
-                    self,
-                    "SteamOS graphics stack",
-                    "Opened the verified SteamOS kernel, RADV and FSR4 status. No component was changed.",
-                ),
-                "Could not check the SteamOS graphics stack",
-                controls=(),
-                error_parent=dialog_parent,
-            )
-            return
+    def _manage_real_toolkit(self, action: str, *, dialog_parent=None) -> None:
+        from bc250cc.infrastructure.steamos_real_toolkit import action_for
 
-        installing = action in {"install", "install-fsr4"}
-        fsr4_only = action in {"install-fsr4", "uninstall-fsr4"}
-        if action == "install":
-            title = "Install matched SteamOS Mesa / RADV"
-            body = (
-                "This builds the reviewed Mesa 26.2.2 async-compute runtime for the active verified AMDGPU module. "
-                "It installs a separate 64-bit RADV driver, keeps stock 32-bit RADV as fallback and enables it only when module attestation and amdgpu.sched_policy=2 agree. A reboot is required when the scheduler policy changes."
+        from ..components.real_toolkit import action_label
+
+        action_for(action)
+        if action not in {'verify', 'kyty-status', 'cec-status'}:
+            confirmation = ConfirmDialog(
+                'SteamOS Real Toolkit', action_label(action),
+                confirm_text='Continue',
+                tone='red' if 'revert' in action else 'orange',
+                parent=dialog_parent or self,
             )
-            confirm_text = "Install Mesa / RADV"
-        elif action == "install-fsr4":
-            title = "Install SteamOS FSR4 V3 profile"
-            body = (
-                "This reuses the verified Mesa build and creates a private per-game FSR4 V3 driver. "
-                "It is never enabled globally; each game must opt in with the launch command shown after installation."
-            )
-            confirm_text = "Install per-game FSR4"
-        elif action == "uninstall-fsr4":
-            title = "Remove SteamOS FSR4 profile"
-            body = (
-                "This removes only the private per-game FSR4 profile. Remove its launch option from each game before using system RADV again."
-            )
-            confirm_text = "Remove FSR4"
-        else:
-            title = "Remove SteamOS Mesa / RADV runtime"
-            body = (
-                "This removes the alternate RADV driver, ICD and activation generator, then removes the scheduler policy when it belongs to this toolkit. Build caches are preserved for recovery."
-            )
-            confirm_text = "Remove Mesa / RADV"
-        confirmation = ConfirmDialog(
-            tr(title),
-            tr(body),
-            summary=(
-                (tr("Source"), "keyboardspecialist/bc250-steamos"),
-                (tr("Reviewed revision"), "b8b293ca5781"),
-                (
-                    tr("Scope"),
-                    tr("Private per-game FSR4 profile")
-                    if fsr4_only
-                    else tr("Mesa / RADV + verified scheduler policy"),
-                ),
-                (
-                    tr("Recovery"),
-                    tr("Stock 32-bit RADV remains available")
-                    if installing
-                    else tr("Build cache is preserved"),
-                ),
-            ),
-            confirm_text=tr(confirm_text),
-            tone="orange" if installing else "red",
-            parent=dialog_parent or self,
-        )
-        if confirmation.exec() != QDialog.DialogCode.Accepted:
-            return
+            if confirmation.exec() != QDialog.DialogCode.Accepted:
+                return
         self._run_backend_action(
-            lambda: self.controller.gestionar_graficos_steamos(action),
+            lambda: self.controller.gestionar_real_toolkit_steamos(action),
             lambda _result: GpuGovernorPage._record_preparation_result(
-                self,
-                "SteamOS graphics stack",
-                "Opened the reviewed SteamOS graphics transaction. Follow its verified result and reboot or sign out only when requested.",
-            ),
-            "Could not manage the SteamOS graphics stack",
-            controls=(),
-            error_parent=dialog_parent,
+                self, 'SteamOS Real Toolkit', 'Review the terminal output.'),
+            'SteamOS Real Toolkit', controls=(), error_parent=dialog_parent,
         )
+
+    def _manage_steamos_proton(self, action: str, *, dialog_parent=None) -> None:
+        routes = {'install': 'proton-install', 'update': 'proton-install',
+                  'status': 'verify', 'uninstall': 'proton-revert'}
+        if action not in routes:
+            raise ValueError('Unsupported SteamOS Proton action.')
+        self._manage_real_toolkit(routes[action], dialog_parent=dialog_parent)
+
+    def _manage_steamos_graphics(self, action: str, *, dialog_parent=None) -> None:
+        routes = {'status': 'verify', 'install': 'combined-install',
+                  'install-fsr4': 'proton-install', 'uninstall': 'combined-revert',
+                  'uninstall-fsr4': 'proton-revert'}
+        if action not in routes:
+            raise ValueError('Unsupported SteamOS graphics action.')
+        self._manage_real_toolkit(routes[action], dialog_parent=dialog_parent)
 
     def _prepare_steamos_diagnostics(
         self,
@@ -3619,7 +3589,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
     @staticmethod
     def _render_telemetry_text(value: TelemetryText) -> str:
         return (
-            value.template
+            localize_temperature_text(value.template)
             if value.literal
             else tr_format(value.template, **dict(value.values))
         )
@@ -3650,7 +3620,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
     @staticmethod
     def _render_runtime_text(value: RuntimeText) -> str:
         return (
-            value.template
+            localize_temperature_text(value.template)
             if value.literal
             else tr_format(value.template, **dict(value.values))
         )
@@ -3770,7 +3740,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
     @staticmethod
     def _render_safety_message(message: SafetyMessage) -> str:
         if message.literal:
-            return message.template
+            return localize_temperature_text(message.template)
         return tr_format(message.template, **dict(message.values))
 
 
@@ -3786,7 +3756,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
     @staticmethod
     def _render_diagnostic_text(value: DiagnosticText) -> str:
         if value.literal:
-            return value.template
+            return localize_temperature_text(value.template)
         translated_values = set(value.translate_values)
         values = {
             key: tr(item) if key in translated_values else item

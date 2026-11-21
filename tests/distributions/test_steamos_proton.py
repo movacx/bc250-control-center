@@ -77,7 +77,7 @@ def test_only_proton_checkout_tracks_upstream_master(tmp_path):
     assert "sudo pacman" not in command
     assert " setup" not in command
     assert "bc250-proton.sh install" in command
-    assert EXTERNAL_TOOLS["steamos_amdgpu"].reviewed_revision == "e1563f2051727702a000b6ff6f6c524e2792aa21"
+    assert EXTERNAL_TOOLS["steamos_amdgpu"].reviewed_revision == "6aee5530a07f2c1a4fd2f23c00a87986030c5b35"
     subprocess.run(['bash', '-n'], input=command, text=True, check=True)
 
 
@@ -88,15 +88,16 @@ def test_unknown_actions_are_rejected(tmp_path, action):
 
 
 def test_repository_rejects_other_distributions_without_opening_terminal():
-    repository = SimpleNamespace(_os_repository=lambda: SimpleNamespace(info=SimpleNamespace(family="cachyos")))
+    repository = type("Repository", (SteamosDependenciesMixin, SimpleNamespace), {})(_os_repository=lambda: SimpleNamespace(info=SimpleNamespace(family="cachyos")))
     with pytest.raises(RuntimeError, match="only on SteamOS"):
         SteamosDependenciesMixin.gestionar_proton_steamos(repository, "install")
 
 
-def test_service_opens_the_finite_steamos_workflow_in_the_app_terminal(tmp_path):
+def test_service_opens_the_finite_steamos_workflow_in_the_app_terminal(tmp_path, monkeypatch):
     from bc250cc.infrastructure.system_service import SistemaService
 
-    repository = SimpleNamespace(
+    monkeypatch.setattr("bc250cc.infrastructure.dependencias_steamos.require_bc250_hardware", lambda: None)
+    repository = type("Repository", (SteamosDependenciesMixin, SimpleNamespace), {})(
         _os_repository=lambda: SimpleNamespace(info=SimpleNamespace(family="steamos")),
         _tool_dir=lambda: tmp_path,
         _abrir_terminal=lambda command, title: (command, title),
@@ -104,6 +105,7 @@ def test_service_opens_the_finite_steamos_workflow_in_the_app_terminal(tmp_path)
     repository.gestionar_proton_steamos = lambda action: SteamosDependenciesMixin.gestionar_proton_steamos(repository, action)
     service = SimpleNamespace(repo=repository)
     command, title = SistemaService.gestionar_proton_steamos(service, "update")
-    assert "bc250-steamos-proton/bc250-proton.sh update" in command
-    assert title == "SteamOS · BC-250 GE-Proton"
+    assert "bc250-steamos-toolkit proton-install" in command
+    assert "keyboardspecialist" not in command
+    assert title == "SteamOS Real Toolkit · proton-install"
     assert repository.estado_herramientas_cache is None

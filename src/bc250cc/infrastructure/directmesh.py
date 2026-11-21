@@ -491,7 +491,12 @@ echo "Installer verified ({source})."
 echo "BC250_UPSTREAM DirectMesh {tag}@{digest}"
 mkdir -p {root}
 exec 9>{root}/install.lock
-flock -n 9 || {{ echo "ERROR: Another DirectMesh change is running."; exit 1; }}
+# R-f073fc37: a second click, or a run still open in another window, failed
+# at once. Wait for it instead; only a change stuck for a quarter hour fails.
+if ! flock -n 9; then
+  echo "Another DirectMesh change is running; waiting for it to finish..."
+  flock -w 900 9 || {{ echo "ERROR: Another DirectMesh change is still running after 15 minutes. Close it, then try again."; exit 1; }}
+fi
 bc250_prefix={shlex.quote(prefix)}
 bc250_paths=("$bc250_prefix" "${{DIRECTMESH_BIN:-$HOME/.local/bin}}/directmesh-run" {root}/install.sh {root}/installed.json)
 for index in "${{!bc250_paths[@]}}"; do

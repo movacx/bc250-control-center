@@ -193,3 +193,66 @@ def test_errors_from_clean_systems_get_the_code_they_deserve(message, code):
 ))
 def test_missing_maintenance_helpers_report_the_installation_problem(message):
     assert diagnose_error(message).code == "BC250-HELPER-001"
+
+
+MISSING_UMR = (
+    "The CU backend cannot find the UMR executable. Prepare the UMR component from the Dashboard; on "
+    "Bazzite, reboot if its installation is queued for the next deployment, then retry. No CU routing was changed."
+)
+
+
+@pytest.mark.parametrize(
+    ("family", "command"),
+    (
+        ("cachyos", "sudo pacman -S --needed umr || paru -S --needed umr"),
+        ("arch", "sudo pacman -S --needed umr || paru -S --needed umr"),
+        ("ubuntu", "sudo apt update && sudo apt install -y umr"),
+        ("fedora", "sudo dnf install -y umr"),
+        ("bazzite", "rpm-ostree install -y umr"),
+    ),
+)
+def test_a_missing_umr_gets_the_install_command_of_this_distribution(family, command):
+    assert umr_repair_command(MISSING_UMR, os_family=family) == command
+    result = format_error_for_user(MISSING_UMR, os_family=family)
+    assert "UMR is not installed." in result and "Install UMR by following these steps:" in result
+
+
+def test_a_missing_umr_on_steamos_has_steps_but_no_command():
+    assert umr_repair_command(MISSING_UMR, os_family="steamos") == ""
+    assert "you do not need a terminal" in format_error_for_user(MISSING_UMR, os_family="steamos")
+
+
+def test_a_missing_umr_is_an_error_window_with_its_command_and_the_report_button(qtbot, monkeypatch):
+    from PyQt6.QtWidgets import QApplication, QPushButton
+
+    from bc250cc.shared.errors import ActionNeeded
+    from frontends.desktop.core import error_diagnostics
+
+    monkeypatch.setattr(error_diagnostics, "_os_family", lambda: "bazzite")
+    monkeypatch.setattr("frontends.desktop.components.widgets.record_window_error", lambda *a, **k: None)
+    dialog = InfoDialog("Compute Units operation failed", str(ActionNeeded(MISSING_UMR)), tone="red", notice="")
+    qtbot.addWidget(dialog)
+    texts = [button.text() for button in dialog.findChildren(QPushButton)]
+    assert "Report this problem" in texts and "Copy command" in texts
+    assert dialog.report_code == "BC250-UMR-001"
+    next(button for button in dialog.findChildren(QPushButton) if button.text() == "Copy command").click()
+    assert QApplication.clipboard().text() == "rpm-ostree install -y umr"
+
+
+def test_only_the_missing_umr_keeps_the_error_window_among_the_refusals(qtbot, monkeypatch):
+    from PyQt6.QtWidgets import QPushButton
+
+    from bc250cc.shared.errors import ActionNeeded
+    from frontends.desktop.core import raw_errors
+
+    monkeypatch.setattr("frontends.desktop.components.widgets.record_window_error", lambda *a, **k: None)
+    refusal = ActionNeeded("Close Steam completely first (Steam > Exit), then try again.")
+    raw_errors.remember(refusal)
+    calm = InfoDialog("Could not change the Steam launch option", str(refusal), tone="red", notice="")
+    qtbot.addWidget(calm)
+    assert "Report this problem" not in [button.text() for button in calm.findChildren(QPushButton)]
+    missing = ActionNeeded(MISSING_UMR)
+    raw_errors.remember(missing)
+    window = InfoDialog("Compute Units operation failed", str(missing), tone="red", notice="")
+    qtbot.addWidget(window)
+    assert "Report this problem" in [button.text() for button in window.findChildren(QPushButton)]

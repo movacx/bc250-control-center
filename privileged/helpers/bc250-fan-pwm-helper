@@ -7,7 +7,6 @@ import fcntl
 import hashlib
 import importlib.util
 import json
-import math
 import os
 import shutil
 import signal
@@ -248,9 +247,22 @@ def _save_state(state: dict) -> None:
             os.unlink(temporary)
 
 
+
+TOOLKIT_FAN_CGROUP = Path("/sys/fs/cgroup/system.slice/toolkit-steamos-fan.service/cgroup.events")
+
+def toolkit_fan_running() -> bool:
+    try:
+        return 'populated 1' in TOOLKIT_FAN_CGROUP.read_text(encoding='ascii').splitlines()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        # An existing but unreadable runtime cannot safely grant PWM ownership.
+        return True
+
+
 def fan_external() -> bool:
     try:
-        return EXTERNAL_FILE.is_file()
+        return EXTERNAL_FILE.is_file() or toolkit_fan_running()
     except OSError:
         return False
 
@@ -1232,6 +1244,8 @@ def external_command(on: bool) -> str:
     applies something on the Fans page.
     """
     if not on:
+        if toolkit_fan_running():
+            return 'ERR FAN_EXTERNAL: Stop Toolkit SteamOS fan control before taking the fan back.'
         with suppress(FileNotFoundError):
             EXTERNAL_FILE.unlink()
         return 'OK EXTERNAL OFF'

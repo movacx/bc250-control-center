@@ -26,13 +26,14 @@ def test_narrow_then_wide_restores_the_same_split_as_a_wide_first_layout(qtbot):
 
     view._reflow(STACK_WIDTH - 200)
     assert view._workspace.itemAtPosition(1, 0) is not None
-    assert view._workspace.columnStretch(1) == 0
+    assert view._workspace.columnStretch(2) == 0
 
     view._reflow(STACK_WIDTH + 400)
 
-    assert view._workspace.itemAtPosition(0, 1) is not None
+    # Column 1 is the drag bar; the monitoring column is column 2.
+    assert view._workspace.itemAtPosition(0, 2).widget() is view._telemetry
     assert view._workspace.columnStretch(0) == CONTROLS_STRETCH
-    assert view._workspace.columnStretch(1) == TELEMETRY_STRETCH
+    assert view._workspace.columnStretch(2) == TELEMETRY_STRETCH
 
 
 def test_a_compact_window_can_scroll_the_cpu_workspace_like_the_gpu_one(qtbot):

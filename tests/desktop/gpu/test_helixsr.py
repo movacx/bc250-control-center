@@ -655,9 +655,9 @@ def _next_release(monkeypatch) -> None:
 
 
 def test_the_default_is_the_release_checked_on_a_bc250_and_every_dll_is_known():
-    # 3.3.0, through upstream's bridge; 2.0.0 stays on offer for 2.x layouts.
-    assert helixsr.HELIXSR_VERSION == "3.3.0"
-    assert max(helixsr.HELIXSR_REVIEWED, key=helixsr._version) == "v3.3.0"
+    # 3.4.1, through upstream's bridge; 2.0.0 stays on offer for 2.x layouts.
+    assert helixsr.HELIXSR_VERSION == "3.4.1"
+    assert max(helixsr.HELIXSR_REVIEWED, key=helixsr._version) == "v3.4.1"
     assert "v2.0.0" in helixsr.HELIXSR_REVIEWED
     for release in helixsr.HELIXSR_REVIEWED.values():
         assert release["dll_sha256"] in helixsr.HELIXSR_DLL_DIGESTS

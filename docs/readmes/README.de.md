@@ -51,7 +51,7 @@ Die normale Installation umfasst die Terminalschnittstelle und die kompilierten 
 - Systemvorbereitung je nach Distribution, ausgeführt in einem integrierten Terminal
 - Kompatibilitätskorrekturen für GFX1013, Async Compute, ACPI und Mesa; Dolby Digital 5.1 über HDMI; Steuerung des Fernsehers über HDMI-CEC
 - Problemberichte innerhalb der Anwendung, mit Fehlercodes, Ursprungscodes und dem angehängten Rohfehler
-- 30 Sprachen, helles und dunkles Design, Skalierung der Oberfläche und Navigation mit dem Controller
+- 30 Sprachen, helles und dunkles Design, Skalierung der Oberfläche, Temperaturen in °C oder °F und Navigation mit dem Controller
 - Terminalschnittstelle mit Tastaturnavigation, Mausunterstützung, Live-Telemetrie und einer eingebetteten Bedienkonsole
 - Lokales Netzwerk-HTTPS-Webinterface mit mobilen Layouts, gekoppeltem QR und Hardware-Berechtigungen pro Gerät
 
@@ -141,7 +141,7 @@ bash scripts/uninstall-local.sh
 
 ## Erste Schritte
 
-1. Starte BC250 Control Center. Der Ersteinrichtungsbildschirm legt Sprache und Erscheinungsbild fest und bietet an, die nötigen Komponenten zu installieren.
+1. Starte BC250 Control Center. Der Ersteinrichtungsbildschirm legt Sprache, Temperatureinheit (°C oder °F) und Erscheinungsbild fest und bietet an, die nötigen Komponenten zu installieren.
 2. Optional kannst du die geführte Tour machen, die erklärt, was jedes Modul auf dem Board verändert.
 3. Führe im Dashboard **Prepare BC250 system** aus. Es zeigt, was für deine Distribution installiert wird, und führt es im integrierten Terminal aus.
 4. Lies vor dem Anwenden von Änderungen die Statuszeile eines Moduls; sie zeigt, was bereit ist und was fehlt.

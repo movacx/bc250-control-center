@@ -60,6 +60,9 @@ SYSTEMD_USER_DIR="$PREFIX/lib/systemd/user"
 DOC_DIR="$PREFIX/share/doc/bc250-control-center"
 SYSTEM_PRIV_HELPER="/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
 SYSTEM_STEAMOS_GAME_HELPER="/usr/libexec/bc250-control-center/bc250-steamos-game-helper"
+SYSTEM_STEAMOS_TOOLKIT_RUNNER="/usr/libexec/bc250-control-center/bc250-steamos-toolkit"
+SYSTEM_STEAMOS_TOOLKIT_CHECK="/usr/libexec/bc250-control-center/bc250-steamos-toolkit-check"
+SYSTEM_STEAMOS_TOOLKIT_RUNTIME="/usr/libexec/bc250-control-center/lib/bc250_steamos_toolkit_runtime.zip"
 SYSTEM_GOVERNOR_CONFIG_HELPER="/usr/libexec/bc250-control-center/bc250-governor-config-helper"
 SYSTEM_CORE_UNLOCK_HELPER="/usr/libexec/bc250-control-center/bc250-core-unlock-helper"
 SYSTEM_CPU_SMU_HELPER="/usr/libexec/bc250-control-center/bc250-cpu-smu-helper"
@@ -142,6 +145,7 @@ require_supported_python() {
   fi
 }
 require_supported_python
+
 
 check_python_gui_runtime() {
   python3 - <<'PY' >/dev/null 2>&1
@@ -502,6 +506,26 @@ mv -- "$APP_STAGE/VERSION" "$APP_DIR/VERSION"
 install -Dm644 "$ROOT_DIR/README.md" "$DOC_DIR/README.md"
 install -Dm644 "$ROOT_DIR/LICENSE" "$DOC_DIR/LICENSE"
 install -Dm644 "$ROOT_DIR/docs/THIRD_PARTY_NOTICES.md" "$DOC_DIR/THIRD_PARTY_NOTICES.md"
+# A system package may already own the privileged helpers (pacman -U of a local
+# build, the AUR, an RPM or a .deb). Installing over them leaves two versions:
+# the package's launcher keeps starting its own, older interface against this
+# build's helpers, and removing the package later deletes the helpers this
+# install relies on. Say so before the helpers are replaced. Exit statuses only: the
+# managers translate their sentences (Spanish SteamOS: "está contenido en").
+system_package_owner() {
+  local path="$1" owner=""
+  if command -v pacman >/dev/null 2>&1 && owner="$(LC_ALL=C pacman -Qoq -- "$path" 2>/dev/null)" && [[ -n "$owner" ]]; then
+    printf '%s\n' "${owner%%$'\n'*}"; return 0
+  fi
+  if command -v rpm >/dev/null 2>&1 && owner="$(LC_ALL=C rpm -qf --qf '%{NAME}\n' -- "$path" 2>/dev/null)" && [[ -n "$owner" ]]; then
+    printf '%s\n' "${owner%%$'\n'*}"; return 0
+  fi
+  if command -v dpkg-query >/dev/null 2>&1 && owner="$(LC_ALL=C dpkg-query -S -- "$path" 2>/dev/null)" && [[ "$owner" == *:* ]]; then
+    owner="${owner%%$'\n'*}"; printf '%s\n' "${owner%%:*}"; return 0
+  fi
+  return 1
+}
+
 install_privileged_pwm_components() {
   local helper_source="$ROOT_DIR/privileged/helpers/bc250-fan-pwm-helper"
   local system_setup_helper_source="$ROOT_DIR/privileged/helpers/bc250-system-setup-helper"
@@ -536,6 +560,14 @@ install_privileged_pwm_components() {
   if [[ -e /run/ostree-booted ]]; then
     echo "Warning: immutable rpm-ostree system detected; install the RPM with rpm-ostree for the hardened PWM helper." >&2
     return 0
+  fi
+
+  if [[ "$PREFIX" != "/usr" ]] && package_name="$(system_package_owner /usr/libexec/bc250-control-center/bc250-fan-pwm-helper)"; then
+    echo "[WARN] BC250 Control Center is also installed as the system package '$package_name'." >&2
+    echo "[WARN] This local install replaces that package's privileged helpers in /usr/libexec with this build's," >&2
+    echo "[WARN] while the package's own launcher (/usr/bin/bc250-control-center) keeps starting its older interface." >&2
+    echo "[WARN] To keep one version: upgrade the package instead (packaging/scripts/build-local-pkg.sh, then" >&2
+    echo "[WARN] sudo pacman -U dist/bc250-control-center-*-any.pkg.tar.zst), or remove it first (sudo pacman -R $package_name)." >&2
   fi
 
   if is_steamos_install_local; then
@@ -577,6 +609,9 @@ install_privileged_pwm_components() {
     "$cu_helper_target"
     "$SYSTEM_PRIV_HELPER"
     "$SYSTEM_STEAMOS_GAME_HELPER"
+    "$SYSTEM_STEAMOS_TOOLKIT_RUNNER"
+    "$SYSTEM_STEAMOS_TOOLKIT_CHECK"
+    "$SYSTEM_STEAMOS_TOOLKIT_RUNTIME"
     "$SYSTEM_QUICK_ACCESS_HELPER"
     "$SYSTEM_GOVERNOR_CONFIG_HELPER"
     "$SYSTEM_CORE_UNLOCK_HELPER"
@@ -631,6 +666,9 @@ install_privileged_pwm_components() {
     "${elevate[@]}" install -Dm755 "$helper_source" "$SYSTEM_PRIV_HELPER"
     "${elevate[@]}" install -Dm755 "$cu_helper_source" "$cu_helper_target"
     "${elevate[@]}" install -Dm755 "$steamos_helper_source" "$SYSTEM_STEAMOS_GAME_HELPER"
+    "${elevate[@]}" install -Dm755 "$ROOT_DIR/scripts/system/run-steamos-real-toolkit.py" "$SYSTEM_STEAMOS_TOOLKIT_RUNNER"
+    "${elevate[@]}" install -Dm755 "$ROOT_DIR/scripts/system/check-steamos-toolkit-conflicts.py" "$SYSTEM_STEAMOS_TOOLKIT_CHECK"
+    "${elevate[@]}" install -Dm644 "$ROOT_DIR/privileged/lib/bc250_steamos_toolkit_runtime.zip" "$SYSTEM_STEAMOS_TOOLKIT_RUNTIME"
     "${elevate[@]}" install -Dm755 "$quick_access_helper_source" "$SYSTEM_QUICK_ACCESS_HELPER"
     "${elevate[@]}" install -Dm755 "$governor_helper_source" "$SYSTEM_GOVERNOR_CONFIG_HELPER"
     "${elevate[@]}" install -Dm755 "$core_unlock_helper_source" "$SYSTEM_CORE_UNLOCK_HELPER"
@@ -670,6 +708,8 @@ install_privileged_pwm_components() {
       "$cu_helper_source:$cu_helper_target" \
       "$helper_source:$SYSTEM_PRIV_HELPER" \
       "$steamos_helper_source:$SYSTEM_STEAMOS_GAME_HELPER" \
+      "$ROOT_DIR/scripts/system/run-steamos-real-toolkit.py:$SYSTEM_STEAMOS_TOOLKIT_RUNNER" \
+      "$ROOT_DIR/scripts/system/check-steamos-toolkit-conflicts.py:$SYSTEM_STEAMOS_TOOLKIT_CHECK" \
       "$governor_helper_source:$SYSTEM_GOVERNOR_CONFIG_HELPER" \
       "$core_unlock_helper_source:$SYSTEM_CORE_UNLOCK_HELPER" \
       "$cpu_smu_helper_source:$SYSTEM_CPU_SMU_HELPER" \
@@ -697,7 +737,8 @@ install_privileged_pwm_components() {
     for implementation_pair in \
       "$governor_toml_source:$SYSTEM_GOVERNOR_TOML_IMPLEMENTATION" \
       "$fan_engine_source:/usr/libexec/bc250-control-center/lib/bc250_fan_engine.py" \
-      "$cpu_smu_vendor_source:$SYSTEM_CPU_SMU_VENDOR"; do
+      "$cpu_smu_vendor_source:$SYSTEM_CPU_SMU_VENDOR" \
+      "$ROOT_DIR/privileged/lib/bc250_steamos_toolkit_runtime.zip:$SYSTEM_STEAMOS_TOOLKIT_RUNTIME"; do
       implementation_source_path="${implementation_pair%%:*}"
       implementation_installed_path="${implementation_pair#*:}"
       if ! cmp -s "$implementation_source_path" "$implementation_installed_path"; then

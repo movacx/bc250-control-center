@@ -59,6 +59,7 @@ from ..core.compute_units_presenter import (
 from ..core.cu_balance import balanced_masks, engine_balance
 from ..core.raw_errors import remember
 from ..core.state import state_cache_for
+from ..core.temperature_unit import format_temperature, localize_temperature_text
 from ..i18n import count_label, localize_widget_tree, tr, tr_format
 from ..theme import COLORS, application_stylesheet
 
@@ -101,7 +102,7 @@ def _reading(value: object) -> float | None:
 
 
 def _render_telemetry_text(value: TelemetryText) -> str:
-    return value.template if value.literal else tr_format(value.template, **dict(value.values))
+    return localize_temperature_text(value.template) if value.literal else tr_format(value.template, **dict(value.values))
 
 
 class CuTask(QThread):
@@ -1232,10 +1233,10 @@ class ComputeUnitsPage(QWidget):
             )
         mosfet = _reading(perf.get("vrm_mos_temp"))
         if rail_temperature is not None:
-            strip.vrm_temp_item.set_values(f"{rail_temperature:.1f} °C", f"{tr('VRM GPU')} · PMBus")
+            strip.vrm_temp_item.set_values(format_temperature(rail_temperature), f"{tr('VRM GPU')} · PMBus")
         else:
             strip.vrm_temp_item.set_values(
-                f"{mosfet:.1f} °C" if mosfet is not None else tr("Not detected"),
+                format_temperature(mosfet) if mosfet is not None else tr("Not detected"),
                 tr("VRM MOS"),
             )
         fan = _reading(perf.get("fan_rpm"))

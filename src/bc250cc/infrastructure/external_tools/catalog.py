@@ -187,7 +187,7 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         key="core_unlock_persistent",
         upstream="https://github.com/movacx/core_unlock_bc250_boot_service",
         license="MIT",
-        reviewed_revision="35db6d13ce8cee5c6b387d7eb7d1de07fcf6249d",
+        reviewed_revision="07e0c4a6a234445ec5b42e53c85de5fc28e9be87",
         privilege_class="boot-service-hardware-reboot",
         hardware_writes=True,
         automated=True,
@@ -222,15 +222,31 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         rollback="Restore the factory 24-CU route and uninstall the persistent service.",
         validation_level="code-reviewed-mocked-hardware-gate-pending",
     ),
+    "steamos_real_toolkit": ExternalToolSpec(
+        key="steamos_real_toolkit",
+        upstream="https://github.com/rpf16rj/bc250-steamos-real-toolkit",
+        license="not-declared-upstream",
+        # Last revision a person reviewed. The runtime follows the newest commit.
+        reviewed_revision="88abd200170c8855f45cc6883e72d243151ceb7a",
+        privilege_class="live-hardware-service-boot-kernel-initramfs",
+        hardware_writes=True,
+        automated=True,
+        rollback="Use the selected component's upstream revert/recovery path; preserve native Control Center services and other providers' installations.",
+        validation_level="code-reviewed-mocked-hardware-gate-pending",
+    ),
     "steamos_amdgpu": ExternalToolSpec(
         key="steamos_amdgpu",
         upstream="https://github.com/keyboardspecialist/bc250-steamos",
         license="mixed-per-subproject",
-        # v0.30.0, used unmodified. Since v0.21.2 its module carries the
-        # eight-core SMU metrics ABI (off by default), raises the SCLK floor
-        # to 350 MHz, writes a six-field RADV manifest and retires the
-        # per-game FSR4 V3 profile.
-        reviewed_revision="e1563f2051727702a000b6ff6f6c524e2792aa21",
+        # v0.40.0 (master, 2026-11-17), used unmodified. Its kernel module is
+        # the one v0.30.0 built (same patches, GFX1013 d3e6dc06 and the
+        # smu-8core-metrics-r1 markers); v0.38 builds it with dependencies
+        # from the installed SteamOS channel (fetch-build-deps.sh), so the
+        # GLIBC_2.44 adapter of Control Center is retired. Its RADV is Mesa
+        # 26.3.0 with DirectMesh 1.4 and FSR4 (profile
+        # directmesh-1.4-mesa-26.3-fsr4-v7), which needs
+        # bc250-mesa-patches/libdrm-2.4.134-wrap.patch in the protected copy.
+        reviewed_revision="6aee5530a07f2c1a4fd2f23c00a87986030c5b35",
         privilege_class="boot-kernel-initramfs",
         hardware_writes=False,
         automated=True,
@@ -241,7 +257,9 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         key="steamos_proton",
         upstream="https://github.com/keyboardspecialist/bc250-steamos",
         license="mixed-per-subproject",
-        reviewed_revision="5fe7ae9765c9b419ffbd740eefe1c85d482fa05d",
+        # Last revision a person reviewed (v0.40.0; bc250-proton.sh is
+        # unchanged since 5fe7ae9). The checkout follows master.
+        reviewed_revision="6aee5530a07f2c1a4fd2f23c00a87986030c5b35",
         privilege_class="userspace",
         hardware_writes=False,
         automated=True,
@@ -514,6 +532,14 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
         vocabulary="GPU compute units and factory restore",
         actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.APPLY, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
     ),
+    "steamos_real_toolkit": _lifecycle(
+        "Download the newest upstream commit by hash, check the entrypoint's structure and adapt only its explicit action dispatch; retain upstream prompts. A failed action clears the cache.",
+        "Inspect provider metadata and actual component artifacts separately from native Control Center and the optional keyboardspecialist backend.",
+        "Use component-specific revert/recovery, checking shared files and service ownership before changes.",
+        conflicts=("Control Center CPU/GPU/CU persistence", "other providers' kernel/Mesa installations", "shared fan and Decky services"),
+        vocabulary="SteamOS Real Toolkit components, performance, graphics, devices and recovery",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
+    ),
     "steamos_amdgpu": _lifecycle(
         "Build the pinned kernel-matched override first, then the matched Mesa/RADV runtime in an explicit second stage.",
         "Verify AMDGPU capabilities, scheduler policy, RADV ownership and optional per-game FSR4 independently.",
@@ -698,6 +724,9 @@ class GitCheckoutReader:
 
 
 EXTERNAL_TOOL_DIRECTORIES = {
+    # Archive workspace, not a git checkout. Component evidence is reported by
+    # probe_real_toolkit; a folder alone must never count as verified code.
+    "steamos_real_toolkit": "/home/.bc250-control-center/real-toolkit/workspace",
     "cachyos_pahole": "cachyos-pahole",
     "cyan_smu": "cyan-skillfish-governor-smu",
     "cpu_smu_oc": "bc250_smu_oc",

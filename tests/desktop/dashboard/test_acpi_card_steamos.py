@@ -24,7 +24,6 @@ def _show(sidebar, family, acpi):
 
 
 @pytest.mark.parametrize(("family", "scope"), [
-    ("steamos", "Beta · SteamOS"),
     ("bazzite", "Beta · Bazzite"),
     ("manjaro", "Validated · Arch / CachyOS / Manjaro"),
 ])
@@ -32,6 +31,12 @@ def test_the_card_is_offered_where_the_helper_has_a_route(sidebar, family, scope
     _show(sidebar, family, {"status": "not-installed", "available": True})
     assert not sidebar.acpi_card.isHidden()
     assert sidebar.acpi_card.scope.text() == scope
+
+
+def test_steamos_offers_the_toolkits_acpi_row_instead_of_ours(sidebar):
+    _show(sidebar, "steamos", {"status": "not-installed", "available": True})
+    assert sidebar.acpi_card.isHidden()
+    assert not sidebar.real_toolkit_rows.cards["acpi-install"].isHidden()
 
 
 def test_a_steamos_update_offers_the_repair(sidebar):

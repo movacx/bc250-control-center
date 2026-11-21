@@ -50,6 +50,9 @@ ARCH_FAMILIES = frozenset({"arch", "cachyos", "manjaro", "endeavouros", "garuda"
 FEDORA_FAMILIES = frozenset({"fedora"})
 ACTIONS = frozenset({"install", "enable", "disable", "uninstall", "status", "test"})
 MIN_KERNEL = (7, 2)
+#: One game on the patched RADV without the session switch: the wrapper the
+#: script installs (its ``steam`` subcommand prints the same line).
+RADV_ASYNC_LAUNCH_OPTION = "bc250cc-async-compute run %command%"
 
 
 def _kernel_version(kernel: str) -> tuple[int, int] | None:

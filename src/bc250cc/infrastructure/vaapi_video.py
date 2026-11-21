@@ -58,6 +58,7 @@ from typing import Mapping
 
 from . import container_network
 from .accessories._shared import download_and_verify
+from .hardware_identity import amdgpu_blocked_by_cmdline, amdgpu_blocked_message
 from .steamos_readonly import (
     STEAMOS_PACMAN_INSTALL,
     STEAMOS_PASSWORD_GUARD,
@@ -123,8 +124,10 @@ SYSTEM_DRIVER_DIRS = (
 )
 
 #: The same driver switched on by another installer: upstream's own scripts
-#: and boot unit, or keyboardspecialist's SteamOS toolkit. Never both.
+#: and boot unit, or either SteamOS toolkit provider. Never both.
 FOREIGN_FILES = (
+    Path("/etc/environment.d/99-bc250-vaapi.conf"),
+    Path("/etc/profile.d/zz-bc250-vaapi.sh"),
     Path("/etc/environment.d/99-bc250.conf"),
     Path("/etc/profile.d/bc250.sh"),
     Path("/etc/environment.d/90-bc250-video-codec.conf"),
@@ -192,7 +195,7 @@ def _bc250(root: Path = Path("/sys/bus/pci/devices")) -> bool:
 
 def vaapi_supported(
     *, family: str, machine: str | None = None, glibc: tuple[int, int] | None = None,
-    bc250: bool | None = None,
+    bc250: bool | None = None, cmdline: str | None = None,
 ) -> tuple[bool, str]:
     """Whether this system can build and run the driver, and why not."""
     family = str(family or "").strip().lower()
@@ -206,6 +209,9 @@ def vaapi_supported(
         return False, "Offered on SteamOS, Bazzite, Arch, CachyOS, Manjaro, Fedora, Debian and Ubuntu."
     if glibc is not None and glibc < MIN_GLIBC:
         return False, "The driver needs glibc 2.38 or newer; this system is older."
+    blocked = amdgpu_blocked_by_cmdline(cmdline)
+    if blocked:
+        return False, amdgpu_blocked_message(blocked)
     return True, ""
 
 
@@ -235,7 +241,7 @@ def vaapi_state(
     """Read-only: what is installed, switched on, and live in this session."""
     environ = os.environ if environ is None else environ
     cmdline = _read(Path("/proc/cmdline")) if cmdline is None else cmdline
-    ok, reason = supported if supported is not None else vaapi_supported(family=family)
+    ok, reason = supported if supported is not None else vaapi_supported(family=family, cmdline=cmdline)
     env_text = _read(ENV_FILE)
     ours = MARKER in env_text
     installed_version = ""
@@ -246,7 +252,7 @@ def vaapi_state(
     foreign = [str(path) for path in FOREIGN_FILES if path.exists()]
     hardware_vcn = HARDWARE_VCN_ARGUMENT in cmdline.split()
     session = str(environ.get("LIBVA_DRIVER_NAME") or "") == "bc250"
-    if foreign and not ours:
+    if foreign:
         state = "managed-elsewhere"
     elif hardware_vcn and not ours:
         state = "hardware-vcn"
@@ -448,7 +454,7 @@ def _install(family: str) -> str:
         "{ echo 'ERROR: the source archive does not have the expected layout.'; exit 29; }",
         f"mkdir -p {cache}",
         'echo "== Building in a Fedora container (a few minutes; nothing is installed yet) =="',
-        "bc250_podman=podman; podman info >/dev/null 2>&1 || bc250_podman='sudo podman'",
+        container_network.PICK_PODMAN,
         *container_network.setup_lines('"$bc250_podman"'),
         f'$bc250_podman run --rm $bc250_net --pull=missing -v "$bc250_stage/src":/src:ro,Z -v "$bc250_stage/out":/out:Z '
         f"{BUILD_IMAGE} bash -c {shlex.quote(build)}",
@@ -515,6 +521,7 @@ def _install32(family: str) -> str:
     )
     return "\n".join((
         *_header("add the 32-bit driver"),
+        *_foreign_guard(),
         _owned_guard(ENV_FILE),
         _owned_guard(PROFILE_FILE),
         f"test -f {shlex.quote(str(DRIVER))} || {{ echo 'ERROR: install the 64-bit driver first.'; exit 29; }}",
@@ -545,7 +552,7 @@ def _install32(family: str) -> str:
         "{ echo 'ERROR: the source archive does not have the expected layout.'; exit 29; }",
         f"mkdir -p {cache}",
         'echo "== Building the 32-bit driver in a Fedora container (a few minutes; nothing is installed yet) =="',
-        "bc250_podman=podman; podman info >/dev/null 2>&1 || bc250_podman='sudo podman'",
+        container_network.PICK_PODMAN,
         *container_network.setup_lines('"$bc250_podman"'),
         f'$bc250_podman run --rm $bc250_net --pull=missing -v "$bc250_stage/src":/src:ro,Z -v "$bc250_stage/out":/out:Z '
         f"-v {shlex.quote(str(PROBE32_SOURCE))}:/probe.c:ro,Z {BUILD_IMAGE} bash -c {shlex.quote(build)}",
@@ -648,6 +655,7 @@ def _flatpak_workflow(action: str) -> str:
     enabling = action == "flatpak"
     return "\n".join((
         *_header("Flatpak apps" if enabling else "Flatpak apps · remove"),
+        *(_foreign_guard() if enabling else ()),
         *((
             f"test -f {shlex.quote(str(DRIVER))} || {{ echo 'ERROR: install the driver first.'; exit 29; }}",
         ) if enabling else ()),

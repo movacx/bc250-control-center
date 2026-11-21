@@ -255,3 +255,32 @@ def test_failed_mesa_setup_restores_readonly_and_preserves_the_error(tmp_path, m
     assert "setup started" in result.stdout
     assert result.returncode == 23
     assert state.read_text().strip() == "enabled"
+
+
+def test_install_explains_the_global_directmesh_default_before_setup():
+    command = build_steamos_graphics_command("install", backend_guard="true")
+    note = command.index("Upstream enables DirectMesh for every game")
+    assert "mesa-26.3.0" in command and "DirectMesh v1.4" in command
+    assert "RADV_DIRECTMESH=0 %command%" in command
+    assert note < command.index(" setup")
+
+
+def test_graphics_status_shows_the_directmesh_release(tmp_path):
+    backend = tmp_path / "graphics-status.sh"
+    backend.write_text(
+        "#!/usr/bin/bash\n"
+        "printf '%s\\n' '{\"scriptAvailable\":true,\"runtimeState\":\"ready\","
+        "\"mesaVersion\":\"mesa-26.3.0\",\"directMeshVersion\":\"directmesh-v1.4\","
+        "\"configValid\":true,\"kernelReady\":true,\"schedulerConfigured\":true,"
+        "\"schedulerActive\":true,\"globalEnabled\":true,\"restartRequired\":false,"
+        "\"fsr4State\":\"not-installed\",\"fsr4DllState\":\"invalid\",\"games\":[],\"error\":null}'\n",
+        encoding="utf-8",
+    )
+    backend.chmod(0o755)
+    result = subprocess.run(
+        ["bash", "-c", _graphics_status_report_command(backend, system_helper=None)],
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "DirectMesh             directmesh-v1.4" in result.stdout
+    assert "[ACTIVE    ] RADV GFX1013 mesh/task shaders (directmesh-v1.4)" in result.stdout

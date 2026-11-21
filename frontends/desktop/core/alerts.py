@@ -11,6 +11,25 @@ from ..components.async_tools import BackgroundExecutor
 from ..i18n import tr, tr_format
 from .alert_policy import AlertEvent, classify_alerts, evaluate_alert_cooldown
 from .state import state_cache_for
+from .temperature_unit import to_display_delta
+
+#: Alert values that are a change of temperature, not a temperature: they are
+#: scaled into the chosen unit but never shifted by the 32 °F offset.
+_TEMPERATURE_DELTA_VALUES = frozenset({"rise"})
+
+
+def _alert_message(event: AlertEvent) -> str:
+    values = dict(event.values)
+    if _TEMPERATURE_DELTA_VALUES & set(values):
+        # The template's "°C" becomes the chosen symbol in tr(); the delta is
+        # converted here so the absolute-temperature pass leaves it alone.
+        for key in _TEMPERATURE_DELTA_VALUES & set(values):
+            values[key] = to_display_delta(float(values[key] or 0.0))
+        try:
+            return tr(event.message_key).format(**values)
+        except (KeyError, ValueError, IndexError):
+            return tr(event.message_key)
+    return tr_format(event.message_key, **values)
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +120,7 @@ class SmartAlertMonitor(QObject):
             return
         self._last_alert[event.key] = decision.accepted_at or now
         title = tr(event.title_key)
-        message = tr_format(event.message_key, **dict(event.values))
+        message = _alert_message(event)
         self.alert_triggered.emit(title, message, event.level)
 
         metadata = {

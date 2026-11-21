@@ -30,7 +30,7 @@ class SteamOSTransactions(unittest.TestCase):
         state = root / 'state'
         state.write_text(initial)
         scripts = {
-            'steamos-readonly': 'case "$1" in status) cat "$TEST_STATE";; disable) echo disabled > "$TEST_STATE";; enable) echo enabled > "$TEST_STATE";; esac',
+            'steamos-readonly': 'case "$1" in status) cat "$TEST_STATE"; grep -qx enabled "$TEST_STATE";; disable) echo disabled > "$TEST_STATE";; enable) echo enabled > "$TEST_STATE";; esac',
             'sudo': '''if [ "${1:-}" = -n ]; then exit 0; fi
 if [ "$1" = install ]; then
   test "$(cat "$TEST_STATE")" = disabled || exit 88

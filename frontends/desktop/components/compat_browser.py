@@ -56,7 +56,16 @@ def _card_buttons(card) -> list[QPushButton]:
 
 
 def _primary(buttons: list[QPushButton]) -> QPushButton | None:
-    """The one action the row shows: the card's accented one, else its first plain one."""
+    """The one action the row shows: the one the card names for its row, else
+    its accented one, else its first plain one.
+
+    A card can name even a removal (``rowAction``): for a driver that is
+    already working, taking it away is the only thing left to do, and hiding
+    it under "More" read as if there were no way to remove it.
+    """
+    for button in buttons:
+        if button.property("rowAction"):
+            return button
     for button in buttons:
         if button.property("accented"):
             return button
@@ -269,7 +278,11 @@ class _ComponentRow(QFrame):
             self.action.setEnabled(self._target.isEnabled())
             self.action.setToolTip(self._target.toolTip())
             # Filled when it is the next step: not for a tool already working.
-            accent = tone != "green" and self._target.isEnabled()
+            # Never for a removal named as the row action: that is not a next step.
+            accent = (
+                tone != "green" and self._target.isEnabled()
+                and not self._target.property("dangerAction")
+            )
             if self.action.property("primary") != accent:
                 self.action.setProperty("primary", accent)
                 self.action.style().unpolish(self.action)

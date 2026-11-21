@@ -1147,6 +1147,10 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 9px;
         font-weight: 800;
     }}
+    QToolButton[groupToggle='true'] {{
+        background: transparent; border: none; padding: 0; color: {c['muted']};
+    }}
+    QToolButton[groupToggle='true']:hover {{ background: {c['control_hover']}; border-radius: 4px; }}
     QLabel[bandNote='true'] {{
         color: {c['muted']};
         font-size: 10px;
@@ -2083,6 +2087,19 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton#DialogSecondary:hover {{
         background: {c['control_hover']};
     }}
+    QPushButton#DialogSecondary[iconOnly="true"] {{
+        padding: 0px;
+    }}
+    QPushButton#DialogLink {{
+        background: transparent;
+        border: none;
+        padding: 4px 2px;
+        color: {c['blue']};
+        font-weight: 680;
+    }}
+    QPushButton#DialogLink:hover {{
+        color: {c['blue_hover']};
+    }}
     QPushButton#DialogClose {{
         background: transparent;
         border: none;
@@ -2500,6 +2517,14 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QFrame#ControlDialogCard QPushButton[dialogLink='true']:hover {{
         color: {c['blue']};
+    }}
+    /* The trash at the start of a game's row: a small flat square. */
+    QPushButton[gameHide='true'] {{
+        background: transparent; border: 1px solid transparent; border-radius: 6px;
+        min-width: 26px; max-width: 26px; min-height: 26px; max-height: 26px; padding: 0px;
+    }}
+    QPushButton[gameHide='true']:hover {{
+        background: {c['red_soft']}; border-color: {c['red_border']};
     }}
     /* Square buttons that carry only an icon: refresh, copy, a row's menu. */
     QFrame[pageCard='true'][upscalerSection='true'] QPushButton[iconAction='true'],
@@ -3606,6 +3631,14 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QWidget[redesignedModule='true'] QPushButton#PrimaryAction[gpuRowAction='true'] {{
         padding: 7px 16px; min-height: 0px; font-size: 11px; font-weight: 720; border-radius: 10px;
     }}
+    QPushButton[layoutSwitch='true'] {{
+        background: {c['panel_alt']}; color: {c['text']}; border: 1px solid {c['border']};
+        border-radius: 7px; padding: 6px 12px; min-height: 0px; font-size: 11px; font-weight: 650;
+    }}
+    QPushButton[layoutSwitch='true']:hover {{ border-color: {c['border_strong']}; }}
+    QPushButton[layoutSwitch='true']:checked {{
+        background: {c['blue']}; border-color: {c['blue']}; color: {c['on_blue']};
+    }}
     QLabel[gpuSectionTitle='true'] {{
         color: {c['text']}; font-size: 13px; font-weight: 750; background: transparent;
     }}
@@ -3952,8 +3985,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {'#F6E7E5' if light else '#382929'};
         border-color: {'#D9BDB9' if light else '#493838'};
     }}
-    QFrame#CpuCoreUnlockPanel QLabel[panelHeadline='true'],
-    QFrame#CpuCoreUnlockPanel QLabel[unlockMaskLabel='true'] {{
+    QFrame#CpuCoreUnlockPanel QLabel[panelHeadline='true'] {{
         color: {'#211416' if light else c['text']};
         background: transparent;
     }}

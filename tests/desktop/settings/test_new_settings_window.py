@@ -30,12 +30,15 @@ def test_the_unused_privacy_section_is_gone(qtbot, tmp_path):
 
 def test_the_overview_and_repositories_open_inside_about(qtbot, tmp_path):
     page, _ = _page(qtbot, tmp_path)
-    assert page.SUBPAGES == {"overview": "about", "repositories": "about"}
+    # About owns the overview, repositories and support; Telemetry owns its sensors guide.
+    assert set(page.SUBPAGES.values()) == {"about", "telemetry"}
+    assert page.SUBPAGES["telemetry_guide"] == "telemetry"
+    assert {"overview", "repositories", "support"} <= set(page.SUBPAGES)
     shown = []
     page._show_section = shown.append
     for key in page.SUBPAGES:
         page.select_section(key)
-    assert shown == ["overview", "repositories"]
+    assert shown == list(page.SUBPAGES)
 
 
 def test_every_section_builds_without_error(qtbot, tmp_path):

@@ -6,6 +6,8 @@ import math
 from dataclasses import dataclass
 from typing import Callable, Mapping
 
+from .temperature_unit import format_temperature
+
 
 @dataclass(frozen=True)
 class ResourceSamplePlan:
@@ -56,7 +58,7 @@ def _cpu_plan(cpu: Mapping[str, object], peaks: Mapping[str, float], translate: 
         (("Usage", cpu_usage),),
         (
             f"{cpu_freq / 1000:.2f} GHz" if cpu_freq else "--",
-            f"{_number(cpu_temp_raw):.1f} °C" if cpu_temp_raw is not None and math.isfinite(_number(cpu_temp_raw, math.nan)) else "--",
+            format_temperature(_number(cpu_temp_raw)) if cpu_temp_raw is not None and math.isfinite(_number(cpu_temp_raw, math.nan)) else "--",
             f"{_number(load[0]):.2f}" if load and math.isfinite(_number(load[0], math.nan)) else "--",
             f"{cpu_peak:.0f}%",
         ),
@@ -77,7 +79,7 @@ def _gpu_plan(gpu: Mapping[str, object], peaks: Mapping[str, float]) -> Resource
         (("Usage", gpu_usage),),
         (
             f"{gpu_freq:.0f} MHz" if gpu_freq else "--",
-            f"{_number(gpu_temp_raw):.1f} °C" if gpu_temp_raw is not None and math.isfinite(_number(gpu_temp_raw, math.nan)) else "--",
+            format_temperature(_number(gpu_temp_raw)) if gpu_temp_raw is not None and math.isfinite(_number(gpu_temp_raw, math.nan)) else "--",
             f"{_number(gpu_power_raw):.1f} W" if gpu_power_raw is not None and math.isfinite(_number(gpu_power_raw, math.nan)) else "--",
             f"{gpu_peak:.0f}%",
         ),

@@ -12,6 +12,8 @@ from PyQt6.QtWidgets import (
 
 from bc250cc.application.fan import board_view
 
+from ..core.temperature_unit import format_temperature
+
 # The numeric helpers are shared with the web and the terminal interface.
 _dict = board_view.as_dict
 _integer = board_view.integer
@@ -30,7 +32,7 @@ def _percent_text(value: object) -> str:
 
 
 def _temperature_text(value: float | None) -> str:
-    return f"{value:.1f} °C" if value is not None else "-- °C"
+    return format_temperature(value)
 
 
 def _action_bar(grid: QGridLayout) -> QWidget:

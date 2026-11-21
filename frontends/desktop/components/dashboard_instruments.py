@@ -32,11 +32,13 @@ from PyQt6.QtWidgets import (
     QLabel,
     QSizePolicy,
     QSpacerItem,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from .. import theme as theme_module
+from ..core.temperature_unit import localize_temperature_text
 from ..i18n import tr
 from .buttons import WrappingButton as QPushButton
 from .core_monitor import CoreGrid
@@ -94,7 +96,7 @@ class Reading(QFrame):
 
     #: Suffixes worth setting in small type after the number rather than
     #: inside it, so a column of readings lines up on its digits.
-    UNITS = ("°C", "MHz", "GHz", "RPM", "mV", "W", "V", "A", "%")
+    UNITS = ("°C", "°F", "MHz", "GHz", "RPM", "mV", "W", "V", "A", "%")
 
     #: Characters a value may take before it is shortened. Chosen so the
     #: longest real reading on this board — a governor backend name — stops
@@ -144,7 +146,8 @@ class Reading(QFrame):
 
     def set_value(self, text: str, detail: str = "") -> None:
         """Show a formatted reading, lifting its unit out of the number."""
-        value = str(text).strip()
+        # Readings arrive in °C; the number is shown in the unit chosen.
+        value = localize_temperature_text(str(text).strip())
         unit = ""
         for candidate in self.UNITS:
             if value.endswith(candidate) and len(value) > len(candidate):
@@ -209,6 +212,55 @@ class ReadingGroup(QWidget):
         box.addSpacing(4)
         self._box = box
         self.readings: dict[str, Reading] = {}
+        #: None: always open. True/False: folded or open, behind a small arrow.
+        self.collapsed: bool | None = None
+        self.toggle: QToolButton | None = None
+
+    def make_collapsible(self, collapsed: bool, on_change=None) -> None:
+        """A small arrow beside the title folds the readings away.
+
+        For groups whose length is not known in advance (one row per disk), so
+        the card does not grow by itself when another drive is plugged in.
+        """
+        if self.toggle is not None:
+            return
+        self.collapsed = bool(collapsed)
+        header = QWidget()
+        row = QHBoxLayout(header)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(4)
+        self._box.removeWidget(self.title)
+        row.addWidget(self.title)
+        toggle = QToolButton()
+        toggle.setProperty("groupToggle", True)
+        toggle.setAutoRaise(True)
+        toggle.setFixedSize(16, 16)
+        toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        toggle.setAccessibleName(self.title.text())
+        row.addWidget(toggle)
+        row.addStretch(1)
+        self._box.insertWidget(0, header)
+        self.toggle = toggle
+
+        def flip() -> None:
+            self.collapsed = not self.collapsed
+            self._apply_fold()
+            if on_change is not None:
+                on_change(self.collapsed)
+
+        toggle.clicked.connect(flip)
+        self._apply_fold()
+
+    def _apply_fold(self) -> None:
+        if self.toggle is None:
+            return
+        self.toggle.setArrowType(Qt.ArrowType.RightArrow if self.collapsed else Qt.ArrowType.DownArrow)
+        self.toggle.setToolTip(tr("Show" if self.collapsed else "Hide"))
+        # Everything under the header: the readings and the hairlines between them.
+        for position in range(1, self._box.count()):
+            widget = self._box.itemAt(position).widget()
+            if widget is not None:
+                widget.setVisible(not self.collapsed)
 
     def add(self, key: str, label: str) -> Reading:
         if self.readings:
@@ -216,6 +268,7 @@ class ReadingGroup(QWidget):
         reading = Reading(label)
         self.readings[key] = reading
         self._box.addWidget(reading)
+        self._apply_fold()
         return reading
 
     def remove(self, key: str) -> None:
@@ -264,12 +317,33 @@ class ReadingBook(QWidget):
         self._placement: list[tuple[ReadingGroup, int]] = []
         self._group_titles: dict[str, str] = {}
         self._packed = self._wanted_columns
+        #: Groups that fold, and whether each is folded now. Kept here so a
+        #: group that empties and comes back (a drive unplugged and plugged in
+        #: again) keeps the choice the user made.
+        self._foldable: dict[str, bool] = {}
+
+    def set_collapsible(self, title: str, collapsed: bool = True) -> None:
+        """Make ``title`` fold behind a small arrow, folded by default."""
+        if title in self._foldable:
+            return
+        self._foldable[title] = collapsed
+        group = self.groups.get(title)
+        if group is not None:
+            self._fold(title, group)
+
+    def _fold(self, title: str, group: ReadingGroup) -> None:
+        group.make_collapsible(
+            self._foldable[title],
+            lambda folded, name=title: self._foldable.__setitem__(name, folded),
+        )
 
     def group(self, title: str, column: int = 0, *, before: str = "") -> ReadingGroup:
         group = self.groups.get(title)
         if group is None:
             group = ReadingGroup(title)
             self.groups[title] = group
+            if title in self._foldable:
+                self._fold(title, group)
             anchor = self.groups.get(before)
             position = next(
                 (index for index, (placed, _column) in enumerate(self._placement) if placed is anchor),

@@ -367,11 +367,60 @@ def save_copy(document: dict, directory: Path | None = None) -> Path | None:
         return None
 
 
+#: The reports this computer sent, newest first, one short entry each. Only
+#: the ID, the time and a one-line subject: no log, no hardware, no contact.
+MAX_SENT_HISTORY = 200
+
+
+def sent_history_path() -> Path:
+    return state_root() / "bc250-control-center" / "sent-reports.json"
+
+
+def sent_reports(path: Path | None = None) -> list[dict]:
+    """What this computer sent, newest first; empty when nothing was kept."""
+    try:
+        items = json.loads((path or sent_history_path()).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(items, list):
+        return []
+    return [item for item in items if isinstance(item, dict) and str(item.get("id") or "").startswith("R-")]
+
+
+def record_sent(document: dict, path: Path | None = None) -> None:
+    """Remember a report the service confirmed, so its ID can be looked up later."""
+    target = path or sent_history_path()
+    error = document.get("error") if isinstance(document.get("error"), dict) else {}
+    app = document.get("app") if isinstance(document.get("app"), dict) else {}
+    entry = {
+        "id": str(document.get("id") or ""),
+        "sent_at": str(document.get("sent_at") or datetime.now().astimezone().isoformat(timespec="seconds")),
+        "kind": str(document.get("kind") or KIND_PROBLEM),
+        "summary": _short(document.get("summary")),
+        "code": str(error.get("code") or ""),
+        "version": str(app.get("version") or ""),
+        "area": str((document.get("problem") or {}).get("area") or "") if isinstance(document.get("problem"), dict) else "",
+        "attached": bool(document.get("attachments")),
+    }
+    if not entry["id"]:
+        return
+    items = [item for item in sent_reports(target) if item.get("id") != entry["id"]]
+    items.insert(0, entry)
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        staged = target.with_suffix(".tmp")
+        staged.write_text(json.dumps(items[:MAX_SENT_HISTORY], ensure_ascii=False, indent=2), encoding="utf-8")
+        staged.replace(target)
+    except OSError:
+        return
+
+
 def submit(
     report: Report,
     *,
     post: Callable[[dict], None] = post_report,
     save: Callable[[dict], Path | None] = save_copy,
+    record: Callable[[dict], None] = record_sent,
     clock: Callable[[], float] = time.monotonic,
 ) -> str:
     """Send the report and return its ID, or raise ``ReportError``.
@@ -391,6 +440,7 @@ def submit(
         except ReportError as error:
             raise ReportError(str(error), saved=save(document)) from error
         _last_sent = clock()
+    record(document)
     return report.id
 
 

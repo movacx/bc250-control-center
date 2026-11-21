@@ -406,6 +406,7 @@ def test_full_install_requires_the_attested_module_to_match_final_status(
         ("6.18.3-valve1-1-neptune-618-gabcdef012345", True),
         ("6.16.12-valve24.5-1-neptune-616-gb2f7cfe85e45", True),
         ("6.11.11-valve1-1-neptune-611-g0123456789ab", False),
+        ("7.3.1-valve2-1-neptune-73-g0ed55b10a784", False),
     ),
 )
 def test_the_preflight_accepts_every_kernel_base_the_backend_builds_for(tmp_path, release, accepted):
@@ -419,3 +420,136 @@ def test_the_preflight_accepts_every_kernel_base_the_backend_builds_for(tmp_path
     assert (result.returncode == 0) is accepted
     if not accepted:
         assert "kernel bases 6.16, 6.18, 7.2" in result.stdout
+
+
+def test_unsupported_steamos_kernel_stops_before_backend_staging(tmp_path):
+    """The two 7.3.1 reports staged a root backend before rejecting the kernel."""
+    binary = tmp_path / "bin"
+    binary.mkdir()
+    uname = binary / "uname"
+    uname.write_text("#!/bin/bash\necho 7.3.1-valve2-1-neptune-73-g0ed55b10a784\n")
+    uname.chmod(0o755)
+    staged = tmp_path / "staged"
+    command = build_steamos_compatibility_command(
+        script=tmp_path / "status.sh", boot_config=tmp_path / "boot-config.sh",
+        checkout_command=f"touch {staged}", install=True,
+    )
+    result = subprocess.run(["bash", "-c", command], capture_output=True, text=True,
+                            env=os.environ | {"PATH": f"{binary}:/usr/bin:/bin"}, timeout=10)
+    assert result.returncode == 38
+    assert not staged.exists()
+    assert "An updated, reviewed backend is required" in result.stdout
+    assert "No system changes were made" in result.stdout
+
+
+# --- the reviewed installer defers the scheduler policy to RADV setup ---------------------
+
+DEFERRED_STATUS = (
+    "[bc250-amdgpu] 6.18.mock: installed, metrics and compute aware (/x/updates/amdgpu.ko.zst)\n"
+    "[bc250-amdgpu] scheduler policy: deferred until Mesa / RADV setup\n"
+    "[bc250-amdgpu] state: installed\n"
+)
+
+
+def _deferred_tools(tmp_path):
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    for name, body in {
+        "sudo": '#!/usr/bin/bash\nexec "$@"\n',
+        "uname": '#!/usr/bin/bash\necho 6.18.mock\n',
+        "lspci": '#!/usr/bin/bash\necho "0000:01:00.0 0300: 1002:13fe"\n',
+        "modinfo": '#!/usr/bin/bash\necho "$BC250_TEST_MODULE"\n',
+    }.items():
+        path = bindir / name
+        path.write_text(body, encoding="utf-8")
+        path.chmod(0o755)
+    patch_driver = tmp_path / "patch-driver.sh"
+    patch_driver.write_text(
+        '#!/usr/bin/bash\n'
+        'if [ "${1:-}" = status ]; then cat "$BC250_TEST_STATE"; exit 0; fi\n'
+        'echo patch >>"$BC250_TEST_ACTIONS"\n'
+        'mkdir -p "$(dirname "$BC250_TEST_MODULE")"; printf module >"$BC250_TEST_MODULE"\n'
+        'printf "%s" "$BC250_TEST_AFTER" >"$BC250_TEST_STATE"\n',
+        encoding="utf-8",
+    )
+    boot_config = tmp_path / "boot-config.sh"
+    boot_config.write_text('#!/usr/bin/bash\necho "boot $1" >>"$BC250_TEST_ACTIONS"; exit 0\n', encoding="utf-8")
+    cmdline = tmp_path / "cmdline"
+    cmdline.write_text("quiet splash\n", encoding="utf-8")
+    env = os.environ | {
+        "PATH": f"{bindir}:{os.environ['PATH']}",
+        "BC250_TEST_STATE": str(tmp_path / "state"),
+        "BC250_TEST_ACTIONS": str(tmp_path / "actions"),
+        "BC250_TEST_MODULE": str(tmp_path / "modules/6.18.mock/updates/amdgpu.ko.zst"),
+        "BC250_TEST_AFTER": DEFERRED_STATUS,
+        "XDG_RUNTIME_DIR": str(tmp_path),
+    }
+    return patch_driver, boot_config, cmdline, env
+
+
+def _actions(tmp_path):
+    path = tmp_path / "actions"
+    return path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+
+
+def test_module_install_leaves_the_policy_to_radv_setup_as_the_reviewed_installer_does(tmp_path):
+    """install.sh removes amdgpu.sched_policy=2 on purpose; RADV setup turns it on with RADV.
+
+    Control Center used to write it back right after the module, activating one half alone.
+    """
+    patch_driver, boot_config, cmdline, env = _deferred_tools(tmp_path)
+    (tmp_path / "state").write_text("[bc250-amdgpu] state: not-installed\n", encoding="utf-8")
+    command = build_steamos_compatibility_command(
+        script=patch_driver, boot_config=boot_config, checkout_command="true", install=True,
+        cmdline_path=cmdline, module_root=tmp_path / "modules",
+    )
+    result = subprocess.run(["/usr/bin/bash", "-Eeuo", "pipefail", "-c", command],
+                            check=False, capture_output=True, text=True, env=env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _actions(tmp_path) == ["patch"]
+    assert "then install Mesa / RADV, which enables amdgpu.sched_policy=2" in result.stdout
+    assert "REBOOT REQUIRED" in result.stdout
+
+
+@pytest.mark.parametrize("install", [False, True])
+def test_a_verified_module_waiting_for_radv_is_ready_not_a_policy_to_repair(tmp_path, install):
+    patch_driver, boot_config, cmdline, env = _deferred_tools(tmp_path)
+    (tmp_path / "state").write_text(DEFERRED_STATUS, encoding="utf-8")
+    command = build_steamos_compatibility_command(
+        script=patch_driver, boot_config=boot_config, checkout_command="true", install=install,
+        cmdline_path=cmdline, module_root=tmp_path / "modules",
+    )
+    result = subprocess.run(["/usr/bin/bash", "-Eeuo", "pipefail", "-c", command],
+                            check=False, capture_output=True, text=True, env=env)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "READY FOR MESA / RADV" in result.stdout
+    assert "REPAIR" not in result.stdout
+    assert _actions(tmp_path) == []
+
+
+def test_the_diagnostic_accepts_a_module_waiting_for_radv(tmp_path):
+    patch_driver, _boot, cmdline, env = _deferred_tools(tmp_path)
+    (tmp_path / "state").write_text(DEFERRED_STATUS.replace("6.18.mock", "6.18-test"), encoding="utf-8")
+    env = env | {"PATH": env["PATH"]}
+    uname = tmp_path / "bin" / "uname"
+    uname.write_text('#!/usr/bin/bash\necho 6.18-test\n', encoding="utf-8")
+    command = build_steamos_amdgpu_diagnostic_command(script=patch_driver, cmdline_path=cmdline)
+    result = subprocess.run(["/usr/bin/bash", "-Eeuo", "pipefail", "-c", command],
+                            check=False, capture_output=True, text=True, env=env)
+    assert result.returncode == 0, result.stdout
+    assert "[OK] AMDGPU module verified" in result.stdout
+
+
+def test_a_deferred_line_next_to_a_configured_policy_is_not_accepted(tmp_path):
+    patch_driver, _boot, cmdline, env = _deferred_tools(tmp_path)
+    mixed = DEFERRED_STATUS.replace(
+        "[bc250-amdgpu] state: installed\n",
+        "[bc250-amdgpu] scheduler policy: configured; reboot needed (amdgpu.sched_policy=2)\n"
+        "[bc250-amdgpu] state: installed\n").replace("6.18.mock", "6.18-test")
+    (tmp_path / "state").write_text(mixed, encoding="utf-8")
+    (tmp_path / "bin" / "uname").write_text('#!/usr/bin/bash\necho 6.18-test\n', encoding="utf-8")
+    command = build_steamos_amdgpu_diagnostic_command(script=patch_driver, cmdline_path=cmdline)
+    result = subprocess.run(["/usr/bin/bash", "-Eeuo", "pipefail", "-c", command],
+                            check=False, capture_output=True, text=True, env=env)
+    # The reboot-pending branch, not the deferred one, explains this report.
+    assert "[OK] AMDGPU module verified" not in result.stdout

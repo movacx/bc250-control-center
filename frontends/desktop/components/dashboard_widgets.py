@@ -48,6 +48,7 @@ from bc250cc.infrastructure.system_setup import (
     CU_UNLOCK_OPTION,
     HDMI21_OFF_OPTION,
     HIDE_BOOT_MESSAGES_OPTION,
+    MEMORY_SENSOR_OPTION,
     PCON_FORCE_DSC_OPTION,
     RELINK_AT_BOOT_OPTION,
     RELINK_OFF_OPTION,
@@ -57,6 +58,7 @@ from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 from .. import theme
 from ..core.preferences import application_settings
+from ..core.temperature_unit import format_temperature
 from ..i18n import tr, tr_format
 from .buttons import WrappingButton as QPushButton
 from .dashboard_instruments import HeadingLabel
@@ -514,7 +516,7 @@ class _MemoryChipCell(QFrame):
             self.code.setText("")
             self.separator.setVisible(False)
             return
-        self.temperature.setText(f"{temperature:.1f} °C")
+        self.temperature.setText(format_temperature(temperature))
         # The only other per-device value MR3 gives back. The memory clock is
         # not one: all eight chips share a single MCLK, which the hero already
         # reports once.
@@ -724,7 +726,7 @@ class DashboardMemorySummary(QFrame):
         """
         probe = self.cells[0]
         needed = (
-            probe.temperature.fontMetrics().horizontalAdvance("88.8 °C")
+            probe.temperature.fontMetrics().horizontalAdvance("188.8 °F")
             + probe.separator.fontMetrics().horizontalAdvance(" · ")
             + probe.code.fontMetrics().horizontalAdvance("MR3 0x33")
             + 24
@@ -972,13 +974,17 @@ def _undo_rows(row_for, installations: Iterable[Mapping], backups: Iterable[Mapp
 
 
 #: HelixSR 3's two ways into a game, as the game matrix names them.
-_HELIXSR3_WAYS = {"scaler": "DLSS · HelixSR Scaler", "fsr": "HLX FSR 4"}
-_HELIXSR3_ADD = {"scaler": "Add DLSS", "fsr": "Add HLX FSR 4"}
-_HELIXSR3_SWITCH = {"scaler": "Switch to DLSS", "fsr": "Switch to HLX FSR 4"}
+_HELIXSR3_WAYS = {"scaler": "HelixSR Scaler (DLSS)", "fsr": "HLX FSR 4"}
+_HELIXSR3_ADD = {"scaler": "Add HelixSR Scaler", "fsr": "Add HLX FSR 4"}
+_HELIXSR3_SWITCH = {"scaler": "Switch to HelixSR Scaler", "fsr": "Switch to HLX FSR 4"}
 _HELIXSR3_COPY = {
     "scaler": "In the game choose DLSS; Insert opens HelixSR Scaler's menu, where HLX FSR 4, AMD FSR and XeSS can be picked too. Remove puts every file it replaced back.",
     "fsr": "In the game choose AMD FSR: HLX FSR 4 takes the place of the game's FSR 3.1. Remove puts the game's own file back.",
-    "available": "Add DLSS puts HelixSR Scaler in the game: its DLSS option runs HelixSR's DLSS network. Add HLX FSR 4 replaces the game's FSR 3.1 with HelixSR's FSR 4. Not for online games or games with anti-cheat.",
+    "available": "Add HelixSR Scaler puts OptiScaler with HelixSR next to the game: its DLSS option runs HelixSR's DLSS network, and DLSS Frame Generation can run HelixSR's frame generation. Add HLX FSR 4 replaces the game's FSR 3.1 with HelixSR's FSR 4. Not for online games.",
+    "anticheat": "This game has anti-cheat ({names}). Changing its files can get an online account banned: use it offline only.",
+    "fg_on": "HelixSR's frame generation is on: turn on DLSS Frame Generation in the game; its multiplier and pacing are in HelixSR settings.",
+    "fg_off": "This game has DLSS Frame Generation: Turn on frame generation lets HelixSR generate the frames (2x to 6x).",
+    "fg_other": "This game's OptiScaler.ini picks another frame generation; HelixSR's is left alone.",
     "network": "Build the DLSS network first (on the HelixSR card). HLX FSR 4 needs no build.",
     "legacy": "This game has HelixSR {version}, put in by an earlier release. Update gives it HelixSR 3: the old files are removed and the game's own ones put back first.",
     "outdated": "This game has HelixSR {version}. Update gives it the installed release and keeps {version} to go back to.",
@@ -1006,6 +1012,15 @@ def _bridge_cells(row_for, bridge_games: Iterable[Mapping]) -> None:
         installed = str(game.get("installed_way") or "")
         version = str(game.get("version") or "")
         key = appid or name
+        if game.get("missing"):
+            # The folder is gone: there is nothing to add or put back, only a
+            # row to take off the list (R-2e7f6048).
+            row["helixsr"] = (
+                "Not on disk", "gray",
+                tr("The game's folder is gone. Removing it from the list changes nothing on disk."),
+                (("Remove from list", f"helixsr_bridge_remove:{key}", True),),
+            )
+            continue
         remove = ("Remove HelixSR", f"helixsr_bridge_remove:{key}", True)
         if game.get("managed_by") == "app-2x":
             # The same way HelixSR 2 gave it (Update all does the same).
@@ -1025,10 +1040,21 @@ def _bridge_cells(row_for, bridge_games: Iterable[Mapping]) -> None:
                 f"{tr(_HELIXSR3_COPY[installed])} {tr(_HELIXSR3_COPY['other'])}", (remove,),
             )
             continue
+        anticheat = [str(item) for item in game.get("anticheat") or () if item]
+        warning = f" {tr_format(_HELIXSR3_COPY['anticheat'], names=', '.join(anticheat))}" if anticheat else ""
         if installed in _HELIXSR3_WAYS:
             actions: list[tuple[str, str, bool]] = []
             text, tone = _HELIXSR3_WAYS[installed], "green"
-            copy = tr(_HELIXSR3_COPY[installed])
+            copy = tr(_HELIXSR3_COPY[installed]) + warning
+            if installed == "scaler" and game.get("frame_generation"):
+                text = f"{_HELIXSR3_WAYS['scaler']} · FG"
+                copy = f"{copy} {tr(_HELIXSR3_COPY['fg_on'])}"
+                actions.append(("Turn off frame generation", f"helixsr_bridge_fg_off:{key}", True))
+            elif installed == "scaler" and game.get("fg_other"):
+                copy = f"{copy} {tr(_HELIXSR3_COPY['fg_other'])}"
+            elif installed == "scaler" and game.get("fg_possible"):
+                copy = f"{copy} {tr(_HELIXSR3_COPY['fg_off'])}"
+                actions.append(("Turn on frame generation", f"helixsr_bridge_fg_on:{key}", True))
             if game.get("outdated"):
                 text, tone = "Update available", "orange"
                 copy = tr_format(_HELIXSR3_COPY["outdated"], version=version or "?")
@@ -1043,10 +1069,13 @@ def _bridge_cells(row_for, bridge_games: Iterable[Mapping]) -> None:
         if not ways:
             continue
         actions = [(_HELIXSR3_ADD[way], f"helixsr_bridge_install:{key}:{way}", bool(ready.get(way))) for way in ways]
-        copy = tr(_HELIXSR3_COPY["available"])
+        copy = tr(_HELIXSR3_COPY["available"]) + warning
+        text = ""
         if "scaler" in ways and not ready.get("scaler"):
             copy = f"{copy} {tr(_HELIXSR3_COPY['network'])}"
-        row["helixsr"] = ("", "", copy, tuple(actions))
+            # Said on the row, not only on hover: why HelixSR Scaler is greyed.
+            text = "Needs the DLSS network"
+        row["helixsr"] = (text, "gray" if text else "", copy, tuple(actions))
 
 
 def game_matrix_rows(
@@ -1765,6 +1794,8 @@ class _UpscalingGames(SectionCard):
     """
 
     action_requested = pyqtSignal(object)
+    #: The trash button at the start of a row: (game key, name, has an upscaler in it).
+    hide_requested = pyqtSignal(str, str, bool)
     TONES = _UpscalerSection.TONES
     #: Game | one column per upscaler | the row's actions.
     STRETCH = (5, 4, 5)
@@ -1869,15 +1900,39 @@ class _UpscalingGames(SectionCard):
         line = 1
         for index, row in enumerate(rows):
             name = QWidget()
-            name_box = QVBoxLayout(name)
-            name_box.setContentsMargins(14, 8, 0, 8)
-            name_box.setSpacing(1)
+            name_row = QHBoxLayout(name)
+            name_row.setContentsMargins(6, 8, 0, 8)
+            name_row.setSpacing(6)
+            # Takes the game off this list only; nothing in the game changes.
+            hide = QPushButton("")
+            hide.setIcon(theme_icon("trash_gray"))
+            hide.setProperty("gameHide", True)
+            # A small square: the name stays what the eye lands on.
+            hide.setFixedSize(26, 26)
+            hide.setIconSize(QSize(14, 14))
+            hide.setCursor(Qt.CursorShape.PointingHandCursor)
+            hide.setToolTip(tr("Remove from this list"))
+            hide.setAccessibleName(tr("Remove from this list"))
+            # Something is in the game when one of its actions takes it out.
+            installed = any(
+                str(label).startswith("Remove") and label != "Remove from list"
+                for cell in (row.get("helixsr"), row.get("fsr4")) if cell is not None
+                for label, _action, _enabled in cell.get("actions") or ()
+            )
+            hide.clicked.connect(
+                lambda _checked=False, key=str(row["key"]), title=row["name"], used=installed:
+                self.hide_requested.emit(key, title, used)
+            )
+            name_row.addWidget(hide, 0, Qt.AlignmentFlag.AlignVCenter)
+            name_text = QVBoxLayout()
+            name_text.setSpacing(1)
             title = _label(row["name"], "gameName")
             title.setText(row["name"])
             title.setProperty("i18nLiteral", True)
-            name_box.addWidget(title)
+            name_text.addWidget(title)
             if row.get("detail"):
-                name_box.addWidget(_label(row["detail"], "gameDetail"))
+                name_text.addWidget(_label(row["detail"], "gameDetail"))
+            name_row.addLayout(name_text, 1)
             name.setToolTip(row.get("tooltip") or "")
             widgets = [name]
             self.grid.addWidget(name, line, 0)
@@ -2354,6 +2409,86 @@ class _HelixSRSettings(SectionCard):
             control.blockSignals(False)
         self._changed()
 
+    #: HelixSR 3's settings (helixsr.py HELIXSR3_SETTINGS): label, what it
+    #: does, and a name for each value. Grouped by where they apply.
+    H3_GROUPS = (("scaler", "HelixSR Scaler"), ("fg", "Frame generation"), ("fsr", "HLX FSR 4"))
+    _MULTIPLIERS = {"1": "2x", "2": "3x", "3": "4x", "4": "5x", "5": "6x"}
+    H3_COPY = {
+        "H3:HelixSR.DeepReuse": ("Deep reuse",
+            "Exact runs the whole network every frame. 1:2 and 1:4 reuse its deeper layers for one or three frames: faster (BC-250 at 1080p: 1.02, 0.84 and 0.79 ms) and slightly softer in fast motion. 1:2 hung a BC-250 once at 1440p: Exact is the safe choice.",
+            {"auto": "Auto (Exact)", "exact": "Exact", "1:2": "1:2", "1:4": "1:4"}),
+        "H3:HelixSR.Int8": ("8-bit network",
+            "Auto lets HelixSR decide by the graphics card. If the picture shimmers or flickers, try Off.",
+            {"auto": "Auto", "on": "On", "off": "Off"}),
+        "H3:HelixSR.WaveSize": ("Wave size",
+            "Auto is 32. Use 64 only if a game shows a broken picture.",
+            {"auto": "Auto", "32": "32", "64": "64"}),
+        "H3:HelixSR.QuickFlow": ("Frame generation quality",
+            "Best is NVIDIA's full motion estimate. Fast is lighter and slightly softer; Fastest can shimmer, mostly at 4K.",
+            {"auto": "Auto (Best)", "off": "Best", "fast": "Fast", "fastest": "Fastest"}),
+        "H3:DlssFrameGeneration.MaxGeneratedFrames": ("Highest multiplier",
+            "The most frames HelixSR may generate per real one. The game, or the multiplier below, picks within it.",
+            _MULTIPLIERS),
+        "H3:DLSSG.OverrideInterpolationCount": ("Multiplier",
+            "The game's choice, or a fixed one HelixSR Scaler forces, also in games whose own setting stops at 4x.",
+            {"auto": "Auto (game)", **_MULTIPLIERS}),
+        "H3:DLSSG.OverrideForceDMFG": ("Dynamic multiplier",
+            "Changes the multiplier on its own to reach the frame rate target below.",
+            {"auto": "Off (auto)", "true": "On", "false": "Off"}),
+        "H3:DLSSG.FramerateTargetDMFG": ("Frame rate target",
+            "For the dynamic multiplier. Auto is the monitor's refresh rate.",
+            {"auto": "Auto (monitor)", **{fps: f"{fps} fps" for fps in ("60", "75", "90", "120", "144", "165", "240")}}),
+        "H3:DlssFrameGeneration.LatencyPacing": ("Lower input latency",
+            "Paces the frames where frame generation makes the game wait for the display.",
+            {"on": "On", "off": "Off"}),
+        "H3:DlssFrameGeneration.SceneChange": ("Pause on camera cuts",
+            "On handles camera cuts. Off never pauses: try it if fast mouse turns interrupt frame generation.",
+            {"on": "On", "off": "Off"}),
+        "H3:HelixSR.PauseFGInMenu": ("Pause while its menu is open",
+            "Turns frame generation off while HelixSR Scaler's menu (Insert) is open, so the menu is not interpolated.",
+            {"auto": "No (auto)", "true": "Yes", "false": "No"}),
+        "H3:Sharpening.Sharpener": ("Sharpening",
+            "Off leaves the image as the network makes it. NVIDIA is the driver's Image Sharpening filter, AMD RCAS is FSR's.",
+            {"off": "Off", "nvidia": "NVIDIA", "rcas": "AMD RCAS"}),
+        "H3:Sharpening.Sharpness": ("Sharpening strength",
+            "Used while a filter is on, and when the game's slider sends none. 0 is none, 1 the strongest.", {}),
+        "H3:Sharpening.UseGameSlider": ("Follow the game's slider",
+            "Uses the game's FSR sharpness slider instead of the strength above, when the game has one.",
+            {"true": "Yes", "false": "No"}),
+        "H3:Compatibility.WaveSize": ("Wave size",
+            "Auto is 32. Use 64 only if a game shows a broken picture.",
+            {"auto": "Auto", "32": "32", "64": "64"}),
+    }
+
+    def set_bridge_settings(self, rows: list) -> None:
+        """HelixSR 3: its settings by way, for the release in use."""
+        rows = [dict(row) for row in rows or () if isinstance(row, Mapping) and row.get("id") in self.H3_COPY]
+        signature = tuple((row["id"], tuple(row.get("choices") or ())) for row in rows)
+        if signature == getattr(self, "_bridge_signature", None):
+            return
+        self._bridge_signature = signature
+        for title in getattr(self, "_bridge_groups", []):
+            head, _toggle, _body, _summary, fields = self.groups.pop(title)
+            group = head.parentWidget()
+            group.hide()
+            group.setParent(None)
+            group.deleteLater()
+            for name, *_rest in fields:
+                self.controls.pop(name, None)
+        self._bridge_groups = []
+        for key, title in self.H3_GROUPS:
+            fields = []
+            for row in rows:
+                if row.get("group") != key:
+                    continue
+                label, hint, names = self.H3_COPY[row["id"]]
+                fields.append((row["id"], label, hint, tuple((c, names.get(c, c)) for c in row["choices"])))
+            if fields:
+                self._groups_layout.addWidget(self._group(title, tuple(fields)))
+                self._bridge_groups.append(title)
+        if self._saved or self._defaults:
+            self._show({**self._defaults, **self._saved})
+
     def set_bridge_mode(self, on: bool) -> None:
         """HelixSR 3: its bridge takes only what the installed way reads.
 
@@ -2368,11 +2503,11 @@ class _HelixSRSettings(SectionCard):
         subtitle = next((label for label in self.findChildren(QLabel) if label.property("sectionSubtitle")), None)
         if subtitle is not None:
             subtitle.setText(tr(
-                "Saved into every game with DLSS through HelixSR Scaler. The upscaler, sharpening and the rest are set in the game's HelixSR Scaler menu (Insert); HLX FSR 4 needs nothing here."
+                "Saved into every game with HelixSR, by the way it went in, and into every game you add it to. Restart the game after a change; sharpening for HelixSR Scaler is in its own menu (Insert)."
                 if on else
                 "Saved into every game that has HelixSR, and into every game you add it to. In games with HelixSR Scaler, sharpening is set in its own menu (Insert)."
             ))
-        self.defaults_button.setVisible(not on)
+        self.defaults_button.setVisible(True)
 
     def set_game_count(self, count: int) -> None:
         """How many games have HelixSR, so reapplying is offered only with one."""
@@ -2604,6 +2739,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
                 self.compatibility_filter.setCurrentIndex(selected_index)
         finally:
             self.compatibility_filter.blockSignals(blocked)
+        self.real_toolkit_rows.retranslate_dynamic_copy()
+        self.steamos_alternative_rows.retranslate_dynamic_copy()
         if getattr(self, "_last_preparation_state", None) is not None:
             self.set_state(self._last_preparation_state)
 
@@ -2626,6 +2763,20 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
         )
         actions.show()
+        # A link folded away for room comes back when the header widens.
+        self.system_bar.installEventFilter(self)
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802 - Qt API name
+        if (
+            watched is getattr(self, "system_bar", None)
+            and event.type() == QEvent.Type.Resize
+            and hasattr(self._header_actions, "fit_to")
+        ):
+            margins = self.system_layout.contentsMargins()
+            # The header's title keeps about a third; the links get the rest.
+            room = watched.width() - margins.left() - margins.right() - self.system_layout.spacing()
+            self._header_actions.fit_to(room - max(110, room // 3))
+        return super().eventFilter(watched, event)
 
 
 
@@ -2969,6 +3120,11 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         )
         detail.setWordWrap(True)
         copy.addWidget(detail)
+        # Only while a toolkit action is running, or died with the system unlocked.
+        self.readonly_session_note = _label("", "dashboardMemoryDetail")
+        self.readonly_session_note.setWordWrap(True)
+        self.readonly_session_note.hide()
+        copy.addWidget(self.readonly_session_note)
         root.addLayout(copy, 1)
         self.readonly_button = QPushButton(tr("Disable read-only mode"))
         self.readonly_button.setProperty("dashboardCardAction", True)
@@ -3009,12 +3165,15 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         (CH7218_VRR_OPTION, "VRR on CH7218 firmware 07.00.69", "Force VRR on the adapter", "Stop forcing VRR"),
         (PCON_FORCE_DSC_OPTION, "Force DSC on a VMM7100 adapter (experimental)", "Force DSC", "Stop forcing DSC"),
         (RELINK_AT_BOOT_OPTION, "Picture recovery at boot (experimental)", "Recover at boot", "Stop recovering at boot"),
+        # Off on purpose: the driver patches the SMU firmware and shares its mailbox.
+        (MEMORY_SENSOR_OPTION, "GDDR6 temperature from the kernel (bc250_memory)", "Load at boot", "Stop loading at boot"),
     )
     #: Options only the BC-250 kernel has a parameter for: offered where the
     #: kernel reports it (or where one is already staged, to take it back).
     KERNEL_PARAMETER_OPTIONS = frozenset({
         HDMI21_OFF_OPTION, RELINK_OFF_OPTION,
         CH7218_QUIRK_OPTION, CH7218_VRR_OPTION, PCON_FORCE_DSC_OPTION, RELINK_AT_BOOT_OPTION,
+        MEMORY_SENSOR_OPTION,
     })
     #: Options that give something up, and so are drawn as a warning. Unlocking
     #: compute units gives nothing up: it is the BC-250 kernel's own method.
@@ -3153,20 +3312,34 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         if not available:
             return
         mode = str(state.get("state") or "unknown")
+        session = _mapping(state.get("toolkit_session"))
+        running = bool(session.get("running"))
+        interrupted = bool(session.get("restore_pending")) and not running
         status, tone = {
             "enabled": ("Protected", "green"),
             "disabled": ("Writable", "orange"),
         }.get(mode, ("Unknown", "gray"))
+        if running:
+            status, tone = "In use", "blue"
+        elif interrupted:
+            status, tone = "Interrupted", "orange"
         self.readonly_status.setText(tr(status))
         self.readonly_status.set_tone(tone)
         # Protected / Writable is what the button says ("Disable read-only
-        # mode" means it is protected); only an unknown state is worth a pill.
-        self.readonly_status.setVisible(mode not in {"enabled", "disabled"})
+        # mode" means it is protected); an unknown state, a toolkit action in
+        # progress or one that died with the system unlocked are worth a pill.
+        self.readonly_status.setVisible(running or interrupted or mode not in {"enabled", "disabled"})
+        note = ("A toolkit action is running; the system files stay unlocked until it ends." if running
+                else "A toolkit action ended before it could lock the system files again." if interrupted else "")
+        self.readonly_session_note.setText(tr(note) if note else "")
+        self.readonly_session_note.setVisible(bool(note))
         self._readonly_action = "enable" if mode == "disabled" else "disable"
         self.readonly_button.setText(
             tr("Turn read-only back on" if self._readonly_action == "enable" else "Disable read-only mode")
         )
-        self.readonly_button.setEnabled(mode in {"enabled", "disabled"})
+        # While a toolkit action holds the system unlocked, a second switch would fight it.
+        self.readonly_button.setEnabled(mode in {"enabled", "disabled"} and not running)
+        self.real_toolkit_rows.set_root_state(mode, running=running, interrupted=interrupted)
         free = state.get("var_free_mb")
         if isinstance(free, int) and not isinstance(free, bool):
             self.var_space_note.setText(tr("/var: {free} MB free").format(free=free))
@@ -3203,20 +3376,22 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         lines; the description and actions of a row open on demand.
         """
         self.compatibility_groups = (
-            ("System", (self.acpi_card, self.pacman_lock_card)),
+            ("System", (self.acpi_card, self.pacman_lock_card, self.kernel_headers_card,
+                        *self.real_toolkit_rows.cards_for("system"))),
             ("GPU governor", (self.cyan_card, self.oberon_card)),
             # Mesa first: it is what leaves the desktop on the CPU, whatever the kernel does.
             ("Kernel and graphics", (
                 self.mesa_card, self.gfx_card,
                 *((self.directmesh_card,) if hasattr(self, "directmesh_card") else ()),
                 self.steamos_proton_card, *self.cachyos_cards,
+                *self.real_toolkit_rows.cards_for("graphics"),
+                *self.steamos_alternative_rows.cards_for("graphics"),
             )),
-            ("Video", (self.vaapi_card,)),
+            ("Video", (self.vaapi_card, *self.real_toolkit_rows.cards_for("video"))),
+            ("Board sensors", (self.apu_telemetry_card, self.vrm_sensor_card, self.vram_sensor_card)),
+            ("SteamOS toolkit", tuple(self.real_toolkit_rows.cards_for("toolkit"))),
         )
         layout.setSpacing(0)
-        # Boot options: the panels that used to sit above the component list.
-        layout.insertSpacing(layout.count() - 1, 12)
-        layout.insertWidget(layout.count() - 1, self._boot_holder)
         from .compat_browser import CompatibilityBrowser
 
         index = min(layout.indexOf(card) for _title, cards in self.compatibility_groups for card in cards)
@@ -3229,6 +3404,19 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
             page.setProperty("compatPage", True)
         self.compatibility_browser = CompatibilityBrowser(self.compatibility_groups)
         layout.insertWidget(index, self.compatibility_browser)
+        # Boot options (read-only mode, kernel options, mitigations) come last,
+        # under the tools, as in the other workflows.
+        position = layout.indexOf(self.compatibility_browser)
+        layout.insertSpacing(position + 1, 12)
+        layout.insertWidget(position + 2, self._boot_holder)
+        # The page's closing stretch stays under everything; it must not sit between
+        # the filter and the list, where it would push a short list to the bottom.
+        for number in range(layout.count() - 1, -1, -1):
+            item = layout.itemAt(number)
+            if item is not None and item.spacerItem() is not None and \
+                    item.expandingDirections() & Qt.Orientation.Vertical:
+                layout.takeAt(number)
+        layout.addStretch(1)
         self._refresh_compatibility_summary()
 
     def _refresh_compatibility_summary(self) -> None:
@@ -3280,6 +3468,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         "installed": ("Installed", "blue", ""),
         "active": ("Active", "green", ""),
         "managed-elsewhere": ("Installed another way", "blue", ""),
+        # Its probe failed on this system; the reason is in the app log.
+        "error": ("Could not check", "orange", ""),
     }
     _ACCESSORY_NOTES = {
         ("thermalright", "unsupported"): "TRCC publishes packages for Arch, CachyOS, Manjaro, Fedora, Bazzite, Debian and Ubuntu. SteamOS is not covered yet.",
@@ -3294,6 +3484,16 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         ("hdmi_ac3", "managed-elsewhere"): "Another toolkit already switches the AC-3 profile on, so it is left as it is.",
         ("hdmi_cec", "managed-elsewhere"): "MastaG's bc250-cec already runs on this CEC adapter, so it is left as it is. Two CEC services on one adapter get in each other's way; remove bc250-cec first to use this one.",
         ("hdmi_cec", "unsupported"): "The running kernel was built without CEC over DisplayPort.",
+        ("vram_sensor", "unsupported"): "Needs an Arch-based system (Arch, CachyOS, Manjaro) on a BC-250 with BIOS P3.00: the driver patches the SMU at addresses reviewed for that BIOS only.",
+        ("vram_sensor", "managed-elsewhere"): "Your kernel already includes this driver (MastaG's BC-250 kernels do), so there is nothing to build.",
+        ("vrm_sensor", "unsupported"): "Builds on Arch-based systems (Arch, CachyOS, Manjaro) on a BC-250.",
+        ("apu_telemetry", "managed-elsewhere"): "Installed with BC250-Telemetry's own installer, so Control Center leaves it alone.",
+        ("apu_telemetry", "installed"): "Installed, but no regulator answers over I2C yet. Check the wiring of the modification.",
+        ("vrm_sensor", "managed-elsewhere"): "Your kernel already includes this driver (MastaG's BC-250 kernels do), so there is nothing to build.",
+        ("vrm_sensor", "installed"): "Installed, but the regulator does not answer through the fan chip. Run sudo dmesg | grep bc250_vrm to see why.",
+        ("vrm_sensor", "update-available"): "This copy was built by an earlier version of Control Center. Press Update to build it again with the current fixes.",
+        ("vram_sensor", "update-available"): "This copy was built by an earlier version of Control Center. Press Update to build it again with the current fixes.",
+        ("vram_sensor", "installed"): "Installed, but this BIOS keeps the SMU locked, so the driver waits. Press Monitor live on the dashboard once after each power-on: Control Center patches the SMU and the driver reads from then on.",
     }
     #: What the configure button reads as, per accessory; empty hides it.
     _ACCESSORY_CONFIGURE = {
@@ -3301,6 +3501,9 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         "corsair": "Open control panel",
         "hdmi_ac3": "",
         "hdmi_cec": "Open TV control",
+        "vram_sensor": "",
+        "vrm_sensor": "",
+        "apu_telemetry": "",
     }
 
 

@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from bc250cc.infrastructure import steamos_real_toolkit
 from bc250cc.infrastructure.bazzite_async_compute import (
     BAZZITE_ASYNC_COMPUTE_REPOSITORY,
 )
@@ -993,11 +994,16 @@ class DependencyPreparationDialog(QDialog):
             version=(
                 f"RADV {route.values.get('version', '')}"
                 if route is not None
+                else steamos_real_toolkit.VERSION
+                if presentation.steamos_actions
                 else str(state.get("reviewed_version") or "0.2.0-alpha")
             ),
             commit=(
                 RADV_ASYNC_REVIEWED_COMMIT
                 if route is not None
+                else (str((state.get("steamos_real_toolkit") or {}).get("reviewed_revision") or "")
+                      or steamos_real_toolkit.BRANCH)
+                if presentation.steamos_actions
                 else str(state.get("reviewed_commit") or "")
             )[:7],
         )
@@ -1006,24 +1012,14 @@ class DependencyPreparationDialog(QDialog):
         actions = QHBoxLayout()
         actions.setSpacing(7)
         if presentation.steamos_actions:
-            compatibility = QPushButton(tr(presentation.compatibility_action))
-            compatibility.setProperty("dependencyGfxAction", True)
-            compatibility.setProperty("dependencyGfxPrimary", True)
-            compatibility.clicked.connect(lambda: self._choose("steamos_compat", ""))
-            actions.addWidget(compatibility, 1)
-            radv = QPushButton(tr("2 · Install / repair Mesa RADV"))
-            radv.setProperty("dependencyGfxAction", True)
-            radv.setEnabled(bool(state.get("steamos_kernel_ready")))
-            radv.clicked.connect(
-                lambda: self._choose("steamos_graphics_install", "")
-            )
-            actions.addWidget(radv, 1)
-            status_action = QPushButton(tr("Check full stack"))
-            status_action.setProperty("dependencyGfxAction", True)
-            status_action.clicked.connect(
-                lambda: self._choose("steamos_graphics_status", "")
-            )
-            actions.addWidget(status_action, 1)
+            for label, action in (("Install / update", "combined-install"),
+                                  ("Check", "verify"), ("Uninstall", "combined-revert")):
+                button = QPushButton(tr(label))
+                button.setProperty("dependencyGfxAction", True)
+                button.setProperty("dependencyGfxPrimary", action == "combined-install")
+                button.clicked.connect(lambda _checked=False, selected=action:
+                                       self._choose("real_toolkit:" + selected, ""))
+                actions.addWidget(button, 1)
         if presentation.fedora_actions:
             if not bool(state.get("dryhopped_installed")):
                 install = QPushButton(tr("Install / update"))
@@ -1253,7 +1249,9 @@ class DependencyPreparationDialog(QDialog):
     def _open_gfx1013_upstream(self) -> None:
         state = _dict(self.tools.get("gfx1013_compute"))
         url = (
-            BAZZITE_ASYNC_COMPUTE_REPOSITORY
+            steamos_real_toolkit.REPOSITORY
+            if str(state.get("reason_key") or "") == "steamos-dedicated-backend"
+            else BAZZITE_ASYNC_COMPUTE_REPOSITORY
             if str(state.get("reason_key") or "").startswith("bazzite-release-")
             # Fedora's patched-RADV route builds that project's patches.
             or present_gfx1013(state).radv_route is not None

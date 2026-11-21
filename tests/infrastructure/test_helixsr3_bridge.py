@@ -120,8 +120,8 @@ def test_native_migration_restores_original_before_bridge_install(release, monke
 
 def test_status_failure_is_reported(release, monkeypatch):
     directory, _ = release
-    info = h.helixsr_release()
-    (directory / h.HELIXSR_MARKER).write_text(info['sha256'])
+    # The fixture's folder is 3.3.0: once marked, it is the release in use.
+    (directory / h.HELIXSR_MARKER).write_text(h.HELIXSR_REVIEWED['v3.3.0']['sha256'])
     (directory / h.HELIXSR_SETUP).touch()
     monkeypatch.setattr(h, '_is_helixsr', lambda *args: True)
     monkeypatch.setattr(h, 'helixsr_games', lambda **kwargs: [])
@@ -133,18 +133,74 @@ def test_status_failure_is_reported(release, monkeypatch):
     assert not state['ready']['network']
 
 
-def test_settings_only_send_wave_size_to_scaler_games(release):
-    directory, game = release
-    h._write_json(h._bridge_records_path(), {
-        '1': {'name': 'Scaler', 'folder': str(game), 'way': 'scaler'},
-        '2': {'name': 'FSR', 'folder': str(game), 'way': 'fsr'},
+def _bridge_answering_games(directory, games):
+    """The fake bridge, answering ``games`` with each folder's own entry."""
+    script = directory / h.HELIXSR_BRIDGE
+    script.write_text(script.read_text().replace(
+        'elif cmd == "games":\n print(json.dumps(dict(ok=True, games=[])))',
+        'elif cmd == "games":\n'
+        f' known = {json.dumps(games)}\n'
+        ' wanted = [args[i + 1] for i, a in enumerate(args) if a == "--folder"]\n'
+        ' print(json.dumps(dict(ok=True, games=[known[f] for f in wanted if f in known])))'))
+
+
+def test_settings_reach_both_ways_in_their_own_files(release, tmp_path):
+    """HelixSR 3: HelixSR Scaler's keys go into its OptiScaler.ini and its
+    frame generation's helixsr.ini; HLX FSR 4's through the bridge."""
+    directory, _game = release
+    scaler, fsr = tmp_path / 'scaler-game', tmp_path / 'fsr-game'
+    for folder in (scaler, fsr):
+        folder.mkdir()
+    opti = scaler / 'OptiScaler.ini'
+    opti.write_text('[HelixSR]\nDeepReuse=auto\nWaveSize=auto\n\n[DLSSG]\nOverrideInterpolationCount=auto\n')
+    fg = scaler / h.HELIXSR3_FG_INI
+    fg.parent.mkdir(parents=True)
+    fg.write_text('[DlssFrameGeneration]\nMaxGeneratedFrames = 5\nLatencyPacing = on\n')
+    _bridge_answering_games(directory, {
+        str(scaler): {'folder': str(scaler), 'installed': 'scaler', 'settings_path': str(opti), 'exe_folder': str(scaler)},
+        str(fsr): {'folder': str(fsr), 'installed': 'fsr', 'settings_path': str(fsr / 'helixsr.ini')},
     })
-    result = h.save_helixsr_settings({'Scaler:HelixSR.WaveSize': '32'})
+    h._write_json(h._bridge_records_path(), {
+        '1': {'name': 'Scaler', 'folder': str(scaler), 'way': 'scaler'},
+        '2': {'name': 'FSR', 'folder': str(fsr), 'way': 'fsr'},
+    })
+    result = h.save_helixsr_settings({
+        'H3:HelixSR.DeepReuse': 'exact', 'H3:DLSSG.OverrideInterpolationCount': '3',
+        'H3:DlssFrameGeneration.LatencyPacing': 'off', 'H3:Sharpening.Sharpener': 'rcas',
+    })
+    assert result['games'] == 2 and not result['skipped']
+    text = opti.read_text()
+    assert 'DeepReuse=exact' in text and 'OverrideInterpolationCount=3' in text
+    assert 'LatencyPacing = off' in fg.read_text()
     calls = [json.loads(line) for line in (directory / 'calls').read_text().splitlines()]
-    settings = [call for call in calls if call[0] == 'settings-set']
-    assert len(settings) == 1
-    assert json.loads(settings[0][settings[0].index('--values') + 1]) == {'HelixSR.WaveSize': '32'}
-    assert result['games'] == 1
+    sent = [json.loads(call[call.index('--values') + 1]) for call in calls if call[0] == 'settings-set']
+    assert sent == [{'Sharpening.Sharpener': 'rcas', 'Sharpening.Sharpness': '0.5',
+                     'Sharpening.UseGameSlider': 'false', 'Compatibility.WaveSize': 'auto'}]
+
+
+def test_an_invalid_helixsr3_value_is_refused(release):
+    with pytest.raises(ValueError):
+        h.save_helixsr_settings({'H3:HelixSR.DeepReuse': '1:3'})
+
+
+def test_settings_follow_the_release_in_use(release, monkeypatch):
+    """A key arrives with the release that reads it (DeepReuse in OptiScaler.ini: 3.4.1)."""
+    monkeypatch.setattr(h, 'helixsr_release', lambda tag=None: {'tag': 'v3.4.0', 'version': '3.4.0'})
+    ids = {row['id'] for row in h.helixsr3_settings()}
+    assert 'H3:DlssFrameGeneration.MaxGeneratedFrames' in ids and 'H3:HelixSR.DeepReuse' not in ids
+    monkeypatch.setattr(h, 'helixsr_release', lambda tag=None: {'tag': 'v3.3.0', 'version': '3.3.0'})
+    assert not any(row['group'] == 'fg' for row in h.helixsr3_settings())
+
+
+def test_frame_generation_is_switched_per_game_through_the_bridge(release):
+    directory, game = release
+    h._write_json(h._bridge_records_path(), {'1': {'name': 'Game', 'folder': str(game), 'way': 'scaler'}})
+    result = h.set_helixsr_bridge_frame_generation('1', True)
+    calls = [json.loads(line) for line in (directory / 'calls').read_text().splitlines()]
+    assert ['scaler-fg', '--game', str(game), '--on', 'true'] in calls
+    assert result['game'] == 'Game'
+    with pytest.raises(RuntimeError):
+        h.set_helixsr_bridge_frame_generation('2', True)
 
 
 def test_record_save_failure_reports_bridge_success(release, monkeypatch):
@@ -190,16 +246,16 @@ def test_a_never_picked_release_stays_the_installed_one(tmp_path, monkeypatch):
     (root / '2.0.0').mkdir(parents=True)
     (root / '2.0.0' / h.HELIXSR_MARKER).write_text('x')
     monkeypatch.setattr(h, 'helixsr_root', lambda: root)
-    # 2.0.0 is installed and nothing was picked: it stays, 3.3.0 is the update.
+    # 2.0.0 is installed and nothing was picked: it stays, 3.4.1 is the update.
     assert h.helixsr_release()['tag'] == 'v2.0.0'
-    assert h._newer_release(h.helixsr_release())['tag'] == 'v3.3.0'
-    h.select_helixsr_release('v3.3.0')
-    assert h.helixsr_release()['tag'] == 'v3.3.0'
+    assert h._newer_release(h.helixsr_release())['tag'] == 'v3.4.1'
+    h.select_helixsr_release('v3.4.1')
+    assert h.helixsr_release()['tag'] == 'v3.4.1'
 
 
 def test_fresh_install_defaults_to_the_newest_reviewed(tmp_path, monkeypatch):
     monkeypatch.setattr(h, 'helixsr_root', lambda: tmp_path / 'empty')
-    assert h.helixsr_release()['tag'] == h.HELIXSR_TAG == 'v3.3.0'
+    assert h.helixsr_release()['tag'] == h.HELIXSR_TAG == 'v3.4.1'
 
 
 def test_remove_reaches_legacy_and_unrecorded_games(release, monkeypatch):
@@ -218,18 +274,25 @@ def test_remove_reaches_legacy_and_unrecorded_games(release, monkeypatch):
     assert calls[-1] == ['remove', '--game', str(game)]
 
 
-def test_saved_wave_size_reaches_a_new_scaler_game(release):
+def test_saved_settings_reach_a_new_scaler_game(release, tmp_path):
     directory, game = release
     script = directory / h.HELIXSR_BRIDGE
-    # As upstream's bridge declares it (the app reads these constants from it).
-    script.write_text("SCALER_SETTINGS = {'HelixSR.WaveSize': ('auto', '64', '32'), 'HelixSR.QuickFlow': ('off', 'fast')}\n"
-                      "SCALER_DEFAULTS = {'HelixSR.WaveSize': 'auto', 'HelixSR.QuickFlow': 'off'}\n"
-                      + script.read_text().replace('network_ready=False', 'network_ready=True'))
-    h._write_json(h._settings_path(), {'Scaler:HelixSR.WaveSize': '32'})
+    script.write_text(script.read_text().replace('network_ready=False', 'network_ready=True'))
+    opti = game / 'OptiScaler.ini'
+    opti.write_text('[HelixSR]\nWaveSize=auto\n')
+    _bridge_answering_games(directory, {
+        str(game): {'folder': str(game), 'installed': 'scaler', 'settings_path': str(opti), 'exe_folder': str(game)},
+    })
+    h._write_json(h._settings_path(), {'H3:HelixSR.WaveSize': '64'})
     h.install_helixsr_bridge('1', 'scaler')
-    calls = [json.loads(line) for line in (directory / 'calls').read_text().splitlines()]
-    assert calls[-1][0] == 'settings-set'
-    assert json.loads(calls[-1][calls[-1].index('--values') + 1]) == {'HelixSR.WaveSize': '32'}
+    assert 'WaveSize=64' in opti.read_text()
+
+
+def test_a_new_game_with_nothing_changed_keeps_the_release_files(release):
+    directory, _game = release
+    h.install_helixsr_bridge('1', 'fsr')
+    calls = [json.loads(line)[0] for line in (directory / 'calls').read_text().splitlines()]
+    assert 'settings-set' not in calls and 'games' not in calls
 
 
 def test_games_scan_is_cached_and_forgotten_after_a_change(release, monkeypatch):

@@ -150,7 +150,9 @@ def _number(value: Any, default: float = 0.0) -> float:
 @dataclass(frozen=True)
 class Gddr6Chip:
     index: int
-    code: int = 0
+    #: The chip's MR3 code; None when the source has none (the kernel driver
+    #: publishes temperatures only), so nothing reads "MR3 0x00".
+    code: int | None = 0
     temperature_c: float = 0.0
 
 
@@ -378,11 +380,13 @@ class Gddr6Monitor(QObject):
         # collector's published reading is what there is to show.
         if not sample.get("chips") and not self._live and external_state == "active":
             sample = external
-            source = EXTERNAL_SOURCE
+            # Read by bc250_memory when the collector is not publishing: it is
+            # the kernel's reading, not BC250-Telemetry's.
+            source = KERNEL_SOURCE if str(external.get("status") or "") == "kernel" else EXTERNAL_SOURCE
         chips = tuple(
             Gddr6Chip(
                 index=int(_number(entry.get("chip"), -1)),
-                code=int(_number(entry.get("code"))),
+                code=int(_number(entry.get("code"))) if entry.get("code") is not None else None,
                 temperature_c=_number(entry.get("temperature_c")),
             )
             for entry in (sample.get("chips") or [])

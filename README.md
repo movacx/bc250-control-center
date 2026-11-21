@@ -54,7 +54,7 @@ it does not need SSH or Node.js for normal use.
 - System preparation per distribution, run in a built-in terminal
 - Compatibility fixes for GFX1013, async compute, ACPI and Mesa; Dolby Digital 5.1 over HDMI; TV control over HDMI-CEC
 - In-app problem reports with error codes, origin codes and the raw error attached
-- 30 languages, light and dark themes, UI scaling and controller navigation
+- 30 languages, light and dark themes, UI scaling, temperatures in °C or °F, and controller navigation
 - Terminal interface with keyboard navigation, mouse support, live telemetry and an embedded operation console
 - Local-network HTTPS web interface with mobile layouts, pairing QR and per-device hardware permissions
 
@@ -144,7 +144,7 @@ bash scripts/uninstall-local.sh
 
 ## Getting started
 
-1. Launch BC250 Control Center. The first-run screen sets the language and appearance and offers to install the required components.
+1. Launch BC250 Control Center. The first-run screen sets the language, the temperature unit (°C or °F) and the appearance, and offers to install the required components.
 2. Optionally take the guided tour, which explains what each module changes on the board.
 3. On the Dashboard, run **Prepare BC250 system**. It shows what will be installed for your distribution and runs it in the built-in terminal.
 4. Read the status line of a module before applying changes; it reports what is ready and what is missing.
@@ -274,6 +274,8 @@ Use **Report this problem** in the error window, or **Settings › Diagnostics �
 The report also attaches a hardware diagnosis, collected without root on every distribution: kernel and headers, loaded sensor modules and their kernel messages (NCT6687, amdgpu), hwmon and `sensors` readings, GPU and crash lines from the kernel log, how the previous boot ended (clean shutdown or abrupt reset), services, packages and the end of the last workflow log. When the kernel log is closed to your user, the desktop asks once for the password through polkit. Reports too large for the form are trimmed automatically, least important parts first; **Open in browser** still copies the full text.
 
 To read everything a report attaches before sending it, open **Settings › Diagnostics › View full diagnosis**: every section (kernel, previous boot, black box, sensors, GPU, services, configuration, packages, logs) is expandable, sorted into tabs, searchable, and can be copied or saved as a file. The terminal prints the same with `bc250-control-center-cli diagnose --full`.
+
+**Settings › About › Support › Known errors** opens an offline handbook with searchable guides and a module selector. Each article uses your detected distribution. It presents the solution as text and copyable commands, with developer notes in a separate tab. Matching error windows link to the relevant article. The handbook never runs commands automatically.
 
 Issues on GitHub are welcome as well. Please include your distribution, kernel version and the terminal output.
 

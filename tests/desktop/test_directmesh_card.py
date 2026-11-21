@@ -25,7 +25,6 @@ def test_card_state_actions_and_copy():
     sidebar._render_directmesh(state)
     assert sidebar.directmesh_card.status.text() == 'Update available'
     assert sidebar.directmesh_card.scope.text() == 'Arch family · v1.4'
-    assert sidebar.directmesh_launch_field.isReadOnly()
     sidebar.directmesh_copy_button.click()
     assert _APP.clipboard().text() == state['launch_option']
     assert not hasattr(sidebar, 'directmesh_upgrade_button')
@@ -70,3 +69,68 @@ def test_repository_upgrade_and_uninstall_platform(monkeypatch):
     assert "'version_id': '42'" in command
     command, _ = repo.gestionar_directmesh('uninstall')
     assert "'family': 'bazzite'" in command and "'distro_id': 'bazzite'" in command
+
+
+def test_installed_tools_open_their_activation_details_once():
+    """A launch option behind "Show details" is never found: once DirectMesh is
+    installed, its row opens by itself, and a row the user closed stays closed."""
+    sidebar = PreparationSidebar(standalone=True)
+    browser = sidebar.compatibility_browser
+    details = browser._rows[id(sidebar.directmesh_card)].details
+    base = dict(supported=True, platform='host', releases=[{'tag': 'directmesh-v1.4', 'version': '1.4', 'default': True}],
+                selected_tag='directmesh-v1.4', launch_option='VK_DRIVER_FILES=test %command%')
+    sidebar._render_directmesh({**base, 'installed': False})
+    assert details.isHidden()
+    installed = {**base, 'installed': True, 'installed_tag': 'directmesh-v1.4', 'installed_version': '1.4'}
+    sidebar._render_directmesh(installed)
+    assert not details.isHidden()
+    details.hide()
+    sidebar._render_directmesh(installed)
+    assert details.isHidden()
+
+
+def test_the_gfx1013_row_opens_while_it_needs_a_launch_option():
+    sidebar = PreparationSidebar(standalone=True)
+    details = sidebar.compatibility_browser._rows[id(sidebar.gfx_card)].details
+    sidebar._reveal_next_step(sidebar.gfx_card, 'bazzite_async', False)
+    assert details.isHidden()
+    sidebar._reveal_next_step(sidebar.gfx_card, 'bazzite_async', True)
+    assert not details.isHidden()
+
+
+def test_the_arch_route_offers_its_own_launch_option_like_bazzite():
+    """Arch/Fedora's patched RADV: installed but not in this session, the row
+    opens with the per-game option and Bazzite's tip; active, it needs neither."""
+    from bc250cc.infrastructure.radv_async_compute import RADV_ASYNC_LAUNCH_OPTION
+
+    sidebar = PreparationSidebar(standalone=True)
+    details = sidebar.compatibility_browser._rows[id(sidebar.gfx_card)].details
+    radv = dict(installed=True, enabled=True, version='26.2.3', expected_version='26.2.3', kernel='7.3.5-arch1-1')
+    sidebar._render_radv_async({**radv, 'state': 'relogin-required'}, {})
+    assert not sidebar.radv_launch_row.isHidden() and not details.isHidden()
+    assert 'launch option below' in sidebar.gfx_card.detail.text()
+    sidebar.radv_launch_copy_button.click()
+    assert _APP.clipboard().text() == RADV_ASYNC_LAUNCH_OPTION == 'bc250cc-async-compute run %command%'
+    sidebar._render_radv_async({**radv, 'state': 'active'}, {})
+    assert sidebar.radv_launch_row.isHidden()
+    sidebar._render_radv_async({**radv, 'enabled': False, 'state': 'switched-off'}, {})
+    assert not sidebar.radv_launch_row.isHidden()
+
+
+def test_the_version_picker_hides_behind_more_and_comes_back():
+    sidebar = PreparationSidebar(standalone=True)
+    releases = [{'tag': 'directmesh-v1.4', 'version': '1.4', 'default': True},
+                {'tag': 'directmesh-v1.3', 'version': '1.3'}]
+    sidebar._render_directmesh(dict(supported=True, platform='host', installed=True, installed_version='1.4',
+                                    installed_tag='directmesh-v1.4', selected_tag='directmesh-v1.4',
+                                    releases=releases, launch_option='x %command%'))
+    row, button = sidebar.directmesh_version_row, sidebar.directmesh_version_button
+    assert row.isHidden() and button.text() == 'Choose version'
+    button.click()
+    assert not row.isHidden() and button.text() == 'Hide versions'
+    combo = sidebar.directmesh_version_combo
+    combo.setCurrentIndex(combo.findData('directmesh-v1.3'))
+    assert _main(sidebar)[0] == 'Switch to 1.3'
+    button.click()
+    # Hidden again, the pick goes back so the main button never names a hidden version.
+    assert row.isHidden() and _main(sidebar)[0] == 'Reinstall'

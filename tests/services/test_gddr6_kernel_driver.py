@@ -36,7 +36,15 @@ def _load(name: str, *, loaded: bool, tmp_path: Path):
     module_dir = tmp_path / "sys-module-bc250_memory"
     if loaded:
         module_dir.mkdir(exist_ok=True)
+        # Loaded means publishing: a driver that bailed out at probe
+        # registers no hwmon and is treated as absent (see
+        # test_gddr6_silent_kernel_driver.py).
+        published = tmp_path / "hwmon" / "hwmon9"
+        published.mkdir(parents=True, exist_ok=True)
+        (published / "name").write_text("bc250_memory\n")
     module.KERNEL_DRIVER_MODULE = module_dir
+    if hasattr(module, "HWMON_ROOT"):
+        module.HWMON_ROOT = tmp_path / "hwmon"
     return module
 
 

@@ -20,13 +20,18 @@ from ..core.feature_visibility import (
     GFX1013_FSR4_UI_ENABLED,
     HELIXSR_UI_ENABLED,
 )
-from ..core.gfx1013_presenter import present_gfx1013, present_radv_route
+from ..core.gfx1013_presenter import (
+    RADV_ROUTE_PER_GAME_TIP,
+    present_gfx1013,
+    present_radv_route,
+)
 from ..i18n import tr, tr_format
 from .buttons import WrappingButton as QPushButton
 from .dashboard_widgets import (  # noqa: E402
     _mapping,
     game_matrix_rows,
 )
+from .real_toolkit import NATIVE_SCOPE, REAL_TOOLKIT_SCOPE
 from .responsive import clear_grid
 
 
@@ -35,6 +40,38 @@ def _directmesh_version(tag: object) -> tuple[int, ...]:
     parts = str(tag or "").removeprefix("directmesh-v").split(".")
     return tuple(int(part) for part in parts) if all(part.isdigit() for part in parts) else ()
 
+
+#: Hexxeh's kernel drivers (bc250-vrm, bc250-memory) listed on Compatibility.
+SENSOR_DRIVERS = frozenset({"vram_sensor", "vrm_sensor", "apu_telemetry"})
+
+
+#: Games taken off the Upscaling table with their trash button, by key.
+HIDDEN_GAMES_KEY = "upscaling/hidden_games"
+
+
+def _hidden_store():
+    from ..core.preferences import application_settings
+
+    return application_settings()
+
+
+def hidden_upscaling_games() -> list[str]:
+    try:
+        value = _hidden_store().value(HIDDEN_GAMES_KEY, [])
+    except (OSError, RuntimeError):
+        return []
+    if isinstance(value, str):
+        value = [value] if value else []
+    return [str(item) for item in value or () if str(item)]
+
+
+def set_hidden_upscaling_games(keys) -> None:
+    keys = sorted({str(key) for key in keys if str(key)})
+    store = _hidden_store()
+    if keys:
+        store.setValue(HIDDEN_GAMES_KEY, keys)
+    else:
+        store.remove(HIDDEN_GAMES_KEY)
 
 class PreparationRenderMixin:
     """Methods of ``PreparationSidebar`` split out of ``dashboard_widgets``."""
@@ -98,7 +135,7 @@ class PreparationRenderMixin:
             ))
         flatpak = _mapping(vaapi.get("flatpak"))
         flatpak_missing = (
-            installed and state != "invalid" and bool(flatpak.get("available"))
+            installed and state not in {"invalid", "managed-elsewhere"} and bool(flatpak.get("available"))
             # Without the radeonsi alias, programs that clear LIBVA_DRIVER_NAME
             # (GPU Screen Recorder) cannot find the driver even when allowed.
             and (not flatpak.get("applied") or not vaapi.get("alias", True))
@@ -111,7 +148,7 @@ class PreparationRenderMixin:
             )
         driver32 = _mapping(vaapi.get("driver32"))
         state32 = str(driver32.get("state") or "unsupported")
-        offer32 = installed and state != "invalid" and state32 in {"not-installed", "needs-libs"}
+        offer32 = installed and state not in {"invalid", "managed-elsewhere"} and state32 in {"not-installed", "needs-libs"}
         if offer32:
             self.vaapi_card.detail.setText(
                 self.vaapi_card.detail.text() + "\n" + tr(
@@ -156,7 +193,7 @@ class PreparationRenderMixin:
                 continue
             status, tone, install_text = self._ACCESSORY_STATES[state]
             installed = state in {"update-available", "relogin-required", "installed", "active"}
-            if state == "not-installed" and info.get("device"):
+            if state == "not-installed" and info.get("device") and key not in SENSOR_DRIVERS:
                 # The hardware is there and only the software is missing.
                 status, tone = "Device detected", "blue"
             card.set_status(status, tone)
@@ -170,13 +207,37 @@ class PreparationRenderMixin:
                 note = "Nothing is plugged in right now; it starts by itself when the device is connected."
             elif key == "hdmi_cec" and installed and info.get("foreign"):
                 note = "MastaG's bc250-cec is installed too and runs on the same CEC adapter. Keep only one of them: remove bc250-cec, or remove this one."
+            elif state == "error":
+                note = tr_format(
+                    "Control Center could not check this on your system ({error}). Send a report from "
+                    "Settings › Support so it can be fixed.",
+                    error=str(info.get("error") or "unknown error"),
+                )
+            elif key == "apu_telemetry" and state == "unsupported" and info.get("blocked_reason"):
+                # SteamOS, an image-based system, or a kernel already reading the VRM.
+                note = str(info["blocked_reason"])
             elif key == "hdmi_cec" and state == "not-installed" and not info.get("device"):
                 note = "No CEC adapter is connected. CEC needs a DisplayPort-to-HDMI adapter that passes it, such as a Club3D CAC-1080 or CAC-1085."
+            install_enabled = True
+            install_tooltip = ""
+            if key == "apu_telemetry" and install_text:
+                install_text = "Install service"
+            if key in SENSOR_DRIVERS and not install_text and state in {"unsupported", "managed-elsewhere"}:
+                # A board sensor row keeps its action in place, greyed, so the
+                # row never ends in an empty gap; the note and the tooltip say why.
+                install_enabled = False
+                if state == "managed-elsewhere":
+                    install_text = "Installed separately" if key == "apu_telemetry" else "Built into this kernel"
+                else:
+                    install_text = "Install service" if key == "apu_telemetry" else "Install"
+                    install_tooltip = str(info.get("blocked_reason") or note or "")
             card.update_action(
                 buttons["install"],
                 text=install_text or "Install",
                 payload={"accessory": key, "op": "install"},
                 visible=bool(install_text),
+                enabled=install_enabled,
+                tooltip=install_tooltip,
             )
             configure_text = self._ACCESSORY_CONFIGURE.get(key, "")
             card.update_action(
@@ -186,8 +247,13 @@ class PreparationRenderMixin:
                 visible=bool(configure_text) and (installed or state == "managed-elsewhere"),
                 enabled=state != "relogin-required",
             )
+            # The kernel sensor drivers have nothing to open once they work:
+            # Remove is their row's action, not an entry under "More".
+            buttons["remove"].setProperty(
+                "rowAction", installed and key in SENSOR_DRIVERS and state != "update-available"
+            )
             card.update_action(
-                buttons["remove"], text="Remove",
+                buttons["remove"], text="Remove service" if key == "apu_telemetry" else "Remove",
                 payload={"accessory": key, "op": "remove"}, visible=installed,
             )
             self._accessory_notes[key].setText(tr(note))
@@ -417,9 +483,16 @@ class PreparationRenderMixin:
         )
         self.gfx_card.set_scope(route.scope, "blue")
         self.gfx_card.set_status(route.status, route.tone)
-        self.gfx_card.detail.setText(
-            " ".join(tr_format(part, **route.values) for part in route.detail)
-        )
+        state = str(radv.get("state") or "")
+        # Installed, but this session does not run it: the same tip as
+        # Bazzite's, one game at a time with the launch option below.
+        per_game = route.installed and state in {"relogin-required", "switched-off"}
+        detail = [tr_format(part, **route.values) for part in route.detail]
+        if state == "relogin-required":
+            detail.append(tr(RADV_ROUTE_PER_GAME_TIP))
+        self.gfx_card.detail.setText(" ".join(detail))
+        self.radv_launch_row.setVisible(per_game)
+        self._reveal_next_step(self.gfx_card, "radv_async", per_game)
         if route.build:
             self.gfx_card.update_action(
                 self.gfx_primary_button,
@@ -456,6 +529,18 @@ class PreparationRenderMixin:
             payload={"action": "bazzite_async_upstream", "governor": ""},
         )
 
+    def _reveal_next_step(self, card, key: str, active: bool) -> None:
+        """Open a row's details when its tool is installed but still needs to be
+        turned on (a command to copy, a launch option to paste): behind "Show
+        details" nobody finds them. Only on the change, so a row the user
+        closed stays closed on the next refresh."""
+        shown = self.__dict__.setdefault("_revealed_steps", {})
+        if active and not shown.get(key):
+            browser = getattr(self, "compatibility_browser", None)
+            if browser is not None:
+                browser.show_details(card)
+        shown[key] = bool(active)
+
     def _render_directmesh(self, state: Mapping) -> None:
         """DirectMesh's row: title-row status, launch option, version, actions."""
         supported = bool(state.get("supported"))
@@ -482,13 +567,19 @@ class PreparationRenderMixin:
         detail = tr("Mesh shaders for DX12 Ultimate games on the BC-250. Development build: a game can hang the GPU.")
         reason = str(state.get("reason") or "")
         card.detail.setText(detail + (" " + tr(reason) if not supported and reason else ""))
-        self.directmesh_launch_field.setText(str(state.get("launch_option") or ""))
-        # The start of the option is what people recognise; the end is %command%.
-        self.directmesh_launch_field.setCursorPosition(0)
+        self._directmesh_launch_option = str(state.get("launch_option") or "")
         self.directmesh_launch_row.setVisible(installed)
+        self._reveal_next_step(card, "directmesh", installed)
         self._render_version_picker(
             self.directmesh_version_combo, self.directmesh_releases_button,
             {**state, "tag": state.get("selected_tag"), "installer_available": supported},
+        )
+        self._directmesh_selected_tag = str(state.get("selected_tag") or "")
+        self.directmesh_card.update_action(
+            self.directmesh_version_button,
+            text="Choose version" if self.directmesh_version_row.isHidden() else "Hide versions",
+            payload={"action": "directmesh_version_toggle", "governor": ""},
+            enabled=supported,
         )
         self._directmesh_view = {"installed": installed, "supported": supported,
                                  "installed_tag": str(state.get("installed_tag") or "")}
@@ -669,7 +760,15 @@ class PreparationRenderMixin:
             )
             self.helixsr_settings.set_settings(*self._helixsr_settings_state)
             self.helixsr_settings.set_game_count(self._helixsr_game_count)
-            self.helixsr_settings.set_bridge_mode(getattr(self, "_helixsr_bridge", None) is not None)
+            bridge = getattr(self, "_helixsr_bridge", None) is not None
+            self.helixsr_settings.set_bridge_settings(list(helixsr.get("bridge_settings") or ()) if bridge else [])
+            self.helixsr_settings.set_bridge_mode(bridge)
+            # HelixSR 3: the settings reach every game the bridge put it in.
+            if bridge:
+                self.helixsr_settings.set_game_count(sum(
+                    1 for game in self._helixsr_bridge
+                    if game.get("managed_by") == "bridge" and game.get("installed_way")
+                ))
 
     def _render_upscaling(self) -> None:
         """Both upscalers' cards, then the games table shared by both."""
@@ -895,6 +994,7 @@ class PreparationRenderMixin:
             bool(fsr4.get("current")) or any(getattr(self, "_fsr4_records", ([], [])))
         )
         columns = tuple(key for key, on in (("fsr4", fsr4_on), ("helixsr", helixsr_on)) if on)
+        hidden = set(hidden_upscaling_games())
         table = []
         for row in rows:
             folder = row.get("folder") or ""
@@ -918,6 +1018,9 @@ class PreparationRenderMixin:
                 fsr4_cell = {"text": text or "Available", "tone": tone, "tooltip": tooltip,
                              "actions": actions}
             if helixsr_cell is None and fsr4_cell is None:
+                continue
+            if str(row["appid"] or row["name"]) in hidden:
+                # Taken off the list with its trash button (Add game shows it again).
                 continue
             table.append({
                 "key": row["appid"] or row["name"], "name": row["name"],
@@ -964,6 +1067,66 @@ class PreparationRenderMixin:
         """FSR4's games are rows of its section on the Upscaling tab."""
         self._fsr4_games = list(games)
 
+    # Rows of this application that share a SteamOS list with provider rows.
+    _STEAMOS_NATIVE_ROWS = (
+        "cyan_card", "oberon_card", "mesa_card", "directmesh_card", "vaapi_card",
+        "pacman_lock_card", "hdmi_ac3_card", "hdmi_cec_card", "thermalright_card", "corsair_card",
+        "network_driver_card", "printing_driver_card", "external_drivers_card", "acpi_card",
+    )
+
+    #: Where the provider's own row replaces ours on SteamOS. Ours stays visible for
+    #: anyone who already has it installed, so it can still be updated or removed.
+    _SUPERSEDED_WHEN = frozenset({"", "not-installed", "unsupported", "managed-elsewhere", "hardware-vcn", "unknown"})
+
+    #: ACPI states that mean this application put something there.
+    _NATIVE_ACPI_PRESENT = frozenset({"active", "pending-reboot", "not-active", "incomplete",
+                                      "outdated", "needs-repair", "needs-check"})
+
+    def _hide_superseded_native_rows(self) -> None:
+        """SteamOS offers the Real Toolkit's VA-API, AC-3, HDMI-CEC and Proton rows.
+
+        Showing this application's own copy beside each one only made people
+        choose between two installers of the same thing. A native install that
+        already exists is the exception: it must stay manageable (and it makes
+        the provider's row read "BC250 Control Center" and turn itself off).
+        """
+        tools = _mapping(getattr(self, "_tools", None))
+        accessories = _mapping(tools.get("accessories"))
+        states = {
+            "vaapi_card": str(_mapping(tools.get("vaapi_video")).get("state") or ""),
+            "hdmi_ac3_card": str(_mapping(accessories.get("hdmi_ac3")).get("state") or ""),
+            "hdmi_cec_card": str(_mapping(accessories.get("hdmi_cec")).get("state") or ""),
+        }
+        for name, state in states.items():
+            card = getattr(self, name, None)
+            if card is not None and state in self._SUPERSEDED_WHEN:
+                card.setVisible(False)
+        # Our ACPI correction (offered on SteamOS before the toolkit's): hidden unless
+        # one is installed, so whoever has it can still update, repair or remove it.
+        acpi = _mapping(_mapping(tools.get("system_setup")).get("acpi"))
+        self.acpi_card.setVisible(str(acpi.get("status") or "") in self._NATIVE_ACPI_PRESENT)
+        # Its actions are the toolkit's own Proton ones, which have their own row.
+        self.steamos_proton_card.setVisible(False)
+        # Same here: its buttons were the toolkit's combined fix, verify and Proton,
+        # each already a row ("Kernel and Mesa · GFX1013", "Toolkit management", "Proton · FSR4").
+        self.gfx_card.setVisible(False)
+        # No SteamOS route exists behind these two buttons (the backend answers
+        # "No reviewed ... workflow for steamos"): SteamOS ships the firmware and
+        # BlueZ, and packages added to its read-only root vanish with the next update.
+        # The toolkit's AIC8800 and BE200 rows cover the adapters that need more.
+        self.network_driver_card.setVisible(False)
+        self.printing_driver_card.setVisible(False)
+        # DirectMesh's own installer has no SteamOS path; there it comes inside the
+        # Mesa / RADV row (keyboardspecialist v0.40 builds DirectMesh 1.4 in).
+        self.directmesh_card.setVisible(False)
+
+    def _label_steamos_origins(self) -> None:
+        """Under every SteamOS row, say whose it is: this application's or a provider's."""
+        for name in self._STEAMOS_NATIVE_ROWS:
+            card = getattr(self, name, None)
+            if card is not None:
+                card.set_scope(NATIVE_SCOPE)
+
     def _apply_compatibility_filter(self) -> None:
         self._restore_compatibility_preview_actions()
         actual = self._distribution_group(str(self._tools.get("os_family") or ""))
@@ -979,12 +1142,11 @@ class PreparationRenderMixin:
             "debian": "Ubuntu / Debian",
             "other": "Other distributions",
         }
-        self.acpi_card.setVisible(show_all or selected in {"arch", "bazzite", "steamos"})
-        # Bazzite takes the same tables through grubenv, SteamOS through GRUB's
-        # early initrd list (both beta).
+        # SteamOS uses the toolkit's ACPI row instead; ours stays for the others.
+        # Bazzite takes the same tables through grubenv (beta).
+        self.acpi_card.setVisible(show_all or selected in {"arch", "bazzite"})
         self.acpi_card.set_scope(
             "Beta · Bazzite" if selected == "bazzite"
-            else "Beta · SteamOS" if selected == "steamos"
             else "Validated · Arch / CachyOS / Manjaro"
         )
         self.cyan_card.setVisible(True)
@@ -1000,8 +1162,15 @@ class PreparationRenderMixin:
         self.cachyos_stack_card.setVisible(show_all or selected == "arch")
         self.steamos_proton_card.setVisible(show_all or selected == "steamos")
         self.steamos_proton_card.setEnabled(actual == "steamos" and not preview)
+        for rows in (self.real_toolkit_rows, self.steamos_alternative_rows):
+            rows.set_visible(show_all or selected == "steamos")
+            rows.set_enabled(actual == "steamos" and not preview)
         self.fsr4_card.setVisible(FSR4_UI_ENABLED)
         self.helixsr_card.setVisible(HELIXSR_UI_ENABLED)
+        if selected == "steamos":
+            self._label_steamos_origins()
+            if actual == "steamos":
+                self._hide_superseded_native_rows()
         self._refresh_compatibility_summary()
 
         if not preview:
@@ -1083,6 +1252,8 @@ class PreparationRenderMixin:
             self.gfx_card,
             self.cachyos_stack_card,
             self.steamos_proton_card,
+            *self.real_toolkit_rows.all_cards(),
+            *self.steamos_alternative_rows.all_cards(),
         ):
             for button in card.findChildren(QPushButton):
                 action = str(getattr(button, "request_payload", {}).get("action") or "")
@@ -1429,121 +1600,41 @@ class PreparationRenderMixin:
         self.steamos_fsr4_launch_row.hide()
         self.bazzite_enable_row.hide()
         self.bazzite_launch_row.hide()
+        self.radv_launch_row.hide()
+        real_toolkit = _mapping(gfx_state.get("steamos_real_toolkit"))
+        self.real_toolkit_rows.set_provider_state(real_toolkit)
+        # Someone who installed with an earlier version has keyboardspecialist's kernel
+        # fix and Mesa/RADV: show that on its own rows so it stays manageable.
+        self.steamos_alternative_rows.set_provider_state({
+            **_mapping(gfx_state.get("steamos_alternative_graphics")),
+            "kernel": {
+                "installed": bool(gfx_state.get("steamos_kernel_installed")),
+                "ready": bool(gfx_state.get("steamos_kernel_ready")),
+                "reboot_pending": bool(gfx_state.get("steamos_kernel_reboot_pending")),
+            },
+        })
         if reason_key == "steamos-dedicated-backend":
-            kernel_ready = bool(gfx_state.get("steamos_kernel_ready"))
-            kernel_installed = bool(gfx_state.get("steamos_kernel_installed"))
-            radv_state = str(
-                gfx_state.get("steamos_external_radv_state") or "not-installed"
-            )
-            radv_current = bool(gfx_state.get("steamos_external_radv_current"))
-            fsr4_state = str(
-                gfx_state.get("steamos_external_fsr4_state") or "not-installed"
-            )
-            fsr4_current = bool(gfx_state.get("steamos_external_fsr4_current"))
-            self._steamos_fsr4_launch_option = str(
-                gfx_state.get("steamos_external_fsr4_launch_option") or ""
-            )
-            self.steamos_fsr4_launch_row.setVisible(
-                GFX1013_FSR4_UI_ENABLED
-                and fsr4_current
-                and bool(self._steamos_fsr4_launch_option)
-            )
-            self.steamos_fsr4_copy_button.setText("⧉")
-            self.steamos_fsr4_copy_button.setToolTip(
-                tr("Copy Steam launch option")
-            )
-            self.steamos_kernel_status.setText(
-                tr("Active")
-                if kernel_ready
-                else tr("Reboot required")
-                if kernel_installed
-                else tr("Not installed")
-            )
-            self.steamos_kernel_status.set_tone(
-                "green" if kernel_ready else "orange" if kernel_installed else "gray"
-            )
-            self.steamos_radv_status.setText(
-                tr("Ready")
-                if radv_current
-                else tr("Repair required")
-                if radv_state == "invalid"
-                else tr("Not installed")
-            )
-            self.steamos_radv_status.set_tone(
-                "green"
-                if radv_current
-                else "orange"
-                if radv_state == "invalid"
-                else "gray"
-            )
-            self.steamos_fsr4_status.setText(
-                tr("Ready")
-                if fsr4_current
-                else tr("Repair required")
-                if fsr4_state == "invalid"
-                else tr("Optional")
-            )
-            self.steamos_fsr4_status.set_tone(
-                "green"
-                if fsr4_current
-                else "orange"
-                if fsr4_state == "invalid"
-                else "gray"
-            )
-            self.gfx_card.update_action(
-                self.gfx_primary_button,
-                text=gfx.compatibility_action,
-                payload={"action": "steamos_compat", "governor": ""},
-            )
-            self.gfx_card.update_action(
-                self.gfx_secondary_button,
-                text="2 · Repair Mesa RADV"
-                if radv_state != "not-installed"
-                else "2 · Install Mesa RADV",
-                payload={"action": "steamos_graphics_install", "governor": ""},
-                enabled=kernel_ready,
-                tooltip="Install the kernel and reboot first."
-                if not kernel_ready
-                else "",
-            )
-            if GFX1013_FSR4_UI_ENABLED:
-                self.gfx_card.update_action(
-                    self.gfx_tertiary_button,
-                    text="Update per-game FSR4"
-                    if fsr4_current
-                    else "3 · Install per-game FSR4",
-                    payload={
-                        "action": "steamos_graphics_fsr4_install",
-                        "governor": "",
-                    },
-                    enabled=kernel_ready and radv_current,
-                    tooltip="Install and activate the matched Mesa/RADV stage first."
-                    if not (kernel_ready and radv_current)
-                    else "",
-                )
-            self.gfx_card.update_action(
-                self.gfx_quaternary_button,
-                text="Check full stack",
-                payload={"action": "steamos_graphics_status", "governor": ""},
-            )
-            self.gfx_card.update_action(
-                self.gfx_quinary_button,
-                text=(
-                    "Remove FSR4"
-                    if GFX1013_FSR4_UI_ENABLED and fsr4_state != "not-installed"
-                    else "Remove Mesa RADV"
-                ),
-                payload={
-                    "action": "steamos_graphics_fsr4_uninstall"
-                    if GFX1013_FSR4_UI_ENABLED and fsr4_state != "not-installed"
-                    else "steamos_graphics_uninstall",
-                    "governor": "",
-                },
-                visible=(
-                    (GFX1013_FSR4_UI_ENABLED and fsr4_state != "not-installed")
-                    or radv_state != "not-installed"
-                ),
-            )
+            proton = _mapping(real_toolkit.get("proton"))
+            graphics_label, graphics_tone = gfx.status, gfx.tone
+            self.gfx_card.set_scope(REAL_TOOLKIT_SCOPE, "blue")
+            self.gfx_card.set_status(graphics_label, graphics_tone)
+            self.steamos_kernel_status.setText(tr("Unknown"))
+            self.steamos_kernel_status.set_tone("gray")
+            self.steamos_radv_status.setText(tr(graphics_label))
+            self.steamos_radv_status.set_tone(graphics_tone)
+            proton_state = str(proton.get("state") or "unknown")
+            self.steamos_fsr4_status.setText(tr({"installed": "Installed", "incomplete": "Incomplete",
+                                               "not-installed": "Optional"}.get(proton_state, "Unknown")))
+            self.steamos_fsr4_status.set_tone("blue" if proton_state == "installed" else
+                                            "orange" if proton_state == "incomplete" else "gray")
+            for button, text, action in (
+                (self.gfx_primary_button, "Install / update", "combined-install"),
+                (self.gfx_secondary_button, "Check", "verify"),
+                (self.gfx_tertiary_button, "Proton", "proton-install"),
+                (self.gfx_quaternary_button, "Uninstall", "combined-revert"),
+            ):
+                self.gfx_card.update_action(button, text=text,
+                    payload={"action": "real_toolkit:" + action, "governor": ""}, enabled=True, visible=True)
         elif reason_key == "fedora-upstream-managed" and gfx.radv_route is None:
             # Fedora on a kernel older than 7.2: DryhoppedIPA's installer. On
             # 7.2 or newer the patched RADV alone takes over (below).
@@ -1626,6 +1717,7 @@ class PreparationRenderMixin:
             )
             self.bazzite_enable_row.setVisible(per_game)
             self.bazzite_launch_row.setVisible(per_game)
+            self._reveal_next_step(self.gfx_card, "bazzite_async", per_game)
         elif (
             _mapping(gfx_state.get("radv_async")).get("supported")
             and not bool(gfx_state.get("masta_async_compute_ready"))

@@ -382,6 +382,33 @@ if [[ "$YES" -ne 1 ]]; then
 fi
 
 try_disable_user_daemon
+
+# SteamOS keeps /usr read-only. install-local.sh opens it for the privileged
+# helpers and closes it again; removing them needs the same window, or every
+# helper was "kept: read-only file system" (and, after a disable/enable in the
+# same session, rm failed outright). Open it only when there is something of
+# ours to remove, and give the state back on any exit.
+STEAMOS_ROOT_HELPER="$SCRIPT_DIR/system/steamos-root.sh"
+steamos_uninstall_restore() {
+  local status=$?
+  trap - EXIT
+  if bc250_steamos_restore_root "$status"; then exit 0; else exit $?; fi
+}
+if [[ "$KEEP_PRIVILEGED" -eq 0 && "$DRY_RUN" -eq 0 ]] && command -v steamos-readonly >/dev/null 2>&1 \
+   && [[ -d /usr/libexec/bc250-control-center ]] && ! package_owner "$SYSTEM_PRIV_HELPER" >/dev/null 2>&1; then
+  if [[ -f "$STEAMOS_ROOT_HELPER" ]]; then
+    # shellcheck source=system/steamos-root.sh
+    source "$STEAMOS_ROOT_HELPER"
+    trap steamos_uninstall_restore EXIT
+    echo "SteamOS: temporarily opening the root filesystem to remove Control Center's privileged helpers..."
+    if ! bc250_steamos_unlock_root; then
+      echo "Warning: the SteamOS root could not be opened; the privileged helpers in /usr/libexec are kept." >&2
+    fi
+  else
+    echo "Warning: $STEAMOS_ROOT_HELPER is missing; privileged helpers on the read-only SteamOS root are kept." >&2
+  fi
+fi
+
 if [[ "$KEEP_PRIVILEGED" -eq 0 ]]; then
   disable_managed_cpu_service
   disable_managed_fan_service
@@ -408,6 +435,9 @@ else
 fi
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-fan-pwm-helper" "$SYSTEM_PRIV_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-steamos-game-helper" "$SYSTEM_STEAMOS_GAME_HELPER"
+remove_managed_privileged_file "$APP_DIR/scripts/system/run-steamos-real-toolkit.py" "/usr/libexec/bc250-control-center/bc250-steamos-toolkit"
+remove_managed_privileged_file "$APP_DIR/scripts/system/check-steamos-toolkit-conflicts.py" "/usr/libexec/bc250-control-center/bc250-steamos-toolkit-check"
+remove_managed_privileged_file "$APP_DIR/privileged/lib/bc250_steamos_toolkit_runtime.zip" "/usr/libexec/bc250-control-center/lib/bc250_steamos_toolkit_runtime.zip"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-cu-helper" "$SYSTEM_CU_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-governor-config-helper" "$SYSTEM_GOVERNOR_CONFIG_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-core-unlock-helper" "$SYSTEM_CORE_UNLOCK_HELPER"
@@ -513,7 +543,20 @@ cat <<INFO
 Uninstall complete.
 INFO
 
-if [[ "${#PACKAGE_OWNED[@]}" -gt 0 ]]; then
+kept_read_only=0
+kept_by_package=0
+for kept in "${PACKAGE_OWNED[@]}"; do
+  if [[ "$kept" == "(read-only system file)" ]]; then kept_read_only=1; else kept_by_package=1; fi
+done
+if [[ "$kept_read_only" -eq 1 ]]; then
+  echo
+  echo "Some files were kept because they are on a read-only system file system."
+  if command -v steamos-readonly >/dev/null 2>&1; then
+    echo "On SteamOS, run this uninstaller again from Konsole after setting a password with passwd,"
+    echo "or remove them after: sudo steamos-readonly disable   (then: sudo steamos-readonly enable)"
+  fi
+fi
+if [[ "$kept_by_package" -eq 1 ]]; then
   echo
   echo "Some files were kept because they belong to a system package, not to this local install."
   echo "Control Center is also installed as a package. Remove it with your package manager:"

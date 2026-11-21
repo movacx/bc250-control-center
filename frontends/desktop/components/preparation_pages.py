@@ -8,13 +8,11 @@ from PyQt6.QtCore import (
     Qt,
 )
 from PyQt6.QtWidgets import (
-    QApplication,
     QBoxLayout,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMenu,
     QProgressBar,
     QSizePolicy,
@@ -24,6 +22,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtWidgets import QPushButton as IconButton
 
 from bc250cc.infrastructure.bazzite_async_compute import BAZZITE_ASYNC_COMPUTE_ICD
+from bc250cc.infrastructure.radv_async_compute import RADV_ASYNC_LAUNCH_OPTION
 from bc250cc.infrastructure.system_setup import CU_UNLOCK_THERMAL_NOTE
 
 from ..core.feature_visibility import (
@@ -44,6 +43,12 @@ from .dashboard_widgets import (  # noqa: E402
     _MemoryOptionRow,
     _UpscalerSection,
     _UpscalingGames,
+)
+from .real_toolkit import (
+    REAL_TOOLKIT_SCOPE,
+    RealToolkitRows,
+    SteamOSAlternativeRows,
+    action_label,
 )
 from .system_setup_controls import (
     VRAM_SIZE_CHOICES,
@@ -614,6 +619,7 @@ class PreparationPagesMixin:
         self.acpi_remove_button.setEnabled(False)
         layout.addWidget(self.acpi_card)
         self._build_pacman_lock_card(layout)
+        self._build_kernel_headers_card(layout)
         self.cyan_card = PreparationInfoCard(
             "Cyan Skillfish Governor",
             "Recommended GPU governor. Supports SMU or patched-kernel controls, selectable load monitoring and D-Bus ranges.",
@@ -743,18 +749,26 @@ class PreparationPagesMixin:
             "Per-game launch option", "Copy launch option",
             lambda: self._bazzite_async_launch_option,
         )
+        # The Arch/Fedora route's own per-game option: the same patched RADV
+        # for one game, when the session does not use it (switched off, or
+        # not logged out yet, or Steam started without the session variable).
+        self.radv_launch_row, self.radv_launch_copy_button = self._copy_row(
+            "Per-game launch option", "Copy launch option",
+            lambda: RADV_ASYNC_LAUNCH_OPTION,
+        )
         # Above the action buttons, whichever optional rows came before.
         gfx_layout = self.gfx_card.layout()
         actions_index = gfx_layout.indexOf(self.gfx_card.actions_panel)
+        gfx_layout.insertWidget(actions_index, self.radv_launch_row)
         gfx_layout.insertWidget(actions_index, self.bazzite_launch_row)
         gfx_layout.insertWidget(actions_index, self.bazzite_enable_row)
         layout.addWidget(self.gfx_card)
         self._build_directmesh_card()
         layout.addWidget(self.directmesh_card)
         self.steamos_proton_card = PreparationInfoCard(
-            "BC-250 GE-Proton · SteamOS",
-            "Uses keyboardspecialist's upstream installer to manage BC-250 GE-Proton in your Steam folder. Requires the toolkit's FSR4 RADV runtime to be active. Restart Steam after changes and select BC-250 GE-Proton for each game.",
-            scope_text="SteamOS · keyboardspecialist upstream",
+            "Proton · SteamOS Real Toolkit",
+            action_label('proton-install'),
+            scope_text=REAL_TOOLKIT_SCOPE,
             status_text="Optional",
         )
         for action, label in (
@@ -770,6 +784,14 @@ class PreparationPagesMixin:
         self.steamos_proton_card.hide()
         self.steamos_proton_card.setEnabled(False)
         layout.addWidget(self.steamos_proton_card)
+        # Provider components are ordinary rows of their topic, each marked with
+        # the provider it comes from; the pages below place them.
+        self.real_toolkit_rows = RealToolkitRows()
+        self.steamos_alternative_rows = SteamOSAlternativeRows()
+        for rows in (self.real_toolkit_rows, self.steamos_alternative_rows):
+            rows.action_requested.connect(self._forward_dependency_action)
+            rows.set_visible(False)
+            rows.set_enabled(False)
         self.cachyos_stack_card = PreparationInfoCard(
             "Arch / CachyOS BC-250 graphics stack · includes GFX1013 fix",
             "MastaG's matched kernel and Mesa/RADV include the GFX1013 async-compute fix. They can be installed separately or together; the current kernel stays as a boot fallback.",
@@ -929,19 +951,56 @@ class PreparationPagesMixin:
         layout.addWidget(self.mesa_card)
         self._build_vaapi_card()
         layout.addWidget(self.vaapi_card)
+        self._build_vram_sensor_card()
+        layout.addWidget(self.apu_telemetry_card)
+        layout.addWidget(self.vrm_sensor_card)
+        layout.addWidget(self.vram_sensor_card)
         layout.addStretch(1)
         if self._standalone:
             # DirectMesh is listed right after the GFX1013 fix it builds on.
             self._organise_compatibility(layout)
         return page
 
+    def _build_vram_sensor_card(self) -> None:
+        """Hexxeh's bc250-memory driver: the GDDR6 temperatures as a kernel sensor.
+
+        Listed with the kernel tools on Compatibility, where owners look for a
+        kernel module. Its buttons are an accessory's (install, remove,
+        upstream), wired with the others in ``_build_accessory_cards``.
+        """
+        # The wired route first: it works on every distribution the service
+        # installs on, the two kernel drivers only on Arch-based systems.
+        self.apu_telemetry_card = PreparationInfoCard(
+            "Power delivery readings (I2C mod)",
+            "Author: onlinermm, BC250-Telemetry. A service that reads the voltage regulators over the "
+            "I2C wires soldered to the board: input voltage, rails and VRM temperatures. Needs the "
+            "physical modification.",
+            scope_text="Board sensor",
+            status_text="Checking",
+        )
+        self.vrm_sensor_card = PreparationInfoCard(
+            "Power delivery readings (kernel driver)",
+            "Author: Liam McLoughlin (Hexxeh), bc250-vrm-dkms. Reads the voltage regulator through "
+            "the fan chip, without the I2C wires: input voltage, CPU and GPU rails and VRM "
+            "temperatures. Builds with DKMS on Arch, CachyOS and Manjaro.",
+            scope_text="Board sensor",
+            status_text="Checking",
+        )
+        self.vram_sensor_card = PreparationInfoCard(
+            "VRAM temperature (kernel driver)",
+            "Author: Liam McLoughlin (Hexxeh), bc250-memory-dkms. Reads the eight GDDR6 chips "
+            "through the SMU and shows them as a normal sensor in Control Center, sensors and "
+            "MangoHud. Builds with DKMS on Arch, CachyOS and Manjaro, and follows kernel updates.",
+            scope_text="Board sensor",
+            status_text="Checking",
+        )
+
     def _build_directmesh_card(self) -> None:
         """DirectMesh (lonewolf0622): Mesh shaders through upstream's installer.
 
         The title row matches every other Compatibility row (title, where it
         applies, status). Inside: one line on what it is, the Steam launch
-        option with how to use it right under it, the version row, then the
-        actions.
+        option to copy, the version row, then the actions.
         """
         card = PreparationInfoCard(
             "Mesh shaders · DirectMesh",
@@ -951,45 +1010,24 @@ class PreparationPagesMixin:
         self.directmesh_card = card
         body = card.layout()
 
-        # The launch option, labelled, with how to use it beneath.
-        self.directmesh_launch_row = QFrame()
-        self.directmesh_launch_row.setProperty("launchStrip", True)
-        launch = QVBoxLayout(self.directmesh_launch_row)
-        launch.setContentsMargins(10, 8, 10, 8)
-        launch.setSpacing(6)
-        launch_title = _label("Steam launch option", "dashboardComponentDetail", wrap=False)
-        launch_title.setProperty("settingHint", True)
-        launch.addWidget(launch_title)
-        field_row = QHBoxLayout()
-        field_row.setSpacing(6)
-        self.directmesh_launch_field = QLineEdit()
-        self.directmesh_launch_field.setReadOnly(True)
-        self.directmesh_launch_field.setProperty("launchOption", True)
-        self.directmesh_launch_field.setAccessibleName(tr("Steam launch option"))
-        self.directmesh_launch_field.setMinimumWidth(0)
-        self.directmesh_launch_field.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        field_row.addWidget(self.directmesh_launch_field, 1)
-        self.directmesh_copy_button = IconButton("⧉")
-        self.directmesh_copy_button.setProperty("fsr4LaunchCopy", True)
-        self.directmesh_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.directmesh_copy_button.setAccessibleName(tr("Copy Steam launch option"))
-        self.directmesh_copy_button.setToolTip(tr("Copy Steam launch option"))
-        self.directmesh_copy_button.clicked.connect(
-            lambda: QApplication.clipboard().setText(self.directmesh_launch_field.text())
+        # The launch option as a compact "label ··· ⧉" row, like GFX1013's:
+        # the long path is not worth reading, only copying. Where to paste it
+        # is the row's tooltip.
+        self._directmesh_launch_option = ""
+        self.directmesh_launch_row, self.directmesh_copy_button = self._copy_row(
+            "Steam launch option", "Copy Steam launch option",
+            lambda: self._directmesh_launch_option,
         )
-        field_row.addWidget(self.directmesh_copy_button)
-        launch.addLayout(field_row)
-        launch_hint = _label(
+        self.directmesh_launch_row.setToolTip(tr(
             "Paste it in Steam > right-click the game > Properties > Launch options. "
-            "Remove it to turn DirectMesh off for that game.",
-            "dashboardComponentDetail",
-        )
-        launch_hint.setProperty("settingHint", True)
-        launch.addWidget(launch_hint)
+            "Remove it to turn DirectMesh off for that game."
+        ))
         body.insertWidget(2, self.directmesh_launch_row)
 
         # The release Install brings in, GitHub's list, and a newer one.
+        # Rarely needed: hidden until More › Choose version opens it.
         version_host = QWidget()
+        self.directmesh_version_row = version_host
         version_row = QHBoxLayout(version_host)
         version_row.setContentsMargins(0, 0, 0, 0)
         version_row.setSpacing(6)
@@ -1008,12 +1046,9 @@ class PreparationPagesMixin:
             lambda _index: self._sync_directmesh_main_action()
         )
         version_row.addWidget(self.directmesh_version_combo)
-        self.directmesh_releases_button = self._releases_button(
-            "Check for new DirectMesh releases", "directmesh_releases"
-        )
-        version_row.addWidget(self.directmesh_releases_button)
         version_row.addStretch(1)
         body.insertWidget(3, version_host)
+        version_host.hide()
 
         # Its text and payload follow the version picked above (see
         # _sync_directmesh_main_action): install, reinstall, update or go back.
@@ -1023,13 +1058,53 @@ class PreparationPagesMixin:
         self.directmesh_check_button = card.add_action(
             "Check mesh shaders", {"action": "directmesh_check", "governor": ""}
         )
+        self.directmesh_version_button = card.add_action(
+            "Choose version", {"action": "directmesh_version_toggle", "governor": ""}
+        )
+        # Reading GitHub's list again is rare: it lives in More, not beside
+        # the version picker.
+        self.directmesh_releases_button = card.add_action(
+            "Check for new releases", {"action": "directmesh_releases", "governor": ""}
+        )
         card.add_action("Open upstream project", {"action": "directmesh_upstream", "governor": ""})
         self.directmesh_remove_button = card.add_action(
             "Remove", {"action": "directmesh_uninstall", "governor": ""}, danger=True
         )
-        card.action_requested.connect(self._forward_dependency_action)
+        card.action_requested.connect(self._directmesh_action)
         card.setProperty("listRow", True)
         card.make_collapsible()
+
+    def _directmesh_action(self, payload: object) -> None:
+        values = dict(payload) if isinstance(payload, Mapping) else {}
+        action = values.get("action")
+        if action == "directmesh_version_toggle":
+            self.set_directmesh_versions_visible(self.directmesh_version_row.isHidden())
+            return
+        if action == "directmesh_releases":
+            # The list it reads is shown in the picker.
+            self.set_directmesh_versions_visible(True)
+        self._forward_dependency_action(values)
+
+    def set_directmesh_versions_visible(self, visible: bool) -> None:
+        """Show the version picker (with the row's details), or hide it again.
+        Hidden, the pick returns to the release Install would use, so the main
+        button never offers a version nobody can see."""
+        self.directmesh_version_row.setVisible(bool(visible))
+        if visible:
+            browser = getattr(self, "compatibility_browser", None)
+            if browser is not None:
+                browser.show_details(self.directmesh_card)
+        else:
+            combo = self.directmesh_version_combo
+            index = combo.findData(getattr(self, "_directmesh_selected_tag", ""))
+            if index >= 0 and index != combo.currentIndex():
+                combo.setCurrentIndex(index)
+        self.directmesh_card.update_action(
+            self.directmesh_version_button,
+            text="Hide versions" if visible else "Choose version",
+            payload={"action": "directmesh_version_toggle", "governor": ""},
+            enabled=bool((getattr(self, "_directmesh_view", None) or {}).get("supported", True)),
+        )
 
     def _build_mesa_card(self) -> None:
         """Mesa older than 26.1: Vulkan runs on the GPU but the desktop is drawn by the CPU."""
@@ -1242,6 +1317,7 @@ class PreparationPagesMixin:
         # Every game against both upscalers, across the page.
         self.upscaling_games = _UpscalingGames()
         self.upscaling_games.action_requested.connect(self._forward_dependency_action)
+        self.upscaling_games.hide_requested.connect(self._hide_upscaling_game)
         self.upscaling_games.body.insertWidget(0, self.fsr4_launch_panel)
         # Every game with another HelixSR release than the installed one.
         self.helixsr_update_all_button = self.upscaling_games.add_header_button(
@@ -1355,8 +1431,49 @@ class PreparationPagesMixin:
         row.addWidget(button)
         return host
 
+    def _hide_upscaling_game(self, key: str, name: str, installed: bool) -> None:
+        """The row's trash button: off this list, nothing in the game changes.
+
+        A game with HelixSR or FSR4 in it is asked about first: it keeps
+        them, and Add game › Show hidden games brings the row back to manage them.
+        """
+        from .preparation_render import (
+            hidden_upscaling_games,
+            set_hidden_upscaling_games,
+        )
+
+        if installed:
+            from PyQt6.QtWidgets import QDialog
+
+            from .page_widgets import ConfirmDialog
+
+            dialog = ConfirmDialog(
+                "Remove from this list?",
+                tr_format(
+                    "{game} keeps what it has installed: HelixSR or FSR4 stay in the game. "
+                    "To update or remove them later, show it again from Add game.",
+                    game=name,
+                ),
+                confirm_text="Remove from list",
+                eyebrow="UPSCALING",
+                tone="orange",
+                parent=self,
+            )
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+        set_hidden_upscaling_games([*hidden_upscaling_games(), key])
+        self._render_upscaling()
+
+    def _show_hidden_upscaling_games(self) -> None:
+        from .preparation_render import set_hidden_upscaling_games
+
+        set_hidden_upscaling_games([])
+        self._render_upscaling()
+
     def _open_add_game_menu(self) -> None:
         """Add game: a folder outside Steam, or a game with OptiScaler put in by hand."""
+        from .preparation_render import hidden_upscaling_games
+
         menu = QMenu(self.upscaling_add_button)
         menu.setProperty("upscalingMenu", True)
         for button in (self.helixsr_folder_button, self.helixsr_opti_folder_button):
@@ -1365,6 +1482,13 @@ class PreparationPagesMixin:
             action = menu.addAction(button.text())
             action.setToolTip(button.toolTip())
             action.triggered.connect(lambda _checked=False, source=button: source.click())
+        hidden = len(hidden_upscaling_games())
+        if hidden:
+            if not menu.isEmpty():
+                menu.addSeparator()
+            menu.addAction(
+                tr_format("Show hidden games ({count})", count=hidden), self._show_hidden_upscaling_games
+            )
         if not menu.isEmpty():
             self._add_game_menu = menu
             menu.popup(self.upscaling_add_button.mapToGlobal(self.upscaling_add_button.rect().bottomLeft()))
@@ -1431,13 +1555,15 @@ class PreparationPagesMixin:
         groups = (
             ("Connectivity", (self.network_driver_card, self.printing_driver_card, self.external_drivers_card)),
             ("Case accessories", (self.thermalright_card, self.corsair_card)),
-            ("Audio and TV", (self.hdmi_ac3_card, self.hdmi_cec_card)),
+            ("Audio and TV", (self.hdmi_ac3_card, self.hdmi_cec_card,
+                              *self.real_toolkit_rows.cards_for("audio"))),
+            ("Controllers and wireless", tuple(self.real_toolkit_rows.cards_for("drivers"))),
         )
         for _title, cards in groups:
             for card in cards:
                 layout.removeWidget(card)
-        # The category already says what each scope did ("Case accessory").
-        self.drivers_browser = CompatibilityBrowser(groups, show_scope=False)
+        # The scope line says whose row it is (this application's or a provider's).
+        self.drivers_browser = CompatibilityBrowser(groups)
         layout.insertWidget(0, self.drivers_browser)
 
     def _build_accessory_cards(self, layout: QVBoxLayout) -> None:
@@ -1487,12 +1613,18 @@ class PreparationPagesMixin:
             "corsair": self.corsair_card,
             "hdmi_ac3": self.hdmi_ac3_card,
             "hdmi_cec": self.hdmi_cec_card,
+            "vram_sensor": self.vram_sensor_card,
+            "vrm_sensor": self.vrm_sensor_card,
+            "apu_telemetry": self.apu_telemetry_card,
         }
         for key, card, configure_text in (
             ("thermalright", self.thermalright_card, "Open configuration"),
             ("corsair", self.corsair_card, "Open control panel"),
             ("hdmi_ac3", self.hdmi_ac3_card, "Open configuration"),
             ("hdmi_cec", self.hdmi_cec_card, "Open TV control"),
+            ("vram_sensor", self.vram_sensor_card, "Open configuration"),
+            ("vrm_sensor", self.vrm_sensor_card, "Open configuration"),
+            ("apu_telemetry", self.apu_telemetry_card, "Open configuration"),
         ):
             buttons = {
                 "install": card.add_action("Install", {"accessory": key, "op": "install"}),
@@ -1507,7 +1639,8 @@ class PreparationPagesMixin:
             card.layout().insertWidget(2, note)
             self._accessory_notes[key] = note
             card.action_requested.connect(self._forward_accessory_action)
-            layout.addWidget(card)
+            if card not in (self.vram_sensor_card, self.vrm_sensor_card, self.apu_telemetry_card):  # on Compatibility
+                layout.addWidget(card)
 
 
 #: What reads pacman's lock; a test replaces it so it never reads the real one.
@@ -1520,6 +1653,18 @@ def _pacman_lock_probe():
     from bc250cc.infrastructure.pacman_lock import lock_state
 
     return lock_state()
+
+
+#: What reads the kernel headers' state; a test replaces it.
+KERNEL_HEADERS_PROBE = None
+
+
+def _kernel_headers_probe():
+    if KERNEL_HEADERS_PROBE is not None:
+        return KERNEL_HEADERS_PROBE()
+    from bc250cc.infrastructure.kernel_headers import headers_state
+
+    return headers_state()
 
 
 class PacmanLockCardMixin:
@@ -1560,6 +1705,78 @@ class PacmanLockCardMixin:
         self.pacman_unlock_button.hide()
         layout.addWidget(card)
         self.pacman_lock_state: dict = {}
+
+    def _build_kernel_headers_card(self, layout) -> None:
+        self.kernel_headers_card = PreparationInfoCard(
+            "Kernel headers · DKMS",
+            "Drivers built with DKMS (fans, power and memory sensors) need the headers of the running "
+            "kernel. A partial update can leave them for another version, and those drivers stop "
+            "loading at the next restart.",
+            scope_text="Systems with pacman, dnf or apt: Arch, CachyOS, Manjaro, Fedora, Ubuntu, Linux Mint, Debian",
+            status_text="Checking",
+        )
+        card = self.kernel_headers_card
+        self.kernel_headers_detail = QLabel("")
+        self.kernel_headers_detail.setProperty("dashboardComponentDetail", True)
+        self.kernel_headers_detail.setWordWrap(True)
+        self.kernel_headers_detail.hide()
+        card.layout().insertWidget(card.layout().indexOf(card.actions_panel), self.kernel_headers_detail)
+        self.kernel_headers_repair_button = card.add_action("Repair", {"action": "kernel-headers-repair"})
+        self.kernel_headers_check_button = card.add_action("Check again", {"action": "kernel-headers-check"})
+        card.action_requested.connect(self._kernel_headers_action)
+        self.kernel_headers_repair_button.hide()
+        layout.addWidget(card)
+        self.kernel_headers_state: dict = {}
+
+    def _kernel_headers_action(self, payload: object) -> None:
+        values = dict(payload) if isinstance(payload, Mapping) else {}
+        if values.get("action") == "kernel-headers-check":
+            self.refresh_kernel_headers()
+            return
+        self._forward_dependency_action(values)
+
+    def refresh_kernel_headers(self, state: Mapping | None = None) -> dict:
+        """Read whether the running kernel can build DKMS drivers, and show it."""
+        from bc250cc.infrastructure import kernel_headers as headers
+
+        try:
+            current = dict(state) if state is not None else dict(_kernel_headers_probe())
+        except Exception:  # noqa: BLE001 - a failed read must not break the page
+            current = {"state": headers.NOT_APPLICABLE}
+        self.kernel_headers_state = current
+        card = self.kernel_headers_card
+        kind = current.get("state")
+        if kind == headers.NOT_APPLICABLE:
+            card.hide()
+            return current
+        card.show()
+        detail = ""
+        if kind == headers.MISMATCH:
+            card.set_status("Mismatched", "orange")
+            detail = tr_format(
+                "Running kernel: {kernel}. Installed headers: {headers}.",
+                kernel=current.get("kernel_package") or current.get("kernel"), headers=current.get("headers"),
+            )
+        elif kind == headers.MISSING:
+            card.set_status("Missing", "orange")
+            detail = tr_format("No headers for the running kernel {kernel}.", kernel=current.get("kernel"))
+        elif kind == headers.MODULES_MISSING:
+            card.set_status("Drivers not built", "orange")
+            detail = tr_format("Not built for this kernel: {names}.", names=", ".join(current.get("modules") or ()))
+        elif kind == headers.REBOOT_PENDING:
+            card.set_status("Restart needed", "orange")
+            detail = tr("The kernel was updated. Restart the computer to use it.")
+        else:
+            card.set_status("Ready", "green")
+        self.kernel_headers_detail.setText(detail)
+        self.kernel_headers_detail.setVisible(bool(detail))
+        repairable = kind in {headers.MISMATCH, headers.MISSING, headers.MODULES_MISSING}
+        card.update_action(self.kernel_headers_repair_button, text="Repair", visible=repairable)
+        if repairable:
+            browser = getattr(self, "compatibility_browser", None)
+            if browser is not None:
+                browser.show_details(card)
+        return current
 
     def _pacman_lock_action(self, payload: object) -> None:
         values = dict(payload) if isinstance(payload, Mapping) else {}

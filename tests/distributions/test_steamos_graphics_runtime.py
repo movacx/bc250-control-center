@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+import pytest
+
 from bc250cc.infrastructure.steamos_graphics_runtime import (
     CURRENT_FSR4_PATCH_SHA256,
     CURRENT_MESA_TAG,
@@ -155,3 +157,53 @@ def test_probe_rejects_a_changed_generator_and_an_unknown_profile(tmp_path):
         encoding="utf-8",
     )
     assert probe()["radv"]["state"] == "invalid"
+
+
+def test_current_runtime_constants_match_the_reviewed_v040_mesh_shader():
+    # bc250-mesh-shader.sh at keyboardspecialist 6aee553 (v0.40.0): RADV_PROFILE_REVISION,
+    # DEFAULT_MESA_TAG, UPSTREAM_COMMIT and LEGACY_UPSTREAM_COMMIT.
+    from bc250cc.infrastructure.steamos_graphics_runtime import (
+        CURRENT_DIRECTMESH_RELEASE,
+    )
+
+    assert CURRENT_RADV_PROFILE_REVISION == "directmesh-1.4-mesa-26.3-fsr4-v7"
+    assert CURRENT_MESA_TAG == "mesa-26.3.0"
+    assert CURRENT_DIRECTMESH_RELEASE == "directmesh-v1.4"
+    assert CURRENT_UPSTREAM_COMMIT == "d3e6dc062c34d2523db0abe5741d1f5b0dea00d9"
+    assert LEGACY_UPSTREAM_COMMIT == "b66203e012594204e5e3049856b28a2681112985"
+
+
+
+@pytest.mark.parametrize(("mesa", "profile"), [
+    ("mesa-26.2.2", "production-fsr4-v4"),        # v0.29-v0.34, what the v0.30 pin built
+    ("mesa-26.2.5", "directmesh-1.3.1-fsr4-v5"),  # v0.35-v0.37
+    ("mesa-26.2.5", "directmesh-1.4-fsr4-v6"),    # v0.38-v0.39
+])
+def test_an_intact_install_of_an_earlier_release_is_ready_but_not_current(tmp_path, mesa, profile):
+    home, driver, icd = _install_current_runtime(tmp_path)
+    generator = tmp_path / "system/60-bc250-gfx1013"
+    manifest = home / ".local/share/bc250-mesh-shader/install.conf"
+    manifest.write_text(
+        f"{_digest(driver)} {_digest(icd)} {mesa} {CURRENT_UPSTREAM_COMMIT} {profile} "
+        f"{_digest(generator)}\n",
+        encoding="utf-8",
+    )
+
+    state = probe_steamos_graphics_runtime(
+        home=home, driver_path=driver, icd_path=icd, generator_path=generator
+    )
+
+    assert state["radv"]["state"] == "ready"
+    assert state["radv"]["current"] is False
+    assert state["radv"]["mesa_tag"] == mesa
+    assert state["incomplete"] is False
+
+
+def test_the_v040_install_is_current(tmp_path):
+    home, driver, icd = _install_current_runtime(tmp_path)
+    state = probe_steamos_graphics_runtime(
+        home=home, driver_path=driver, icd_path=icd,
+        generator_path=tmp_path / "system/60-bc250-gfx1013",
+    )
+    assert state["radv"]["current"] is True
+    assert state["radv"]["mesa_tag"] == "mesa-26.3.0"

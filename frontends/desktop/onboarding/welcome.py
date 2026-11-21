@@ -73,6 +73,8 @@ class WelcomeOverlay(QWidget):
     """First-run options shown over the application window."""
 
     language_chosen = pyqtSignal(str)
+    #: "celsius" or "fahrenheit": how temperatures are shown, nothing more.
+    temperature_unit_chosen = pyqtSignal(str)
     appearance_chosen = pyqtSignal(str, str, str)
     #: "standard" or "formal": the register, independent of the theme.
     style_chosen = pyqtSignal(str)
@@ -107,6 +109,7 @@ class WelcomeOverlay(QWidget):
         style: str = "standard",
         scale: int = 100,
         terminal_theme: str = "app",
+        temperature_unit: str = "celsius",
     ) -> None:
         super().__init__(parent)
         self._terminal_theme = str(terminal_theme)
@@ -119,6 +122,7 @@ class WelcomeOverlay(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self._language = str(language)
+        self._temperature_unit = "fahrenheit" if str(temperature_unit) == "fahrenheit" else "celsius"
         self._mode = str(mode)
         self._accent = str(accent)
         self._density = str(density)
@@ -283,7 +287,46 @@ class WelcomeOverlay(QWidget):
                 position += 1
         area.setWidget(holder)
         layout.addWidget(area, 1)
+        layout.addSpacing(12)
+        layout.addWidget(self._build_temperature_unit_row(page))
         return page
+
+    def _build_temperature_unit_row(self, page: QWidget) -> QFrame:
+        """°C or °F, beside the language because both depend on where you are."""
+        row = QFrame(page)
+        row.setObjectName("onboardingOptions")
+        line = QHBoxLayout(row)
+        line.setContentsMargins(16, 10, 16, 10)
+        line.setSpacing(8)
+        self.temperature_heading = QLabel(tr("Temperature unit"), row)
+        self.temperature_heading.setObjectName("onboardingSectionLabel")
+        line.addWidget(self.temperature_heading)
+        line.addStretch(1)
+        self.temperature_buttons: dict[str, QPushButton] = {}
+        self._temperature_group = QButtonGroup(row)
+        self._temperature_group.setExclusive(True)
+        for value, symbol in (("celsius", "°C"), ("fahrenheit", "°F")):
+            button = QPushButton(symbol, row)
+            button.setObjectName("onboardingChip")
+            # The symbol is the label in every language; the name is the tip.
+            button.setProperty("i18nLiteral", True)
+            button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setMinimumHeight(34)
+            button.setMinimumWidth(64)
+            button.clicked.connect(lambda _checked=False, item=value: self._choose_temperature_unit(item))
+            self._temperature_group.addButton(button)
+            self.temperature_buttons[value] = button
+            line.addWidget(button)
+        self._retranslate_temperature_unit()
+        return row
+
+    def _retranslate_temperature_unit(self) -> None:
+        self.temperature_heading.setText(tr("Temperature unit"))
+        for value, name in (("celsius", tr("Celsius")), ("fahrenheit", tr("Fahrenheit"))):
+            button = self.temperature_buttons[value]
+            button.setToolTip(name)
+            button.setAccessibleName(name)
 
     @staticmethod
     def _scrollbar_sheet() -> str:
@@ -733,6 +776,15 @@ class WelcomeOverlay(QWidget):
         self._sync_language()
         self.language_chosen.emit(self._language)
 
+    def _choose_temperature_unit(self, unit: str) -> None:
+        self._temperature_unit = str(unit)
+        self._sync_temperature_unit()
+        self.temperature_unit_chosen.emit(self._temperature_unit)
+
+    def _sync_temperature_unit(self) -> None:
+        for value, button in self.temperature_buttons.items():
+            button.setChecked(value == self._temperature_unit)
+
     def _choose_mode(self, mode: str) -> None:
         self._mode = str(mode)
         self._sync_appearance()
@@ -804,6 +856,7 @@ class WelcomeOverlay(QWidget):
         self.progress.setText(f"{self._step + 1} / {self.STEP_COUNT}")
         self._sync_copy()
         self._sync_language()
+        self._sync_temperature_unit()
         self._sync_appearance()
         self._sync_sidebar()
 
@@ -865,6 +918,7 @@ class WelcomeOverlay(QWidget):
             chip.setText(self._automatic_label())
         for value, text in self._theme_names():
             self.theme_labels[value].setText(text)
+        self._retranslate_temperature_unit()
         self.accent_heading.setText(tr("Accent color"))
         for dots in self.palette_dots.values():
             for dot in dots.values():

@@ -25,7 +25,8 @@ def _fake_environment(tmp_path: Path, state: str):
         """#!/usr/bin/env bash
 set -eu
 case "${1:-}" in
-  status) cat "$BC250_TEST_READONLY_STATE" ;;
+  # Like holo-readonly: print the state, exit 1 while the root is writable.
+  status) cat "$BC250_TEST_READONLY_STATE"; grep -qx enabled "$BC250_TEST_READONLY_STATE" ;;
   disable) printf 'disabled\\n' > "$BC250_TEST_READONLY_STATE" ;;
   enable) printf 'enabled\\n' > "$BC250_TEST_READONLY_STATE" ;;
   *) exit 2 ;;

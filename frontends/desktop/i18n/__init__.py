@@ -7,6 +7,7 @@ from functools import lru_cache
 from typing import Iterable
 
 from ..core.error_diagnostics import DIAGNOSTIC_SOURCES
+from ..core.temperature_unit import localize_temperature_text
 from .backend_catalog import BASE_TRANSLATIONS
 from .catalog import EXTRA_TRANSLATIONS
 from .cpu_catalog import CPU_TRANSLATIONS
@@ -667,7 +668,14 @@ def canonical_source(text: object, language: str | None = None) -> str:
     """Return the canonical English key for one exact translated value."""
     source = str(text or "")
     lang = resolve_language(language or _CURRENT_LANGUAGE)
-    return _canonical_source_cached(source, lang)
+    found = _canonical_source_cached(source, lang)
+    if found == source and ("°F" in source or "° F" in source):
+        # Shown in Fahrenheit, keyed in Celsius: look the key up as written.
+        celsius = localize_temperature_text(source, "celsius")
+        keyed = _canonical_source_cached(celsius, lang)
+        if keyed != celsius or lang == "en":
+            return keyed
+    return found
 
 
 PROJECT_OVERVIEW = {
@@ -815,7 +823,8 @@ def tr(text: object, language: str | None = None) -> str:
         return ""
     source = str(text)
     lang = resolve_language(language or _CURRENT_LANGUAGE)
-    return _tr_cached(source, lang)
+    # Catalogs are written in °C; the unit the user chose is applied last.
+    return localize_temperature_text(_tr_cached(source, lang))
 
 
 def shipped_name(name: object, source: str, aliases: Iterable[str] = ()) -> str:
@@ -1273,11 +1282,13 @@ def count_label(count: object, unit: str, language: str | None = None) -> str:
 
 
 def tr_format(text: str, language: str | None = None, **values: object) -> str:
-    translated = tr(text, language)
+    translated = _tr_cached(str(text), resolve_language(language or _CURRENT_LANGUAGE))
     try:
-        return translated.format(**values)
+        formatted = translated.format(**values)
     except (KeyError, ValueError, IndexError):
-        return translated
+        formatted = translated
+    # Values arrive in °C, as stored; the sentence is shown in the chosen unit.
+    return localize_temperature_text(formatted)
 
 def project_overview(language: str | None = None) -> str:
     lang = resolve_language(language or _CURRENT_LANGUAGE)
@@ -1317,7 +1328,9 @@ def _translated_source(widget, getter, setter, source_property: str, language: s
         source = canonical_source(current, language)
     else:
         expected_old = tr(str(old_source), str(old_language))
-        if current in {str(old_source), expected_old}:
+        # After a change of temperature unit the text on screen is the old
+        # unit's rendering of the same source: still that source.
+        if current in {str(old_source), expected_old} or localize_temperature_text(current) == expected_old:
             source = str(old_source)
         else:
             source = canonical_source(current, language)
@@ -1357,7 +1370,10 @@ def _localized_sources(widget, property_name: str, count: int, getter, language:
     for index in range(count):
         current = getter(index)
         old = previous[index] if isinstance(previous, list) and index < len(previous) else None
-        if old is not None and current in {old, tr(old, old_language)}:
+        if old is not None and (
+            current in {old, tr(old, old_language)}
+            or localize_temperature_text(current) == tr(old, old_language)
+        ):
             source = old
         else:
             source = canonical_source(current, old_language)

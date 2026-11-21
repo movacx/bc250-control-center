@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import re
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QAbstractScrollArea,
     QButtonGroup,
@@ -253,7 +253,14 @@ def _scrolled(page: QWidget) -> QScrollArea:
 
 
 class FeedbackDialog(QDialog):
-    """Report a problem or send an idea, without leaving the app."""
+    """Report a problem or send an idea, without leaving the app.
+
+    ``embedded`` puts the same form inside another page (Settings > Support)
+    instead of a window of its own: no frame, no header, and ``closed`` is
+    emitted where the window would have closed.
+    """
+
+    closed = pyqtSignal()
 
     def __init__(
         self,
@@ -273,8 +280,10 @@ class FeedbackDialog(QDialog):
         read_report=_read_report,
         needs_password=_needs_password,
         submit=form.submit,
+        embedded: bool = False,
     ):
         super().__init__(parent)
+        self._embedded = embedded
         self._workflow_details = dict(workflow_details or {})
         self._submit = submit
         self._facts: dict[str, object] = {}
@@ -287,29 +296,34 @@ class FeedbackDialog(QDialog):
         self._opened_from = opened_from or ("Error window" if reference else "Report button")
         self._executor = BackgroundExecutor(self)
         self.setObjectName("InfoDialog")
-        self.setModal(True)
-        self.setWindowTitle(tr("Report a problem or suggest an idea"))
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setStyleSheet(application_stylesheet())
-        enable_adaptive_dialog(self, preferred_width=680, preferred_height=760, minimum_width=420, minimum_height=420)
-
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(24, 24, 24, 24)
-        card = dialog_card(self)
+        if embedded:
+            self.setWindowFlags(Qt.WindowType.Widget)
+            outer.setContentsMargins(0, 0, 0, 0)
+            card = QFrame()
+        else:
+            self.setModal(True)
+            self.setWindowTitle(tr("Report a problem or suggest an idea"))
+            self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            self.setStyleSheet(application_stylesheet())
+            enable_adaptive_dialog(self, preferred_width=680, preferred_height=760, minimum_width=420, minimum_height=420)
+            outer.setContentsMargins(24, 24, 24, 24)
+            card = dialog_card(self)
         card.setProperty("feedbackForm", True)
         outer.addWidget(card)
 
         frame = QVBoxLayout(card)
         frame.setContentsMargins(0, 0, 0, 0)
         frame.setSpacing(0)
-        frame.addWidget(dialog_header(
-            self,
-            tr("Report a problem or suggest an idea"),
-            tr("Goes straight to the developer. Only the developer sees it."),
-            "report_amber",
-            COLORS["orange_soft"],
-        ))
+        if not embedded:
+            frame.addWidget(dialog_header(
+                self,
+                tr("Report a problem or suggest an idea"),
+                tr("Goes straight to the developer. Only the developer sees it."),
+                "report_amber",
+                COLORS["orange_soft"],
+            ))
         body = QWidget()
         layout = QVBoxLayout(body)
         layout.setContentsMargins(22, 16, 22, 14)
@@ -722,7 +736,16 @@ class FeedbackDialog(QDialog):
         # that it was still sent.
         if getattr(self, "_sending", False):
             return
+        if self._embedded:
+            self.closed.emit()
+            return
         super().reject()
+
+    def accept(self) -> None:  # noqa: D401 - Qt API
+        if self._embedded:
+            self.closed.emit()
+            return
+        super().accept()
 
     def _sent(self) -> None:
         self._sending = False
@@ -759,7 +782,8 @@ class FeedbackDialog(QDialog):
 
     def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().showEvent(event)
-        center_dialog(self)
+        if not self._embedded:
+            center_dialog(self)
 
 
 def open_feedback(parent: QWidget | None = None, **kwargs) -> int:

@@ -51,7 +51,7 @@ La instalación normal incluye la interfaz del terminal y los recursos web compi
 - Preparación del sistema según la distribución, ejecutada en una terminal integrada
 - Correcciones de compatibilidad para GFX1013, async compute, ACPI y Mesa; Dolby Digital 5.1 por HDMI; control de la TV por HDMI-CEC
 - Informes de problemas dentro de la aplicación, con códigos de error, códigos de origen y el error sin procesar adjunto
-- 30 idiomas, temas claro y oscuro, escalado de la interfaz y navegación con mando
+- 30 idiomas, temas claro y oscuro, escalado de la interfaz, temperaturas en °C o °F y navegación con mando
 - Interfaz de terminal con navegación por teclado, compatibilidad con mouse, telemetría en vivo y una consola de operación integrada
 - Interfaz web HTTPS de red local con diseños móviles, emparejamiento de QR y permisos de hardware por dispositivo
 
@@ -141,7 +141,7 @@ bash scripts/uninstall-local.sh
 
 ## Primeros pasos
 
-1. Abre BC250 Control Center. La pantalla de primer inicio elige el idioma y la apariencia, y ofrece instalar los componentes necesarios.
+1. Abre BC250 Control Center. La pantalla de primer inicio elige el idioma, la unidad de temperatura (°C o °F) y la apariencia, y ofrece instalar los componentes necesarios.
 2. Opcionalmente, haz el recorrido guiado, que explica qué cambia cada módulo en la placa.
 3. En el Panel, ejecuta **Prepare BC250 system**. Muestra lo que se instalará para tu distribución y lo ejecuta en la terminal integrada.
 4. Lee la línea de estado de un módulo antes de aplicar cambios; indica qué está listo y qué falta.
@@ -241,6 +241,8 @@ Usa **Reportar este problema** en la ventana de error, o **Ajustes › Diagnóst
 El informe adjunta además un diagnóstico del hardware, recopilado sin root en todas las distribuciones: kernel y cabeceras, módulos de sensores cargados y sus mensajes del kernel (NCT6687, amdgpu), lecturas de hwmon y `sensors`, líneas de GPU y de fallos del registro del kernel, cómo terminó el arranque anterior (apagado limpio o reinicio brusco), servicios, paquetes y el final del último registro de flujo de trabajo. Si el registro del kernel no es legible para tu usuario, el escritorio pide la contraseña una vez mediante polkit. Los informes demasiado grandes para el formulario se recortan automáticamente, empezando por las partes menos importantes; **Abrir en el navegador** sigue copiando el texto completo.
 
 Para leer todo lo que adjunta un informe antes de enviarlo, abra **Configuración › Diagnóstico › Ver diagnóstico completo**: cada sección (kernel, arranque anterior, caja negra, sensores, GPU, servicios, configuración, paquetes, registros) se puede expandir, ordenar en pestañas, buscar y se puede copiar o guardar como un archivo. El terminal imprime lo mismo con `bc250-control-center-cli diagnose --full`.
+
+**Ajustes › Acerca de › Soporte › Errores frecuentes** abre un catálogo sin conexión con guías buscables y selector de módulo. Cada artículo utiliza la distribución detectada. Presenta la solución como texto y comandos copiables, con las notas de desarrollo en otra pestaña. Las ventanas de error con una coincidencia enlazan a su artículo. El catálogo nunca ejecuta comandos automáticamente.
 
 Los problemas en GitHub también son bienvenidos. Incluye tu distribución, la versión del kernel y la salida de la terminal.
 

@@ -48,7 +48,7 @@ def test_the_processor_panel_owns_its_cores(page):
 def test_the_cooling_panel_owns_the_board_and_the_drive(page):
     keys = set(page.fan_card.details.readings)
 
-    assert {"duty", "mode", "controller", "board", "nvme", "hotspot"} <= keys
+    assert {"duty", "mode", "board", "nvme", "hotspot"} <= keys
 
 
 def test_every_panel_is_built_the_same_way(page):

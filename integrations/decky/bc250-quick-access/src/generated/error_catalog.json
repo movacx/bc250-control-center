@@ -85,6 +85,23 @@
       "retryable": false
     },
     {
+      "code": "BC250-PKG-007",
+      "markers": [
+        "database already registered"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
+      "code": "BC250-PKG-006",
+      "markers": [
+        "corrupted package .checksum",
+        "BC-250 repository is serving a damaged package"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
       "code": "BC250-BUILD-002",
       "markers": [
         "STEAMOS_AMDGPU_BUILD_FAILED"
@@ -669,6 +686,7 @@
     "target must be an even value from 24 through 40",
     "Run automatic detection at this exact frequency",
     "System management is locked by the application",
+    "BC-250 repository is serving a damaged package",
     "Failed to restore SteamOS read-only protection",
     "fork: retry: Resource temporarily unavailable",
     "protected GDDR6 patch helper is not installed",
@@ -731,6 +749,8 @@
     "nct6687 could not be loaded",
     "replaced the running kernel",
     "nct6687.ko was not produced",
+    "database already registered",
+    "corrupted package .checksum",
     "STEAMOS_AMDGPU_BUILD_FAILED",
     "headers for another kernel",
     "could not create directory",

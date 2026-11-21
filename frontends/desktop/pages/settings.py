@@ -13,13 +13,14 @@ from PyQt6.QtCore import (
     QRect,
     QSettings,
     QSignalBlocker,
+    QSize,
     Qt,
     QThread,
     QTimer,
     QUrl,
     pyqtSignal,
 )
-from PyQt6.QtGui import QDesktopServices, QIcon, QPixmap
+from PyQt6.QtGui import QDesktopServices, QIcon, QPainter, QPalette, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -28,7 +29,6 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
-    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -38,6 +38,10 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit,
     QScrollArea,
     QSizePolicy,
+    QStackedWidget,
+    QStyle,
+    QStyleOptionButton,
+    QStylePainter,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -45,6 +49,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as _PlainButton
 
+from bc250cc.application.system.feedback import reports as sent_reports_store
 from bc250cc.infrastructure import SystemdUserService
 from bc250cc.infrastructure.apu_telemetry_service import apu_telemetry_state
 from bc250cc.infrastructure.gddr6_memory_temp_repository import (
@@ -52,6 +57,7 @@ from bc250cc.infrastructure.gddr6_memory_temp_repository import (
     gddr6_firmware_supported,
 )
 from bc250cc.infrastructure.governor_conflicts import normalize_governor_preference
+from bc250cc.infrastructure.system_setup import MEMORY_SENSOR_OPTION
 from bc250cc.infrastructure.system_snapshot import system_snapshot
 from bc250cc.infrastructure.vrm_telemetry_reader import (
     kernel_vrm_driver_present,
@@ -59,6 +65,7 @@ from bc250cc.infrastructure.vrm_telemetry_reader import (
 )
 from bc250cc.platform.init.services import detect_init_manager
 from bc250cc.platform.packages.strategies.detector import detect_os_info
+from bc250cc.shared import known_errors
 from bc250cc.shared.failure_text import describe_failure
 from bc250cc.shared.version import __version__
 
@@ -66,6 +73,11 @@ from .. import theme as _theme
 from ..components.buttons import WrappingButton as QPushButton
 from ..components.density import apply_layout_density
 from ..components.dialogs import center_dialog, enable_adaptive_dialog
+from ..components.known_errors import (
+    DistributionContext,
+    KnownErrorDetail,
+    KnownErrorsList,
+)
 from ..components.page_widgets import ConfirmDialog
 from ..components.responsive import (
     QT_MAX_SIZE,
@@ -82,10 +94,11 @@ from ..core.diagnostic_history import (
     diagnostic_report,
     history_entries,
 )
-from ..core.external_links import open_external_url
-from ..core.preferences import REPORT_GLOW_KEY, application_settings
+from ..core.preferences import REPORT_GLOW_KEY, UiPreferences, application_settings
 from ..core.raw_errors import remember
 from ..core.state import state_cache_for
+from ..core.temperature_unit import CELSIUS, FAHRENHEIT, set_temperature_unit
+from ..core.temperature_unit import SETTINGS_KEY as TEMPERATURE_UNIT_KEY
 from ..i18n import (
     LANGUAGE_OPTIONS,
     count_label,
@@ -153,7 +166,6 @@ OFFICIAL_REPOSITORIES = (
 )
 #: Repositories whose owner has archived them: still the reference for what they were, no longer updated.
 ARCHIVED_REPOSITORIES = frozenset({"duggasco/bc250-40cu-unlock"})
-CONTACT_URL = "https://discord.com/channels/1315924807128449065/1526169299490836510"
 
 
 def settings_stylesheet() -> str:
@@ -320,6 +332,101 @@ def settings_stylesheet() -> str:
     QWidget[settingsPage='true'] QFrame[repositoryRow='true']:hover {{
         border-color:{c['border_strong']}; background:{c['control_hover']};
     }}
+    QWidget[settingsPage='true'] QPushButton[supportCard='true'] {{
+        background:{c['panel_raised']}; border:1px solid {c['border_soft']}; border-radius:12px;
+        text-align:left; padding:0; min-height:112px;
+    }}
+    QWidget[settingsPage='true'] QPushButton[supportCard='true']:hover,
+    QWidget[settingsPage='true'] QPushButton[supportCard='true']:focus {{
+        border-color:{c['border_strong']}; background:{c['control_hover']};
+    }}
+    QWidget[settingsPage='true'] QPushButton[supportCard='true'][primaryCard='true'] {{
+        border-color:{c['blue']};
+    }}
+    QWidget[settingsPage='true'] QLabel[supportCardTitle='true'] {{
+        color:{c['text']}; font-size:13px; font-weight:700; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[supportCardText='true'] {{
+        color:{row_note}; font-size:11px; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[supportCardGo='true'] {{
+        color:{c['blue']}; font-size:11px; font-weight:650; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QPushButton[supportTab='true'] {{
+        background:transparent; border:none; border-bottom:2px solid transparent;
+        color:{c['muted']}; font-size:12px; font-weight:650; padding:8px 14px; border-radius:0;
+    }}
+    QWidget[settingsPage='true'] QPushButton[supportTab='true']:checked {{
+        color:{c['text']}; border-bottom-color:{c['blue']};
+    }}
+    QWidget[settingsPage='true'] QLabel[guideTitle='true'] {{
+        color:{c['text']}; font-size:21px; font-weight:700; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[guideLead='true'] {{
+        color:{row_note}; font-size:13px; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[guideBody='true'] {{
+        color:{c['text']}; font-size:13px; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[guideSectionTitle='true'],
+    QWidget[settingsPage='true'] QLabel[guideRowTitle='true'] {{
+        color:{c['text']}; font-size:14px; font-weight:650; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[guideMeta='true'] {{
+        color:{c['muted']}; font-size:11px; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[guideFieldLabel='true'] {{
+        color:{c['text']}; font-size:12px; font-weight:600; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[guideNotice='true'] {{
+        color:{row_note}; font-size:12px; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLineEdit[guideSearch='true'] {{
+        min-height:38px; font-size:12px; padding:0 12px;
+    }}
+    QWidget[settingsPage='true'] QFrame[supportTable='true'] {{
+        background:{c['panel_raised']}; border:1px solid {c['border_soft']}; border-radius:10px;
+    }}
+    QWidget[settingsPage='true'] QFrame[supportTableHeader='true'] {{
+        background:{band}; border:none; border-bottom:1px solid {c['border_soft']};
+        border-top-left-radius:10px; border-top-right-radius:10px;
+    }}
+    QWidget[settingsPage='true'] QLabel[supportHeaderCell='true'] {{
+        color:{c['muted']}; font-size:10px; font-weight:650; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QFrame[supportTableRow='true'] {{
+        background:transparent; border:none; border-bottom:1px solid {c['border_soft']};
+    }}
+    QWidget[settingsPage='true'] QFrame[supportTableRow='true'][lastRow='true'] {{ border-bottom:none; }}
+    QWidget[settingsPage='true'] QFrame[supportTableRow='true']:hover {{ background:{c['control_hover']}; }}
+    QWidget[settingsPage='true'] QFrame[supportTableRow='true'] QLabel {{ background:transparent; }}
+    QWidget[settingsPage='true'] QPushButton[supportPill='true'] {{
+        background:{c['control']}; border:1px solid {c['border_soft']}; border-radius:12px;
+        color:{c['muted']}; font-size:11px; padding:4px 12px;
+    }}
+    QWidget[settingsPage='true'] QPushButton[supportPill='true']:checked {{
+        color:{c['text']}; border-color:{c['border_strong']};
+    }}
+    QWidget[settingsPage='true'] QLabel[sentId='true'] {{
+        color:{c['blue']}; background:transparent; font-size:11px;
+        font-family:'Noto Sans Mono','DejaVu Sans Mono',monospace;
+    }}
+    QWidget[settingsPage='true'] QLabel[rowSubtitle='true'] {{ color:{row_note}; font-size:11px; background:transparent; }}
+    QWidget[settingsPage='true'] QLabel[rowValue='true'] {{ color:{c['text']}; font-size:12px; background:transparent; }}
+    QWidget[settingsPage='true'] QLabel[supportSummaryHeading='true'] {{
+        color:{c['muted']}; font-size:10px; font-weight:650; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[supportFact='true'] {{
+        color:{c['text']}; font-size:12px; font-weight:600; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QLabel[supportWrote='true'] {{
+        color:{c['text']}; font-size:12px; background:{c['window']}; border:1px solid {c['border_soft']};
+        border-radius:8px; padding:10px 12px;
+    }}
+    QWidget[settingsPage='true'] QLabel[supportAttached='true'] {{
+        color:{c['text']}; font-size:12px; background:transparent;
+    }}
+    QWidget[settingsPage='true'] QFrame[supportRule='true'] {{ background:{c['border_soft']}; border:none; }}
     QWidget[settingsPage='true'] QLabel[repositoryName='true'] {{
         color:{c['text']}; font-size:12px; font-weight:720;
     }}
@@ -458,7 +565,17 @@ VRM_SERVICE_REDUNDANT = (
     "is not needed and cannot open the bus. Remove it here."
 )
 
-class SettingsNavButton(QPushButton):
+class SettingsNavButton(_PlainButton):
+    """One row of the settings sidebar: icon at the left, label beside it.
+
+    A long (or translated) label wraps under itself instead of being centred
+    across the row, which is what the action-button wrapper does and drops the
+    icon in the process. The row grows to hold the lines it needs.
+    """
+
+    #: Space around the content, matching the stylesheet's ``padding:6px 8px``.
+    SIDE, VERTICAL, GAP = 8, 6, 6
+
     def __init__(self, key: str, text: str, icon_name: str, parent: QWidget | None = None):
         super().__init__(text, parent)
         self.key = key
@@ -476,6 +593,61 @@ class SettingsNavButton(QPushButton):
 
         self.setIcon(_nav_icon(self.icon_name, "blue"))
         self.setIconSize(EXPANDED_ICON)
+        self.updateGeometry()
+
+    def _text_width(self, width: int) -> int:
+        return max(20, width - 2 * self.SIDE - self.iconSize().width() - self.GAP)
+
+    def _text_height(self, width: int) -> int:
+        flags = Qt.TextFlag.TextWordWrap | Qt.TextFlag.TextShowMnemonic
+        bounds = self.fontMetrics().boundingRect(QRect(0, 0, self._text_width(width), 10000), flags, self.text())
+        return bounds.height()
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, width: int) -> int:
+        return max(34, self._text_height(width) + 2 * self.VERTICAL + 4)
+
+    def sizeHint(self) -> QSize:
+        native = super().sizeHint()
+        if self.isVisible() and 0 < self.width() < native.width():
+            # Narrower than one line: the label wraps, so say what it needs here.
+            return QSize(self.width(), self.heightForWidth(self.width()))
+        return native
+
+    def minimumSizeHint(self) -> QSize:
+        native = super().minimumSizeHint()
+        return QSize(min(native.width(), 100), native.height())
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        wanted = self.heightForWidth(self.width())
+        if self.minimumHeight() != wanted:
+            self.setMinimumHeight(wanted)
+
+    def setText(self, text: str) -> None:
+        super().setText(text)
+        self.updateGeometry()
+        if self.width():
+            self.setMinimumHeight(self.heightForWidth(self.width()))
+
+    def paintEvent(self, event) -> None:
+        option = QStyleOptionButton()
+        self.initStyleOption(option)
+        painter = QStylePainter(self)
+        painter.drawControl(QStyle.ControlElement.CE_PushButtonBevel, option)
+        size = self.iconSize()
+        state = QIcon.State.On if self.isChecked() else QIcon.State.Off
+        mode = (QIcon.Mode.Disabled if not self.isEnabled()
+                else QIcon.Mode.Active if self.underMouse() else QIcon.Mode.Normal)
+        icon_rect = QRect(self.SIDE, (self.height() - size.height()) // 2, size.width(), size.height())
+        self.icon().paint(painter, icon_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, mode, state)
+        text_rect = QRect(self.SIDE + size.width() + self.GAP, 0,
+                          self._text_width(self.width()), self.height())
+        flags = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter | Qt.TextFlag.TextWordWrap | Qt.TextFlag.TextShowMnemonic
+        self.style().drawItemText(painter, text_rect, flags, option.palette, self.isEnabled(),
+                                  self.text(), QPalette.ColorRole.ButtonText)
 
 
 #: A magnifier for the search field, drawn like the other glyphs.
@@ -631,6 +803,41 @@ class ActionGrid(QWidget):
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().resizeEvent(event)
         self._reflow()
+
+
+def confirm_apu_telemetry(action: str, parent: QWidget | None) -> bool:
+    """Ask before installing or removing BC250-Telemetry.
+
+    Shared by Settings › Telemetry and Additional settings › Compatibility,
+    so both say the same thing about what is built and what touches the board.
+    """
+    if action == "install":
+        confirmation = ConfirmDialog(
+            "Install the BC250-Telemetry service?",
+            "Control Center builds the daemon from the reviewed upstream source and "
+            "installs it as a root service that reads the voltage regulators over "
+            "I2C. Without the physical I2C modification it finds nothing and only "
+            "keeps retrying. Building needs your password and an internet connection.",
+            summary=(
+                ("Source", "github.com/onlinermm/BC250-Telemetry"),
+                ("Installs", "apu-telemetry.service"),
+                ("Not installed", "Web server, fan module and memory collector"),
+                ("Writes to the board", "One PMBus page-select register; no regulator setting"),
+            ),
+            confirm_text="Build and install",
+            tone="orange",
+            parent=parent,
+        )
+    else:
+        confirmation = ConfirmDialog(
+            "Remove the BC250-Telemetry service?",
+            "Stops and removes the service and its binary. The power delivery "
+            "readings stop until it is installed again.",
+            confirm_text="Remove",
+            tone="orange",
+            parent=parent,
+        )
+    return confirmation.exec() == QDialog.DialogCode.Accepted
 
 
 class SettingRow(QFrame):
@@ -1094,11 +1301,343 @@ class RepositoriesDialog(QDialog):
         localize_widget_tree(self)
 
 
+class SupportCard(QPushButton):
+    """A support action: a title, one line about it and where it leads."""
+
+    def __init__(self, title: str, text: str, go: str, *, primary: bool = False, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setProperty("supportCard", True)
+        self.setProperty("primaryCard", primary)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        column = QVBoxLayout(self)
+        column.setContentsMargins(16, 14, 16, 12)
+        column.setSpacing(4)
+        for key, label_text in (("supportCardTitle", title), ("supportCardText", text)):
+            label = QLabel(tr(label_text))
+            label.setProperty(key, True)
+            label.setWordWrap(True)
+            label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            column.addWidget(label)
+        column.addStretch(1)
+        arrow = QLabel(tr(go) + "  \u203a")
+        arrow.setProperty("supportCardGo", True)
+        arrow.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        column.addWidget(arrow)
+
+
+def _when(stamp: str) -> str:
+    """A sent report's time as a person says it: today, yesterday or the date."""
+    try:
+        moment = datetime.fromisoformat(stamp).astimezone()
+    except ValueError:
+        return ""
+    days = (datetime.now().astimezone().date() - moment.date()).days
+    if days == 0:
+        return tr_format("Today {time}", time=moment.strftime("%H:%M"))
+    if days == 1:
+        return tr_format("Yesterday {time}", time=moment.strftime("%H:%M"))
+    return moment.strftime("%Y-%m-%d %H:%M")
+
+
+class _ElidedLabel(QLabel):
+    """One line that ends in an ellipsis instead of widening its column."""
+
+    def __init__(self, text: str = "", parent: QWidget | None = None):
+        super().__init__(parent)
+        self._full = text
+        self.setMinimumWidth(24)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.setToolTip(text)
+
+    def set_full_text(self, text: str) -> None:
+        self._full = text
+        self.setToolTip(text)
+        self.update()
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        painter = QPainter(self)
+        painter.setPen(self.palette().color(self.foregroundRole()))
+        painter.setFont(self.font())
+        painter.drawText(self.rect(), int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft),
+                         self.fontMetrics().elidedText(self._full, Qt.TextElideMode.ElideRight, self.width()))
+
+
+def _clear_layout(layout) -> None:
+    """Remove everything in a layout, nested rows included, so nothing is left drawn."""
+    while layout.count():
+        item = layout.takeAt(0)
+        widget = item.widget()
+        if widget is not None:
+            widget.hide()
+            widget.setParent(None)
+            widget.deleteLater()
+        elif item.layout() is not None:
+            _clear_layout(item.layout())
+
+
+#: Column widths of the sent-reports table: ID, problem (takes the rest), version, when, actions.
+_SENT_COLUMNS = (116, 0, 70, 110, 156)
+
+
+def _in_week(stamp: str) -> bool:
+    try:
+        moment = datetime.fromisoformat(stamp).astimezone()
+    except ValueError:
+        return False
+    return (datetime.now().astimezone() - moment).days < 7
+
+
+def _copy_text(owner: QWidget, value: str) -> None:
+    clipboard = QApplication.clipboard()
+    if clipboard is not None:
+        clipboard.setText(value)
+    show_toast(owner, "Report ID copied", tone="blue")
+
+
+class SentReportsList(QWidget):
+    """The reports this computer sent, newest first, as a table: View and Copy on each."""
+
+    view_requested = pyqtSignal(dict)
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._column = QVBoxLayout(self)
+        self._column.setContentsMargins(0, 0, 0, 0)
+        self._column.setSpacing(10)
+        top = QHBoxLayout()
+        self.heading = QLabel(tr("Sent reports"))
+        self.heading.setProperty("groupTitle", True)
+        top.addWidget(self.heading)
+        top.addStretch(1)
+        self.filters: list[QPushButton] = []
+        group = QButtonGroup(self)
+        group.setExclusive(True)
+        for label in ("All reports", "This week"):
+            pill = _PlainButton(tr(label))
+            pill.setProperty("supportPill", True)
+            pill.setCheckable(True)
+            pill.setCursor(Qt.CursorShape.PointingHandCursor)
+            pill.clicked.connect(lambda _checked=False: self.refresh())
+            group.addButton(pill)
+            top.addWidget(pill)
+            self.filters.append(pill)
+        self.filters[0].setChecked(True)
+        self._column.addLayout(top)
+        self.table = QFrame()
+        self.table.setProperty("supportTable", True)
+        self._table_layout = QVBoxLayout(self.table)
+        self._table_layout.setContentsMargins(0, 0, 0, 0)
+        self._table_layout.setSpacing(0)
+        self._column.addWidget(self.table)
+        self.rows: list[QWidget] = []
+        self._actions_column = _SENT_COLUMNS[4]
+        self.refresh()
+
+    def _actions_width(self) -> int:
+        """Wide enough for View and Copy in this language, whatever the words are."""
+        probe_view, probe_copy = _PlainButton(tr("View")), _PlainButton(tr("Copy"))
+        for probe in (probe_view, probe_copy):
+            probe.setProperty("toolbarAction", True)
+        probe_copy.setIcon(icon("copy_gray"))
+        width = probe_view.sizeHint().width() + probe_copy.sizeHint().width() + 6
+        for probe in (probe_view, probe_copy):
+            probe.deleteLater()
+        return max(_SENT_COLUMNS[4], width + 6)
+
+    def _grid(self, frame: QFrame) -> QGridLayout:
+        grid = QGridLayout(frame)
+        grid.setContentsMargins(16, 0, 16, 0)
+        grid.setHorizontalSpacing(12)
+        widths = (*_SENT_COLUMNS[:4], self._actions_column)
+        for index, width in enumerate(widths):
+            if width:
+                grid.setColumnMinimumWidth(index, width)
+            else:
+                grid.setColumnStretch(index, 1)
+        return grid
+
+    @staticmethod
+    def _cell(widget: QWidget, width: int) -> QWidget:
+        """A fixed-width column cell whose content hugs the left edge."""
+        holder = QWidget()
+        holder.setFixedWidth(width)
+        row = QHBoxLayout(holder)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(widget)
+        row.addStretch(1)
+        return holder
+
+    def refresh(self) -> None:
+        _clear_layout(self._table_layout)
+        self.rows = []
+        self._actions_column = self._actions_width()
+        items = sent_reports_store.sent_reports()
+        if self.filters[1].isChecked():
+            items = [item for item in items if _in_week(str(item.get("sent_at") or ""))]
+        header = QFrame()
+        header.setProperty("supportTableHeader", True)
+        header.setFixedHeight(34)
+        grid = self._grid(header)
+        for index, label in enumerate(("ID", "Problem", "Version", "When")):
+            cell = QLabel(tr(label))
+            cell.setProperty("supportHeaderCell", True)
+            if _SENT_COLUMNS[index]:
+                cell.setFixedWidth(_SENT_COLUMNS[index])
+            grid.addWidget(cell, 0, index)
+        # An empty column gets no spacing: the actions column keeps the header aligned.
+        spacer = QLabel("")
+        spacer.setFixedWidth(self._actions_column)
+        grid.addWidget(spacer, 0, 4)
+        self._table_layout.addWidget(header)
+        self.rows.append(header)
+        if not items:
+            note = QLabel(tr("No reports sent yet. Each report you send shows here with its ID."))
+            note.setProperty("rowDescription", True)
+            note.setWordWrap(True)
+            note.setContentsMargins(16, 14, 16, 14)
+            self._table_layout.addWidget(note)
+            self.rows.append(note)
+            return
+        for position, item in enumerate(items):
+            self._table_layout.addWidget(self._row(item, last=position == len(items) - 1))
+
+    def _row(self, item: dict, *, last: bool) -> QFrame:
+        row = QFrame()
+        row.setProperty("supportTableRow", True)
+        row.setProperty("lastRow", last)
+        row.setFixedHeight(52)
+        grid = self._grid(row)
+        identifier = QLabel(str(item.get("id") or ""))
+        identifier.setProperty("sentId", True)
+        identifier.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        grid.addWidget(self._cell(identifier, _SENT_COLUMNS[0]), 0, 0)
+        cell = QVBoxLayout()
+        cell.setContentsMargins(0, 0, 0, 0)
+        cell.setSpacing(1)
+        title = _ElidedLabel(str(item.get("summary") or tr("Suggestion")))
+        title.setProperty("repositoryName", True)
+        area = tr("Suggestion") if str(item.get("kind") or "") == "idea" else tr(str(item.get("area") or ""))
+        cell.addWidget(title)
+        if area:
+            subtitle = _ElidedLabel(area)
+            subtitle.setProperty("rowSubtitle", True)
+            cell.addWidget(subtitle)
+        grid.addLayout(cell, 0, 1)
+        for column, text in ((2, str(item.get("version") or "")), (3, _when(str(item.get("sent_at") or "")))):
+            label = QLabel(text)
+            label.setProperty("rowValue", True)
+            grid.addWidget(self._cell(label, _SENT_COLUMNS[column]), 0, column)
+        actions = QWidget()
+        actions.setFixedWidth(self._actions_column)
+        action_row = QHBoxLayout(actions)
+        action_row.setContentsMargins(0, 0, 0, 0)
+        action_row.setSpacing(6)
+        action_row.addStretch(1)
+        view = _PlainButton(tr("View"))
+        view.setProperty("toolbarAction", True)
+        view.setCursor(Qt.CursorShape.PointingHandCursor)
+        view.clicked.connect(lambda _checked=False, entry=dict(item): self.view_requested.emit(entry))
+        copy = _PlainButton(tr("Copy"))
+        copy.setProperty("toolbarAction", True)
+        copy.setIcon(icon("copy_gray"))
+        copy.setCursor(Qt.CursorShape.PointingHandCursor)
+        copy.clicked.connect(lambda _checked=False, value=str(item.get("id") or ""): _copy_text(self, value))
+        action_row.addWidget(view)
+        action_row.addWidget(copy)
+        grid.addWidget(actions, 0, 4)
+        self.rows.append(row)
+        return row
+
+
+class SupportDetail(QWidget):
+    """One sent report: what it was about and what was attached, all kept on this computer."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        summary = QFrame()
+        summary.setProperty("supportTable", True)
+        column = QVBoxLayout(summary)
+        column.setContentsMargins(18, 18, 18, 18)
+        column.setSpacing(0)
+        self._facts = QGridLayout()
+        self._facts.setHorizontalSpacing(14)
+        self._facts.setVerticalSpacing(9)
+        self._facts.setColumnMinimumWidth(0, 110)
+        self._facts.setColumnStretch(1, 1)
+        column.addLayout(self._facts)
+        column.addSpacing(14)
+        column.addWidget(self._rule())
+        column.addSpacing(14)
+        column.addWidget(self._heading("What was attached"))
+        column.addSpacing(6)
+        self.attached = QVBoxLayout()
+        self.attached.setSpacing(6)
+        column.addLayout(self.attached)
+        column.addSpacing(14)
+        self.copy_id = _PlainButton(tr("Copy ID"))
+        self.copy_id.setProperty("toolbarAction", True)
+        self.copy_id.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.copy_id.clicked.connect(lambda: _copy_text(self, self._id))
+        column.addWidget(self.copy_id)
+        outer.addWidget(summary, 0, Qt.AlignmentFlag.AlignTop)
+        self._id = ""
+
+    @staticmethod
+    def _heading(text: str) -> QLabel:
+        # Small capitals, whatever the language: the catalogs keep the plain sentence.
+        label = QLabel(tr(text).upper())
+        label.setProperty("supportSummaryHeading", True)
+        return label
+
+    @staticmethod
+    def _rule() -> QFrame:
+        rule = QFrame()
+        rule.setProperty("supportRule", True)
+        rule.setFixedHeight(1)
+        return rule
+
+    def show_report(self, item: dict) -> None:
+        self._id = str(item.get("id") or "")
+        idea = str(item.get("kind") or "") == "idea"
+        title = str(item.get("summary") or tr("Suggestion"))
+        _clear_layout(self._facts)
+        rows = (
+            ("Problem", title),
+            ("Area", tr("Suggestion") if idea else (tr(str(item.get("area") or "")) or "\u2014")),
+            ("Code", str(item.get("code") or "\u2014")),
+            ("Version", str(item.get("version") or "\u2014")),
+            ("Sent", _when(str(item.get("sent_at") or "")) or "\u2014"),
+        )
+        for position, (label, value) in enumerate(rows):
+            name = QLabel(tr(label))
+            name.setProperty("rowDescription", True)
+            text = QLabel(value)
+            text.setProperty("supportFact", True)
+            text.setWordWrap(True)
+            self._facts.addWidget(name, position, 0, Qt.AlignmentFlag.AlignTop)
+            self._facts.addWidget(text, position, 1)
+        _clear_layout(self.attached)
+        names = ("Version and system", "Recent logs", "System diagnostics") if item.get("attached") else ()
+        if not names:
+            none = QLabel(tr("Nothing was attached."))
+            none.setProperty("rowDescription", True)
+            self.attached.addWidget(none)
+        for name in names:
+            line = QLabel(f"<span style='color:{COLORS['green']}'>\u2713</span>&nbsp;&nbsp;" + tr(name))
+            line.setTextFormat(Qt.TextFormat.RichText)
+            line.setProperty("supportAttached", True)
+            self.attached.addWidget(line)
+
+
 class SettingsPage(QWidget):
     section_requested = pyqtSignal(str)
     language_changed = pyqtSignal(str)
     appearance_changed = pyqtSignal(str, str, str)
     scale_changed = pyqtSignal(int)
+    gpu_interface_changed = pyqtSignal(str)
+    driver_support_requested = pyqtSignal(str)
     smart_alerts_changed = pyqtSignal(bool)
     desktop_notifications_changed = pyqtSignal(bool)
     diagnostics_changed = pyqtSignal(bool)
@@ -1114,6 +1653,8 @@ class SettingsPage(QWidget):
     vrm_manual_changed = pyqtSignal(bool)
     tour_requested = pyqtSignal()
     update_requested = pyqtSignal()
+    #: A managed kernel boot option to switch (Compatibility does the work).
+    kernel_option_requested = pyqtSignal(str)
 
     def __init__(self, controller, *, settings_service, activity_service, app_settings: QSettings | None = None, parent: QWidget | None = None):
         super().__init__(parent)
@@ -1227,10 +1768,7 @@ class SettingsPage(QWidget):
             ("console", "Terminal and controls", "terminal_window_gray"),
             ("hardware", "GPU governor", "gpu_blue"),
             ("telemetry", "Telemetry", "metrics_blue"),
-            # "and", never "&": a push button reads "&" as a keyboard
-            # mnemonic, and "History & reports" rendered as "History _reports".
-            ("diagnostics", "Diagnostics", "logs_gray"),
-            ("reports", "History and reports", "history_blue"),
+            # Diagnostics and the history live under About > Support > View reports.
             ("about", "About", "info_blue"),
         ]
         self.section_order = [key for key, _text, _icon in sections]
@@ -1245,7 +1783,6 @@ class SettingsPage(QWidget):
         self.nav_groups = (
             ("Interface", ("general", "appearance", "console")),
             ("Hardware", ("hardware", "telemetry")),
-            ("Data", ("diagnostics", "reports")),
             ("Application", ("about",)),
         )
         self.nav_captions: list[QLabel] = []
@@ -1493,7 +2030,14 @@ class SettingsPage(QWidget):
             self.select_section(shown[0])
 
     #: Pages opened from a section, shown under its tab with a way back.    #: Pages opened from a section, shown under its tab with a way back.
-    SUBPAGES = {"overview": "about", "repositories": "about"}
+    SUBPAGES = {
+        "overview": "about", "repositories": "about", "support": "about",
+        "support_report": "about", "support_reports": "about", "support_detail": "about",
+        "support_errors": "about", "support_error_detail": "about",
+        "telemetry_guide": "telemetry",
+    }
+    #: Sections that moved into Support: the old key opens its tab.
+    SECTION_ALIASES = {"diagnostics": ("support_reports", 0), "reports": ("support_reports", 1)}
 
     def _show_section(self, key: str) -> None:
         owner = self.SUBPAGES.get(key, key)
@@ -1507,11 +2051,22 @@ class SettingsPage(QWidget):
 
     def _section_shown(self, key: str) -> None:
         """Fetch what a section shows, now that it is on screen."""
-        if key == "reports":
+        if key == "support_reports":
             self.refresh_history()
-        elif key == "diagnostics":
             self._refresh_diagnostics()
+        elif key == "support":
+            self.sent_reports_list.refresh()
+        elif key == "support_report":
+            self._open_report_form()
+        elif key == "support_errors":
+            self.known_errors_list.refresh_language()
+        elif key == "support_error_detail" and self.known_error_detail.identity:
+            self.known_error_detail.show_entry(self.known_error_detail.identity)
+        elif key == "telemetry_guide":
+            self.refresh_sensor_guide()
         elif key == "telemetry":
+            self._refresh_gddr6_kernel_driver()
+            self.refresh_kernel_sensor_drivers()
             self._load_daemon_config()
             self.refresh_daemon_status()
             self.refresh_vrm_detection()
@@ -1524,11 +2079,16 @@ class SettingsPage(QWidget):
             "hardware": self._build_hardware_page,
             "console": self._build_console_page,
             "telemetry": self._build_telemetry_page,
-            "reports": self._build_reports_page,
-            "diagnostics": self._build_diagnostics_page,
+            "support": self._build_support_page,
+            "support_report": self._build_support_report_page,
+            "support_reports": self._build_support_reports_page,
+            "support_detail": self._build_support_detail_page,
+            "support_errors": self._build_known_errors_page,
+            "support_error_detail": self._build_known_error_detail_page,
             "about": self._build_about_page,
             "overview": self._build_overview_page,
             "repositories": self._build_repositories_page,
+            "telemetry_guide": self._build_sensor_guide_page,
         }
         self._built_sections: set[str] = set()
         self._section_pages: dict[str, QWidget] = {}
@@ -1540,6 +2100,7 @@ class SettingsPage(QWidget):
             self._section_pages[key] = placeholder
 
     def _ensure_section(self, key: str) -> QWidget | None:
+        key = self.SECTION_ALIASES.get(key, (key, 0))[0]
         if key not in self._page_builders:
             return None
         if key in self._built_sections:
@@ -1579,6 +2140,16 @@ class SettingsPage(QWidget):
             "Set the interface language. The change is applied immediately to the interface and its dialogs.",
             self._coded_combo([(name, code) for code, name in LANGUAGE_OPTIONS], "settings/language", "auto", self._language_control_changed),
         ))
+        language.add_row(SettingRow(
+            "Temperature unit",
+            "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.",
+            self._coded_combo(
+                [("Celsius", CELSIUS), ("Fahrenheit", FAHRENHEIT)],
+                TEMPERATURE_UNIT_KEY,
+                CELSIUS,
+                self._temperature_unit_control_changed,
+            ),
+        ))
         layout.addWidget(language)
 
         startup = SettingsGroup("Startup")
@@ -1610,8 +2181,8 @@ class SettingsPage(QWidget):
             self._button("Start the tour", self.tour_requested.emit),
         ))
         help_group.add_row(SettingRow(
-            "Highlight the report button",
-            "A soft glow every few seconds around the dashboard's button for reporting a problem or suggesting an idea.",
+            "Alert animations",
+            "On the dashboard, the buttons take turns moving: the support button sends out a ping, the developer's megaphone sends out sound waves, Ko-fi beats like a heart, and GitHub, Discord and Telegram move too. Turn it off to keep them all still.",
             self._switch(REPORT_GLOW_KEY, True, self.report_glow_changed.emit),
         ))
         help_group.add_row(SettingRow(
@@ -1846,7 +2417,10 @@ class SettingsPage(QWidget):
         buttons: list[QPushButton] = []
         for index in range(combo.count()):
             text = labels[index] if labels else combo.itemText(index)
-            button = QPushButton(text)
+            # A plain button: one or two words never need to wrap, and the
+            # wrapping button could stay stuck at a narrow width and clip them.
+            button = _PlainButton(text)
+            button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
             button.setCheckable(True)
             button.setProperty("segment", True)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1861,7 +2435,7 @@ class SettingsPage(QWidget):
 
         combo.currentIndexChanged.connect(sync)
         sync(combo.currentIndex())
-        host.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        host.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         return host
 
     @staticmethod
@@ -1883,7 +2457,8 @@ class SettingsPage(QWidget):
         ), page)
         style_combo = self._stored(self._coded_combo(
             [("Standard", "standard"), ("Formal", "formal")],
-            "settings/style", "formal", self._appearance_control_changed,
+            # The look a new installation starts in: one constant for both.
+            "settings/style", UiPreferences.DEFAULT_STYLE, self._appearance_control_changed,
         ), page)
         accent_combo = self._stored(self._coded_combo(
             [(name.capitalize(), name) for name in _theme.ACCENTS],
@@ -1975,82 +2550,253 @@ class SettingsPage(QWidget):
             scale_combo,
         ))
         layout.addWidget(sizing)
+
+        # Last on the page: it only concerns one screen.
+        interface = SettingsGroup("Interface style")
+        interface.add_row(SettingRow(
+            "GPU screen",
+            "Only applies to the GPU screen. Original brings back the layout it had before the redesign.",
+            self._segmented(self._stored(self._coded_combo(
+                [("Original style", "original"), ("Modern", "modern")],
+                "settings/gpu_interface", "modern",
+                lambda value: self.gpu_interface_changed.emit(str(value)),
+            ), page)),
+        ))
+        layout.addWidget(interface)
         layout.addStretch(1)
         return page
 
     def _build_telemetry_page(self) -> QWidget:
-        # Telemetry and optional daemon
         page, layout = self._build_page_frame(
             "Telemetry",
-            "Sampling, refresh cadence, passive monitoring, and the optional user daemon.",
+            "Where the board readings come from, and the background monitor.",
         )
-        daemon_group = SettingsGroup("Optional daemon")
+        # Sources first: they decide what the rest of the page can show.
+        layout.addWidget(self._build_sensor_sources_group())
+        layout.addWidget(self._build_vrm_manual_group())
+        layout.addWidget(self._build_gddr6_manual_group())
+        # The optional daemon is the least needed, so it goes last.
+        layout.addWidget(self._build_daemon_group())
+        layout.addStretch(1)
+        return page
+
+    def _state_and_action(self, state_attribute: str, button_attribute: str, text: str, callback) -> QWidget:
+        """A short state word and its one action, side by side on the right."""
+        host = QWidget()
+        row = QHBoxLayout(host)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(10)
+        state = QLabel(tr("Checking…"))
+        state.setProperty("rowDescription", True)
+        button = self._small_button(text, callback)
+        row.addWidget(state)
+        row.addWidget(button)
+        setattr(self, state_attribute, state)
+        setattr(self, button_attribute, button)
+        return host
+
+    #: Hexxeh's DKMS drivers, offered here as on Additional settings › Compatibility.
+    KERNEL_SENSOR_ROWS = (
+        ("vrm_sensor", "bc250-vrm", "Regulator temperatures read through the fan chip. No wires needed."),
+        ("vram_sensor", "bc250-memory", "GDDR6 temperature read through the SMU. BIOS P3.00 only."),
+    )
+
+    def _build_sensor_sources_group(self) -> QWidget:
+        group = SettingsGroup("Sensor sources")
+        self.apu_telemetry_button = self._small_button("Install service", self._apu_telemetry_clicked)
+        self.apu_telemetry_state_label = QLabel(tr("Checking…"))
+        self.apu_telemetry_state_label.setProperty("rowDescription", True)
+        host = QWidget()
+        row = QHBoxLayout(host)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(10)
+        row.addWidget(self.apu_telemetry_state_label)
+        row.addWidget(self.apu_telemetry_button)
+        group.add_row(SettingRow(
+            "BC250-Telemetry",
+            "Power delivery readings over the I2C modification. Needs the wires on the board.",
+            host,
+        ))
+        self.kernel_sensor_states: dict[str, QLabel] = {}
+        self.kernel_sensor_buttons: dict[str, QPushButton] = {}
+        for key, title, description in self.KERNEL_SENSOR_ROWS:
+            control = self._state_and_action(
+                f"_{key}_state", f"_{key}_button", "Install",
+                lambda _checked=False, item=key: self._kernel_sensor_clicked(item),
+            )
+            self.kernel_sensor_states[key] = getattr(self, f"_{key}_state")
+            self.kernel_sensor_buttons[key] = getattr(self, f"_{key}_button")
+            group.add_row(SettingRow(
+                tr_format("{driver} · by Hexxeh", driver=title), tr(description), control,
+            ))
+        hint = QLabel(tr("The kernel drivers are built with DKMS on Arch, CachyOS and Manjaro."))
+        hint.setProperty("fieldHint", True)
+        hint.setWordWrap(True)
+        group.layout_root.addWidget(hint)
+        group.layout_root.addSpacing(6)
+        # The step-by-step guide (wiring photos, both drivers) as a page of its own.
+        guide = LinkRow("Board sensors guide: I2C wiring, bc250-vrm and bc250-memory", lambda: self.open_sensor_guide())
+        guide.setProperty("lastRow", True)
+        group.layout_root.addWidget(guide)
+        self.refresh_kernel_sensor_drivers()
+        return group
+
+    def _build_sensor_guide_page(self) -> QWidget:
+        from ..components.sensor_guide_page import SensorGuidePage
+
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Board sensors guide", "telemetry", "Telemetry")
+        self.sensor_guide = SensorGuidePage()
+        self.sensor_guide.install_service_requested.connect(self._apu_telemetry_clicked)
+        self.sensor_guide.driver_requested.connect(self.driver_support_requested.emit)
+        layout.addWidget(self.sensor_guide)
+        layout.addStretch(1)
+        return page
+
+    def open_sensor_guide(self, tab: str = "i2c") -> None:
+        """The guide, on the tab asked for (the dashboard picks the shortest way)."""
+        self.select_section("telemetry_guide")
+        self.sensor_guide.select_tab(tab)
+
+    def sensor_guide_status(self) -> str:
+        """The dashboard's own words for why the band is empty on this board."""
+        from .dashboard import VRM_HELP_KERNEL, VRM_HELP_NO_ANSWER, VRM_HELP_SERVICE
+
+        if kernel_vrm_driver_present():
+            return VRM_HELP_KERNEL
+        if str(sondear_telemetria_vrm().get("daemon") or "missing") in {"running", "stale"}:
+            return VRM_HELP_NO_ANSWER
+        return VRM_HELP_SERVICE
+
+    def refresh_sensor_guide(self) -> None:
+        guide = getattr(self, "sensor_guide", None)
+        if guide is None:
+            return
+        from .dashboard import kernel_sensor_drivers
+
+        guide.set_state(
+            status=self.sensor_guide_status(),
+            service=self._apu_telemetry_state(),
+            drivers=kernel_sensor_drivers(),
+        )
+
+    def refresh_kernel_sensor_drivers(self) -> None:
+        states = getattr(self, "kernel_sensor_states", None)
+        if not states:
+            return
+        from .dashboard import kernel_sensor_drivers
+
+        drivers = kernel_sensor_drivers()
+        for key, label in states.items():
+            info = dict(drivers.get(key) or {})
+            text, action, enabled = self.describe_kernel_sensor(key, info)
+            label.setText(tr(text) if "{" not in text else text)
+            button = self.kernel_sensor_buttons[key]
+            button.setVisible(bool(action))
+            button.setEnabled(enabled)
+            button.setProperty("sensorAction", action)
+            if action:
+                button.setText(tr({"install": "Install", "update": "Update", "remove": "Remove"}[action]))
+
+    @staticmethod
+    def describe_kernel_sensor(key: str, info: dict) -> tuple[str, str, bool]:
+        """(state text, action, enabled) for one kernel sensor driver."""
+        state = str(info.get("state") or "")
+        reading = info.get("reading")
+        if state == "active" and isinstance(reading, (int, float)):
+            return tr_format("Reading {value} °C", value=f"{reading:.0f}"), "remove", True
+        if state in {"active", "installed"}:
+            return "Installed, no reading yet", "remove", True
+        if state == "update-available":
+            return "Update available", "update", True
+        if state == "not-installed":
+            return "Not installed", "install", True
+        if state == "managed-elsewhere":
+            return "Built into this kernel", "", False
+        if state == "unsupported":
+            if key == "vram_sensor" and info.get("device") and not info.get("bios_supported", True):
+                return "Needs BIOS P3.00", "", False
+            if not info.get("device", True):
+                return "Not a BC-250", "", False
+            return "Arch-based systems only", "", False
+        return "Unavailable", "", False
+
+    def _kernel_sensor_clicked(self, key: str) -> None:
+        action = str(self.kernel_sensor_buttons[key].property("sensorAction") or "")
+        if action:
+            # The app runs the same flow as the Compatibility card: its own
+            # confirmation, then the build in the terminal.
+            self.driver_support_requested.emit(f"{key}:{'remove' if action == 'remove' else 'install'}")
+
+    def _build_daemon_group(self) -> QWidget:
+        group = SettingsGroup("Optional daemon")
         self.daemon_status_label = QLabel("Checking…")
         self.daemon_status_label.setProperty("daemonState", True)
-        daemon_group.add_row(SettingRow(
-            "Daemon status",
-            "Current user-service state for bc250-control-centerd.",
+        group.add_row(SettingRow(
+            "Status",
+            "bc250-control-centerd keeps sampling while the app is closed.",
             self.daemon_status_label,
         ))
         daemon_interval = int(self.app_settings.value("settings/daemon_interval", 2) or 2)
         self.app_settings.setValue("settings/daemon_interval", daemon_interval)
-        daemon_group.add_row(SettingRow(
+        group.add_row(SettingRow(
             "Sampling interval",
-            "Controls the conservative monitoring loop used while the optional service is running.",
+            "How often the daemon reads the sensors.",
             self._coded_combo(
                 [("1 second", 1), ("2 seconds", 2), ("5 seconds", 5), ("10 seconds", 10)],
                 "settings/daemon_interval", daemon_interval, self._save_daemon_interval,
             ),
         ))
-        # What the daemon does and its buttons belong to the daemon, so they sit
-        # inside its group instead of in a second, unrelated card below.
-        daemon_group.layout_root.addSpacing(8)
-        daemon_actions = ActionGrid(columns=2, fit_content=True)
-        self.daemon_enable_button = self._button("Enable daemon", lambda: self._change_daemon(True))
-        self.daemon_disable_button = self._button("Disable daemon", lambda: self._change_daemon(False))
-        daemon_actions.addWidget(self.daemon_enable_button)
-        daemon_actions.addWidget(self.daemon_disable_button)
-        daemon_actions.addWidget(self._button("View daemon details", self._show_daemon_details))
-        daemon_group.layout_root.addWidget(daemon_actions)
-        daemon_group.layout_root.addSpacing(8)
-        self._action_grids.append(daemon_actions)
-        # Everyday monitoring first; the readings that need hardware or carry
-        # a warning come after it.
-        layout.addWidget(daemon_group)
-        layout.addWidget(self._build_vrm_manual_group())
-        layout.addWidget(self._build_gddr6_manual_group())
-        layout.addStretch(1)
-        return page
+        actions = QWidget()
+        row = QHBoxLayout(actions)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        self.daemon_enable_button = self._small_button("Enable", lambda: self._change_daemon(True))
+        self.daemon_disable_button = self._small_button("Disable", lambda: self._change_daemon(False))
+        row.addWidget(self.daemon_enable_button)
+        row.addWidget(self.daemon_disable_button)
+        row.addWidget(self._small_button("Details", self._show_daemon_details))
+        group.add_row(SettingRow("Service", "Turn the daemon on or off for this user.", actions))
+        return group
 
-    #: The plain-language account shown under the switch, one idea a line.
-    GDDR6_MANUAL_EXPLANATION = (
-        (
-            "Why there is a check",
-            "Memory temperatures are asked of the SMU, a small chip on the board that "
-            "also takes orders from Cyan, the GPU frequency service, and from CPU "
-            "overclocking. "
-            "It has a single mailbox. If two programs write to it at the same moment, "
-            "the messages get mixed, the SMU stops answering and the board freezes "
-            "until it is switched off at the plug.",
-        ),
-        (
-            "When it makes you wait",
-            "While Cyan is starting or restarting, which is when it writes to that "
-            "mailbox, and while BC250-Telemetry's memory service holds it without "
-            "publishing readings. If Cyan keeps restarting (for example Fix metrics "
-            "on a kernel without gpu_metrics), the wait never ends.",
-        ),
-        (
-            "What manual mode changes",
-            "The Live button starts anyway. The locks between programs still apply, "
-            "a board whose firmware is not P3 is still refused, and so is a board "
-            "where BC250-Telemetry was interrupted halfway through a change.",
-        ),
-        (
-            "If the board freezes",
-            "Hold the power button, unplug it for ten seconds and start it again. The "
-            "runtime SMU patch is lost with the power, nothing is written to the BIOS.",
-        ),
+    def _refresh_gddr6_kernel_driver(self) -> None:
+        """Where the bc250_memory boot option stands, read in the background."""
+        if not hasattr(self, "gddr6_kernel_state"):
+            return
+
+        def success(tools: object) -> None:
+            setup = dict(dict(tools or {}).get("system_setup") or {}) if isinstance(tools, dict) else {}
+            self._apply_gddr6_kernel_driver(setup)
+
+        self._start_task(lambda: self._state_cache.tools(), success, lambda _message: None)
+
+    def _apply_gddr6_kernel_driver(self, setup: dict) -> None:
+        options = dict(setup.get("kernel_options") or {})
+        item = dict(dict(options.get("arguments") or {}).get(MEMORY_SENSOR_OPTION) or {})
+        support = dict(dict(options.get("parameters") or {}).get(MEMORY_SENSOR_OPTION) or {})
+        managed = bool(item.get("managed"))
+        if not setup.get("helper_available") or not options.get("available"):
+            text, enabled = "Update Control Center's system setup helper first.", False
+        elif item.get("external"):
+            text, enabled = "Set outside Control Center", False
+        elif managed and item.get("active"):
+            text, enabled = "Loads at every boot", True
+        elif managed:
+            text, enabled = "Loads at the next boot", True
+        elif not support.get("supported"):
+            text, enabled = "This kernel has no bc250_memory driver.", False
+        elif support.get("loaded"):
+            text, enabled = "Loaded now, not at boot", True
+        else:
+            text, enabled = "Off", True
+        self.gddr6_kernel_state.setText(tr(text))
+        self.gddr6_kernel_button.setText(tr("Stop loading at boot" if managed else "Load at boot"))
+        self.gddr6_kernel_button.setEnabled(enabled)
+
+    #: The one thing worth knowing before touching this group.
+    GDDR6_NOTE = (
+        "The SMU has one mailbox, shared with Cyan and CPU overclocking. If two programs use it "
+        "at once the board can freeze until it is unplugged. Nothing is written to the BIOS."
     )
 
     def _build_gddr6_manual_group(self) -> QWidget:
@@ -2060,14 +2806,29 @@ class SettingsPage(QWidget):
             "settings/gddr6_manual_override", False, self._gddr6_manual_toggled
         )
         group.add_row(SettingRow(
-            "Manual GDDR6 monitoring",
-            "Enable the memory temperature button even when the SMU channel check "
-            "says to wait. It can make the board unstable or freeze it.",
+            "Manual monitoring",
+            "Read the memory temperature even when the SMU check says to wait.",
             self.gddr6_manual_switch,
         ))
-        # Manual mode lifts only the channel check. On a board that is not on
-        # P3.00 the button stays grey whatever this switch says, and the one
-        # place that was never said was right here, next to the switch.
+        # The same switch as Compatibility › Kernel boot options.
+        driver = QWidget()
+        driver_row = QHBoxLayout(driver)
+        driver_row.setContentsMargins(0, 0, 0, 0)
+        driver_row.setSpacing(10)
+        self.gddr6_kernel_state = QLabel(tr("Checking…"))
+        self.gddr6_kernel_state.setProperty("rowDescription", True)
+        self.gddr6_kernel_button = self._small_button(
+            "Load at boot", lambda: self.kernel_option_requested.emit(MEMORY_SENSOR_OPTION)
+        )
+        self.gddr6_kernel_button.setEnabled(False)
+        driver_row.addWidget(self.gddr6_kernel_state)
+        driver_row.addWidget(self.gddr6_kernel_button)
+        group.add_row(SettingRow(
+            "Load bc250_memory at boot",
+            "BC-250 kernels only. Keeps the temperature on screen all the time.",
+            driver,
+        ))
+        # Manual mode lifts only the channel check: off P3.00 the button stays grey.
         version = board_bios_version()
         self.gddr6_firmware_note = QLabel(
             tr_format(
@@ -2082,91 +2843,29 @@ class SettingsPage(QWidget):
         self.gddr6_firmware_note.setWordWrap(True)
         self.gddr6_firmware_note.setVisible(bool(version) and not gddr6_firmware_supported(version))
         group.layout_root.addWidget(self.gddr6_firmware_note)
-        group.layout_root.addSpacing(6)
-        explanation = QFrame()
-        self.gddr6_help_panel = explanation
-        explanation.setProperty("banner", True)
-        explanation_layout = QVBoxLayout(explanation)
-        explanation_layout.setContentsMargins(14, 12, 14, 14)
-        explanation_layout.setSpacing(0)
-        for index, (heading, text) in enumerate(self.GDDR6_MANUAL_EXPLANATION):
-            if index:
-                explanation_layout.addSpacing(14)
-            title = WrappedLabel(tr(heading))
-            title.setProperty("bannerTitle", True)
-            body = WrappedLabel(tr(text))
-            body.setProperty("bannerText", True)
-            explanation_layout.addWidget(title)
-            explanation_layout.addSpacing(4)
-            explanation_layout.addWidget(body)
-        # Four long paragraphs under a single switch buried the controls, so
-        # they fold away until asked for. The choice is remembered.
-        self.gddr6_help_toggle = QPushButton("")
-        self.gddr6_help_toggle.setProperty("ghostAction", True)
-        self.gddr6_help_toggle.setCheckable(True)
-        self.gddr6_help_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        def show_help(opened: bool) -> None:
-            explanation.setVisible(opened)
-            self.gddr6_help_toggle.setText(("\u25be  " if opened else "\u25b8  ") + tr("Details"))
-
-        def help_toggled(opened: bool) -> None:
-            self.app_settings.setValue("settings/gddr6_help_open", "true" if opened else "false")
-            show_help(opened)
-
-        opened = self._bool_value(self.app_settings.value("settings/gddr6_help_open", False), False)
-        self.gddr6_help_toggle.setChecked(opened)
-        show_help(opened)
-        self.gddr6_help_toggle.toggled.connect(help_toggled)
-        toggle_row = QWidget()
-        toggle_layout = QHBoxLayout(toggle_row)
-        toggle_layout.setContentsMargins(0, 0, 0, 0)
-        toggle_layout.addWidget(self.gddr6_help_toggle)
-        toggle_layout.addStretch(1)
-        # One container, so the gap between the button and the panel exists
-        # only while the panel is open instead of lingering when it is folded.
-        help_block = QWidget()
-        help_layout = QVBoxLayout(help_block)
-        help_layout.setContentsMargins(0, 4, 0, 0)
-        help_layout.setSpacing(8)
-        help_layout.addWidget(toggle_row)
-        help_layout.addWidget(explanation)
-        group.layout_root.addWidget(help_block)
+        self.gddr6_note = QLabel(tr(self.GDDR6_NOTE))
+        self.gddr6_note.setProperty("fieldHint", True)
+        self.gddr6_note.setWordWrap(True)
+        group.layout_root.addWidget(self.gddr6_note)
         group.layout_root.addSpacing(10)
         return group
 
     def _build_vrm_manual_group(self) -> QWidget:
         """Power delivery shown by hand, for a mod being wired or tested."""
-        group = SettingsGroup("Power delivery (I2C mod)")
+        group = SettingsGroup("Power delivery")
         self.vrm_manual_switch = self._switch(
             "settings/vrm_manual", False, self.vrm_manual_changed.emit
         )
         group.add_row(SettingRow(
-            "Manual power delivery readings",
-            "Show the Power delivery band on the dashboard even when automatic detection "
-            "finds no I2C modification. It shows everything BC250-Telemetry reports, "
-            "invalid readings included and marked, which is what you need while testing "
-            "the wiring. Nothing is written to the board.",
+            "Show readings by hand",
+            "Show the dashboard band even when no source is detected, invalid readings included. "
+            "Useful while wiring the I2C mod.",
             self.vrm_manual_switch,
         ))
         self.vrm_detection_label = QLabel("")
         self.vrm_detection_label.setProperty("daemonState", True)
         self.vrm_detection_label.setWordWrap(True)
-        group.add_row(SettingRow(
-            "Automatic detection",
-            "What the dashboard finds right now in BC250-Telemetry's snapshot.",
-            self.vrm_detection_label,
-        ))
-        self.apu_telemetry_button = QPushButton("")
-        self.apu_telemetry_button.setProperty("ghostAction", True)
-        self.apu_telemetry_button.clicked.connect(self._apu_telemetry_clicked)
-        group.add_row(SettingRow(
-            "BC250-Telemetry service",
-            "Installs the daemon that publishes the power delivery readings. Control "
-            "Center builds the reviewed version and installs only that service. It "
-            "needs the physical I2C modification on the board.",
-            self.apu_telemetry_button,
-        ))
+        group.add_row(SettingRow("Detection", "What the app finds right now.", self.vrm_detection_label))
         self.refresh_vrm_detection()
         return group
 
@@ -2186,6 +2885,17 @@ class SettingsPage(QWidget):
         state = self._apu_telemetry_state()
         kind = state.get("state")
         button.setToolTip("")
+        label = getattr(self, "apu_telemetry_state_label", None)
+        if label is not None:
+            if kind == "publishing":
+                text = "Running"
+            elif kind == "external" or state.get("managed"):
+                text = "Installed"
+            elif state.get("supported"):
+                text = "Not installed"
+            else:
+                text = "Not available here"
+            label.setText(tr(text))
         if kind == "external":
             button.setText(tr("Installed separately"))
             button.setEnabled(False)
@@ -2206,7 +2916,7 @@ class SettingsPage(QWidget):
             supported = bool(state.get("supported"))
             button.setEnabled(supported)
             if not supported and state.get("blocked_reason"):
-                button.setToolTip(str(state["blocked_reason"]))
+                button.setToolTip(tr(str(state["blocked_reason"])))
 
     def install_apu_telemetry(self) -> None:
         """Start the install from elsewhere (the power delivery guide).
@@ -2222,38 +2932,13 @@ class SettingsPage(QWidget):
 
     def _apu_telemetry_clicked(self) -> None:
         action = "uninstall" if self._apu_telemetry_state().get("managed") else "install"
-        if action == "install":
-            confirmation = ConfirmDialog(
-                "Install the BC250-Telemetry service?",
-                "Control Center builds the daemon from the reviewed upstream source and "
-                "installs it as a root service that reads the voltage regulators over "
-                "I2C. Without the physical I2C modification it finds nothing and only "
-                "keeps retrying. Building needs your password and an internet connection.",
-                summary=(
-                    ("Source", "github.com/onlinermm/BC250-Telemetry"),
-                    ("Installs", "apu-telemetry.service"),
-                    ("Not installed", "Web server, fan module and memory collector"),
-                    ("Writes to the board", "One PMBus page-select register; no regulator setting"),
-                ),
-                confirm_text="Build and install",
-                tone="orange",
-                parent=self,
-            )
-        else:
-            confirmation = ConfirmDialog(
-                "Remove the BC250-Telemetry service?",
-                "Stops and removes the service and its binary. The power delivery "
-                "readings stop until it is installed again.",
-                confirm_text="Remove",
-                tone="orange",
-                parent=self,
-            )
-        if confirmation.exec() != QDialog.DialogCode.Accepted:
+        if not confirm_apu_telemetry(action, self):
             return
 
         def success(_result: object) -> None:
             self._state_cache.invalidate("tools")
             self.refresh_apu_telemetry_button()
+            self.refresh_sensor_guide()
 
         def failure(message: str) -> None:
             InfoDialog(
@@ -2333,9 +3018,6 @@ class SettingsPage(QWidget):
     def _build_reports_page(self) -> QWidget:
         # No page title: the sidebar names it, and the table is the page.
         page, layout = self._build_page_frame("", "")
-        self.metrics_csv_button = self._small_button(
-            "Export metrics as CSV", lambda: self._export_runtime_metrics("csv")
-        )
         # Still written by the history code, never shown: the table says how
         # many events there are, and it refreshes each time it is opened.
         count = self._register_count("history_count", "0 events")
@@ -2347,7 +3029,6 @@ class SettingsPage(QWidget):
             "Recent activity",
             None,
             (
-                self.metrics_csv_button,
                 self._small_button("Open history folder", self._open_history_folder),
                 self._small_button("Clear history", self._clear_history),
             ),
@@ -2374,32 +3055,23 @@ class SettingsPage(QWidget):
         return page
 
     def _build_diagnostics_page(self) -> QWidget:
-        page, layout = self._build_page_frame(
-            "Diagnostics",
-            "This system at a glance and every error Control Center explained, ready to paste into a problem report.",
-        )
-        support = SettingsGroup("Help")
-        self.diagnostics_send_button = self._button("Send a report", self._send_problem_report, primary=True)
-        self.diagnostics_copy_button = self._small_button("Copy for a problem report", self._copy_diagnostic_report)
-        actions = QWidget()
-        actions_row = QHBoxLayout(actions)
-        actions_row.setContentsMargins(0, 0, 0, 0)
-        actions_row.setSpacing(8)
-        actions_row.addWidget(self.diagnostics_copy_button)
-        actions_row.addWidget(self.diagnostics_send_button)
-        support.add_row(SettingRow(
-            "Send a report",
-            "This system at a glance and every error Control Center explained, ready to paste into a problem report.",
-            actions,
+        # No title of its own: the tab above already names it. Sending a report
+        # is Support's job (its first card), so it is not offered a second time here.
+        page, layout = self._build_page_frame("", "")
+        self.diagnostics_copy_button = self._small_button("Copy diagnostics", self._copy_diagnostic_report)
+        self.diagnostics_refresh_button = self._small_button("Refresh", self._refresh_diagnostics)
+        detailed = QWidget()
+        detailed_row = QHBoxLayout(detailed)
+        detailed_row.setContentsMargins(0, 0, 8, 0)
+        detailed_row.setSpacing(8)
+        detailed_label = QLabel(tr("Detailed diagnostics"))
+        detailed_label.setProperty("rowDescription", True)
+        detailed_label.setToolTip(tr("Show complete device and configuration paths in technical diagnostic panels."))
+        detailed_row.addWidget(detailed_label)
+        detailed_row.addWidget(self._switch("settings/detailed_diagnostics", False, self.diagnostics_changed.emit))
+        layout.addWidget(self._table_header(
+            "System", None, (detailed, self.diagnostics_copy_button, self.diagnostics_refresh_button),
         ))
-        support.add_row(SettingRow(
-            "Detailed diagnostics",
-            "Show complete device and configuration paths in technical diagnostic panels.",
-            self._switch("settings/detailed_diagnostics", False, self.diagnostics_changed.emit),
-        ))
-        layout.addWidget(support)
-
-        layout.addWidget(self._table_header("System", None, ()))
         # A sheet, not a list: every fact in its own cell, so a screenshot of
         # it answers what a support thread asks first.
         self.system_table = self._sheet(("Item", "Value"))
@@ -2408,12 +3080,11 @@ class SettingsPage(QWidget):
         self.system_table.setWordWrap(True)
         layout.addWidget(self.system_table)
 
-        self.diagnostics_refresh_button = self._small_button("Refresh", self._refresh_diagnostics)
         self.diagnostics_clear_button = self._small_button("Clear history", self._clear_diagnostic_history)
         layout.addWidget(self._table_header(
             "Diagnostic history",
             self._register_count("diagnostics_count", "0 entries"),
-            (self.diagnostics_clear_button, self.diagnostics_refresh_button),
+            (self.diagnostics_clear_button,),
         ))
 
         self.diagnostics_table = self._sheet(("Date and time", "Code", "Where", "What happened", "Likely cause"))
@@ -2465,7 +3136,7 @@ class SettingsPage(QWidget):
         identity = QFrame()
         identity.setProperty("aboutIdentity", True)
         identity_layout = QHBoxLayout(identity)
-        identity_layout.setContentsMargins(0, 18, 0, 0)
+        identity_layout.setContentsMargins(0, 12, 0, 0)
         identity_layout.setSpacing(16)
         mark = QLabel()
         app_icon = Path(__file__).resolve().parents[3] / "assets" / "icons" / "bc250-control-center-128.png"
@@ -2481,13 +3152,8 @@ class SettingsPage(QWidget):
         name.setProperty("aboutName", True)
         version = QLabel(f"{tr('Version')} {__version__}")
         version.setProperty("aboutVersion", True)
-        text = QLabel("BC250 Control Center is a graphical interface for managing, preparing, and monitoring community tools for the AMD BC-250 board.")
-        text.setProperty("rowDescription", True)
-        text.setWordWrap(True)
         copy.addWidget(name)
         copy.addWidget(version)
-        copy.addSpacing(4)
-        copy.addWidget(text)
         identity_layout.addLayout(copy, 1)
         # As wide as its label: the wrapping button folded it into two lines.
         update = _PlainButton(tr("Update application"))
@@ -2501,6 +3167,7 @@ class SettingsPage(QWidget):
 
         group = SettingsGroup("Application")
         self.config_path_field = ReadOnlyPathField(str(Path(self._path_for("config")).expanduser().resolve().parent))
+        self.config_path_field.setMinimumWidth(400)
         folder = QWidget()
         folder_row = QHBoxLayout(folder)
         folder_row.setContentsMargins(0, 0, 0, 0)
@@ -2508,13 +3175,15 @@ class SettingsPage(QWidget):
         folder_row.addWidget(self.config_path_field, 1)
         folder_row.addWidget(self._small_button("Open", self._open_settings_folder))
         group.add_row(SettingRow("Configuration folder", "Shared application configuration used by the GUI and optional daemon.", folder))
+        for title, description, location in self._application_folders():
+            group.add_row(SettingRow(title, description, self._folder_field(location)))
         layout.addWidget(group)
 
         links = SettingsGroup("Help")
         for text, callback in (
             ("Project overview", self._show_project_overview),
             ("Official repositories", self._show_repositories),
-            ("Report a problem / Contact", self._open_contact),
+            ("Support", self._show_support),
         ):
             link = LinkRow(text, callback)
             links.layout_root.addWidget(link)
@@ -2523,14 +3192,45 @@ class SettingsPage(QWidget):
         layout.addStretch(1)
         return page
 
-    def _back_link(self, layout: QVBoxLayout, title: str) -> None:
-        """A way back to About, then the page's title."""
+    @staticmethod
+    def _application_folders() -> tuple[tuple[str, str, Path], ...]:
+        """The folders the application keeps its own files in, besides the configuration one."""
+        home = Path.home()
+        data = Path(os.environ.get("XDG_DATA_HOME") or home / ".local" / "share")
+        state = Path(os.environ.get("XDG_STATE_HOME") or home / ".local" / "state")
+        return (
+            ("Data folder", "Tools, helper scripts and releases the application manages for you.", data / "bc250-control-center"),
+            ("State and logs", "Application log, workflow logs, saved reports and the list of sent reports.", state / "bc250-control-center"),
+            ("System data", "Data the application keeps for the whole system.", Path("/var/lib/bc250-control-center")),
+        )
+
+    def _folder_field(self, location: Path) -> QWidget:
+        holder = QWidget()
+        row = QHBoxLayout(holder)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        field = ReadOnlyPathField(str(location))
+        # Long enough to read a whole path at a glance.
+        field.setMinimumWidth(400)
+        row.addWidget(field, 1)
+        row.addWidget(self._small_button("Open", lambda _checked=False, target=location: self._open_existing_folder(target)))
+        return holder
+
+    def _open_existing_folder(self, location: Path) -> None:
+        """Open a folder; one that does not exist yet is not created just to be looked at."""
+        if not location.is_dir():
+            show_toast(self, "That folder does not exist yet.", tone="blue")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(location)))
+
+    def _back_link(self, layout: QVBoxLayout, title: str, target: str = "about", label: str = "About") -> None:
+        """A way back (to About unless told otherwise), then the page's title."""
         row = QHBoxLayout()
         row.setContentsMargins(0, 18, 0, 0)
-        back = QPushButton("\u2039  " + tr("About"))
+        back = QPushButton("\u2039  " + tr(label))
         back.setProperty("backLink", True)
         back.setCursor(Qt.CursorShape.PointingHandCursor)
-        back.clicked.connect(lambda: self.select_section("about"))
+        back.clicked.connect(lambda: self.select_section(target))
         row.addWidget(back)
         row.addStretch(1)
         layout.addLayout(row)
@@ -2563,6 +3263,130 @@ class SettingsPage(QWidget):
         layout.addStretch(1)
         return page
 
+    def _build_support_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Support")
+        layout.addSpacing(14)
+        cards = QGridLayout()
+        cards.setHorizontalSpacing(12)
+        cards.setVerticalSpacing(12)
+        for column, (title, text, go, section, primary) in enumerate((
+            ("Report a problem", "Tell us what failed. We attach the diagnostics for you.", "Begin", "support_report", True),
+            ("View reports", "System diagnostics and the movement history.", "Open", "support_reports", False),
+            ("Known errors", "Find an error and how to fix it.", "Open", "support_errors", False),
+        )):
+            card = SupportCard(title, text, go, primary=primary)
+            card.clicked.connect(lambda _checked=False, target=section: self.select_section(target))
+            cards.addWidget(card, 0, column)
+            cards.setColumnStretch(column, 1)
+        layout.addLayout(cards)
+        layout.addSpacing(22)
+        self.sent_reports_list = SentReportsList()
+        self.sent_reports_list.view_requested.connect(self._show_report_detail)
+        layout.addWidget(self.sent_reports_list)
+        layout.addSpacing(8)
+        note = QLabel(tr("Keep the ID to ask about a report on GitHub or Discord. The list only exists on this computer."))
+        note.setProperty("rowDescription", True)
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        layout.addStretch(1)
+        return page
+
+    def _build_known_errors_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Known errors", "support", "Support")
+        layout.itemAt(0).layout().setContentsMargins(0, 6, 0, 0)
+        layout.itemAt(layout.count() - 1).widget().hide()
+        layout.addSpacing(8)
+        self.known_errors_list = KnownErrorsList()
+        self.known_errors_list.entry_requested.connect(self._show_known_error)
+        self.known_errors_list.report_requested.connect(self._report_unknown_error)
+        layout.addWidget(self.known_errors_list)
+        layout.addStretch(1)
+        return page
+
+    def _build_known_error_detail_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Known errors", "support_errors", "Known errors")
+        layout.itemAt(0).layout().setContentsMargins(0, 6, 0, 0)
+        layout.itemAt(layout.count() - 1).widget().hide()
+        layout.addSpacing(8)
+        self.known_error_detail = KnownErrorDetail(context=self._guide_context())
+        self.known_error_detail.update_requested.connect(self.update_requested.emit)
+        layout.addWidget(self.known_error_detail)
+        layout.addStretch(1)
+        return page
+
+    def _guide_context(self) -> DistributionContext:
+        if not hasattr(self, "_known_errors_context"):
+            self._known_errors_context = DistributionContext(self)
+        return self._known_errors_context
+
+    def _show_known_error(self, code: str) -> None:
+        if known_errors.for_id(code) is not None:
+            self._ensure_section("support_error_detail")
+            if self.known_error_detail.identity != code:
+                self.known_error_detail.active_tab = "solution"
+            self.known_error_detail.identity = code
+            self._show_section("support_error_detail")
+
+    def _build_support_report_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Report a problem", "support", "Support")
+        layout.addSpacing(10)
+        host = QWidget()
+        self.report_form_host = QVBoxLayout(host)
+        self.report_form_host.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(host, 1)
+        return page
+
+    def _build_support_reports_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "View reports", "support", "Support")
+        layout.addSpacing(6)
+        tabs = QHBoxLayout()
+        tabs.setSpacing(2)
+        self.report_tabs = []
+        self.report_tab_pages = QStackedWidget()
+        group = QButtonGroup(page)
+        group.setExclusive(True)
+        for index, (label, builder) in enumerate((
+            ("Diagnostics", self._build_diagnostics_page),
+            ("Movement history", self._build_reports_page),
+        )):
+            tab = _PlainButton(tr(label))
+            tab.setProperty("supportTab", True)
+            tab.setCheckable(True)
+            tab.setCursor(Qt.CursorShape.PointingHandCursor)
+            group.addButton(tab)
+            tab.clicked.connect(lambda _checked=False, position=index: self.report_tab_pages.setCurrentIndex(position))
+            tabs.addWidget(tab)
+            self.report_tabs.append(tab)
+            self.report_tab_pages.addWidget(builder())
+        tabs.addStretch(1)
+        self.report_tabs[0].setChecked(True)
+        layout.addLayout(tabs)
+        layout.addSpacing(10)
+        layout.addWidget(self.report_tab_pages)
+        return page
+
+    def _build_support_detail_page(self) -> QWidget:
+        page, layout = self._build_page_frame("", "")
+        self._back_link(layout, "Report", "support", "Support")
+        heading = layout.itemAt(layout.count() - 1).widget()
+        self.detail_title = heading
+        layout.addSpacing(14)
+        self.support_detail = SupportDetail()
+        layout.addWidget(self.support_detail)
+        layout.addStretch(1)
+        return page
+
+    def _show_report_detail(self, item: dict) -> None:
+        self._ensure_section("support_detail")
+        self.detail_title.setText(str(item.get("id") or ""))
+        self.support_detail.show_report(item)
+        self._show_section("support_detail")
+
     def _build_repositories_page(self) -> QWidget:
         page, layout = self._build_page_frame("", "")
         self._back_link(layout, "Official repositories")
@@ -2594,6 +3418,9 @@ class SettingsPage(QWidget):
 
     def _language_control_changed(self, value: object) -> None:
         self.language_changed.emit(str(value))
+
+    def _temperature_unit_control_changed(self, value: object) -> None:
+        set_temperature_unit(value, self.app_settings)
 
     def _load_daemon_config(self) -> None:
         if self._daemon_config_loaded or self._daemon_config_busy:
@@ -2903,41 +3730,6 @@ class SettingsPage(QWidget):
     def _portable_start_directory(self) -> str:
         return str(Path(self._path_for("config")).expanduser().resolve().parent)
 
-    def _export_runtime_metrics(self, format_name: str) -> None:
-        # Settings intentionally exposes one interoperable report format.
-        format_name = "csv"
-        destination, _selected_filter = QFileDialog.getSaveFileName(
-            self,
-            tr_format("Export metrics as {format}", format=format_name.upper()),
-            str(Path(self._portable_start_directory()) / f"bc250-metrics.{format_name}"),
-            tr_format("Metrics file (*.{extension})", extension=format_name),
-        )
-        if not destination:
-            return
-        destination_path = Path(destination).expanduser()
-        if destination_path.suffix.lower() != ".csv":
-            destination_path = destination_path.with_suffix(".csv")
-        destination = str(destination_path)
-
-        def success(result: object) -> None:
-            show_toast(
-                self,
-                "Metrics export completed",
-                tr_format("Recorded metrics were saved to {path}.", path=result),
-                tone="green",
-            )
-
-        self._start_task(
-            lambda: self.settings_service.export_runtime_metrics(destination, format_name),
-            success,
-            lambda message: InfoDialog(
-                "Metrics export failed", message, icon_name="warning_orange", parent=self,
-                eyebrow="REPORTS",
-                notice="No incomplete export was kept.", tone="red",
-            ).exec(),
-            controls=(self.metrics_csv_button,),
-        )
-
     def refresh_history(self, force: bool = False) -> None:
         # state_cache.events() delegates to the injected activity service in a
         # worker and caches the JSONL result briefly between settings tabs.
@@ -3106,13 +3898,6 @@ class SettingsPage(QWidget):
             parts.append(f"{tr('Technical detail')}\n{entry.detail}")
         self.diagnostics_detail.setPlainText("\n\n".join(parts))
 
-    def _send_problem_report(self) -> None:
-        from ..components.feedback_dialog import FeedbackDialog
-
-        # The report carries the recent errors; which one it is about is the
-        # owner's to say, so no code is guessed here.
-        FeedbackDialog(self, opened_from="Settings › Diagnostics").exec()
-
     def _copy_diagnostic_report(self) -> None:
         report = diagnostic_report(self._system_rows, self._diagnostic_entries)
         QApplication.clipboard().setText(report)
@@ -3126,19 +3911,31 @@ class SettingsPage(QWidget):
     def _show_repositories(self) -> None:
         self._show_section("repositories")
 
-    def _open_contact(self) -> None:
-        opened, message = open_external_url(CONTACT_URL)
-        if opened:
-            return
-        InfoDialog(
-            "Contact link could not be opened",
-            message,
-            icon_name="warning_orange",
-            parent=self,
-            eyebrow="CONTACT",
-            notice=tr_format("Copy this address manually: {url}", url=CONTACT_URL),
-            tone="orange",
-        ).exec()
+    def _show_support(self) -> None:
+        self._show_section("support")
+
+    def _select_report_tab(self, index: int) -> None:
+        tabs = getattr(self, "report_tabs", None)
+        if tabs is not None and 0 <= index < len(tabs):
+            tabs[index].setChecked(True)
+            self.report_tab_pages.setCurrentIndex(index)
+
+    def _report_unknown_error(self, query: str) -> None:
+        self.select_section("support_report")
+        self.report_form.summary.setText(query)
+
+    def _open_report_form(self) -> None:
+        """A fresh form each time, inside this window instead of one of its own."""
+        from ..components.feedback_dialog import FeedbackDialog
+
+        while self.report_form_host.count():
+            item = self.report_form_host.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        form = FeedbackDialog(self, embedded=True, opened_from="Settings › Support")
+        form.closed.connect(lambda: self.select_section("support"))
+        self.report_form = form
+        self.report_form_host.addWidget(form)
 
     def _update_application(self) -> None:
         # The same updater as the dashboard: it picks the route for how this
@@ -3156,6 +3953,20 @@ class SettingsPage(QWidget):
         return self.scroll
 
     def select_section(self, key: str) -> None:
+        if key.startswith("support_errors:"):
+            query = key.partition(":")[2]
+            entry = known_errors.for_id(query)
+            if entry is not None:
+                self._show_known_error(entry["id"])
+            else:
+                self._show_section("support_errors")
+                self.known_errors_list.set_query(query)
+            return
+        if key in self.SECTION_ALIASES:
+            key, tab = self.SECTION_ALIASES[key]
+            self._show_section(key)
+            self._select_report_tab(tab)
+            return
         if key in self.SUBPAGES:
             # A page opened from a section (About › Official repositories).
             self._show_section(key)
@@ -3250,8 +4061,9 @@ class SettingsPage(QWidget):
             "settings/density": "comfortable",
             "settings/scale": 100,
             "settings/accent": "blue",
-            "settings/style": "formal",
+            "settings/style": UiPreferences.DEFAULT_STYLE,
             "settings/language": "auto",
+            TEMPERATURE_UNIT_KEY: CELSIUS,
             "settings/smart_alerts": "false",
             "settings/desktop_notifications": "false",
             "settings/detailed_diagnostics": "false",
@@ -3268,6 +4080,7 @@ class SettingsPage(QWidget):
         self.app_settings.sync()
         self.apply_density("comfortable")
         self.language_changed.emit("auto")
+        set_temperature_unit(CELSIUS, self.app_settings)
         self.appearance_changed.emit("system", "blue", "comfortable")
         self.scale_changed.emit(100)
         self.smart_alerts_changed.emit(False)
@@ -3293,6 +4106,8 @@ class SettingsDialog(QDialog):
     language_changed = pyqtSignal(str)
     appearance_changed = pyqtSignal(str, str, str)
     scale_changed = pyqtSignal(int)
+    gpu_interface_changed = pyqtSignal(str)
+    driver_support_requested = pyqtSignal(str)
     smart_alerts_changed = pyqtSignal(bool)
     desktop_notifications_changed = pyqtSignal(bool)
     diagnostics_changed = pyqtSignal(bool)
@@ -3308,6 +4123,7 @@ class SettingsDialog(QDialog):
     vrm_manual_changed = pyqtSignal(bool)
     tour_requested = pyqtSignal()
     update_requested = pyqtSignal()
+    kernel_option_requested = pyqtSignal(str)
 
     def __init__(self, controller, *, settings_service, activity_service, app_settings: QSettings | None = None, parent: QWidget | None = None):
         super().__init__(parent)
@@ -3346,12 +4162,15 @@ class SettingsDialog(QDialog):
         self.page.language_changed.connect(self.language_changed.emit)
         self.page.appearance_changed.connect(self.appearance_changed.emit)
         self.page.scale_changed.connect(self.scale_changed.emit)
+        self.page.gpu_interface_changed.connect(self.gpu_interface_changed.emit)
+        self.page.driver_support_requested.connect(self.driver_support_requested.emit)
         self.page.smart_alerts_changed.connect(self.smart_alerts_changed.emit)
         self.page.desktop_notifications_changed.connect(self.desktop_notifications_changed.emit)
         self.page.diagnostics_changed.connect(self.diagnostics_changed.emit)
         self.page.sidebar_collapsed_changed.connect(self.sidebar_collapsed_changed.emit)
         self.page.tour_requested.connect(self.tour_requested.emit)
         self.page.update_requested.connect(self.update_requested.emit)
+        self.page.kernel_option_requested.connect(self.kernel_option_requested.emit)
         self.page.gamepad_navigation_changed.connect(self.gamepad_navigation_changed.emit)
         self.page.report_glow_changed.connect(self.report_glow_changed.emit)
         self.page.gamepad_keypad_changed.connect(self.gamepad_keypad_changed.emit)
@@ -3372,6 +4191,9 @@ class SettingsDialog(QDialog):
         self.close_button.setFixedSize(30, 30)
         self.close_button.setToolTip("Close")
         self.close_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        # Not the dialog's default button: Enter in a search box would press it and close Settings.
+        self.close_button.setAutoDefault(False)
+        self.close_button.setDefault(False)
         self.close_button.clicked.connect(self._request_close)
         self.close_button.raise_()
         self._localized_language = current_language()
@@ -3401,6 +4223,14 @@ class SettingsDialog(QDialog):
             )
             return
         super().reject()
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        # Enter in a search box means "search", not "press the default button":
+        # QDialog would otherwise click the first button it finds and close Settings.
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and isinstance(self.focusWidget(), QLineEdit):
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def reject(self) -> None:
         self._request_close()

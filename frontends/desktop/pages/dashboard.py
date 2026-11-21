@@ -6,7 +6,9 @@ from typing import NamedTuple
 
 from PyQt6.QtCore import QPoint, QRect, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
+    QApplication,
     QGridLayout,
+    QLabel,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -16,10 +18,6 @@ from bc250cc.infrastructure.install_source import detect_install_source
 from bc250cc.infrastructure.release_check import (
     RELEASES_PAGE_URL,
     check_for_update,
-)
-from bc250cc.infrastructure.vrm_telemetry_reader import (
-    kernel_vrm_driver_present,
-    sondear_telemetria_vrm,
 )
 
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
@@ -38,8 +36,6 @@ from ..components.dashboard_widgets import (
     PreparationSidebar,
     UpdateCallout,
 )
-from ..components.feedback_dialog import FeedbackDialog
-from ..components.i2c_guide import I2cGuideDialog
 from ..components.responsive import (
     clear_grid,
     configure_responsive_scroll_area,
@@ -61,6 +57,7 @@ from ..core.external_links import open_external_url, update_checks_enabled
 from ..core.gddr6_monitor import EXTERNAL_SOURCE, KERNEL_SOURCE, gddr6_monitor_for
 from ..core.preferences import report_glow_enabled
 from ..core.state import DashboardState, state_cache_for
+from ..core.temperature_unit import format_temperature
 from ..i18n import tr, tr_format
 
 logger = logging.getLogger(__name__)
@@ -99,7 +96,7 @@ def _look_for_update() -> _UpdateLookup:
     source = detect_install_source() if status.update_available else None
     return _UpdateLookup(status=status, source=source)
 
-CONTACT_URL = "https://discord.com/channels/1315924807128449065/1526169299490836510"
+CONTACT_URL = "https://discord.com/invite/8eZfFWhczz"
 SUPPORT_URL = "https://ko-fi.com/movacx"
 #: The BC-250 community's Telegram group.
 TELEGRAM_URL = "https://t.me/+LJAp9e4cpPs3Mzky"
@@ -118,16 +115,29 @@ VRM_HELP_SERVICE = (
     "a few seconds after it starts."
 )
 VRM_HELP_KERNEL = (
-    "Your kernel reads the voltage regulator itself (bc250_vrm), so no service is "
-    "needed: with the physical I2C modification wired, the readings appear here on "
-    "their own. The BC250-Telemetry service cannot open the bus on this kernel; if it "
-    "is installed, remove it in Settings › Telemetry."
+    "Your kernel has its own driver for the voltage regulator (bc250_vrm), but the "
+    "regulator does not answer it. Version 1.1.0 and later read it through the fan chip "
+    "without wires; older versions need the I2C modification. Update the kernel, or see "
+    "the bc250-vrm tab. The BC250-Telemetry service cannot open the bus on this kernel."
 )
 VRM_HELP_NO_ANSWER = (
     "The BC250-Telemetry service is running, but the voltage regulator does not answer "
     "over I2C. Check the two wires of the I2C modification between I2C_HEADER1 and "
     "TPMS1, then look at Settings › Telemetry › Automatic detection."
 )
+
+
+def kernel_sensor_drivers() -> dict:
+    """Hexxeh's two kernel drivers' state on this board, read without privileges."""
+    try:
+        from bc250cc.infrastructure.accessories import vram_sensor, vrm_sensor
+        from bc250cc.platform.packages.strategies.detector import detect_os_info
+
+        family = detect_os_info().family
+        return {"vrm_sensor": vrm_sensor.inventory(family), "vram_sensor": vram_sensor.inventory(family)}
+    except Exception:  # noqa: BLE001 - the window still opens on the I2C guide
+        logger.debug("Could not read the kernel sensor drivers", exc_info=True)
+        return {}
 
 
 class DashboardPage(QWidget):
@@ -149,7 +159,7 @@ class DashboardPage(QWidget):
     def __init__(self, controller, parent: QWidget | None = None):
         super().__init__(parent)
         self.controller = controller
-        self.state = DashboardState()
+        self.state = DashboardState(loaded=False)
         # Settings › Telemetry: show the Power delivery rails whatever the
         # automatic detection decided, for a mod being wired or tested.
         self._vrm_manual = False
@@ -259,7 +269,6 @@ class DashboardPage(QWidget):
         for key, label, group in (
             ("duty", "PWM duty", "Fan"),
             ("mode", "PWM mode", "Fan"),
-            ("controller", "Controller", "Fan"),
             ("board", "Board temperature", "Fan"),
             ("nvme", "Temperature", "M.2 drive"),
             ("hotspot", "Hotspot", "M.2 drive"),
@@ -321,6 +330,13 @@ class DashboardPage(QWidget):
         # the title like the GDDR6 card's "Monitor live": the dialog says that
         # and what to do about it.
         self.vrm_strip.head.addWidget(self.vrm_help_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        # The driver is there but wedged (one stale word for every register):
+        # the fix is a driver restart, which nobody should have to type.
+        self.vrm_repair_button = QPushButton(tr("Repair sensor"))
+        self.vrm_repair_button.setProperty("dashboardCardAction", True)
+        self.vrm_repair_button.clicked.connect(lambda: self.action_requested.emit("repair_vrm_sensor"))
+        self.vrm_repair_button.hide()
+        self.vrm_strip.head.addWidget(self.vrm_repair_button, 0, Qt.AlignmentFlag.AlignVCenter)
         self.main_layout.addWidget(self.vrm_strip)
 
         self.readiness = PreparationSidebar()
@@ -338,6 +354,7 @@ class DashboardPage(QWidget):
         self.footer.telegram_clicked.connect(self._open_telegram)
         self.footer.report_clicked.connect(self._open_report)
         self.footer.support_clicked.connect(self._open_support)
+        self.footer.note_clicked.connect(self._open_developer_note)
         self.footer.update_clicked.connect(self._badge_clicked)
         self.readiness.set_header_actions(self.footer)
         self.footer.set_report_glow(report_glow_enabled())
@@ -345,6 +362,7 @@ class DashboardPage(QWidget):
         self.telegram_button = self.footer.telegram_button
         self.report_button = self.footer.report_button
         self.support_button = self.footer.support_button
+        self.note_button = self.footer.note_button
         self.update_button = self.footer.update_button
         # The only place this application reaches the network itself, so it is
         # kept off the UI thread and never reports a failure. See
@@ -454,6 +472,14 @@ class DashboardPage(QWidget):
     def retranslate_dynamic_copy(self) -> None:
         self.readiness.retranslate_dynamic_copy()
 
+    def refresh_temperature_unit(self) -> None:
+        """°C ↔ °F: draw the last state again rather than wait for a sample."""
+        if getattr(self.state, "loaded", False):
+            self._unrendered_state = self.state
+            if not offscreen_in_shown_window(self):
+                self._render_state()
+        self._apply_memory_reading(self.memory_monitor.reading)
+
     def _apply_live_sample(self, sample) -> None:
         sampled_at, metrics = sample
         if time.monotonic() - sampled_at > 3.0:
@@ -467,6 +493,7 @@ class DashboardPage(QWidget):
         # is the path that carries them: without it they would only change on
         # a full refresh while every other sensor ticked.
         self._apply_fan_card(self.state)
+        self._mark_still_reading(self.state)
 
     def _live_failed(self, message: str) -> None:
         self._apply_live_sample((time.monotonic(), {}))
@@ -719,24 +746,49 @@ class DashboardPage(QWidget):
         ).exec()
 
     def _open_report(self) -> None:
-        # The form inside the app; the browser only when it cannot be built.
-        try:
-            FeedbackDialog(self.window(), opened_from="Dashboard footer").exec()
+        # The form is a page of Settings (Support), not a window of its own.
+        self.action_requested.emit("support")
+
+    def _open_developer_note(self) -> None:
+        """Support is limited while the developer's board is broken."""
+        from ..components.developer_note import DeveloperNoteDialog, mark_note_seen
+
+        mark_note_seen()
+        DeveloperNoteDialog(self).exec()
+
+    def present_developer_note_once(self, delay_ms: int = 1200) -> None:
+        """Open the note by itself, once ever, when nothing else is in front.
+
+        A clean install gets it after the welcome screen and the tour; an
+        update gets it on the first start of the new version. After that it
+        only opens from its button.
+        """
+        from ..components.developer_note import note_seen
+
+        if note_seen():
             return
-        except Exception:  # noqa: BLE001 - the browser form still works
-            logger.exception("The report form could not be opened")
-        opened, message = open_external_url(REPORT_URL)
-        if opened:
-            return
-        InfoDialog(
-            "Report form could not be opened",
-            message,
-            icon_name="warning_orange",
-            parent=self,
-            eyebrow="CONTACT",
-            notice=tr_format("Copy this address manually: {url}", url=REPORT_URL),
-            tone="orange",
-        ).exec()
+
+        def present() -> None:
+            from ..components.developer_note import DeveloperNoteDialog, mark_note_seen
+
+            window = self.window()
+            presenting = getattr(window, "is_presenting_overlay", None)
+            if (
+                note_seen()
+                or window is None
+                or not window.isVisible()
+                or getattr(window, "_first_run_pending", False)
+                or (callable(presenting) and presenting())
+                or QApplication.activeModalWidget() is not None
+            ):
+                # Something else has the screen; the next chance asks again.
+                return
+            mark_note_seen()
+            dialog = DeveloperNoteDialog(window)
+            dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+            dialog.open()
+
+        QTimer.singleShot(delay_ms, present)
 
     def _open_support(self) -> None:
         opened, message = open_external_url(SUPPORT_URL)
@@ -809,6 +861,20 @@ class DashboardPage(QWidget):
         self._apply_cpu_card(state)
         self._apply_fan_card(state)
         self.readiness.set_state(state)
+        self._mark_still_reading(state)
+
+    def _mark_still_reading(self, state: DashboardState) -> None:
+        """Before the first read returns, an empty field says so instead of "Not detected".
+
+        The first read takes a moment; showing "Not detected" meanwhile made a
+        working fan, governor and VRM look missing for the first seconds.
+        """
+        if state.loaded:
+            return
+        absent, reading = tr("Not detected"), tr("Checking…")
+        for label in self.findChildren(QLabel):
+            if label.text() == absent:
+                label.setText(reading)
 
     def _announce_attention(self, state: DashboardState) -> None:
         """Say once per session what the installed tools need, as a toast.
@@ -1052,7 +1118,9 @@ class DashboardPage(QWidget):
                 hotspot = f"{hotspot} · {tr('Read by the kernel driver (bc250_memory)')}"
             summary.set_detail(hotspot)
         else:
-            summary.set_value("Waiting for sample")
+            # Read only during a live session: between sessions it is off, not
+            # "waiting" for something that will never come on its own.
+            summary.set_value("Waiting for sample" if reading.live else "Off")
             summary.set_detail("")
         # Why the button is off, when it is, or why the last session ended.
         # Saying nothing is what made this look broken: a disabled control
@@ -1083,7 +1151,8 @@ class DashboardPage(QWidget):
         details["oc"].set_value(
             tr_format("{frequency} MHz", frequency=state.cpu_oc_frequency_mhz)
             if state.cpu_oc_active and state.cpu_oc_frequency_mhz > 0
-            else "Not detected",
+            # No overclock saved is an answer, not a missing sensor.
+            else "None",
             tr_format("Scale {scale}", scale=state.cpu_oc_scale)
             if state.cpu_oc_active and state.cpu_oc_scale is not None
             else "",
@@ -1148,9 +1217,6 @@ class DashboardPage(QWidget):
         details["mode"].set_value(
             FAN_OWNER_LABELS.get(state.fan_owner) or state.fan_mode or "Not detected"
         )
-        details["controller"].set_value(
-            state.fan_controller_label or "Not detected"
-        )
         # Neither the board nor the drive is a processor or a graphics
         # reading. They are the thermal environment this fan manages, and the
         # board sensor is one of the four inputs of its automatic curve.
@@ -1186,6 +1252,9 @@ class DashboardPage(QWidget):
         next sample and loses it once it is unmounted.
         """
         details = self.fan_card.details
+        # Folded until opened: each plugged-in drive would otherwise make the
+        # cooling card taller on its own.
+        details.set_collapsible("Storage", collapsed=True)
         wanted = {f"disk:{mountpoint}": item for mountpoint, *item in state.extra_disks}
         for key in [key for key in details.readings if key.startswith("disk:") and key not in wanted]:
             details.remove(key)
@@ -1274,26 +1343,20 @@ class DashboardPage(QWidget):
         """What the processor's own VRM reports, when anything does."""
         if state.vrm_source != "pmbus":
             return "Not detected", ""
-        detail = f"{state.vrm_cpu_power_w:.1f} W" if state.vrm_cpu_power_w > 0 else ""
-        return self._format_temperature(state.vrm_cpu_temperature_c), detail
+        # Temperature only. The rail's power comes and goes (an idle CPU rail
+        # reads 0 W), and the line under the value appearing and vanishing made
+        # the whole card jump. The power band below already shows it.
+        return self._format_temperature(state.vrm_cpu_temperature_c), ""
 
     def _show_vrm_help(self) -> None:
-        """Where the power delivery readings come from on this board, the
-        photo guide of the I2C modification, and the service that reads it."""
-        kernel = kernel_vrm_driver_present()
-        daemon = str(sondear_telemetria_vrm().get("daemon") or "missing")
-        if kernel:
-            message = VRM_HELP_KERNEL
-        elif daemon in {"running", "stale"}:
-            message = VRM_HELP_NO_ANSWER
-        else:
-            message = VRM_HELP_SERVICE
-        # One window: what this board needs beside the photo guide of the mod.
-        result = I2cGuideDialog(self, message=message, can_install=message == VRM_HELP_SERVICE).exec()
-        if result == I2cGuideDialog.INSTALL:
-            self.action_requested.emit("telemetry_install")
-        elif result == I2cGuideDialog.TELEMETRY:
-            self.action_requested.emit("telemetry_settings")
+        """Where the power delivery readings come from on this board: the I2C
+        modification with its photo guide, and Hexxeh's two kernel drivers."""
+        # The guide lives in Settings › Telemetry now, next to the rows that
+        # install what it describes. No wires at all is the shortest way,
+        # where this system can build it, so that tab opens first.
+        drivers = kernel_sensor_drivers()
+        tab = "vrm" if str((drivers.get("vrm_sensor") or {}).get("state")) == "not-installed" else "i2c"
+        self.action_requested.emit(f"sensor_guide:{tab}")
 
     def _update_vrm_strip(self, state) -> None:
         """The rails, whether or not this board can measure them.
@@ -1306,11 +1369,16 @@ class DashboardPage(QWidget):
         """
         strip = self.vrm_strip
         available = state.vrm_source == "pmbus"
+        stuck = not available and self._vrm_stuck(state.vrm_probe)
+        self.vrm_repair_button.setVisible(stuck)
         if not available and self._vrm_manual:
+            self.vrm_help_button.setVisible(not stuck)
             self._show_vrm_probe(state.vrm_probe)
             return
-        strip.set_note("")
-        self.vrm_help_button.setVisible(not available)
+        strip.set_note(
+            tr("The power sensor is stuck. Repair sensor restarts it.") if stuck else ""
+        )
+        self.vrm_help_button.setVisible(not available and not stuck)
         # Without the link the band is one line that says so, not eight
         # cells repeating "Not detected".
         strip.set_readings_visible(available)
@@ -1326,26 +1394,36 @@ class DashboardPage(QWidget):
         strip["input"].set_value(self._format_volts(state.vrm_input_voltage_v))
         strip["cpu_voltage"].set_value(self._format_volts(state.vrm_cpu_voltage_v))
         strip["gpu_voltage"].set_value(self._format_volts(state.vrm_gpu_voltage_v))
-        strip["total"].set_value(self._format_watts(state.vrm_total_power_w))
-        strip["cpu_current"].set_value(self._format_amps(state.vrm_cpu_current_a))
-        strip["gpu_current"].set_value(self._format_amps(state.vrm_gpu_current_a))
+        # The regulator answered: an idle rail reading 0 A or 0 W is a reading,
+        # not a missing sensor. Showing it as 0.0 keeps every cell the same
+        # size; dropping it made the line under the temperature come and go
+        # and the whole band jump with it.
+        strip["total"].set_value(self._rail_reading(state.vrm_total_power_w, "W"))
+        strip["cpu_current"].set_value(self._rail_reading(state.vrm_cpu_current_a, "A"))
+        strip["gpu_current"].set_value(self._rail_reading(state.vrm_gpu_current_a, "A"))
         strip["cpu_temperature"].set_value(
             self._format_temperature(state.vrm_cpu_temperature_c),
-            self._format_watts(state.vrm_cpu_power_w)
-            if state.vrm_cpu_power_w > 0
-            else "",
+            self._rail_reading(state.vrm_cpu_power_w, "W"),
         )
         strip["gpu_temperature"].set_value(
             self._format_temperature(state.vrm_gpu_temperature_c),
-            self._format_watts(state.vrm_gpu_power_w)
-            if state.vrm_gpu_power_w > 0
-            else "",
+            self._rail_reading(state.vrm_gpu_power_w, "W"),
         )
         # The PMIC raises these itself, before anything is damaged.
         for key in ("cpu_temperature", "gpu_temperature"):
             strip[key].set_tone("warning" if state.vrm_alerts else "")
         # A note only when the PMIC has something to say.
         strip.set_note(tr("Attention") if state.vrm_alerts else "")
+
+    @staticmethod
+    def _vrm_stuck(probe) -> bool:
+        """bc250_vrm is loaded but wedged: every read times out, or it answers
+        with values no BC-250 rail can produce (797 °C everywhere)."""
+        rails = probe.get("rails") if isinstance(probe, dict) else None
+        return isinstance(rails, dict) and any(
+            isinstance(rail, dict) and (rail.get("implausible") or rail.get("unresponsive"))
+            for rail in rails.values()
+        )
 
     def set_vrm_manual(self, enabled: bool) -> None:
         """Settings › Telemetry: the rails on screen even when undetected."""
@@ -1405,9 +1483,20 @@ class DashboardPage(QWidget):
                 "Manual mode · BC250-Telemetry's last snapshot is {age} s old",
                 age=f"{float(probe.get('age_s') or 0):.0f}",
             )
+        if any(rail.get("implausible") for rail in rails):
+            # A wedged SMBus hands back one stale word for every register.
+            return tr(
+                "Manual mode · the regulator returns values the board cannot produce (such as 797 °C), "
+                "so they are shown here as received and used nowhere else"
+            )
         if not any(rail.get("valid") for rail in rails):
             return tr("Manual mode · no valid answer from the PMIC; values as BC250-Telemetry reports them")
         return tr("Manual mode")
+
+    @staticmethod
+    def _rail_reading(value: float, unit: str) -> str:
+        """A rail the regulator reported: never negative, 0.0 when idle."""
+        return f"{max(0.0, float(value or 0.0)):.1f} {unit}"
 
     @staticmethod
     def _format_amps(value_a: float) -> str:
@@ -1423,7 +1512,7 @@ class DashboardPage(QWidget):
 
     @staticmethod
     def _format_temperature(value_c: float, *, decimals: int = 1) -> str:
-        return f"{value_c:.{decimals}f} °C" if value_c > 0 else "Not detected"
+        return format_temperature(value_c, decimals) if value_c > 0 else "Not detected"
 
     @staticmethod
     def _format_power(value_w: float) -> str:

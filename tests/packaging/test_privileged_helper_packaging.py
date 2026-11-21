@@ -37,9 +37,14 @@ def test_core_unlock_helper_launches_only_validated_official_upstream_script():
     # distro-specific policy belongs to dependency preparation, not the SMU write.
     assert not any(manager in helper for manager in ("apt ", "dnf ", "pacman ", "rpm-ostree"))
     # Upstream's "-f" (skip the 0x77 core-mask check) is passed only for the
-    # owner's explicit --ignore-core-mask, never on the helper's own initiative.
+    # owner's explicit --ignore-core-mask, or after a probe run read exactly
+    # the mask the owner named with --accept-mask; never on its own initiative.
     assert helper.count('("-f",)') == 1
-    assert '*(("-f",) if ignore_core_mask else ())' in helper
+    assert '*(("-f",) if force else ())' in helper
+    assert "result = run_upstream(ignore_core_mask)" in helper
+    assert "if found != accept_mask:" in helper
+    assert helper.count("run_upstream(True)") == 1
+    assert 'ACCEPT_MASK = "--accept-mask"' in helper
     assert 'IGNORE_CORE_MASK = "--ignore-core-mask"' in helper
     assert "command = ['/usr/bin/systemctl', 'reboot']" in helper
     assert "['rc-service', key, 'stop']" in helper

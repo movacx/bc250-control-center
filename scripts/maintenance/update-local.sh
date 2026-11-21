@@ -66,25 +66,29 @@ detect_package_owner() {
     "$PREFIX/share/doc/bc250-control-center/README.md"; do
     # Query package databases even when a file was manually removed.  Package
     # ownership is metadata, not a property of the current filesystem entry.
+    #
+    # Decide by the exit status, never by the sentence: package managers
+    # translate it. On a Spanish SteamOS ``pacman -Qo`` says "está contenido
+    # en", so matching " is owned by " missed a package install and let this
+    # updater overwrite package-managed files.
     if command -v rpm >/dev/null 2>&1; then
-      owner="$(rpm -qf "$candidate" 2>/dev/null || true)"
-      if [[ -n "$owner" && "$owner" != *"is not owned by any package"* ]]; then
-        printf 'rpm:%s\n' "$owner"
+      if owner="$(LC_ALL=C rpm -qf "$candidate" 2>/dev/null)" && [[ -n "$owner" ]]; then
+        printf 'rpm:%s\n' "${owner%%$'\n'*}"
         return 0
       fi
     fi
 
     if command -v pacman >/dev/null 2>&1; then
-      owner="$(pacman -Qo "$candidate" 2>/dev/null || true)"
-      if [[ "$owner" == *" is owned by "* ]]; then
-        printf 'pacman:%s\n' "${owner##* is owned by }"
+      # -q prints only the package name, in every language.
+      if owner="$(LC_ALL=C pacman -Qoq -- "$candidate" 2>/dev/null)" && [[ -n "$owner" ]]; then
+        printf 'pacman:%s\n' "${owner%%$'\n'*}"
         return 0
       fi
     fi
 
     if command -v dpkg-query >/dev/null 2>&1; then
-      owner="$(dpkg-query -S "$candidate" 2>/dev/null | head -n1 || true)"
-      if [[ "$owner" == *:* ]]; then
+      if owner="$(LC_ALL=C dpkg-query -S "$candidate" 2>/dev/null)" && [[ "${owner%%$'\n'*}" == *:* ]]; then
+        owner="${owner%%$'\n'*}"
         printf 'dpkg:%s\n' "${owner%%:*}"
         return 0
       fi

@@ -386,14 +386,41 @@ write_managed() {
     install -D -m "$mode" /dev/stdin "$target"
 }
 
+# The module is built for the running kernel only, so that kernel's initramfs
+# is the one that must succeed. Every other installed kernel is refreshed too
+# (the modprobe rule is the same file), but a leftover one can no longer be
+# rebuilt: R-d74925cd, Ubuntu 26.04, where an old 7.0.0-30 had lost its
+# modules and its folder on the ESP, and "dracut --regenerate-all" failed the
+# whole install after a 15-minute build. Those only get a warning now.
+other_kernels() {
+    local dir name
+    for dir in /usr/lib/modules/*/; do
+        name="$(basename "$dir")"
+        [[ $name == "$KVER" ]] && continue
+        [[ -f $dir/modules.dep || -f $dir/modules.order ]] || continue
+        printf '%s\n' "$name"
+    done
+}
+
 regenerate_initramfs() {
     say "regenerating the initramfs so amdgpu waits for the boot service"
+    local kernel
     if command -v mkinitcpio >/dev/null 2>&1; then
         mkinitcpio -P
     elif command -v dracut >/dev/null 2>&1; then
-        dracut --regenerate-all --force
+        dracut --force --kver "$KVER" ||
+            die "the initramfs of the running kernel ($KVER) could not be rebuilt."
+        while IFS= read -r kernel; do
+            dracut --force --kver "$kernel" >/dev/null 2>&1 ||
+                printf '[WARN] the initramfs of kernel %s could not be rebuilt; it is not the running kernel, so the fix is unaffected. Remove that kernel if it is no longer used.\n' "$kernel"
+        done < <(other_kernels)
     elif command -v update-initramfs >/dev/null 2>&1; then
-        update-initramfs -u -k all
+        update-initramfs -u -k "$KVER" ||
+            die "the initramfs of the running kernel ($KVER) could not be rebuilt."
+        while IFS= read -r kernel; do
+            update-initramfs -u -k "$kernel" >/dev/null 2>&1 ||
+                printf '[WARN] the initramfs of kernel %s could not be rebuilt; it is not the running kernel, so the fix is unaffected. Remove that kernel if it is no longer used.\n' "$kernel"
+        done < <(other_kernels)
     else
         die "no supported initramfs tool (mkinitcpio, dracut, update-initramfs) was found"
     fi

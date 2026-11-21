@@ -98,13 +98,36 @@ UMR_REPAIR_COMMANDS = {
     "fedora": "sudo dnf upgrade --refresh -y && sudo dnf reinstall -y umr",
     "bazzite": "sudo rpm-ostree upgrade",
 }
+#: UMR is not installed at all (removed, or never prepared): install it. The
+#: window offers the command for this system; SteamOS has no command, its
+#: steps use Prepare selected.
+UMR_INSTALL_COMMANDS = {
+    "arch": "sudo pacman -S --needed umr || paru -S --needed umr",
+    "debian": "sudo apt update && sudo apt install -y umr",
+    "fedora": "sudo dnf install -y umr",
+    "bazzite": "rpm-ostree install -y umr",
+}
+UMR_MISSING_SUMMARY = "UMR is not installed."
+UMR_MISSING_CAUSE = (
+    "UMR is the program Control Center uses to read and change the Compute Units, and this computer "
+    "does not have it. It was removed, or it was never installed."
+)
+UMR_MISSING_ACTION = "Install UMR by following these steps:"
+_UMR_MISSING_PATTERN = re.compile(r"cannot find the umr executable|umr was not found", re.IGNORECASE)
+
+
+def umr_is_missing(message: object) -> bool:
+    """Whether the failure says UMR is not installed (as opposed to broken)."""
+    return bool(_UMR_MISSING_PATTERN.search(str(message or "")))
+
+
 _UMR_COMMAND_FAMILY = {
     "arch": "arch", "cachyos": "arch", "manjaro": "arch",
     "debian": "debian", "ubuntu": "debian",
     "fedora": "fedora", "bazzite": "bazzite",
 }
 UMR_STEPS_COPY = (
-    "1. Press {button} at the bottom of this window.\n"
+    "1. Press {button} in the box below.\n"
     "2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter."
 )
 UMR_STEPS_WAIT_AUR = (
@@ -139,6 +162,8 @@ UMR_REPAIR_SOURCES = (
 
 # Same wording as the terminal diagnosis, so both surfaces say one thing.
 _GFX_RELEASE_INSTALLED = error_catalog.BY_CODE["BC250-GFX-001"]
+_PKG_DAMAGED = error_catalog.BY_CODE["BC250-PKG-006"]
+_PKG_DUPLICATE_REPO = error_catalog.BY_CODE["BC250-PKG-007"]
 
 _RULES = (
     # First on purpose. Cyan's fix-metrics / fix-freq replace two GPU sensor
@@ -177,7 +202,7 @@ _RULES = (
     # advice does not bring a broken UMR back.
     _Rule(
         UMR_REPAIR_CODE,
-        (r"failed to (?:read|write) [^\n]{0,160}? with umr",
+        (r"failed to (?:read|write) [^\n]{0,160}? with umr", r"cannot find the umr executable",
          r"\bumr: error while loading shared libraries",
          r"\bumr\b[^\n]{0,40}does not start"),
         "UMR is not working.",
@@ -362,6 +387,24 @@ _RULES = (
         "The package manager is busy.",
         "A system update, software center, or another terminal is already changing packages.",
         "Let that update finish, close the other package tool, and retry. Do not delete package-manager lock files by hand.",
+    ),
+    # A repository defined twice is fixed in pacman.conf, not by waiting or
+    # updating keys (R-d0e4fa7c).
+    _Rule(
+        _PKG_DUPLICATE_REPO.code,
+        (r"database already registered",),
+        _PKG_DUPLICATE_REPO.summary,
+        _PKG_DUPLICATE_REPO.cause,
+        _PKG_DUPLICATE_REPO.action,
+    ),
+    # Before the signature rule: "invalid or corrupted package" is in both, and
+    # a damaged download is not fixed by updating the keyring (R-f193b192).
+    _Rule(
+        _PKG_DAMAGED.code,
+        (r"corrupted package \(checksum\)", r"repository is serving a damaged package"),
+        _PKG_DAMAGED.summary,
+        _PKG_DAMAGED.cause,
+        _PKG_DAMAGED.action,
     ),
     _Rule(
         "BC250-PKG-002",
@@ -940,7 +983,8 @@ def umr_repair_command(message: object, *, context: object = "", os_family: str 
     if diagnose_error(message, context=context).code != UMR_REPAIR_CODE:
         return ""
     family = _UMR_COMMAND_FAMILY.get(os_family or _os_family(), "")
-    return UMR_REPAIR_COMMANDS.get(family, "")
+    commands = UMR_INSTALL_COMMANDS if umr_is_missing(message) else UMR_REPAIR_COMMANDS
+    return commands.get(family, "")
 
 
 def _umr_repair_steps(os_family: str, translate: Translator) -> str:
@@ -1041,11 +1085,15 @@ def error_sections(
     else:
         translate_text = translate
     action = translate_text(diagnosis.action)
+    summary_text, cause_text = diagnosis.summary, diagnosis.cause
     if diagnosis.code == UMR_REPAIR_CODE:
+        if umr_is_missing(detail):
+            summary_text, cause_text = UMR_MISSING_SUMMARY, UMR_MISSING_CAUSE
+            action = translate_text(UMR_MISSING_ACTION)
         action = f"{action}\n{_umr_repair_steps(os_family or _os_family(), translate)}"
     sections = (
-        (translate("What happened"), translate_text(diagnosis.summary)),
-        (translate("Likely cause"), translate_text(diagnosis.cause)),
+        (translate("What happened"), translate_text(summary_text)),
+        (translate("Likely cause"), translate_text(cause_text)),
         (translate("How to fix it"), action),
         (translate("Technical detail"), translate(detail)),
     )

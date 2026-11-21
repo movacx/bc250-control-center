@@ -270,19 +270,33 @@ STALE_PACMAN_LOCK_FIX = "Remove it, then run the action again:"
 def _stale_pacman_lock_shell(translate=None) -> str:
     """On a pacman lock failure, say whether the lock is a leftover.
 
-    Only when the lock file is there and no package manager runs: then it is
-    not a busy system but an interrupted update, and the exact command is
-    given. Nothing is removed here; it is a root file.
+    The same rule as ``pacman_lock.lock_state``: pacman itself must not be
+    running, and either no front-end runs either or the lock is older than
+    this boot. An idle PackageKit (Discover keeps ``packagekitd`` alive on
+    KDE) holds nothing, yet it hid the hint from a user whose lock outlived a
+    reboot and blocked them twice (R-40f0868d, R-1c81b064). Nothing is removed
+    here; it is a root file.
     """
     translate = translate if callable(translate) else _TRANSLATOR
     message = shlex.quote(translate(STALE_PACMAN_LOCK_MESSAGE))
     fix = shlex.quote(translate(STALE_PACMAN_LOCK_FIX))
+    from bc250cc.infrastructure.pacman_lock import PACKAGE_MANAGERS
+
+    # The libalpm front-ends: running, they may hold the lock without a pacman
+    # process, so only a lock older than this boot is called a leftover then.
+    front_ends = "|".join(name for name in PACKAGE_MANAGERS if name != "pacman")
     return (
-        'if [ "$status" -ne 0 ] && [ "$status" -ne 130 ] && [ -e "${BC250_PACMAN_LOCK:-/var/lib/pacman/db.lck}" ] '
+        'bc250_lock="${BC250_PACMAN_LOCK:-/var/lib/pacman/db.lck}"; '
+        'if [ "$status" -ne 0 ] && [ "$status" -ne 130 ] && [ -e "$bc250_lock" ] '
         '&& command -v pgrep >/dev/null 2>&1 '
         '&& printf "%s\\n" "$evidence" | grep -qiE "unable to lock database|could not lock database" '
-        '&& ! pgrep -x "pacman|pamac|pamac-daemon|yay|paru|packagekitd|octopi|pikaur|trizen|aura" >/dev/null 2>&1; then '
+        '&& ! pgrep -x pacman >/dev/null 2>&1; then '
+        'bc250_btime="$(awk \'/^btime /{print $2}\' "${BC250_PROC_STAT:-/proc/stat}" 2>/dev/null)"; '
+        'bc250_mtime="$(stat -c %Y "$bc250_lock" 2>/dev/null)"; '
+        f'if ! pgrep -x "{front_ends}" >/dev/null 2>&1 '
+        '|| { [ -n "$bc250_btime" ] && [ -n "$bc250_mtime" ] && [ "$bc250_mtime" -lt "$bc250_btime" ]; }; then '
         f'printf "\\n%s\\n%s\\n  sudo rm /var/lib/pacman/db.lck\\n" {message} {fix}; '
+        'fi; '
         'fi'
     )
 

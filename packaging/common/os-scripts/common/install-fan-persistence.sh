@@ -168,6 +168,10 @@ Description=Load nct6687 SuperIO sensor module for BC250 fan PWM
 After=local-fs.target systemd-udevd.service systemd-udev-settle.service systemd-modules-load.service multi-user.target graphical.target
 Wants=systemd-udev-settle.service systemd-modules-load.service
 StartLimitIntervalSec=0
+# The unit lives in /etc, which SteamOS keeps across its updates; the loader in
+# /usr/local does not survive one. Skip instead of retrying forever until fan
+# control is prepared again.
+ConditionPathExists=/usr/local/sbin/bc250-load-nct6687
 
 [Service]
 Type=oneshot
@@ -201,6 +205,8 @@ Description=Restore the last BC250 fan PWM duty at boot
 After=nct6687-load.service multi-user.target
 Requires=nct6687-load.service
 ConditionPathExists=/var/lib/bc250-control-center/fan-last-applied.json
+# Gone after a SteamOS update, like the rest of /usr: skipped, not failed.
+ConditionPathExists=$FAN_PWM_HELPER
 
 [Service]
 Type=oneshot

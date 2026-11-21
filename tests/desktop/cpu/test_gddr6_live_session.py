@@ -279,3 +279,25 @@ def test_an_outdated_checkout_points_at_the_prepare_button(qtbot):
     monitor._state.status = dict(READY, repository_ready=False)
     monitor._rebuild()
     assert monitor.reading.blocker() == "The reviewed upstream checkout is not prepared yet."
+
+
+def test_a_reading_from_the_kernel_driver_is_not_credited_to_bc250_telemetry(qtbot):
+    """2026-11-21: bc250_memory's reading said "Read by BC250-Telemetry" and MR3 0x00."""
+    from frontends.desktop.core.gddr6_monitor import EXTERNAL_SOURCE, KERNEL_SOURCE
+
+    monitor = _monitor(qtbot, SessionController())
+    kernel = {
+        "state": "active", "status": "kernel", "average_c": 53.0, "hotspot_c": 56.0, "hotspot_chip": 1,
+        "chips": [{"chip": index, "temperature_c": 50.0 + index, "source": "kernel"} for index in range(8)],
+    }
+    monitor._state.status = dict(READY, external=kernel)
+    monitor._rebuild()
+    assert monitor.reading.source == KERNEL_SOURCE
+    # The kernel gives no MR3 code, so none is shown rather than a made-up 0x00.
+    assert all(chip.code is None for chip in monitor.reading.chips)
+
+    collector = dict(kernel, status="ok", chips=[dict(chip, code=0x31) for chip in kernel["chips"]])
+    monitor._state.status = dict(READY, external=collector)
+    monitor._rebuild()
+    assert monitor.reading.source == EXTERNAL_SOURCE
+    assert all(chip.code == 0x31 for chip in monitor.reading.chips)

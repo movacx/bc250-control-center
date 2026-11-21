@@ -105,7 +105,8 @@ def test_a_daemon_that_gets_no_answer_does_not_hide_the_kernels_reading(tmp_path
 def test_without_a_driver_device_nothing_changes(tmp_path):
     (tmp_path / "hwmon").mkdir()
     _driver(tmp_path / "hwmon", name="k10temp")  # some other hwmon device
-    probe = sondear_telemetria_vrm(tmp_path / "absent.json", hwmon_root=tmp_path / "hwmon")
+    probe = sondear_telemetria_vrm(tmp_path / "absent.json", hwmon_root=tmp_path / "hwmon",
+                                   module=tmp_path / "no-module")
     assert probe["daemon"] == "missing" and probe["rails"] == {}
     assert leer_telemetria_vrm(tmp_path / "absent.json", hwmon_root=tmp_path / "hwmon")["vrm_available"] is False
 
@@ -208,3 +209,57 @@ def test_a_sample_in_flight_does_not_count_as_a_run(tmp_path):
     finally:
         fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
+
+
+def test_a_wedged_bus_reads_as_no_reading_not_797_degrees(tmp_path):
+    """2026-11-21: bc250_vrm returned the raw word 797 for every register."""
+    from bc250cc.infrastructure import vrm_telemetry_reader as reader
+
+    device = tmp_path / "hwmon4"
+    device.mkdir()
+    (device / "name").write_text("bc250_vrm\n")
+    for name, value in {
+        "in0_input": 7970, "in1_input": 797, "in2_input": 797,
+        "curr1_input": 79700, "curr2_input": 79700,
+        "temp1_input": 797000, "temp2_input": 797000,
+        "power1_input": 63520900, "power2_input": 63520900,
+    }.items():
+        (device / name).write_text(f"{value}\n")
+    reader._kernel_cache.clear()
+    missing = tmp_path / "no-snapshot.json"
+    lock = tmp_path / "no-lock"
+    result = reader.leer_telemetria_vrm(missing, hwmon_root=tmp_path, run_lock=lock)
+    assert result["vrm_cpu_temperature_c"] is None and result["vrm_gpu_temperature_c"] is None
+    assert result["vrm_input_voltage_v"] is None and not result["vrm_available"]
+    reader._kernel_cache.clear()
+    probe = reader.sondear_telemetria_vrm(missing, hwmon_root=tmp_path, run_lock=lock)
+    assert probe["rails"]["cpu"]["implausible"] and not probe["rails"]["cpu"]["valid"]
+    assert not probe["total_power_valid"]
+
+
+def test_a_driver_whose_every_read_fails_is_reported_as_unresponsive(tmp_path):
+    """The device exists (its regulator answered at load) but every attribute errors now."""
+    from bc250cc.infrastructure import vrm_telemetry_reader as reader
+
+    device = tmp_path / "hwmon4"
+    device.mkdir()
+    (device / "name").write_text("bc250_vrm\n")  # no readable attribute at all
+    reader._kernel_cache.clear()
+    probe = reader.sondear_telemetria_vrm(tmp_path / "none.json", hwmon_root=tmp_path, run_lock=tmp_path / "lock")
+    assert probe["rails"]["cpu"]["unresponsive"] and not probe["rails"]["cpu"]["valid"]
+
+
+def test_a_loaded_driver_with_no_regulator_is_reported_as_unresponsive(tmp_path):
+    """After a restart the regulator did not answer, so no hwmon device exists."""
+    from bc250cc.infrastructure import vrm_telemetry_reader as reader
+
+    module = tmp_path / "module"
+    module.mkdir()
+    reader._kernel_cache.clear()
+    probe = reader.sondear_telemetria_vrm(tmp_path / "none.json", hwmon_root=tmp_path,
+                                          run_lock=tmp_path / "lock", module=module)
+    assert probe["rails"]["cpu"]["unresponsive"]
+    reader._kernel_cache.clear()
+    missing = reader.sondear_telemetria_vrm(tmp_path / "none.json", hwmon_root=tmp_path,
+                                            run_lock=tmp_path / "lock", module=tmp_path / "absent")
+    assert missing["rails"] == {}

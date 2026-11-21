@@ -542,6 +542,12 @@ class SistemaService:
     def liberar_bloqueo_pacman(self):
         return self.repo.liberar_bloqueo_pacman()
 
+    def reparar_cabeceras_kernel(self):
+        return self.repo.reparar_cabeceras_kernel()
+
+    def reiniciar_sensor_vrm(self):
+        return self.repo.reiniciar_sensor_vrm()
+
     def reparar_telemetria_8core(self, action: str = "telemetry-fix"):
         return self.repo.reparar_telemetria_8core(action)
 
@@ -553,6 +559,14 @@ class SistemaService:
 
     def gestionar_proton_steamos(self, action: str):
         return self.repo.gestionar_proton_steamos(action)
+
+    def gestionar_real_toolkit_steamos(self, action: str):
+        return self.repo.gestionar_real_toolkit_steamos(action)
+
+    def gestionar_alternativa_steamos(self, action: str):
+        from .steamos_alternative import run_alternative
+
+        return run_alternative(self.repo, action)
 
     def diagnostico_steamos(self):
         return self.repo.diagnostico_steamos()
@@ -767,11 +781,15 @@ class SistemaService:
     def estado_desbloqueo_nucleos_cpu(self):
         return self.repo.estado_desbloqueo_nucleos_cpu()
 
-    def comando_desbloquear_nucleos_cpu(self, ignore_core_mask=False):
-        return self.repo.comando_desbloquear_nucleos_cpu(ignore_core_mask=ignore_core_mask)
+    def comando_desbloquear_nucleos_cpu(self, ignore_core_mask=False, accept_mask=None):
+        return self.repo.comando_desbloquear_nucleos_cpu(
+            ignore_core_mask=ignore_core_mask, accept_mask=accept_mask
+        )
 
-    def comando_persistir_desbloqueo_nucleos_cpu(self, ignore_core_mask=False):
-        return self.repo.comando_persistir_desbloqueo_nucleos_cpu(ignore_core_mask=ignore_core_mask)
+    def comando_persistir_desbloqueo_nucleos_cpu(self, ignore_core_mask=False, accept_mask=None):
+        return self.repo.comando_persistir_desbloqueo_nucleos_cpu(
+            ignore_core_mask=ignore_core_mask, accept_mask=accept_mask
+        )
 
     def comando_quitar_persistencia_nucleos_cpu(self):
         return self.repo.comando_quitar_persistencia_nucleos_cpu()

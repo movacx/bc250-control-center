@@ -523,6 +523,20 @@ def _rpm_ostree_install(path: str) -> str:
     echo "Layered on this system, but no enabled repository publishes it any more: $bc250_missing"
     echo "Control Center did not install it. Re-enable the repository that provides it, or remove it on purpose and update again: rpm-ostree uninstall $bc250_missing"
   fi
+  # A layered package of the user's own (R-e6cfdf24: logitech-trueforce) that no
+  # longer resolves against the new base image blocks the whole deployment.
+  if [ "$bc250_rc" -ne 0 ] && grep -q 'none of the providers can be installed' "$bc250_log"; then
+    bc250_blocker="$(grep -m1 -oE 'package [^ ]+ from @System requires' "$bc250_log" | sed 's/^package //; s/ from @System requires$//')"
+    echo "ERROR: A package layered on this system cannot be resolved against the new system image: $bc250_blocker"
+    echo "Control Center did not install it. Remove it (or wait for its maintainer to fix it) and update again: rpm-ostree uninstall $bc250_blocker"
+  fi
+  # A third-party repository whose signing key rpm-ostree cannot verify (R-1d120481).
+  if [ "$bc250_rc" -ne 0 ] && grep -q 'cannot be verified and repo' "$bc250_log"; then
+    bc250_unsigned="$(grep -m1 -oE 'package [^ ]+ cannot be verified' "$bc250_log" | sed 's/^package //; s/ cannot be verified$//')"
+    bc250_unsigned_repo="$(grep -m1 -oE 'and repo [^ ]+ is GPG enabled' "$bc250_log" | sed 's/^and repo //; s/ is GPG enabled$//')"
+    echo "ERROR: rpm-ostree cannot verify the signature of $bc250_unsigned from the repository $bc250_unsigned_repo"
+    echo "Control Center did not install it. Its repository key is missing or changed: refresh the repository (rpm-ostree refresh-md --force) or remove that package with rpm-ostree uninstall, then update again."
+  fi
   rm -f "$bc250_log"
   return "$bc250_rc"
 }}

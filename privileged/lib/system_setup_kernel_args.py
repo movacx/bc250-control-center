@@ -84,6 +84,13 @@ CH7218_VRR = "amdgpu.bc250_ch7218_vrr=1"
 PCON_FORCE_DSC = "amdgpu.bc250_pcon_force_dsc=1"
 RELINK_AT_BOOT = "amdgpu.cs_relink_at_boot=1"
 PARAMETER_DIRECTORY = "/sys/module/amdgpu/parameters/"
+#: Hexxeh's GDDR6 memory driver, shipped (unloaded) with MastaG's kernel.
+#: systemd-modules-load reads ``modules-load=`` from the command line, so the
+#: driver loads at boot without a file in /etc/modules-load.d. Loading it
+#: patches the SMU firmware in memory and adds a user to the SMU mailbox: it is
+#: offered off, and only where the running kernel ships the module.
+MEMORY_SENSOR = "modules-load=bc250_memory"
+MEMORY_MODULE = "bc250_memory"
 #: The options whose parameter only the BC-250 kernel has: without it the
 #: kernel ignores the argument, so it is neither offered nor written.
 KERNEL_PARAMETERS = {
@@ -97,7 +104,7 @@ KERNEL_PARAMETERS = {
 }
 ARGUMENTS = (
     "mitigations=off", "nosmt", CU_UNLOCK, HIDE_BOOT_MESSAGES, SCHED_POLICY, HDMI21_OFF, RELINK_OFF,
-    CH7218_QUIRK, CH7218_VRR, PCON_FORCE_DSC, RELINK_AT_BOOT,
+    CH7218_QUIRK, CH7218_VRR, PCON_FORCE_DSC, RELINK_AT_BOOT, MEMORY_SENSOR,
 )
 #: What SteamOS's boot menu takes among the switches.
 STEAMOS_ARGUMENTS = ("mitigations=off", "nosmt", HIDE_BOOT_MESSAGES)
@@ -479,8 +486,14 @@ def status(host: Host) -> dict:
         },
         # Which of the BC-250 kernel's switches this kernel has at all.
         "parameters": {
-            argument: {"supported": host.path(PARAMETER_DIRECTORY + name).exists()}
-            for argument, name in KERNEL_PARAMETERS.items()
+            **{
+                argument: {"supported": host.path(PARAMETER_DIRECTORY + name).exists()}
+                for argument, name in KERNEL_PARAMETERS.items()
+            },
+            MEMORY_SENSOR: {
+                "supported": memory_module_present(host),
+                "loaded": host.path(f"/sys/module/{MEMORY_MODULE}").exists(),
+            },
         },
         "reboot_required": any(
             item["configured"] != item["active"] for item in arguments.values()
@@ -488,6 +501,18 @@ def status(host: Host) -> dict:
             item["configured"] != item["active"] for item in value_items.values()
         ),
     }
+
+
+def memory_module_present(host: Host) -> bool:
+    """Whether the running kernel ships the bc250_memory module (or has it loaded)."""
+    if host.path(f"/sys/module/{MEMORY_MODULE}").exists():
+        return True
+    release = os.uname().release
+    for root in ("/usr/lib/modules", "/lib/modules"):
+        dependencies = host.read(f"{root}/{release}/modules.dep")
+        if f"/{MEMORY_MODULE}.ko" in dependencies:
+            return True
+    return False
 
 
 def _regenerate_grub(host: Host) -> None:
@@ -795,7 +820,7 @@ def apply(host: Host, wanted: list[str] | tuple[str, ...]) -> dict:
     """Make exactly ``wanted`` the set of switches this module manages."""
     wanted_set = set(wanted)
     if wanted_set - set(ARGUMENTS):
-        raise SetupError("Only mitigations=off, nosmt, loglevel=0 and the BC-250 amdgpu switches can be managed here")
+        raise SetupError("Only mitigations=off, nosmt, loglevel=0, the BC-250 amdgpu switches and the GDDR6 memory driver can be managed here")
     current, backend, saved = _prepare(host)
     if backend == "steamos-grub" and wanted_set - set(STEAMOS_ARGUMENTS):
         raise SetupError("On SteamOS only mitigations=off, nosmt, loglevel=0 and the GPU memory limit are set here")
@@ -814,6 +839,15 @@ def apply(host: Host, wanted: list[str] | tuple[str, ...]) -> dict:
                 f"This kernel has no amdgpu.{name} parameter, so the argument would do nothing. "
                 "It comes with the BC-250 kernel (linux-cachyos-bc250)."
             )
+    if (
+        MEMORY_SENSOR in wanted_set
+        and MEMORY_SENSOR not in set(saved.get("arguments") or ())
+        and not current["parameters"][MEMORY_SENSOR]["supported"]
+    ):
+        raise SetupError(
+            "This kernel has no bc250_memory driver, so loading it at boot would do nothing. "
+            "It comes with the BC-250 kernel (linux-cachyos-bc250)."
+        )
     wanted_list = [argument for argument in ARGUMENTS if argument in wanted_set]
     return _commit(host, backend, saved, wanted_list, _values(saved))
 

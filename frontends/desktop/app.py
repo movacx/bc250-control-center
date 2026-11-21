@@ -30,6 +30,12 @@ from .core.diagnostic_history import record_terminal_failure
 from .core.gamepad import GamepadNavigationController
 from .core.preferences import UiPreferences
 from .core.state import state_cache_for
+from .core.temperature_unit import (
+    load_temperature_unit,
+    set_temperature_unit,
+    temperature_unit,
+    temperature_unit_notifier,
+)
 from .core.workflow_watch import WorkflowCompletionWatcher
 from .i18n import (
     localize_top_levels,
@@ -127,6 +133,9 @@ class ControlCenterWindow(QMainWindow):
         self._missing_backend_language = migration.missing_backend_language
         self._missing_backend_appearance = migration.missing_backend_appearance
         self._apply_language(str(self.settings.value("settings/language", "auto")), persist=False)
+        # °C or °F, for display only; the pages redraw when it changes.
+        load_temperature_unit(self.settings)
+        temperature_unit_notifier().changed.connect(self._apply_temperature_unit)
         self._apply_appearance(
             str(self.settings.value("settings/appearance", "system")),
             str(self.settings.value("settings/accent", "blue")),
@@ -261,6 +270,9 @@ class ControlCenterWindow(QMainWindow):
             self._dashboard_driver_support
         )
         self.dashboard.update_requested.connect(self.open_update_dialog)
+        self.cpu_page.prepare_dependencies_requested.connect(
+            lambda: self._dashboard_action("prepare_dependencies")
+        )
         self.dashboard.state_applied.connect(self.extras_page.apply_state)
         self.extras_page.dependency_action_requested.connect(
             self._dashboard_dependency_action
@@ -513,6 +525,12 @@ class ControlCenterWindow(QMainWindow):
             # been laid out yet has nothing to photograph.
             self._first_run_pending = False
             QTimer.singleShot(140, self.open_welcome)
+        else:
+            # An update, or any start after the first: the developer's note
+            # opens by itself once (a clean install gets it after the tour).
+            dashboard = getattr(self, "dashboard", None)
+            if dashboard is not None:
+                dashboard.present_developer_note_once()
 
     def _apply_gamemode_window_mode(self) -> None:
         if not self._gamemode_session:
@@ -634,7 +652,9 @@ class ControlCenterWindow(QMainWindow):
             style=self.preferences.style(),
             scale=self.preferences.scale(),
             terminal_theme=str(self.settings.value("settings/console_theme", "app") or "app"),
+            temperature_unit=temperature_unit(),
         )
+        overlay.temperature_unit_chosen.connect(self._welcome_temperature_unit)
         overlay.terminal_theme_chosen.connect(self._welcome_terminal_theme)
         overlay.language_chosen.connect(self._welcome_language)
         # Live, behind the panel: the shell is restyled as the options are
@@ -673,6 +693,9 @@ class ControlCenterWindow(QMainWindow):
         self._apply_language(language)
         if self.welcome is not None:
             self.welcome.retranslate()
+
+    def _welcome_temperature_unit(self, unit: str) -> None:
+        set_temperature_unit(unit, self.settings)
 
     def _apply_style(self, style: str) -> None:
         """Store the style and repaint with it, keeping theme and accent."""
@@ -824,6 +847,7 @@ class ControlCenterWindow(QMainWindow):
             self.start_tour()
         else:
             self.dashboard.announce_pending_attention()
+            self.dashboard.present_developer_note_once()
 
     # ------------------------------------------------------------ the tour
 
@@ -968,6 +992,8 @@ class ControlCenterWindow(QMainWindow):
         self._sync_current_page_layout()
         # The notices held back while the tour pointed at the pages.
         self.dashboard.announce_pending_attention()
+        # Then, once ever, the developer's note.
+        self.dashboard.present_developer_note_once()
 
     def _apply_language(self, language: str, *, persist: bool = True) -> None:
         requested = normalize_language(language)
@@ -977,6 +1003,31 @@ class ControlCenterWindow(QMainWindow):
             self._save_backend_preference("idioma", resolved)
         if hasattr(self, "sidebar"):
             self._retranslate_interface()
+
+    def _apply_temperature_unit(self, _unit: str) -> None:
+        """°C ↔ °F: redraw what is on screen, nothing else changes.
+
+        Copy that goes through the translation layer converts itself on the
+        same pass a language change uses; pages that draw temperatures of
+        their own (charts, the fan curve, live readings) redraw from the
+        values they already hold, in Celsius.
+        """
+        if not hasattr(self, "sidebar"):
+            return
+        self._retranslate_interface()
+        for page in getattr(self, "pages", {}).values():
+            refresh = getattr(page, "refresh_temperature_unit", None)
+            if callable(refresh):
+                refresh()
+        settings_dialog = getattr(self, "settings_dialog", None)
+        if settings_dialog is not None:
+            localize_widget_tree(settings_dialog)
+
+    def _apply_gpu_interface(self, style: str) -> None:
+        """Settings › Appearance › Interface style: swap the GPU screen in place."""
+        from .pages.gpu_governor_integration import switch_gpu_interface
+
+        switch_gpu_interface(self.gpu_page, style)
 
     def _queue_appearance(self, mode: str, accent: str, density: str) -> None:
         """Let the chosen option paint first; of quick clicks, apply the last.
@@ -1280,6 +1331,10 @@ class ControlCenterWindow(QMainWindow):
         self.sidebar.buttons[self.current_page_key].setChecked(True)
         self.stack.setCurrentWidget(self.pages[self.current_page_key])
 
+    def _kernel_option_from_settings(self, option: str) -> None:
+        """A kernel boot option switched from Settings: the same path as Compatibility."""
+        self.dashboard.readiness._request_kernel_option(option)
+
     def _open_settings_dialog(self, section: str = "home", then=None) -> None:
         previous_key = self.current_page_key if self.current_page_key in self.sidebar.buttons else "dashboard"
         previous_page = self.pages.get(previous_key)
@@ -1308,6 +1363,8 @@ class ControlCenterWindow(QMainWindow):
             dialog.language_changed.connect(self._apply_language)
             dialog.appearance_changed.connect(self._queue_appearance)
             dialog.scale_changed.connect(self._apply_scale)
+            dialog.gpu_interface_changed.connect(self._apply_gpu_interface)
+            dialog.driver_support_requested.connect(self._dashboard_driver_support)
             dialog.smart_alerts_changed.connect(self.alert_monitor.set_enabled)
             dialog.diagnostics_changed.connect(self._set_detailed_diagnostics)
             dialog.sidebar_collapsed_changed.connect(self.sidebar.set_collapsed)
@@ -1322,6 +1379,7 @@ class ControlCenterWindow(QMainWindow):
             dialog.vrm_manual_changed.connect(self._set_vrm_manual)
             dialog.tour_requested.connect(self._tour_requested_from_settings)
             dialog.update_requested.connect(self._update_requested_from_settings)
+            dialog.kernel_option_requested.connect(self._kernel_option_from_settings)
             self.settings_dialog = dialog
         dialog = self.settings_dialog
         dialog.select_section(section)
@@ -1565,6 +1623,9 @@ class ControlCenterWindow(QMainWindow):
         "corsair": ("https://github.com/jurkovic-nikola/OpenLinkHub", "OpenLinkHub"),
         "hdmi_ac3": ("https://github.com/keyboardspecialist/bc250-steamos/tree/main/hdmi-ac3", "Dolby Digital 5.1"),
         "hdmi_cec": ("https://gitlab.steamos.cloud/holo/linux-cec", "cecd"),
+        "vram_sensor": ("https://github.com/Hexxeh/bc250-memory-dkms", "bc250-memory"),
+        "vrm_sensor": ("https://github.com/Hexxeh/bc250-vrm-dkms", "bc250-vrm"),
+        "apu_telemetry": ("https://github.com/onlinermm/BC250-Telemetry", "BC250-Telemetry"),
     }
 
     def _dashboard_accessory(self, accessory: str, operation: str) -> None:
@@ -1576,6 +1637,14 @@ class ControlCenterWindow(QMainWindow):
             return
         upstream, program = self._ACCESSORY_LINKS[accessory]
         try:
+            if accessory == "apu_telemetry" and operation in {"install", "remove"}:
+                # Its own workflow, with the same confirmation as Settings › Telemetry.
+                from .pages.settings import confirm_apu_telemetry
+
+                action = "install" if operation == "install" else "uninstall"
+                if confirm_apu_telemetry(action, self):
+                    self.controller.gestionar_apu_telemetry(action)
+                return
             if operation == "upstream":
                 open_external_url(upstream)
             elif operation == "configure" and accessory == "hdmi_cec":
@@ -1597,7 +1666,10 @@ class ControlCenterWindow(QMainWindow):
                 # profiles stay, which the dialog says. Audio and TV settings
                 # have no profiles: what Control Center added goes, nothing else.
                 body = (
-                    "The settings Control Center added are removed and the previous behaviour returns. "
+                    "The driver and its DKMS build are removed. Its readings stop showing until you "
+                    "install it again; dkms and the kernel headers stay."
+                    if accessory in {"vram_sensor", "vrm_sensor"}
+                    else "The settings Control Center added are removed and the previous behaviour returns. "
                     "Packages installed for it stay."
                     if accessory in {"hdmi_ac3", "hdmi_cec"}
                     else "The program and the service Control Center set up for it are removed. "
@@ -1751,6 +1823,12 @@ class ControlCenterWindow(QMainWindow):
         self.close()
 
     def _dashboard_action(self, action: str) -> None:
+        if action.startswith("sensor_guide"):
+            tab = action.partition(":")[2] or "i2c"
+            self._open_settings_dialog(
+                "telemetry_guide", then=lambda dialog: dialog.page.open_sensor_guide(tab),
+            )
+            return
         if action == "telemetry_settings":
             self._open_settings_dialog("telemetry")
             return
@@ -1780,6 +1858,13 @@ class ControlCenterWindow(QMainWindow):
             # Fans page owns the validated confirmation and asynchronous
             # terminal launcher, but it does not need to become visible.
             self.fans_page.prepare_pwm_driver(dialog_parent=self)
+            return
+        if action == "support":
+            self._open_settings_dialog("support")
+            return
+        if action == "repair_vrm_sensor":
+            # A wedged bc250_vrm: the terminal workflow restarts the driver.
+            self.gpu_page.repair_vrm_sensor(dialog_parent=self)
             return
         if action == "open_logs":
             self._open_settings_dialog("reports")

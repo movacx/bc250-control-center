@@ -82,6 +82,28 @@ _RAIL_MEASUREMENTS = (
 )
 
 
+#: What a BC-250 rail can physically report, per measurement (base units).
+#: Outside these the regulator did not answer: a wedged Nuvoton SMBus master
+#: hands back the same stale word for every register (R-2026-11-21: 797 for
+#: VIN, VOUT, IOUT and TEMP alike, so 7.97 V in, 79.7 A and 797 °C).
+_PLAUSIBLE = {
+    "vin": (9.0, 14.0),
+    "vout": (0.2, 1.8),
+    "iout": (0.0, 120.0),
+    "temp": (1.0, 150.0),
+    "pout": (0.0, 250.0),
+}
+
+
+def _plausible(data: dict[str, Any]) -> bool:
+    """Whether every reading of one rail is something the board can produce."""
+    for key, (low, high) in _PLAUSIBLE.items():
+        value = _number(data.get(key))
+        if value is not None and not low <= value <= high:
+            return False
+    return True
+
+
 def _empty_result() -> dict[str, Any]:
     empty: dict[str, Any] = {
         "vrm_available": False,
@@ -182,11 +204,20 @@ def _kernel_vrm_hardware(
             iout = _attribute(device, f"curr{index}_input", 1000.0)
             temp = _attribute(device, f"temp{index}_input", 1000.0)
             pout = _attribute(device, f"power{index}_input", 1_000_000.0)
-            valid = None not in (vin, vout, iout, temp, pout)
             hardware[rail] = {
-                "valid": valid,
                 "vin": vin, "vout": vout, "iout": iout, "temp": temp, "pout": pout,
             }
+            plausible = _plausible(hardware[rail])
+            valid = None not in (vin, vout, iout, temp, pout) and plausible
+            hardware[rail]["valid"] = valid
+            if not plausible:
+                # Shown as "no reading", never as 797 °C; the probe says why.
+                hardware[rail]["implausible"] = True
+            if all(value is None for value in (vin, vout, iout, temp, pout)):
+                # The driver only registers a device whose regulator answered
+                # when it loaded, so a rail where every read now fails (they
+                # time out) is the same wedged bus, not a missing sensor.
+                hardware[rail]["unresponsive"] = True
             if valid:
                 powers.append(pout)
         hardware["total_power_valid"] = len(powers) == 2
@@ -230,7 +261,7 @@ def leer_telemetria_vrm(
     input_voltages: list[float] = []
     for rail in ("cpu", "gpu"):
         data = hardware.get(rail)
-        if not isinstance(data, dict) or not data.get("valid"):
+        if not isinstance(data, dict) or not data.get("valid") or not _plausible(data):
             continue
         for field, source in _RAIL_MEASUREMENTS:
             result[f"vrm_{rail}_{field}"] = _number(data.get(source))
@@ -257,6 +288,7 @@ def sondear_telemetria_vrm(
     max_age: float = DEFAULT_MAX_AGE_SECONDS,
     hwmon_root: Path = HWMON_ROOT,
     run_lock: Path = SMU_RUN_LOCK,
+    module: Path = KERNEL_VRM_MODULE,
 ) -> dict[str, Any]:
     """What the rails report right now, from the daemon or else from the kernel.
 
@@ -269,10 +301,20 @@ def sondear_telemetria_vrm(
         return probe
     hardware = _kernel_vrm_hardware(hwmon_root, run_lock=run_lock)
     if hardware is None:
+        if kernel_vrm_driver_present(module) and not _smu_run_in_progress(run_lock):
+            # Loaded, but no regulator answered when it started: on a BC-250
+            # the regulator is always there, so its bus is wedged (seen right
+            # after restarting a driver whose reads were timing out).
+            silent = {"valid": False, "implausible": False, "unresponsive": True,
+                      **dict.fromkeys(("vin", "vout", "iout", "pout", "temp"))}
+            return {"daemon": "kernel", "age_s": 0.0, "rails": {"cpu": dict(silent), "gpu": dict(silent)},
+                    "total_power_w": None, "total_power_valid": False}
         return probe
     rails = {
         rail: {
             "valid": bool(hardware[rail]["valid"]),
+            "implausible": bool(hardware[rail].get("implausible")),
+            "unresponsive": bool(hardware[rail].get("unresponsive")),
             **{key: _number(hardware[rail].get(key)) for key in ("vin", "vout", "iout", "pout", "temp")},
         }
         for rail in ("cpu", "gpu")

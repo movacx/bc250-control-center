@@ -1,9 +1,13 @@
-"""Power delivery readings: what they need, and the I2C modification with photos.
+"""Power delivery readings: the three ways to get them, one tab each.
 
-One window, two panels. The left one says what this board needs (the message
-depends on the kernel and on whether the service already runs), the wiring
-and how to check it; the right one walks through the modification with the
-photos. Owners asked for those pictures before touching the board.
+* BC250-Telemetry (I2C): the community modification, two wires and a
+  service. Two panels: what this board needs, the wiring and how to check it
+  beside the photo walk-through owners asked for before touching the board.
+* bc250-vrm: Hexxeh's kernel driver reads the same regulator through the fan
+  chip, without wires. A short guide and a button that builds it with DKMS.
+* bc250-memory: the same author's driver for the VRAM (GDDR6) temperature.
+
+The tabs are the Processes page's: words underlined, no boxes.
 
 The photos, wiring and research are BC250-Telemetry's (``hardware.md``, MIT,
 by onlinermm and fansteori); the pinout comes from the AMD BC-250
@@ -19,22 +23,24 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QAbstractScrollArea,
+    QButtonGroup,
     QDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
     QScrollArea,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from ..core.external_links import open_external_url
 from ..i18n import localize_widget_tree, tr, tr_format
-from ..theme import application_stylesheet
+from ..theme import COLORS, application_stylesheet
 from .buttons import WrappingButton as QPushButton
 from .dialogs import center_dialog, enable_adaptive_dialog
-from .widgets import dialog_card, icon
+from .widgets import command_box, dialog_card, icon
 
 IMAGES = Path(__file__).resolve().parents[3] / "assets" / "telemetry-i2c"
 GUIDE_URL = "https://github.com/onlinermm/BC250-Telemetry/blob/main/hardware.md"
@@ -48,6 +54,51 @@ WIRING = (
     ("SDA (blue)", "Pin 6", "SMB_DATA_MAIN"),
 )
 PHOTO_WIDTH = 600
+
+VRM_URL = "https://github.com/Hexxeh/bc250-vrm-dkms"
+VRAM_URL = "https://github.com/Hexxeh/bc250-memory-dkms"
+#: Tab key, label, the link the footer opens, and its button text.
+#: Project names, not translated.
+TABS = (
+    ("i2c", "BC250-Telemetry (I2C)", GUIDE_URL, "BC250-Telemetry"),
+    ("vrm", "bc250-vrm", VRM_URL, "bc250-vrm"),
+    ("vram", "bc250-memory (VRAM)", VRAM_URL, "bc250-memory"),
+)
+#: What each driver's state says in its tab; ``{value}`` is its live reading.
+#: The unsupported, built-in and silent cases reuse the cards' own notes.
+DRIVER_STATES = {
+    "vrm": {
+        "unsupported": "Builds on Arch-based systems (Arch, CachyOS, Manjaro) on a BC-250.",
+        "managed-elsewhere": "Your kernel already includes this driver (MastaG's BC-250 kernels do), so there is nothing to build.",
+        "installed": "Installed, but the regulator does not answer through the fan chip. Run sudo dmesg | grep bc250_vrm to see why.",
+        "update-available": "This copy was built by an earlier version of Control Center. Press Update to build it again with the current fixes.",
+    },
+    "vram": {
+        "unsupported": "Needs an Arch-based system (Arch, CachyOS, Manjaro) on a BC-250 with BIOS P3.00: the driver patches the SMU at addresses reviewed for that BIOS only.",
+        "managed-elsewhere": "Your kernel already includes this driver (MastaG's BC-250 kernels do), so there is nothing to build.",
+        "installed": "Installed, but this BIOS keeps the SMU locked, so the driver waits. Press Monitor live on the dashboard once after each power-on: Control Center patches the SMU and the driver reads from then on.",
+        "update-available": "This copy was built by an earlier version of Control Center. Press Update to build it again with the current fixes.",
+    },
+}
+
+
+def _tab_stylesheet() -> str:
+    """The Processes page's tabs, for this window."""
+    c = COLORS
+    return f"""
+QFrame[guideTabRail='true'] {{
+    background: transparent; border: none; border-bottom: 1px solid {c['border_soft']};
+}}
+QPushButton[guideTab='true'] {{
+    background: transparent; border: none; border-bottom: 2px solid transparent;
+    border-radius: 0px; min-height: 0px; padding: 8px 2px 7px 2px;
+    color: {c['muted']}; font-size: 12px; font-weight: 700;
+}}
+QPushButton[guideTab='true']:hover {{ color: {c['text']}; }}
+QPushButton[guideTab='true']:checked {{
+    color: {c['text']}; border-bottom: 2px solid {c['blue']}; font-weight: 780;
+}}
+"""
 
 
 class _Photo(QLabel):
@@ -141,21 +192,33 @@ def _panel() -> tuple[QFrame, QVBoxLayout]:
 
 
 class I2cGuideDialog(QDialog):
-    """What the power delivery readings need, beside the photo guide."""
+    """The three ways to read the board's power delivery, one tab each."""
 
     TELEMETRY = 2
     INSTALL = 3
+    BUILD_VRM = 4
+    BUILD_VRAM = 5
 
-    def __init__(self, parent: QWidget | None = None, *, message: str = "", can_install: bool = False):
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        message: str = "",
+        can_install: bool = False,
+        drivers: dict | None = None,
+        tab: str = "i2c",
+    ):
         super().__init__(parent)
         self.setObjectName("InfoDialog")
         self.setModal(True)
         self.setWindowTitle(tr("Show the power delivery readings"))
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setStyleSheet(application_stylesheet())
+        self.setStyleSheet(application_stylesheet() + _tab_stylesheet())
         # Photos of pins need room: wide, and nearly the screen's height.
         enable_adaptive_dialog(self, preferred_width=1120, preferred_height=900, minimum_width=760, minimum_height=480)
+        self._can_install = can_install
+        self._drivers = dict(drivers or {})
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(24, 24, 24, 24)
@@ -164,8 +227,31 @@ class I2cGuideDialog(QDialog):
         frame = QVBoxLayout(card)
         frame.setContentsMargins(0, 0, 0, 0)
         frame.setSpacing(0)
-        # No header: the photos and the steps get the whole height; Close is in the footer.
+        # No header: the tabs, then the guide with the whole height; Close is in the footer.
 
+        rail = QFrame()
+        rail.setProperty("guideTabRail", True)
+        tabs = QHBoxLayout(rail)
+        tabs.setContentsMargins(22, 10, 22, 0)
+        tabs.setSpacing(22)
+        self.tab_group = QButtonGroup(self)
+        self.tab_group.setExclusive(True)
+        self.tab_buttons: dict[str, QPushButton] = {}
+        for key, label, _url, _link in TABS:
+            button = QPushButton(label)
+            button.setProperty("i18nLiteral", True)
+            button.setProperty("guideTab", True)
+            button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.clicked.connect(lambda _checked=False, name=key: self.select_tab(name))
+            self.tab_group.addButton(button)
+            tabs.addWidget(button)
+            self.tab_buttons[key] = button
+        tabs.addStretch(1)
+        frame.addWidget(rail)
+
+        self.pages = QStackedWidget()
+        self.page_index: dict[str, int] = {}
         body = QHBoxLayout()
         body.setContentsMargins(18, 16, 18, 16)
         body.setSpacing(14)
@@ -176,10 +262,12 @@ class I2cGuideDialog(QDialog):
         body.addWidget(right, 1)
         holder = QWidget()
         holder.setLayout(body)
-        frame.addWidget(holder, 1)
-
         self._fill_status(left_column, message)
         self._fill_steps(right_column)
+        self.page_index["i2c"] = self.pages.addWidget(holder)
+        self.page_index["vrm"] = self.pages.addWidget(self._driver_page("vrm"))
+        self.page_index["vram"] = self.pages.addWidget(self._driver_page("vram"))
+        frame.addWidget(self.pages, 1)
 
         footer_frame = QFrame()
         footer_frame.setObjectName("DialogFooter")
@@ -190,29 +278,156 @@ class I2cGuideDialog(QDialog):
         source.setObjectName("DialogSecondary")
         source.setIcon(icon("external_gray"))
         source.setCursor(Qt.CursorShape.PointingHandCursor)
-        source.clicked.connect(lambda: open_external_url(GUIDE_URL))
+        source.clicked.connect(lambda: open_external_url(self._link))
         self.source_button = source
+        self._link = GUIDE_URL
         footer.addWidget(source)
         footer.addStretch(1)
         close = QPushButton(tr("Close"))
         close.setObjectName("DialogSecondary")
         close.clicked.connect(self.reject)
-        settings = QPushButton(tr("Open Telemetry settings"))
-        settings.setObjectName("DialogSecondary" if can_install else "DialogPrimary")
-        settings.clicked.connect(lambda: self.done(self.TELEMETRY))
+        self.settings_button = QPushButton(tr("Open Telemetry settings"))
+        self.settings_button.setObjectName("DialogSecondary" if can_install else "DialogPrimary")
+        self.settings_button.clicked.connect(lambda: self.done(self.TELEMETRY))
         footer.addWidget(close)
-        footer.addWidget(settings)
+        footer.addWidget(self.settings_button)
         # The same install as Settings › Telemetry, one step closer: only
         # offered while no kernel driver or running service already reads it.
         self.install_button = QPushButton(tr("Install the service"))
         self.install_button.setObjectName("DialogPrimary")
         self.install_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.install_button.clicked.connect(lambda: self.done(self.INSTALL))
-        self.install_button.setVisible(can_install)
         footer.addWidget(self.install_button)
-        (self.install_button if can_install else settings).setDefault(True)
+        # The kernel tabs' one action: build the driver in the terminal.
+        self.build_button = QPushButton(tr("Compile and install"))
+        self.build_button.setObjectName("DialogPrimary")
+        self.build_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.build_button.clicked.connect(
+            lambda: self.done(self.BUILD_VRM if self.current_tab == "vrm" else self.BUILD_VRAM)
+        )
+        footer.addWidget(self.build_button)
         frame.addWidget(footer_frame)
+        self.current_tab = ""
+        self.select_tab(tab if tab in self.page_index else "i2c")
         localize_widget_tree(self)
+
+    def _driver_state(self, key: str) -> str:
+        info = self._drivers.get("vrm_sensor" if key == "vrm" else "vram_sensor") or {}
+        return str(info.get("state") or "")
+
+    def select_tab(self, key: str) -> None:
+        """Show one way; the footer offers that way's link and action."""
+        self.current_tab = key
+        self.pages.setCurrentIndex(self.page_index[key])
+        for name, button in self.tab_buttons.items():
+            button.setChecked(name == key)
+        _key, _label, url, link = next(item for item in TABS if item[0] == key)
+        self._link = url
+        self.source_button.setText(
+            tr("Open BC250-Telemetry") if key == "i2c" else tr_format("Open {project}", project=link)
+        )
+        i2c = key == "i2c"
+        self.settings_button.setVisible(i2c)
+        self.install_button.setVisible(i2c and self._can_install)
+        driver_state = self._driver_state(key)
+        buildable = not i2c and driver_state in {"not-installed", "installed", "update-available"}
+        self.build_button.setVisible(buildable)
+        self.build_button.setText(tr(
+            "Update" if driver_state == "update-available"
+            else "Compile again" if driver_state == "installed" else "Compile and install"
+        ))
+        default = self.build_button if buildable else self.install_button if i2c and self._can_install else (
+            self.settings_button if i2c else None
+        )
+        for button in (self.settings_button, self.install_button, self.build_button):
+            button.setDefault(button is default)
+
+    # --- The kernel drivers ------------------------------------------------------
+
+    def _driver_page(self, key: str) -> QWidget:
+        frame, column = _panel()
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(18, 16, 18, 16)
+        layout.addWidget(frame)
+        frame.setMaximumWidth(860)
+        vrm = key == "vrm"
+        column.addWidget(_heading("Power delivery without the I2C wires" if vrm else "VRAM temperature"))
+        column.addWidget(_text(
+            "bc250-vrm is a kernel driver by Liam McLoughlin (Hexxeh). It reads the board's voltage regulator "
+            "through the fan chip, so it needs none of the I2C wiring: the 12 V input, the CPU and GPU rails "
+            "and the VRM temperatures show up on the Dashboard and in sensors."
+            if vrm else
+            "bc250-memory is the same author's driver for the video memory. It reads the temperature of the "
+            "eight GDDR6 chips through the SMU and shows it as a normal sensor: the hottest chip, the average "
+            "and each chip."
+        ))
+        column.addWidget(_rule())
+        column.addWidget(_heading("This board"))
+        self._fill_driver_state(column, key)
+        column.addWidget(_rule())
+        column.addWidget(_heading("How it is installed"))
+        column.addWidget(_text(
+            "Control Center downloads the reviewed source, builds it with DKMS for your kernel and loads it. "
+            "When the kernel updates, DKMS builds it again by itself. It needs Arch, CachyOS, Manjaro or "
+            "another Arch-based system; MastaG's BC-250 kernels already include it."
+        ))
+        warning = QHBoxLayout()
+        warning.setSpacing(9)
+        glyph = QLabel()
+        glyph.setPixmap(icon("warning_orange").pixmap(16, 16))
+        glyph.setFixedSize(16, 18)
+        warning.addWidget(glyph, 0, Qt.AlignmentFlag.AlignTop)
+        warning.addWidget(_text(
+            "Use one way, not both: if you already have the I2C wires with the BC250-Telemetry service, "
+            "remove the service first. Two readers on the same regulator mix up each other's readings."
+            if vrm else
+            "When it loads, the driver patches the SMU firmware in memory. That patch was checked for BIOS "
+            "P3.00 with SMU access unlocked; on any other BIOS Control Center does not install it.",
+            "GuideWarning",
+        ), 1)
+        column.addLayout(warning)
+        column.addWidget(_rule())
+        column.addWidget(_heading("Check it"))
+        column.addWidget(_text(
+            "Once it is installed, this lists the driver's readings:"
+        ))
+        column.addWidget(command_box("sensors 'bc250_vrm-*'" if vrm else "sensors 'bc250_memory-*'"))
+        column.addStretch(1)
+        column.addWidget(_rule())
+        credit = QLabel(
+            "bc250-vrm-dkms · Liam McLoughlin (Hexxeh) · GPL-2.0"
+            if vrm else
+            "bc250-memory-dkms · Liam McLoughlin (Hexxeh) · GPL-2.0 · SMU payload: pan-Rijovich (MIT)"
+        )
+        credit.setObjectName("GuideCaption")
+        credit.setProperty("i18nLiteral", True)
+        credit.setWordWrap(True)
+        column.addWidget(credit)
+        return page
+
+    def _fill_driver_state(self, column: QVBoxLayout, key: str) -> None:
+        info = self._drivers.get("vrm_sensor" if key == "vrm" else "vram_sensor") or {}
+        state = str(info.get("state") or "")
+        reading = info.get("reading")
+        value = f"{reading:.0f} °C" if isinstance(reading, (int, float)) else ""
+        if state == "active":
+            text = tr_format("Installed and reading: {value}.", value=value)
+        elif state == "not-installed":
+            text = tr("Not installed yet. Compile and install builds it in a terminal; it asks for your password.")
+        elif state in DRIVER_STATES[key]:
+            text = tr(DRIVER_STATES[key][state])
+            if state == "managed-elsewhere" and value:
+                text += " " + tr_format("Reading now: {value}.", value=value)
+        else:
+            text = tr("Could not check this board yet.")
+        label = QLabel(text)
+        label.setObjectName("DialogBody")
+        label.setWordWrap(True)
+        label.setProperty("naturalHeight", True)
+        label.setProperty("i18nLiteral", True)
+        label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        column.addWidget(label)
 
     # --- Panel 1: this board ---------------------------------------------------
 

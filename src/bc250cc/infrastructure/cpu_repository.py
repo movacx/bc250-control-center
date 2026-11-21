@@ -70,6 +70,23 @@ CORE_UNLOCK_PERSISTENT_ORIGINS = {
 }
 
 
+#: Where Prepare dependencies clones bc250_smu_oc under ResourceTools.
+CPU_SMU_OC_DIRECTORY = 'bc250_smu_oc'
+
+#: The factory core mask. Any other mask the owner picks is sent to the helper
+#: as --accept-mask, which lets only that exact mask through.
+CORE_MASK_STOCK = 0x77
+
+
+def _core_mask_arguments(ignore_core_mask=False, accept_mask=None):
+    """Trailing helper arguments for the owner's core-mask choice."""
+    if accept_mask is not None and int(accept_mask) != CORE_MASK_STOCK:
+        return ('--accept-mask', f'0x{int(accept_mask) & 0xFF:02X}')
+    if ignore_core_mask:
+        return ('--ignore-core-mask',)
+    return ()
+
+
 def _refuse_stress_waiting_for_reboot() -> None:
     """On Bazzite, Prepare dependencies layers stress into the next deployment:
     it is installed, but only exists after a restart. Say that, not "missing"."""
@@ -799,8 +816,9 @@ class CPURepository:
             ),
         }
 
-    def comando_desbloquear_nucleos_cpu(self, ignore_core_mask=False):
-        """``ignore_core_mask`` asks the helper for upstream's ``-f``."""
+    def comando_desbloquear_nucleos_cpu(self, ignore_core_mask=False, accept_mask=None):
+        """``ignore_core_mask`` asks the helper for upstream's blunt ``-f``;
+        ``accept_mask`` (e.g. 0xB7) lets only that one board mask through."""
         init_manager = detect_init_manager()
         if not init_manager.persistence_supported:
             raise RuntimeError(
@@ -840,7 +858,7 @@ class CPURepository:
             metadata = script.stat(follow_symlinks=False)
         if metadata.st_mode & 0o022:
             raise RuntimeError('The upstream CPU core unlock script permissions could not be secured.')
-        extra = ('--ignore-core-mask',) if ignore_core_mask else ()
+        extra = _core_mask_arguments(ignore_core_mask, accept_mask)
         return pkexec_argv('pkexec', helper, '--repo', str(repository), '--reboot', *extra)
 
     def _core_unlock_persistent_preflight(self):
@@ -860,16 +878,17 @@ class CPURepository:
             raise RuntimeError('polkit/pkexec was not found. It is required for CPU core unlock.')
         return helper
 
-    def comando_persistir_desbloqueo_nucleos_cpu(self, ignore_core_mask=False):
+    def comando_persistir_desbloqueo_nucleos_cpu(self, ignore_core_mask=False, accept_mask=None):
         """Install the boot service that re-applies the unlock on every cold boot.
 
         The helper reboots only when the board is still at its factory core
-        count; ``ignore_core_mask`` becomes the tool's ``--force-mask``.
+        count; ``ignore_core_mask`` becomes the tool's ``--force-mask`` and
+        ``accept_mask`` its narrower ``--accept-mask``.
         """
         helper = self._core_unlock_persistent_preflight()
         repository = self._tool_dir() / CORE_UNLOCK_PERSISTENT_DIRECTORY
         script = repository / CORE_UNLOCK_PERSISTENT_SCRIPT
-        extra = ('--ignore-core-mask',) if ignore_core_mask else ()
+        extra = _core_mask_arguments(ignore_core_mask, accept_mask)
         install = pkexec_argv('pkexec', helper, '--persist-install', '--repo', str(repository), *extra)
         ready = (repository / '.git').is_dir() and script.is_file()
         if ready:
@@ -1109,19 +1128,45 @@ class CPURepository:
                 'stress is missing. Press Prepare dependencies or install the stress package '
                 'before testing a manual CPU scale.'
             )
-        if not tools.get('smu_oc_exists'):
-            raise RuntimeError(
-                'The local bc250_smu_oc repository was not found. Use Prepare dependencies first so '
-                'the tested result and persistence share the same ResourceTools/overclock.conf.'
-            )
         helper = self._cpu_smu_helper_path()
         if not helper:
             raise RuntimeError(self._missing_cpu_smu_helper_message())
         target = validate_scale_target(
             analysis['frequency'], analysis['scale'], analysis['temperature']
         )
+        if not tools.get('smu_oc_exists'):
+            # R-b6d54432: a missing clone used to stop here with "Use Prepare
+            # dependencies first". It is fetched at the reviewed revision
+            # first, as the desktop user, and the same test then runs, so the
+            # result still lands in the one ResourceTools/overclock.conf.
+            destination = self._tool_dir() / CPU_SMU_OC_DIRECTORY
+            command = build_verify_scale_command(
+                pkexec_prefix('pkexec'), helper, target, destination / 'overclock.conf'
+            )
+            return self._smu_oc_source_then(command, destination)
         config_path = Path(tools['smu_oc_path']) / 'overclock.conf'
         return build_verify_scale_command(pkexec_prefix('pkexec'), helper, target, config_path)
+
+    def _smu_oc_source_then(self, command, destination):
+        """``command`` after fetching the pinned bc250_smu_oc clone."""
+        from bc250cc.infrastructure.preparation_workflow import (
+            secure_cpu_checkout_command,
+        )
+
+        steps = [
+            'set -e',
+            'echo "== Preparing bc250_smu_oc source (it was missing) =="',
+            self._hardware_source_checkout_command(
+                EXTERNAL_TOOLS['cpu_smu_oc'].upstream, destination, None
+            ),
+            secure_cpu_checkout_command(destination),
+            f'test -f {shlex.quote(str(destination / "bc250_detect.py"))} || '
+            '{ echo "ERROR: bc250_detect.py is missing"; exit 30; }',
+            'exec ' + shlex.join(str(part) for part in command),
+        ]
+        # secure_checkout_command reads ``git ls-files`` through a process
+        # substitution, which needs bash rather than sh.
+        return ['/bin/bash', '-c', '\n'.join(steps)]
 
     def registrar_aplicacion_manual_cpu(self, frequency, scale, temperature=90):
         """Record a successful direct live apply and bind safe detector evidence.

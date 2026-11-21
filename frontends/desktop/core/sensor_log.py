@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from bc250cc.infrastructure.sensor_inventory import SensorReading
 
 from .performance_sample_presenter import format_bytes, format_rate
+from .temperature_unit import format_temperature
 
 #: Two minutes at the page's one-second cadence, like the main chart.
 TRACE_POINTS = 120
@@ -28,7 +29,7 @@ def format_sensor_value(value: float | None, unit: str) -> str:
     if value is None or not math.isfinite(value):
         return "–"
     if unit == "°C":
-        return f"{value:.1f} °C"
+        return format_temperature(value)
     if unit == "MHz":
         return f"{value:.0f} MHz"
     if unit == "%":

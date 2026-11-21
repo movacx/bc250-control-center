@@ -38,6 +38,11 @@ def test_stage_command_archives_the_pinned_tree_not_the_mutable_worktree(tmp_pat
         path = source / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# committed build environment\n", encoding="utf-8")
+    # Upstream v0.37+ entrypoints source this hook when it exists; it must
+    # never reach the root-owned copy.
+    hook = source / "scripts" / "feature-tracking.sh"
+    hook.parent.mkdir()
+    hook.write_text("#!/bin/bash\necho TRACKED\n", encoding="utf-8")
     _git(["init"], source)
     _git(["config", "user.email", "bc250-tests@example.invalid"], source)
     _git(["config", "user.name", "BC250 tests"], source)
@@ -84,6 +89,8 @@ def test_stage_command_archives_the_pinned_tree_not_the_mutable_worktree(tmp_pat
     assert (root / "bc250-audio-fix" / "boot-config.sh").is_file()
     assert (root / "bc250-update-persistence.sh").is_file()
     assert (root / "bc250-storage.sh").is_file()
+    assert (root / "bc250-mesa-patches" / "libdrm-2.4.134-wrap.patch").is_file()
+    assert not (root / "scripts").exists()
     assert (root / ".bc250-control-center-reviewed-revision").read_text(
         encoding="utf-8"
     ).strip() == revision
@@ -94,7 +101,11 @@ def test_stage_command_requires_every_full_install_member(tmp_path):
     command = backend.stage_backend_command(tmp_path, "a" * 40)
 
     assert "archive --format=tar" in command
-    assert "bc250-audio-fix bc250-mesh-shader.sh bc250-update-persistence.sh bc250-storage.sh" in command
+    assert (
+        "bc250-audio-fix bc250-mesh-shader.sh bc250-update-persistence.sh bc250-storage.sh "
+        "bc250-mesa-patches/libdrm-2.4.134-wrap.patch |"
+    ) in command
+    assert " scripts" not in command.split("archive --format=tar", 1)[1].split("|", 1)[0]
     for name in backend.BACKEND_REQUIRED_EXECUTABLES + backend.BACKEND_REQUIRED_REGULARS:
         assert name in command
         assert f'reviewed {name} is absent from the pinned commit' in command
@@ -266,3 +277,65 @@ def test_diagnostic_refuses_a_staged_backend_from_an_old_reviewed_revision(tmp_p
     assert "protected SteamOS AMDGPU backend is unavailable or untrusted" in result.stdout
     assert "SHOULD_NOT_RUN" not in result.stdout
 
+
+
+def test_guard_requires_the_v040_members_and_refuses_the_tracking_hook():
+    guard = backend.protected_backend_guard(reviewed_revision="a" * 40)
+    assert "bc250-audio-fix/fetch-build-deps.sh" in guard
+    assert "bc250-mesa-patches/libdrm-2.4.134-wrap.patch" in guard
+    assert f"sudo test ! -e {backend.STEAMOS_AMDGPU_BACKEND_ROOT}/scripts" in guard
+
+
+def _fake_staged_tree(root: Path, revision: str, members) -> None:
+    root.mkdir(parents=True)
+    for name in members:
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("#!/usr/bin/bash\n", encoding="utf-8")
+        path.chmod(0o755)
+    (root / ".bc250-control-center-reviewed-revision").write_text(revision + "\n", encoding="utf-8")
+
+
+def _guard_passes(tmp_path: Path, guard: str) -> bool:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir(exist_ok=True)
+    (fake_bin / "sudo").write_text(
+        "#!/usr/bin/bash\n"
+        "case \"${1:-}\" in stat) echo 0; exit 0 ;; find) exit 0 ;; esac\n"
+        "exec \"$@\"\n",
+        encoding="utf-8",
+    )
+    (fake_bin / "sudo").chmod(0o755)
+    result = subprocess.run(
+        ["/usr/bin/bash", "-c", guard], check=False,
+        env=os.environ | {"PATH": f"{fake_bin}:{os.environ['PATH']}"},
+    )
+    return result.returncode == 0
+
+
+@pytest.mark.parametrize(("staged", "accepted"), [
+    # What Control Center 1.x staged for v0.30.0: no fetch-build-deps.sh, no Mesa patch.
+    ("e1563f2051727702a000b6ff6f6c524e2792aa21", True),
+    ("6aee5530a07f2c1a4fd2f23c00a87986030c5b35", True),
+    ("b" * 40, False),
+])
+def test_stock_module_rollback_accepts_the_previous_reviewed_stage_only(tmp_path, staged, accepted):
+    root = tmp_path / "backend"
+    old_members = [name for name in backend.BACKEND_REQUIRED_EXECUTABLES
+                   if name != "bc250-audio-fix/fetch-build-deps.sh"]
+    _fake_staged_tree(root, staged, old_members)
+    current = "6aee5530a07f2c1a4fd2f23c00a87986030c5b35"
+
+    assert _guard_passes(tmp_path, backend.rollback_backend_guard(current, root)) is accepted
+    # Every other action keeps requiring the complete current stage.
+    assert _guard_passes(tmp_path, backend.protected_backend_guard(root, reviewed_revision=current)) is False
+
+
+def test_rollback_guard_refuses_a_stage_that_carries_the_tracking_hook(tmp_path):
+    root = tmp_path / "backend"
+    current = "6aee5530a07f2c1a4fd2f23c00a87986030c5b35"
+    _fake_staged_tree(root, current, backend.ROLLBACK_REQUIRED_EXECUTABLES)
+    assert _guard_passes(tmp_path, backend.rollback_backend_guard(current, root)) is True
+    (root / "scripts").mkdir()
+    (root / "scripts" / "feature-tracking.sh").write_text("echo TRACKED\n", encoding="utf-8")
+    assert _guard_passes(tmp_path, backend.rollback_backend_guard(current, root)) is False

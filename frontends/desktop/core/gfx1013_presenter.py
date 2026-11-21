@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+STEAMOS_TOOLKIT_DETAIL = "Use SteamOS Real Toolkit to select, check or revert graphics components."
 # Upstream boots the patched entry once after installing and keeps stock
 # Fedora as the default, so an installed fix looked missing after the next
 # restart. These say so and name the buttons that switch it on.
@@ -50,6 +51,10 @@ RADV_ROUTE_COPY: dict[str, tuple[str, str, str]] = {
     ),
 }
 RADV_ROUTE_OUTDATED = "A newer build (RADV {version}) is available: build and install again to update."
+RADV_ROUTE_PER_GAME_TIP = (
+    "If a game shows no difference, the session variable may not be active: copy the "
+    "launch option below for that game."
+)
 RADV_ROUTE_SECOND_FIX = (
     "The GFX1013 kernel-side fix is installed too; on kernel 7.2 or newer it is not needed, "
     "and one route is enough."
@@ -136,13 +141,9 @@ class Gfx1013Presentation:
 
 
 def _status(reason: str, **state: bool) -> tuple[str, str]:
-    kernel = state["kernel_ready"]
-    safe_radv = state["safe_radv"]
     if (
         state["legacy_radv"]
         or state["external_runtime_invalid"]
-        or (reason == "steamos-dedicated-backend" and safe_radv and not kernel)
-        or (reason == "steamos-dedicated-backend" and state["external_runtime_current"] and not kernel)
     ):
         return "Review required", "orange"
     if state["bazzite_invalid"]:
@@ -159,16 +160,6 @@ def _status(reason: str, **state: bool) -> tuple[str, str]:
         return "Installed", "blue"
     if state["masta_async_compute_ready"]:
         return "Installed via MastaG", "green"
-    if reason == "steamos-dedicated-backend":
-        if kernel and state["external_fsr4_current"]:
-            return "Async compute detected", "green"
-        if kernel and state["external_runtime_current"]:
-            return "Async compute detected", "green"
-        if kernel and safe_radv:
-            return "Async compute detected", "green"
-        if kernel:
-            return "Kernel half ready", "blue"
-        return "SteamOS backend", "blue"
     if reason == "fedora-upstream-managed":
         return "Official upstream workflow", "blue"
     if reason == "bazzite-release-managed":
@@ -179,8 +170,6 @@ def _status(reason: str, **state: bool) -> tuple[str, str]:
 
 
 def _detail(reason: str, **state: bool) -> tuple[str, ...]:
-    kernel = state["kernel_ready"]
-    safe_radv = state["safe_radv"]
     if state["legacy_radv"]:
         return ("A legacy SteamOS alternate RADV installation was detected. That older path can include mesh/task patches that current upstream disabled after unrecoverable GPU hangs. Control Center will not run or update it.",)
     if state["bazzite_invalid"]:
@@ -191,33 +180,12 @@ def _detail(reason: str, **state: bool) -> tuple[str, ...]:
         return ("The reviewed Bazzite async-compute driver is installed and enabled. Log out and back in before games and the desktop use it.",)
     if state["bazzite_current"]:
         return ("The reviewed Bazzite async-compute driver is installed. If you notice no difference in a game, the global variable may not be active. Copy the launch option below for each game individually, or copy the always-on enable command and paste it into a terminal. You can use the built-in terminal by pressing F4.",)
-    if reason == "steamos-dedicated-backend" and state["external_runtime_invalid"]:
-        return ("Mesa/RADV is incomplete or changed. Repair or remove it before playing.",)
-    if reason == "steamos-dedicated-backend" and state["external_runtime_current"] and not kernel:
-        return ("An external SteamOS RADV runtime is present but the matching kernel repair is not active. Do not use it until the kernel half is active; an unmatched Mesa/RADV runtime can hang the GPU.",)
-    if reason == "steamos-dedicated-backend" and safe_radv and not kernel:
-        return ("A GFX1013 RADV path was detected, but the verified SteamOS kernel compute repair is not active. Do not use the patched RADV driver until the kernel half is active; upstream warns that Mesa without the kernel repair can hang the GPU.",)
     if state["external_boot_active"]:
         return (FEDORA_FIX_ACTIVE_DETAIL,)
     if state["external_installed"]:
         return (FEDORA_FIX_STOCK_BOOT_DETAIL,)
     if state["masta_async_compute_ready"]:
         return ("The GFX1013 async-compute fix is already installed and active through MastaG's matched BC-250 kernel and Mesa/RADV packages. No separate DryhoppedIPA installation is required. Continue to test stability per game; async compute can increase GPU load and voltage requirements.",)
-    if reason == "steamos-dedicated-backend":
-        # One short line per state: the two status chips below already name
-        # each stage, and the buttons carry the order (1 · kernel, 2 · Mesa).
-        detail = []
-        if kernel and safe_radv:
-            detail.append("Another GFX1013 RADV is installed. Review it before using this one.")
-        elif kernel and state["external_runtime_current"]:
-            detail.append("Kernel and Mesa/RADV verified. Async compute is ready.")
-            if state["external_fsr4_current"]:
-                detail.append("The optional per-game FSR4 profile is also intact. Keep its launch option scoped to the games you are testing.")
-        elif kernel:
-            detail.append("The kernel is ready. Install Mesa/RADV to enable async compute.")
-        else:
-            detail.append("Two steps: install the kernel and reboot, then install Mesa/RADV.")
-        return tuple(detail)
     details = {
         "fedora-upstream-managed": "Control Center updates DryhoppedIPA's official main branch and invokes its combined kernel + Mesa/RADV workflow unchanged. Upstream performs the Fedora/kernel compatibility checks and keeps the stock boot entry as the recovery path.",
         "arch-family-manual-untested": "Upstream documents this Arch-family path as manual and untested. Control Center does not automate kernel/Mesa changes here.",
@@ -237,6 +205,19 @@ def present_gfx1013(
     state: Mapping[str, object], *, include_fsr4: bool = True
 ) -> Gfx1013Presentation:
     reason = str(state.get("reason_key") or "manual-patches-only")
+    if reason == "steamos-dedicated-backend":
+        toolkit = state.get("steamos_real_toolkit")
+        graphics = toolkit.get("graphics") if isinstance(toolkit, Mapping) else None
+        graphics = graphics if isinstance(graphics, Mapping) else {}
+        configured = str(graphics.get("state") or "unknown")
+        status = {"configured": "Configured", "incomplete": "Incomplete",
+                  "not-installed": "Not installed"}.get(configured, "Unknown")
+        tone = "blue" if configured == "configured" else "orange" if configured == "incomplete" else "gray"
+        return Gfx1013Presentation(
+            status=status, tone=tone, detail=(STEAMOS_TOOLKIT_DETAIL,),
+            steamos_actions=True, fedora_actions=False, bazzite_actions=False,
+            compatibility_action="Install / update",
+        )
     values = {
         "kernel_ready": bool(state.get("steamos_kernel_ready")),
         "safe_radv": bool(state.get("steamos_safe_radv_detected")),

@@ -153,6 +153,27 @@ def apu_telemetry_state(
     }
 
 
+def accessory_state(*, family: str, distro_id: str = "", immutable: bool = False) -> dict:
+    """The service in the accessory cards' words (Additional settings › Compatibility).
+
+    ``external`` (installed by BC250-Telemetry's own installer) is left alone,
+    like a driver the kernel already carries.
+    """
+    info = apu_telemetry_state(family=family, distro_id=distro_id, immutable=immutable)
+    raw = info["state"]
+    if raw == "external":
+        state = "managed-elsewhere"
+    elif raw == "publishing":
+        state = "active"
+    elif raw in {"installed", "invalid"}:
+        state = "installed"
+    elif info["supported"]:
+        state = "not-installed"
+    else:
+        state = "unsupported"
+    return {**info, "service_state": raw, "state": state, "device": True}
+
+
 def _header() -> str:
     return "\n".join((
         "set -Eeuo pipefail",

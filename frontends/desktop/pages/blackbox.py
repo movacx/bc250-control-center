@@ -34,6 +34,7 @@ from ..components.responsive import configure_responsive_scroll_area
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
 from ..components.widgets import InfoDialog
+from ..core.temperature_unit import temperature_number
 from ..i18n import tr, tr_format
 from ..theme import COLORS, scale_stylesheet
 from .processes import process_stylesheet
@@ -52,6 +53,8 @@ COLUMNS = (
     ("CPU MHz", "cpu", True),
     ("Free RAM MiB", "mem", True),
 )
+#: Columns recorded in °C and shown in the chosen unit.
+TEMPERATURE_KEYS = frozenset({"t_gpu", "t_cpu"})
 #: How the last recording ended, said in words (the keys are blackbox.read_session's).
 STATE_TEXT = {
     "none": "Nothing was recorded yet. Start the black box before playing to catch a freeze.",
@@ -86,7 +89,16 @@ class SampleModel(QAbstractTableModel):
         _heading, key, right = COLUMNS[index.column()]
         if role == Qt.ItemDataRole.DisplayRole:
             text = str(self._rows[index.row()].get(key, "-"))
-            return "–" if text in {"-", ""} else text
+            if text in {"-", ""}:
+                return "–"
+            if key in TEMPERATURE_KEYS:
+                # Recorded in °C; the heading names the unit on screen.
+                try:
+                    decimals = len(text.split(".", 1)[1]) if "." in text else 0
+                    return temperature_number(float(text), decimals)
+                except ValueError:
+                    return text
+            return text
         if role == Qt.ItemDataRole.TextAlignmentRole:
             return int(Qt.AlignmentFlag.AlignVCenter | (Qt.AlignmentFlag.AlignRight if right else Qt.AlignmentFlag.AlignLeft))
         return None

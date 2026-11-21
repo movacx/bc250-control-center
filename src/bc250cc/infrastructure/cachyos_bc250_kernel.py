@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import platform
 import subprocess
+import time
 from pathlib import Path
 
 from .cachyos_pahole import build_pahole_prepare_command, pahole_dependency_state
@@ -121,8 +122,46 @@ def masta_bc250_stack_supported(*, distro_id: str, family: str) -> bool:
     )
 
 
+#: The dashboard asks for this state twice per refresh (the inventory and the
+#: GFX1013 row). Kept this long, the second ask is free.
+_STACK_STATE_SECONDS = 3.0
+_stack_state_cache: dict[tuple[str, str], tuple[float, dict]] = {}
+
+
+def _installed_packages(packages: tuple[str, ...]) -> frozenset[str]:
+    """Which of these packages pacman has installed, in one query.
+
+    One ``pacman -Qq`` per package was 28 processes and about a second of the
+    dashboard's first load. Asked together, pacman lists the installed ones and
+    names the others on stderr.
+    """
+    try:
+        result = subprocess.run(
+            ("pacman", "-Qq", *packages),
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=4,
+            env={**os.environ, "LANG": "C", "LC_ALL": "C"},
+        )
+    except (OSError, subprocess.SubprocessError):
+        return frozenset()
+    wanted = set(packages)
+    return frozenset(line.strip() for line in result.stdout.splitlines() if line.strip() in wanted)
+
+
 def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
     """Return a read-only installation snapshot for the compatibility UI."""
+    key = (str(distro_id), str(family))
+    cached = _stack_state_cache.get(key)
+    if cached is not None and time.monotonic() - cached[0] < _STACK_STATE_SECONDS:
+        return dict(cached[1])
+    state = _masta_bc250_stack_state(distro_id=distro_id, family=family)
+    _stack_state_cache[key] = (time.monotonic(), state)
+    return dict(state)
+
+
+def _masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
 
     supported = masta_bc250_stack_supported(
         distro_id=distro_id,
@@ -134,18 +173,14 @@ def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
         or (supported and _resolved_repository_valid(anchor))
     )
 
+    present = _installed_packages((
+        *CACHYOS_BC250_KERNEL_VARIANTS.values(), "mesa", "vulkan-radeon",
+        *CACHYOS_BC250_PROTON_PACKAGES.values(), *CACHYOS_BC250_EXTRA_PACKAGES.values(),
+        CACHYOS_BC250_META_PACKAGE, "bc250-cec",
+    ))
+
     def installed(package: str) -> bool:
-        try:
-            result = subprocess.run(
-                ("pacman", "-Qq", package),
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=2,
-            )
-        except (OSError, subprocess.SubprocessError):
-            return False
-        return result.returncode == 0 and result.stdout.strip() == package
+        return package in present
 
     installed_variants = [
         variant
@@ -446,7 +481,40 @@ else
   echo "ERROR: If the output names pahole, use Prepare dependencies in the BC-250 graphics stack row, then retry."
   exit "$bc250_status"
 fi
-sudo pacman -Su "${{bc250_scope_guard[@]}}" "${{bc250_packages[@]}}"
+# R-f193b192: a downloaded package failed its checksum, pacman asked whether to
+# delete it, the answer was no, and every retry reused the same damaged copy.
+# The damaged copies are deleted here, the package lists refreshed, and the
+# transaction tried once more, without asking anything.
+bc250_cache_dirs="$(pacman-conf CacheDir 2>/dev/null || echo /var/cache/pacman/pkg/)"
+bc250_attempt=1
+while :; do
+  bc250_out="$(mktemp)"
+  set +e
+  sudo pacman -Su "${{bc250_scope_guard[@]}}" "${{bc250_packages[@]}}" 2>&1 | tee "$bc250_out"
+  bc250_status=${{PIPESTATUS[0]}}
+  set -e
+  if [ "$bc250_status" -eq 0 ]; then rm -f -- "$bc250_out"; break; fi
+  case "$bc250_status" in 130|143) rm -f -- "$bc250_out"; exit "$bc250_status" ;; esac
+  if ! grep -q 'corrupted package (checksum)' "$bc250_out"; then rm -f -- "$bc250_out"; exit "$bc250_status"; fi
+  if [ "$bc250_attempt" -ge 2 ]; then
+    rm -f -- "$bc250_out"
+    echo "ERROR: The BC-250 repository is serving a damaged package right now: it failed its checksum again after a fresh download. Nothing was installed and the previous kernel still boots. Try again later."
+    exit 75
+  fi
+  echo "[INFO] A downloaded package was damaged (its checksum did not match). Deleting the damaged copies and downloading them again..."
+  grep -o '/[^ ]*\\.pkg\\.tar\\.zst' "$bc250_out" | sort -u | while read -r bc250_file; do
+    sudo rm -f -- "$bc250_file" "$bc250_file.sig"
+  done
+  # The other BC-250 package of the same download may be damaged too.
+  for bc250_target in "${{bc250_packages[@]}}"; do
+    for bc250_dir in $bc250_cache_dirs; do
+      sudo find "$bc250_dir" -maxdepth 1 -name "${{bc250_target#*/}}-[0-9]*.pkg.tar.zst*" -delete 2>/dev/null || true
+    done
+  done
+  rm -f -- "$bc250_out"
+  sudo pacman -Syy
+  bc250_attempt=2
+done
 for bc250_target in "${{bc250_packages[@]}}"; do
   bc250_name="${{bc250_target#*/}}"
   pacman -Sl '{repository}' | awk -v package="$bc250_name" '

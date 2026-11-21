@@ -36,10 +36,10 @@ def test_bridge_games_offer_both_ways_recommended_first():
         _game("Control", "2", ["scaler"]),
     ])
     assert _actions(_cell(rows, "Wukong")) == [
-        ("Add DLSS", "helixsr_bridge_install:1:scaler", True),
+        ("Add HelixSR Scaler", "helixsr_bridge_install:1:scaler", True),
         ("Add HLX FSR 4", "helixsr_bridge_install:1:fsr", True),
     ]
-    assert [label for label, *_ in _actions(_cell(rows, "Control"))] == ["Add DLSS"]
+    assert [label for label, *_ in _actions(_cell(rows, "Control"))] == ["Add HelixSR Scaler"]
 
 
 def test_dlss_waits_for_the_network_but_hlx_fsr4_does_not():
@@ -57,7 +57,7 @@ def test_installed_ways_switch_go_back_and_remove():
         _game("Alan Wake 2", "4", ["scaler", "fsr"], "fsr"),
     ])
     cyberpunk = _cell(rows, "Cyberpunk")
-    assert cyberpunk[:2] == ("DLSS · HelixSR Scaler", "green")
+    assert cyberpunk[:2] == ("HelixSR Scaler (DLSS)", "green")
     assert [label for label, *_ in _actions(cyberpunk)] == [
         "Switch to HLX FSR 4", "Go back to the previous version", "Remove HelixSR",
     ]
@@ -133,7 +133,7 @@ def test_games_put_in_outside_control_center_offer_only_remove():
         _game("Desktop game", "8", ["scaler", "fsr"], "scaler", managed_by="other"),
     ])
     cell = _cell(rows, "Desktop game")
-    assert cell[:2] == ("DLSS · HelixSR Scaler", "green")
+    assert cell[:2] == ("HelixSR Scaler (DLSS)", "green")
     assert _actions(cell) == [("Remove HelixSR", "helixsr_bridge_remove:8", True)]
 
 
@@ -172,3 +172,47 @@ def test_every_helixsr3_action_reaches_the_backend(monkeypatch):
         GpuGovernorPage._manage_helixsr(page, action, dialog_parent=parent)
     assert sent == ["bridge_install:3:fsr", "bridge_install:6:fsr", "bridge_install:9:scaler",
                     "bridge_rollback:3", "bridge_remove:3", "network:preset_k", "network:vulkan,rebuild"]
+
+
+def test_frame_generation_is_offered_per_game_with_helixsr_scaler():
+    rows = game_matrix_rows([], [], helixsr_ready=True, bridge_games=[
+        _game("Rebirth", "1", ["scaler"], installed="scaler", fg_possible=True),
+        _game("Wukong", "2", ["scaler"], installed="scaler", fg_possible=True, frame_generation=True),
+        _game("Modded", "3", ["scaler"], installed="scaler", fg_possible=True, fg_other=True),
+    ])
+    assert ("Turn on frame generation", "helixsr_bridge_fg_on:1", True) in _actions(_cell(rows, "Rebirth"))
+    on = _cell(rows, "Wukong")
+    assert on[0].endswith("FG") and ("Turn off frame generation", "helixsr_bridge_fg_off:2", True) in _actions(on)
+    # The game's OptiScaler.ini picks another frame generation: nothing to switch.
+    assert not any("frame generation" in label for label, *_ in _actions(_cell(rows, "Modded")))
+
+
+def test_anticheat_and_a_missing_network_are_said_on_the_row():
+    rows = game_matrix_rows([], [], helixsr_ready=True, bridge_games=[
+        _game("Online", "1", ["scaler", "fsr"], anticheat=["EasyAntiCheat"]),
+        _game("Offline", "2", ["scaler", "fsr"], way_ready={"scaler": False, "fsr": True}),
+    ])
+    assert "EasyAntiCheat" in _cell(rows, "Online")[2]
+    offline = _cell(rows, "Offline")
+    assert offline[0] == "Needs the DLSS network"
+    assert ("Add HelixSR Scaler", "helixsr_bridge_install:2:scaler", False) in _actions(offline)
+
+
+def test_the_settings_form_shows_helixsr3_groups_by_way():
+    from frontends.desktop.components.dashboard_widgets import _HelixSRSettings
+
+    form = _HelixSRSettings()
+    rows = [
+        {"id": "H3:HelixSR.DeepReuse", "group": "scaler", "choices": ("auto", "exact", "1:2", "1:4"), "default": "auto"},
+        {"id": "H3:DLSSG.OverrideInterpolationCount", "group": "fg", "choices": ("auto", "1", "2"), "default": "auto"},
+        {"id": "H3:Sharpening.Sharpener", "group": "fsr", "choices": ("off", "nvidia", "rcas"), "default": "off"},
+    ]
+    form.set_bridge_settings(rows)
+    form.set_bridge_mode(True)
+    assert {"HelixSR Scaler", "Frame generation", "HLX FSR 4"} <= set(form.groups)
+    multiplier = form.controls["H3:DLSSG.OverrideInterpolationCount"]
+    assert [multiplier.itemData(i) for i in range(multiplier.count())] == ["auto", "1", "2"]
+    assert multiplier.itemText(1) == "2x"
+    # Leaving HelixSR 3 takes its groups away again.
+    form.set_bridge_settings([])
+    assert "Frame generation" not in form.groups and "H3:HelixSR.DeepReuse" not in form.controls

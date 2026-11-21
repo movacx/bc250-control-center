@@ -54,6 +54,10 @@ FOREIGN_INSTALLS = (
     Path("/usr/lib/systemd/system/OpenLinkHub.service"),
     Path("/etc/systemd/system/OpenLinkHub.service"),
     Path("/opt/OpenLinkHub/OpenLinkHub"),
+    # The AUR openlinkhub-git package, which the SteamOS Real Toolkit installs:
+    # its unit is lower case.
+    Path("/usr/lib/systemd/system/openlinkhub.service"),
+    Path("/etc/systemd/system/openlinkhub.service"),
 )
 FOREIGN_USER_UNIT = "OpenLinkHub.service"
 

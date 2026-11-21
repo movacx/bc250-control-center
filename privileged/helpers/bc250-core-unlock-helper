@@ -27,6 +27,30 @@ REVIEWED_SCRIPT_SHA256 = "b52bdcc14012c9dd222ebc71b4df11c3e976824a129f01f026bcc3
 # Its own "-f" skips that check. This helper passes it only when the owner
 # ticked the box for it, and never on its own.
 IGNORE_CORE_MASK = "--ignore-core-mask"
+# Narrower than the blunt -f: the owner names the one mask their board reads
+# (another 6-core harvest such as 0xB7), and the unlock goes ahead only when
+# the board really reads that mask. Anything else is still refused.
+ACCEPT_MASK = "--accept-mask"
+STOCK_CORE_MASK = 0x77
+
+
+def _parse_accept_mask(text: str) -> int:
+    """A 6-core harvest other than 0x77: three cores on each four-core CCX."""
+    try:
+        value = int(text, 16) if text.lower().startswith("0x") else int(text, 10)
+    except ValueError as error:
+        raise RuntimeError(f"Invalid core mask: {text!r}") from error
+    low, high = value & 0x0F, value & 0xF0
+    if (
+        not 0 <= value <= 0xFF
+        or value == STOCK_CORE_MASK
+        or bin(low).count("1") != 3
+        or bin(high).count("1") != 3
+    ):
+        raise RuntimeError(
+            f"Core mask {text} is not a 6-core harvest other than 0x77; refusing."
+        )
+    return value
 #: Where the verified script is copied before it runs: a fresh directory under
 #: it that only root can enter (see ``_staged_script``).
 STAGING_PARENT = "/run"
@@ -44,8 +68,8 @@ PERSISTENT_OFFICIAL_ORIGINS = frozenset({
     "https://github.com/movacx/core_unlock_bc250_boot_service.git",
 })
 PERSISTENT_SCRIPT = "bc250-core-unlock"
-PERSISTENT_REVIEWED_REVISION = "35db6d13ce8cee5c6b387d7eb7d1de07fcf6249d"
-PERSISTENT_REVIEWED_SCRIPT_SHA256 = "946e24d4452465c17e33c161d721d709e7b84953985e67a43fd403a6e93006c6"
+PERSISTENT_REVIEWED_REVISION = "07e0c4a6a234445ec5b42e53c85de5fc28e9be87"
+PERSISTENT_REVIEWED_SCRIPT_SHA256 = "ada6acf9b9db3ab0375d8dff2a185586eadf1bceb467171fe1967c5597689f4b"
 # Where the tool installs itself and its unit. Fixed by the tool, so removal
 # never needs the user's clone: a deleted tool folder must not leave a root
 # boot service that Control Center can no longer remove.
@@ -372,6 +396,17 @@ def _stopped_before_smu_write(stdout: str, stderr: str) -> bool:
     return UPSTREAM_REFUSED_MASK in stderr or UPSTREAM_READ_MASK not in stdout
 
 
+def _reported_mask(stdout: str) -> int | None:
+    """The low byte of the mask upstream printed ("core presence mask: 0x...")."""
+    for line in stdout.splitlines():
+        if line.startswith(UPSTREAM_READ_MASK):
+            try:
+                return int(line.split(":", 1)[1].strip(), 16) & 0xFF
+            except ValueError:
+                return None
+    return None
+
+
 def _upstream_failure(stopped: tuple[GovernorState, ...], reason: str, *, before_smu_write: bool) -> RuntimeError:
     """The error to report, after putting the governors back when that is safe."""
     if not before_smu_write:
@@ -460,7 +495,7 @@ def _persistent_tool_env() -> dict[str, str]:
     return {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C", "LC_ALL": "C"}
 
 
-def _persist_install(raw_repository: str, *, force_mask: bool) -> int:
+def _persist_install(raw_repository: str, *, force_mask: bool, accept_mask: int | None = None) -> int:
     """Install the boot service from the pinned clone, then reboot if needed.
 
     Sends nothing to the SMU and never touches the GPU governors: the unit it
@@ -490,7 +525,12 @@ def _persist_install(raw_repository: str, *, force_mask: bool) -> int:
         # The tool copies its own file into a root-owned location, so it
         # installs the verified staged bytes, not the user's checkout.
         command = ["/usr/bin/python3", "-I", str(script), "install"]
-        if force_mask:
+        if accept_mask is not None:
+            # The tool reads the live mask itself and refuses a board that
+            # reads anything else, before installing a thing.
+            command += ["--accept-mask", f"0x{accept_mask:02X}"]
+            print(f"Accepting the core mask 0x{accept_mask:02X} at the owner's request.")
+        elif force_mask:
             command.append("--force-mask")
             print("Core mask check skipped at the owner's request (--force-mask).")
         result = subprocess.run(
@@ -575,14 +615,19 @@ def main(argv: list[str]) -> int:
     if arguments == [PERSIST_UNINSTALL]:
         return _persist_uninstall()
     ignore_core_mask = arguments[-1:] == [IGNORE_CORE_MASK]
+    accept_mask = None
     if ignore_core_mask:
         arguments = arguments[:-1]
+    elif len(arguments) >= 2 and arguments[-2] == ACCEPT_MASK:
+        accept_mask = _parse_accept_mask(arguments[-1])
+        arguments = arguments[:-2]
     if len(arguments) == 3 and arguments[0] == PERSIST_INSTALL and arguments[1] == "--repo":
-        return _persist_install(arguments[2], force_mask=ignore_core_mask)
+        return _persist_install(arguments[2], force_mask=ignore_core_mask, accept_mask=accept_mask)
     if len(arguments) != 3 or arguments[0] != "--repo" or arguments[2] != "--reboot":
+        mask_options = f"[{IGNORE_CORE_MASK} | {ACCEPT_MASK} 0xNN]"
         raise RuntimeError(
-            f"Expected exactly: --repo PATH --reboot [{IGNORE_CORE_MASK}], "
-            f"{PERSIST_INSTALL} --repo PATH [{IGNORE_CORE_MASK}], or {PERSIST_UNINSTALL}"
+            f"Expected exactly: --repo PATH --reboot {mask_options}, "
+            f"{PERSIST_INSTALL} --repo PATH {mask_options}, or {PERSIST_UNINSTALL}"
         )
     if not _bc250_identity_present():
         raise RuntimeError("AMD BC-250 hardware identity was not detected.")
@@ -596,24 +641,47 @@ def main(argv: list[str]) -> int:
 
         if ignore_core_mask:
             print("Core mask check skipped at the owner's request (upstream -f).")
-        try:
-            # -I: the staged copy's directory is not put on sys.path either.
-            result = subprocess.run(
-                ["/usr/bin/python3", "-I", str(script), *(("-f",) if ignore_core_mask else ())],
-                text=True,
-                capture_output=True,
-                check=False,
-                timeout=30,
-                cwd=str(script.parent),
-                env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C", "LC_ALL": "C"},
-            )
-        except OSError as error:
-            # The interpreter never started, so nothing reached the SMU.
-            raise _upstream_failure(
-                stopped_governors,
-                f"The official upstream core unlock tool could not start: {error}",
-                before_smu_write=True,
-            ) from error
+
+        def run_upstream(force: bool) -> subprocess.CompletedProcess:
+            try:
+                # -I: the staged copy's directory is not put on sys.path either.
+                return subprocess.run(
+                    ["/usr/bin/python3", "-I", str(script), *(("-f",) if force else ())],
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    timeout=30,
+                    cwd=str(script.parent),
+                    env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C", "LC_ALL": "C"},
+                )
+            except OSError as error:
+                # The interpreter never started, so nothing reached the SMU.
+                raise _upstream_failure(
+                    stopped_governors,
+                    f"The official upstream core unlock tool could not start: {error}",
+                    before_smu_write=True,
+                ) from error
+
+        result = run_upstream(ignore_core_mask)
+        if (
+            accept_mask is not None
+            and result.returncode != 0
+            and UPSTREAM_REFUSED_MASK in result.stderr
+        ):
+            # The first run is the probe: on 0x77 it already unlocked, on any
+            # other mask upstream stopped before the SMU and printed the mask.
+            # Only the exact mask the owner named goes on, with upstream's -f.
+            found = _reported_mask(result.stdout)
+            if found != accept_mask:
+                shown = "unreadable" if found is None else f"0x{found:02X}"
+                raise _upstream_failure(
+                    stopped_governors,
+                    f"This board's core mask is {shown}, not the 0x{accept_mask:02X} you chose. "
+                    "Nothing was written to the SMU.",
+                    before_smu_write=True,
+                )
+            print(f"Core mask 0x{found:02X} matches the owner's choice; unlocking with upstream -f.")
+            result = run_upstream(True)
         if result.stdout:
             print(result.stdout.rstrip())
         if result.returncode != 0:

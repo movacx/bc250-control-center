@@ -38,6 +38,10 @@ PWM_MIN = 1
 PWM_MAX = 12
 SENSORS = ("gpu", "cpu", "vrm", "board")
 SOURCES = SENSORS + ("hottest",)
+#: The chip itself. ``hottest`` needs at least one of these: the board and the
+#: regulator run cooler than the APU, so following them alone keeps the fan
+#: low while the chip heats up (reported 2026-11-16, fans stuck at 31 %).
+APU_SENSORS = frozenset({"gpu", "cpu"})
 MODES = ("firmware", "fixed", "curve", "mix")
 ROLES = ("fan", "pump")
 LEGACY_PRESETS = ("quiet", "balanced", "cooling", "maximum")
@@ -420,7 +424,8 @@ def _curve_target(
 ) -> tuple[int | None, str, float | None, bool]:
     """(duty, sensor, temperature, complete). ``complete`` is false when any
     source the channel needs is missing: a named sensor that does not answer,
-    or, for ``hottest``, any sensor in ``expected`` that stopped answering.
+    or, for ``hottest``, any sensor in ``expected`` that stopped answering or
+    no APU reading at all (see :data:`APU_SENSORS`).
     A lost sensor is never hidden behind a cooler one that still answers."""
     if channel["mode"] == "curve":
         members = [{"source": channel["source"], "points": channel["points"]}]
@@ -430,7 +435,9 @@ def _curve_target(
     complete = True
     for member in members:
         found = source_temperature(policy, readings, member["source"])
-        if member["source"] == "hottest" and not expected <= set(readings):
+        if member["source"] == "hottest" and (
+            not expected <= set(readings) or not APU_SENSORS & set(readings)
+        ):
             complete = False
         if found is None:
             complete = False
@@ -442,6 +449,12 @@ def _curve_target(
     if best is None:
         return None, "", None, False
     return best[0], best[1], best[2], complete
+
+
+def _follows_hottest(channel: dict) -> bool:
+    if channel["mode"] == "curve":
+        return channel["source"] == "hottest"
+    return any(member["source"] == "hottest" for member in channel["mix"])
 
 
 def _smooth(
@@ -547,9 +560,13 @@ def plan_channel(
         memory = replace(memory, missing_since=missing_since)
         if now - missing_since >= policy["sensor_timeout_seconds"]:
             percent = max(policy["failsafe_percent"], memory.percent or 0)
+            reason = (
+                "no GPU or CPU temperature answers; the board and VRM alone cannot drive this curve"
+                if _follows_hottest(channel) and not APU_SENSORS & set(readings)
+                else "a temperature this channel follows is missing"
+            )
             return (
-                ChannelDecision("set", percent, "failsafe", sensor, temperature,
-                                "a temperature this channel follows is missing"),
+                ChannelDecision("set", percent, "failsafe", sensor, temperature, reason),
                 replace(memory, percent=percent, source="failsafe", changed_at=now),
             )
         if target is None:

@@ -4,7 +4,6 @@ import shlex
 import shutil
 import subprocess
 import time
-from contextlib import suppress
 from copy import deepcopy
 from pathlib import Path
 
@@ -176,6 +175,7 @@ from bc250cc.infrastructure.helixsr import (
     save_helixsr_settings,
     scan_helixsr_games,
     select_helixsr_release,
+    set_helixsr_bridge_frame_generation,
     set_helixsr_scaler_frame_generation,
     update_all_helixsr_games,
     update_helixsr_game,
@@ -210,13 +210,12 @@ from bc250cc.infrastructure.steam_launch_options import (
     add_dll_override,
     add_dll_override_to_library,
 )
-from bc250cc.infrastructure.steamos_graphics_runtime import (
-    probe_steamos_graphics_runtime,
-)
 from bc250cc.infrastructure.steamos_readonly import (
     build_steamos_readonly_command,
     probe_steamos_readonly,
 )
+from bc250cc.infrastructure.steamos_real_toolkit import STATE_ROOT as TOOLKIT_STATE_ROOT
+from bc250cc.infrastructure.steamos_root_guard import RootReading, session_summary
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
 from bc250cc.infrastructure.system_setup import command as system_setup_command
 from bc250cc.infrastructure.system_setup import inventory as system_setup_inventory
@@ -383,6 +382,18 @@ class DependenciasRepository(SteamosDependenciesMixin):
             release_command(), family=self._os_repository().family
         )
         return self._abrir_terminal(command, 'pacman lock')
+
+    def reparar_cabeceras_kernel(self):
+        """Match the running kernel's headers and rebuild its DKMS modules, in a terminal."""
+        from bc250cc.infrastructure.kernel_headers import repair_command
+
+        return self._abrir_terminal(repair_command(), 'kernel headers')
+
+    def reiniciar_sensor_vrm(self):
+        """Restart a wedged bc250_vrm in a terminal and check its readings."""
+        from bc250cc.infrastructure.accessories.vrm_sensor import repair_command
+
+        return self._abrir_terminal(repair_command(self._os_repository().family), 'bc250_vrm')
 
     def reparar_telemetria_8core(self, action: str = "telemetry-fix"):
         if action not in {"telemetry-fix", "telemetry-restore"}:
@@ -682,7 +693,9 @@ class DependenciasRepository(SteamosDependenciesMixin):
             self.estado_herramientas_cache = None
             return result
         for prefix, operation in (('bridge_remove:', remove_helixsr_bridge),
-                                  ('bridge_rollback:', rollback_helixsr_bridge)):
+                                  ('bridge_rollback:', rollback_helixsr_bridge),
+                                  ('bridge_fg_on:', lambda game: set_helixsr_bridge_frame_generation(game, True)),
+                                  ('bridge_fg_off:', lambda game: set_helixsr_bridge_frame_generation(game, False))):
             if action.startswith(prefix):
                 result = operation(action[len(prefix):])
                 self.estado_herramientas_cache = None
@@ -858,7 +871,8 @@ class DependenciasRepository(SteamosDependenciesMixin):
 
         DryhoppedIPA's direct installer is a high-impact boot/kernel/Mesa flow.
         Generic dependency preparation must never run it. SteamOS uses the
-        separately-audited keyboardspecialist backend for the kernel half.
+        Real Toolkit provider, with the separately audited keyboardspecialist
+        backend available through explicit alternative actions.
         """
 
         os_release = read_os_release()
@@ -921,35 +935,24 @@ class DependenciasRepository(SteamosDependenciesMixin):
             and steamos_kernel_commit == STEAMOS_REVIEWED_DRYHOPPED_COMMIT
         )
 
-        # The reviewed SteamOS graphics runtime stores its build products and
-        # manifests per user. Validate those hashes without executing mutable
-        # checkout scripts; lifecycle actions use the protected staged backend.
-        external_steamos_graphics = (
-            probe_steamos_graphics_runtime()
-            if os_repository.info.family == 'steamos'
-            else {}
-        )
-        external_radv = dict(external_steamos_graphics.get('radv') or {})
-        external_fsr4 = dict(external_steamos_graphics.get('fsr4') or {})
-        legacy_radv_detected = bool(
-            external_steamos_graphics.get('legacy_radv_detected')
-        )
-        legacy_radv_commit = str(external_radv.get('upstream_commit') or '')
+        from .steamos_real_toolkit_state import probe_real_toolkit
+        real_toolkit = probe_real_toolkit() if os_repository.info.family == 'steamos' else {}
+        graphics = dict(real_toolkit.get('graphics') or {})
+        proton = dict(real_toolkit.get('proton') or {})
+        external_steamos_graphics = {'provider': real_toolkit.get('provider'),
+                                     'radv': graphics, 'fsr4': proton}
+        from .steamos_graphics_runtime import probe_steamos_graphics_runtime
+        alternative_graphics = probe_steamos_graphics_runtime() if os_repository.info.family == 'steamos' else {}
+        external_radv, external_fsr4 = graphics, proton
+        legacy_radv_detected, legacy_radv_commit = False, ''
 
-        # rpf16rj v1.1.0 is kept as a reviewed SteamOS RADV reference because
-        # it follows current DryhoppedIPA safety guidance: only Mesa patch 0001
-        # is enabled, X11+Wayland are built, and the stock 32-bit RADV ICD is
-        # retained as a fallback.  Control Center does not install this path
-        # automatically; detect an external installation without taking ownership.
-        safe_radv_icds = sorted(Path('/opt/bc250-gfx1013').glob('*/share/vulkan/icd.d/radeon_icd.x86_64.json'))
-        safe_radv_env = ''
-        with suppress(OSError):
-            safe_radv_env = Path('/etc/environment').read_text(encoding='utf-8', errors='replace')
+        # Keep the historical presenter field, but use the provider's validated
+        # ICD/library/assignment probe. File names or commented environment
+        # references alone must not mark an incomplete installation ready.
         steamos_safe_radv_detected = bool(
             os_repository.info.family == 'steamos'
-            and any(path.is_file() for path in safe_radv_icds)
-            and 'VK_DRIVER_FILES=' in safe_radv_env
-            and '/opt/bc250-gfx1013/' in safe_radv_env
+            and graphics.get('state') == 'configured'
+            and graphics.get('activation_configured')
         )
 
         policy.update({
@@ -970,6 +973,8 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'legacy_steamos_radv_detected': legacy_radv_detected,
             'legacy_steamos_radv_commit': legacy_radv_commit,
             'steamos_external_graphics': external_steamos_graphics,
+            'steamos_real_toolkit': real_toolkit,
+            'steamos_alternative_graphics': alternative_graphics,
             'steamos_external_radv_state': str(external_radv.get('state') or 'not-installed'),
             'steamos_external_radv_current': bool(external_radv.get('current')),
             'steamos_external_fsr4_state': str(external_fsr4.get('state') or 'not-installed'),
@@ -1206,10 +1211,8 @@ class DependenciasRepository(SteamosDependenciesMixin):
         cyan_repo = self._tool_dir() / CYAN_GOVERNOR_DIRECTORY
         core_unlock_repo = self._tool_dir() / CORE_UNLOCK_DIRECTORY
         core_unlock_script = core_unlock_repo / CORE_UNLOCK_SCRIPT
-        steamos_fix_repo = self._tool_dir() / STEAMOS_FIX_DIRECTORY
-        steamos_fix_script = (
-            steamos_fix_repo / STEAMOS_FIX_SUBDIRECTORY / STEAMOS_FIX_SCRIPT
-        )
+        steamos_fix_repo = Path('/home/.bc250-control-center/real-toolkit/workspace')
+        steamos_fix_script = steamos_fix_repo / 'start.sh'
         gfx1013_compute = repository_probe['gfx1013_compute']
         fsr4 = repository_probe['fsr4']
         helixsr = repository_probe['helixsr']
@@ -1267,6 +1270,12 @@ class DependenciasRepository(SteamosDependenciesMixin):
             if os_info.family == 'steamos'
             else {'available': False, 'state': 'unsupported'}
         )
+        if os_info.family == 'steamos':
+            # A toolkit action unlocks the root; say whether one is running now or
+            # died and left it unlocked, so the panel can offer to lock it again.
+            steamos_readonly = {**steamos_readonly, 'toolkit_session': self._optional_inventory_probe(
+                lambda: session_summary(TOOLKIT_STATE_ROOT, RootReading(str(steamos_readonly.get('state')))),
+                {'running': False, 'action': '', 'restore_pending': False})}
         system_setup = system_setup_inventory()
         init_manager = detect_init_manager()
         init_preflight = (
@@ -1414,8 +1423,9 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'steamos_fix_applicable': is_steamos,
             'steamos_fix_repo_path': str(steamos_fix_repo),
             'steamos_fix_script': str(steamos_fix_script),
-            'steamos_fix_repo_exists': repository_probe['steamos_fix_exists'],
-            'steamos_fix_repo_url': STEAMOS_FIX_REPOSITORY,
+            'steamos_fix_repo_exists': bool(dict(gfx1013_compute.get('steamos_real_toolkit') or {}).get('prepared')),
+            'steamos_fix_repo_url': 'https://github.com/rpf16rj/bc250-steamos-real-toolkit',
+            'steamos_real_toolkit': dict(gfx1013_compute.get('steamos_real_toolkit') or {}),
             'gfx1013_compute': gfx1013_compute,
             'fsr4': fsr4,
             'helixsr': helixsr,
@@ -1440,7 +1450,11 @@ class DependenciasRepository(SteamosDependenciesMixin):
             ),
             'external_integrations': external_integrations,
             'accessories': self._optional_inventory_probe(
-                lambda: accessory_inventory(os_info.family, self._tool_dir()), {},
+                lambda: accessory_inventory(
+                    os_info.family, self._tool_dir(),
+                    distro_id=getattr(os_info, 'distro_id', ''),
+                    immutable=bool(getattr(os_info, 'immutable', False)),
+                ), {},
             ),
             'missing_optional_features': [
                 item

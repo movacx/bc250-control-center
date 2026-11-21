@@ -9,6 +9,7 @@ only the exact root-owned toolkit staged by ``steamos_amdgpu_backend``.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import shlex
 from pathlib import Path
@@ -24,13 +25,24 @@ CURRENT_FSR4_PATCH_SHA256 = (
 STEAMOS_FSR4_LAUNCH_OPTION = (
     '"$HOME/.local/share/bc250-mesh-shader/fsr4/bc250-fsr4-run" %command%'
 )
-CURRENT_MESA_TAG = "mesa-26.2.2"
+#: What ``bc250-mesh-shader.sh setup`` of the reviewed revision (v0.40.0) builds.
+CURRENT_MESA_TAG = "mesa-26.3.0"
+CURRENT_DIRECTMESH_RELEASE = "directmesh-v1.4"
 #: The global RADV manifest gained two optional fields in toolkit v0.29: the
 #: build profile and the SHA-256 of the session generator that enables it.
 #: The toolkit itself still reads manifests without them.
-CURRENT_RADV_PROFILE_REVISION = "production-fsr4-v4"
-_RADV_PROFILE_REVISIONS = frozenset({"", "compute-only-v2", CURRENT_RADV_PROFILE_REVISION})
+CURRENT_RADV_PROFILE_REVISION = "directmesh-1.4-mesa-26.3-fsr4-v7"
+#: Every profile a toolkit release has written: v0.29-v0.34 (v4), v0.35-v0.37
+#: (DirectMesh 1.3.1, v5), v0.38-v0.39 (DirectMesh 1.4, v6) and v0.40 (v7). An
+#: intact older install is shown as installed but not current; reinstalling
+#: replaces it. (v0.40's own reader does not list v6, so its setup refuses to
+#: replace a v6 install unless it is run by hand with ``--replace-unmanaged``.)
+_RADV_PROFILE_REVISIONS = frozenset({
+    "", "compute-only-v2", "production-fsr4-v4", "directmesh-1.3.1-fsr4-v5",
+    "directmesh-1.4-fsr4-v6", CURRENT_RADV_PROFILE_REVISION,
+})
 RADV_GENERATOR = Path("/usr/lib/systemd/user-environment-generators/60-bc250-gfx1013")
+RADV_DRIVER = Path("/usr/lib/libvulkan_radeon_driconf.so")
 #: The per-game FSR4 V3 profile was retired upstream in v0.29; a profile built
 #: before that keeps the Mesa it was built with.
 FSR4_MESA_TAG = "mesa-26.2.0"
@@ -53,6 +65,16 @@ def _graphics_status_report_command(
     """Render graphics JSON plus optional read-only BC250 telemetry."""
     qscript = shlex.quote(str(script))
     qhelper = shlex.quote(str(system_helper)) if system_helper is not None else ""
+    # What an intact install by an earlier toolkit release looks like, so the
+    # report does not repeat a newer toolkit's "invalid" for it.
+    known = json.dumps({
+        "commits": sorted({CURRENT_UPSTREAM_COMMIT, LEGACY_UPSTREAM_COMMIT}),
+        "profiles": sorted(_RADV_PROFILE_REVISIONS),
+        "current_profile": CURRENT_RADV_PROFILE_REVISION,
+        "current_mesa": CURRENT_MESA_TAG,
+        "driver": str(RADV_DRIVER),
+        "generator": str(RADV_GENERATOR),
+    }, sort_keys=True)
     formatter = r'''import hashlib, json, os, sys
 from pathlib import Path
 chunks = sys.stdin.buffer.read().split(b"\0", 1)
@@ -88,11 +110,49 @@ def attested_module_marker(name):
     except (OSError, UnicodeError):
         return False
     return len(expected) == 64 and expected == digest
+known = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
+def file_sha256(path):
+    path = Path(path)
+    try:
+        if path.is_symlink() or not path.is_file():
+            return None
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+def earlier_release():
+    # Newer toolkits call an install by an earlier release "invalid" because it
+    # is not their current build. Its recorded files may still be intact.
+    if state.get("runtimeState") != "invalid" or not known:
+        return None
+    manifest = Path.home() / ".local/share/bc250-mesh-shader/install.conf"
+    try:
+        if manifest.is_symlink():
+            return None
+        lines = manifest.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return None
+    fields = lines[0].split() if len(lines) == 1 else []
+    if not 4 <= len(fields) <= 6:
+        return None
+    driver_sha, icd_sha, mesa_tag, commit, *extra = fields
+    profile = extra[0] if extra else ""
+    generator_sha = extra[1] if len(extra) > 1 else ""
+    if (commit not in known["commits"] or profile not in known["profiles"]
+            or profile == known["current_profile"]):
+        return None
+    icd_path = state.get("icdPath") or str(Path.home() / "radeon_driconf_icd.x86_64.json")
+    if file_sha256(known["driver"]) != driver_sha or file_sha256(icd_path) != icd_sha:
+        return None
+    if generator_sha and file_sha256(known["generator"]) != generator_sha:
+        return None
+    return mesa_tag, profile or "pre-v0.29"
+earlier = earlier_release()
 games = state.get("games")
 rows = [
     ("Backend script", flag(state.get("scriptAvailable"), "Available", "Missing")),
-    ("Graphics runtime", label(state.get("runtimeState"))),
+    ("Graphics runtime", "Installed (earlier release)" if earlier else label(state.get("runtimeState"))),
     ("Mesa version", str(state.get("mesaVersion") or "Not detected")),
+    ("DirectMesh", str(state.get("directMeshVersion") or "Not active")),
     ("ICD configuration", flag(state.get("configValid"), "Valid", "Invalid")),
     ("Kernel compatibility", flag(state.get("kernelReady"), "Ready", "Not ready")),
     ("Scheduler configured", flag(state.get("schedulerConfigured"))),
@@ -211,12 +271,14 @@ if state.get("schedulerActive") is True:
     fixes.append(("ACTIVE", "AMDGPU scheduler policy 2"))
 elif state.get("schedulerConfigured") is True:
     fixes.append(("CONFIGURED", "AMDGPU scheduler policy 2 (restart required)"))
-if state.get("runtimeState") == "ready":
+if state.get("runtimeState") == "ready" or earlier:
     radv_status = "ACTIVE" if state.get("globalEnabled") is True else "INSTALLED"
     radv_suffix = "" if radv_status == "ACTIVE" else " (restart required)" if state.get("restartRequired") is True else ""
+    radv_suffix += " (earlier release)" if earlier else ""
+    directmesh = state.get("directMeshVersion")
     fixes.extend([
         (radv_status, "RADV GFX1013 compute-queue fix" + radv_suffix),
-        (radv_status, "RADV GFX1013 mesh/task shaders" + radv_suffix),
+        (radv_status, "RADV GFX1013 mesh/task shaders" + (f" ({directmesh})" if directmesh else "") + radv_suffix),
         (radv_status, "RADV GFX1013 task-mesh queries" + radv_suffix),
     ])
 if state.get("fsr4State") == "ready":
@@ -227,6 +289,10 @@ if fixes:
         print(f"[{status:<10}] {name}")
 else:
     print("No verified BC250 patch markers were detected.")
+if earlier:
+    print(f"\n[INFO] Mesa / RADV {earlier[0]} ({earlier[1]}) was installed by an earlier keyboardspecialist "
+          f"release and its recorded files are intact. Install / update replaces it with {known['current_mesa']}; "
+          "Remove takes it out as before.")
 error = state.get("error")
 if error:
     print(f"\nERROR: {error}")
@@ -247,7 +313,7 @@ else:
         'then graphics_status_rc=0; else graphics_status_rc=$?; fi; '
         f'{helper_probe}'
         f'printf "%s\\0%s" "$graphics_status_json" "$system_status_json" | '
-        f'/usr/bin/python3 -c {shlex.quote(formatter)} && '
+        f'/usr/bin/python3 -c {shlex.quote(formatter)} {shlex.quote(known)} && '
         '[ "$graphics_status_rc" -eq 0 ]'
     )
 
@@ -304,7 +370,13 @@ def build_steamos_graphics_command(
     status_report = _graphics_status_report_command(script)
     command = {
         "status": status_report,
-        "install": _install_inside_writable_root(qscript),
+        "install": (
+            f'echo "[INFO] This builds RADV {CURRENT_MESA_TAG} with the GFX1013 async-compute fix, '
+            f'FSR4 and DirectMesh {CURRENT_DIRECTMESH_RELEASE.removeprefix("directmesh-")}. '
+            'Upstream enables DirectMesh for every game on this driver; to turn it off for one game, '
+            'add RADV_DIRECTMESH=0 %command% to its launch options."; '
+            + _install_inside_writable_root(qscript)
+        ),
         "install-fsr4": (
             'echo "ERROR: the toolkit retired the per-game FSR4 V3 profile; only removing it is supported."; '
             "exit 2"
@@ -525,6 +597,73 @@ def _fsr4_runtime_state(*, state_dir: Path) -> dict[str, object]:
     }
 
 
+#: Lines every generator template keyboardspecialist has written carries; the
+#: generator only ever exports the driver while all three files agree.
+_GENERATOR_SIGNATURE = (
+    "DRIVER='/usr/lib/libvulkan_radeon_driconf.so'",
+    'ICD="$HOME/radeon_driconf_icd.x86_64.json"',
+    'MANIFEST="$HOME/.local/share/bc250-mesh-shader/install.conf"',
+)
+
+
+def orphaned_runtime(home: Path | None = None, *, driver_path: Path = RADV_DRIVER,
+                     generator_path: Path = RADV_GENERATOR) -> tuple[str, ...]:
+    """keyboardspecialist's system files whose install record in /home is gone.
+
+    SteamOS' factory reset erases /home and keeps the system partition, so the
+    driver and generator outlive ``install.conf``. The provider's own uninstall
+    then refuses (it proves ownership with that record) and the Real Toolkit
+    refuses to install over them: nothing could remove them.
+    """
+    home = Path.home() if home is None else Path(home)
+    manifest = home / ".local" / "share" / "bc250-mesh-shader" / "install.conf"
+    if manifest.exists() or manifest.is_symlink():
+        return ()
+    return tuple(str(path) for path in (driver_path, generator_path)
+                 if path.exists() or path.is_symlink())
+
+
+def orphan_cleanup_command(*, driver_path: Path = RADV_DRIVER,
+                           generator_path: Path = RADV_GENERATOR) -> str:
+    """Remove those leftovers, after proving each one is the provider's.
+
+    A file is removed only when it is a root-owned regular file nobody else can
+    write, no package owns it, the driver is an ELF library and the generator
+    carries the provider's template lines. Any doubt removes nothing.
+    """
+    driver, generator = shlex.quote(str(driver_path)), shlex.quote(str(generator_path))
+    manifest = '"$HOME/.local/share/bc250-mesh-shader/install.conf"'
+    icd = '"$HOME/radeon_driconf_icd.x86_64.json"'
+    signature = " && ".join(f"grep -qxF {shlex.quote(line)} {generator}" for line in _GENERATOR_SIGNATURE)
+    steps = (
+        f'if [ -e {manifest} ] || [ -L {manifest} ]; then '
+        'echo "ERROR: the keyboardspecialist install record exists; use its own Remove instead."; exit 3; fi',
+        'echo "[INFO] keyboardspecialist left its Mesa / RADV files in the system partition, but its install '
+        'record in /home is gone (a SteamOS factory reset erases /home only). Each file is checked before it is removed."',
+        f'for bc250_path in {driver} {generator}; do '
+        '[ -e "$bc250_path" ] || [ -L "$bc250_path" ] || continue; '
+        '{ [ -f "$bc250_path" ] && [ ! -L "$bc250_path" ] && [ "$(stat -c %u "$bc250_path")" = 0 ] '
+        '&& (( (8#$(stat -c %a "$bc250_path") & 8#022) == 0 )); } '
+        '|| { echo "ERROR: $bc250_path is not a root-owned regular file; nothing was removed."; exit 3; }; '
+        'if bc250_owner=$(pacman -Qoq "$bc250_path" 2>/dev/null); then '
+        'echo "ERROR: $bc250_path belongs to the package $bc250_owner; nothing was removed."; exit 3; fi; '
+        'done',
+        f'if [ -e {driver} ]; then '
+        f'[ "$(head -c 4 {driver} | od -An -tx1 | tr -d " \\n")" = 7f454c46 ] '
+        f'|| {{ echo "ERROR: {driver_path} is not a library; nothing was removed."; exit 3; }}; fi',
+        f'if [ -e {generator} ]; then {{ {signature}; }} '
+        f'|| {{ echo "ERROR: {generator_path} is not the keyboardspecialist generator; nothing was removed."; exit 3; }}; fi',
+        wrap_steamos_writable_command(f"sudo rm -f -- {driver} {generator}", family="steamos"),
+        f'if [ -f {icd} ] && [ ! -L {icd} ]; then rm -f -- {icd}; fi',
+        'systemctl --user daemon-reload >/dev/null 2>&1 || true',
+        f'if [ -e {driver} ] || [ -e {generator} ]; then '
+        'echo "ERROR: the files are still there; see the messages above."; exit 1; fi',
+        f'echo "[OK] Removed {driver_path} and {generator_path}. Games already used the stock RADV; '
+        'sign out and back in to clear the old Vulkan environment."',
+    )
+    return "; ".join(steps)
+
+
 def probe_steamos_graphics_runtime(
     *,
     home: Path | None = None,
@@ -542,7 +681,7 @@ def probe_steamos_graphics_runtime(
     state_dir = home / ".local" / "share" / "bc250-mesh-shader"
     global_runtime = _global_runtime_state(
         state_dir=state_dir,
-        driver_path=driver_path or Path("/usr/lib/libvulkan_radeon_driconf.so"),
+        driver_path=driver_path or RADV_DRIVER,
         icd_path=icd_path or home / "radeon_driconf_icd.x86_64.json",
         generator_path=generator_path or RADV_GENERATOR,
     )
@@ -553,6 +692,8 @@ def probe_steamos_graphics_runtime(
         "radv": global_runtime,
         "fsr4": fsr4,
         "legacy_radv_detected": bool(global_runtime["legacy"]),
+        # Only the real paths: test doubles for the driver would not match them.
+        "orphaned": list(orphaned_runtime(home)) if driver_path is None and generator_path is None else [],
         "incomplete": bool(
             global_runtime["state"] == "invalid" or fsr4["state"] == "invalid"
         ),

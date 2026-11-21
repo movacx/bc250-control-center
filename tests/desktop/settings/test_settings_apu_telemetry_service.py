@@ -104,26 +104,49 @@ def test_where_it_is_not_offered_the_button_says_why(qtbot, tmp_path, monkeypatc
     assert "SteamOS" in page.apu_telemetry_button.toolTip()
 
 
-def test_the_long_gddr6_explanation_is_folded_until_asked_for(qtbot, tmp_path, monkeypatch):
+def test_the_gddr6_warning_is_one_short_note(qtbot, tmp_path, monkeypatch):
+    """The four-paragraph explanation was too much; one short note stays."""
     page, _controller = _page(qtbot, tmp_path, monkeypatch, {"state": "not-installed", "supported": True})
-    page.show()
-    qtbot.waitExposed(page)
-    page.nav_buttons["telemetry"].click()
-
-    assert not page.gddr6_help_panel.isVisible()
-    assert page.gddr6_help_toggle.text().endswith("Details")
-
-    page.gddr6_help_toggle.click()
-    assert page.gddr6_help_panel.isVisible()
-    assert page.app_settings.value("settings/gddr6_help_open") == "true"
-
-    page.gddr6_help_toggle.click()
-    assert not page.gddr6_help_panel.isVisible()
+    assert not hasattr(page, "gddr6_help_toggle")
+    assert len(page.GDDR6_NOTE) < 220 and "freeze" in page.GDDR6_NOTE
 
 
-def test_an_opened_explanation_stays_open_next_time(qtbot, tmp_path, monkeypatch):
-    first, _controller = _page(qtbot, tmp_path, monkeypatch, {"state": "not-installed", "supported": True})
-    first.gddr6_help_toggle.click()
+def test_the_sources_come_first_and_the_daemon_last(qtbot, tmp_path, monkeypatch):
+    from frontends.desktop.pages.settings import SettingsGroup
 
-    second, _controller = _page(qtbot, tmp_path, monkeypatch, {"state": "not-installed", "supported": True})
-    assert second.gddr6_help_toggle.isChecked()
+    page, _controller = _page(qtbot, tmp_path, monkeypatch, {"state": "not-installed", "supported": True})
+    host = page.apu_telemetry_button.window()
+    groups = [group for group in host.findChildren(SettingsGroup) if group.isAncestorOf(page.apu_telemetry_button)
+              or group.isAncestorOf(page.daemon_status_label)]
+    assert groups[0].isAncestorOf(page.apu_telemetry_button)
+    assert groups[-1].isAncestorOf(page.daemon_status_label)
+
+
+def test_the_service_row_says_where_it_stands(qtbot, tmp_path, monkeypatch):
+    page, _controller = _page(qtbot, tmp_path, monkeypatch, {"state": "publishing", "supported": True, "managed": True})
+    assert page.apu_telemetry_state_label.text() in {"Running", "En marcha"}
+
+
+def test_kernel_drivers_offer_the_action_their_state_needs(qtbot, tmp_path, monkeypatch):
+    from frontends.desktop.pages import dashboard
+
+    monkeypatch.setattr(dashboard, "kernel_sensor_drivers", lambda: {
+        "vrm_sensor": {"state": "update-available", "device": True},
+        "vram_sensor": {"state": "managed-elsewhere", "device": True},
+    })
+    page, _controller = _page(qtbot, tmp_path, monkeypatch, {"state": "not-installed", "supported": True})
+    page.refresh_kernel_sensor_drivers()
+    vrm, vram = page.kernel_sensor_buttons["vrm_sensor"], page.kernel_sensor_buttons["vram_sensor"]
+    assert not vrm.isHidden() and vrm.property("sensorAction") == "update"
+    assert vram.isHidden() and page.kernel_sensor_states["vram_sensor"].text() in {"Built into this kernel", "Integrado en este kernel"}
+    emitted = []
+    page.driver_support_requested.connect(emitted.append)
+    vrm.click()
+    assert emitted == ["vrm_sensor:install"]
+
+
+def test_kernel_driver_states_in_words():
+    describe = SettingsPage.describe_kernel_sensor
+    assert describe("vrm_sensor", {"state": "active", "reading": 47.2})[1:] == ("remove", True)
+    assert describe("vram_sensor", {"state": "unsupported", "device": True, "bios_supported": False})[0] == "Needs BIOS P3.00"
+    assert describe("vrm_sensor", {"state": "unsupported", "device": True})[0] == "Arch-based systems only"

@@ -4,7 +4,7 @@ import logging
 import time
 from datetime import datetime
 
-from PyQt6.QtCore import QProcess, QSize, Qt, QTimer
+from PyQt6.QtCore import QProcess, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QIntValidator, QTextCursor
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -62,11 +62,52 @@ from ..core.diagnostic_history import record_diagnosis
 from ..core.error_diagnostics import diagnose_error
 from ..core.external_links import open_external_url
 from ..core.state import collect_named_sources, state_cache_for
+from ..core.temperature_unit import (
+    format_temperature,
+    from_display_int,
+    localize_temperature_text,
+    temperature_unit,
+    to_display_int,
+    unit_symbol,
+)
 from ..i18n import tr, tr_format
 from ..theme import COLORS
-from .cpu_control_view import MANUAL_SCALE_HINT
+from .cpu_control_view import CORE_MASK_STOCK, MANUAL_SCALE_HINT
 
 logger = logging.getLogger(__name__)
+
+#: The tool's clone is there but older than the revision this version reviewed:
+#: what an owner sees right after updating Control Center.
+CORE_UNLOCK_UPDATE_TITLE = "A new version of the CPU core unlock tool is available"
+CORE_UNLOCK_UPDATE_MESSAGE = (
+    "This version of Control Center uses a newer reviewed copy of the official "
+    "core unlock tool. Press Prepare dependencies to update it, then unlock the "
+    "cores again."
+)
+CORE_UNLOCK_MISSING_EYEBROW = "TOOL NOT FOUND"
+
+ACCEPTED_MASK_NOTE = (
+    "Only a board whose core mask reads {mask} is unlocked; with any other mask "
+    "nothing is written. A mask other than 0x77 may mean the factory disabled "
+    "cores that were defective, and they are enabled anyway. Stress test for a "
+    "few hours and check dmesg for MCE errors before relying on them."
+)
+
+
+def _accept_mask_for(core_mask, ignore_core_mask=False):
+    """The mask to send as --accept-mask, or None for the standard check
+    (or for the blunt -f, which takes precedence when it was asked for)."""
+    if ignore_core_mask:
+        return None
+    try:
+        mask = int(core_mask) & 0xFF
+    except (TypeError, ValueError):
+        return None
+    return None if mask == CORE_MASK_STOCK else mask
+
+
+def _accepted_mask_note(mask: int) -> str:
+    return tr_format(ACCEPTED_MASK_NOTE, mask=f"0x{mask:02X}")
 
 
 def _dict(value):
@@ -221,6 +262,10 @@ class CpuValueField(QFrame):
         self.minimum = int(minimum)
         self.maximum = int(maximum)
         self.unit = unit
+        #: A temperature field is typed in the unit on screen and read back in
+        #: °C: ``value()`` and ``setValue()`` always speak Celsius.
+        self.is_temperature = unit == "°C"
+        self._display_unit = temperature_unit()
         self.setProperty("frequencyField", True)
         if compact:
             self.setProperty("compactFrequencyField", True)
@@ -261,37 +306,59 @@ class CpuValueField(QFrame):
             copy.addWidget(detail)
         row.addLayout(copy, 1)
 
-        self.input = QLineEdit(str(int(value)))
+        self.input = QLineEdit(str(self._shown(int(value))))
         self.input.setProperty("frequencyInput", True)
         self.input.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.input.setMinimumWidth(88)
         self.input.setMaximumWidth(128)
         self.input.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        self.input.setValidator(QIntValidator(self.minimum, self.maximum, self.input))
+        self._apply_validator()
         row.addWidget(self.input, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        unit_label = QLabel(tr(unit))
-        unit_label.setProperty("frequencyUnit", True)
-        row.addWidget(unit_label, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.unit_label = QLabel(tr(unit))
+        self.unit_label.setProperty("frequencyUnit", True)
+        row.addWidget(self.unit_label, 0, Qt.AlignmentFlag.AlignVCenter)
+
+    def _shown(self, celsius_or_value: int) -> int:
+        return to_display_int(celsius_or_value) if self.is_temperature else int(celsius_or_value)
+
+    def _apply_validator(self) -> None:
+        self.input.setValidator(
+            QIntValidator(self._shown(self.minimum), self._shown(self.maximum), self.input)
+        )
 
     def value(self) -> int:
         try:
-            return int(self.input.text())
+            typed = int(self.input.text())
         except (TypeError, ValueError):
             return 0
+        return from_display_int(typed, self._display_unit) if self.is_temperature else typed
 
     def setValue(self, value: int) -> None:
         bounded = max(self.minimum, min(self.maximum, int(value)))
-        self.input.setText(str(bounded))
+        self._display_unit = temperature_unit()
+        self.input.setText(str(self._shown(bounded)))
 
     def setRange(self, minimum: int, maximum: int) -> None:
         self.minimum = int(minimum)
         self.maximum = max(self.minimum, int(maximum))
-        self.input.setValidator(QIntValidator(self.minimum, self.maximum, self.input))
+        self._apply_validator()
+
+    def refresh_temperature_unit(self) -> None:
+        """Show the same Celsius setting in the unit just chosen."""
+        if not self.is_temperature or self._display_unit == temperature_unit():
+            return
+        celsius = self.value() if self.input.text().strip() else self.minimum
+        self._apply_validator()
+        self.setValue(celsius)
+        self.unit_label.setText(unit_symbol())
 
 
 class CpuSmuPage(QWidget):
     """CPU / SMU control restyled to mirror the GPU governor studio layout."""
+
+    #: The owner chose to prepare a missing or outdated tool from a dialog here.
+    prepare_dependencies_requested = pyqtSignal()
 
     PROFILE_VALUES = (
         ("Placa media", "3550 MHz · 1050 mV", (3550, 1050, 90)),
@@ -1314,7 +1381,11 @@ class CpuSmuPage(QWidget):
         if not (CPU_TEMPERATURE_RANGE[0] <= temperature <= CPU_TEMPERATURE_RANGE[1]):
             self._show_info(
                 "Invalid temperature limit",
-                tr_format("Enter a value between {minimum} and {maximum} °C.", minimum=CPU_TEMPERATURE_RANGE[0], maximum=CPU_TEMPERATURE_RANGE[1]),
+                # Both ends in the unit on screen; tr() already swapped the symbol.
+                tr("Enter a value between {minimum} and {maximum} °C.").format(
+                    minimum=to_display_int(CPU_TEMPERATURE_RANGE[0]),
+                    maximum=to_display_int(CPU_TEMPERATURE_RANGE[1]),
+                ),
                 tone="orange",
             )
             return
@@ -1384,7 +1455,7 @@ class CpuSmuPage(QWidget):
             summary=(
                 ("Frequency", f"{frequency} MHz"),
                 ("VID", f"{vid} mV"),
-                ("Temperature limit", f"{temperature} °C"),
+                ("Temperature limit", format_temperature(temperature, 0)),
                 ("Persistence", "Temporary — bc250-detect --keep"),
             ),
             confirm_text="Authenticate and apply",
@@ -1434,7 +1505,7 @@ class CpuSmuPage(QWidget):
                 ("Frequency", f"{frequency} MHz"),
                 ("Manual scale", str(scale)),
                 ("Estimated VID", f"~{estimated_vid} mV" if estimated_vid is not None else "Not available"),
-                ("Temperature limit", f"{temperature} °C"),
+                ("Temperature limit", format_temperature(temperature, 0)),
                 ("Persistence", "Temporary now — the tested result can then be saved for boot"),
             ),
             confirm_text="Authenticate and apply manual OC",
@@ -1671,8 +1742,11 @@ class CpuSmuPage(QWidget):
             "Could not build service command",
         )
 
-    def _request_core_unlock(self, ignore_core_mask: bool = False) -> None:
-        """``ignore_core_mask`` is the owner's box for upstream's ``-f``."""
+    def _request_core_unlock(self, core_mask: int = CORE_MASK_STOCK, ignore_core_mask: bool = False) -> None:
+        """``core_mask`` is the owner's pick in the danger zone: any mask but
+        0x77 is unlocked only when the board really reads it (--accept-mask).
+        ``ignore_core_mask`` is the older blunt ``-f`` (any mask)."""
+        accept_mask = _accept_mask_for(core_mask, ignore_core_mask)
         if (
             getattr(self, "_command_build_pending", False)
             or (
@@ -1687,11 +1761,7 @@ class CpuSmuPage(QWidget):
             )
             return
         if not self.current_state.get("core_unlock_repository_ready", False):
-            self._show_info(
-                "Official CPU core unlock tool is not prepared",
-                "Use Prepare dependencies to clone and validate the official rw-r-r-0644/bc250-core-unlock repository, then refresh this page.",
-                tone="orange",
-            )
+            self._offer_core_unlock_preparation()
             return
         if not self.current_state.get("core_unlock_helper_ready", False):
             self._show_info(
@@ -1723,6 +1793,9 @@ class CpuSmuPage(QWidget):
                 "relying on them."
             )
             summary.insert(1, ("Core mask check", "Skipped (-f)"))
+        elif accept_mask is not None:
+            message += "\n\n" + _accepted_mask_note(accept_mask)
+            summary.insert(1, ("Core mask check", tr_format("Only {mask}", mask=f"0x{accept_mask:02X}")))
         dialog = ConfirmDialog(
             "Unlock CPU cores and restart",
             message,
@@ -1734,10 +1807,41 @@ class CpuSmuPage(QWidget):
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self._build_and_start_process(
-            lambda: self.controller.comando_desbloquear_nucleos_cpu(ignore_core_mask=ignore_core_mask),
+            lambda: self.controller.comando_desbloquear_nucleos_cpu(
+                ignore_core_mask=ignore_core_mask, accept_mask=accept_mask
+            ),
             "Unlock CPU cores and restart",
             "Could not start CPU core unlock",
         )
+
+    def _offer_core_unlock_preparation(self) -> None:
+        """The unlock tool is missing or older than this version reviewed.
+
+        Either way the fix is the same button, so the dialog offers it instead
+        of only naming it: an older copy after an app update reads as a new
+        version to fetch, a missing one as a tool to prepare.
+        """
+        if self.current_state.get("core_unlock_repository_present", False):
+            title = CORE_UNLOCK_UPDATE_TITLE
+            message = CORE_UNLOCK_UPDATE_MESSAGE
+            eyebrow = "UPDATE AVAILABLE"
+        else:
+            title = "Official CPU core unlock tool is not prepared"
+            message = (
+                "Use Prepare dependencies to clone and validate the official "
+                "rw-r-r-0644/bc250-core-unlock repository, then refresh this page."
+            )
+            eyebrow = CORE_UNLOCK_MISSING_EYEBROW
+        dialog = ConfirmDialog(
+            title,
+            message,
+            confirm_text="Prepare dependencies",
+            eyebrow=eyebrow,
+            tone="blue",
+            parent=self,
+        )
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.prepare_dependencies_requested.emit()
 
     def _core_unlock_busy(self) -> bool:
         return bool(
@@ -1748,8 +1852,9 @@ class CpuSmuPage(QWidget):
             )
         )
 
-    def _request_core_persistence(self, ignore_core_mask: bool = False) -> None:
+    def _request_core_persistence(self, core_mask: int = CORE_MASK_STOCK, ignore_core_mask: bool = False) -> None:
         """Install the boot service that unlocks the cores on every cold boot."""
+        accept_mask = _accept_mask_for(core_mask, ignore_core_mask)
         if self._core_unlock_busy():
             self._show_info(
                 "CPU operation in progress",
@@ -1778,6 +1883,9 @@ class CpuSmuPage(QWidget):
                 "relying on them."
             )
             summary.insert(1, ("Core mask check", "Skipped (-f)"))
+        elif accept_mask is not None:
+            message += "\n\n" + _accepted_mask_note(accept_mask)
+            summary.insert(1, ("Core mask check", tr_format("Only {mask}", mask=f"0x{accept_mask:02X}")))
         dialog = ConfirmDialog(
             "Make the core unlock permanent",
             message,
@@ -1790,7 +1898,7 @@ class CpuSmuPage(QWidget):
             return
         self._build_and_start_process(
             lambda: self.controller.comando_persistir_desbloqueo_nucleos_cpu(
-                ignore_core_mask=ignore_core_mask
+                ignore_core_mask=ignore_core_mask, accept_mask=accept_mask
             ),
             "Make the core unlock permanent",
             "Could not install the persistent core unlock",
@@ -1833,6 +1941,11 @@ class CpuSmuPage(QWidget):
 
     def retranslate_dynamic_copy(self) -> None:
         self._retranslate_firmware_persistence_button()
+
+    def refresh_temperature_unit(self) -> None:
+        """°C ↔ °F: the cap field keeps its Celsius value in the new unit."""
+        self.temperature_control.refresh_temperature_unit()
+        self._update_staged_target()
 
     def _open_firmware_persistence_guide(self) -> None:
         """Open the external UEFI workflow; never execute firmware actions here."""
@@ -2440,7 +2553,7 @@ class CpuSmuPage(QWidget):
     @staticmethod
     def _render_cpu_text(text: CpuText) -> str:
         if getattr(text, "literal", False):
-            return text.template
+            return localize_temperature_text(text.template)
         values = dict(text.values)
         return tr_format(text.template, **values) if values else tr(text.template)
 
@@ -2509,6 +2622,9 @@ class CpuSmuPage(QWidget):
             "tool_path": tool_path,
             "core_unlock_helper_ready": bool(core_unlock.get("helper_ready")),
             "core_unlock_repository_ready": bool(core_unlock.get("repository_ready")),
+            # A clone that is there but not at the reviewed revision is an
+            # older copy: the owner updated the app, not the tool.
+            "core_unlock_repository_present": bool(core_unlock.get("script_path")),
             "core_unlock_allowed": self._apply_core_unlock_state(core_unlock),
             "live_frequency_mhz": telemetry.live_frequency_mhz,
             "live_temperature_c": telemetry.live_temperature_c,

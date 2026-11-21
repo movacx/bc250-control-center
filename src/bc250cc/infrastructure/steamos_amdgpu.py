@@ -27,6 +27,11 @@ INSTALLED_MARKER = "[bc250-amdgpu] state: installed"
 ABSENT_MODULE_SUMMARY_STATES = frozenset({"missing", "not-installed"})
 POLICY_ACTIVE_MARKER = "scheduler policy: configured and active (amdgpu.sched_policy=2)"
 POLICY_REBOOT_MARKER = "scheduler policy: configured; reboot needed (amdgpu.sched_policy=2)"
+#: The reviewed installer (since v0.30, unchanged in v0.40) removes the policy on purpose: RADV setup enables
+#: ``amdgpu.sched_policy=2`` together with the patched RADV, "preventing either half
+#: from being activated alone" (bc250-audio-fix/README.md). A verified module with
+#: this line is complete for its step, not a policy to repair.
+POLICY_DEFERRED_MARKER = "scheduler policy: deferred until Mesa / RADV setup"
 #: Kernel bases the reviewed upstream backend has a patch variant for
 #: (bc250-audio-fix/build.sh). SteamOS 3.9.5 moved to 7.2; its reports were
 #: refused here although the pinned backend already builds for it.
@@ -176,6 +181,67 @@ def _join(commands: list[str]) -> str:
     return "; ".join(command.strip().rstrip(";") for command in commands if command.strip())
 
 
+#: What Control Center generated next to the toolkit's build scripts up to the
+#: v0.30 pin: adapted copies and their dependency cache (``deps-bc250cc-3.9``).
+LEGACY_BUILD_ADAPTER_FILES = (
+    "fetch-sources-bc250cc.sh", "build-env-bc250cc.sh", "build-bc250cc.sh",
+)
+#: fetch-build-deps.sh's refusal when freshly downloaded, checksum-verified
+#: dependencies fail its runtime check (tools, Python extensions such as
+#: ``math`` needing GLIBC_2.44, Perl, C headers). Its other failures (network,
+#: repository layout) do not print it.
+UPSTREAM_DEPENDENCY_RUNTIME_FAILURE = "Downloaded dependencies do not run on this host"
+
+
+def retire_build_adapter_command(audio_root: Path) -> str:
+    """Remove the adapted build copies of earlier releases from the user checkout.
+
+    They are untracked files, so they would keep the checkout "modified", and
+    the copied cache can hold hundreds of MiB. Runs as the desktop user; a
+    symbolic link is removed as a link, never followed.
+    """
+    qaudio = shlex.quote(str(audio_root))
+    candidates = " ".join(
+        [f"{qaudio}/{name}" for name in LEGACY_BUILD_ADAPTER_FILES] + [f"{qaudio}/deps-bc250cc-*"]
+    )
+    return (
+        "bc250_adapter_found=0; "
+        f"for bc250_adapter in {candidates}; do "
+        'if [ -e "$bc250_adapter" ] || [ -L "$bc250_adapter" ]; then '
+        'rm -rf -- "$bc250_adapter"; bc250_adapter_found=1; fi; done; '
+        'if [ "$bc250_adapter_found" = 1 ]; then '
+        'echo "[INFO] Removed the build adapter of an earlier Control Center release; '
+        'the toolkit now selects the installed SteamOS channel itself."; fi'
+    )
+
+
+def build_dependencies_command(audio_root: Path) -> str:
+    """Run the toolkit's own dependency step first, so a mismatch fails early.
+
+    ``fetch-sources.sh`` runs ``fetch-build-deps.sh`` again later; with the
+    cache already matching it only re-reads the two package databases. Before
+    the Valve kernel download, a glibc mismatch costs seconds instead of the
+    whole download, and its failure gets the SteamOS build diagnostic.
+    """
+    qaudio = shlex.quote(str(audio_root))
+    failure = shlex.quote(UPSTREAM_DEPENDENCY_RUNTIME_FAILURE)
+    return (
+        'bc250_deps_log="$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/bc250-build-deps.XXXXXX")"; '
+        # The script's own status, with or without pipefail; errexit is off
+        # inside a list on the left of ||.
+        'bc250_deps_rc=0; '
+        f'{{ /usr/bin/bash {qaudio}/fetch-build-deps.sh 2>&1 | tee "$bc250_deps_log"; '
+        'bc250_deps_rc=${PIPESTATUS[0]}; } || true; '
+        'if [ "$bc250_deps_rc" != 0 ]; then '
+        f'if grep -qF {failure} "$bc250_deps_log"; then '
+        'echo "[ERROR] STEAMOS_BUILD_RUNTIME_INCOMPATIBLE: the build dependencies of this SteamOS '
+        'channel do not run on its system libraries. System libraries were not changed and the '
+        'previous dependency cache was kept."; fi; '
+        'rm -f -- "$bc250_deps_log"; exit "$bc250_deps_rc"; fi; '
+        'rm -f -- "$bc250_deps_log"'
+    )
+
+
 def _module_verified_guard(status_file: str) -> str:
     """Shell predicate matching the conservative Python module contract.
 
@@ -222,6 +288,19 @@ def _policy_reboot_guard(status_file: str) -> str:
     )
 
 
+def _policy_deferred_guard(status_file: str) -> str:
+    """Match upstream's "policy waits for RADV" step: no policy line, one installed summary."""
+    deferred = shlex.quote(POLICY_DEFERRED_MARKER.removeprefix("scheduler policy: "))
+    return (
+        "awk -v deferred=" + deferred + " "
+        "'BEGIN { prefix=\"[bc250-amdgpu] scheduler policy: \"; state_prefix=\"[bc250-amdgpu] state: \"; "
+        "seen_deferred=0; other_policy=0; summary_bad=0; summary_seen=\"\"; conflict=0 } "
+        'index($0, prefix) == 1 { value=substr($0, length(prefix)+1); if (value == deferred) seen_deferred=1; else other_policy=1 } '
+        'index($0, state_prefix) == 1 { value=substr($0, length(state_prefix)+1); if (summary_seen != "" && summary_seen != value) conflict=1; summary_seen=value; if (value != "installed") summary_bad=1 } '
+        "END { exit !(seen_deferred && !other_policy && summary_seen == \"installed\" && !summary_bad && !conflict) }' " + status_file
+    )
+
+
 def _runtime_policy_active_guard(cmdline_file: str) -> str:
     """Require the live kernel to have exactly one scheduler-policy token.
 
@@ -261,6 +340,7 @@ def build_steamos_amdgpu_diagnostic_command(
     module_verified_only = _module_verified_guard('"$amdgpu_status_file"')
     policy_active_only = _policy_active_guard('"$amdgpu_status_file"')
     policy_reboot_only = _policy_reboot_guard('"$amdgpu_status_file"')
+    policy_deferred_only = _policy_deferred_guard('"$amdgpu_status_file"')
     runtime_active_only = _runtime_policy_active_guard(qcmdline)
     runtime_not_active = _runtime_policy_not_active_guard(qcmdline)
     return _join([
@@ -279,6 +359,8 @@ def build_steamos_amdgpu_diagnostic_command(
         'echo "[OK] AMDGPU module and scheduler policy are active for this boot."; '
         f'elif {policy_reboot_only} && {runtime_not_active}; then '
         'echo "[WARN] AMDGPU module and persistent scheduler policy are verified; reboot is pending to activate amdgpu.sched_policy=2."; '
+        f'elif {policy_deferred_only}; then '
+        'echo "[OK] AMDGPU module verified. amdgpu.sched_policy=2 is enabled together with Mesa / RADV, which is not installed yet."; '
         'else echo "ERROR: the AMDGPU module is verified, but scheduler policy persistence is incomplete"; exit 39; fi',
         'rm -f -- "$amdgpu_status_file"',
         'trap - EXIT',
@@ -314,6 +396,7 @@ def build_steamos_compatibility_command(
     module_verified_only = _module_verified_guard('"$status_file"')
     policy_active_only = _policy_active_guard('"$status_file"')
     policy_reboot_only = _policy_reboot_guard('"$status_file"')
+    policy_deferred_only = _policy_deferred_guard('"$status_file"')
     runtime_active_only = _runtime_policy_active_guard(qcmdline)
     runtime_not_active = _runtime_policy_not_active_guard(qcmdline)
     policy_runtime_coherent = _policy_runtime_coherent_guard('"$status_file"', qcmdline)
@@ -348,13 +431,26 @@ def build_steamos_compatibility_command(
         'echo "== SteamOS compatibility: source validation =="',
         'echo "[INFO] Scope: patched AMDGPU telemetry/compute support and scheduler boot policy."',
         'echo "[INFO] This workflow does not install the optional Mesa/RADV performance patch."',
+    ]
+    if install:
+        # R-f901e064 / R-ec163c9d: reject a new unsupported kernel before
+        # cloning/staging the protected backend or asking for sudo.
+        kernel_patterns = "|".join(f"{base}.*" for base in SUPPORTED_KERNEL_BASES)
+        kernel_bases = ", ".join(SUPPORTED_KERNEL_BASES)
+        commands.extend([
+            'running_release="$(uname -r)"',
+            'printf "Kernel: %s\\n" "$running_release"',
+            f'case "$running_release" in {kernel_patterns}) ;; *) echo "ERROR: the reviewed SteamOS kernel backend supports kernel bases {kernel_bases}; running: $running_release"; '
+            'echo "An updated, reviewed backend is required for this kernel. No system changes were made."; exit 38 ;; esac',
+        ])
+    commands.extend([
         checkout_command,
         f'{backend_ready} || {{ echo "ERROR: protected SteamOS AMDGPU backend is unavailable or untrusted; use Prepare SteamOS compatibility from Desktop Mode."; exit 38; }}',
         f'test -r {qcmdline} || {{ echo "ERROR: the live kernel command line is not readable"; exit 38; }}',
         'status_file="$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/bc250-amdgpu-status.XXXXXX")"',
         'chmod 0600 "$status_file"',
         "trap 'rm -f -- \"$status_file\"' EXIT",
-    ]
+    ])
     if not install:
         commands.append(
             'echo "== SteamOS compatibility: read-only preflight =="; '
@@ -365,6 +461,8 @@ def build_steamos_compatibility_command(
             'cat "$status_file"; echo "== Decision =="; echo "READY: module and scheduler policy are installed for the running kernel."; '
             f'elif {module_verified_only} && {policy_reboot_only} && {runtime_not_active} && {{ {oc_telemetry_verified}; }}; then '
             'cat "$status_file"; echo "== Decision =="; echo "REBOOT PENDING: module and persistent scheduler policy are verified; reboot to activate amdgpu.sched_policy=2."; '
+            f'elif {module_verified_only} && {policy_deferred_only} && {{ {oc_telemetry_verified}; }}; then '
+            'cat "$status_file"; echo "== Decision =="; echo "READY FOR MESA / RADV: the module is verified for the running kernel; amdgpu.sched_policy=2 is enabled together with Mesa / RADV."; '
             f'elif {module_verified_only} && {{ {oc_telemetry_verified}; }}; then cat "$status_file"; '
             'if [ ! -r /efi/EFI/steamos/grub.cfg ]; then echo "== Decision =="; echo "PRIVILEGED CHECK REQUIRED: the AMDGPU module is verified, but EFI policy is root-readable."; '
             'echo "[INFO] Use Prepare SteamOS compatibility to validate or repair it without rebuilding amdgpu."; '
@@ -374,14 +472,11 @@ def build_steamos_compatibility_command(
             'echo "[INFO] Use the explicit Prepare SteamOS compatibility action when you are ready to modify amdgpu/initramfs and reboot."; fi'
         )
     else:
-        kernel_patterns = "|".join(f"{base}.*" for base in SUPPORTED_KERNEL_BASES)
-        kernel_bases = ", ".join(SUPPORTED_KERNEL_BASES)
         commands.extend(
             [
                 'echo "== SteamOS compatibility: privileged preflight =="',
                 'running_release="$(uname -r)"',
                 'printf "Kernel: %s\\n" "$running_release"',
-                f'case "$running_release" in {kernel_patterns}) ;; *) echo "ERROR: the reviewed SteamOS kernel backend supports kernel bases {kernel_bases}; running: $running_release"; exit 38 ;; esac',
                 'lspci -Dnnd 1002:13fe 2>/dev/null | grep -q . || { echo "ERROR: AMD BC-250 PCI device 1002:13fe was not detected"; exit 38; }',
                 'echo "Hardware: AMD BC-250 [1002:13fe] detected"',
                 (
@@ -393,6 +488,9 @@ def build_steamos_compatibility_command(
                 f'elif {module_verified_only} && {policy_reboot_only} && {runtime_not_active} && {{ {oc_telemetry_verified}; }}; then '
                 'cat "$status_file"; echo "== Decision =="; echo "REBOOT PENDING: no additional changes are necessary."; '
                 'BC250_REBOOT_REQUIRED=1; echo "== Result =="; echo "[OK] Module and persistent boot policy are verified. REBOOT REQUIRED to activate amdgpu.sched_policy=2."; '
+                f'elif {module_verified_only} && {policy_deferred_only} && {{ {oc_telemetry_verified}; }}; then '
+                'cat "$status_file"; echo "== Decision =="; echo "READY FOR MESA / RADV: no kernel changes are necessary."; '
+                'echo "== Result =="; echo "[OK] The AMDGPU module is verified for the running kernel. Install Mesa / RADV next; it enables amdgpu.sched_policy=2 together with the patched driver."; '
                 f'elif {module_verified_only} && {{ {oc_telemetry_verified}; }}; then cat "$status_file"; '
                 'echo "== Decision =="; echo "REPAIR POLICY ONLY: repairing only the SteamOS scheduler boot policy; the kernel module will not be rebuilt."; '
                 'echo "== Action =="; echo "Installing and validating amdgpu.sched_policy=2..."; '
@@ -405,12 +503,18 @@ def build_steamos_compatibility_command(
                 'else cat "$status_file" 2>/dev/null || true; echo "== Decision =="; echo "INSTALL MODULE AND POLICY: compatibility is absent for this kernel."; '
                 'echo "== Action =="; echo "Building and installing the validated SteamOS fixes..."; '
                 'echo "[INFO] This changes amdgpu/initramfs and requires a reboot. If exact headers are unavailable, upstream may need a long build and about 40 GiB of temporary space."; '
-                f'{install_module_command}; {oc_marker_write}; sudo /usr/bin/bash {qboot} install; sudo /usr/bin/bash {qboot} configured || '
+                f'{install_module_command}; {oc_marker_write}; '
+                f'sudo /usr/bin/bash {qscript} status >"$status_file" 2>&1 || true; '
+                # The reviewed installer leaves the policy off until RADV setup;
+                # turning it back on here activated one half alone.
+                f'if {module_verified_only} && {policy_deferred_only} && {{ {oc_telemetry_verified}; }}; then cat "$status_file"; '
+                'BC250_REBOOT_REQUIRED=1; echo "== Result =="; echo "[OK] Module verified. REBOOT REQUIRED to load the patched AMDGPU module; then install Mesa / RADV, which enables amdgpu.sched_policy=2 together with the patched driver."; '
+                f'else sudo /usr/bin/bash {qboot} install; sudo /usr/bin/bash {qboot} configured || '
                 '{ echo "ERROR: SteamOS scheduler boot policy was not persisted after installation."; exit 38; }; '
                 f'sudo /usr/bin/bash {qscript} status >"$status_file" 2>&1 || true; cat "$status_file"; '
                 f'{module_verified_only} && {policy_runtime_coherent} && {{ {oc_telemetry_verified}; }} || '
                 '{ echo "ERROR: SteamOS fixes did not validate after installation."; exit 38; }; '
-                'BC250_REBOOT_REQUIRED=1; echo "== Result =="; echo "[OK] Module and boot policy verified. REBOOT REQUIRED to load the patched AMDGPU module."; fi'
+                'BC250_REBOOT_REQUIRED=1; echo "== Result =="; echo "[OK] Module and boot policy verified. REBOOT REQUIRED to load the patched AMDGPU module."; fi; fi'
                 ),
             ]
         )

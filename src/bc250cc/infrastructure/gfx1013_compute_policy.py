@@ -17,7 +17,9 @@ GFX1013_REVIEWED_VERSION = "0.2.0-alpha"
 GFX1013_TESTED_DISTRO_ID = "fedora"
 GFX1013_TESTED_VERSION_ID = "43"
 GFX1013_TESTED_KERNEL = "7.1.5-101.fc43.x86_64"
-STEAMOS_GFX1013_BACKEND = EXTERNAL_TOOLS["steamos_amdgpu"].upstream
+STEAMOS_GFX1013_BACKEND = EXTERNAL_TOOLS["steamos_real_toolkit"].upstream
+STEAMOS_GFX1013_BACKEND_REVISION = EXTERNAL_TOOLS["steamos_real_toolkit"].reviewed_revision
+STEAMOS_GFX1013_ALTERNATIVE_BACKEND = EXTERNAL_TOOLS["steamos_amdgpu"].upstream
 STEAMOS_REVIEWED_DRYHOPPED_COMMIT = "d3e6dc062c34d2523db0abe5741d1f5b0dea00d9"
 STEAMOS_GFX1013_SAFE_RADV_REFERENCE = "https://github.com/rpf16rj/bc250-steamos-real-toolkit"
 STEAMOS_GFX1013_SAFE_RADV_REVIEWED_COMMIT = "681b8703588b61bb82893a9359bdab841e618010"
@@ -39,6 +41,8 @@ class Gfx1013Compatibility:
     reviewed_version: str = GFX1013_REVIEWED_VERSION
     tested_kernel: str = GFX1013_TESTED_KERNEL
     steamos_backend: str = STEAMOS_GFX1013_BACKEND
+    steamos_backend_revision: str = STEAMOS_GFX1013_BACKEND_REVISION
+    steamos_alternative_backend: str = STEAMOS_GFX1013_ALTERNATIVE_BACKEND
 
     def to_dict(self) -> dict:
         return asdict(self)
