@@ -6319,9 +6319,6 @@
   "Needs this toolkit's own patched Mesa / RADV, which is not set up: install Kernel and Mesa · GFX1013 first. keyboardspecialist's Mesa does not count.": "ต้องใช้ Mesa / RADV ที่แพตช์แล้วของ toolkit นี้เอง ซึ่งยังไม่ได้ตั้งค่า: ติดตั้ง เคอร์เนลและ Mesa · GFX1013 ก่อน Mesa ของ keyboardspecialist ใช้แทนไม่ได้",
   "Core mask of this board": "มาสก์คอร์ของบอร์ดนี้",
   "0x77 · standard (normal check)": "0x77 · มาตรฐาน (ตรวจสอบตามปกติ)",
-  "0xB7 · reported by one user": "0xB7 · ผู้ใช้รายหนึ่งรายงาน",
-  "0x7E · other possible mask": "0x7E · มาสก์อื่นที่เป็นไปได้",
-  "The unlock tool refuses boards whose core mask is not 0x77, because a different mask usually means the factory disabled cores that were defective. If the tool reported 0xB7 or 0x7E for this board, pick it here: the unlock then goes ahead only when the board really reads that mask, and all 8 cores are enabled. 0xB7 was reported by a single owner whose board stayed stable; it is not verified.": "เครื่องมือปลดล็อกจะปฏิเสธบอร์ดที่มาสก์คอร์ไม่ใช่ 0x77 เพราะมาสก์ที่ต่างออกไปมักหมายความว่าโรงงานปิดคอร์ที่มีข้อบกพร่องไว้ หากเครื่องมือรายงาน 0xB7 หรือ 0x7E สำหรับบอร์ดนี้ ให้เลือกที่นี่: การปลดล็อกจะดำเนินต่อเฉพาะเมื่อบอร์ดอ่านได้มาสก์นั้นจริง และเปิดใช้คอร์ทั้ง 8 คอร์ 0xB7 ถูกรายงานโดยเจ้าของเพียงรายเดียวซึ่งบอร์ดยังเสถียร ยังไม่ได้รับการยืนยัน",
   "Only a board whose core mask reads {mask} is unlocked; with any other mask nothing is written. A mask other than 0x77 may mean the factory disabled cores that were defective, and they are enabled anyway. Stress test for a few hours and check dmesg for MCE errors before relying on them.": "จะปลดล็อกเฉพาะบอร์ดที่มาสก์คอร์เป็น {mask} เท่านั้น หากเป็นมาสก์อื่นจะไม่มีการเขียนอะไรเลย มาสก์ที่ไม่ใช่ 0x77 อาจหมายความว่าโรงงานปิดคอร์ที่มีข้อบกพร่องไว้ และคอร์เหล่านั้นจะถูกเปิดใช้อยู่ดี ให้ทดสอบความเครียดสักสองสามชั่วโมงและตรวจ dmesg หาข้อผิดพลาด MCE ก่อนจะไว้ใจคอร์เหล่านั้น",
   "Only {mask}": "เฉพาะ {mask}",
   "The same package repository is configured twice.": "มีการตั้งค่าคลังแพ็กเกจเดียวกันไว้สองครั้ง",
@@ -6515,5 +6512,9 @@
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "รูปแบบการแสดงอุณหภูมิทั่วทั้งแอป ขีดจำกัดและเส้นโค้งพัดลมยังคงบันทึกเป็นเซลเซียส",
   "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "หากเกมไม่มีความแตกต่าง ตัวแปรของเซสชันอาจยังไม่ทำงาน: คัดลอกตัวเลือกการเปิดด้านล่างสำหรับเกมนั้น",
   "Choose version": "เลือกเวอร์ชัน",
-  "Hide versions": "ซ่อนเวอร์ชัน"
+  "Hide versions": "ซ่อนเวอร์ชัน",
+  "{mask} · not verified": "{mask} · ยังไม่ได้ยืนยัน",
+  "{mask} · read on this board": "{mask} · อ่านได้จากบอร์ดนี้",
+  "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "เลือกมาสก์ที่เครื่องมือปลดล็อกรายงานสำหรับบอร์ดนี้ จะดำเนินการต่อก็ต่อเมื่อบอร์ดอ่านได้มาสก์นั้นจริง",
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "บอร์ดที่มีมาสก์อื่นอาจเปิดไม่ติดหลังปลดล็อก ถอดปลั๊กไม่กี่วินาทีจะกลับมาเป็น 6 คอร์"
 }

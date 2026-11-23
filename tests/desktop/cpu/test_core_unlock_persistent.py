@@ -547,8 +547,8 @@ def test_a_board_with_the_service_installed_opens_on_persistence_until_the_owner
 def test_each_mode_sends_its_own_request(qtbot):
     view = _view(qtbot)
     sent: list = []
-    view.unlock_cores_requested.connect(lambda force: sent.append(("temporary", force)))
-    view.persist_unlock_requested.connect(lambda force: sent.append(("persist", force)))
+    view.unlock_cores_requested.connect(lambda mask, force: sent.append(("temporary", mask, force)))
+    view.persist_unlock_requested.connect(lambda mask, force: sent.append(("persist", mask, force)))
     view.remove_persistence_requested.connect(lambda: sent.append(("remove",)))
     view.firmware_persistence_requested.connect(lambda: sent.append(("guide",)))
 
@@ -562,7 +562,7 @@ def test_each_mode_sends_its_own_request(qtbot):
     view.apply_state(replace(CpuControlState(), core_unlock=STATES["persistent-gave-up"]))
     view.firmware_button.click()
 
-    assert sent == [("temporary", 0x77), ("guide",), ("persist", 0xB7), ("remove",)]
+    assert sent == [("temporary", 0x77, False), ("guide",), ("persist", 0xB7, False), ("remove",)]
 
 
 def test_a_service_that_stopped_itself_offers_a_reinstall_and_shows_why(qtbot):

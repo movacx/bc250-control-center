@@ -6319,9 +6319,6 @@
   "Needs this toolkit's own patched Mesa / RADV, which is not set up: install Kernel and Mesa · GFX1013 first. keyboardspecialist's Mesa does not count.": "Benötigt das eigene gepatchte Mesa / RADV dieses Toolkits, das nicht eingerichtet ist: Installieren Sie zuerst Kernel und Mesa · GFX1013. Das Mesa von keyboardspecialist zählt nicht.",
   "Core mask of this board": "Kernmaske dieser Platine",
   "0x77 · standard (normal check)": "0x77 · Standard (normale Prüfung)",
-  "0xB7 · reported by one user": "0xB7 · von einem Nutzer gemeldet",
-  "0x7E · other possible mask": "0x7E · andere mögliche Maske",
-  "The unlock tool refuses boards whose core mask is not 0x77, because a different mask usually means the factory disabled cores that were defective. If the tool reported 0xB7 or 0x7E for this board, pick it here: the unlock then goes ahead only when the board really reads that mask, and all 8 cores are enabled. 0xB7 was reported by a single owner whose board stayed stable; it is not verified.": "Das Entsperrwerkzeug lehnt Platinen ab, deren Kernmaske nicht 0x77 ist, denn eine andere Maske bedeutet meist, dass das Werk defekte Kerne deaktiviert hat. Wenn das Werkzeug 0xB7 oder 0x7E für diese Platine gemeldet hat, wählen Sie sie hier: Die Entsperrung läuft dann nur weiter, wenn die Platine wirklich diese Maske liest, und alle 8 Kerne werden aktiviert. 0xB7 wurde von einem einzigen Besitzer gemeldet, dessen Platine stabil blieb; das ist nicht verifiziert.",
   "Only a board whose core mask reads {mask} is unlocked; with any other mask nothing is written. A mask other than 0x77 may mean the factory disabled cores that were defective, and they are enabled anyway. Stress test for a few hours and check dmesg for MCE errors before relying on them.": "Nur eine Platine, deren Kernmaske {mask} lautet, wird entsperrt; bei jeder anderen Maske wird nichts geschrieben. Eine andere Maske als 0x77 kann bedeuten, dass das Werk defekte Kerne deaktiviert hat, und sie werden trotzdem aktiviert. Führen Sie einige Stunden einen Stresstest durch und prüfen Sie dmesg auf MCE-Fehler, bevor Sie sich auf sie verlassen.",
   "Only {mask}": "Nur {mask}",
   "The same package repository is configured twice.": "Dasselbe Paket-Repository ist doppelt eingerichtet.",
@@ -6515,5 +6512,9 @@
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Wie Temperaturen überall in der App angezeigt werden. Grenzwerte und Lüfterkurven werden weiterhin in Celsius gespeichert.",
   "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Wenn ein Spiel keinen Unterschied zeigt, ist die Sitzungsvariable vielleicht nicht aktiv: Kopiere die Startoption unten für dieses Spiel.",
   "Choose version": "Version wählen",
-  "Hide versions": "Versionen ausblenden"
+  "Hide versions": "Versionen ausblenden",
+  "{mask} · not verified": "{mask} · nicht geprüft",
+  "{mask} · read on this board": "{mask} · auf diesem Board gelesen",
+  "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Wähle die Maske, die das Entsperrwerkzeug für dieses Board gemeldet hat. Es geht nur weiter, wenn das Board diese Maske wirklich liest.",
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Ein Board mit einer anderen Maske startet nach dem Entsperren eventuell nicht. Einige Sekunden ohne Strom bringen es auf 6 Kerne zurück."
 }

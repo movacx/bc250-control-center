@@ -6319,9 +6319,6 @@
   "Needs this toolkit's own patched Mesa / RADV, which is not set up: install Kernel and Mesa · GFX1013 first. keyboardspecialist's Mesa does not count.": "Vereist de eigen gepatchte Mesa / RADV van deze toolkit, die niet is ingesteld: installeer eerst Kernel en Mesa · GFX1013. De Mesa van keyboardspecialist telt niet.",
   "Core mask of this board": "Kernmasker van dit bord",
   "0x77 · standard (normal check)": "0x77 · standaard (normale controle)",
-  "0xB7 · reported by one user": "0xB7 · gemeld door één gebruiker",
-  "0x7E · other possible mask": "0x7E · ander mogelijk masker",
-  "The unlock tool refuses boards whose core mask is not 0x77, because a different mask usually means the factory disabled cores that were defective. If the tool reported 0xB7 or 0x7E for this board, pick it here: the unlock then goes ahead only when the board really reads that mask, and all 8 cores are enabled. 0xB7 was reported by a single owner whose board stayed stable; it is not verified.": "De ontgrendeltool weigert borden waarvan het kernmasker niet 0x77 is, omdat een ander masker meestal betekent dat de fabriek defecte kernen heeft uitgeschakeld. Als de tool 0xB7 of 0x7E voor dit bord meldde, kies het hier: de ontgrendeling gaat dan alleen door als het bord echt dat masker leest, en alle 8 kernen worden ingeschakeld. 0xB7 werd gemeld door één eigenaar wiens bord stabiel bleef; het is niet geverifieerd.",
   "Only a board whose core mask reads {mask} is unlocked; with any other mask nothing is written. A mask other than 0x77 may mean the factory disabled cores that were defective, and they are enabled anyway. Stress test for a few hours and check dmesg for MCE errors before relying on them.": "Alleen een bord waarvan het kernmasker {mask} is, wordt ontgrendeld; bij elk ander masker wordt niets geschreven. Een ander masker dan 0x77 kan betekenen dat de fabriek defecte kernen heeft uitgeschakeld, en die worden toch ingeschakeld. Voer een paar uur een stresstest uit en controleer dmesg op MCE-fouten voordat je erop vertrouwt.",
   "Only {mask}": "Alleen {mask}",
   "The same package repository is configured twice.": "Dezelfde pakketrepository is twee keer ingesteld.",
@@ -6515,5 +6512,9 @@
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Hoe temperaturen overal in de app worden weergegeven. Limieten en ventilatorcurves blijven in Celsius opgeslagen.",
   "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Als een game geen verschil laat zien, is de sessievariabele misschien niet actief: kopieer de startoptie hieronder voor die game.",
   "Choose version": "Versie kiezen",
-  "Hide versions": "Versies verbergen"
+  "Hide versions": "Versies verbergen",
+  "{mask} · not verified": "{mask} · niet geverifieerd",
+  "{mask} · read on this board": "{mask} · gelezen op dit bord",
+  "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Kies het masker dat het ontgrendelprogramma voor dit bord meldde. Het gaat alleen door als het bord dat masker echt leest.",
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Een bord met een ander masker start na het ontgrendelen mogelijk niet. Enkele seconden zonder stroom brengt het terug naar 6 kernen."
 }

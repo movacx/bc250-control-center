@@ -236,29 +236,79 @@ def test_without_the_box_the_confirmation_is_the_usual_one(monkeypatch):
 # ------------------------------------------------------------------ view
 
 
-def test_the_mask_list_replaces_the_box_and_rides_on_the_button(qtbot):
+def test_the_mask_list_and_the_force_box_ride_on_the_button(qtbot):
     view = CpuControlView()
     qtbot.addWidget(view)
-    assert not hasattr(view, "unlock_support_row")
-    assert not hasattr(view, "ignore_mask_line")
-    line = view.core_mask_line
-    assert view._risk_panel.isAncestorOf(line)
-    assert not line.isEnabled()
+    line, box = view.core_mask_line, view.ignore_mask_line
+    assert view._risk_panel.isAncestorOf(line) and view._risk_panel.isAncestorOf(box)
+    assert not line.isEnabled() and not box.isEnabled()
     masks = [line.combo.itemData(i) for i in range(line.combo.count())]
-    assert masks == [0x77, 0xB7, 0x7E]
+    # Read on real boards; 0x7E was only an example in a report.
+    assert masks == [0x77, 0xB7, 0xE7, 0x7D, 0xD7]
 
     view._apply_unlock(CoreUnlockState(helper_ready=True, unlock_allowed=True))
-    assert line.isEnabled() and line.mask() == 0x77 and not line.force()
-    assert "Ready" in view.unlock_button.toolTip()
-
+    assert line.isEnabled() and line.mask() == 0x77 and not box.check.isChecked()
     sent = []
-    view.unlock_cores_requested.connect(sent.append)
+    view.unlock_cores_requested.connect(lambda mask, force: sent.append((mask, force)))
     view.unlock_button.click()
     line.combo.setCurrentIndex(1)
     view.unlock_button.click()
-    assert sent == [0x77, 0xB7]
+    # Forced: the list means nothing, and goes back to the stock mask.
+    box.check.setChecked(True)
+    assert not line.isEnabled()
+    view.unlock_button.click()
+    box.check.setChecked(False)
+    assert line.isEnabled()
+    assert sent == [(0x77, False), (0xB7, False), (0x77, True)]
 
-    # Losing the unlock (helper gone, operation running) puts it back on 0x77.
+    # Losing the unlock (helper gone, operation running) clears both.
+    box.check.setChecked(True)
     view._apply_unlock(CoreUnlockState(helper_ready=False, unlock_allowed=False))
-    assert not line.isEnabled() and line.mask() == 0x77
-    assert "Not installed" in view.unlock_button.toolTip()
+    assert not line.isEnabled() and line.mask() == 0x77 and not box.check.isChecked()
+
+
+@pytest.mark.parametrize("text, mask", [
+    ("ERROR: This board's core mask is 0xE7, not the 0x7E you chose.", 0xE7),
+    ("core presence mask: 0x000000B7\nnon-0x77 presence mask detected", 0xB7),
+    ("Mask still 0x7D with 12 threads after 2 attempt(s)", 0x7D),
+    ("Non-standard core mask 0xD7; refusing.", 0xD7),
+    ("core presence mask: 0x000000FF", None),
+    ("", None),
+])
+def test_the_mask_a_tool_read_is_recognised(text, mask):
+    from frontends.desktop.pages.cpu_control_view import reported_core_mask
+
+    assert reported_core_mask(text) == mask
+
+
+def test_the_mask_read_on_this_board_is_listed_and_picked_once(qtbot):
+    view = CpuControlView()
+    qtbot.addWidget(view)
+    view._apply_unlock(CoreUnlockState(helper_ready=True, unlock_allowed=True))
+    view.set_board_core_mask(0xBD)
+    line = view.core_mask_line
+    assert line.mask() == 0xBD and "0xBD" in line.combo.itemText(line.combo.currentIndex())
+    # The owner's pick stands on the next refresh.
+    line.combo.setCurrentIndex(0)
+    view.set_board_core_mask(0xBD)
+    view._apply_unlock(CoreUnlockState(helper_ready=True, unlock_allowed=True))
+    assert line.mask() == 0x77
+    view.set_board_core_mask(0x3F)  # not three per CCX: never offered
+    assert line.combo.findData(0x3F) < 0
+
+
+def test_a_refused_cpu_unlock_is_not_a_gpu_fault():
+    from frontends.desktop.core.error_diagnostics import diagnose_error
+
+    text = ("This board's core mask is 0xE7, not the 0x7E you chose. Nothing was written to the SMU; "
+            "the GPU governors are back as they were.")
+    assert diagnose_error(text, context="CPU SMU").code == "BC250-CPU-900"
+
+
+def test_a_refused_unlock_hands_the_mask_to_the_card(qtbot):
+    from frontends.desktop.pages import cpu_control_integration
+    from frontends.desktop.pages.cpu_smu import CORE_UNLOCK_OPERATIONS
+
+    source = __import__("inspect").getsource(CpuSmuPage._process_finished)
+    assert cpu_control_integration._ATTRIBUTE in source
+    assert "Unlock CPU cores and restart" in CORE_UNLOCK_OPERATIONS

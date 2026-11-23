@@ -44,6 +44,7 @@ fixes that for this module too.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field, replace
 from typing import Sequence
 
@@ -105,19 +106,59 @@ MANUAL_SCALE_HINT = (
 #: skipping the check for any mask.
 CORE_MASK_LABEL = "Core mask of this board"
 CORE_MASK_STOCK = 0x77
-CORE_MASK_CHOICES = (
-    (0x77, "0x77 · standard (normal check)"),
-    (0xB7, "0xB7 · reported by one user"),
-    (0x7E, "0x7E · other possible mask"),
+#: Masks read on real boards: 0xB7 (R-643035c1, rw-r-r-0644 issue 4), 0xE7
+#: (issue 37), 0x7D (R-1bad18d0, rw-r-r-0644 issue 2) and 0xD7 (same issue).
+CORE_MASK_STANDARD_TEXT = "0x77 · standard (normal check)"
+CORE_MASK_SEEN = (0xB7, 0xE7, 0x7D, 0xD7)
+CORE_MASK_SEEN_TEXT = "{mask} · not verified"
+CORE_MASK_READ_TEXT = "{mask} · read on this board"
+#: The sentences shared by the mask list, the force box and both confirmations.
+CORE_MASK_PICK_HINT = (
+    "Pick the mask the unlock tool reported for this board. It goes ahead only "
+    "when the board really reads that mask."
 )
-CORE_MASK_HINT = (
+CORE_MASK_BOOT_RISK = (
+    "A board with another mask may fail to start after the unlock. Unplugging it "
+    "for a few seconds brings it back to 6 cores."
+)
+IGNORE_CORE_MASK_LABEL = "Force a non-standard core mask (-f)"
+IGNORE_CORE_MASK_HINT = (
     "The unlock tool refuses boards whose core mask is not 0x77, because a "
     "different mask usually means the factory disabled cores that were "
-    "defective. If the tool reported 0xB7 or 0x7E for this board, pick it here: "
-    "the unlock then goes ahead only when the board really reads that mask, and "
-    "all 8 cores are enabled. 0xB7 was reported by a single owner whose board "
-    "stayed stable; it is not verified."
+    "defective. This passes -f to skip that check: all 8 cores are enabled."
 )
+
+
+def core_mask_hint() -> str:
+    return tr(CORE_MASK_PICK_HINT) + "\n\n" + tr(CORE_MASK_BOOT_RISK)
+
+
+def ignore_core_mask_hint() -> str:
+    return tr(IGNORE_CORE_MASK_HINT) + "\n\n" + tr(CORE_MASK_BOOT_RISK)
+
+
+def is_six_core_mask(mask: int) -> bool:
+    """Three enabled cores on each four-core CCX, the only shape the tools accept."""
+    return 0 <= mask <= 0xFF and (mask & 0x0F).bit_count() == 3 and (mask & 0xF0).bit_count() == 3
+
+
+_REPORTED_MASK = re.compile(
+    r"core (?:presence )?mask(?: is)?:?\s+0x(?:0{6})?([0-9a-f]{2})\b|mask still 0x([0-9a-f]{2})\b", re.I
+)
+
+
+def reported_core_mask(text: object) -> int | None:
+    """The 6-core mask a tool's message names for this board, or None.
+
+    Both tools print the mask they read before refusing, and the boot service
+    keeps it in its note; nothing readable without root says it.
+    """
+    for match in _REPORTED_MASK.finditer(str(text or "")):
+        mask = int(match[1] or match[2], 16)
+        if is_six_core_mask(mask):
+            return mask
+    return None
+
 
 #: Width below which the two workspace columns stack. Same breakpoint the GPU
 #: module uses, so the two screens never reflow at different moments.
@@ -541,10 +582,31 @@ class CoreMaskLine(QWidget):
         row.setSpacing(0)
         self.combo = PickerRow(label)
         self.combo.setAccessibleName(tr(label))
+        self._board_mask: int | None = None
         # The value is the short mask; the menu keeps the full explanation.
-        for mask, text in CORE_MASK_CHOICES:
-            self.combo.addItem(tr(text), mask, f"0x{mask:02X}")
+        for mask in (CORE_MASK_STOCK, *CORE_MASK_SEEN):
+            self.combo.addItem(self._text(mask), mask, f"0x{mask:02X}")
         row.addWidget(self.combo, 1)
+
+    def _text(self, mask: int) -> str:
+        if mask == CORE_MASK_STOCK:
+            return tr(CORE_MASK_STANDARD_TEXT)
+        source = CORE_MASK_READ_TEXT if mask == self._board_mask else CORE_MASK_SEEN_TEXT
+        return tr_format(source, mask=f"0x{mask:02X}")
+
+    def set_board_mask(self, mask: int | None) -> None:
+        """List and pick the mask a tool read on this board (once per reading)."""
+        if mask is None or mask == self._board_mask or not is_six_core_mask(mask):
+            return
+        self._board_mask = mask
+        if self.combo.findData(mask) < 0:
+            self.combo.addItem(self._text(mask), mask, f"0x{mask:02X}")
+        self.retranslate()
+        self._pick_board_mask()
+
+    def _pick_board_mask(self) -> None:
+        if self._board_mask is not None and self.isEnabled():
+            self.combo.setCurrentIndex(self.combo.findData(self._board_mask))
 
     def mask(self) -> int:
         return int(self.combo.currentData())
@@ -558,15 +620,18 @@ class CoreMaskLine(QWidget):
         self.combo.setToolTip(text)
 
     def setEnabled(self, enabled: bool) -> None:  # noqa: N802 (Qt)
+        was = self.isEnabled()
         super().setEnabled(enabled)
         if not enabled:
             self.combo.setCurrentIndex(0)
+        elif not was:
+            self._pick_board_mask()
 
     def retranslate(self) -> None:
         self.combo.retranslate()
         self.combo.setAccessibleName(tr(self._source))
-        for index, (_mask, text) in enumerate(CORE_MASK_CHOICES):
-            self.combo.setItemText(index, tr(text))
+        for index in range(self.combo.count()):
+            self.combo.setItemText(index, self._text(int(self.combo.itemData(index))))
 
 
 class UnlockOption(QFrame):
@@ -889,9 +954,9 @@ class CpuControlView(QWidget):
         apply_requested(object CpuTuningRequest)
         profile_changed(object CpuProfile)
         persistence_requested(str)     # 'save' | 'remove' | 'review'
-        unlock_cores_requested(int core_mask)      # 0x77 = standard check
+        unlock_cores_requested(int core_mask, bool force)   # 0x77 = standard check
         firmware_persistence_requested()
-        persist_unlock_requested(int core_mask)
+        persist_unlock_requested(int core_mask, bool force)
         remove_persistence_requested()
 
     Inputs::
@@ -903,9 +968,9 @@ class CpuControlView(QWidget):
     apply_requested = pyqtSignal(object)
     profile_changed = pyqtSignal(object)
     persistence_requested = pyqtSignal(str)
-    unlock_cores_requested = pyqtSignal(int)
+    unlock_cores_requested = pyqtSignal(int, bool)
     firmware_persistence_requested = pyqtSignal()
-    persist_unlock_requested = pyqtSignal(int)
+    persist_unlock_requested = pyqtSignal(int, bool)
     remove_persistence_requested = pyqtSignal()
     export_to_decky_requested = pyqtSignal()
 
@@ -1347,12 +1412,20 @@ class CpuControlView(QWidget):
         self._unlock_note.hide()
         risk_box.addWidget(self._unlock_note)
 
-        # Upstream's "-f": its tool refuses a core mask other than 0x77, and
-        # some owners run boards that pass stress tests anyway.
+        # Its tool refuses a core mask other than 0x77; some boards read another.
         self.core_mask_line = CoreMaskLine(CORE_MASK_LABEL, risk_panel)
-        self.core_mask_line.setToolTip(tr(CORE_MASK_HINT))
+        self.core_mask_line.setToolTip(core_mask_hint())
         self.core_mask_line.setEnabled(False)
         risk_box.addWidget(self.core_mask_line)
+        # Upstream's "-f": any mask. Off every time the card opens or the
+        # unlock is not available, and the list means nothing while it is on.
+        self.ignore_mask_line = CheckLine(IGNORE_CORE_MASK_LABEL, risk_panel)
+        self.ignore_mask_line.label.setProperty("unlockMaskLabel", True)
+        self.ignore_mask_line.setToolTip(ignore_core_mask_hint())
+        self.ignore_mask_line.setEnabled(False)
+        self.ignore_mask_line.check.toggled.connect(self._mask_force_toggled)
+        self._mask_allowed = False
+        risk_box.addWidget(self.ignore_mask_line)
 
         actions = QHBoxLayout()
         actions.setSpacing(8)
@@ -1558,11 +1631,23 @@ class CpuControlView(QWidget):
             self.firmware_persistence_requested.emit()
 
     def _action_clicked(self) -> None:
-        mask = self.core_mask_line.mask()
+        mask, force = self.core_mask_line.mask(), self.ignore_mask_line.check.isChecked()
         if self._unlock_mode == UNLOCK_MODE_PERSISTENT:
-            self.persist_unlock_requested.emit(mask)
+            self.persist_unlock_requested.emit(mask, force)
         else:
-            self.unlock_cores_requested.emit(mask)
+            self.unlock_cores_requested.emit(mask, force)
+
+    def _mask_force_toggled(self, _checked: bool = False) -> None:
+        self.core_mask_line.setEnabled(self._mask_allowed and not self.ignore_mask_line.check.isChecked())
+
+    def _allow_masks(self, allowed: bool) -> None:
+        # Back to the stock mask, unforced, whenever the unlock is not available.
+        self._mask_allowed = bool(allowed)
+        self.ignore_mask_line.setEnabled(self._mask_allowed)
+        self._mask_force_toggled()
+
+    def set_board_core_mask(self, mask: int | None) -> None:
+        self.core_mask_line.set_board_mask(mask)
 
     def _apply_unlock(self, unlock: CoreUnlockState) -> None:
         # Open on Persistence once when a service is already installed, so its
@@ -1622,6 +1707,7 @@ class CpuControlView(QWidget):
         self._unlock_note.setText(note)
         self._unlock_note.setVisible(bool(note))
 
+        self.set_board_core_mask(reported_core_mask(unlock.persistence_note))
         if self._unlock_mode == UNLOCK_MODE_PERSISTENT:
             self._apply_persistent_unlock(unlock)
             return
@@ -1638,8 +1724,7 @@ class CpuControlView(QWidget):
             )
         )
         self.unlock_button.setEnabled(bool(unlock.unlock_allowed))
-        # Back to the stock mask whenever the unlock is not available.
-        self.core_mask_line.setEnabled(bool(unlock.unlock_allowed))
+        self._allow_masks(unlock.unlock_allowed)
 
     def _apply_persistent_unlock(self, unlock: CoreUnlockState) -> None:
         stopped = unlock.persistence_installed and not unlock.persistence_active
@@ -1676,7 +1761,7 @@ class CpuControlView(QWidget):
         self.unlock_button.setText(text)
         self.unlock_button.setToolTip(tip)
         self.unlock_button.setEnabled(bool(allowed))
-        self.core_mask_line.setEnabled(bool(allowed))
+        self._allow_masks(allowed)
 
     def _select_profile_matching(
         self, frequency: int, vid: int, temperature: int
@@ -1702,7 +1787,9 @@ class CpuControlView(QWidget):
         for key, label in self.RUNTIME_ROWS:
             self.runtime_cards[key].set_label(label)
         self.core_mask_line.retranslate()
-        self.core_mask_line.setToolTip(tr(CORE_MASK_HINT))
+        self.core_mask_line.setToolTip(core_mask_hint())
+        self.ignore_mask_line.retranslate()
+        self.ignore_mask_line.setToolTip(ignore_core_mask_hint())
         for option in self._mode_buttons.values():
             option.retranslate()
         self._busy_badge.retranslate()

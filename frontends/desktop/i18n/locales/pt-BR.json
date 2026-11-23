@@ -6319,9 +6319,6 @@
   "Needs this toolkit's own patched Mesa / RADV, which is not set up: install Kernel and Mesa · GFX1013 first. keyboardspecialist's Mesa does not count.": "Precisa do Mesa / RADV corrigido do próprio toolkit, que não está configurado: instale primeiro Kernel e Mesa · GFX1013. O Mesa do keyboardspecialist não conta.",
   "Core mask of this board": "Máscara de núcleos desta placa",
   "0x77 · standard (normal check)": "0x77 · padrão (verificação normal)",
-  "0xB7 · reported by one user": "0xB7 · relatada por um usuário",
-  "0x7E · other possible mask": "0x7E · outra máscara possível",
-  "The unlock tool refuses boards whose core mask is not 0x77, because a different mask usually means the factory disabled cores that were defective. If the tool reported 0xB7 or 0x7E for this board, pick it here: the unlock then goes ahead only when the board really reads that mask, and all 8 cores are enabled. 0xB7 was reported by a single owner whose board stayed stable; it is not verified.": "A ferramenta de desbloqueio recusa placas cuja máscara de núcleos não é 0x77, porque uma máscara diferente costuma indicar que a fábrica desativou núcleos defeituosos. Se a ferramenta indicou 0xB7 ou 0x7E para esta placa, escolha-a aqui: o desbloqueio só continua se a placa realmente tiver essa máscara, e os 8 núcleos são ativados. 0xB7 foi relatado por um único usuário cuja placa ficou estável; não está verificado.",
   "Only a board whose core mask reads {mask} is unlocked; with any other mask nothing is written. A mask other than 0x77 may mean the factory disabled cores that were defective, and they are enabled anyway. Stress test for a few hours and check dmesg for MCE errors before relying on them.": "Só é desbloqueada uma placa cuja máscara de núcleos seja {mask}; com qualquer outra máscara nada é gravado. Uma máscara diferente de 0x77 pode indicar que a fábrica desativou núcleos defeituosos, e eles são ativados mesmo assim. Faça um teste de estresse de algumas horas e verifique o dmesg em busca de erros MCE antes de confiar neles.",
   "Only {mask}": "Apenas {mask}",
   "The same package repository is configured twice.": "O mesmo repositório de pacotes está configurado duas vezes.",
@@ -6515,5 +6512,9 @@
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Como as temperaturas aparecem em todo o aplicativo. Limites e curvas de ventilador continuam salvos em Celsius.",
   "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Se um jogo não mostrar diferença, a variável da sessão pode não estar ativa: copie a opção de inicialização abaixo para esse jogo.",
   "Choose version": "Escolher versão",
-  "Hide versions": "Ocultar versões"
+  "Hide versions": "Ocultar versões",
+  "{mask} · not verified": "{mask} · não verificada",
+  "{mask} · read on this board": "{mask} · lida nesta placa",
+  "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Escolha a máscara que a ferramenta de desbloqueio informou para esta placa. Só continua se a placa realmente ler essa máscara.",
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Uma placa com outra máscara pode não ligar depois do desbloqueio. Tirá-la da tomada por alguns segundos a traz de volta a 6 núcleos."
 }

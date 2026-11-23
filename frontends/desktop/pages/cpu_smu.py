@@ -72,7 +72,12 @@ from ..core.temperature_unit import (
 )
 from ..i18n import tr, tr_format
 from ..theme import COLORS
-from .cpu_control_view import CORE_MASK_STOCK, MANUAL_SCALE_HINT
+from .cpu_control_view import (
+    CORE_MASK_BOOT_RISK,
+    CORE_MASK_STOCK,
+    MANUAL_SCALE_HINT,
+    reported_core_mask,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +99,10 @@ ACCEPTED_MASK_NOTE = (
 )
 
 
+#: The operations whose output names the mask this board reads.
+CORE_UNLOCK_OPERATIONS = ("Unlock CPU cores and restart", "Make the core unlock permanent")
+
+
 def _accept_mask_for(core_mask, ignore_core_mask=False):
     """The mask to send as --accept-mask, or None for the standard check
     (or for the blunt -f, which takes precedence when it was asked for)."""
@@ -107,7 +116,7 @@ def _accept_mask_for(core_mask, ignore_core_mask=False):
 
 
 def _accepted_mask_note(mask: int) -> str:
-    return tr_format(ACCEPTED_MASK_NOTE, mask=f"0x{mask:02X}")
+    return tr_format(ACCEPTED_MASK_NOTE, mask=f"0x{mask:02X}") + " " + tr(CORE_MASK_BOOT_RISK)
 
 
 def _dict(value):
@@ -1791,7 +1800,7 @@ class CpuSmuPage(QWidget):
                 "factory probably disabled cores that were defective, and they are enabled "
                 "anyway. Stress test for a few hours and check dmesg for MCE errors before "
                 "relying on them."
-            )
+            ) + " " + tr(CORE_MASK_BOOT_RISK)
             summary.insert(1, ("Core mask check", "Skipped (-f)"))
         elif accept_mask is not None:
             message += "\n\n" + _accepted_mask_note(accept_mask)
@@ -1881,7 +1890,7 @@ class CpuSmuPage(QWidget):
                 "factory probably disabled cores that were defective, and they are enabled "
                 "anyway. Stress test for a few hours and check dmesg for MCE errors before "
                 "relying on them."
-            )
+            ) + " " + tr(CORE_MASK_BOOT_RISK)
             summary.insert(1, ("Core mask check", "Skipped (-f)"))
         elif accept_mask is not None:
             message += "\n\n" + _accepted_mask_note(accept_mask)
@@ -2070,6 +2079,13 @@ class CpuSmuPage(QWidget):
             self._append_console(f"[{stamp}] " + tr("Completed"))
             self._last_operation_summary = tr("Completed")
         else:
+            # A refused unlock names the mask this board reads: offer that one.
+            mask = reported_core_mask(self._last_stderr) or reported_core_mask(
+                self.console.toPlainText()[-4000:]
+            ) if self._operation in CORE_UNLOCK_OPERATIONS else None
+            view = getattr(self, "_unified_cpu_control", None)
+            if mask is not None and view is not None:
+                view.set_board_core_mask(mask)
             failure = describe_failure(exit_code, "", self._last_stderr)
             diagnosis = diagnose_error(failure, context="CPU SMU")
             record_diagnosis(diagnosis, source="terminal", title="CPU / SMU", detail=failure)

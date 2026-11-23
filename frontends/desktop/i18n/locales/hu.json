@@ -6319,9 +6319,6 @@
   "Needs this toolkit's own patched Mesa / RADV, which is not set up: install Kernel and Mesa · GFX1013 first. keyboardspecialist's Mesa does not count.": "Ennek a toolkitnek a saját javított Mesa / RADV-je kell hozzá, ami nincs beállítva: először telepítse ezt: Kernel és Mesa · GFX1013. A keyboardspecialist Mesája nem számít.",
   "Core mask of this board": "A lap magmaszkja",
   "0x77 · standard (normal check)": "0x77 · szabványos (normál ellenőrzés)",
-  "0xB7 · reported by one user": "0xB7 · egy felhasználó jelentette",
-  "0x7E · other possible mask": "0x7E · másik lehetséges maszk",
-  "The unlock tool refuses boards whose core mask is not 0x77, because a different mask usually means the factory disabled cores that were defective. If the tool reported 0xB7 or 0x7E for this board, pick it here: the unlock then goes ahead only when the board really reads that mask, and all 8 cores are enabled. 0xB7 was reported by a single owner whose board stayed stable; it is not verified.": "A feloldó eszköz elutasítja azokat a lapokat, amelyek magmaszkja nem 0x77, mert egy eltérő maszk általában azt jelenti, hogy a gyár letiltotta a hibás magokat. Ha az eszköz 0xB7-et vagy 0x7E-t jelzett ennél a lapnál, itt válaszd ki: a feloldás csak akkor folytatódik, ha a lap valóban ezt a maszkot olvassa, és mind a 8 mag bekapcsol. A 0xB7-et egyetlen tulajdonos jelentette, akinek a lapja stabil maradt; nincs ellenőrizve.",
   "Only a board whose core mask reads {mask} is unlocked; with any other mask nothing is written. A mask other than 0x77 may mean the factory disabled cores that were defective, and they are enabled anyway. Stress test for a few hours and check dmesg for MCE errors before relying on them.": "Csak az a lap lesz feloldva, amelynek magmaszkja {mask}; bármely más maszknál semmi sem íródik. A 0x77-től eltérő maszk azt jelentheti, hogy a gyár letiltotta a hibás magokat, és ezek mégis bekapcsolnak. Futtass néhány órás terheléses tesztet, és nézd meg a dmesg-ben az MCE-hibákat, mielőtt megbíznál bennük.",
   "Only {mask}": "Csak {mask}",
   "The same package repository is configured twice.": "Ugyanaz a csomagtároló kétszer van beállítva.",
@@ -6515,5 +6512,9 @@
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Hogyan jelennek meg a hőmérsékletek az egész alkalmazásban. A határértékek és a ventilátorgörbék továbbra is Celsiusban tárolódnak.",
   "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Ha egy játékban nincs különbség, lehet, hogy a munkamenet-változó nem aktív: másold ki az alábbi indítási beállítást ahhoz a játékhoz.",
   "Choose version": "Verzió kiválasztása",
-  "Hide versions": "Verziók elrejtése"
+  "Hide versions": "Verziók elrejtése",
+  "{mask} · not verified": "{mask} · nem ellenőrzött",
+  "{mask} · read on this board": "{mask} · ezen az alaplapon olvasva",
+  "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Válaszd azt a maszkot, amelyet a feloldó eszköz ehhez az alaplaphoz jelzett. Csak akkor folytatja, ha az alaplap tényleg ezt a maszkot olvassa.",
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Más maszkkal az alaplap lehet, hogy nem indul el a feloldás után. Néhány másodpercre áramtalanítva visszaáll 6 magra."
 }

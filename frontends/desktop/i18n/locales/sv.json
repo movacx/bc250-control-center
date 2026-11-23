@@ -6319,9 +6319,6 @@
   "Needs this toolkit's own patched Mesa / RADV, which is not set up: install Kernel and Mesa · GFX1013 first. keyboardspecialist's Mesa does not count.": "Kräver verktygslådans egen patchade Mesa / RADV, som inte är konfigurerad: installera Kärna och Mesa · GFX1013 först. Mesa från keyboardspecialist räknas inte.",
   "Core mask of this board": "Kärnmask för det här kortet",
   "0x77 · standard (normal check)": "0x77 · standard (normal kontroll)",
-  "0xB7 · reported by one user": "0xB7 · rapporterad av en användare",
-  "0x7E · other possible mask": "0x7E · annan möjlig mask",
-  "The unlock tool refuses boards whose core mask is not 0x77, because a different mask usually means the factory disabled cores that were defective. If the tool reported 0xB7 or 0x7E for this board, pick it here: the unlock then goes ahead only when the board really reads that mask, and all 8 cores are enabled. 0xB7 was reported by a single owner whose board stayed stable; it is not verified.": "Upplåsningsverktyget vägrar kort vars kärnmask inte är 0x77, eftersom en annan mask oftast betyder att fabriken stängde av defekta kärnor. Om verktyget rapporterade 0xB7 eller 0x7E för det här kortet, välj den här: upplåsningen fortsätter då bara om kortet verkligen läser den masken, och alla 8 kärnor aktiveras. 0xB7 rapporterades av en enda ägare vars kort förblev stabilt; det är inte verifierat.",
   "Only a board whose core mask reads {mask} is unlocked; with any other mask nothing is written. A mask other than 0x77 may mean the factory disabled cores that were defective, and they are enabled anyway. Stress test for a few hours and check dmesg for MCE errors before relying on them.": "Endast ett kort vars kärnmask är {mask} låses upp; med någon annan mask skrivs ingenting. En annan mask än 0x77 kan betyda att fabriken stängde av defekta kärnor, och de aktiveras ändå. Kör ett stresstest i några timmar och kontrollera dmesg efter MCE-fel innan du litar på dem.",
   "Only {mask}": "Endast {mask}",
   "The same package repository is configured twice.": "Samma paketförråd är konfigurerat två gånger.",
@@ -6515,5 +6512,9 @@
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Hur temperaturer visas överallt i appen. Gränser och fläktkurvor sparas fortfarande i Celsius.",
   "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Om ett spel inte visar någon skillnad är sessionsvariabeln kanske inte aktiv: kopiera startalternativet nedan för det spelet.",
   "Choose version": "Välj version",
-  "Hide versions": "Dölj versioner"
+  "Hide versions": "Dölj versioner",
+  "{mask} · not verified": "{mask} · ej verifierad",
+  "{mask} · read on this board": "{mask} · avläst på det här kortet",
+  "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Välj den mask som upplåsningsverktyget rapporterade för det här kortet. Det fortsätter bara om kortet verkligen läser den masken.",
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Ett kort med en annan mask kanske inte startar efter upplåsningen. Några sekunder utan ström tar det tillbaka till 6 kärnor."
 }

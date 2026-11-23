@@ -958,9 +958,12 @@ def diagnose_error(message: object, *, context: object = "") -> ErrorDiagnosis:
     for rule in _RULES:
         if rule.matches(combined):
             return ErrorDiagnosis(rule.code, rule.summary, rule.cause, rule.action)
-    for code, markers, summary, cause, action in _CONTEXT_FALLBACKS:
-        if any(marker in combined for marker in markers):
-            return ErrorDiagnosis(code, summary, cause, action)
+    # With no rule for the message, the operation names the area: a refused CPU
+    # unlock that says "the GPU governors are back" is not a GPU fault (R-ef9d2a5c).
+    for text in (str(context).casefold(), combined):
+        for code, markers, summary, cause, action in _CONTEXT_FALLBACKS:
+            if any(marker in text for marker in markers):
+                return ErrorDiagnosis(code, summary, cause, action)
     return ErrorDiagnosis(
         "BC250-GENERAL-001",
         "The operation could not be completed.",

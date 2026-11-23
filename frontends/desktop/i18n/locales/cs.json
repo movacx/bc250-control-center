@@ -6319,9 +6319,6 @@
   "Needs this toolkit's own patched Mesa / RADV, which is not set up: install Kernel and Mesa · GFX1013 first. keyboardspecialist's Mesa does not count.": "Vyžaduje vlastní upravenou Mesa / RADV tohoto toolkitu, která není nastavená: nejprve nainstalujte Jádro a Mesa · GFX1013. Mesa od keyboardspecialist se nepočítá.",
   "Core mask of this board": "Maska jader této desky",
   "0x77 · standard (normal check)": "0x77 · standardní (běžná kontrola)",
-  "0xB7 · reported by one user": "0xB7 · nahlášená jedním uživatelem",
-  "0x7E · other possible mask": "0x7E · jiná možná maska",
-  "The unlock tool refuses boards whose core mask is not 0x77, because a different mask usually means the factory disabled cores that were defective. If the tool reported 0xB7 or 0x7E for this board, pick it here: the unlock then goes ahead only when the board really reads that mask, and all 8 cores are enabled. 0xB7 was reported by a single owner whose board stayed stable; it is not verified.": "Nástroj pro odemčení odmítá desky, jejichž maska jader není 0x77, protože jiná maska obvykle znamená, že výrobce vypnul vadná jádra. Pokud nástroj pro tuto desku hlásil 0xB7 nebo 0x7E, vyberte ji zde: odemčení pak pokračuje jen tehdy, když deska tuto masku opravdu čte, a zapne se všech 8 jader. 0xB7 nahlásil jediný majitel, jehož deska zůstala stabilní; není to ověřeno.",
   "Only a board whose core mask reads {mask} is unlocked; with any other mask nothing is written. A mask other than 0x77 may mean the factory disabled cores that were defective, and they are enabled anyway. Stress test for a few hours and check dmesg for MCE errors before relying on them.": "Odemkne se jen deska, jejíž maska jader je {mask}; s jakoukoli jinou maskou se nic nezapíše. Jiná maska než 0x77 může znamenat, že výrobce vypnul vadná jádra, a ta se přesto zapnou. Spusťte na několik hodin zátěžový test a zkontrolujte dmesg kvůli chybám MCE, než se na ně spolehnete.",
   "Only {mask}": "Pouze {mask}",
   "The same package repository is configured twice.": "Stejný repozitář balíčků je nastaven dvakrát.",
@@ -6515,5 +6512,9 @@
   "How temperatures are shown everywhere in the app. Limits and fan curves are still kept in Celsius.": "Jak se teploty zobrazují v celé aplikaci. Limity a křivky ventilátorů se dál ukládají ve stupních Celsia.",
   "If a game shows no difference, the session variable may not be active: copy the launch option below for that game.": "Pokud ve hře nevidíte žádný rozdíl, proměnná relace možná není aktivní: zkopírujte pro tu hru spouštěcí volbu níže.",
   "Choose version": "Vybrat verzi",
-  "Hide versions": "Skrýt verze"
+  "Hide versions": "Skrýt verze",
+  "{mask} · not verified": "{mask} · neověřená",
+  "{mask} · read on this board": "{mask} · přečtená na této desce",
+  "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Vyberte masku, kterou nástroj pro odemčení u této desky ohlásil. Pokračuje jen tehdy, když deska tuto masku opravdu hlásí.",
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Deska s jinou maskou se po odemčení nemusí spustit. Odpojení od proudu na několik sekund ji vrátí na 6 jader."
 }
