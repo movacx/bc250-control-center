@@ -9,7 +9,8 @@ maintainer needs to read a fault stays:
   people's accounts on it, the owner's real name, e-mail addresses, IPv4 and
   IPv6 addresses, MAC addresses, Wi-Fi network names, serial numbers,
   filesystem and partition UUIDs, the machine-id (and the folder named after it
-  in the journal), and Steam account ids;
+  in the journal), Steam account ids, and the names of removable or extra
+  volumes (they are chosen by the owner);
 * kept: default host names of a distribution ("bazzite", "steamdeck"), the
   generic account names ("deck", "root"), and the identifiers of the graphics
   *driver* (``deviceUUID``, ``driverUUID``), which say which build runs, not
@@ -65,6 +66,24 @@ _SERIAL = re.compile(
     r"(?i)\b((?:(?:product|board|chassis|system)[ _])?serial(?:[ _]number|[ _]no\.?)?|ID_SERIAL(?:_SHORT)?|S/N)"
     r"(\s*[:=]\s*)(?!<serial>)(\S[^\n]*)"
 )
+#: The kernel's own spelling for a USB device ("usb 3-2: SerialNumber: X").
+#: "SerialNumber=3" is only the number of a text slot and stays.
+_USB_SERIAL = re.compile(r"(\bSerialNumber:[ \t]*)(?!<serial>)([^\s\"\\]+)")
+#: ``[   12.3] host systemd[1]:``, ``Nov 10 01:21:29 host kernel:`` and the ISO
+#: stamp: the machine's name is a column. It may be one the machine no longer
+#: has (a DHCP name with the address in it), which no lookup would find.
+_STAMP = (
+    r"(?:\[ *\d+\.\d+\]|[A-Z][a-z]{2} [ \d]\d \d\d:\d\d:\d\d(?:\.\d+)?"
+    r"|\d{4}-\d\d-\d\d[T ]\d\d:\d\d:\d\d(?:[.,]\d+)?(?:Z|[+-]\d\d:?\d\d)?)"
+)
+_JOURNAL_HOST = re.compile(
+    rf"(?m)^([ \t]*{_STAMP} )([A-Za-z0-9][\w.-]*)(?= (?:kernel|[A-Za-z_(][^\s:\[\]]*\[\d+\]):)"
+)
+_HOSTNAME_SET = re.compile(r"(?i)(\bhostname set to <)([^<>\s]+)(?=>)")
+#: Where desktops and people mount extra disks. In ``df`` the name ends the line
+#: and may hold spaces; in a path it ends at the next separator.
+_DF_VOLUME = re.compile(r"(?m)(\d+%[ \t]+/(?:run/media|media|(?:var/)?mnt)/)(?!<)([^\n]+)$")
+_VOLUME = re.compile(r"(?<![\w.])(/(?:run/media|media|mnt)/)(?!<)([^\s/\"'`:;,)\]]+)(/[^\s/\"'`:;,)\]]+)?")
 #: What is looked up on the machine, once in a while: it does not change every second.
 _CACHE_SECONDS = 60.0
 _cache: tuple[float, dict] | None = None
@@ -178,9 +197,58 @@ def _uuids(text: str) -> str:
     )
 
 
+def _journal_hosts(text: str) -> str:
+    """Names in the journal's host column, there and in the rest of the text."""
+    names = {match[2] for match in _JOURNAL_HOST.finditer(text)}
+    names |= {match[2] for match in _HOSTNAME_SET.finditer(text)}
+    names = {name for name in names if name.lower() not in _GENERIC_HOSTS}
+    if not names:
+        return text
+
+    def replace(match: re.Match) -> str:
+        return match[0] if match[2].lower() in _GENERIC_HOSTS else f"{match[1]}<host>"
+
+    text = _HOSTNAME_SET.sub(replace, _JOURNAL_HOST.sub(replace, text))
+    for name in sorted(names, key=len, reverse=True):
+        # A short name can be a word of the log; the column is enough for it.
+        if len(name) >= 5 and any(character in name for character in "-.0123456789"):
+            text = _word(name, "<host>", text, left=r"(?<![\w.-])", right=r"(?![\w-])")
+    return text
+
+
+def _volumes(text: str) -> str:
+    def replace(match: re.Match) -> str:
+        # /run/media/<user>/<volume>, /media/<user>/<volume>; /mnt/<volume>.
+        if not match[1].endswith("mnt/") and match[3]:
+            return f"{match[1]}<user>/<volume>"
+        return f"{match[1]}<volume>" + (match[3] or "")
+
+    return _VOLUME.sub(replace, _DF_VOLUME.sub(r"\1<volume>", text))
+
+
+def redact_patterns(text: object) -> str:
+    """What can be recognised by its shape alone, with no look at this machine.
+
+    The part of ``redact_machine`` that also works on a text from another
+    machine: the second layer for a report received from an older version.
+    """
+    text = _USB_SERIAL.sub(r"\1<serial>", _volumes(_journal_hosts(str(text))))
+    text = _EMAIL.sub("<email>", text)
+    text = _IPV4.sub("<ip>", text)
+    text = _IPV6.sub(_ipv6, text)
+    text = _MAC.sub("<mac>", text)
+    text = _uuids(text)
+    text = _JOURNAL_DIRECTORY.sub("<machine-id>", text)
+    text = _STEAM_USERDATA.sub("<steam-id>", text)
+    text = _STEAM_ID64.sub("<steam-id>", text)
+    return _SERIAL.sub(lambda m: f"{m.group(1)}{m.group(2)}<serial>", text)
+
+
 def redact_machine(text: object) -> str:
     """``redact`` plus everything that names the machine or its people."""
-    text = redact(text)
+    # Volumes first: ``redact`` folds /run/media/<user> into "~" and the
+    # volume's name would be left behind it.
+    text = redact(_volumes(str(text)))
     known = _personal()
     # Hosts keep their old rule: not glued to a dot or hyphen, so a package called
     # like the machine is not mangled.
@@ -194,15 +262,7 @@ def redact_machine(text: object) -> str:
         text = _word(name, "<user>", text)
     for name in sorted(known["wifi"], key=len, reverse=True):
         text = re.sub(re.escape(name), "<network>", text)
-    text = _EMAIL.sub("<email>", text)
-    text = _IPV4.sub("<ip>", text)
-    text = _IPV6.sub(_ipv6, text)
-    text = _MAC.sub("<mac>", text)
-    text = _uuids(text)
     machine_id = known["machine_id"]
     if len(machine_id) == 32:
         text = re.sub(re.escape(machine_id), "<machine-id>", text, flags=re.I)
-    text = _JOURNAL_DIRECTORY.sub("<machine-id>", text)
-    text = _STEAM_USERDATA.sub("<steam-id>", text)
-    text = _STEAM_ID64.sub("<steam-id>", text)
-    return _SERIAL.sub(lambda m: f"{m.group(1)}{m.group(2)}<serial>", text)
+    return redact_patterns(text)

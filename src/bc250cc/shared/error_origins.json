@@ -2076,6 +2076,9 @@
    "_word": "CORE-0127",
    "_ipv6": "CORE-0128",
    "_uuids": "CORE-0129",
+   "_journal_hosts": "CORE-0347",
+   "_volumes": "CORE-0348",
+   "redact_patterns": "CORE-0349",
    "redact_machine": "CORE-0130"
   },
   "bc250cc/infrastructure/privilege_repository.py": {

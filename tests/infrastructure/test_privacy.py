@@ -85,7 +85,8 @@ def test_filesystem_and_partition_uuids_go():
         "/dev/sda10 ext4 21G /run/media/someone/16c5619d-02a7-4c3b-b9e1-6a5276bb977b"
     )
     out = clean(text)
-    assert out.count("<uuid>") == 3
+    # The volume is named after its UUID: it goes as a volume name.
+    assert out.count("<uuid>") == 2 and "<volume>" in out
     assert "7a2f5d1e" not in out and "0b7cd8f1" not in out and "16c5619d" not in out
     assert "last unmount of filesystem <uuid>" in out and "root=UUID=<uuid> rw" in out
 
@@ -238,3 +239,58 @@ def test_the_full_attachments_a_report_carries_are_redacted_too(monkeypatch):
     sections = dict(report_attachments.collect_attachments())
     assert "<ip>" in sections["Network"] and "<host>" in sections["Network"]
     assert "7a2f5d1e" not in sections["Kernel"]
+
+
+# ----------------------------------------------- what the 1.22.x reports still carried
+
+@pytest.mark.parametrize("text, expected", [
+    ("[    3.1] usb 1-4: SerialNumber: AB12CD34", "[    3.1] usb 1-4: SerialNumber: <serial>"),
+    ("[    3.1] pc kernel: usb 1-4: SerialNumber: 0000:00:08.1", "[    3.1] <host> kernel: usb 1-4: SerialNumber: <serial>"),
+])
+def test_usb_serial_numbers_go(text, expected):
+    assert clean(text) == expected
+
+
+def test_the_usb_text_slot_number_stays():
+    line = "[    3.0] usb 1-4: New USB device strings: Mfr=1, Product=2, SerialNumber=3"
+    assert clean(line) == line
+
+
+def test_a_name_the_machine_no_longer_has_goes_from_the_journal_column_and_the_text():
+    text = (
+        "[    1.0] 203-0-113-7-net.example.org kernel: Linux version 7.3.5\n"
+        "[    2.0] 203-0-113-7-net.example.org systemd[1]: Hostname set to <203-0-113-7-net.example.org>.\n"
+        "Nov 10 01:21:29 old-desk NetworkManager[512]: policy: old-desk kept\n"
+        "2026-11-10T01:21:29+0100 old-desk kernel: amdgpu 0000:03:00.0: ring gfx timeout"
+    )
+    done = clean(text)
+    assert "203-0" not in done and "old-desk" not in done
+    assert "Linux version 7.3.5" in done and "ring gfx timeout" in done and "0000:03:00.0" in done
+    assert clean(done) == done
+
+
+@pytest.mark.parametrize("line", [
+    "[    1.2] usb 1-1: new high-speed USB device number 2 using xhci_hcd",
+    "[    1.3] amdgpu 0000:03:00.0: amdgpu: SMU is initialized successfully!",
+    "[    1.4] systemd[1]: Detected architecture x86-64.",
+    "[    1.5] steamdeck systemd[1]: Started Cyan Skillfish GPU Governor.",
+    "Nov 10 01:21:29 bazzite kernel: nct6687: chip ID 0xffff",
+])
+def test_kernel_lines_without_a_host_and_default_names_stay(line):
+    assert clean(line) == line
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("/dev/sdb1 ext4 1.9T 112G 1.7T 7% /run/media/someone/Marta games", "/dev/sdb1 ext4 1.9T 112G 1.7T 7% ~"),
+    ("game in /run/media/someone/Juegos/steamapps/common/X", "game in ~/<volume>/steamapps/common/X"),
+    ("9% /var/mnt/1ab2-3cd4", "9% /var/mnt/<volume>"),
+    ("copied /mnt/backup-marta/file to /tmp", "copied /mnt/<volume>/file to /tmp"),
+])
+def test_volume_names_go(text, expected):
+    done = clean(text)
+    assert done == expected and clean(done) == done
+
+
+def test_the_pattern_layer_needs_no_machine(monkeypatch):
+    monkeypatch.setattr(privacy, "_personal", lambda: (_ for _ in ()).throw(AssertionError("looked up")))
+    assert privacy.redact_patterns("SerialNumber: X9 from 192.168.1.9") == "SerialNumber: <serial> from <ip>"
