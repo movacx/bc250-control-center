@@ -240,3 +240,12 @@ def test_trcc_says_so_when_there_is_no_systemd_user_manager():
     check = command.index("systemctl --user show-environment")
     assert check < command.index("systemctl --user daemon-reload")
     assert "no systemd user manager" in command and "exit 66" in command
+
+
+def test_fedora_45_gets_the_package_for_its_python(family="bazzite"):
+    command = thermalright.install_command(family)
+    assert '"$bc250_fedora" -ge 45' in command
+    assert "/releases/download/v9.12.2/trcc-linux-9.12.2-1.fc45.noarch.rpm" in command
+    assert "/releases/download/v9.11.2/trcc-linux-9.11.2-1.fc44.noarch.rpm" in command
+    assert 'sudo rpm-ostree install "$bc250_package"' in command
+    assert __import__("subprocess").run(["bash", "-n", "-c", command], check=False).returncode == 0

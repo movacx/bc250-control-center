@@ -674,6 +674,20 @@
    "install_command": "DRV-0115",
    "remove_command": "DRV-0116"
   },
+  "bc250cc/infrastructure/accessories/real_sleep.py": {
+   "_read": "DRV-0185",
+   "_homes": "DRV-0186",
+   "inventory": "DRV-0187",
+   "_header": "DRV-0188",
+   "_board_check": "DRV-0189",
+   "_mode_check": "DRV-0190",
+   "_checkout": "DRV-0191",
+   "_bios_command": "DRV-0192",
+   "install_command": "DRV-0193",
+   "remove_command": "DRV-0194",
+   "set_mode_command": "DRV-0195",
+   "status_command": "DRV-0196"
+  },
   "bc250cc/infrastructure/accessories/thermalright.py": {
    "route_for": "DRV-0117",
    "_installed_version": "DRV-0118",
@@ -681,6 +695,7 @@
    "inventory": "DRV-0120",
    "_enable_service_steps": "DRV-0121",
    "_asset_url": "DRV-0141",
+   "_rpm_download_steps": "DRV-0197",
    "install_command": "DRV-0122",
    "remove_command": "DRV-0123",
    "configure_argv": "DRV-0124"
@@ -1815,6 +1830,7 @@
    "_bridge_save": "UPS-0284",
    "_migrate_native_game": "UPS-0293",
    "install_helixsr_bridge": "UPS-0285",
+   "_remove_with_bridge": "UPS-0325",
    "remove_helixsr_bridge": "UPS-0286",
    "rollback_helixsr_bridge": "UPS-0287",
    "_apply_saved_scaler_settings": "UPS-0289",

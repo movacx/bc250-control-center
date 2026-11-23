@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "需要先安裝顯示、音訊和圖形的組合修復：在「核心與 Mesa」中安裝並重新啟動。",
   "This system's compiler cannot link programs.": "此系統的編譯器無法連結程式。",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "編譯器檔案（libgcc_s）遺失或與編譯器不符，通常由更新中斷或部分更新造成。",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "更新整個系統（Arch 系使用 sudo pacman -Syu），重新安裝 gcc 和 gcc-libs，然後重試。"
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "更新整個系統（Arch 系使用 sudo pacman -Syu），重新安裝 gcc 和 gcc-libs，然後重試。",
+  "The disk is read-only.": "磁碟處於唯讀狀態。",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux 將 Control Center 寫入的資料夾掛載為唯讀。檔案系統出錯時（例如斷電後）會這樣。",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "請儲存工作並重新啟動。若再次出現，請先用發行版的修復工具檢查檔案系統。"
 }

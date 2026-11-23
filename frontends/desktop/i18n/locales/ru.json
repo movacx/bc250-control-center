@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Сначала нужны общие исправления экрана, звука и графики: установите их в разделе «Ядро и Mesa» и перезагрузитесь.",
   "This system's compiler cannot link programs.": "Компилятор этой системы не может компоновать программы.",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Файл компилятора (libgcc_s) отсутствует или не подходит к нему. Обычно причина в прерванном или частичном обновлении.",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Обновите всю систему (sudo pacman -Syu в системах на Arch), переустановите пакеты gcc и gcc-libs и повторите действие."
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Обновите всю систему (sudo pacman -Syu в системах на Arch), переустановите пакеты gcc и gcc-libs и повторите действие.",
+  "The disk is read-only.": "Диск доступен только для чтения.",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux подключил папку, куда пишет Control Center, только для чтения. Так бывает при ошибках файловой системы, например после отключения питания.",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Сохраните работу и перезагрузитесь. Если повторится, сначала проверьте файловую систему средством вашего дистрибутива."
 }

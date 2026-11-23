@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Nejprve potřebuje společné opravy obrazu, zvuku a grafiky: nainstalujte je v části Jádro a Mesa a restartujte.",
   "This system's compiler cannot link programs.": "Překladač tohoto systému nedokáže sestavit programy.",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Soubor překladače (libgcc_s) chybí nebo mu neodpovídá. Obvykle to způsobí přerušená nebo částečná aktualizace.",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Aktualizujte celý systém (sudo pacman -Syu u systémů založených na Archu), přeinstalujte balíčky gcc a gcc-libs a akci zopakujte."
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Aktualizujte celý systém (sudo pacman -Syu u systémů založených na Archu), přeinstalujte balíčky gcc a gcc-libs a akci zopakujte.",
+  "The disk is read-only.": "Disk je jen pro čtení.",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux připojil složku, do které Control Center zapisuje, jen pro čtení. Dělá to při chybách souborového systému, třeba po výpadku proudu.",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Uložte si práci a restartujte. Pokud se to opakuje, nejdřív zkontrolujte souborový systém nástrojem své distribuce."
 }

@@ -832,6 +832,15 @@ _RULES = (
         "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.",
         "Discard that snapshot and create a new one. Do not restore a file that could not be verified.",
     ),
+    # Before PERM-001, which read the English words only and blamed permissions;
+    # the number is the same in every language (R-fd89122f, R-71dbcb21).
+    _Rule(
+        "BC250-DISK-001",
+        (r"\[errno 30\]",),
+        "The disk is read-only.",
+        "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.",
+        "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.",
+    ),
     _Rule(
         "BC250-UPDATE-001",
         (r"github (?:returned|answered|could not be reached|release information)", r"release has no version tag",
@@ -1060,6 +1069,8 @@ def with_section(
 
 
 GENERIC_CODES = frozenset({"BC250-GENERAL-001"})
+#: One or two sentences on one line, not a path, a command or a dump.
+_PLAIN_SENTENCE = re.compile(r"[A-Z0-9][^\n]{15,300}[.!?]")
 
 
 def error_sections(
@@ -1094,6 +1105,10 @@ def error_sections(
             summary_text, cause_text = UMR_MISSING_SUMMARY, UMR_MISSING_CAUSE
             action = translate_text(UMR_MISSING_ACTION)
         action = f"{action}\n{_umr_repair_steps(os_family or _os_family(), translate)}"
+    if diagnosis.code.endswith("-900") and _PLAIN_SENTENCE.fullmatch(detail) and "Traceback" not in detail:
+        # No rule, but the failure said it itself: its sentence is what happened,
+        # not the area's general one (six of six GPU-900 reports carried it).
+        summary_text = detail
     sections = (
         (translate("What happened"), translate_text(summary_text)),
         (translate("Likely cause"), translate_text(cause_text)),

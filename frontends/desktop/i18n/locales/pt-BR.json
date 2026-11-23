@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Precisa primeiro das correções combinadas de tela, áudio e gráficos: instale em Kernel e Mesa e reinicie.",
   "This system's compiler cannot link programs.": "O compilador deste sistema não consegue vincular programas.",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Falta um arquivo do compilador (libgcc_s) ou ele não corresponde. Em geral é uma atualização interrompida ou parcial.",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Atualize todo o sistema (sudo pacman -Syu em sistemas baseados em Arch), reinstale gcc e gcc-libs e repita a ação."
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Atualize todo o sistema (sudo pacman -Syu em sistemas baseados em Arch), reinstale gcc e gcc-libs e repita a ação.",
+  "The disk is read-only.": "O disco está somente leitura.",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "O Linux montou como somente leitura a pasta onde o Control Center grava. Isso acontece quando o sistema de arquivos tem erros, como após uma queda de energia.",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Salve seu trabalho e reinicie. Se repetir, verifique primeiro o sistema de arquivos com a ferramenta da sua distribuição."
 }

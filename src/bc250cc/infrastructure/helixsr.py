@@ -3042,6 +3042,15 @@ def install_helixsr_bridge(appid: str, way: str) -> dict:
     return result
 
 
+def _remove_with_bridge(folder: Path) -> None:
+    """Take HelixSR out of ``folder``; already out is the wanted result (R-c52d4a45)."""
+    try:
+        _run_bridge("remove", "--game", str(folder))
+    except RuntimeError as error:
+        if "HelixSR is not installed in" not in str(error):
+            raise
+
+
 def remove_helixsr_bridge(appid: str) -> dict:
     """Take HelixSR out of a game, whoever put it in.
 
@@ -3086,7 +3095,7 @@ def remove_helixsr_bridge(appid: str) -> dict:
             _forget_bridge_games()
             return {"game": str(game["name"]), "forgotten": True}
         _refuse_running(folder)
-        _run_bridge("remove", "--game", str(folder))
+        _remove_with_bridge(folder)
         _forget_bridge_games()
         return {"game": str(game["name"])}
     folder = Path(record["folder"])
@@ -3098,7 +3107,7 @@ def remove_helixsr_bridge(appid: str) -> dict:
         _forget_bridge_games()
         return {"game": record["name"], "forgotten": True}
     _refuse_running(folder)
-    _run_bridge("remove", "--game", str(folder))
+    _remove_with_bridge(folder)
     _forget_bridge_games()
     del records[appid]
     _write_json(_bridge_records_path(), records)

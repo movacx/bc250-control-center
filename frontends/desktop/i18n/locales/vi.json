@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Trước tiên cần các bản sửa gộp về màn hình, âm thanh và đồ họa: cài từ Nhân và Mesa rồi khởi động lại.",
   "This system's compiler cannot link programs.": "Trình biên dịch của hệ thống này không liên kết được chương trình.",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Một tệp của trình biên dịch (libgcc_s) bị thiếu hoặc không khớp. Thường do cập nhật bị ngắt hoặc chỉ một phần.",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Cập nhật toàn hệ thống (sudo pacman -Syu trên hệ Arch), cài lại gcc và gcc-libs rồi chạy lại."
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Cập nhật toàn hệ thống (sudo pacman -Syu trên hệ Arch), cài lại gcc và gcc-libs rồi chạy lại.",
+  "The disk is read-only.": "Ổ đĩa đang ở chế độ chỉ đọc.",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux đã gắn thư mục mà Control Center ghi vào ở chế độ chỉ đọc. Điều này xảy ra khi hệ thống tệp có lỗi, ví dụ sau khi mất điện.",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Lưu công việc và khởi động lại. Nếu lặp lại, trước hết hãy kiểm tra hệ thống tệp bằng công cụ của bản phân phối."
 }

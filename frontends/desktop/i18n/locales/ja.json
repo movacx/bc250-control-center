@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "先に画面・音声・グラフィックの統合修正が必要です。「カーネルとMesa」からインストールして再起動してください。",
   "This system's compiler cannot link programs.": "このシステムのコンパイラはプログラムをリンクできません。",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "コンパイラのファイル（libgcc_s）がないか、版が合っていません。更新の中断や部分更新が主な原因です。",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "システム全体を更新し（Arch系は sudo pacman -Syu）、gcc と gcc-libs を再インストールしてからやり直してください。"
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "システム全体を更新し（Arch系は sudo pacman -Syu）、gcc と gcc-libs を再インストールしてからやり直してください。",
+  "The disk is read-only.": "ディスクが読み取り専用です。",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Control Center が書き込むフォルダーを Linux が読み取り専用でマウントしました。停電後などファイルシステムにエラーがあるときに起こります。",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "作業を保存して再起動してください。繰り返す場合は、まずディストリビューションの修復ツールでファイルシステムを確認してください。"
 }

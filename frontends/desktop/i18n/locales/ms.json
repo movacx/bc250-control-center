@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Perlukan pembetulan gabungan paparan, audio dan grafik dahulu: pasang dari Kernel dan Mesa dan mulakan semula.",
   "This system's compiler cannot link programs.": "Pengkompil sistem ini tidak dapat memaut program.",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Fail pengkompil (libgcc_s) tiada atau tidak sepadan. Biasanya kerana kemas kini yang terputus atau separa.",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Kemas kini seluruh sistem (sudo pacman -Syu pada sistem berasaskan Arch), pasang semula pakej gcc dan gcc-libs, kemudian ulangi."
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Kemas kini seluruh sistem (sudo pacman -Syu pada sistem berasaskan Arch), pasang semula pakej gcc dan gcc-libs, kemudian ulangi.",
+  "The disk is read-only.": "Cakera adalah baca sahaja.",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux melekapkan folder tempat Control Center menulis sebagai baca sahaja. Ia berlaku apabila sistem fail bermasalah, contohnya selepas bekalan terputus.",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Simpan kerja anda dan mulakan semula. Jika berulang, semak sistem fail dahulu dengan alat pembaikan distribusi anda."
 }

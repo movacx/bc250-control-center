@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Heeft eerst de gecombineerde fixes voor beeld, geluid en graphics nodig: installeer ze via Kernel en Mesa en herstart.",
   "This system's compiler cannot link programs.": "De compiler van dit systeem kan geen programma's linken.",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Een bestand van de compiler (libgcc_s) ontbreekt of past er niet bij. Meestal komt dat door een afgebroken of gedeeltelijke update.",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Werk het hele systeem bij (sudo pacman -Syu op Arch-systemen), installeer gcc en gcc-libs opnieuw en herhaal de actie."
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Werk het hele systeem bij (sudo pacman -Syu op Arch-systemen), installeer gcc en gcc-libs opnieuw en herhaal de actie.",
+  "The disk is read-only.": "De schijf is alleen-lezen.",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux heeft de map waarin Control Center schrijft alleen-lezen aangekoppeld. Dat gebeurt bij fouten in het bestandssysteem, bijvoorbeeld na een stroomstoring.",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Sla je werk op en herstart. Gebeurt het weer, controleer dan eerst het bestandssysteem met het herstelprogramma van je distributie."
 }

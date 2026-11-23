@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Kræver først de samlede rettelser for skærm, lyd og grafik: installér dem under Kerne og Mesa, og genstart.",
   "This system's compiler cannot link programs.": "Systemets compiler kan ikke linke programmer.",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "En fil fra compileren (libgcc_s) mangler eller passer ikke til den. Det skyldes oftest en afbrudt eller delvis opdatering.",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Opdatér hele systemet (sudo pacman -Syu på Arch-baserede systemer), geninstallér pakkerne gcc og gcc-libs, og kør handlingen igen."
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Opdatér hele systemet (sudo pacman -Syu på Arch-baserede systemer), geninstallér pakkerne gcc og gcc-libs, og kør handlingen igen.",
+  "The disk is read-only.": "Disken er skrivebeskyttet.",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux har monteret den mappe, Control Center skriver til, som skrivebeskyttet. Det sker ved fejl i filsystemet, fx efter et strømsvigt.",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Gem dit arbejde, og genstart. Sker det igen, så kontrollér først filsystemet med din distributions reparationsværktøj."
 }

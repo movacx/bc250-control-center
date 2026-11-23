@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.",
   "This system's compiler cannot link programs.": "This system's compiler cannot link programs.",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again."
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.",
+  "The disk is read-only.": "The disk is read-only.",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else."
 }

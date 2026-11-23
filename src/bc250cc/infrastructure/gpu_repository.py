@@ -64,7 +64,7 @@ from bc250cc.platform.init.services import (
     parse_openrc_status,
     service_key,
 )
-from bc250cc.shared.errors import ActionNeeded
+from bc250cc.shared.errors import ActionNeeded, ActionNeededValue
 from bc250cc.shared.failure_text import describe_failure
 
 #: The device upstream's v0.4.15 Cyan unit is bound to (its udev rule's alias).
@@ -1130,7 +1130,7 @@ class GPURepository:
         if int(allowed[0]) <= minimo <= maximo <= int(allowed[1]):
             return
         if minimo < int(allowed[0]):
-            raise ValueError(
+            raise ActionNeededValue(
                 f"{minimo} MHz is below Cyan's active minimum of {allowed[0]} MHz."
             )
         high_state = GovernorTomlEditor(
@@ -1139,8 +1139,15 @@ class GPURepository:
         enabled = tuple(
             int(value) for value in high_state.get("enabled_frequencies") or ()
         )
-        if maximo <= 2000 or not enabled or maximo > max(enabled):
-            raise ValueError(
+        if maximo <= 2000:
+            # The advanced safe-points start above 2000 MHz: they cannot help here
+            # (R-a0a24f24, R-c310d1a4).
+            raise ActionNeededValue(
+                f"{maximo} MHz is above Cyan's active maximum of {allowed[1]} MHz. "
+                "Choose a lower maximum, or raise the range in Cyan's configuration."
+            )
+        if not enabled or maximo > max(enabled):
+            raise ActionNeededValue(
                 f"{maximo} MHz is not loaded by Cyan. Enable the advanced TOML "
                 "safe-points first, then apply the frequency again."
             )
@@ -1508,7 +1515,7 @@ class GPURepository:
         require_bc250_hardware()  # nothing to change on a computer without a BC-250
         service = self._GOVERNOR_SERVICE
         if not self._service_is_active(service):
-            raise RuntimeError(
+            raise ActionNeeded(
                 "The Cyan governor must be active before changing its voltage curve."
             )
         previous_range = self._leer_rango_governor("Current")

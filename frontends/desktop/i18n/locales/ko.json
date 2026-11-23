@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "먼저 화면·오디오·그래픽 통합 수정이 필요합니다. 커널 및 Mesa에서 설치하고 다시 시작하세요.",
   "This system's compiler cannot link programs.": "이 시스템의 컴파일러가 프로그램을 링크할 수 없습니다.",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "컴파일러 파일(libgcc_s)이 없거나 맞지 않습니다. 보통 중단되었거나 부분적인 업데이트가 원인입니다.",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "전체 시스템을 업데이트하고(Arch 계열은 sudo pacman -Syu) gcc와 gcc-libs를 다시 설치한 뒤 작업을 다시 실행하세요."
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "전체 시스템을 업데이트하고(Arch 계열은 sudo pacman -Syu) gcc와 gcc-libs를 다시 설치한 뒤 작업을 다시 실행하세요.",
+  "The disk is read-only.": "디스크가 읽기 전용입니다.",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux가 Control Center가 쓰는 폴더를 읽기 전용으로 마운트했습니다. 정전 후처럼 파일 시스템에 오류가 있을 때 그렇게 합니다.",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "작업을 저장하고 다시 시작하세요. 반복되면 먼저 배포판의 복구 도구로 파일 시스템을 검사하세요."
 }

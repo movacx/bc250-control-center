@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "ต้องมีการแก้ไขจอ เสียง และกราฟิกแบบรวมก่อน: ติดตั้งจากเคอร์เนลและ Mesa แล้วรีสตาร์ต",
   "This system's compiler cannot link programs.": "คอมไพเลอร์ของระบบนี้ลิงก์โปรแกรมไม่ได้",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "ไฟล์ของคอมไพเลอร์ (libgcc_s) หายไปหรือไม่ตรงกัน มักเกิดจากการอัปเดตที่ค้างหรืออัปเดตบางส่วน",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "อัปเดตทั้งระบบ (sudo pacman -Syu บนระบบตระกูล Arch) ติดตั้ง gcc และ gcc-libs ใหม่ แล้วทำซ้ำ"
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "อัปเดตทั้งระบบ (sudo pacman -Syu บนระบบตระกูล Arch) ติดตั้ง gcc และ gcc-libs ใหม่ แล้วทำซ้ำ",
+  "The disk is read-only.": "ดิสก์เป็นแบบอ่านอย่างเดียว",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux เมานต์โฟลเดอร์ที่ Control Center เขียนเป็นแบบอ่านอย่างเดียว เกิดเมื่อระบบไฟล์มีข้อผิดพลาด เช่นหลังไฟดับ",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "บันทึกงานแล้วรีสตาร์ต หากเกิดซ้ำ ให้ตรวจระบบไฟล์ด้วยเครื่องมือของดิสทริบิวชันก่อน"
 }

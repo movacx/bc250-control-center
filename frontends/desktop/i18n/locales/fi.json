@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Vaatii ensin näytön, äänen ja grafiikan yhteiskorjaukset: asenna ne kohdasta Ydin ja Mesa ja käynnistä uudelleen.",
   "This system's compiler cannot link programs.": "Tämän järjestelmän kääntäjä ei pysty linkittämään ohjelmia.",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Kääntäjän tiedosto (libgcc_s) puuttuu tai ei vastaa kääntäjää. Syynä on yleensä keskeytynyt tai osittainen päivitys.",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Päivitä koko järjestelmä (sudo pacman -Syu Arch-pohjaisissa), asenna paketit gcc ja gcc-libs uudelleen ja toista toiminto."
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Päivitä koko järjestelmä (sudo pacman -Syu Arch-pohjaisissa), asenna paketit gcc ja gcc-libs uudelleen ja toista toiminto.",
+  "The disk is read-only.": "Levy on vain luku -tilassa.",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux liitti Control Centerin kirjoituskansion vain luku -tilaan. Niin käy tiedostojärjestelmän virheissä, esimerkiksi sähkökatkon jälkeen.",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Tallenna työsi ja käynnistä uudelleen. Jos se toistuu, tarkista ensin tiedostojärjestelmä jakelun korjaustyökalulla."
 }

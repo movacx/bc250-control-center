@@ -993,14 +993,16 @@ class CPURepository:
         if not tools.get('stress'):
             _refuse_stress_waiting_for_reboot()
             raise ActionNeeded('stress is missing. Press Prepare dependencies or install the stress package before using CPU OC.')
-        if not tools.get('smu_oc_exists'):
-            raise RuntimeError(
-                'The local bc250_smu_oc repository was not found. Use Prepare dependencies first so '
-                'bc250-detect and persistence share the same ResourceTools/overclock.conf.'
-            )
         helper = self._cpu_smu_helper_path()
         if not helper:
             raise RuntimeError(self._missing_cpu_smu_helper_message())
+        if not tools.get('smu_oc_exists'):
+            # R-f6fa8ab6: fetched first, like the manual scale test does.
+            destination = self._tool_dir() / CPU_SMU_OC_DIRECTORY
+            command = build_detect_command(
+                pkexec_prefix('pkexec'), helper, target, destination / 'overclock.conf'
+            )
+            return self._smu_oc_source_then(command, destination)
         config_path = Path(tools['smu_oc_path']) / 'overclock.conf'
         return build_detect_command(pkexec_prefix('pkexec'), helper, target, config_path)
 

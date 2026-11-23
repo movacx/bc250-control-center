@@ -61,6 +61,13 @@ LEGACY_DEB = (
     "trcc-linux_9.11.2-1.legacy_all.deb",
     "4dca552f44ce9d965ab05c7d0f82f6a9f48fb3bf1279fad73a69288fdc8532c8",
 )
+#: Fedora and Bazzite 45 carry Python 3.15, and an RPM is tied to one Python:
+#: the reviewed release has no package for it, so that one comes from the first
+#: release that does (issue 33). Its command line has the same two calls used here.
+FEDORA_RELEASES = {
+    45: ("9.12.2", "trcc-linux-9.12.2-1.fc45.noarch.rpm",
+         "91a17f74ca91eddb48b7007f651e5460c2e788a2c856c441c6bb994d095ce742"),
+}
 #: How each distribution family installs it.
 ROUTES = {
     "arch": "pacman",
@@ -151,7 +158,9 @@ def inventory(family: str) -> dict:
     service = user_service_state(SERVICE)
     if not installed_version:
         state = "reboot-required" if route == "rpm-ostree" and _pending_layer() else "not-installed"
-    elif not installed_version.startswith(f"{VERSION}-"):
+    elif not installed_version.startswith(tuple(
+        f"{version}-" for version in (VERSION, *(item[0] for item in FEDORA_RELEASES.values()))
+    )):
         state = "update-available"
     elif service == "active":
         state = "active"
@@ -183,8 +192,23 @@ def _enable_service_steps(*, start_now: bool) -> list[str]:
     return steps
 
 
-def _asset_url(asset: str) -> str:
-    return f"{REPOSITORY}/releases/download/{TAG}/{asset}"
+def _asset_url(asset: str, tag: str = TAG) -> str:
+    return f"{REPOSITORY}/releases/download/{tag}/{asset}"
+
+
+def _rpm_download_steps(asset: str, sha256: str) -> list[str]:
+    """The RPM for this Fedora's Python, as ``$bc250_package``."""
+    steps = ['bc250_fedora="$(rpm -E %fedora)"']
+    branch = "if"
+    for release, (version, name, digest) in sorted(FEDORA_RELEASES.items(), reverse=True):
+        steps.append(f'{branch} [ "$bc250_fedora" -ge {release} ] 2>/dev/null; then')
+        steps += [f"  {line}" for line in download_and_verify(_asset_url(name, f"v{version}"), name, digest)]
+        steps.append(f'  bc250_package="$bc250_stage/{name}"')
+        branch = "elif"
+    steps.append("else")
+    steps += [f"  {line}" for line in download_and_verify(_asset_url(asset), asset, sha256)]
+    steps += [f'  bc250_package="$bc250_stage/{asset}"', "fi"]
+    return steps
 
 
 def install_command(family: str) -> str:
@@ -207,6 +231,9 @@ def install_command(family: str) -> str:
         commands += [f'  bc250_package="$bc250_stage/{legacy}"', "fi"]
         # apt reads a local file only through a path, which this is.
         commands.append('sudo apt-get install -y "$bc250_package"')
+    elif route in {"dnf", "rpm-ostree"}:
+        commands += _rpm_download_steps(asset, sha256)
+        package = '"$bc250_package"'
     else:
         commands += download_and_verify(_asset_url(asset), asset, sha256)
     if route == "pacman":

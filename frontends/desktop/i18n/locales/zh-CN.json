@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "需要先安装显示、音频和图形的组合修复：在“内核与 Mesa”中安装并重启。",
   "This system's compiler cannot link programs.": "此系统的编译器无法链接程序。",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "编译器文件（libgcc_s）缺失或与编译器不匹配，通常由更新中断或部分更新造成。",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "更新整个系统（Arch 系使用 sudo pacman -Syu），重新安装 gcc 和 gcc-libs，然后重试。"
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "更新整个系统（Arch 系使用 sudo pacman -Syu），重新安装 gcc 和 gcc-libs，然后重试。",
+  "The disk is read-only.": "磁盘处于只读状态。",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux 将 Control Center 写入的文件夹挂载为只读。文件系统出错时（例如断电后）会这样。",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "请保存工作并重启。如再次出现，请先用发行版的修复工具检查文件系统。"
 }

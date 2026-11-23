@@ -28,3 +28,7 @@ class ActionNeeded(RuntimeError):
     prepared: nothing is broken, so the interface shows what to do instead of
     an error window that asks for a problem report.
     """
+
+
+class ActionNeededValue(ActionNeeded, ValueError):
+    """The same, for a value the running system does not accept yet."""

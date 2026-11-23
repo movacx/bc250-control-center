@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Önce birleşik ekran, ses ve grafik düzeltmeleri gerekir: Çekirdek ve Mesa'dan kurup yeniden başlatın.",
   "This system's compiler cannot link programs.": "Bu sistemin derleyicisi programları bağlayamıyor.",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Derleyicinin bir dosyası (libgcc_s) eksik veya uyuşmuyor. Genellikle yarım kalan ya da kısmi bir güncelleme neden olur.",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Tüm sistemi güncelleyin (Arch tabanlılarda sudo pacman -Syu), gcc ve gcc-libs paketlerini yeniden kurup işlemi tekrarlayın."
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Tüm sistemi güncelleyin (Arch tabanlılarda sudo pacman -Syu), gcc ve gcc-libs paketlerini yeniden kurup işlemi tekrarlayın.",
+  "The disk is read-only.": "Disk salt okunur.",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux, Control Center'ın yazdığı klasörü salt okunur bağladı. Dosya sisteminde hata olduğunda, örneğin elektrik kesintisinden sonra olur.",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Çalışmanızı kaydedip yeniden başlatın. Tekrarlarsa önce dosya sistemini dağıtımınızın onarım aracıyla denetleyin."
 }

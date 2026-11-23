@@ -6522,5 +6522,8 @@
   "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Előbb a kijelző-, hang- és grafikajavítások kellenek: telepítsd a Kernel és Mesa részből, majd indíts újra.",
   "This system's compiler cannot link programs.": "A rendszer fordítója nem tud programokat összeszerkeszteni.",
   "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "A fordító egyik fájlja (libgcc_s) hiányzik vagy nem illik hozzá. Többnyire megszakadt vagy részleges frissítés okozza.",
-  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Frissítsd az egész rendszert (Arch-alapún: sudo pacman -Syu), telepítsd újra a gcc és gcc-libs csomagot, majd ismételd meg."
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Frissítsd az egész rendszert (Arch-alapún: sudo pacman -Syu), telepítsd újra a gcc és gcc-libs csomagot, majd ismételd meg.",
+  "The disk is read-only.": "A lemez csak olvasható.",
+  "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "A Linux csak olvashatóként csatolta a Control Center mappáját. Ez fájlrendszerhibáknál történik, például áramszünet után.",
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Mentsd el a munkád és indíts újra. Ha ismétlődik, először ellenőrizd a fájlrendszert a disztribúció javítóeszközével."
 }

@@ -138,7 +138,8 @@ def test_terminal_detection_uses_the_same_protected_config_boundary(tmp_path):
     assert "bc250_detect.py" not in command
 
 
-def test_embedded_detection_refuses_global_detector_without_local_repository():
+def test_embedded_detection_fetches_its_own_clone_and_never_a_global_detector(tmp_path):
+    """R-f6fa8ab6: a missing clone is fetched first; results stay in its overclock.conf."""
     repo = CPURepository()
     repo.estado_herramientas_bc250 = lambda: {
         "stress": True,
@@ -148,9 +149,14 @@ def test_embedded_detection_refuses_global_detector_without_local_repository():
     }
     repo._usar_steamos_game_helper = lambda: False
     repo._command_path = lambda name: "/usr/bin/pkexec" if name == "pkexec" else "/usr/bin/bash"
+    repo._cpu_smu_helper_path = lambda: "/usr/libexec/bc250-control-center/bc250-cpu-smu-helper"
+    repo._tool_dir = lambda: tmp_path
+    repo._hardware_source_checkout_command = lambda upstream, destination, _ref: f"fetch {upstream} {destination}"
 
-    with pytest.raises(RuntimeError, match="share the same ResourceTools/overclock.conf"):
-        repo.comando_cpu_oc_temporal_embebido(3850, 1275, 90)
+    command = repo.comando_cpu_oc_temporal_embebido(3850, 1275, 90)
+    script = command[-1]
+    assert command[:2] == ["/bin/bash", "-c"] and str(tmp_path / "bc250_smu_oc") in script
+    assert script.index("fetch ") < script.index("exec ") and "/usr/bin/bc250-detect" not in script
 
 
 def test_temporary_cpu_oc_limits_match_upstream_bc250_smu_oc(tmp_path):
