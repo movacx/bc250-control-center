@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · neověřená",
   "{mask} · read on this board": "{mask} · přečtená na této desce",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Vyberte masku, kterou nástroj pro odemčení u této desky ohlásil. Pokračuje jen tehdy, když deska tuto masku opravdu hlásí.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Deska s jinou maskou se po odemčení nemusí spustit. Odpojení od proudu na několik sekund ji vrátí na 6 jader."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Deska s jinou maskou se po odemčení nemusí spustit. Odpojení od proudu na několik sekund ji vrátí na 6 jader.",
+  "Another toolkit action is running: {name}": "Běží jiná akce sady nástrojů: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "V této verzi SteamOS se část pro jádro může při sestavování zastavit, protože sada stahuje nástroje pro novější systém. V tom případě se nic nezmění.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Nejprve potřebuje společné opravy obrazu, zvuku a grafiky: nainstalujte je v části Jádro a Mesa a restartujte.",
+  "This system's compiler cannot link programs.": "Překladač tohoto systému nedokáže sestavit programy.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Soubor překladače (libgcc_s) chybí nebo mu neodpovídá. Obvykle to způsobí přerušená nebo částečná aktualizace.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Aktualizujte celý systém (sudo pacman -Syu u systémů založených na Archu), přeinstalujte balíčky gcc a gcc-libs a akci zopakujte."
 }

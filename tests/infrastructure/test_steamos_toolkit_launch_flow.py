@@ -125,17 +125,47 @@ def test_a_newer_upstream_commit_replaces_the_old_source_and_its_leftovers(launc
     assert [path.name for path in launch.state.glob('*.tar.gz')] == [NEWER + '.tar.gz']
 
 
-def test_a_failed_action_clears_the_cache_so_the_next_attempt_starts_from_scratch(launch, capsys):
+def test_a_failed_action_clears_what_it_built_and_keeps_the_archive(launch, capsys):
     launch.monkeypatch.setenv('BC250_FIXTURE_STATUS', '23')
     assert runtime.run_action('verify') == 23
     assert not (launch.state / 'workspace').exists()
-    assert not list(launch.state.glob('*.tar.gz'))
-    assert 'cache was cleared' in capsys.readouterr().out
+    assert list(launch.state.glob('*.tar.gz')), 'the same commit is not downloaded again'
+    assert 'build files were cleared' in capsys.readouterr().out
     assert (launch.state / 'runtime/bc250-steamos-toolkit-check').is_file(), 'the guard runtime stays'
     launch.upstream.revision = NEWER  # upstream published a fix meanwhile
     launch.monkeypatch.setenv('BC250_FIXTURE_STATUS', '0')
     assert runtime.run_action('verify') == 0
     assert launch.downloads == [provider.archive_url(REVISION), provider.archive_url(NEWER)]
+
+
+def test_ac3_without_the_combined_fix_stops_before_any_download(launch):
+    launch.monkeypatch.setattr(runtime, 'combined_module_active', lambda *_a, **_k: False)
+    with pytest.raises(RuntimeError, match='combined display, audio and graphics'):
+        runtime.run_action('ac3-install')
+    assert launch.downloads == [] and runtime.guard.read_session(launch.state) is None
+
+
+def test_the_session_names_the_action_already_while_it_downloads(launch):
+    seen = []
+    original = runtime.download_archive
+
+    def download(*args):
+        seen.append(runtime.guard.read_session(launch.state)['action'])
+        return original(*args)
+
+    launch.monkeypatch.setattr(runtime, 'download_archive', download)
+    assert runtime.run_action('verify') == 0
+    assert seen == ['verify'] and runtime.guard.read_session(launch.state) is None
+
+
+def test_a_second_action_waits_and_says_for_what(launch, capsys):
+    launch.state.mkdir()
+    runtime.guard.write_session(launch.state, initial='enabled', action='ac3-install')
+    lock = (launch.state / '.lock').open('w')
+    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    launch.monkeypatch.setattr(runtime.time, 'sleep', lambda _s: lock.close())
+    assert runtime.run_action('verify') == 0
+    assert 'Waiting for another Real Toolkit action to finish (ac3-install, started at' in capsys.readouterr().out
 
 
 @pytest.mark.parametrize('status', [130, 143])
@@ -172,6 +202,7 @@ def test_a_changed_upstream_shape_refuses_to_run_and_clears_the_cache(launch):
 
 
 def test_concurrent_launch_stops_before_cache_download_or_execution(launch):
+    launch.monkeypatch.setattr(runtime, 'LOCK_WAIT_SECONDS', 0)
     launch.state.mkdir()
     with (launch.state / '.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

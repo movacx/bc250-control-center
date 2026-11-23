@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · не проверена",
   "{mask} · read on this board": "{mask} · прочитана на этой плате",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Выберите маску, которую инструмент разблокировки сообщил для этой платы. Он продолжит, только если плата действительно читает эту маску.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Плата с другой маской может не запуститься после разблокировки. Отключение питания на несколько секунд вернёт её к 6 ядрам."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Плата с другой маской может не запуститься после разблокировки. Отключение питания на несколько секунд вернёт её к 6 ядрам.",
+  "Another toolkit action is running: {name}": "Выполняется другое действие набора инструментов: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "В этой версии SteamOS сборка части ядра может остановиться, потому что загружаются инструменты для более новой системы. При этом ничего не меняется.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Сначала нужны общие исправления экрана, звука и графики: установите их в разделе «Ядро и Mesa» и перезагрузитесь.",
+  "This system's compiler cannot link programs.": "Компилятор этой системы не может компоновать программы.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Файл компилятора (libgcc_s) отсутствует или не подходит к нему. Обычно причина в прерванном или частичном обновлении.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Обновите всю систему (sudo pacman -Syu в системах на Arch), переустановите пакеты gcc и gcc-libs и повторите действие."
 }

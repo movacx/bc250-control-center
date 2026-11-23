@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · niet geverifieerd",
   "{mask} · read on this board": "{mask} · gelezen op dit bord",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Kies het masker dat het ontgrendelprogramma voor dit bord meldde. Het gaat alleen door als het bord dat masker echt leest.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Een bord met een ander masker start na het ontgrendelen mogelijk niet. Enkele seconden zonder stroom brengt het terug naar 6 kernen."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Een bord met een ander masker start na het ontgrendelen mogelijk niet. Enkele seconden zonder stroom brengt het terug naar 6 kernen.",
+  "Another toolkit action is running: {name}": "Een andere actie van de toolkit is bezig: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "Op deze SteamOS-versie kan het kerneldeel bij het bouwen stoppen, omdat de toolkit bouwhulpmiddelen voor een nieuwer systeem downloadt. Er verandert dan niets.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Heeft eerst de gecombineerde fixes voor beeld, geluid en graphics nodig: installeer ze via Kernel en Mesa en herstart.",
+  "This system's compiler cannot link programs.": "De compiler van dit systeem kan geen programma's linken.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Een bestand van de compiler (libgcc_s) ontbreekt of past er niet bij. Meestal komt dat door een afgebroken of gedeeltelijke update.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Werk het hele systeem bij (sudo pacman -Syu op Arch-systemen), installeer gcc en gcc-libs opnieuw en herhaal de actie."
 }

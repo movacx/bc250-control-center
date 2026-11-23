@@ -47,6 +47,7 @@ INSTALLED_RUNTIME_ROOT = Path('/usr/libexec/bc250-control-center')
 PERSISTENT_RUNTIME_ROOT = STATE_ROOT / 'runtime'
 _MAIN_LOOP = "while true; do\n    show_menu\n"
 _GUARD_BOUNDARY = 'ensure_desktop_shortcut || true\n'
+_GUARD_REPLACEMENT = ': # the desktop shortcut is not created for this copy\n'
 # A tree without .git and without external/bc250_smu_oc counts upstream as a
 # lone start.sh: it clones main from GitHub and execs *that* copy, which has no
 # dispatch and no guards, as root. Never let the prepared entrypoint hand over
@@ -232,7 +233,9 @@ def prepare_entrypoint(source: bytes) -> bytes:
     # Recovery flags are handled before the main loop. Define the wrappers
     # before those top-level calls, too, or a renamed function is unavailable
     # to --revert-all and a recovery launch bypasses the ownership checks.
-    text = text.replace(_GUARD_BOUNDARY, _guard_shell() + _GUARD_BOUNDARY, 1)
+    # Its desktop shortcut would start this workspace without the lock, the
+    # session note and the root restore; only Control Center starts this copy.
+    text = text.replace(_GUARD_BOUNDARY, _guard_shell() + _GUARD_REPLACEMENT, 1)
     return text.replace(_MAIN_LOOP, dispatch_shell() + _MAIN_LOOP, 1).encode("utf-8")
 
 

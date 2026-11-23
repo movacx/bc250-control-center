@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · neverificată",
   "{mask} · read on this board": "{mask} · citită pe această placă",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Alege masca pe care unealta de deblocare a raportat-o pentru această placă. Continuă doar dacă placa citește într-adevăr acea mască.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "O placă cu altă mască poate să nu pornească după deblocare. Scoaterea din priză câteva secunde o readuce la 6 nuclee."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "O placă cu altă mască poate să nu pornească după deblocare. Scoaterea din priză câteva secunde o readuce la 6 nuclee.",
+  "Another toolkit action is running: {name}": "Rulează o altă acțiune a setului de instrumente: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "Pe această versiune SteamOS partea de kernel se poate opri la compilare, pentru că se descarcă unelte făcute pentru un sistem mai nou. Atunci nu se schimbă nimic.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Are nevoie întâi de corecțiile combinate pentru ecran, sunet și grafică: instalează-le din Kernel și Mesa și repornește.",
+  "This system's compiler cannot link programs.": "Compilatorul acestui sistem nu poate lega programe.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Un fișier al compilatorului (libgcc_s) lipsește sau nu se potrivește. De obicei cauza e o actualizare întreruptă sau parțială.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Actualizează tot sistemul (sudo pacman -Syu pe sisteme Arch), reinstalează pachetele gcc și gcc-libs și repetă acțiunea."
 }

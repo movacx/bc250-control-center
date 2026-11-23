@@ -3339,7 +3339,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         )
         # While a toolkit action holds the system unlocked, a second switch would fight it.
         self.readonly_button.setEnabled(mode in {"enabled", "disabled"} and not running)
-        self.real_toolkit_rows.set_root_state(mode, running=running, interrupted=interrupted)
+        self.real_toolkit_rows.set_root_state(
+            mode, running=running, interrupted=interrupted, action=str(session.get("action") or ""))
         free = state.get("var_free_mb")
         if isinstance(free, int) and not isinstance(free, bool):
             self.var_space_note.setText(tr("/var: {free} MB free").format(free=free))

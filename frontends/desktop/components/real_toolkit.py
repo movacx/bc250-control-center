@@ -1,12 +1,12 @@
 """SteamOS providers presented with the app's existing compatibility rows."""
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 from bc250cc.application.preparation.steamos_providers import (
     ALTERNATIVE_ACTIONS,
     protected_actions,
 )
 
-from ..i18n import tr
+from ..i18n import tr, tr_format
 
 LABELS = {
     'verify': ('Verify the installed setup', 'Verificar la instalación'),
@@ -174,8 +174,36 @@ class RealToolkitRows(ToolRows):
     def __init__(self, parent=None):
         super().__init__(TOOLS, LABELS, 'real_toolkit', REAL_TOOLKIT_SCOPE, parent)
         self._root_status = None
+        self._blocked = frozenset()
+        self._running = ''
+        # While an action runs, look for its end: the page's own refresh can be
+        # minutes away, and the rows must not stay off that long.
+        self._watch = QTimer(self)
+        self._watch.setInterval(3000)
+        self._watch.timeout.connect(self._look_again)
 
-    def set_root_state(self, mode, *, running=False, interrupted=False):
+    def set_running(self, action):
+        """Turn every toolkit button off while ``action`` runs ("" = none)."""
+        self._running = str(action or '')
+        tip = (tr_format('Another toolkit action is running: {name}',
+                         name=_localized(LABELS[self._running]) if self._running in LABELS else self._running)
+               if self._running else '')
+        for key, button in self.buttons.items():
+            button.setEnabled(not self._running and key not in self._blocked)
+            button.setToolTip(tip)
+        if self._running:
+            self._watch.start()
+        else:
+            self._watch.stop()
+
+    def _look_again(self):
+        from bc250cc.infrastructure import steamos_real_toolkit, steamos_root_guard
+
+        session = steamos_root_guard.read_session(steamos_real_toolkit.STATE_ROOT)
+        if not steamos_root_guard.session_running(session):
+            self.set_running('')
+
+    def set_root_state(self, mode, *, running=False, interrupted=False, action=''):
         """Say on the management row whether the system files are locked right now.
 
         Every action unlocks them for the steps that need it and Control Center
@@ -185,6 +213,7 @@ class RealToolkitRows(ToolRows):
                       else {'enabled': ('Protected', 'green'), 'disabled': ('Writable', 'orange')}.get(mode, (None, None)))
         self._root_status = (text, tone) if text else None
         self._apply_root_status()
+        self.set_running((action or 'toolkit') if running else '')
 
     def _apply_root_status(self):
         card = self.cards.get('verify')
@@ -202,11 +231,19 @@ class RealToolkitRows(ToolRows):
         foreign = bool(state.get('foreign_graphics'))
         # The toolkit's FSR4 Proton refuses to install without its own RADV.
         needs_radv = (state.get('proton') or {}).get('radv_ready') is False
+        # AC-3 refuses without the combined fix's amdgpu, minutes into the run.
+        graphics = state.get('graphics') or {}
+        needs_combined = graphics.get('kernel_override_installed') is False
         blocked = (protected | (FOREIGN_GRAPHICS_ACTIONS if foreign else frozenset())
-                   | ({'proton-install'} if needs_radv else frozenset()))
-        for key, button in self.buttons.items():
-            button.setEnabled(key not in blocked)
+                   | ({'proton-install'} if needs_radv else frozenset())
+                   | ({'ac3-install'} if needs_combined else frozenset()))
+        self._blocked = frozenset(blocked)
+        self.set_running(self._running)
         self._notes = {'combined-install': FOREIGN_GRAPHICS_NOTE} if foreign else {}
+        if not foreign and state.get('old_glibc'):
+            self._notes['combined-install'] = COMBINED_GLIBC_NOTE
+        if needs_combined:
+            self._notes['ac3-install'] = AC3_NEEDS_COMBINED_NOTE
         if needs_radv:
             self._notes['proton-install'] = TOOLKIT_RADV_NOTE
         for _category, _names, descriptions, keys in self._specifications:
@@ -224,6 +261,15 @@ class RealToolkitRows(ToolRows):
                 card.status.hide()
 
 
+#: Its build takes Python from Valve's newest branch, made for a newer glibc
+#: than the installed SteamOS has (R-6d239d09; upstream issue 57).
+COMBINED_GLIBC_NOTE = (
+    "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build "
+    "tools made for a newer system. Nothing is changed when that happens."
+)
+AC3_NEEDS_COMBINED_NOTE = (
+    "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart."
+)
 #: The combined fix replaces the same amdgpu module and RADV library.
 FOREIGN_GRAPHICS_ACTIONS = frozenset({'combined-install', 'combined-revert'})
 FOREIGN_GRAPHICS_NOTE = (
@@ -248,9 +294,10 @@ def _installed(key, state):
         return ('Installed', 'blue') if present else ('Not installed', 'gray')
     if key == 'combined-install':
         graphics = state.get('graphics') or {}
-        if graphics.get('state') == 'configured':
+        # Both halves: Mesa alone is what a kernel update leaves behind.
+        if graphics.get('state') == 'configured' and graphics.get('kernel_override_installed') is not False:
             return 'Installed', 'blue'
-        if graphics.get('kernel_override_installed'):
+        if graphics.get('state') == 'configured' or graphics.get('kernel_override_installed'):
             return 'Incomplete', 'orange'
         return ('Not installed', 'gray') if graphics else None
     if key == 'proton-install':

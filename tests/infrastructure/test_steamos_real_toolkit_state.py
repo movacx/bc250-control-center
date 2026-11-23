@@ -129,7 +129,19 @@ def test_dual_audio_observes_the_actual_user_configuration_paths(tmp_path):
     _write(home, first, 'fixture')
     assert not probe_real_toolkit(root=tmp_path, home=home, kernel='current')['components']['dual-audio']
     _write(home, second, 'fixture')
+    # A SteamOS update removes the two system files and keeps these.
+    assert not probe_real_toolkit(root=tmp_path, home=home, kernel='current')['components']['dual-audio']
+    _write(tmp_path, 'etc/alsa/conf.d/61-bc250-a52.conf', 'fixture')
+    _write(tmp_path, 'usr/local/share/wireplumber/scripts/90-bc250-audio-mode.lua', 'fixture')
     assert probe_real_toolkit(root=tmp_path, home=home, kernel='current')['components']['dual-audio']
+
+
+def test_a_removed_acpi_fix_is_not_installed_because_its_archive_was_kept(tmp_path):
+    home = tmp_path / 'home/user'
+    _write(tmp_path, 'var/lib/bc250-acpi-fix/acpi_override.cpio', 'fixture')
+    assert not probe_real_toolkit(root=tmp_path, home=home, kernel='current')['components']['acpi']
+    _write(tmp_path, 'etc/systemd/system/bc250-acpi-heal.service', 'fixture')
+    assert probe_real_toolkit(root=tmp_path, home=home, kernel='current')['components']['acpi']
 
 
 @pytest.mark.parametrize('assignment', ['export VK_DRIVER_FILES="/{icd}"', ' VK_DRIVER_FILES = /{icd}'])

@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · chưa kiểm chứng",
   "{mask} · read on this board": "{mask} · đọc được trên bo này",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Chọn mặt nạ mà công cụ mở khóa báo cho bo này. Chỉ tiếp tục khi bo thực sự đọc được mặt nạ đó.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Bo có mặt nạ khác có thể không khởi động sau khi mở khóa. Rút điện vài giây sẽ đưa bo về 6 nhân."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Bo có mặt nạ khác có thể không khởi động sau khi mở khóa. Rút điện vài giây sẽ đưa bo về 6 nhân.",
+  "Another toolkit action is running: {name}": "Một tác vụ khác của bộ công cụ đang chạy: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "Trên phiên bản SteamOS này, phần nhân có thể dừng khi biên dịch vì bộ công cụ tải về công cụ dành cho hệ thống mới hơn. Khi đó không có gì thay đổi.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Trước tiên cần các bản sửa gộp về màn hình, âm thanh và đồ họa: cài từ Nhân và Mesa rồi khởi động lại.",
+  "This system's compiler cannot link programs.": "Trình biên dịch của hệ thống này không liên kết được chương trình.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Một tệp của trình biên dịch (libgcc_s) bị thiếu hoặc không khớp. Thường do cập nhật bị ngắt hoặc chỉ một phần.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Cập nhật toàn hệ thống (sudo pacman -Syu trên hệ Arch), cài lại gcc và gcc-libs rồi chạy lại."
 }

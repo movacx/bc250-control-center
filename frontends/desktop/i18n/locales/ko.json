@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · 확인되지 않음",
   "{mask} · read on this board": "{mask} · 이 보드에서 읽음",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "잠금 해제 도구가 이 보드에 대해 알려 준 마스크를 선택하세요. 보드가 실제로 그 마스크를 읽을 때만 진행됩니다.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "다른 마스크의 보드는 잠금 해제 후 시작되지 않을 수 있습니다. 몇 초간 전원을 뽑으면 6코어로 돌아옵니다."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "다른 마스크의 보드는 잠금 해제 후 시작되지 않을 수 있습니다. 몇 초간 전원을 뽑으면 6코어로 돌아옵니다.",
+  "Another toolkit action is running: {name}": "다른 도구 모음 작업이 실행 중입니다: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "이 SteamOS 버전에서는 더 새로운 시스템용 빌드 도구를 내려받기 때문에 커널 빌드가 멈출 수 있습니다. 그래도 바뀌는 것은 없습니다.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "먼저 화면·오디오·그래픽 통합 수정이 필요합니다. 커널 및 Mesa에서 설치하고 다시 시작하세요.",
+  "This system's compiler cannot link programs.": "이 시스템의 컴파일러가 프로그램을 링크할 수 없습니다.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "컴파일러 파일(libgcc_s)이 없거나 맞지 않습니다. 보통 중단되었거나 부분적인 업데이트가 원인입니다.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "전체 시스템을 업데이트하고(Arch 계열은 sudo pacman -Syu) gcc와 gcc-libs를 다시 설치한 뒤 작업을 다시 실행하세요."
 }

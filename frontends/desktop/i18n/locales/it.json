@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · non verificata",
   "{mask} · read on this board": "{mask} · letta su questa scheda",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Scegli la maschera che lo strumento di sblocco ha indicato per questa scheda. Prosegue solo se la scheda legge davvero quella maschera.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Una scheda con un'altra maschera potrebbe non avviarsi dopo lo sblocco. Staccarla dalla corrente per qualche secondo la riporta a 6 core."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Una scheda con un'altra maschera potrebbe non avviarsi dopo lo sblocco. Staccarla dalla corrente per qualche secondo la riporta a 6 core.",
+  "Another toolkit action is running: {name}": "È in corso un'altra azione del toolkit: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "In questa versione di SteamOS la parte del kernel può fermarsi durante la compilazione, perché il toolkit scarica strumenti fatti per un sistema più recente. In quel caso non cambia nulla.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Richiede prima le correzioni combinate di schermo, audio e grafica: installale da Kernel e Mesa e riavvia.",
+  "This system's compiler cannot link programs.": "Il compilatore di questo sistema non riesce a collegare i programmi.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Un file del compilatore (libgcc_s) manca o non corrisponde. Di solito è colpa di un aggiornamento interrotto o parziale.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Aggiorna tutto il sistema (sudo pacman -Syu su sistemi Arch), reinstalla i pacchetti gcc e gcc-libs e ripeti l'azione."
 }

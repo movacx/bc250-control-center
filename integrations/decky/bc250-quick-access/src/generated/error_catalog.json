@@ -85,14 +85,6 @@
       "retryable": false
     },
     {
-      "code": "BC250-PKG-007",
-      "markers": [
-        "database already registered"
-      ],
-      "exit_statuses": [],
-      "retryable": false
-    },
-    {
       "code": "BC250-PKG-006",
       "markers": [
         "corrupted package .checksum",
@@ -157,6 +149,15 @@
       "exit_statuses": [
         78
       ],
+      "retryable": false
+    },
+    {
+      "code": "BC250-PKG-007",
+      "markers": [
+        "database already registered",
+        "Database should be null"
+      ],
+      "exit_statuses": [],
       "retryable": false
     },
     {
@@ -290,6 +291,15 @@
       "code": "BC250-UPSTREAM-404",
       "markers": [
         "returned error: 404"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
+      "code": "BC250-BUILD-004",
+      "markers": [
+        "unable to find library -lgcc_s",
+        "cannot find -lgcc_s"
       ],
       "exit_statuses": [],
       "retryable": false
@@ -730,6 +740,7 @@
     "QAM CPU detection uses a fixed",
     "QUICK_ACCESS_CU_SERVICE_REMOVE",
     "QUICK_ACCESS_CU_SERVICE_VERIFY",
+    "unable to find library -lgcc_s",
     "a release is already installed",
     "QUICK_ACCESS_CPU_SCALE_VERIFY",
     "failed to retrieve some files",
@@ -793,6 +804,7 @@
     "PWM build prerequisites",
     "QUICK_ACCESS_CPU_VERIFY",
     "QUICK_ACCESS_GPU_HELPER",
+    "Database should be null",
     "SteamOS read-only state",
     "compilation terminated.",
     "QUICK_ACCESS_PRIVILEGE",
@@ -835,6 +847,7 @@
     "CPU_BACKEND_MISSING",
     "returned error: 404",
     "Operation timed out",
+    "cannot find -lgcc_s",
     "Could not get lock",
     "database is locked",
     "Unmet dependencies",

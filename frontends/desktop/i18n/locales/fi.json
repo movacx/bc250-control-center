@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · vahvistamaton",
   "{mask} · read on this board": "{mask} · luettu tältä levyltä",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Valitse maski, jonka avaustyökalu ilmoitti tälle levylle. Se jatkaa vain, jos levy todella lukee sen maskin.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Levy, jolla on toinen maski, ei ehkä käynnisty avauksen jälkeen. Virran irrottaminen muutamaksi sekunniksi palauttaa sen 6 ytimeen."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Levy, jolla on toinen maski, ei ehkä käynnisty avauksen jälkeen. Virran irrottaminen muutamaksi sekunniksi palauttaa sen 6 ytimeen.",
+  "Another toolkit action is running: {name}": "Toinen työkalupaketin toiminto on käynnissä: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "Tässä SteamOS-versiossa ytimen osa voi pysähtyä käännettäessä, koska työkalut on tehty uudemmalle järjestelmälle. Silloin mitään ei muuteta.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Vaatii ensin näytön, äänen ja grafiikan yhteiskorjaukset: asenna ne kohdasta Ydin ja Mesa ja käynnistä uudelleen.",
+  "This system's compiler cannot link programs.": "Tämän järjestelmän kääntäjä ei pysty linkittämään ohjelmia.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Kääntäjän tiedosto (libgcc_s) puuttuu tai ei vastaa kääntäjää. Syynä on yleensä keskeytynyt tai osittainen päivitys.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Päivitä koko järjestelmä (sudo pacman -Syu Arch-pohjaisissa), asenna paketit gcc ja gcc-libs uudelleen ja toista toiminto."
 }

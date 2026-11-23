@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · непроверена",
   "{mask} · read on this board": "{mask} · прочетена на тази платка",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Изберете маската, която инструментът за отключване е съобщил за тази платка. Продължава само ако платката наистина чете тази маска.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Платка с друга маска може да не стартира след отключването. Изключването от тока за няколко секунди я връща към 6 ядра."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Платка с друга маска може да не стартира след отключването. Изключването от тока за няколко секунди я връща към 6 ядра.",
+  "Another toolkit action is running: {name}": "Изпълнява се друго действие на инструментите: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "На тази версия на SteamOS частта за ядрото може да спре при компилиране, защото инструментите се изтеглят за по-нова система. Тогава нищо не се променя.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Първо са нужни общите корекции за екран, звук и графика: инсталирайте ги от Ядро и Mesa и рестартирайте.",
+  "This system's compiler cannot link programs.": "Компилаторът на тази система не може да свързва програми.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Файл на компилатора (libgcc_s) липсва или не съответства на него. Обикновено причината е прекъснато или частично обновяване.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Обновете цялата система (sudo pacman -Syu при базирани на Arch), преинсталирайте пакетите gcc и gcc-libs и повторете действието."
 }

@@ -150,6 +150,7 @@ def exit_explanation_shell(translate=None) -> str:
         'target=$evidence; '
         'if [ -n "$first_error" ]; then '
         'target=$(printf "%s\\n%s" "$first_error" "$error_hints"); fi; '
+        'target=$(printf "%s\\n%s" "$target" "${root_cause:-}"); '
         + "".join(text_rules)
         + 'if [ "$matched" -eq 0 ]; then '
         'case "$status" in '
@@ -174,6 +175,11 @@ def exit_explanation_shell(translate=None) -> str:
         f'diagnostic={_WORKFLOW_REPORTED_CODE}; cause=""; action={workflow_action}; fi; fi; '
         'if [ -n "$error_hints" ]; then '
         'if [ "$matched" -eq 0 ]; then cause=""; fi; action=$error_hints; fi; '
+        # A leftover pacman lock: the catalog's advice (wait, never delete it)
+        # contradicts the one thing that helps, so it gives way to it.
+        'if [ "${bc250_stale:-0}" = 1 ]; then '
+        f'cause={shlex.quote(translate(STALE_PACMAN_LOCK_MESSAGE))}; error_hints=""; '
+        f'action={shlex.quote(translate(STALE_PACMAN_LOCK_FIX) + chr(10) + "  sudo rm /var/lib/pacman/db.lck")}; fi; '
         # Framed block: in a long scrolling log the diagnosis has to be
         # findable at a glance, not another indistinguishable line of output.
         f'echo; echo "{_RULE}"; '
@@ -187,6 +193,14 @@ def exit_explanation_shell(translate=None) -> str:
         'fi'
     )
 
+
+#: Lines that name the cause exactly, however many lines other jobs of a
+#: parallel build print after them (R-6d239d09: 75 lines; R-12c6bac6: 450).
+ROOT_CAUSE_LINES = (
+    "version .(GLIBC|GLIBCXX|CXXABI)_[0-9.]+. not found .required by"
+    "|unable to find library -lgcc_s|cannot find -lgcc_s"
+)
+ROOT_CAUSE_SCAN_LINES = 4000
 
 #: How far back the workflow's own [ERROR] lines are looked for.
 ERROR_SCAN_LINES = 120
@@ -206,7 +220,9 @@ def _evidence_capture_shell(log_path: object) -> str:
     # driver failure was reported as a Cyan D-Bus fault.
     return (
         f"evidence=$(tail -n 12 {log} 2>/dev/null); "
-        f"error_scan=$(tail -n {ERROR_SCAN_LINES} {log} 2>/dev/null)"
+        f"error_scan=$(tail -n {ERROR_SCAN_LINES} {log} 2>/dev/null); "
+        f"root_cause=$(tail -n {ROOT_CAUSE_SCAN_LINES} {log} 2>/dev/null "
+        f"| grep -aE {shlex.quote(ROOT_CAUSE_LINES)} | head -n 2 || true)"
     )
 
 
@@ -252,6 +268,7 @@ def _evidence_render_shell(translate=None) -> str:
     return (
         'if [ "$status" -ne 0 ] && [ -n "$evidence" ]; then '
         f'printf "\\n%s\\n" "{heading}"; '
+        'if [ -n "${root_cause:-}" ]; then printf "%s\\n" "$root_cause" | sed "s/^/  /"; echo "  ..."; fi; '
         'printf "%s\\n" "$evidence" | sed "s/^/  /"; '
         'fi'
     )
@@ -267,8 +284,8 @@ STALE_PACMAN_LOCK_MESSAGE = (
 STALE_PACMAN_LOCK_FIX = "Remove it, then run the action again:"
 
 
-def _stale_pacman_lock_shell(translate=None) -> str:
-    """On a pacman lock failure, say whether the lock is a leftover.
+def _stale_pacman_lock_check_shell() -> str:
+    """On a pacman lock failure, set ``bc250_stale`` when the lock is a leftover.
 
     The same rule as ``pacman_lock.lock_state``: pacman itself must not be
     running, and either no front-end runs either or the lock is older than
@@ -277,16 +294,13 @@ def _stale_pacman_lock_shell(translate=None) -> str:
     reboot and blocked them twice (R-40f0868d, R-1c81b064). Nothing is removed
     here; it is a root file.
     """
-    translate = translate if callable(translate) else _TRANSLATOR
-    message = shlex.quote(translate(STALE_PACMAN_LOCK_MESSAGE))
-    fix = shlex.quote(translate(STALE_PACMAN_LOCK_FIX))
     from bc250cc.infrastructure.pacman_lock import PACKAGE_MANAGERS
 
     # The libalpm front-ends: running, they may hold the lock without a pacman
     # process, so only a lock older than this boot is called a leftover then.
     front_ends = "|".join(name for name in PACKAGE_MANAGERS if name != "pacman")
     return (
-        'bc250_lock="${BC250_PACMAN_LOCK:-/var/lib/pacman/db.lck}"; '
+        'bc250_stale=0; bc250_lock="${BC250_PACMAN_LOCK:-/var/lib/pacman/db.lck}"; '
         'if [ "$status" -ne 0 ] && [ "$status" -ne 130 ] && [ -e "$bc250_lock" ] '
         '&& command -v pgrep >/dev/null 2>&1 '
         '&& printf "%s\\n" "$evidence" | grep -qiE "unable to lock database|could not lock database" '
@@ -295,9 +309,21 @@ def _stale_pacman_lock_shell(translate=None) -> str:
         'bc250_mtime="$(stat -c %Y "$bc250_lock" 2>/dev/null)"; '
         f'if ! pgrep -x "{front_ends}" >/dev/null 2>&1 '
         '|| { [ -n "$bc250_btime" ] && [ -n "$bc250_mtime" ] && [ "$bc250_mtime" -lt "$bc250_btime" ]; }; then '
-        f'printf "\\n%s\\n%s\\n  sudo rm /var/lib/pacman/db.lck\\n" {message} {fix}; '
+        'bc250_stale=1; '
         'fi; '
         'fi'
+    )
+
+
+def _stale_pacman_lock_shell(translate=None) -> str:
+    """The check, then the sentence and the command on their own."""
+    translate = translate if callable(translate) else _TRANSLATOR
+    message = shlex.quote(translate(STALE_PACMAN_LOCK_MESSAGE))
+    fix = shlex.quote(translate(STALE_PACMAN_LOCK_FIX))
+    return (
+        _stale_pacman_lock_check_shell()
+        + '; if [ "$bc250_stale" = 1 ]; then '
+        + f'printf "\\n%s\\n%s\\n  sudo rm /var/lib/pacman/db.lck\\n" {message} {fix}; fi'
     )
 
 
@@ -393,8 +419,8 @@ def workflow_wrapper(
         f"elif [ \"$status\" -eq 130 ]; then printf '%s\\n' {shlex.quote(translate(CANCELLED_MESSAGE))}; "
         f"else echo \"{finished_failed}\"; fi; "
         f"{_first_error_shell(translate)}; "
+        f"{_stale_pacman_lock_check_shell()}; "
         f"{exit_explanation_shell(translate)}; "
-        f"{_stale_pacman_lock_shell(translate)}; "
         f"{_evidence_render_shell(translate)}; "
         'printf "BC250_WORKFLOW exit_status=%d duration_seconds=%d\\n" "$bc250_raw_status" "$bc250_elapsed"; '
         f"echo \"{saved_log}: {log_path!s}\"; "

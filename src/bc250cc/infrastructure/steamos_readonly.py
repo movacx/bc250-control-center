@@ -165,6 +165,13 @@ def build_steamos_readonly_command(action: str) -> str:
         return "\n".join(commands)
     commands.append(STEAMOS_PASSWORD_GUARD)
     commands.append("bc250_require_password")
+    # A Real Toolkit action puts back the mode it found when it ends: changing
+    # it meanwhile is undone, or leaves its own step half done.
+    commands.append(
+        "if [ -e /home/.bc250-control-center/real-toolkit/.lock ] && "
+        "! sudo flock -n /home/.bc250-control-center/real-toolkit/.lock true; then "
+        'echo "ERROR: a Real Toolkit action is still running. Wait for it to finish, then try again."; exit 75; fi'
+    )
     if action == "free-var":
         # Caches only: pacman's downloads, fwupd's metadata (it downloads it
         # again) and the journal beyond 20 MB. UMR's data in /var/lib/umr is

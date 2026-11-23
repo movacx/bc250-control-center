@@ -210,3 +210,34 @@ def test_dpkg_names_the_pending_package_that_stopped_apt(tmp_path):
     result = _run_wrapper(tmp_path, "echo 'dpkg: error processing package kuninstaller (--configure):'; exit 100")
     assert result.returncode == 100
     assert "What happened: dpkg: error processing package kuninstaller" in result.stdout
+
+
+def test_the_exact_cause_is_found_behind_a_parallel_build(tmp_path):
+    """R-6d239d09: 75 lines after the cause; R-12c6bac6: the compiler, not UMR."""
+    glibc = "ImportError: /usr/lib/libm.so.6: version `GLIBC_2.44' not found (required by x.so)"
+    tail = "for i in $(seq 1 80); do echo \"  CC  file$i.o\"; done; echo 'make: *** [Makefile:248: all] Error 2'; exit 2"
+    output = _run_wrapper(tmp_path, f'echo "{glibc.replace("`", chr(92) + "`")}"; {tail}').stdout
+    assert "BC250-RUNTIME-001" in output and "GLIBC_2.44" in output.split("Last lines")[1]
+    output = _run_wrapper(
+        tmp_path, f"echo 'ld.lld: error: unable to find library -lgcc_s'; {tail.replace('exit 2', '')} "
+        "echo '[ERROR] UMR still does not start after rebuilding it:'; exit 1").stdout
+    assert "BC250-BUILD-004" in output
+
+
+def test_a_leftover_lock_is_not_contradicted_by_the_general_advice(tmp_path, monkeypatch):
+    lock = tmp_path / "db.lck"
+    lock.touch()
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "pgrep").write_text("#!/bin/sh\nexit 1\n")
+    (fake / "pgrep").chmod(0o755)
+    monkeypatch.setenv("BC250_PACMAN_LOCK", str(lock))
+    monkeypatch.setenv("PATH", f"{fake}:{__import__('os').environ['PATH']}")
+    output = _run_wrapper(tmp_path, "echo 'error: could not lock database: File exists'; exit 1").stdout
+    assert "sudo rm /var/lib/pacman/db.lck" in output and "BC250-PKG-001" in output
+    assert "by hand" not in output and output.count("sudo rm /var/lib/pacman/db.lck") == 1
+
+
+def test_parus_words_for_a_repeated_repository(tmp_path):
+    output = _run_wrapper(tmp_path, "echo ' -> Database should be null: failed to register sync database'; exit 1").stdout
+    assert "BC250-PKG-007" in output

@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · ikke bekreftet",
   "{mask} · read on this board": "{mask} · lest på dette kortet",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Velg masken som opplåsingsverktøyet meldte for dette kortet. Det fortsetter bare hvis kortet virkelig leser den masken.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Et kort med en annen maske starter kanskje ikke etter opplåsingen. Noen sekunder uten strøm bringer det tilbake til 6 kjerner."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Et kort med en annen maske starter kanskje ikke etter opplåsingen. Noen sekunder uten strøm bringer det tilbake til 6 kjerner.",
+  "Another toolkit action is running: {name}": "En annen handling i verktøysettet kjører: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "På denne SteamOS-versjonen kan kjernedelen stoppe under bygging, fordi verktøysettet laster ned verktøy for et nyere system. Da endres ingenting.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Trenger først de samlede rettelsene for skjerm, lyd og grafikk: installer dem fra Kjerne og Mesa og start på nytt.",
+  "This system's compiler cannot link programs.": "Kompilatoren på dette systemet kan ikke lenke programmer.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "En fil fra kompilatoren (libgcc_s) mangler eller passer ikke. Det skyldes som regel en avbrutt eller delvis oppdatering.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Oppdater hele systemet (sudo pacman -Syu på Arch-baserte systemer), installer gcc og gcc-libs på nytt og kjør handlingen igjen."
 }

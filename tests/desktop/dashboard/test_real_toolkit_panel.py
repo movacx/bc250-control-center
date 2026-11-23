@@ -562,3 +562,35 @@ def test_fsr4_proton_is_off_and_says_why_until_the_toolkits_own_mesa_is_set_up()
     rows.set_provider_state({'proton': {'state': 'not-installed', 'radv_ready': True}})
     assert rows.buttons['proton-install'].isEnabled()
     assert rows.cards['proton-install'].detail.text() != tr(TOOLKIT_RADV_NOTE)
+
+
+def test_while_an_action_runs_every_toolkit_button_is_off_and_names_it(monkeypatch):
+    from bc250cc.infrastructure import steamos_root_guard
+
+    rows = RealToolkitRows()
+    rows.set_provider_state({'graphics': {'kernel_override_installed': False}})
+    assert rows.buttons['dual-install'].isEnabled() and not rows.buttons['ac3-install'].isEnabled()
+    assert 'combined' in rows.cards['ac3-install'].detail.text()
+    rows.set_root_state('enabled', running=True, action='ac3-install')
+    assert not any(button.isEnabled() for button in rows.buttons.values())
+    assert 'AC-3' in rows.buttons['dual-install'].toolTip()
+    # A refresh of the rest of the state does not turn them on again.
+    rows.set_provider_state({'graphics': {'kernel_override_installed': True}})
+    assert not rows.buttons['dual-install'].isEnabled()
+    monkeypatch.setattr(steamos_root_guard, 'read_session', lambda _root: None)
+    rows._look_again()
+    assert rows.buttons['dual-install'].isEnabled() and rows.buttons['ac3-install'].isEnabled()
+    assert not rows._watch.isActive()
+
+
+def test_mesa_alone_does_not_count_as_the_combined_fix():
+    rows = RealToolkitRows()
+    rows.set_provider_state({'graphics': {'state': 'configured', 'kernel_override_installed': False}})
+    assert rows.cards['combined-install'].status.text() == 'Incomplete'
+
+
+def test_the_combined_fix_warns_where_its_build_tools_are_too_new():
+    rows = RealToolkitRows()
+    rows.set_provider_state({'old_glibc': True, 'graphics': {}})
+    assert 'build' in rows.cards['combined-install'].detail.text()
+    assert rows.buttons['combined-install'].isEnabled()

@@ -47,6 +47,51 @@ def _say(message: str, *, error: bool = False) -> None:
         pass
 
 
+def _adopt_orphans() -> None:
+    """Make processes the toolkit leaves behind children of this launcher.
+
+    A signal sent to the launcher alone ends the top-level Bash, while a
+    compiler under it goes on writing; orphaned, it could not be waited for.
+    """
+    try:
+        import ctypes
+
+        ctypes.CDLL(None, use_errno=True).prctl(36, 1, 0, 0, 0)  # PR_SET_CHILD_SUBREAPER
+    except (AttributeError, OSError):
+        pass
+
+
+def _children() -> list[int]:
+    try:
+        text = Path(f'/proc/{os.getpid()}/task/{os.getpid()}/children').read_text(encoding='ascii')
+    except OSError:
+        return []
+    return [int(pid) for pid in text.split()]
+
+
+def _end_descendants(seconds: float = 20.0) -> None:
+    """After an interrupted action: nothing of it may still write to the system."""
+    deadline = time.monotonic() + seconds
+    while True:
+        try:
+            while os.waitpid(-1, os.WNOHANG)[0]:
+                pass
+        except ChildProcessError:
+            return
+        alive = _children()
+        if not alive:
+            return
+        number = signal.SIGTERM if time.monotonic() < deadline else signal.SIGKILL
+        for pid in alive:
+            try:
+                os.kill(pid, number)
+            except ProcessLookupError:
+                pass
+        if time.monotonic() > deadline + 5:
+            return
+        time.sleep(0.2)
+
+
 @contextmanager
 def _interactive_signal_relay():
     """Keep terminal job control intact and defer parent termination to cleanup.
@@ -89,10 +134,13 @@ def _interactive_signal_relay():
                     pass
             child.wait()
             raise
+        if received is not None or code < 0:
+            _end_descendants()
         if received is not None:
             return 128 + received
         return 128 - code if code < 0 else code
 
+    _adopt_orphans()
     try:
         for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
             previous[number] = signal.signal(number, forward)
@@ -266,6 +314,12 @@ def clear_cache(state_root: Path | None = None) -> None:
                 path.unlink(missing_ok=True)
             elif path.is_dir():
                 shutil.rmtree(path, ignore_errors=True)
+    clear_workspace(state_root)
+
+
+def clear_workspace(state_root: Path | None = None) -> None:
+    """Forget what an action built, keeping its logs and the downloaded archive."""
+    state_root = STATE_ROOT if state_root is None else state_root
     workspace = state_root / 'workspace'
     _keep_failure_logs(workspace, state_root)
     if workspace.is_symlink():
@@ -403,6 +457,66 @@ def _begin_root_session(action: str) -> str:
     return initial
 
 
+#: How long a second action waits for the first, and how often it looks.
+LOCK_WAIT_SECONDS = 900
+LOCK_POLL_SECONDS = 2
+
+
+def _holder() -> str:
+    """The action that holds the toolkit, as a sentence part, or ''."""
+    session = guard.read_session(STATE_ROOT)
+    if not guard.session_running(session):
+        return ''
+    name = str(session.get('action') or 'unknown')
+    try:
+        since = time.strftime('%H:%M', time.localtime(int(session.get('started') or 0)))
+    except (TypeError, ValueError, OverflowError):
+        return name
+    return name + ', started at ' + since
+
+
+def _wait_for_lock(lock) -> None:
+    """Take the toolkit's lock, waiting for an action already running.
+
+    Two actions pressed a minute apart are normal (R-140dc24c): the second one
+    waits and says for what, instead of failing after the password.
+    """
+    deadline = time.monotonic() + LOCK_WAIT_SECONDS
+    told = False
+    while True:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return
+        except BlockingIOError as error:
+            holder = _holder()
+            if time.monotonic() >= deadline:
+                raise RuntimeError('Another Real Toolkit action is still running'
+                                   + (' (' + holder + ')' if holder else '')
+                                   + '. Finish or close its terminal, then try again.') from error
+            if not told:
+                _say('Waiting for another Real Toolkit action to finish'
+                     + (' (' + holder + ')' if holder else '') + '. Press Ctrl+C to cancel.')
+                told = True
+            time.sleep(LOCK_POLL_SECONDS)
+
+
+def combined_module_active(root: Path = Path('/'), kernel: str | None = None) -> bool:
+    """The toolkit's own AC-3 condition: amdgpu comes from this kernel's updates folder."""
+    release = kernel or os.uname().release
+    folder = root / 'usr/lib/modules' / release / 'updates'
+    try:
+        return any(path.is_file() for path in folder.rglob('amdgpu.ko*'))
+    except OSError:
+        return False
+
+
+def _require_prerequisites(action: str) -> None:
+    """What upstream would refuse minutes later, said before anything is downloaded."""
+    if action == 'ac3-install' and not combined_module_active():
+        raise RuntimeError('AC-3 audio needs the combined display, audio and graphics fixes first. '
+                           'Install them from Kernel and Mesa, restart, and try again.')
+
+
 def run_action(action: str) -> int:
     """Root entrypoint, invoked only after an explicit terminal action."""
     provider.action_for(action)
@@ -413,13 +527,14 @@ def run_action(action: str) -> int:
     lock_path = STATE_ROOT / '.lock'
     lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     with os.fdopen(lock_fd, 'r+') as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as error:
-            raise RuntimeError('Another Real Toolkit action is still running') from error
+        _wait_for_lock(lock)
+        _require_prerequisites(action)
         _preflight_root(action)
         require_source_space(STATE_ROOT)
         cache_guard_runtime(provider.INSTALLED_RUNTIME_ROOT, STATE_ROOT / 'runtime')
+        # The note is written before the download: from here on the interface
+        # must know which action holds the toolkit, not only once it runs.
+        initial = _begin_root_session(action)
         try:
             revision = _resolve_or_cached()
             archive = STATE_ROOT / (revision + '.tar.gz')
@@ -434,13 +549,15 @@ def run_action(action: str) -> int:
                 snapshot = provider.prepare_snapshot(archive, Path(temporary) / 'snapshot', revision)
                 refresh_workspace(snapshot, workspace)
         except BaseException:
+            # An earlier action's pending restore outlives this failed attempt.
+            if _root_mode() == initial:
+                guard.clear_session(STATE_ROOT)
             clear_cache()
             print('The toolkit source could not be prepared. Its cache was cleared; '
                   'the next attempt downloads the latest version again.', file=sys.stderr, flush=True)
             raise
         # Do not pre-answer menus. The toolkit owns prompts, recovery choices
         # and privileged windows; the terminal remains interactive throughout.
-        initial = _begin_root_session(action)
         code = run_preserving_root_mode(['/usr/bin/bash', str(workspace / 'start.sh'),
                                          '--bc250cc-action', action], initial,
                                         on_restored=lambda: guard.clear_session(STATE_ROOT))
@@ -455,11 +572,12 @@ def run_action(action: str) -> int:
                  'this component (see the message above). The toolkit cache was kept; remove that '
                  'installation with the tool that made it, then try again.')
         elif code < 128:
-            # A failed action may be a bug upstream has already fixed. Interrupts
-            # (128 + signal) are the user's choice and keep the cache.
-            clear_cache()
-            _say('The action failed (status ' + str(code) + '). The toolkit cache was cleared, '
-                 'so trying again starts from scratch with the latest upstream version.')
+            # A half-built tree must not survive to the next attempt, but the
+            # archive is one commit's, unchanged: a new commit upstream has its
+            # own. Interrupts (128 + signal) are the user's choice and keep both.
+            clear_workspace()
+            _say('The action failed (status ' + str(code) + '). Its build files were cleared; '
+                 'trying again starts clean and checks for a newer version first.')
             if (STATE_ROOT / FAILURE_LOGS).is_dir():
                 _say("The toolkit's own logs were kept in " + str(STATE_ROOT / FAILURE_LOGS) + '.')
         return code

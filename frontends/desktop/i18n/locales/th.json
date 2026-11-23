@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · ยังไม่ได้ยืนยัน",
   "{mask} · read on this board": "{mask} · อ่านได้จากบอร์ดนี้",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "เลือกมาสก์ที่เครื่องมือปลดล็อกรายงานสำหรับบอร์ดนี้ จะดำเนินการต่อก็ต่อเมื่อบอร์ดอ่านได้มาสก์นั้นจริง",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "บอร์ดที่มีมาสก์อื่นอาจเปิดไม่ติดหลังปลดล็อก ถอดปลั๊กไม่กี่วินาทีจะกลับมาเป็น 6 คอร์"
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "บอร์ดที่มีมาสก์อื่นอาจเปิดไม่ติดหลังปลดล็อก ถอดปลั๊กไม่กี่วินาทีจะกลับมาเป็น 6 คอร์",
+  "Another toolkit action is running: {name}": "กำลังทำงานอื่นของชุดเครื่องมืออยู่: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "ใน SteamOS รุ่นนี้ ส่วนเคอร์เนลอาจหยุดระหว่างคอมไพล์ เพราะชุดเครื่องมือดาวน์โหลดเครื่องมือสำหรับระบบที่ใหม่กว่า หากเกิดขึ้นจะไม่มีอะไรเปลี่ยน",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "ต้องมีการแก้ไขจอ เสียง และกราฟิกแบบรวมก่อน: ติดตั้งจากเคอร์เนลและ Mesa แล้วรีสตาร์ต",
+  "This system's compiler cannot link programs.": "คอมไพเลอร์ของระบบนี้ลิงก์โปรแกรมไม่ได้",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "ไฟล์ของคอมไพเลอร์ (libgcc_s) หายไปหรือไม่ตรงกัน มักเกิดจากการอัปเดตที่ค้างหรืออัปเดตบางส่วน",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "อัปเดตทั้งระบบ (sudo pacman -Syu บนระบบตระกูล Arch) ติดตั้ง gcc และ gcc-libs ใหม่ แล้วทำซ้ำ"
 }

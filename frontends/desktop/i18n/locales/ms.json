@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · belum disahkan",
   "{mask} · read on this board": "{mask} · dibaca pada papan ini",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Pilih mask yang dilaporkan oleh alat buka kunci untuk papan ini. Ia diteruskan hanya jika papan benar-benar membaca mask itu.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Papan dengan mask lain mungkin gagal bermula selepas dibuka kunci. Mencabut kuasanya beberapa saat mengembalikannya kepada 6 teras."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Papan dengan mask lain mungkin gagal bermula selepas dibuka kunci. Mencabut kuasanya beberapa saat mengembalikannya kepada 6 teras.",
+  "Another toolkit action is running: {name}": "Tindakan kit alat lain sedang berjalan: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "Pada versi SteamOS ini bahagian kernel mungkin terhenti semasa dibina, kerana kit alat memuat turun alat untuk sistem lebih baharu. Tiada apa berubah apabila itu berlaku.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Perlukan pembetulan gabungan paparan, audio dan grafik dahulu: pasang dari Kernel dan Mesa dan mulakan semula.",
+  "This system's compiler cannot link programs.": "Pengkompil sistem ini tidak dapat memaut program.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Fail pengkompil (libgcc_s) tiada atau tidak sepadan. Biasanya kerana kemas kini yang terputus atau separa.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Kemas kini seluruh sistem (sudo pacman -Syu pada sistem berasaskan Arch), pasang semula pakej gcc dan gcc-libs, kemudian ulangi."
 }

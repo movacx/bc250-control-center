@@ -166,9 +166,14 @@ def initial_state(current: RootReading, session: Mapping[str, object] | None) ->
     """The state to give back, and a sentence when this is not simply "what it is now".
 
     Only one case overrides what is read: an earlier run died without restoring
-    (its process is gone), it began with the root protected, and the root is
-    writable now. Then the writable state is its leftover, not the user's choice.
+    (its process is gone) and the root is not as that run found it. Then the
+    present state is its leftover, not the user's choice.
     """
+    if (session and not session_running(session) and session.get('initial') == WRITABLE
+            and current.state == PROTECTED and str(session.get('boot_id') or '') == boot_id()):
+        # Within the same boot only: a restart or an update protects it by itself.
+        return WRITABLE, ('An earlier toolkit action (' + str(session.get('action') or 'unknown')
+                          + ') ended after locking a system that was writable; it will be left writable again.')
     if (session and not session_running(session) and session.get('initial') == PROTECTED
             and current.state == WRITABLE):
         return PROTECTED, ('An earlier toolkit action (' + str(session.get('action') or 'unknown')

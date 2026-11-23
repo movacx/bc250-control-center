@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · 未验证",
   "{mask} · read on this board": "{mask} · 在此主板上读取",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "选择解锁工具为此主板报告的掩码。只有主板确实读取到该掩码时才会继续。",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "掩码不同的主板解锁后可能无法启动。断电几秒即可恢复为 6 核。"
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "掩码不同的主板解锁后可能无法启动。断电几秒即可恢复为 6 核。",
+  "Another toolkit action is running: {name}": "另一个工具包操作正在运行：{name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "在此 SteamOS 版本上，内核部分的编译可能中断，因为工具包下载了面向更新系统的编译工具。发生时不会更改任何内容。",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "需要先安装显示、音频和图形的组合修复：在“内核与 Mesa”中安装并重启。",
+  "This system's compiler cannot link programs.": "此系统的编译器无法链接程序。",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "编译器文件（libgcc_s）缺失或与编译器不匹配，通常由更新中断或部分更新造成。",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "更新整个系统（Arch 系使用 sudo pacman -Syu），重新安装 gcc 和 gcc-libs，然后重试。"
 }

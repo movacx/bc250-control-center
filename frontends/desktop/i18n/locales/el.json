@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · μη επαληθευμένη",
   "{mask} · read on this board": "{mask} · διαβάστηκε σε αυτή την πλακέτα",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Επιλέξτε τη μάσκα που ανέφερε το εργαλείο ξεκλειδώματος για αυτή την πλακέτα. Συνεχίζει μόνο αν η πλακέτα διαβάζει πράγματι αυτή τη μάσκα.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Μια πλακέτα με άλλη μάσκα μπορεί να μην ξεκινήσει μετά το ξεκλείδωμα. Αν μείνει λίγα δευτερόλεπτα χωρίς ρεύμα, επιστρέφει στους 6 πυρήνες."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Μια πλακέτα με άλλη μάσκα μπορεί να μην ξεκινήσει μετά το ξεκλείδωμα. Αν μείνει λίγα δευτερόλεπτα χωρίς ρεύμα, επιστρέφει στους 6 πυρήνες.",
+  "Another toolkit action is running: {name}": "Εκτελείται άλλη ενέργεια της εργαλειοθήκης: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "Σε αυτή την έκδοση SteamOS το τμήμα του πυρήνα μπορεί να σταματήσει στη μεταγλώττιση, επειδή κατεβαίνουν εργαλεία για νεότερο σύστημα. Τότε δεν αλλάζει τίποτα.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Χρειάζεται πρώτα τις συνδυασμένες διορθώσεις οθόνης, ήχου και γραφικών: εγκαταστήστε τες από Πυρήνας και Mesa και κάντε επανεκκίνηση.",
+  "This system's compiler cannot link programs.": "Ο μεταγλωττιστής αυτού του συστήματος δεν μπορεί να συνδέσει προγράμματα.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Ένα αρχείο του μεταγλωττιστή (libgcc_s) λείπει ή δεν ταιριάζει. Συνήθως φταίει μια διακοπή ή μερική ενημέρωση.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Ενημερώστε όλο το σύστημα (sudo pacman -Syu σε συστήματα Arch), επανεγκαταστήστε τα πακέτα gcc και gcc-libs και επαναλάβετε την ενέργεια."
 }

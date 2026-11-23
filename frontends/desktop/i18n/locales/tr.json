@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · doğrulanmadı",
   "{mask} · read on this board": "{mask} · bu kartta okundu",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Kilit açma aracının bu kart için bildirdiği maskeyi seçin. Yalnızca kart gerçekten bu maskeyi okuyorsa devam eder.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Başka maskeli bir kart kilit açıldıktan sonra başlamayabilir. Birkaç saniye fişini çekmek onu 6 çekirdeğe döndürür."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Başka maskeli bir kart kilit açıldıktan sonra başlamayabilir. Birkaç saniye fişini çekmek onu 6 çekirdeğe döndürür.",
+  "Another toolkit action is running: {name}": "Başka bir araç seti işlemi çalışıyor: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "Bu SteamOS sürümünde çekirdek kısmı derlenirken durabilir, çünkü araç seti daha yeni bir sistem için yapılmış araçlar indirir. Bu durumda hiçbir şey değişmez.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Önce birleşik ekran, ses ve grafik düzeltmeleri gerekir: Çekirdek ve Mesa'dan kurup yeniden başlatın.",
+  "This system's compiler cannot link programs.": "Bu sistemin derleyicisi programları bağlayamıyor.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "Derleyicinin bir dosyası (libgcc_s) eksik veya uyuşmuyor. Genellikle yarım kalan ya da kısmi bir güncelleme neden olur.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Tüm sistemi güncelleyin (Arch tabanlılarda sudo pacman -Syu), gcc ve gcc-libs paketlerini yeniden kurup işlemi tekrarlayın."
 }

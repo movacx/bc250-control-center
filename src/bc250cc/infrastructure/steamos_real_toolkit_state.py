@@ -19,6 +19,19 @@ from .steamos_real_toolkit import REPOSITORY, WORKSPACE, valid_revision
 from .steamos_toolkit_conflicts import NATIVE_COMPONENTS, native_conflicts
 
 
+#: The glibc the toolkit's downloaded Python is made for (see R-6d239d09).
+_TOOLKIT_GLIBC = (2, 44)
+
+
+def _old_glibc() -> bool:
+    """Whether the toolkit's downloaded build tools are too new for this system."""
+    try:
+        numbers = os.confstr('CS_GNU_LIBC_VERSION').split()[1].split('.')
+        return tuple(int(part) for part in numbers[:2]) < _TOOLKIT_GLIBC
+    except (AttributeError, IndexError, OSError, ValueError):
+        return False
+
+
 def _text(path: Path) -> str:
     try:
         with path.open(encoding='utf-8') as stream:
@@ -93,11 +106,16 @@ def probe_real_toolkit(*, root: Path = Path('/'), home: Path | None = None,
         'cpu': (root / 'etc/bc250-smu-oc.conf').is_file(),
         'gpu': (root / 'etc/cyan-skillfish-governor-smu/config.toml').is_file(),
         'core-unlock': (root / 'etc/systemd/system/bc250-core-unlock.service').is_file(),
-        'acpi': (root / 'var/lib/bc250-acpi-fix/acpi_override.cpio').is_file(),
+        # Its removal keeps the archive as a cache; the service goes with it.
+        'acpi': ((root / 'var/lib/bc250-acpi-fix/acpi_override.cpio').is_file()
+                 and (root / 'etc/systemd/system/bc250-acpi-heal.service').is_file()),
         'video': ((root / 'var/lib/bc250/dri/bc250_drv_video.so').is_file()
                   and (root / 'etc/environment.d/99-bc250-vaapi.conf').is_file()),
         'dual-audio': ((home / '.config/wireplumber/wireplumber.conf.d/50-bc250-audio.conf').is_file()
-                       and (home / '.config/pipewire/pipewire.conf.d/60-bc250-ac3-output.conf').is_file()),
+                       and (home / '.config/pipewire/pipewire.conf.d/60-bc250-ac3-output.conf').is_file()
+                       # The two in the system go with a SteamOS update.
+                       and (root / 'etc/alsa/conf.d/61-bc250-a52.conf').is_file()
+                       and (root / 'usr/local/share/wireplumber/scripts/90-bc250-audio-mode.lua').is_file()),
         'recovery': (root / 'etc/grub.d/42_bc250-recovery').is_file(),
     }
     native_ownership = {}
@@ -117,6 +135,7 @@ def probe_real_toolkit(*, root: Path = Path('/'), home: Path | None = None,
     return {
         'provider': REPOSITORY, 'reviewed_revision': revision, 'prepared': bool(prepared),
         'foreign_graphics': foreign_graphics,
+        'old_glibc': _old_glibc(),
         'workspace': str(state_root), 'components': components,
         'native_ownership': native_ownership,
         'graphics': {'state': graphics_state, 'icds': [str(p) for p in valid],

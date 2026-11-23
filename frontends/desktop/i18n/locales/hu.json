@@ -6516,5 +6516,11 @@
   "{mask} · not verified": "{mask} · nem ellenőrzött",
   "{mask} · read on this board": "{mask} · ezen az alaplapon olvasva",
   "Pick the mask the unlock tool reported for this board. It goes ahead only when the board really reads that mask.": "Válaszd azt a maszkot, amelyet a feloldó eszköz ehhez az alaplaphoz jelzett. Csak akkor folytatja, ha az alaplap tényleg ezt a maszkot olvassa.",
-  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Más maszkkal az alaplap lehet, hogy nem indul el a feloldás után. Néhány másodpercre áramtalanítva visszaáll 6 magra."
+  "A board with another mask may fail to start after the unlock. Unplugging it for a few seconds brings it back to 6 cores.": "Más maszkkal az alaplap lehet, hogy nem indul el a feloldás után. Néhány másodpercre áramtalanítva visszaáll 6 magra.",
+  "Another toolkit action is running: {name}": "Az eszközkészlet másik művelete fut: {name}",
+  "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build tools made for a newer system. Nothing is changed when that happens.": "Ezen a SteamOS verzión a kernelrész fordítása leállhat, mert az eszközkészlet újabb rendszerhez készült eszközöket tölt le. Ilyenkor semmi sem változik.",
+  "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart.": "Előbb a kijelző-, hang- és grafikajavítások kellenek: telepítsd a Kernel és Mesa részből, majd indíts újra.",
+  "This system's compiler cannot link programs.": "A rendszer fordítója nem tud programokat összeszerkeszteni.",
+  "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.": "A fordító egyik fájlja (libgcc_s) hiányzik vagy nem illik hozzá. Többnyire megszakadt vagy részleges frissítés okozza.",
+  "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Frissítsd az egész rendszert (Arch-alapún: sudo pacman -Syu), telepítsd újra a gcc és gcc-libs csomagot, majd ismételd meg."
 }

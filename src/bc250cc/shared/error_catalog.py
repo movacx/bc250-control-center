@@ -481,6 +481,8 @@ _CODES: tuple[ErrorCode, ...] = (
         "Run pacman-conf --repo-list | sort | uniq -d to see the repeated repository, keep one of its two definitions in /etc/pacman.conf or /etc/pacman.d, then run the action again.",
         markers=(
             "database already registered",
+            # paru's own words for the same libalpm error (R-4e20acd3).
+            "Database should be null",
         ),
     ),
     # R-f193b192: a package whose checksum does not match the repository's list
@@ -583,6 +585,16 @@ _CODES: tuple[ErrorCode, ...] = (
         markers=('GLIBCXX_', 'CXXABI_', 'GLIBC_2.'),
         # The loader's own wording: "version `X' not found (required by Y)".
         requires="(required by",
+    ),
+    # The compiler itself is broken, so whatever was being built is not the
+    # fault: R-12c6bac6 was reported as UMR and reinstalling UMR cannot work.
+    # After UMR-001 and BUILD-003 so it wins over both.
+    ErrorCode(
+        "BC250-BUILD-004",
+        "This system's compiler cannot link programs.",
+        "A file of the compiler (libgcc_s) is missing or does not match the compiler. An interrupted or partial system update usually causes it.",
+        "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.",
+        markers=("unable to find library -lgcc_s", "cannot find -lgcc_s"),
     ),
     # The workflow printed its own [ERROR] lines, so its wording is shown
     # instead of a rule. This entry exists so the identifier is a registered
