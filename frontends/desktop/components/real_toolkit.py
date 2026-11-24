@@ -204,7 +204,9 @@ class RealToolkitRows(ToolRows):
             self._watch.stop()
 
     def _look_again(self):
-        from bc250cc.application.preparation.steamos_providers import real_toolkit_running
+        from bc250cc.application.preparation.steamos_providers import (
+            real_toolkit_running,
+        )
 
         if not real_toolkit_running():
             self.set_running('')

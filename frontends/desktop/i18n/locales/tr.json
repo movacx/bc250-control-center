@@ -6547,7 +6547,7 @@
   "This action is only for a BC-250. If this computer is one, send a report with this code.": "Bu işlem yalnızca BC-250 içindir. Bu bilgisayar bir BC-250 ise bu kodla bir rapor gönderin.",
   "HelixSR's setup could not build its network files.": "HelixSR kurulumu ağ dosyalarını oluşturamadı.",
   "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR bunları Wine'da çalışan bir Windows gölgelendirici derleyicisiyle oluşturur. Derleyici veya Wine durdu ya da gerekli bir dosya eksikti. HelixSR'yi zaten kullanan oyunlar değiştirilmedi.",
-  "A package repository of this system could not be refreshed by apt.": "apt, bu sistemin depolarından birini yenileyemedi.",
+  "A package repository of this system could not be refreshed by apt.": "Bu sistemin depolarından biri apt ile yenilenemedi.",
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Yukarıdaki Err: satırları adını verir: genellikle daha önce eklenmiş, anahtarı eksik ya da sertifikası geçersiz bir depodur. apt eski listesiyle devam eder, bu yüzden işlemi durduran bu olmayabilir.",
   "pacman stopped without changing anything.": "pacman hiçbir şeyi değiştirmeden durdu.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman kurulumu iptal etti. En yaygın neden dolu ya da salt okunur bir disktir; pacman bildiğinde hatanın üstündeki satırlar bunu söyler.",
