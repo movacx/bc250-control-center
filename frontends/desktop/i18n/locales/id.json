@@ -6538,6 +6538,6 @@
   "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Hibernasi perlu berkas atau partisi swap di disk; sekarang hanya ada memori terkompresi.",
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Ini mengubah boot dan, pada BIOS P3.00, satu opsi BIOS yang dikembalikan saat dihapus. Jika papan tidak bangun, cabut listriknya 30 detik. Hanya perangkat USB di port biru yang membangunkannya.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Suspend kembali seperti semula di sistem dan opsi BIOS kembali ke nilai sebelumnya.",
-  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 ditambah menu BIOS yang menyalakan unit komputasi GPU dan suhu GDDR6 setiap kali mulai.",
-  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Prototipe, hanya diuji di papan pembuatnya. Siapkan cara memprogram ulang chip BIOS sebelum mem-flash."
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Prototipe, hanya diuji di papan pembuatnya. Siapkan cara memprogram ulang chip BIOS sebelum mem-flash.",
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 ditambah menu BIOS untuk menyalakan lebih banyak unit komputasi GPU dan suhu GDDR6. Keduanya mati secara bawaan."
 }

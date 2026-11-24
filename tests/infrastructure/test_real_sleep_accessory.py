@@ -205,3 +205,61 @@ def test_scripts_parse_without_executing_workflows(tmp_path, family):
         assert "systemctl reboot" not in script
         assert "systemctl suspend" not in script
         assert "systemctl hibernate" not in script
+
+
+def _run_bios(tmp_path, action, current, *, bios="P3.00", saved=None):
+    """The real embedded script, with its paths and the reviewed reader replaced by fixtures."""
+    (tmp_path / "tools").mkdir(exist_ok=True)
+    values = tmp_path / "values"
+    values.write_text("\n".join(current))
+    (tmp_path / "tools/setvar.py").write_text(
+        "import sys; from pathlib import Path\n"
+        "v = Path('values')\n"
+        "if sys.argv[1:]: v.write_text('\\n'.join(sys.argv[1:]))\n"
+        "for line in v.read_text().splitlines():\n"
+        "    offset, value = line.split('=')\n"
+        "    print(f'setvar: {offset} = {value}  name')\n"
+    )
+    (tmp_path / "bios_version").write_text(bios)
+    backup = tmp_path / "state/bios-before"
+    if saved:
+        backup.parent.mkdir()
+        backup.write_text("\n".join(saved) + "\n")
+        backup.chmod(0o600)
+    script = (real_sleep._BIOS.replace(real_sleep.BACKUP, str(backup))
+              .replace("/sys/class/dmi/id/bios_version", str(tmp_path / "bios_version"))
+              .replace("os.chown(backup.parent, 0, 0)", "pass").replace("st_uid != 0", "st_uid != os.getuid()"))
+    result = __import__("subprocess").run(
+        [__import__("sys").executable, "-c", script, action], cwd=tmp_path, capture_output=True, text=True, check=False)
+    return result, values.read_text().split(), backup
+
+
+AUTO = ["0x6f6=0x0f", "0x6f7=0x00", "0x6f8=0x00"]
+SET = ["0x6f6=0x01", "0x6f7=0xb2", "0x6f8=0x02"]
+
+
+def test_the_recorded_bios_option_comes_back(tmp_path):
+    result, values, backup = _run_bios(tmp_path, "restore", SET, saved=AUTO)
+    assert result.returncode == 0 and values == AUTO and not backup.exists()
+
+
+@pytest.mark.parametrize("current, bios", [
+    (SET, "P5.00"),                                          # another BIOS version
+    (["0x6f6=0x01", "0x6f7=0xc0", "0x6f8=0x02"], "P3.00"),   # another P3.00, or the owner's choice
+])
+def test_a_bios_that_changed_meanwhile_is_left_alone(tmp_path, current, bios):
+    result, values, backup = _run_bios(tmp_path, "restore", current, bios=bios, saved=AUTO)
+    assert result.returncode == 0 and values == current and backup.exists()
+    assert "record was kept" in result.stdout
+
+
+def test_the_value_sleep_itself_wrote_is_never_recorded_as_the_owners(tmp_path):
+    _result, _values, backup = _run_bios(tmp_path, "record", SET)
+    assert not backup.exists()
+    result, _values, backup = _run_bios(tmp_path, "record", AUTO)
+    assert result.returncode == 0 and backup.read_text().split() == AUTO
+
+
+def test_without_a_record_nothing_is_written(tmp_path):
+    result, values, _backup = _run_bios(tmp_path, "restore", SET)
+    assert result.returncode == 0 and values == SET

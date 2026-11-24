@@ -6538,6 +6538,6 @@
   "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "休止にはディスク上のスワップが必要です。今は圧縮メモリしかありません。",
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "起動設定と、BIOS P3.00ではBIOSの項目を1つ変更し、削除時に元へ戻します。復帰しない場合は30秒間電源を抜いてください。青いポートのUSB機器だけで復帰します。",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "サスペンドはシステム本来の動作に、BIOSの項目は以前の値に戻ります。",
-  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 に、起動ごとにGPU演算ユニットとGDDR6温度を有効にするBIOSメニューを加えたものです。",
-  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "試作品で、作者のボードでのみ確認されています。書き込む前にBIOSチップを書き直せる手段を用意してください。"
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "試作品で、作者のボードでのみ確認されています。書き込む前にBIOSチップを書き直せる手段を用意してください。",
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 に、GPU演算ユニットの追加とGDDR6温度を有効にできるBIOSメニューを加えたものです。初期設定はどちらもオフです。"
 }

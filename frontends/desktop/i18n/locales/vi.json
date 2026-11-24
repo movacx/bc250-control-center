@@ -6538,6 +6538,6 @@
   "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Ngủ đông cần tệp hoặc phân vùng swap trên đĩa; hiện chỉ có bộ nhớ nén.",
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Nó đổi cấu hình khởi động và, với BIOS P3.00, một tùy chọn BIOS, được trả lại khi gỡ. Nếu bo không thức dậy, rút điện 30 giây. Chỉ thiết bị USB ở cổng xanh dương mới đánh thức được.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Chế độ ngủ trở lại như của hệ thống và tùy chọn BIOS về giá trị trước.",
-  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 cùng menu BIOS bật các đơn vị tính toán GPU và nhiệt độ GDDR6 mỗi lần khởi động.",
-  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Bản thử, chỉ kiểm tra trên bo của tác giả. Hãy có cách nạp lại chip BIOS trước khi flash."
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Bản thử, chỉ kiểm tra trên bo của tác giả. Hãy có cách nạp lại chip BIOS trước khi flash.",
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 cùng menu BIOS cho phép bật thêm đơn vị tính toán GPU và nhiệt độ GDDR6. Mặc định cả hai đều tắt."
 }

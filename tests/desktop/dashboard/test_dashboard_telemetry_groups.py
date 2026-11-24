@@ -150,7 +150,7 @@ def test_each_panel_groups_readings_by_what_they_are(page):
 def test_power_delivery_labels_are_unique_and_fold_without_the_link(page):
     labels = [reading.label.text() for reading in page.vrm_strip.readings.values()]
     assert len(labels) == len(set(labels))
-    page._update_vrm_strip(SimpleNamespace(vrm_source=""))
+    page._update_vrm_strip(SimpleNamespace(vrm_source="", vrm_probe={}))
     assert page.vrm_strip.readings_visible is False
     assert all(reading.isHidden() for reading in page.vrm_strip.readings.values())
     # It says so through its "How to enable" button, where a note used to be.

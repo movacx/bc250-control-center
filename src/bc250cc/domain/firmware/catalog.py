@@ -325,7 +325,8 @@ FIRMWARE_FAMILIES: tuple[FirmwareFamily, ...] = (
         version="P3.00",
         origin="modded",
         summary=(
-            "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start."
+            "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. "
+            "Both are off by default."
         ),
         caution=(
             "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it."

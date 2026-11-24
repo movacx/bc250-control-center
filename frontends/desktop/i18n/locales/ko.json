@@ -6538,6 +6538,6 @@
   "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "최대 절전에는 디스크의 스왑이 필요합니다. 지금은 압축 메모리만 있습니다.",
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "부팅과 BIOS P3.00에서는 BIOS 옵션 하나를 바꾸며 제거하면 되돌립니다. 보드가 깨어나지 않으면 30초간 전원을 뽑으세요. 파란 포트의 USB 장치만 깨울 수 있습니다.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "절전은 시스템 기본 방식으로, BIOS 옵션은 이전 값으로 돌아갑니다.",
-  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3에 시작할 때마다 GPU 연산 유닛과 GDDR6 온도를 켜는 BIOS 메뉴를 더했습니다.",
-  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "제작자의 보드에서만 시험한 시제품입니다. 플래시하기 전에 BIOS 칩을 다시 프로그램할 방법을 준비하세요."
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "제작자의 보드에서만 시험한 시제품입니다. 플래시하기 전에 BIOS 칩을 다시 프로그램할 방법을 준비하세요.",
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3에 GPU 연산 유닛을 더 켜고 GDDR6 온도를 켤 수 있는 BIOS 메뉴를 더했습니다. 기본값은 둘 다 꺼짐입니다."
 }

@@ -61,34 +61,66 @@ def _adopt_orphans() -> None:
         pass
 
 
-def _children() -> list[int]:
+def _children(pid: int | None = None) -> list[int]:
+    pid = os.getpid() if pid is None else pid
     try:
-        text = Path(f'/proc/{os.getpid()}/task/{os.getpid()}/children').read_text(encoding='ascii')
+        text = Path(f'/proc/{pid}/task/{pid}/children').read_text(encoding='ascii')
     except OSError:
         return []
-    return [int(pid) for pid in text.split()]
+    return [int(item) for item in text.split()]
+
+
+#: Programs that must never be cut short: the package database, the modules'
+#: index, the initramfs, the boot menu. The kernel keeps 15 letters of a name.
+WRITERS = frozenset(name[:15] for name in (
+    'pacman', 'pacman-key', 'rpm', 'rpm-ostree', 'dpkg', 'apt-get', 'dkms', 'depmod', 'ldconfig',
+    'mkinitcpio', 'dracut', 'update-initramfs', 'grub-mkconfig', 'grub-install', 'update-grub',
+    'grub-editenv', 'steamos-readonly', 'btrfs',
+))
+
+
+def _writer_in(pid: int) -> str:
+    """The name of a writer that is ``pid`` or runs under it, or ''."""
+    try:
+        name = Path(f'/proc/{pid}/comm').read_text(encoding='utf-8', errors='replace').strip()
+    except OSError:
+        return ''
+    if name in WRITERS:
+        return name
+    return next((found for found in map(_writer_in, _children(pid)) if found), '')
 
 
 def _end_descendants(seconds: float = 20.0) -> None:
-    """After an interrupted action: nothing of it may still write to the system."""
-    deadline = time.monotonic() + seconds
+    """After an interrupted action: nothing of it may still write to the system.
+
+    Each process is asked to end once, and a compiler that does not is killed.
+    One with a package or boot write under it is not signalled at all (sudo
+    would pass the signal on to it): it is waited for, however long it takes.
+    """
+    deadlines: dict[int, float] = {}
+    told = ''
     while True:
         try:
             while os.waitpid(-1, os.WNOHANG)[0]:
                 pass
         except ChildProcessError:
             return
-        alive = _children()
-        if not alive:
-            return
-        number = signal.SIGTERM if time.monotonic() < deadline else signal.SIGKILL
-        for pid in alive:
+        for pid in _children():
+            writer = _writer_in(pid)
+            if writer:
+                if writer != told:
+                    _say('Interrupted. Waiting for ' + writer + ' to finish, so the system is not left half written.')
+                    told = writer
+                continue
+            now = time.monotonic()
             try:
-                os.kill(pid, number)
-            except ProcessLookupError:
+                if pid not in deadlines:
+                    deadlines[pid] = now + seconds
+                    os.kill(pid, signal.SIGTERM)
+                elif now >= deadlines[pid]:
+                    os.kill(pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
                 pass
-        if time.monotonic() > deadline + 5:
-            return
         time.sleep(0.2)
 
 

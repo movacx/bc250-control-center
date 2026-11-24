@@ -6538,6 +6538,6 @@
   "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "休眠需要磁碟上的交換檔或分割區；目前只有壓縮記憶體。",
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "它會變更開機設定，並在 BIOS P3.00 上變更一個 BIOS 選項，移除時還原。若主機板無法喚醒，請斷電 30 秒。只有藍色連接埠上的 USB 裝置能喚醒。",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "睡眠恢復為系統原有方式，BIOS 選項恢復為先前的值。",
-  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3，外加一個 BIOS 選單，每次啟動時開啟 GPU 運算單元和 GDDR6 溫度。",
-  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "原型，僅在作者的主機板上測試過。刷寫前請準備好重新燒錄 BIOS 晶片的方法。"
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "原型，僅在作者的主機板上測試過。刷寫前請準備好重新燒錄 BIOS 晶片的方法。",
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3，外加一個可開啟更多 GPU 運算單元和 GDDR6 溫度的 BIOS 選單。兩者預設關閉。"
 }

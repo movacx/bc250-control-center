@@ -166,6 +166,8 @@ os.chmod(backup.parent, 0o700)
 lock = os.open(backup.parent / "lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
 fcntl.flock(lock, fcntl.LOCK_EX)
 offsets = ("0x6f6", "0x6f7", "0x6f8")
+# What bc250-sleep writes there: CPU DC BTC on, 690 mV.
+WRITTEN = ["0x6f6=0x01", "0x6f7=0xb2", "0x6f8=0x02"]
 
 def read_bytes():
     output = subprocess.check_output(["python3", "tools/setvar.py"], text=True)
@@ -189,8 +191,10 @@ if sys.argv[1] == "record":
         print("Not BIOS P3.00: the sleep program does not write its BIOS option here.")
     elif backup.exists() or backup.is_symlink():
         saved_bytes()
+    elif (values := read_bytes()) == WRITTEN:
+        # Installed before by other means: these are not the owner's values.
+        print("The BIOS option is already set for sleep; its earlier value is not known and is not recorded.")
     else:
-        values = read_bytes()
         temporary = backup.with_suffix(".new")
         fd = os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
         with os.fdopen(fd, "w") as stream:
@@ -204,6 +208,14 @@ else:
         print("No BIOS bytes were recorded by Control Center; the BIOS was left as it is.")
         sys.exit(0)
     values = saved_bytes()
+    if not p300:
+        print("This board no longer runs BIOS P3.00, so the recorded option was not written back. The record was kept.")
+        sys.exit(0)
+    if read_bytes() != WRITTEN:
+        # Changed in the BIOS menu, or another BIOS was flashed: the present
+        # values are somebody's choice, not what this program left.
+        print("The BIOS option is no longer the one sleep writes, so it was left as it is. The record was kept.")
+        sys.exit(0)
     subprocess.run(["python3", "tools/setvar.py", *values], check=True)
     if read_bytes() != values:
         sys.exit("ERROR: restored BIOS bytes did not verify.")

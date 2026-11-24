@@ -6538,6 +6538,6 @@
   "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Hibernarea cere un fișier sau o partiție swap pe disc; acum există doar memorie comprimată.",
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Schimbă pornirea și, pe BIOS P3.00, o opțiune BIOS, readusă la eliminare. Dacă placa nu se trezește, scoate-o din priză 30 de secunde. O trezește doar un dispozitiv USB într-un port albastru.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Suspendarea revine la cea a sistemului, iar opțiunea BIOS la valoarea anterioară.",
-  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 plus un meniu BIOS care pornește unitățile de calcul GPU și temperatura GDDR6 la fiecare pornire.",
-  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Un prototip, testat doar pe placa autorului. Ai la îndemână un mod de a reprograma cipul BIOS înainte de scriere."
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Un prototip, testat doar pe placa autorului. Ai la îndemână un mod de a reprograma cipul BIOS înainte de scriere.",
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 plus un meniu BIOS din care poți porni mai multe unități de calcul GPU și temperatura GDDR6. Implicit ambele sunt oprite."
 }

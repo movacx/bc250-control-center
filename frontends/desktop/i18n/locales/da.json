@@ -6538,6 +6538,6 @@
   "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Dvale på disk kræver en swapfil eller -partition; nu er der kun komprimeret hukommelse.",
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Den ændrer opstarten og på BIOS P3.00 én BIOS-indstilling, som sættes tilbage ved fjernelse. Vågner kortet ikke, så tag strømmen i 30 sekunder. Kun en USB-enhed i en blå port vækker det.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Dvale går tilbage til systemets egen, og BIOS-indstillingen til sin tidligere værdi.",
-  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 plus en BIOS-menu, der tænder GPU'ens beregningsenheder og GDDR6-temperaturen ved hver start.",
-  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "En prototype, kun testet på forfatterens kort. Hav en måde at omprogrammere BIOS-chippen på, før du flasher."
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "En prototype, kun testet på forfatterens kort. Hav en måde at omprogrammere BIOS-chippen på, før du flasher.",
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 plus en BIOS-menu, hvor du kan slå flere GPU-beregningsenheder og GDDR6-temperaturen til. Begge er slået fra som standard."
 }

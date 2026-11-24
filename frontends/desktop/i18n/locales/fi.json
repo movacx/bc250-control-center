@@ -6538,6 +6538,6 @@
   "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Horrostila vaatii swap-tiedoston tai -osion levyllä; nyt on vain pakattua muistia.",
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Se muuttaa käynnistystä ja BIOS P3.00:ssa yhtä BIOS-asetusta, joka palautetaan poistettaessa. Jos levy ei herää, irrota virta 30 sekunniksi. Vain sinisen portin USB-laite herättää sen.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Valmiustila palaa järjestelmän omaksi ja BIOS-asetus aiempaan arvoonsa.",
-  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 ja BIOS-valikko, joka ottaa GPU:n laskentayksiköt ja GDDR6-lämpötilan käyttöön joka käynnistyksessä.",
-  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Prototyyppi, testattu vain tekijän levyllä. Varmista ennen asennusta, että voit ohjelmoida BIOS-piirin uudelleen."
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Prototyyppi, testattu vain tekijän levyllä. Varmista ennen asennusta, että voit ohjelmoida BIOS-piirin uudelleen.",
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 ja BIOS-valikko, josta voit ottaa käyttöön lisää GPU:n laskentayksiköitä ja GDDR6-lämpötilan. Molemmat ovat oletuksena pois."
 }

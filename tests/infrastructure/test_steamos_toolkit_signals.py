@@ -102,3 +102,41 @@ def test_signal_exit_status_is_normalized_without_claiming_success(monkeypatch):
                         lambda command: SimpleNamespace(wait=lambda: -signal.SIGTERM))
     with runtime._interactive_signal_relay() as execute:
         assert execute(['fixture']) == 143
+
+
+def _launch_descendants(tmp_path, body, seconds):
+    """A launcher whose interrupted action left ``body`` running, as root would see it."""
+    script = f"""
+import subprocess, sys, time
+from bc250cc.infrastructure import steamos_real_toolkit_runtime as runtime
+runtime._adopt_orphans()
+subprocess.Popen(['/bin/bash', '-c', {body!r}], start_new_session=True)
+time.sleep(0.4)
+runtime._end_descendants({seconds})
+print('ended', flush=True)
+"""
+    started = time.monotonic()
+    result = subprocess.run([sys.executable, '-c', script], cwd=tmp_path, capture_output=True, text=True,
+                            timeout=20, env={**os.environ, 'PYTHONPATH': str(Path(runtime.__file__).parents[2])})
+    return result.stdout, time.monotonic() - started
+
+
+def test_a_package_write_under_the_action_is_waited_for_and_never_signalled(tmp_path):
+    writer = tmp_path / 'pacman'
+    writer.write_text("#!/bin/bash\ntrap 'echo hit > signalled' TERM\nfor i in 1 2 3 4 5 6 7 8; do sleep 0.2; done\necho ok > written\n")
+    writer.chmod(0o755)
+    # A shell above it, like the toolkit's; it outlives the 0.3 s limit.
+    output, _seconds = _launch_descendants(tmp_path, f'{writer}; echo next > continued; sleep 30', 0.3)
+    assert (tmp_path / 'written').exists() and not (tmp_path / 'signalled').exists()
+    assert 'Waiting for pacman to finish' in output and 'ended' in output
+
+
+def test_a_compiler_that_ignores_the_request_is_killed(tmp_path):
+    output, seconds = _launch_descendants(tmp_path, "trap '' TERM; while true; do sleep 0.1; done", 0.5)
+    assert 'ended' in output and seconds < 8
+
+
+def test_each_process_is_asked_to_end_only_once(tmp_path):
+    output, _seconds = _launch_descendants(
+        tmp_path, "trap 'echo x >> asked' TERM; end=$((SECONDS+2)); while [ $SECONDS -lt $end ]; do sleep 0.1; done", 5)
+    assert 'ended' in output and (tmp_path / 'asked').read_text().count('x') == 1
