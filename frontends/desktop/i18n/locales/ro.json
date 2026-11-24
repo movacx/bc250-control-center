@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "Cere unui administrator să dezactiveze bc250-recovery-revert.service, să elimine unitatea și /etc/grub.d/42_bc250-recovery și să regenereze GRUB.",
   "Unsafe recovery entry": "Intrare de recuperare nesigură",
   "Prepare the Compute Units tools to install UMR.": "Pregătește uneltele unităților de calcul pentru a instala UMR.",
-  "Restart to use the staged Compute Units tools.": "Repornește pentru a folosi uneltele unităților de calcul deja pregătite."
+  "Restart to use the staged Compute Units tools.": "Repornește pentru a folosi uneltele unităților de calcul deja pregătite.",
+  "Input voltage": "Tensiune de intrare",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "Niciun senzor nu citește alimentarea acestei plăci. În setările suplimentare se poate adăuga unul.",
+  "Press U to read what is new and install it.": "Apăsați U pentru a citi noutățile și a o instala.",
+  "Real output": "Ieșire reală",
+  "Save, import or export": "Salvare, import sau export",
+  "Tick a sensor in the list to draw it here.": "Bifați un senzor din listă pentru a-l desena aici.",
+  "{count} samples in {time}": "{count} eșantioane în {time}",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Senzorii nu răspund de {seconds} s: valorile de pe ecran sunt vechi."
 }

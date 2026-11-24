@@ -7,12 +7,14 @@ import time
 from bc250cc.application.fan import board_view
 from bc250cc.application.preparation.component_engine import component_capabilities
 from bc250cc.domain.telemetry import voltage_mv
+from bc250cc.shared.version import __version__
 from frontends.desktop.core import compatibility_dialogs as dialogs
 from frontends.desktop.core.dashboard_presenter import FAN_OWNER_LABELS
 
 from ..content import (
     Buttons,
     Card,
+    Chart,
     Choice,
     Field,
     Gap,
@@ -22,12 +24,14 @@ from ..content import (
     Meter,
     Note,
     Panel,
+    Spans,
     heat_tone,
     load_tone,
     number,
     percent,
 )
 from ..i18n import tr
+from ..support import available_version
 from .base import (
     Page,
     guarded,
@@ -170,22 +174,15 @@ class DashboardPage(Page):
             return [temperature_meter(label, value)] if value is not None else [Field(label, tr("Not detected"), "dim")]
 
         cpu_card = Card(tr("Processor"), [
-            Heading(tr("Thermal")),
-            *heat(tr("Core temperature"), cpu.get("temperature_c")), *heat("VRM CPU", sensors.get("vrm_cpu_temperature_c")),
-            Heading(tr("Activity")),
+            *heat(tr("Core temperature"), cpu.get("temperature_c")),
             load_meter(tr("CPU usage"), cpu.get("usage_percent")),
-            Field(tr("Core voltage"), number(cpu_voltage / 1000 if cpu_voltage is not None else None, "V", 3)),
             Field(tr("Registered OC"), oc),
             Field(tr("Topology"), f"{cpu.get('physical_cores', '--')} / {cpu.get('logical_cores', '--')}"),
             Heading(tr("Live core monitor")), Gauges(cores, minimum=25),
         ], number(cpu.get("frequency_mhz", 0) / 1000 if cpu.get("frequency_mhz") else None, "GHz", 2))
         gpu_card = Card(tr("Graphics"), [
-            Heading(tr("Thermal")),
-            *heat(tr("Temperature"), gpu.get("temperature_c")), *heat("VRM MOS", sensors.get("vrm_mos_temperature_c")),
-            *heat("VRM GPU", sensors.get("vrm_gpu_temperature_c")),
-            Heading(tr("Power")),
-            Field(tr("GPU power"), number(power.get("value_w", gpu.get("power_w")), "W", 0)),
-            Field(tr("GPU voltage"), number((gpu.get("voltage_mv") or 0) / 1000 if gpu.get("voltage_mv") else None, "V", 3)),
+            *heat(tr("Temperature"), gpu.get("temperature_c")),
+            load_meter(tr("GPU load"), busy),
             Field("MCLK · SOC · FCLK", " · ".join(number(gpu.get(key)) for key in (
                 "memory_frequency_mhz", "soc_frequency_mhz", "fabric_frequency_mhz")) + " MHz"),
             Heading(tr("Memory")),
@@ -193,7 +190,6 @@ class DashboardPage(Page):
             memory_meter("GTT", gpu.get("gtt_used"), gpu.get("gtt_total")),
             memory_meter(tr("System memory"), memory.get("used"), memory.get("total")),
             Heading(tr("Status")),
-            load_meter(tr("GPU load"), busy),
             Field(tr("Compute units"), f"{active_cus} / 40" if active_cus is not None else "--"),
             Field(tr("Governor"), str(daemon.get("governor_backend") or "--").replace("-skillfish-governor-smu", "")),
             Field(tr("Requested range"), f"{daemon.get('current_min', '--')} – {daemon.get('current_max', '--')} MHz"),
@@ -218,9 +214,45 @@ class DashboardPage(Page):
             Field("BIOS", str(data.get("bios") or ctx.state(self.key).get("bios") or self._bios(ctx))),
         ])
 
-        # What the board is doing first, then what its memory and its regulators read.
-        return [cpu_card, gpu_card, self._gddr6(ctx, data.get("gddr6") or {}, data.get("sample") or {}),
-                self._power(sensors, ctx.service, (data.get("tools") or {}).get("accessories") or {}), cool_card, disk_card]
+        own = {"cpu_v": cpu_voltage / 1000 if cpu_voltage is not None else None,
+               "gpu_v": gpu["voltage_mv"] / 1000 if gpu.get("voltage_mv") else None,
+               "gpu_w": power.get("value_w", gpu.get("power_w")) or None}  # 0 W is how a missing sensor reads
+        # The memory under the processor, the regulators first in their column: even columns on a wide
+        # terminal, and near the top on a narrow one.
+        newer = available_version(ctx)
+        news = [Panel(tr("Update available"), [Note(f"{__version__} → {newer}. " + tr("Press U to read what is new and install it."))], badge=newer, badge_tone="warn")] if newer else []
+        page = [*news, cpu_card, self._gddr6(ctx, data.get("gddr6") or {}, data.get("sample") or {}), gpu_card,
+                self._power(sensors, ctx.service, (data.get("tools") or {}).get("accessories") or {}, own), cool_card, disk_card]
+        return [*page, *self._temperatures(ctx, ui, page)]
+
+    @staticmethod
+    def _temperatures(ctx, ui, page):
+        """The last minutes of the temperatures, when the readings above leave room for a plot."""
+        from ..layout import Glyphs, build_page
+        from .performance import axis_for, window_text
+
+        if not hasattr(ui, "_content_box"):
+            return []
+        width = ui._content_box()[1]
+        times = list(ctx.history.get("moment", ()))
+        room = ui._view() - len(build_page(page, width, Glyphs.for_terminal(unicode_ok=True)).rows)
+        series = [(name, list(ctx.history.get(key, ())), tone) for name, key, tone in (
+            ("GPU", "gpu_temp", "accent"), ("CPU", "cpu_temp", "ok"), ("VRM", "vrm_temp", ""))]
+        series = [item for item in series if item[1]]
+        if room < 13 or width < 100 or len(times) < 2 or not series:
+            return []
+        window = next((seconds for seconds in (60, 120, 300, 600) if times[-1] - times[0] <= seconds), 600)
+
+        def show(value):
+            return number(value, "°C", 1)
+
+        scale, height = axis_for([v for _n, values, _t in series for v in values], "°C", min(22, room - 5))
+        return [Panel(tr("Temperatures"), [Chart(series, times, scale.minimum, scale.maximum, height, show, window=window,
+                                                 ticks=scale.ticks, now=tr("Now"), mark=lambda value: number(value, "°C", 0)
+                                                 if float(value).is_integer() else show(value)),
+                                           Spans([[part for name, _values, tone in series for part in (
+                                               ("● " if getattr(ui, "unicode", True) else "* ", tone), (f"{name}    ", "dim"))]])],
+                      badge=window_text(window), wide=True)]
 
     @staticmethod
     def _bios(ctx):
@@ -247,7 +279,7 @@ class DashboardPage(Page):
         hotspot = sample.get("hotspot_c", external.get("hotspot_c"))
         out = []
         if average is not None:
-            out += [temperature_meter(tr("Average across 8 chips"), average), temperature_meter(tr("Hottest chip"), hotspot)]
+            out += [temperature_meter(tr("Hottest chip"), hotspot), temperature_meter(tr("Average across 8 chips"), average)]
         else:
             out.append(Field(tr("Status"), str(sample.get("error") or status.get("governor_state") or tr("Waiting for data…")), "dim"))
         if chips:
@@ -270,6 +302,8 @@ class DashboardPage(Page):
         if not status.get("repository_ready"):
             buttons.append(Choice(tr("Prepare readings"), prepare))
         source = tr("Kernel driver") if status.get("kernel_driver") else ""
+        if source and chips:
+            out.append(Field(tr("Source"), source))
         return Panel(tr("GDDR6 memory temperature"), [*out, *([Buttons(buttons)] if buttons else [])],
                      badge=number(hotspot, "°C", 0) if hotspot is not None else source, badge_tone=heat_tone(hotspot, 85, 95))
 
@@ -284,24 +318,33 @@ class DashboardPage(Page):
     # -- power rails ------------------------------------------------------------
 
     @staticmethod
-    def _power(sensors, service=None, accessories=None):
+    def _power(sensors, service=None, accessories=None, own=None):
+        """Every voltage and power reading in one place: the regulators' rails, then what each chip says of itself."""
+        own = own or {}
         rails = [(name, number(sensors.get(f"vrm_{key}_voltage_v"), "", 3), number(sensors.get(f"vrm_{key}_current_a"), "", 1),
                   number(sensors.get(f"vrm_{key}_power_w"), "", 1), number(sensors.get(f"vrm_{key}_temperature_c"), "", 0))
                  for key, name in (("cpu", "VRM CPU"), ("gpu", "VRM GPU"))]
-        total, mos = sensors.get("vrm_total_power_w"), sensors.get("vrm_mos_temperature_c")
-        rows = [*rails, ("Vin", number(sensors.get("vrm_input_voltage_v"), "", 2), "", "", ""),
-                ("VRM MOS", "", "", "", number(mos, "", 0))]
-        missing = all(cell in ("", "--") for row in rows for cell in row[1:])
-        restart = []
-        if missing and (accessories or {}).get("vrm_sensor", {}).get("state") in ("installed", "active"):
-            restart = [Choice(tr("Restart driver"), lambda ui_: ui_.confirm(tr("Restart driver"))
-                              and guarded(ui_, tr("Restart driver"), service.reiniciar_sensor_vrm))]
-        return Panel(tr("Power delivery"), [
-            *restart, Note(tr("Not detected"), "dim") if missing else
-            Grid(["", "V", "A", "W", "°C"], rows, gap=4),
-            *([] if total is None else [Gap(), Meter(tr("Total board power"), percent(float(total) / 220 * 100), number(total, "W", 1),
-                                                     "accent")])],
-            badge=number(total, "W", 0) if total is not None else "", badge_tone="accent")
+        total, mos, vin = (sensors.get(f"vrm_{key}") for key in ("total_power_w", "mos_temperature_c", "input_voltage_v"))
+        missing = total is None and mos is None and vin is None and all(cell == "--" for row in rails for cell in row[1:])
+        out: list = []
+        if missing:
+            out.append(Note(tr("No sensor reads the power rails of this board. Additional settings can add one."), "dim"))
+            if (accessories or {}).get("vrm_sensor", {}).get("state") in ("installed", "active"):
+                out.append(Choice(tr("Restart driver"), lambda ui_: ui_.confirm(tr("Restart driver"))
+                                  and guarded(ui_, tr("Restart driver"), service.reiniciar_sensor_vrm)))
+        else:
+            out += [Grid(["", "V", "A", "W", "°C"], rails, gap=3), Gap(),
+                    Field(tr("Input voltage"), number(vin, "V", 2)), Field(tr("VRM MOS"), number(mos, "°C", 0))]
+        # The chips' own sensors; a missing one only matters when no rail reads that chip either.
+        for label, value, unit, digits, rail in (
+                (tr("Core voltage"), own.get("cpu_v"), "V", 3, "vrm_cpu_voltage_v"),
+                (tr("GPU voltage"), own.get("gpu_v"), "V", 3, "vrm_gpu_voltage_v"),
+                (tr("GPU power"), own.get("gpu_w"), "W", 0, "vrm_gpu_power_w")):
+            if value is not None:
+                out.append(Field(label, number(value, unit, digits)))
+            elif sensors.get(rail) is None:
+                out.append(Field(label, tr("Not detected"), "dim"))
+        return Panel(f"{tr('Power')} · {tr('Voltages')}", out, badge=number(total, "W", 1) if total is not None else "", badge_tone="")
 
     # -- system preparation ------------------------------------------------------
 

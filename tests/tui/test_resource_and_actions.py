@@ -24,7 +24,7 @@ def test_each_resource_exposes_real_recorded_series_including_disk_and_network(r
     recorder.record(sample, [])
     recorder.record(sample, [])
     blocks = page.build(ctx, None, resource, ui)
-    chart = next(block for block in blocks if isinstance(block, Chart))
+    chart = next(block for block in blocks[0].blocks if isinstance(block, Chart))
     assert chart.times and chart.series
     assert all(len(values) == len(chart.times) for _name, values, _tone in chart.series)
     if resource == 'disk':

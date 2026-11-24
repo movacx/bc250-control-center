@@ -30,6 +30,7 @@ from .support import available_version, report
 MIN_WIDTH, MIN_HEIGHT = 60, 14
 COLUMN_REACH = 32  # cells: further away than this is another column of boxes
 TOAST_SECONDS = 6.0
+STALLED_AFTER = 8.0
 TONE_PAIRS = {"ok": 1, "warn": 2, "bad": 3, "accent": 4}
 #: The desktop sidebar: its groups, in its order.
 SIDEBAR = (("", ("dashboard",)), ("Hardware", ("cpu", "cu", "gpu", "extras")),
@@ -109,6 +110,7 @@ class Screen(PaletteSupport, PointerSupport):
         self.cursor: dict[tuple[str, str], int] = {}
         self.scroll: dict[tuple[str, str], int] = {}
         self.toast: tuple[str, str, float] | None = None
+        self._announced = ""  # the version whose notice was already shown
         self.unicode = self._unicode_ok()
         self.glyphs = Glyphs.for_terminal(unicode_ok=self.unicode, square=preferences.read(ctx.config)["tui_style"] == "formal")
         self.attrs: dict[str, int] = {}
@@ -364,22 +366,37 @@ class Screen(PaletteSupport, PointerSupport):
         title = " BC250 Control Center"
         where = tr(self.page.title)
         version = available_version(self.ctx)
-        if version:  # the desktop's update badge: Settings › About installs it
-            title += "   ↑ " + tr_format("Version {version} is available", version=version)
-        self.put(0, 0, title, self.attrs["dim"])
-        if not version:  # a narrow terminal gives up the application's name before the page's
-            at = cell_width(title) + 2 if width >= 100 else 1
-            if width < 100:
-                self.put(0, 0, " " * cell_width(title), 0)
-            self.put(0, at, where, curses.A_BOLD, max(0, width - at - cell_width(status) - 1))
+        # A narrow terminal gives up the application's name before the page's.
+        at = cell_width(title) + 2 if width >= 100 else 1
+        if width >= 100:
+            self.put(0, 0, title, self.attrs["dim"])
+        self.put(0, at, where, curses.A_BOLD, max(0, width - at - 1))
+        title = " " * at + where
         job = self.job
         if job is not None and not job.done.is_set():
             frames = SPINNER[0 if self.unicode else 1]
-            title += "   " + frames[int(time.monotonic() * 8) % len(frames)] + " " + job.label
-            self.put(0, cell_width(" BC250 Control Center"), title[len(" BC250 Control Center"):], self.attrs["warn"],
-                     max(0, width - cell_width(status) - 24))
-        if width - cell_width(title) - cell_width(status) > 1:
+            text = frames[int(time.monotonic() * 8) % len(frames)] + " " + job.label
+            self.put(0, cell_width(title) + 3, text, self.attrs["warn"], max(0, width - cell_width(title) - cell_width(status) - 4))
+            title += "   " + text
+        elif version:  # in view on every page until it is installed
+            for text in ("↑ " + tr_format("Version {version} is available", version=version) + " · U " + tr("Details"),
+                         "↑ " + version + " · U"):
+                if cell_width(title) + cell_width(text) + 5 <= width:
+                    self.put(0, width - cell_width(text) - 2, f" {text} ", self.attrs["sel"] | curses.A_BOLD)
+                    status = ""
+                    break
+        if status and width - cell_width(title) - cell_width(status) > 1:
             self.put(0, width - cell_width(status), status, self.attrs["dim"])
+
+    def _stalled(self) -> int:
+        """Seconds without a sample, once that is too long to be a slow read; 0 while they arrive.
+
+        A chip that stops answering blocks the read itself: without this, the
+        last values would stay on screen as if they were live.
+        """
+        at = self.ctx.metrics_at
+        quiet = time.monotonic() - at if at else 0.0
+        return int(quiet) if quiet > STALLED_AFTER + float(self.prefs["tui_interval"]) else 0
 
     def _draw_live_bar(self, height: int, width: int) -> None:
         """What the board is doing now, always in view: clocks, heat, load, fan, memory and power."""
@@ -399,6 +416,11 @@ class Screen(PaletteSupport, PointerSupport):
         ]
         y, x = height - 2, 2
         self.put(height - 3, 0, self.glyphs.h * width, self.attrs["edge"])
+        quiet = self._stalled()
+        if quiet:
+            self.put(y, x, clip(tr_format("The sensors have not answered for {seconds} s: the readings on screen are old.",
+                                          seconds=quiet), width - 4), self.attrs["warn"])
+            return
         for name, _value, text, tone in items:
             if not text or text == "--" or x + cell_width(name) + cell_width(text) + 4 > width:
                 continue
@@ -438,7 +460,9 @@ class Screen(PaletteSupport, PointerSupport):
             self.put(y, 1, pad(clip(f" {label}", side - 4), side - 2), attr)
             if here:
                 self.put(y, 1, "▌", self.attrs["accent"])
-            if shortcut and not (here and self.focus == "sidebar"):
+            if self.order[index] == "about" and available_version(self.ctx):
+                self.put(y, side - 2, "↑", self.attrs["accent"] | curses.A_BOLD)
+            elif shortcut and not (here and self.focus == "sidebar"):
                 self.put(y, side - 2, shortcut, self.attrs["edge"])
             self._sidebar_at[y] = index
         for row in range(1, height - 1):
@@ -569,6 +593,8 @@ class Screen(PaletteSupport, PointerSupport):
             hints.append(("←→", "Adjust"))
         if choice is not None and (choice.handler or choice.pad):
             hints.append(("Enter", "Select" if choice.pad else "Open"))
+        if choice is not None and choice.pad is not None and choice.pad.nudge is not None:
+            hints.append(("+ -", "Adjust"))
         if self._tabs():
             hints.append(("[ ] F3", "Views"))
         if choice is not None and choice.edit:
@@ -707,6 +733,8 @@ class Screen(PaletteSupport, PointerSupport):
             self.notify(tr("Refreshing…"))
         elif key == "/":
             self.search()
+        elif key == "U":
+            self.show_update()
         elif key in ("s", "u"):
             self._pending(key == "s")
         elif key == "b":
@@ -741,6 +769,22 @@ class Screen(PaletteSupport, PointerSupport):
                 self._go(self.order.index(target))
         else:
             (self._sidebar_key if self.focus == "sidebar" else self._content_key)(key)
+
+    def show_update(self) -> None:
+        """About, where the new version is installed; with none, what is known about it."""
+        self.goto("about")
+        self.show_tab("about")
+        self._focus("content")
+        if not available_version(self.ctx):
+            self.notify(tr("You have the latest version.") if self.ctx.state("ui").get("update") else tr("Not checked yet"))
+
+    def _announce_update(self) -> None:
+        """Said once for each version, when it is first seen."""
+        version = available_version(self.ctx)
+        if version and version != self._announced:
+            self._announced = version
+            self.toast = (tr_format("Version {version} is available", version=version) + " · "
+                          + tr("Press U to read what is new and install it."), "warn", time.monotonic() + 3 * TOAST_SECONDS)
 
     def _pending(self, apply: bool) -> None:
         """Apply (or take back) what this page has waiting, from anywhere on it."""
@@ -896,6 +940,10 @@ class Screen(PaletteSupport, PointerSupport):
             if step and current.pad.move(*step):
                 self._layout_key = None
                 return
+            if key in ("+", "-") and current.pad.nudge is not None:
+                current.pad.nudge(1 if key == "+" else -1)
+                self._layout_key = None
+                return
         cursor = self.cursor.get(slot, 0)
         same_row = [i for i, choice in enumerate(layout.choices) if choice.enabled and
                     layout.choice_rows[i] == layout.choice_rows[cursor]] if 0 <= cursor < len(layout.choices) else []
@@ -978,7 +1026,7 @@ class Screen(PaletteSupport, PointerSupport):
             ("↑ ↓  j k", tr("Move")), ("→ Enter l", tr("Open")), ("← Esc h", tr("Back")),
             ("Tab / S-Tab", tr("Move")), ("F6", tr("Switch pane")),
             (":", tr("Commands")), ("b", tr("Menu")), ("a", tr("Activity")), ("i", tr("Details")), ("e", tr("Edit")), ("s / u", f"{tr('Apply')} / {tr('Revert')}"),
-            ("F2", tr("Go to section")), ("F3", tr("Views")), ("[ ]", tr("Previous / next tab")), ("1-9 0 ,", tr("Go to section")),
+            ("F2", tr("Go to section")), ("F3", tr("Views")), ("[ ]", tr("Previous / next tab")), ("1-9 0 . ,", tr("Go to section")), ("+ -", tr("Adjust")), ("U", tr("Update available")),
             ("/", tr("Search")), ("PgUp PgDn", tr("Scroll")), ("r", tr("Refresh")), ("?", tr("Help")), ("q", tr("Quit")),
         ]
         return "\n".join(f"{pad(key, 12)} {label}" for key, label in rows)
@@ -1310,13 +1358,18 @@ class Screen(PaletteSupport, PointerSupport):
         with contextlib.suppress(curses.error):
             curses.mouseinterval(0)
             curses.mousemask(curses.ALL_MOUSE_EVENTS | getattr(curses, "REPORT_MOUSE_POSITION", 0))
-        dirty = True
+        dirty, quiet = True, 0
         while True:
             if self.poller is not None and self.poller.dirty.is_set():
                 self.poller.dirty.clear()
                 dirty = True
             if self.toast and self.toast[2] <= time.monotonic():
                 self.toast, dirty = None, True
+            stalled = self._stalled()
+            dirty, quiet = dirty or stalled != quiet, stalled
+            if self.toast is None:
+                self._announce_update()
+                dirty = dirty or self.toast is not None
             if dirty:
                 self.draw()
                 curses.doupdate()

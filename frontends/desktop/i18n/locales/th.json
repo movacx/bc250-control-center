@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "ให้ผู้ดูแลระบบปิด bc250-recovery-revert.service ลบยูนิตและ /etc/grub.d/42_bc250-recovery แล้วสร้าง GRUB ใหม่",
   "Unsafe recovery entry": "รายการกู้คืนไม่ปลอดภัย",
   "Prepare the Compute Units tools to install UMR.": "เตรียมเครื่องมือหน่วยประมวลผลเพื่อติดตั้ง UMR",
-  "Restart to use the staged Compute Units tools.": "รีสตาร์ตเพื่อใช้เครื่องมือหน่วยประมวลผลที่เตรียมไว้"
+  "Restart to use the staged Compute Units tools.": "รีสตาร์ตเพื่อใช้เครื่องมือหน่วยประมวลผลที่เตรียมไว้",
+  "Input voltage": "แรงดันขาเข้า",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "ไม่มีเซ็นเซอร์ใดอ่านการจ่ายไฟของบอร์ดนี้ เพิ่มได้ในการตั้งค่าเพิ่มเติม",
+  "Press U to read what is new and install it.": "กด U เพื่ออ่านสิ่งใหม่และติดตั้ง",
+  "Real output": "เอาต์พุตจริง",
+  "Save, import or export": "บันทึก นำเข้า หรือส่งออก",
+  "Tick a sensor in the list to draw it here.": "เลือกเซ็นเซอร์ในรายการเพื่อวาดที่นี่",
+  "{count} samples in {time}": "{count} ตัวอย่างใน {time}",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "เซ็นเซอร์ไม่ตอบสนองมา {seconds} วินาที: ค่าบนหน้าจอเป็นค่าเก่า"
 }

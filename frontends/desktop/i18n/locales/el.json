@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "Ζητήστε από διαχειριστή να απενεργοποιήσει την bc250-recovery-revert.service, να αφαιρέσει τη μονάδα της και το /etc/grub.d/42_bc250-recovery και να δημιουργήσει ξανά το GRUB.",
   "Unsafe recovery entry": "Μη ασφαλής καταχώριση ανάκτησης",
   "Prepare the Compute Units tools to install UMR.": "Προετοιμάστε τα εργαλεία υπολογιστικών μονάδων για να εγκαταστήσετε το UMR.",
-  "Restart to use the staged Compute Units tools.": "Κάντε επανεκκίνηση για να χρησιμοποιήσετε τα προετοιμασμένα εργαλεία υπολογιστικών μονάδων."
+  "Restart to use the staged Compute Units tools.": "Κάντε επανεκκίνηση για να χρησιμοποιήσετε τα προετοιμασμένα εργαλεία υπολογιστικών μονάδων.",
+  "Input voltage": "Τάση εισόδου",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "Κανένας αισθητήρας δεν διαβάζει την τροφοδοσία αυτής της πλακέτας. Στις πρόσθετες ρυθμίσεις μπορεί να προστεθεί ένας.",
+  "Press U to read what is new and install it.": "Πατήστε U για να δείτε τα νέα και να την εγκαταστήσετε.",
+  "Real output": "Πραγματική έξοδος",
+  "Save, import or export": "Αποθήκευση, εισαγωγή ή εξαγωγή",
+  "Tick a sensor in the list to draw it here.": "Επιλέξτε έναν αισθητήρα από τη λίστα για να σχεδιαστεί εδώ.",
+  "{count} samples in {time}": "{count} δείγματα σε {time}",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Οι αισθητήρες δεν απαντούν εδώ και {seconds} s: οι ενδείξεις στην οθόνη είναι παλιές."
 }

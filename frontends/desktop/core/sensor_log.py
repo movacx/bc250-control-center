@@ -99,8 +99,9 @@ class SensorEntry:
 class SensorLog:
     """Every sensor seen so far, in the order the inventory lists them."""
 
-    def __init__(self, clock=time.monotonic) -> None:
+    def __init__(self, clock=time.monotonic, trace_points: int = TRACE_POINTS) -> None:
         self._clock = clock
+        self._trace_points = trace_points
         self.entries: dict[str, SensorEntry] = {}
         self.order: list[str] = []
         self.started_at = clock()
@@ -112,7 +113,7 @@ class SensorLog:
         for reading in readings:
             entry = self.entries.get(reading.key)
             if entry is None:
-                entry = SensorEntry(reading)
+                entry = SensorEntry(reading, trace=deque(maxlen=self._trace_points))
                 self.entries[reading.key] = entry
                 self.order.append(reading.key)
                 added.append(reading.key)

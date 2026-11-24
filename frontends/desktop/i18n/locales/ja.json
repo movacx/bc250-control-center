@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "管理者に bc250-recovery-revert.service の無効化、そのユニットと /etc/grub.d/42_bc250-recovery の削除、GRUB の再生成を依頼してください。",
   "Unsafe recovery entry": "安全でない復旧項目",
   "Prepare the Compute Units tools to install UMR.": "UMR をインストールするには、演算ユニットのツールを準備してください。",
-  "Restart to use the staged Compute Units tools.": "準備済みの演算ユニットのツールを使うには再起動してください。"
+  "Restart to use the staged Compute Units tools.": "準備済みの演算ユニットのツールを使うには再起動してください。",
+  "Input voltage": "入力電圧",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "このボードの電源レールを読むセンサーがありません。追加設定で導入できます。",
+  "Press U to read what is new and install it.": "U を押すと新機能の確認とインストールができます。",
+  "Real output": "実際の出力",
+  "Save, import or export": "保存、読み込み、書き出し",
+  "Tick a sensor in the list to draw it here.": "一覧でセンサーを選ぶとここに描画されます。",
+  "{count} samples in {time}": "{time} に {count} サンプル",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "センサーが {seconds} 秒間応答していません。表示中の値は古いものです。"
 }

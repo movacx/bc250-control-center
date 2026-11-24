@@ -22,6 +22,7 @@ from .content import (
     Pad,
     Panel,
     Raw,
+    Readings,
     Slider,
     Spans,
     Split,
@@ -153,7 +154,12 @@ def _runs(cells: list[tuple[str, str]]) -> list[tuple[str, str]]:
 def chart_rows(chart: Chart, width: int, glyphs: Glyphs) -> list[list[tuple[str, str]]]:
     """``chart`` as rows of spans: the plot, its value axis on the right, the time axis below."""
     braille = glyphs.rule == "─"
-    axis = max(cell_width(chart.show(value)) for value in (chart.low, chart.high)) + 3
+    latest = [values[-1] for _name, values, _tone in chart.series if values]
+    mark = chart.mark or chart.show
+    labels = [mark(value) for value in (chart.low, chart.high, *chart.ticks)]
+    # The newest values are written on the axis too: room for the widest the scale can hold.
+    labels += [] if chart.heatmap else [chart.show(value) for value in (*latest[:MARKED], chart.high)]
+    axis = max(cell_width(label) for label in labels) + 3
     plot = max(10, width - axis)
     end = chart.times[-1] if chart.times else 0.0
 
@@ -181,8 +187,9 @@ def chart_rows(chart: Chart, width: int, glyphs: Glyphs) -> list[list[tuple[str,
         span = (chart.high - chart.low) or 1.0
 
         def y_of(value: float) -> int:
-            return height * dots_y - 1 - round((min(max(value, chart.low), chart.high) - chart.low) / span
-                                               * (height * dots_y - 1))
+            # Both ends at the same dot of their row, so evenly spaced ticks are evenly spaced rows.
+            part = (min(max(value, chart.low), chart.high) - chart.low) / span
+            return dots_y // 2 + round((1 - part) * (height - 1) * dots_y)
 
         def dot(x: int, y: int, tone: str) -> None:
             cx, cy = x // dots_x, y // dots_y
@@ -190,30 +197,35 @@ def chart_rows(chart: Chart, width: int, glyphs: Glyphs) -> list[list[tuple[str,
                 masks[cy][cx] |= _BRAILLE[y % 4][x % 2] if braille else 1
                 tones[cy][cx] = tone
 
-        last_y = None
+        last_rows: dict[int, tuple[float, str]] = {}  # the row of each series' newest value
         bottoms: dict[int, int] = {}  # dot column -> lowest line dot, for the area under a single series
-        for _name, values, tone in chart.series:
-            previous = None
+        gap = _longest_step(chart.times)
+        for number_, (_name, values, tone) in enumerate(chart.series):
+            previous = None  # (dot column, dot row, moment)
             for moment, value in zip(chart.times[-len(values):], values):
                 x, y = column(moment, dots_x), y_of(value)
-                if previous is not None and 0 < x - previous[0] <= 4 * dots_x:
+                if x < 0:
+                    continue
+                if previous is not None and moment - previous[2] <= gap:
                     # Join the samples: every dot column between them, and the rows between each step,
-                    # so the line reads as one stroke of even weight instead of loose dots.
+                    # so the line reads as one stroke of even weight instead of loose dots. Samples that
+                    # share a column (a long window) keep their whole range: no peak is lost.
                     reached = previous[1]
-                    for step in range(previous[0] + 1, x + 1):
-                        target = round(previous[1] + (y - previous[1]) * (step - previous[0]) / (x - previous[0]))
+                    for step in range(min(previous[0] + 1, x), x + 1):
+                        target = round(previous[1] + (y - previous[1]) * (step - previous[0]) / ((x - previous[0]) or 1)) \
+                            if x != previous[0] else y
                         for yy in range(min(reached, target), max(reached, target) + 1):
                             dot(step, yy, tone)
                         bottoms[step] = max(bottoms.get(step, -1), target)
                         reached = target
                 dot(x, y, tone)
                 bottoms[x] = max(bottoms.get(x, -1), y)
-                previous = (x, y)
-            last_y = previous[1] // dots_y if previous and last_y is None else last_y
+                previous = (x, y, moment)
+            if previous is not None and number_ < MARKED:
+                last_rows.setdefault(previous[1] // dots_y, (values[-1], tone))
         area = len(chart.series) == 1 and braille
         average_row = y_of(chart.average) // dots_y if chart.average is not None else None
-        ticks = {y_of(tick) // dots_y: chart.show(tick) for tick in chart.ticks or (chart.low, chart.high)}
-        current = chart.series[0][1][-1] if chart.series and chart.series[0][1] else None
+        ticks = {y_of(tick) // dots_y: (chart.mark or chart.show)(tick) for tick in chart.ticks or (chart.low, chart.high)}
         for r in range(height):
             cells = []
             for c in range(plot):
@@ -231,20 +243,43 @@ def chart_rows(chart: Chart, width: int, glyphs: Glyphs) -> list[list[tuple[str,
             if r == average_row and chart.average is not None and chart.average_label:
                 label = f" {chart.average_label} "
                 cells[1:1 + len(label)] = [(char, "dim") for char in label]
-            if r == last_y and current is not None:
-                rows.append(_runs(cells) + [((" ◂ " if braille else " < ") + chart.show(current), "accent")])
+            if r in last_rows:
+                value, tone = last_rows[r]
+                rows.append(_runs(cells) + [((" ◂ " if braille else " < ") + chart.show(value), tone or "!")])
             else:
                 rows.append(_runs(cells) + [(f" {glyphs.v} {ticks.get(r, '')}", "dim")])
-    # time marks every 30 s, counted back from now, as on the desktop
-    line = [" "] * plot
-    for age in range(0, int(chart.window) + 1, 30):
+    # Time marks on round intervals, as many as the width can label, counted back from now.
+    line, ruler = [" "] * plot, [glyphs.h] * plot
+    for age in time_marks(chart.window, plot):
         text = chart.now if age == 0 else f"-{age // 60}:{age % 60:02d}"
         x = plot - 1 - round(age / chart.window * (plot - 1))
         start = max(0, min(plot - len(text), x - len(text) // 2))
         if all(char == " " for char in line[max(0, start - 1):start + len(text) + 1]):
             line[start:start + len(text)] = list(text)
+            ruler[x] = "┴" if braille else "+"
+    if not chart.heatmap:
+        rows.append([("".join(ruler), "edge"), (" " + ("┘" if braille else "+"), "edge")])
     rows.append([("".join(line), "dim")])
     return rows
+
+
+#: As many series as have their newest value written on the axis.
+MARKED = 4
+
+
+def _longest_step(times) -> float:
+    """The longest pause between two samples that still counts as continuous."""
+    recent = list(times)[-60:]
+    steps = sorted(after - before for before, after in zip(recent, recent[1:]))
+    return max(3.0, 3 * steps[len(steps) // 2]) if steps else 3.0
+
+
+def time_marks(window: float, width: int) -> list[int]:
+    """Ages in seconds to mark on a time axis ``width`` cells wide."""
+    for every in (5, 10, 15, 30, 60, 120, 300, 600, 900):
+        if width * every / window >= 12:
+            break
+    return list(range(0, int(window) + 1, every))
 
 
 def gauge(start: float, end: float, width: int, tone: str, glyphs: Glyphs) -> list[tuple[str, str]]:
@@ -417,6 +452,17 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
             add([(cells(block.headers), "dim")])
             for row in block.rows:
                 add([(cells(row), "")])
+        elif isinstance(block, Readings):
+            spans, used = [], 0
+            for name, value in block.items:
+                size = cell_width(name) + cell_width(value) + 2
+                if spans and used + 4 + size > width:
+                    add(spans)
+                    spans, used = [], 0
+                spans += [("    " if spans else "", ""), (name + "  ", "dim"), (value, "!")]
+                used += size + (4 if used else 0)
+            if spans:
+                add(spans)
         elif isinstance(block, Spans):
             for spans in block.lines:
                 add(list(spans))
@@ -479,7 +525,20 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                     else:  # a narrow terminal keeps the cells and gives up the registers, last first
                         extra_w.pop()
                         extra.pop()
-            widths = [name_w] + [cell_w] * cols + extra_w + [tail_w]
+            cell_ws = [cell_w] * cols
+            numeric = [False] * cols
+            if block.whole:  # a table of unlike columns: each as wide as what it holds
+                notes = False
+                name_w, tail_w = max(name_w, heads[0]), max(tail_w, heads[1])
+                cell_ws = [max([cell_width(str(head))] + [cell_width(row.cells[c].text) for row in block.rows]) + 2
+                           for c, head in enumerate(block.headers)]
+                numeric = [all(row.cells[c].text[:1].isdigit() or row.cells[c].text in ("—", "--", "-") for row in block.rows)
+                           for c in range(cols)]
+                over = name_w + sum(cell_ws) + tail_w + cols + 3 - width
+                while over > 0 and max(cell_ws) > 6:  # the widest column gives up room first
+                    cell_ws[cell_ws.index(max(cell_ws))] -= 1
+                    over -= 1
+            widths = [name_w] + cell_ws + extra_w + [tail_w]
             g = Glyphs.for_terminal(unicode_ok=False) if block.classic else glyphs
 
             def rule(kind):
@@ -494,7 +553,12 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 bar = g.v if block.classic else " "
                 row, cells, x = [(bar, "dim")], [], 1
                 for c, (w, text, tone) in enumerate(zip(widths, texts, tones)):
-                    row.append((clip(text, w).center(w) if block.classic or c else pad(clip(text, w), w), tone))
+                    if block.whole and c:
+                        text = clip(text, w - 2)
+                        shown = (" " * (w - 2 - cell_width(text)) + text + "  ") if c <= cols and numeric[c - 1] else pad(text, w)
+                    else:
+                        shown = clip(text, w).center(w) if block.classic or c else pad(clip(text, w), w)
+                    row.append((shown, tone))
                     row.append((bar, tone if tone == "sel" and block.whole else "dim"))
                     if r is not None and 0 < c <= cols:
                         cells.append((x, x + w, r, c - 1))
@@ -693,6 +757,10 @@ def build_page(blocks: list[Block], width: int, glyphs: Glyphs) -> Layout:
     units = [unit for _boxed, unit in page_groups(blocks)]
     work = [unit for unit in units if _interactive(unit)]
     read = [unit for unit in units if not _interactive(unit)]
+    foot = None  # a wide panel that closes a page of readings goes under their columns
+    if len(units) > 2 and isinstance(units[-1][0], Panel) and units[-1][0].wide and not _interactive(units[-1]):
+        foot = units.pop()
+        read.remove(foot)
     if read and all(isinstance(block, Note) for unit in read for block in unit):
         work, read = [*read, *work], []  # a line or two is a preface, not a column
     wide = any(isinstance(block, (Chart, Pad)) or getattr(block, "wide", False) for unit in units for block in unit)
@@ -716,6 +784,9 @@ def build_page(blocks: list[Block], width: int, glyphs: Glyphs) -> Layout:
                 _side_by_side(column, [boxes[position]], [each])
             columns.append(column)
         _side_by_side(layout, columns, [each] * len(columns), " " * COLUMN_GAP)
+        if foot is not None:
+            _side_by_side(layout, [build_layout(foot, width, glyphs)], [width])
+            foot = None
     elif work and read and width >= WORK_MIN + SIDE_MIN + COLUMN_GAP:
         left = min(WORK_MAX if not wide else width - SIDE_MIN - COLUMN_GAP, max(WORK_MIN, (width - COLUMN_GAP) * 3 // 5))
         right = min(width - left - COLUMN_GAP, 72)
@@ -723,6 +794,8 @@ def build_page(blocks: list[Block], width: int, glyphs: Glyphs) -> Layout:
     else:
         size = width if wide else min(width, WORK_MAX + 8)
         _side_by_side(layout, [stack(units, size)], [size])
+    if foot is not None:
+        _side_by_side(layout, [build_layout(foot, width, glyphs)], [width])
     return _reading_order(layout)
 
 

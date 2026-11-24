@@ -123,3 +123,21 @@ def test_a_pad_cell_is_a_tap_target_of_its_own():
               lambda ui: None, place=lambda r, c: placed.append((r, c)))
     row = next(r for r in build_layout([pad], 40, UNICODE).rows if r.cells)
     assert [(r, c) for _a, _b, r, c in row.cells] == [(0, 0), (0, 1)]
+
+
+def test_a_long_window_keeps_every_peak_and_a_slow_cadence_stays_joined():
+    from frontends.tui.content import Chart
+    from frontends.tui.layout import chart_rows, time_marks
+
+    times = list(range(1800))
+    values = [10.0] * 1800
+    values[900] = 100.0  # one second in half an hour: less than a column wide
+    rows = chart_rows(Chart([("Usage", values, "accent")], times, 0, 100, 11, lambda v: f"{v:.0f}%", window=1800,
+                            ticks=(0, 50, 100)), 80, UNICODE)
+    text = ["".join(t for t, _ in row) for row in rows]
+    assert any(0x2800 < ord(char) <= 0x28FF for char in text[0])  # the peak reaches the top row
+    assert [i for i, line in enumerate(text) if line.rstrip().endswith(("│ 0%", "│ 50%", "│ 100%"))] == [0, 5, 10]
+    slow = chart_rows(Chart([("Usage", [10, 90, 10], "accent")], [0, 5, 10], 0, 100, 8, str, window=20), 80, UNICODE)
+    drawn = ["".join(t for t, _ in row) for row in slow[:8]]
+    assert sum(any(0x2800 < ord(line[x]) <= 0x28FF for line in drawn) for x in range(70)) >= 30  # ten of twenty seconds
+    assert time_marks(120, 190) == list(range(0, 121, 10)) and time_marks(1800, 60)[1] == 600

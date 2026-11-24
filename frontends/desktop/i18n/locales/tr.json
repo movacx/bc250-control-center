@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "Bir yöneticiden bc250-recovery-revert.service hizmetini kapatmasını, birimini ve /etc/grub.d/42_bc250-recovery dosyasını kaldırmasını, sonra GRUB'u yeniden üretmesini isteyin.",
   "Unsafe recovery entry": "Güvensiz kurtarma girdisi",
   "Prepare the Compute Units tools to install UMR.": "UMR'yi kurmak için hesaplama birimi araçlarını hazırlayın.",
-  "Restart to use the staged Compute Units tools.": "Hazırlanan hesaplama birimi araçlarını kullanmak için yeniden başlatın."
+  "Restart to use the staged Compute Units tools.": "Hazırlanan hesaplama birimi araçlarını kullanmak için yeniden başlatın.",
+  "Input voltage": "Giriş gerilimi",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "Hiçbir sensör bu kartın beslemesini okumuyor. Ek ayarlardan bir tane eklenebilir.",
+  "Press U to read what is new and install it.": "Yenilikleri okumak ve yüklemek için U tuşuna basın.",
+  "Real output": "Gerçek çıkış",
+  "Save, import or export": "Kaydet, içe veya dışa aktar",
+  "Tick a sensor in the list to draw it here.": "Burada çizmek için listeden bir sensör işaretleyin.",
+  "{count} samples in {time}": "{time} içinde {count} örnek",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Sensörler {seconds} saniyedir yanıt vermiyor: ekrandaki değerler eski."
 }

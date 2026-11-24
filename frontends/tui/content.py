@@ -129,6 +129,13 @@ class Spans:
 
 
 @dataclass(slots=True)
+class Readings:
+    """Short readings on one line, name then value, wrapped when they do not fit."""
+
+    items: Sequence[tuple[str, str]]
+
+
+@dataclass(slots=True)
 class Gauges:
     """Small labelled bars in as many columns as fit (the eight memory chips)."""
 
@@ -206,6 +213,7 @@ class Pad:
     whole: bool = False  # a row is one item: the cursor lights all of it
     classic: bool = False  # drawn with + - | like a command-line tool's own table, in every terminal
     info: "Info | None" = None
+    nudge: Callable[[int], None] | None = None  # + and - step the value under the cursor
     extra: Sequence[str] = ()  # headers of read-only columns between the cells and the tail
 
 
@@ -228,6 +236,7 @@ class Chart:
     heatmap: bool = False
     window: float = 120.0
     ticks: Sequence[float] = ()  # round values to label and rule across the plot
+    mark: Callable[[float], str] | None = None  # how a tick reads, when shorter than ``show``
     now: str = "Now"
 
 
@@ -337,7 +346,7 @@ class Legend:
 
 
 Block = Heading | Field | Meter | Trend | Note | Grid | Raw | Gap | Choice | Card | Columns | Track | Pad | Chart \
-    | Panel | Tiles | Buttons | Split | Slider | Legend | Spans | Gauges
+    | Panel | Tiles | Buttons | Split | Slider | Legend | Spans | Gauges | Readings
 
 
 def percent(value: object, default: float | None = None) -> float | None:

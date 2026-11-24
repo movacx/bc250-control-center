@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import time
+from collections import deque
 from pathlib import Path
 
 from bc250cc.application.fan import board_view as view
@@ -37,14 +38,17 @@ from ..content import (
     Buttons,
     Choice,
     Field,
+    Gap,
     Heading,
     Note,
     Pad,
     PadCell,
     PadRow,
     Panel,
+    Readings,
     Spans,
     Split,
+    Trend,
     number,
 )
 from ..i18n import tr, tr_format
@@ -58,30 +62,52 @@ TONES = {"green": "ok", "orange": "warn", "red": "bad", "blue": "accent", "": "d
 ADVANCED = (("min_percent", "Minimum PWM", 0, 100), ("max_percent", "Maximum PWM", 0, 100),
             ("start_percent", "Spin-up kick", 0, 100))
 MAX_POINTS = engine.CURVE_MAX_POINTS
-PLOT_ROWS = 9
+PLOT_ROWS = (9, 21)  # of the curve, on a small terminal and on a tall one
 BRAILLE = ((0x01, 0x08), (0x02, 0x10), (0x04, 0x20), (0x40, 0x80))
-PLOT_COLS = 38  # with the axis labels, 50 columns: an 80x24 terminal's content
+PLOT_COLS = (38, 110)  # with the axis labels, 50 columns: an 80x24 terminal's content
+TREND = 90  # readings of each fan kept for its trend, one every two seconds
+FORM_RATIO, FORM_BESIDE = 0.40, 84  # the form's share of the editor, and the width they need side by side
+#: The sensors each choice of "Follows" takes the hottest of.
+SOURCE_SENSORS = {"gpu": ("gpu",), "cpu": ("cpu",), "vrm": ("vrm",), "board": ("board",),
+                  "hottest": ("gpu", "cpu", "vrm")}
+
+
+def live_temperatures(ctx) -> dict[str, float | None]:
+    """What each source of a curve reads now."""
+    metrics = ctx.metrics or {}
+    gpu, cpu, sensors = metrics.get("gpu") or {}, metrics.get("cpu") or {}, metrics.get("sensors") or {}
+    found = {"gpu": gpu.get("temperature_c"), "cpu": cpu.get("temperature_c"),
+             "vrm": sensors.get("vrm_temperature_c"), "board": sensors.get("board_temperature_c")}
+    found = {name: view.finite_number(value) for name, value in found.items()}
+    return {source: max((found[name] for name in names if found[name] is not None), default=None)
+            for source, names in SOURCE_SENSORS.items()}
 
 
 def say(template: str, values: dict | None = None) -> str:
     return tr_format(template, **values) if values else tr(template)
 
 
-def plot(points, current_temp, *, unicode: bool = True, chosen: int = -1) -> list[list[tuple[str, str]]]:
-    """The curve over a faint grid: duty up, temperature across, its points marked and the reading now."""
+def plot(points, current_temp, *, unicode: bool = True, chosen: int = -1, size: tuple[int, int] | None = None,
+         duty_now: float | None = None) -> list[list[tuple[str, str]]]:
+    """The curve over a faint grid: duty up, temperature across, its points, and where it stands now.
+
+    ``duty_now`` is what the fan really gets: a mark of its own, off the curve
+    when something else drives the header.
+    """
     if not points:
         return []
     points = sorted([int(t), int(s)] for t, s in points)
     low, high = min(20, points[0][0] - 5) // 10 * 10, -(-max(90, points[-1][0] + 5) // 10) * 10
     dots_x, dots_y = (2, 4) if unicode else (1, 1)
-    width, height = PLOT_COLS, PLOT_ROWS
+    width, height = size or (PLOT_COLS[0], PLOT_ROWS[0])
     masks = [[0] * width for _ in range(height)]
 
     def column(temp: float, scale: int = 1) -> int:
         return round((temp - low) / (high - low) * (width * scale - 1))
 
     def line(duty: float, scale: int = 1) -> int:
-        return height * scale - 1 - round(duty / 100 * (height * scale - 1))
+        # Both ends at the middle of their row, so the labelled rows are exact.
+        return scale // 2 + round((1 - duty / 100) * (height - 1) * scale)
 
     previous = None
     for x in range(width * dots_x):
@@ -89,22 +115,32 @@ def plot(points, current_temp, *, unicode: bool = True, chosen: int = -1) -> lis
         for step in range(min(y, previous if previous is not None else y), max(y, previous if previous is not None else y) + 1):
             masks[step // dots_y][x // dots_x] |= BRAILLE[step % 4][x % 2] if unicode else 1
         previous = y
-    now = column(current_temp) if current_temp is not None and low <= current_temp <= high else None
+    shown = current_temp is not None and low <= current_temp <= high
+    now = column(current_temp) if shown else None
+    wanted = engine.interpolate(points, current_temp) if shown else None
     marks = {(line(s), column(t)): index for index, (t, s) in enumerate(points)}
     every = {column(temp): temp for temp in range(low, high + 1, 10)}
+    # Round steps that fall on whole rows: 10 %, 20 %, 25 % or 50 %.
+    step = next((value for value in (10, 20, 25, 50) if (height - 1) * value % 100 == 0 and (height - 1) * value // 100 >= 2), 50)
+    labels = {line(duty): duty for duty in range(0, 101, step)}
+    here = (line(duty_now), now) if now is not None and duty_now is not None else None
+    target = (line(wanted), now) if wanted is not None else None
     rows = []
     for y in range(height):
-        duty = round(100 * (height - 1 - y) / (height - 1))
-        spans = [(f"{duty:>3} % " if y % 2 == 0 else "      ", "dim"), ("│" if unicode else "|", "edge")]
+        spans = [(f"{labels[y]:>3} % " if y in labels else "      ", "dim"), ("│" if unicode else "|", "edge")]
         for x in range(width):
             if (y, x) in marks:
                 picked = marks[y, x] == chosen
-                cell = ("●" if unicode else "o", "warn!" if picked else "accent!")
+                cell = (("●" if picked else "○") if unicode else ("O" if picked else "o"), "!" if picked else "accent!")
+            elif (y, x) == here:
+                cell = ("◆" if unicode else "X", "ok!")
+            elif (y, x) == target:
+                cell = ("┼" if unicode else "+", "accent!")
             elif masks[y][x]:
                 cell = (chr(0x2800 + masks[y][x]) if unicode else ".", "accent")
             elif x == now:
-                cell = ("┊" if unicode else "|", "ok")
-            elif y % 2 == 0 and x % 2 == 0:
+                cell = ("┊" if unicode else "|", "dim")
+            elif y in labels and x % 2 == 0:
                 cell = ("·" if unicode else " ", "edge")
             else:
                 cell = (" ", "")
@@ -113,7 +149,10 @@ def plot(points, current_temp, *, unicode: bool = True, chosen: int = -1) -> lis
             else:
                 spans.append(cell)
         rows.append(spans)
-    rows.append([("      ", ""), (("└" if unicode else "+") + ("─" if unicode else "-") * width, "edge")])
+    ruler = ["─" if unicode else "-"] * width
+    for x in every:
+        ruler[x] = "┴" if unicode else "+"
+    rows.append([("      ", ""), (("└" if unicode else "+") + "".join(ruler), "edge")])
     axis = [" "] * (width + 4)
     for x, temp in every.items():
         text = str(temp)
@@ -121,8 +160,11 @@ def plot(points, current_temp, *, unicode: bool = True, chosen: int = -1) -> lis
         axis[start:start + len(text)] = text
     rows.append([("      ", ""), ("".join(axis).rstrip() + " °C", "dim")])
     if now is not None:
-        rows.append([("       ", ""), (tr("Now") + " ", "dim"), (number(current_temp, "°C", 1), "ok"),
-                     (" → " if unicode else " > ", "dim"), (f"{round(engine.interpolate(points, current_temp))} %", "accent!")])
+        spans = [("       ", ""), (tr("Now") + " ", "dim"), (number(current_temp, "°C", 1), "!"),
+                 (" → " if unicode else " > ", "dim"), (f"{round(wanted)} %", "accent!")]
+        if duty_now is not None:
+            spans += [("    " + ("◆ " if unicode else "X "), "ok!"), (tr("Real output") + " ", "dim"), (f"{duty_now:.0f} %", "!")]
+        rows.append(spans)
     return rows
 
 
@@ -171,6 +213,9 @@ class FansPage(Page):
     title = "Fans"
     interval = 2.0
 
+    def __init__(self) -> None:
+        self._trend: dict[object, deque] = {}  # channel -> its last speeds
+
     def tabs(self, ctx):
         return [(key, tr(label)) for key, label in TABS]
 
@@ -185,7 +230,11 @@ class FansPage(Page):
             config = ctx.settings.read_local_config()
         except Exception:
             pass
-        return {"fans": service.estado_fans_bc250(), "system": system if isinstance(system, dict) else {},
+        fans = service.estado_fans_bc250()
+        for item in ((fans or {}).get("sensores") or {}).get("fans") or []:
+            if isinstance(item, dict) and isinstance(item.get("rpm"), (int, float)):
+                self._trend.setdefault(item.get("index"), deque(maxlen=TREND)).append(float(item["rpm"]))
+        return {"fans": fans, "system": system if isinstance(system, dict) else {},
                 "config": config}
 
     # ------------------------------------------------------------- changes
@@ -286,16 +335,17 @@ class FansPage(Page):
             mine["pwm"] = pwm
             mine.pop("draft", None)
 
-        out = [self._header(ctx, ui, mine, board, row, draft, dirty, actions, system, config)]
+        header = self._header(ctx, ui, mine, board, row, draft, dirty, actions, system, config)
         driver = ""
         if fans_state and not sensors.get("chip"):
             driver = "No NCT fan controller was found. Prepare the PWM driver to read and control the fans."
         elif fans_state and not view.control_available(fans_state):
             driver = "The fans are shown read-only. Prepare the nct6687 PWM driver to control them."
-        narrow = hasattr(ui, "size") and ui.size()[1] < 110
-        table = self._table(ctx, mine, rows, row, dirty, open_channel, sensors, driver, narrow)
+        columns = ui.size()[1] if hasattr(ui, "size") else 120
+        narrow, roomy = columns < 110, columns >= 140
+        table = self._table(ctx, mine, rows, row, dirty, open_channel, sensors, driver, narrow, roomy, getattr(ui, "unicode", True))
         editor = self._editor(ctx, ui, mine, row, draft, dirty, apply, actions, external, system)
-        return out + table + editor
+        return [header, *table, *editor]
 
     def _header(self, ctx, ui, mine, board, row, draft, dirty, actions, system, config):
         """Profile, control from boot and the service line: the desktop's top bar."""
@@ -398,10 +448,13 @@ class FansPage(Page):
             if task is not None:
                 tasks[task][1](ui_)
 
-        rows.append(Choice(tr("Profiles") + " ›", manage))
+        rows.append(Choice(tr("Profiles"), manage, (tr("Save, import or export") if "save" in offered else tr("Export to a file…")) + " ›"))
+        out_of_date = view.service_out_of_date(system, policy)
+        if enabled and not external and (out_of_date or str(system.get("state") or "") == "override"):
+            rows.append(Choice(tr("Sync now"), lambda ui_: self._sync(ctx, ui_, system, policy), tone="primary"))
         return Panel(tr("Fans"), [*rows, Note(say(template, values), TONES.get(tone, "dim"))], wide=True)
 
-    def _table(self, ctx, mine, rows, row, dirty, open_channel, sensors, driver, narrow=False):
+    def _table(self, ctx, mine, rows, row, dirty, open_channel, sensors, driver, narrow=False, roomy=True, unicode=True):
         """Every header as one row of a grid: arrows move, Enter opens it."""
         count = len(rows)
         cursor = tuple(mine.get("cursor") or (rows.index(row), 0))
@@ -423,38 +476,46 @@ class FansPage(Page):
             open_channel(ui_, rows[r]["pwm"])
 
         # A narrow terminal keeps what changes: the mode, the output and the speed.
-        shown = (1, 4, 5) if narrow else (0, 1, 2, 3, 4, 5)
-        heads = ["BIOS", tr("Mode"), tr("Follows"), "°C", tr("PWM %"), "RPM"]
+        shown = (0, 3, 4) if narrow else (0, 1, 2, 3, 4)
+        heads = [tr("Mode"), tr("Follows"), "°C", tr("PWM %"), "RPM"]
+        live = live_temperatures(ctx)
+        bar, rest = ("━", "─") if unicode else ("=", "-")
         pad_rows = []
         for item in rows:
-            mode = tr(item["mode_label"]) + (f" · {tr('Pump')}" if item["role"] == "pump" and item["mode"] != "firmware" else "")
-            temperature = f"{item['temperature']:.1f}" if item["temperature"] is not None else "—"
+            firmware = item["mode"] == "firmware"
+            idle = firmware and not (item["rpm"] or 0)  # nothing turns there and nothing drives it
+            mode = tr(item["mode_label"]) + (f" · {tr('Pump')}" if item["role"] == "pump" and not firmware else "")
+            heat = item["temperature"]
+            if heat is None and item["mode"] == "curve":
+                heat = live.get(item["entry"].get("source", "hottest"))
+            duty = item["duty"]
+            filled = round((duty or 0) / 10)
+            output = "—" if duty is None else f"{duty:>3} %" if not roomy else f"{bar * filled}{rest * (10 - filled)} {duty:>3} %"
+            tone = "dim" if idle else ""
             cells = [
-                PadCell(str(item["bios"] or "—")),
-                PadCell(mode, "accent" if item["mode"] != "firmware" else ""),
-                PadCell(say(item["follows"], item["follows_values"]) if item["mode"] != "firmware" else "—"),
-                PadCell(temperature),
-                PadCell(str(item["duty"]) if item["duty"] is not None else "—"),
-                PadCell(str(item["rpm"]) if item["rpm"] is not None else "—", "ok" if (item["rpm"] or 0) > 0 else "dim"),
+                PadCell(mode, tone),
+                PadCell(say(item["follows"], item["follows_values"]) if not firmware else "—", tone),
+                PadCell(f"{heat:.1f}" if heat is not None and not firmware else "—", tone),
+                PadCell(output, tone),
+                PadCell(str(item["rpm"]) if item["rpm"] is not None else "—", tone),
             ]
-            pad_rows.append(PadRow(item["label"] or item["short_header"], [cells[i] for i in shown],
-                                   say(item["state"]), TONES.get(item["tone"], "dim")))
+            name = item["label"] or item["short_header"]
+            if item["bios"] and roomy:
+                name += f" · {tr_format('BIOS Fan {number}', number=item['bios'])}"
+            pad_rows.append(PadRow(name, [cells[i] for i in shown], say(item["state"]),
+                                   "dim" if idle else TONES.get(item["tone"], "dim")))
         counts = [tr_format("{count} channels", count=count),
                   tr_format("{count} turning", count=sum(1 for r in rows if (r["rpm"] or 0) > 0)),
                   tr_format("{count} controlled", count=sum(1 for r in rows if r["mode"] != "firmware"))]
         if sensors.get("chip"):
             counts.append(str(sensors["chip"]))
-        metrics = ctx.metrics or {}
-        gpu, cpu, now = metrics.get("gpu") or {}, metrics.get("cpu") or {}, metrics.get("sensors") or {}
-        readings = " · ".join(f"{name} {number(value, '°C', 1)}" for name, value in (
-            ("GPU", gpu.get("temperature_c")), ("CPU", cpu.get("temperature_c")),
-            ("VRM", now.get("vrm_temperature_c")), (tr("Board"), now.get("board_temperature_c"))))
         blocks = [Pad([heads[i] for i in shown], pad_rows, cursor, move, toggle,
                       tr("State"), place=lambda r, c: mine.update(cursor=(r, 0)), whole=True, corner=tr("Fan"))]
         if driver:
             blocks.append(Note(tr(driver), "warn"))
-        blocks += [Note(" · ".join(counts), "dim"), Note(readings, "dim")]
-        return [Panel(tr("Channels"), blocks)]
+        blocks += [Gap(), Readings([(name, number(live[key], "°C", 1)) for key, name in (
+            ("gpu", "GPU"), ("cpu", "CPU"), ("vrm", "VRM"), ("board", tr("Board")))])]
+        return [Panel(tr("Channels"), blocks, badge="" if narrow else " · ".join(counts), wide=True)]
 
     def _editor(self, ctx, ui, mine, row, draft, dirty, apply, actions, external, system):
         pwm = row["pwm"]
@@ -525,11 +586,12 @@ class FansPage(Page):
             source = draft.get("source", "hottest")
             blocks.append(Choice(tr("Follows"), cycle(SOURCES, source, "source"),
                                  f"< {tr(dict(view.SOURCE_LABELS)[source])} >", adjust=cycle(SOURCES, source, "source")))
-            temperature = row["temperature"]
+            temperature = live_temperatures(ctx).get(source)
             if temperature is None:
-                temperature = view.finite_number(((ctx.metrics or {}).get("gpu") or {}).get("temperature_c"))
+                temperature = row["temperature"]
             curve = [Spans(plot(draft.get("points") or [], temperature, unicode=getattr(ui, "unicode", True),
-                                chosen=(mine.get("point_cursor") or (0, 0))[0])), *self._points(mine, draft, set_draft)]
+                                chosen=(mine.get("point_cursor") or (0, 0))[1], size=self._plot_size(ui),
+                                duty_now=row["duty"])), *self._points(mine, draft, set_draft)]
         elif mode == "mix":
             blocks.append(Note(tr("The fan takes the highest PWM of these curves, each on its own sensor."), "dim"))
             for index, member in enumerate(draft.get("mix") or []):
@@ -594,10 +656,21 @@ class FansPage(Page):
         actions_row = Buttons([Choice(tr("Revert"), lambda ui_: mine.pop("draft", None), enabled=dirty, id="revert"),
                                Choice(tr("Apply"), apply, enabled=dirty and not error, tone="primary")])
         badge = tr("Unapplied changes") if dirty else live
+        speeds = list(self._trend.get(pwm, ()))
+        if len(speeds) > 1:
+            blocks.append(Trend(tr("Speed") + " (RPM)", speeds, f"{number(min(speeds))}–{number(max(speeds))}", ""))
         # The form beside its curve (as the desktop's editor), stacked on a narrow terminal.
-        body = [Split(blocks, curve, ratio=0.44, minimum=96)] if curve else blocks
-        return [Panel(title, [*body, actions_row], subtitle=identity, badge=badge,
-                      badge_tone="warn" if dirty else "dim")]
+        body = [Split([*blocks, Gap(), actions_row], curve, ratio=FORM_RATIO, minimum=FORM_BESIDE)] if curve else [*blocks, actions_row]
+        return [Panel(title, body, subtitle=identity, badge=badge, badge_tone="warn" if dirty else "", wide=bool(curve))]
+
+    @staticmethod
+    def _plot_size(ui) -> tuple[int, int]:
+        """(columns, rows) of the curve: what its side of the editor can give."""
+        width = ui._content_box()[1] if hasattr(ui, "_content_box") else 100
+        rows = ui._view() if hasattr(ui, "_view") else 30
+        side = int((width - 2) * (1 - FORM_RATIO)) if width >= FORM_BESIDE else width
+        tall = next((size for size in (21, 17, 13, 11) if rows >= size + 29), PLOT_ROWS[0])
+        return max(24, min(PLOT_COLS[1], side - 12)), tall
 
     @staticmethod
     def _calibrate(ctx, ui, pwm: int):
@@ -627,43 +700,64 @@ class FansPage(Page):
 
     @staticmethod
     def _points(mine, draft, set_draft):
-        """The curve's points as a grid: arrows move, Enter types the value."""
+        """The curve's points in its own order, left to right: arrows choose one, + and - move it, Enter types it."""
         points = sorted([int(t), int(s)] for t, s in draft.get("points") or [])
         if not points:
             return []
         r, c = mine.get("point_cursor") or (0, 0)
-        r, c = min(r, len(points) - 1), min(c, 1)
+        r, c = min(r, 1), min(c, len(points) - 1)
 
         def move(dr, dc):
             nr, nc = r + dr, c + dc
-            if 0 <= nr < len(points) and 0 <= nc <= 1:
+            if 0 <= nr <= 1 and 0 <= nc < len(points):
                 mine["point_cursor"] = (nr, nc)
                 return True
             return False
 
+        def put(value: int) -> None:
+            changed = [list(p) for p in points]
+            changed[c][r] = value
+            set_draft(points=sorted(changed))
+
         def edit(ui_):
-            low, high = (20, 110) if c == 0 else (0, 100)
-            label = tr("Temperature") + " (°C)" if c == 0 else tr("PWM duty") + " (%)"
-            value = ui_.ask_int(f"#{r + 1} {label}", low, high, points[r][c])
+            low, high = (20, 110) if r == 0 else (0, 100)
+            label = tr("Temperature") + " (°C)" if r == 0 else tr("PWM duty") + " (%)"
+            value = ui_.ask_int(f"#{c + 1} {label}", low, high, points[c][r])
             if value is not None:
-                changed = [list(p) for p in points]
-                changed[r][c] = value
-                set_draft(points=sorted(changed))
+                put(value)
+
+        def nudge(direction: int) -> None:
+            """One step, never past its neighbours: a point keeps its place in the curve."""
+            if r == 0:
+                low = points[c - 1][0] + 1 if c else 20
+                high = points[c + 1][0] - 1 if c + 1 < len(points) else 110
+                put(max(low, min(high, points[c][0] + direction)))
+            else:
+                put(max(0, min(100, points[c][1] + direction)))
 
         def add(ui_):
             # After the chosen point: halfway to the next one, or a little past the last.
-            here = points[r]
-            after = points[r + 1] if r + 1 < len(points) else [min(110, here[0] + 10), min(100, here[1] + 10)]
+            here = points[c]
+            after = points[c + 1] if c + 1 < len(points) else [min(110, here[0] + 10), min(100, here[1] + 10)]
             new = [(here[0] + after[0]) // 2, (here[1] + after[1]) // 2]
             if new[0] not in [t for t, _s in points]:
                 set_draft(points=sorted(points + [new]))
 
-        rows = [PadRow(f"#{index + 1}", [PadCell(f"{t} °C"), PadCell(f"{s} %")]) for index, (t, s) in enumerate(points)]
-        return [Pad([tr("Temperature"), tr("PWM %")], rows, (r, c), move, edit,
-                    place=lambda rr, cc: mine.update(point_cursor=(rr, cc))),
+        rows = [PadRow(tr("Temperature"), [PadCell(f"{t} °C") for t, _s in points]),
+                PadRow(tr("PWM duty"), [PadCell(f"{s} %") for _t, s in points])]
+        return [Gap(), Pad([f"#{index + 1}" for index in range(len(points))], rows, (r, c), move, edit, nudge=nudge,
+                           place=lambda rr, cc: mine.update(point_cursor=(rr, cc))),
                 Buttons([Choice(tr("Add point"), add, enabled=len(points) < MAX_POINTS),
-                         Choice(tr("Remove point"), lambda ui_: set_draft(points=points[:r] + points[r + 1:]),
+                         Choice(tr("Remove point"), lambda ui_: set_draft(points=points[:c] + points[c + 1:]),
                                 enabled=len(points) > engine.CURVE_MIN_POINTS)])]
+
+    @staticmethod
+    def _sync(ctx, ui, system, policy) -> None:
+        """Hand the service what this page shows."""
+        if not view.policy_supported(system, policy):
+            ui.notify(f"{tr(view.NOT_READY_TITLE)}: {tr('Update fan helper')}", "warn")
+            return
+        guarded(ui, tr("Sync now"), lambda: ctx.service.sincronizar_control_fan_sistema(policy))
 
     # ----------------------------------------------------------------- boot
 
@@ -703,18 +797,12 @@ class FansPage(Page):
             value = f"{reading}{target} · {say(row['state'])}"
             out.append(Field(f"PWM {row['pwm']} {row['label']}".strip(), value, TONES.get(row["tone"], "dim")))
 
-        def sync(ui_):
-            if not view.policy_supported(system, policy):
-                ui_.notify(f"{tr(view.NOT_READY_TITLE)}: {tr('Update fan helper')}", "warn")
-                return
-            guarded(ui_, tr("Sync now"), lambda: service.sincronizar_control_fan_sistema(policy))
-
         def external(ui_):
             handing = not system.get("external")
             if ui_.confirm(tr("Hand off to another program") if handing else tr("Take control back")):
                 guarded(ui_, tr("Fan control"), lambda: service.ceder_fan_a_otro_programa(handing))
 
-        out += [Choice(tr("Sync now"), sync, enabled=enabled and (out_of_date or state == "override")),
+        out += [Choice(tr("Sync now"), lambda ui_: self._sync(ctx, ui_, system, policy), enabled=enabled and (out_of_date or state == "override")),
                 Choice(tr("Take control back") if system.get("external") else tr("Hand off to another program"),
                        external)]
         return out
@@ -723,7 +811,7 @@ class FansPage(Page):
 
     def _driver(self, ctx, ui, fans_state, sensors):
         service = ctx.service
-        out = [Heading(tr("PWM driver preparation")),
+        out = [Heading(tr("BC250 fan PWM driver")),
                Field(tr("NCT chip"), str(sensors.get("chip") or tr("NCT not detected"))),
                Field("hwmon", str(sensors.get("path") or "--"))]
 

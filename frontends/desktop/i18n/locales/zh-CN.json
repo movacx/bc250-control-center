@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "请管理员停用 bc250-recovery-revert.service,移除其单元和 /etc/grub.d/42_bc250-recovery,然后重新生成 GRUB。",
   "Unsafe recovery entry": "不安全的恢复条目",
   "Prepare the Compute Units tools to install UMR.": "请准备计算单元工具以安装 UMR。",
-  "Restart to use the staged Compute Units tools.": "请重新启动以使用已准备的计算单元工具。"
+  "Restart to use the staged Compute Units tools.": "请重新启动以使用已准备的计算单元工具。",
+  "Input voltage": "输入电压",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "没有传感器读取此主板的供电。可在附加设置中添加。",
+  "Press U to read what is new and install it.": "按 U 查看新内容并安装。",
+  "Real output": "实际输出",
+  "Save, import or export": "保存、导入或导出",
+  "Tick a sensor in the list to draw it here.": "在列表中勾选传感器即可在此绘制。",
+  "{count} samples in {time}": "{time} 内 {count} 个样本",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "传感器已 {seconds} 秒未响应：屏幕上的读数是旧的。"
 }

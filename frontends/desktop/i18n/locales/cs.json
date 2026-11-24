@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "Požádejte správce, aby vypnul bc250-recovery-revert.service, odebral její jednotku a /etc/grub.d/42_bc250-recovery a znovu vygeneroval GRUB.",
   "Unsafe recovery entry": "Nebezpečná položka obnovy",
   "Prepare the Compute Units tools to install UMR.": "Připravte nástroje výpočetních jednotek a nainstalujte UMR.",
-  "Restart to use the staged Compute Units tools.": "Restartujte a použijte připravené nástroje výpočetních jednotek."
+  "Restart to use the staged Compute Units tools.": "Restartujte a použijte připravené nástroje výpočetních jednotek.",
+  "Input voltage": "Vstupní napětí",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "Žádný snímač nečte napájení této desky. V dalších nastaveních lze nějaký přidat.",
+  "Press U to read what is new and install it.": "Stisknutím U si přečtete novinky a nainstalujete ji.",
+  "Real output": "Skutečný výstup",
+  "Save, import or export": "Uložit, importovat nebo exportovat",
+  "Tick a sensor in the list to draw it here.": "Zaškrtněte snímač v seznamu, aby se zde vykreslil.",
+  "{count} samples in {time}": "{count} vzorků za {time}",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Snímače neodpovídají {seconds} s: hodnoty na obrazovce jsou staré."
 }

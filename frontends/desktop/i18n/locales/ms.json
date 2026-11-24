@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "Minta pentadbir melumpuhkan bc250-recovery-revert.service, membuang unitnya dan /etc/grub.d/42_bc250-recovery, kemudian menjana semula GRUB.",
   "Unsafe recovery entry": "Entri pemulihan tidak selamat",
   "Prepare the Compute Units tools to install UMR.": "Sediakan alat unit pengiraan untuk memasang UMR.",
-  "Restart to use the staged Compute Units tools.": "Mulakan semula untuk menggunakan alat unit pengiraan yang telah disediakan."
+  "Restart to use the staged Compute Units tools.": "Mulakan semula untuk menggunakan alat unit pengiraan yang telah disediakan.",
+  "Input voltage": "Voltan masukan",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "Tiada penderia membaca bekalan kuasa papan ini. Tetapan tambahan boleh menambahnya.",
+  "Press U to read what is new and install it.": "Tekan U untuk membaca perkara baharu dan memasangnya.",
+  "Real output": "Output sebenar",
+  "Save, import or export": "Simpan, import atau eksport",
+  "Tick a sensor in the list to draw it here.": "Tandakan penderia dalam senarai untuk melukisnya di sini.",
+  "{count} samples in {time}": "{count} sampel dalam {time}",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Penderia tidak menjawab selama {seconds} s: bacaan pada skrin sudah lama."
 }

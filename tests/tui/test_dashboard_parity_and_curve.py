@@ -24,7 +24,7 @@ def test_dashboard_shows_voltage_registered_oc_vrm_and_storage_without_hiding_mi
                                   vrm_gpu_temperature_c=61 if present else None)
     shown = text_of(render(build_pages()['dashboard'], ctx, ui))
     assert 'Core voltage' in shown and 'Registered OC' in shown
-    assert 'VRM CPU' in shown and 'VRM GPU' in shown
+    assert ('VRM CPU' in shown and 'VRM GPU' in shown) if present else 'No sensor reads the power rails' in shown
     assert '10.0/100.0 GiB' in shown and 'System service' in shown
     assert 'N8' in shown and 'Hidden' in shown
     if present:

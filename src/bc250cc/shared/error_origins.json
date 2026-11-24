@@ -5146,6 +5146,7 @@
    "view_definition": "TEL-0376",
    "MetricHistory.__init__": "TEL-0377",
    "MetricHistory.append": "TEL-0378",
+   "MetricHistory.recent": "TEL-0438",
    "MetricHistory.peak": "TEL-0379",
    "MetricHistory.average": "TEL-0380",
    "MetricHistory.low": "TEL-0381",

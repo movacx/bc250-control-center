@@ -8,6 +8,7 @@ the same way.
 from __future__ import annotations
 
 import time
+from bisect import bisect_left
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -189,10 +190,10 @@ class MetricHistory:
 
     WINDOW_SECONDS = 120
 
-    def __init__(self, definition: ResourceDefinition):
+    def __init__(self, definition: ResourceDefinition, depth: int = 120):
         self.definition = definition
-        self.values = {name: deque(maxlen=120) for name, _color in definition.series}
-        self.times: deque[float] = deque(maxlen=120)
+        self.values = {name: deque(maxlen=depth) for name, _color in definition.series}
+        self.times: deque[float] = deque(maxlen=depth)
         #: Bumped by every sample, so a chart knows its cached drawing is stale.
         self.revision = 0
 
@@ -201,6 +202,18 @@ class MetricHistory:
         for name, _color in self.definition.series:
             self.values[name].append(max(0.0, _number(values.get(name))))
         self.revision += 1
+
+    def recent(self, seconds: float) -> "MetricHistory":
+        """The samples of the last ``seconds``, as a history of their own."""
+        if not self.times or self.times[0] >= self.times[-1] - seconds:
+            return self
+        times = list(self.times)
+        kept = len(times) - bisect_left(times, times[-1] - seconds)
+        part = MetricHistory(self.definition, max(1, kept))
+        part.times.extend(times[-kept:])
+        for name, values in self.values.items():
+            part.values[name].extend(values)  # a deque of that length keeps its newest
+        return part
 
     def peak(self, name: str | None = None) -> float:
         if name is not None:
@@ -321,28 +334,31 @@ def group_title(group: str, reading: SensorReading) -> str:
 
 
 class PerformanceRecorder:
-    """Two minutes of every resource and every view, plus the sensor list, fed one sample a second.
+    """The history of every resource and every view, plus the sensor list, fed one sample a second.
+
+    It keeps ``depth`` samples and shows the last ``window`` seconds of them.
 
     What the desktop page does on each sample, without its widgets: the
     resource plans and their histories, the sensor log, and one history per
     view that the sample has something to draw for.
     """
 
-    def __init__(self, inventory=None, translate=tr) -> None:
+    def __init__(self, inventory=None, translate=tr, depth: int = 120) -> None:
         from bc250cc.application.system.sensors import SensorInventory
 
         from .performance_sample_presenter import present_performance_sample
         from .performance_views import VIEW_BY_KEY
 
         self._present, self._views, self._translate = present_performance_sample, VIEW_BY_KEY, translate
+        self.depth, self.window = depth, float(MetricHistory.WINDOW_SECONDS)
         self.inventory = inventory if inventory is not None else SensorInventory()
-        self.histories = {definition.key: MetricHistory(definition) for definition in RESOURCE_DEFINITIONS}
+        self.histories = {definition.key: MetricHistory(definition, depth) for definition in RESOURCE_DEFINITIONS}
         #: Every disk after the system one, keyed ``disk:<mount point>``:
         #: drawn like the Disk tab itself, gone once the drive is unplugged.
         self.volume_histories: dict[str, MetricHistory] = {}
         self.views: dict[str, MetricHistory] = {}
         self.plans: dict = {}
-        self.log = SensorLog()
+        self.log = SensorLog(trace_points=depth)
         self.available = {key for key, view in VIEW_BY_KEY.items() if view.is_summary}
         self.sampled_at = ""
 
@@ -359,7 +375,7 @@ class PerformanceRecorder:
         from .performance_views import available_views, series_label
 
         moment = time.monotonic()
-        peaks = {key: history.peak() for key, history in self.histories.items()}
+        peaks = {key: history.recent(self.window).peak() for key, history in self.histories.items()}
         for plan in self._present(sample, previous_peaks=peaks, translate=self._translate):
             self.plans[plan.key] = plan
             self.histories[plan.key].append(dict(plan.graph_values), moment=moment)
@@ -375,7 +391,7 @@ class PerformanceRecorder:
                 names = tuple(series_label(item, self._translate) for item in series)
                 history = self.views.get(key)
                 if history is None or tuple(name for name, _tone in history.definition.series) != names:
-                    history = self.views[key] = MetricHistory(view_definition(view, names))
+                    history = self.views[key] = MetricHistory(view_definition(view, names), self.depth)
                 history.append({name: item.value or 0.0 for name, item in zip(names, series)}, moment=moment)
         self.sampled_at = datetime.now().strftime("%H:%M:%S")
 
@@ -387,7 +403,7 @@ class PerformanceRecorder:
         if "disk" not in sample:
             return
         sync_disk_views(disk_volumes(sample))
-        peaks = {key: history.peak() for key, history in self.volume_histories.items()}
+        peaks = {key: history.recent(self.window).peak() for key, history in self.volume_histories.items()}
         plans = present_disk_volumes(sample, previous_peaks=peaks, translate=self._translate)
         wanted = {plan.key for plan in plans}
         for key in [key for key in self.volume_histories if key not in wanted]:
@@ -397,7 +413,7 @@ class PerformanceRecorder:
             self.plans[plan.key] = plan
             history = self.volume_histories.get(plan.key)
             if history is None:
-                history = self.volume_histories[plan.key] = MetricHistory(RESOURCE_BY_KEY["disk"])
+                history = self.volume_histories[plan.key] = MetricHistory(RESOURCE_BY_KEY["disk"], self.depth)
             history.append(dict(plan.graph_values), moment=moment)
 
     def history(self, view_key: str) -> MetricHistory | None:
@@ -421,8 +437,9 @@ class PerformanceRecorder:
             plan = self.plans.get(key)
             values = (plan.primary, plan.context, plan.stats) if plan else \
                 ("--", self._translate("Waiting for first sample"), ("--",) * 4)
-            return history, definition, values, True
+            return history.recent(self.window) if history else history, definition, values, True
         history = self.history(view.key)
+        history = history.recent(self.window) if history else history
         chart = history.definition if history else definition
         values = view_summary(view, history, self.available) if history else \
             ("--", self._translate(view.unavailable_hint or "Waiting for sample"), ("--",) * 4)

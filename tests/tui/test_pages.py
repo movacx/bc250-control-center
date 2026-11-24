@@ -195,7 +195,7 @@ def test_fans_board_lists_every_header_in_bios_order_with_its_state():
 
 
 def channel_table(layout):
-    return next(c.pad for c in layout.choices if c.pad is not None and "BIOS" in c.pad.headers)
+    return next(c.pad for c in layout.choices if c.pad is not None and c.pad.whole)
 
 
 def test_fans_table_moves_with_the_arrows_and_the_editor_follows():
@@ -277,10 +277,18 @@ def test_fans_curve_points_are_a_grid_edited_with_enter():
     ui = FakeUI(ints=[55])
     page = build_pages()["fans"]
     grid = next(c.pad for c in render(page, ctx, ui, "channels").choices if c.pad is not None and "°C" not in c.pad.headers)
-    assert grid.move(0, 1)  # to the PWM % column of point #1
+    assert grid.move(1, 0)  # to the PWM row of point #1
     grid = next(c.pad for c in render(page, ctx, ui, "channels").choices if c.pad is not None and "°C" not in c.pad.headers)
     grid.toggle(ui)  # Enter: type 55 %
     assert ctx.state("fans")["draft"]["points"][0] == [40, 55]
+    grid = next(c.pad for c in render(page, ctx, ui, "channels").choices if c.pad is not None and "°C" not in c.pad.headers)
+    grid.nudge(1)  # + and - step it
+    assert ctx.state("fans")["draft"]["points"][0] == [40, 56]
+    ctx.state("fans")["point_cursor"] = (0, 1)
+    ctx.state("fans")["draft"]["points"] = [[40, 30], [41, 50], [80, 100]]
+    grid = next(c.pad for c in render(page, ctx, ui, "channels").choices if c.pad is not None and "°C" not in c.pad.headers)
+    grid.nudge(-1)  # a point never jumps over its neighbour
+    assert ctx.state("fans")["draft"]["points"][1] == [41, 50]
 
 
 def test_the_dashboard_cooling_card_shows_the_followed_fan():

@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "Poproś administratora o wyłączenie bc250-recovery-revert.service, usunięcie jej jednostki i /etc/grub.d/42_bc250-recovery oraz ponowne wygenerowanie GRUB.",
   "Unsafe recovery entry": "Niebezpieczny wpis odzyskiwania",
   "Prepare the Compute Units tools to install UMR.": "Przygotuj narzędzia jednostek obliczeniowych, aby zainstalować UMR.",
-  "Restart to use the staged Compute Units tools.": "Uruchom ponownie, aby użyć przygotowanych narzędzi jednostek obliczeniowych."
+  "Restart to use the staged Compute Units tools.": "Uruchom ponownie, aby użyć przygotowanych narzędzi jednostek obliczeniowych.",
+  "Input voltage": "Napięcie wejściowe",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "Żaden czujnik nie odczytuje zasilania tej płyty. W ustawieniach dodatkowych można go dodać.",
+  "Press U to read what is new and install it.": "Naciśnij U, aby przeczytać nowości i zainstalować.",
+  "Real output": "Rzeczywiste wyjście",
+  "Save, import or export": "Zapisz, importuj lub eksportuj",
+  "Tick a sensor in the list to draw it here.": "Zaznacz czujnik na liście, aby narysować go tutaj.",
+  "{count} samples in {time}": "{count} próbek w {time}",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Czujniki nie odpowiadają od {seconds} s: odczyty na ekranie są nieaktualne."
 }

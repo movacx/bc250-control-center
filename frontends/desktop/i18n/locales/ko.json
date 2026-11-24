@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "관리자에게 bc250-recovery-revert.service 비활성화, 해당 유닛과 /etc/grub.d/42_bc250-recovery 제거, GRUB 재생성을 요청하세요.",
   "Unsafe recovery entry": "안전하지 않은 복구 항목",
   "Prepare the Compute Units tools to install UMR.": "UMR을 설치하려면 연산 장치 도구를 준비하세요.",
-  "Restart to use the staged Compute Units tools.": "준비된 연산 장치 도구를 사용하려면 다시 시작하세요."
+  "Restart to use the staged Compute Units tools.": "준비된 연산 장치 도구를 사용하려면 다시 시작하세요.",
+  "Input voltage": "입력 전압",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "이 보드의 전원 레일을 읽는 센서가 없습니다. 추가 설정에서 설치할 수 있습니다.",
+  "Press U to read what is new and install it.": "U 키를 눌러 새로운 기능을 읽고 설치하세요.",
+  "Real output": "실제 출력",
+  "Save, import or export": "저장, 가져오기 또는 내보내기",
+  "Tick a sensor in the list to draw it here.": "목록에서 센서를 선택하면 여기에 그려집니다.",
+  "{count} samples in {time}": "{time} 동안 샘플 {count}개",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "센서가 {seconds}초 동안 응답하지 않습니다. 화면의 값은 이전 값입니다."
 }

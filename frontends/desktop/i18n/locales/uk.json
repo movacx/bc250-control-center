@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "Попросіть адміністратора вимкнути bc250-recovery-revert.service, видалити її юніт і /etc/grub.d/42_bc250-recovery, а потім заново створити GRUB.",
   "Unsafe recovery entry": "Небезпечний запис відновлення",
   "Prepare the Compute Units tools to install UMR.": "Підготуйте інструменти обчислювальних блоків, щоб установити UMR.",
-  "Restart to use the staged Compute Units tools.": "Перезавантажтеся, щоб використати підготовлені інструменти обчислювальних блоків."
+  "Restart to use the staged Compute Units tools.": "Перезавантажтеся, щоб використати підготовлені інструменти обчислювальних блоків.",
+  "Input voltage": "Вхідна напруга",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "Жоден датчик не зчитує живлення цієї плати. Його можна додати в додаткових налаштуваннях.",
+  "Press U to read what is new and install it.": "Натисніть U, щоб прочитати новини та встановити.",
+  "Real output": "Фактичний вихід",
+  "Save, import or export": "Зберегти, імпортувати або експортувати",
+  "Tick a sensor in the list to draw it here.": "Позначте датчик у списку, щоб побудувати його тут.",
+  "{count} samples in {time}": "{count} замірів за {time}",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Датчики не відповідають уже {seconds} с: значення на екрані застарілі."
 }

@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "Egy rendszergazda tiltsa le a(z) bc250-recovery-revert.service szolgáltatást, távolítsa el az egységét és ezt: /etc/grub.d/42_bc250-recovery, majd generálja újra a GRUB-ot.",
   "Unsafe recovery entry": "Nem biztonságos helyreállítási bejegyzés",
   "Prepare the Compute Units tools to install UMR.": "Készítse elő a számítási egységek eszközeit az UMR telepítéséhez.",
-  "Restart to use the staged Compute Units tools.": "Indítsa újra a gépet az előkészített eszközök használatához."
+  "Restart to use the staged Compute Units tools.": "Indítsa újra a gépet az előkészített eszközök használatához.",
+  "Input voltage": "Bemeneti feszültség",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "Egyetlen érzékelő sem olvassa ennek a lapnak a tápellátását. A további beállításokban hozzáadható egy.",
+  "Press U to read what is new and install it.": "Nyomja meg az U billentyűt az újdonságokhoz és a telepítéshez.",
+  "Real output": "Tényleges kimenet",
+  "Save, import or export": "Mentés, importálás vagy exportálás",
+  "Tick a sensor in the list to draw it here.": "Jelöljön ki egy érzékelőt a listában a megjelenítéséhez.",
+  "{count} samples in {time}": "{count} minta {time} alatt",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Az érzékelők {seconds} másodperce nem válaszolnak: a képernyőn lévő értékek régiek."
 }

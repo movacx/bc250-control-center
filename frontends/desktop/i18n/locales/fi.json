@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "Pyydä ylläpitäjää poistamaan bc250-recovery-revert.service käytöstä, poistamaan sen yksikkö ja /etc/grub.d/42_bc250-recovery sekä luomaan GRUB uudelleen.",
   "Unsafe recovery entry": "Vaarallinen palautusmerkintä",
   "Prepare the Compute Units tools to install UMR.": "Valmistele laskentayksiköiden työkalut asentaaksesi UMR:n.",
-  "Restart to use the staged Compute Units tools.": "Käynnistä uudelleen, jotta valmistellut laskentayksiköiden työkalut tulevat käyttöön."
+  "Restart to use the staged Compute Units tools.": "Käynnistä uudelleen, jotta valmistellut laskentayksiköiden työkalut tulevat käyttöön.",
+  "Input voltage": "Tulojännite",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "Mikään anturi ei lue tämän kortin virransyöttöä. Lisäasetuksissa voi lisätä sellaisen.",
+  "Press U to read what is new and install it.": "Lue uutuudet ja asenna painamalla U.",
+  "Real output": "Todellinen lähtö",
+  "Save, import or export": "Tallenna, tuo tai vie",
+  "Tick a sensor in the list to draw it here.": "Valitse anturi luettelosta, niin se piirretään tähän.",
+  "{count} samples in {time}": "{count} näytettä ajassa {time}",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Anturit eivät ole vastanneet {seconds} sekuntiin: näytön lukemat ovat vanhoja."
 }

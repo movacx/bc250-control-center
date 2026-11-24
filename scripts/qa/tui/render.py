@@ -91,7 +91,13 @@ def png(window: Window, path: str, dark: bool) -> None:
     for (y, x), (char, attr) in window.cells.items():
         fg, bg, bold, under = style(attr, dark)
         draw.rectangle((x * cw, y * ch, (x + 1) * cw - 1, (y + 1) * ch - 1), fill=bg)
-        draw.text((x * cw, y * ch), char, font=fonts[bold], fill=fg)
+        if 0x2800 <= ord(char) <= 0x28FF:  # the font has no braille: its dots, as a terminal draws them
+            for bit, (dx, dy) in enumerate(((0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (0, 3), (1, 3))):
+                if (ord(char) - 0x2800) >> bit & 1:
+                    px, py = x * cw + 1 + dx * 4, y * ch + 2 + dy * 4
+                    draw.rectangle((px, py, px + 1, py + 1), fill=fg)
+        else:
+            draw.text((x * cw, y * ch), char, font=fonts[bold], fill=fg)
         if under:
             draw.line((x * cw, (y + 1) * ch - 2, (x + 1) * cw, (y + 1) * ch - 2), fill=fg)
     image.save(path)

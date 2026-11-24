@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "Nhờ quản trị viên tắt bc250-recovery-revert.service, xóa unit của nó và /etc/grub.d/42_bc250-recovery, rồi tạo lại GRUB.",
   "Unsafe recovery entry": "Mục khôi phục không an toàn",
   "Prepare the Compute Units tools to install UMR.": "Chuẩn bị công cụ đơn vị tính toán để cài UMR.",
-  "Restart to use the staged Compute Units tools.": "Khởi động lại để dùng công cụ đơn vị tính toán đã chuẩn bị."
+  "Restart to use the staged Compute Units tools.": "Khởi động lại để dùng công cụ đơn vị tính toán đã chuẩn bị.",
+  "Input voltage": "Điện áp đầu vào",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "Không có cảm biến nào đọc nguồn của bo mạch này. Có thể thêm trong phần cài đặt bổ sung.",
+  "Press U to read what is new and install it.": "Nhấn U để xem điểm mới và cài đặt.",
+  "Real output": "Đầu ra thực tế",
+  "Save, import or export": "Lưu, nhập hoặc xuất",
+  "Tick a sensor in the list to draw it here.": "Đánh dấu một cảm biến trong danh sách để vẽ tại đây.",
+  "{count} samples in {time}": "{count} mẫu trong {time}",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Cảm biến không phản hồi trong {seconds} giây: số liệu trên màn hình đã cũ."
 }

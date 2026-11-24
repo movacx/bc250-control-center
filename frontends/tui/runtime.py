@@ -23,7 +23,7 @@ from .i18n import tr, tr_format
 
 logger = logging.getLogger(__name__)
 
-HISTORY_SAMPLES = 120
+HISTORY_SAMPLES = 300
 
 
 def operation_tone(error: BaseException) -> str:
@@ -67,6 +67,7 @@ class Context:
     platform: Any = None
     metrics: dict[str, Any] = field(default_factory=dict)
     metrics_error: str = ""
+    metrics_at: float = 0.0  # when the last sample arrived (monotonic)
     history: dict[str, deque] = field(default_factory=dict)
     page_data: dict[str, Any] = field(default_factory=dict)
     page_error: dict[str, str] = field(default_factory=dict)
@@ -94,6 +95,7 @@ def record_metrics(ctx: Context, metrics: dict[str, Any]) -> None:
     gpu, cpu = _section(metrics, "gpu"), _section(metrics, "cpu")
     power, memory = _section(metrics, "power"), _section(metrics, "memory")
     sensors = _section(metrics, "sensors")
+    ctx.record("moment", time.monotonic())
     ctx.record("gpu_clock", gpu.get("frequency_mhz"))
     ctx.record("gpu_temp", gpu.get("temperature_c"))
     ctx.record("gpu_power", power.get("value_w") if power.get("value_w") is not None else gpu.get("power_w"))
@@ -160,6 +162,7 @@ class Poller:
                 with self.ctx.lock:
                     self.ctx.metrics = metrics
                     self.ctx.metrics_error = ""
+                    self.ctx.metrics_at = time.monotonic()
                     record_metrics(self.ctx, self.ctx.metrics)
                     if recorder is not None:
                         recorder.record(metrics, readings)

@@ -122,6 +122,7 @@ def main(argv: list[str] | None = None) -> int:
         if first in screen.order:
             screen.focus = "content" if args.page or screen.collapsed else "sidebar"
             screen._go(screen.order.index(first))
+        pages["performance"].recorder(ctx)  # its charts have a past from the first visit
         poller.start()
         try:
             screen.loop()

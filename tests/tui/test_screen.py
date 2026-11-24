@@ -280,17 +280,19 @@ def test_without_unicode_everything_drawn_is_plain_ascii_for_the_english_interfa
 
 
 def test_a_long_page_scrolls_and_never_acts_on_an_item_off_screen():
-    window, screen = make_screen(height=24, width=80)
+    window, screen = make_screen(height=18, width=80)
     screen.ctx.page_data["dashboard"] = screen.pages["dashboard"].load(screen.ctx)
     press(screen, 9)  # into the dashboard: its first item sits below the cards
     screen.draw()
     assert screen.scroll[screen._slot()] == 0  # the cards stay on screen
-    assert screen.current_choice() is None or screen._shown(screen.build(), screen._slot(), screen.cursor[screen._slot()])
+    assert screen.current_choice() is None or screen._shown(screen.build(), screen._slot(), screen.cursor.get(screen._slot(), 0))
     before = list(screen.ctx.service.calls)
     press(screen, 10)
     assert screen.ctx.service.calls == before
     press(screen, *[curses.KEY_DOWN] * 60)
-    assert screen.scroll[screen._slot()] > 0 and screen.current_choice() is not None
+    assert screen.scroll[screen._slot()] > 0  # past the last item: the readings below it are still reached
+    press(screen, 10)
+    assert screen.ctx.service.calls == before
 
 
 def test_the_readings_are_always_in_view_along_the_bottom_or_in_the_title():
@@ -300,3 +302,30 @@ def test_the_readings_are_always_in_view_along_the_bottom_or_in_the_title():
     screen.prefs["tui_live_bar"] = False
     screen.draw()
     assert "GPU 1500 MHz" in window.line(0) and "CPU" in window.line(0)
+
+
+def test_readings_that_stopped_arriving_are_not_shown_as_live():
+    import time
+
+    window, screen = make_screen()
+    screen.ctx.metrics_at = time.monotonic() - 60  # the read itself is blocked: no error ever comes
+    screen.draw()
+    line = window.line(window.height - 2)
+    assert "have not answered" in line and "1500 MHz" not in line
+
+
+def test_a_new_version_is_announced_once_and_stays_in_view():
+    from types import SimpleNamespace
+
+    window, screen = make_screen()
+    screen.ctx.state("ui")["update"] = SimpleNamespace(update_available=True, published="9.9.9")
+    screen._announce_update()
+    assert "9.9.9" in screen.toast[0] and " U " in screen.toast[0]
+    screen.toast = None
+    screen._announce_update()
+    assert screen.toast is None  # once for each version
+    screen.draw()
+    assert "9.9.9" in window.line(0) and "Dashboard" in window.line(0)
+    press(screen, ord("U"))
+    assert screen.page_key == "about"
+    assert any(choice.label == "Update now" for choice in screen.build().choices)

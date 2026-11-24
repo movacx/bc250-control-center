@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "Minta administrator menonaktifkan bc250-recovery-revert.service, menghapus unitnya dan /etc/grub.d/42_bc250-recovery, lalu membuat ulang GRUB.",
   "Unsafe recovery entry": "Entri pemulihan tidak aman",
   "Prepare the Compute Units tools to install UMR.": "Siapkan alat unit komputasi untuk memasang UMR.",
-  "Restart to use the staged Compute Units tools.": "Mulai ulang untuk memakai alat unit komputasi yang sudah disiapkan."
+  "Restart to use the staged Compute Units tools.": "Mulai ulang untuk memakai alat unit komputasi yang sudah disiapkan.",
+  "Input voltage": "Tegangan masukan",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "Tidak ada sensor yang membaca catu daya papan ini. Pengaturan tambahan dapat menambahkannya.",
+  "Press U to read what is new and install it.": "Tekan U untuk membaca yang baru dan memasangnya.",
+  "Real output": "Keluaran sebenarnya",
+  "Save, import or export": "Simpan, impor, atau ekspor",
+  "Tick a sensor in the list to draw it here.": "Centang sensor dalam daftar untuk menggambarnya di sini.",
+  "{count} samples in {time}": "{count} sampel dalam {time}",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Sensor tidak merespons selama {seconds} dtk: bacaan di layar sudah lama."
 }

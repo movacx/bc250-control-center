@@ -6583,5 +6583,13 @@
   "Have an administrator disable bc250-recovery-revert.service, remove its unit and /etc/grub.d/42_bc250-recovery, then regenerate GRUB.": "Låt en administratör inaktivera bc250-recovery-revert.service, ta bort dess enhet och /etc/grub.d/42_bc250-recovery och generera om GRUB.",
   "Unsafe recovery entry": "Osäker återställningspost",
   "Prepare the Compute Units tools to install UMR.": "Förbered verktygen för beräkningsenheter för att installera UMR.",
-  "Restart to use the staged Compute Units tools.": "Starta om för att använda de förberedda verktygen för beräkningsenheter."
+  "Restart to use the staged Compute Units tools.": "Starta om för att använda de förberedda verktygen för beräkningsenheter.",
+  "Input voltage": "Inspänning",
+  "No sensor reads the power rails of this board. Additional settings can add one.": "Ingen sensor läser kortets strömförsörjning. Under ytterligare inställningar kan en läggas till.",
+  "Press U to read what is new and install it.": "Tryck U för att läsa nyheterna och installera.",
+  "Real output": "Verklig utgång",
+  "Save, import or export": "Spara, importera eller exportera",
+  "Tick a sensor in the list to draw it here.": "Markera en sensor i listan för att rita den här.",
+  "{count} samples in {time}": "{count} mätningar på {time}",
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Sensorerna har inte svarat på {seconds} s: värdena på skärmen är gamla."
 }

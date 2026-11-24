@@ -52,8 +52,9 @@ class AboutPage(Page):
         return [
             Panel("BC250 Control Center", [
                 Field(tr("Version"), f"{__version__}  ·  {state}" if state else __version__, tone),
-                Choice(tr("Check for updates"), lambda ui_: self._check(ctx, ui_)),
-                *([Choice(tr("Update now"), lambda ui_: self._update(ctx, ui_), badge=newer, badge_tone="warn")] if newer else [])]),
+                *([Choice(tr("Update now"), lambda ui_: self._update(ctx, ui_), tone="primary"),
+                   Choice(tr("What's new"), lambda ui_: ui_.show_tab("updates"))] if newer else []),
+                Choice(tr("Check for updates"), lambda ui_: self._check(ctx, ui_))]),
             Panel(tr("Application"), [
                 Field(tr("Configuration folder"), str(config)), Field(tr("Data folder"), str(data)),
                 Field(tr("State and logs"), str(logs)), Field(tr("System data"), "/var/lib/bc250-control-center")]),

@@ -12,6 +12,7 @@ import configparser
 import json
 import os
 import threading
+import time
 from pathlib import Path
 
 from .content import size
@@ -29,6 +30,9 @@ def desktop_setting(key: str, default: str) -> str:
     return parser.get("settings", key, fallback=default).strip()
 
 
+CHECK_EVERY = 30 * 60.0
+
+
 def update_checks_enabled() -> bool:
     """The desktop's own switch (Settings › Updates)."""
     return desktop_setting("update_check", "true").lower() in {"1", "true", "yes", "on"}
@@ -39,11 +43,10 @@ def desktop_temperature_unit() -> str:
 
 
 def check_in_background(ctx, *, force: bool = False) -> None:
-    """Ask once, off the drawing thread; a status lands in ``ctx.state("ui")["update"]``.
+    """Ask off the drawing thread, and again every half hour: the interface can stay open for days.
 
-    The published version is cached for hours below, so this reaches the
-    network at most once per window. No network means no status, and nothing
-    is said.
+    A status lands in ``ctx.state("ui")["update"]``. No network means no
+    status, and nothing is said. ``force`` asks once more, now.
     """
     if not force and not update_checks_enabled():
         return
@@ -53,9 +56,17 @@ def check_in_background(ctx, *, force: bool = False) -> None:
 
         status = check_for_update(force=force)
         with ctx.lock:
-            ctx.state("ui")["update"] = status if status.reachable else None
+            if status.reachable or force:  # a lost connection does not take back what was already known
+                ctx.state("ui")["update"] = status if status.reachable else None
 
-    threading.Thread(target=check, name="bc250-tui-update-check", daemon=True).start()
+    def keep_checking() -> None:
+        while True:
+            check()
+            if force:
+                return
+            time.sleep(CHECK_EVERY)
+
+    threading.Thread(target=keep_checking, name="bc250-tui-update-check", daemon=True).start()
 
 
 def available_version(ctx) -> str:
