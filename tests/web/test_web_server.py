@@ -367,7 +367,7 @@ def test_failed_inherited_workflow_never_falls_back_to_another_terminal(monkeypa
     request = SimpleNamespace(argv=("bash", "workflow.sh"), title="test", status_file="status", log_file="log")
     assert terminal(request).terminal == "bc250-web"
     assert calls == [["bash", "workflow.sh"]]
-    assert terminal.failed
+    assert terminal.status == 1
 
 
 def test_http_errors_do_not_log_the_client_address(client, caplog):

@@ -127,6 +127,8 @@ OFFICIAL_REPOSITORIES = (
     ("GFX1013 fix (official upstream workflow)", "DryhoppedIPA/bc250-gfx1013-fix", "https://github.com/DryhoppedIPA/bc250-gfx1013-fix"),
     ("GFX1013 async compute for Bazzite", "tri3gubki-ops/bc250-async-compute-bazzite", "https://github.com/tri3gubki-ops/bc250-async-compute-bazzite"),
     ("SteamOS real toolkit reference", "rpf16rj/bc250-steamos-real-toolkit", "https://github.com/rpf16rj/bc250-steamos-real-toolkit"),
+    ("Sleep · bc250-sleep", "superkeka/bc250-sleep", "https://github.com/superkeka/bc250-sleep"),
+    ("BC250 Native firmware", "onlinermm/bc250-efi-cu-and-memory-temperature", "https://github.com/onlinermm/bc250-efi-cu-and-memory-temperature"),
     ("BC250 toolkit reference", "redbeard1083/bc250-toolkit", "https://github.com/redbeard1083/bc250-toolkit"),
     ("BC250 patched Bazzite image reference", "62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images", "https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images"),
     ("Arch/CachyOS kernel + Mesa/GFX1013 (opt-in workflow)", "MastaG/linux-cachyos-bc250", "https://github.com/MastaG/linux-cachyos-bc250"),
