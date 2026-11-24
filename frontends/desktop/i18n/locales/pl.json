@@ -6555,5 +6555,7 @@
   "Normal power off": "Zwykłe wyłączanie",
   "Turn on with a gamepad": "Włączanie gamepadem",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Zmienia się też wyłączanie: gamepad lub urządzenie USB może potem włączyć komputer. W jego wierszu można wrócić do zwykłego wyłączania.",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Zgodność jądra od keyboardspecialist obsługuje to jądro i kompiluje narzędziami tego systemu. Użyj jednej z dwóch, nie obu."
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Zgodność jądra od keyboardspecialist obsługuje to jądro i kompiluje narzędziami tego systemu. Użyj jednej z dwóch, nie obu.",
+  "Patch installed by the BIOS or another program": "Łatkę zainstalował BIOS lub inny program",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "Sterownik już przy starcie znalazł {count} jednostek obliczeniowych, więcej niż zwykłe 24. Mógł je włączyć BIOS lub inny program startowy: zmieniaj je tam, inaczej oba będą je ustawiać."
 }

@@ -6555,5 +6555,7 @@
   "Normal power off": "Tavallinen sammutus",
   "Turn on with a gamepad": "Käynnistys peliohjaimella",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Myös sammutus muuttuu: peliohjain tai USB-laite voi sen jälkeen käynnistää tietokoneen. Sen rivillä voit palata tavalliseen sammutukseen.",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialistin ytimen yhteensopivuus tukee tätä ydintä ja kääntää tämän järjestelmän omilla työkaluilla. Käytä toista, älä molempia."
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialistin ytimen yhteensopivuus tukee tätä ydintä ja kääntää tämän järjestelmän omilla työkaluilla. Käytä toista, älä molempia.",
+  "Patch installed by the BIOS or another program": "Korjauksen asensi BIOS tai toinen ohjelma",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "Ajuri löysi käynnistyessään jo {count} laskentayksikköä, enemmän kuin tavalliset 24. BIOS tai toinen käynnistysohjelma on voinut kytkeä ne päälle: muuta ne siellä, tai molemmat asettavat niitä."
 }

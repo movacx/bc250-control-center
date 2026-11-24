@@ -6555,5 +6555,7 @@
   "Normal power off": "Tắt nguồn bình thường",
   "Turn on with a gamepad": "Bật bằng tay cầm",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Cách tắt nguồn cũng thay đổi: sau đó tay cầm hoặc thiết bị USB có thể bật máy tính. Ở hàng của nó, bạn có thể quay lại cách tắt nguồn bình thường.",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Tương thích kernel của keyboardspecialist hỗ trợ kernel này và biên dịch bằng công cụ của chính hệ thống này. Chỉ dùng một trong hai, không dùng cả hai."
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Tương thích kernel của keyboardspecialist hỗ trợ kernel này và biên dịch bằng công cụ của chính hệ thống này. Chỉ dùng một trong hai, không dùng cả hai.",
+  "Patch installed by the BIOS or another program": "Bản vá do BIOS hoặc chương trình khác cài đặt",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "Trình điều khiển đã tìm thấy {count} đơn vị tính toán khi khởi động, nhiều hơn 24 như thường lệ. BIOS hoặc chương trình khởi động khác có thể đã bật chúng: hãy đổi ở đó, nếu không cả hai sẽ tiếp tục đặt."
 }

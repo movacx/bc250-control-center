@@ -6555,5 +6555,7 @@
   "Normal power off": "普通关机",
   "Turn on with a gamepad": "用手柄开机",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "关机方式也会改变:之后手柄或 USB 设备可以开启电脑。您可以在其所在行恢复普通关机。",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialist 的内核兼容性支持此内核,并使用本系统自带的工具编译。两者选其一,不要同时使用。"
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialist 的内核兼容性支持此内核,并使用本系统自带的工具编译。两者选其一,不要同时使用。",
+  "Patch installed by the BIOS or another program": "补丁由 BIOS 或其他程序安装",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "驱动程序启动时已找到 {count} 个计算单元,多于通常的 24 个。可能是 BIOS 或其他启动程序开启的:请在那里更改,否则两者会一直各自设置。"
 }

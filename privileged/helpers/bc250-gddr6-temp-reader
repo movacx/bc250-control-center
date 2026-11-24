@@ -860,11 +860,13 @@ def _sample_smu(
         try:
             installed = _installed_payload(smu)
             payload["payload"] = installed
-            # The first payload stays in use only for BC250-Telemetry, whose
-            # collector refuses to start over any other one.
-            payload["patch_active"] = installed == "current" or (
-                installed == "legacy" and collector_installed
-            )
+            # The first payload is never ours now (1.21.1 was the last to write
+            # it, and a power off removes it): BC250-Telemetry's collector, the
+            # kernel driver or onlinermm's BIOS put it there. It is read as it
+            # is; writing a second one over it would undo their choice.
+            payload["patch_active"] = installed in {"current", "legacy"}
+            if installed == "legacy" and not collector_installed:
+                payload["source"] = "existing-patch"
             if installed == "unknown":
                 payload["blocked_reason"] = "GDDR6_PATCH_UNKNOWN"
             elif not payload["patch_active"]:

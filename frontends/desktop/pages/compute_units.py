@@ -53,6 +53,7 @@ from ..components.widgets import (
 from ..console import console_for
 from ..core.compute_units_presenter import (
     CuStatePresentation,
+    cus_found_at_driver_start,
     plan_cu_action_availability,
     present_compute_units_state,
 )
@@ -82,6 +83,13 @@ KERNEL_MANAGED_NOTICE = (
     "it unlocked all of them at boot. This page is read-only while that boot option "
     "is set; umr and the live manager are not needed. To change the routing, turn "
     "the kernel CU unlock off in Additional settings and reboot."
+)
+
+#: The driver counts them once, when it starts: more than 24 were routed before
+#: it, by onlinermm's BIOS menu for example. Nothing readable says by whom.
+EARLY_CUS_NOTICE = (
+    "The driver already found {count} compute units when it started, more than the usual 24. "
+    "The BIOS or another boot program may have turned them on: change them there, or both will keep setting them."
 )
 
 
@@ -852,6 +860,11 @@ class ComputeUnitsPage(QWidget):
         self.kernel_managed_notice.setWordWrap(True)
         self.kernel_managed_notice.hide()
         card.body.addWidget(self.kernel_managed_notice)
+        self.early_cus_notice = QLabel("")
+        self.early_cus_notice.setProperty("fieldHint", True)
+        self.early_cus_notice.setWordWrap(True)
+        self.early_cus_notice.hide()
+        card.body.addWidget(self.early_cus_notice)
         card.body.addWidget(selection_panel)
         card.body.addWidget(self._build_persistence_panel())
 
@@ -1818,6 +1831,10 @@ class ComputeUnitsPage(QWidget):
         self.apply_live_button.setEnabled(availability.apply_live)
         kernel_managed = self._kernel_managed()
         self.kernel_managed_notice.setVisible(kernel_managed)
+        early = 0 if kernel_managed else cus_found_at_driver_start(self.current_state)
+        if early:
+            self.early_cus_notice.setText(tr_format(EARLY_CUS_NOTICE, count=early))
+        self.early_cus_notice.setVisible(bool(early))
         if kernel_managed:
             # Read-only: the table shows the kernel's routing, nothing edits it.
             # Unlock / Sync stays: it runs the backend's read-only "status",

@@ -6555,5 +6555,7 @@
   "Normal power off": "ปิดเครื่องแบบปกติ",
   "Turn on with a gamepad": "เปิดเครื่องด้วยเกมแพด",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "การปิดเครื่องก็เปลี่ยนด้วย: หลังจากนั้นเกมแพดหรืออุปกรณ์ USB จะเปิดคอมพิวเตอร์ได้ ที่แถวนี้คุณกลับไปปิดเครื่องแบบปกติได้",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "ความเข้ากันได้ของเคอร์เนลของ keyboardspecialist รองรับเคอร์เนลนี้และคอมไพล์ด้วยเครื่องมือของระบบนี้ ใช้อย่างใดอย่างหนึ่ง ไม่ใช่ทั้งสอง"
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "ความเข้ากันได้ของเคอร์เนลของ keyboardspecialist รองรับเคอร์เนลนี้และคอมไพล์ด้วยเครื่องมือของระบบนี้ ใช้อย่างใดอย่างหนึ่ง ไม่ใช่ทั้งสอง",
+  "Patch installed by the BIOS or another program": "แพตช์ติดตั้งโดย BIOS หรือโปรแกรมอื่น",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "ไดรเวอร์พบหน่วยประมวลผล {count} หน่วยตั้งแต่เริ่มทำงาน มากกว่า 24 ตามปกติ BIOS หรือโปรแกรมบูตอื่นอาจเปิดไว้ ให้เปลี่ยนที่นั่น มิฉะนั้นทั้งสองจะตั้งค่าต่อไป"
 }

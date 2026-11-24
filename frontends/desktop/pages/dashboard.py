@@ -54,7 +54,12 @@ from ..core.error_diagnostics import (
     TELEMETRY_GUIDE_TITLE,
 )
 from ..core.external_links import open_external_url, update_checks_enabled
-from ..core.gddr6_monitor import EXTERNAL_SOURCE, KERNEL_SOURCE, gddr6_monitor_for
+from ..core.gddr6_monitor import (
+    EXISTING_PATCH_SOURCE,
+    EXTERNAL_SOURCE,
+    KERNEL_SOURCE,
+    gddr6_monitor_for,
+)
 from ..core.preferences import report_glow_enabled
 from ..core.state import DashboardState, state_cache_for
 from ..core.temperature_unit import format_temperature
@@ -1114,6 +1119,8 @@ class DashboardPage(QWidget):
             )
             if reading.source == EXTERNAL_SOURCE:
                 hotspot = f"{hotspot} · {tr('Read by BC250-Telemetry')}"
+            elif reading.source == EXISTING_PATCH_SOURCE:
+                hotspot = f"{hotspot} · {tr('Patch installed by the BIOS or another program')}"
             elif reading.source == KERNEL_SOURCE:
                 hotspot = f"{hotspot} · {tr('Read by the kernel driver (bc250_memory)')}"
             summary.set_detail(hotspot)

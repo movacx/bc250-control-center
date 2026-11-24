@@ -147,25 +147,24 @@ def identify_installed_bios(
     # MeiMeiDXEv3CoreVar, MeiMeiDXEv3SmuUnlockVar... under the vendor GUID
     # 49cc168d-e8b0-4613-a807-16969986726f (read on a flashed board). Their
     # names are world-readable; their contents are not needed.
-    # onlinermm's BIOS is MeiMeiDXE plus its own settings variable (GpuForms.vfr),
-    # so it is asked about first.
-    if any(name.lower().startswith("bc250gpuconfig") for name in efi_variables):
-        return InstalledBios(
-            version, _P3_VARIANTS["bc250-native"], "bc250-native",
-            "The firmware keeps BC250 Native's own settings variable.",
-        )
-    if any(name.lower().startswith("meimeidxe") for name in efi_variables):
-        return InstalledBios(
-            version, _P3_VARIANTS["meimeidxe-v3"], "meimeidxe-v3",
-            "The firmware keeps MeiMeiDXE's own settings variable.",
-        )
+    # onlinermm's BC250 Native is built on MeiMeiDXE and keeps those same names.
+    # Its own variable (Bc250GpuConfig) has no runtime attribute, so Linux never
+    # sees it: only the USB prepared here can tell the two apart.
     kit = prepared_kit or {}
-    if (
+    changed_to_kit = (
         kit.get("family") in _P3_VARIANTS
         and _major(kit.get("version", "")) == "P3"
         and kit.get("seen")
         and _major(kit["seen"]) != "P3"
+    )
+    if any(name.lower().startswith("meimeidxe") for name in efi_variables) and not (
+        changed_to_kit and kit["family"] == "bc250-native"
     ):
+        return InstalledBios(
+            version, _P3_VARIANTS["meimeidxe-v3"], "meimeidxe-v3",
+            "The firmware keeps MeiMeiDXE's own settings variable.",
+        )
+    if changed_to_kit:
         return InstalledBios(
             version, _P3_VARIANTS[kit["family"]], kit["family"],
             "This board changed to P3.00 after this application prepared that USB.",

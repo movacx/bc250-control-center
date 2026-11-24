@@ -6555,5 +6555,7 @@
   "Normal power off": "Normál kikapcsolás",
   "Turn on with a gamepad": "Bekapcsolás játékvezérlővel",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "A kikapcsolás is megváltozik: utána egy játékvezérlő vagy USB-eszköz bekapcsolhatja a számítógépet. A sorában visszaállhat a normál kikapcsolásra.",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "A keyboardspecialist kernelkompatibilitása támogatja ezt a kernelt, és a rendszer saját eszközeivel fordít. Az egyiket használja, ne mindkettőt."
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "A keyboardspecialist kernelkompatibilitása támogatja ezt a kernelt, és a rendszer saját eszközeivel fordít. Az egyiket használja, ne mindkettőt.",
+  "Patch installed by the BIOS or another program": "A javítást a BIOS vagy egy másik program telepítette",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "Az illesztőprogram induláskor már {count} számítási egységet talált, többet a szokásos 24-nél. Lehet, hogy a BIOS vagy más indítóprogram kapcsolta be őket: ott módosítsa, különben mindkettő állítja majd."
 }

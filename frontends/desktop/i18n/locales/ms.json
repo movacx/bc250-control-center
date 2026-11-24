@@ -6555,5 +6555,7 @@
   "Normal power off": "Matikan kuasa biasa",
   "Turn on with a gamepad": "Hidupkan dengan pad permainan",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Cara mematikan kuasa turut berubah: pad permainan atau peranti USB kemudiannya boleh menghidupkan komputer. Barisnya membolehkan anda kembali kepada cara biasa.",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Keserasian kernel keyboardspecialist menyokong kernel ini dan membina dengan alat sistem ini sendiri. Gunakan salah satu, bukan kedua-duanya."
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Keserasian kernel keyboardspecialist menyokong kernel ini dan membina dengan alat sistem ini sendiri. Gunakan salah satu, bukan kedua-duanya.",
+  "Patch installed by the BIOS or another program": "Tampalan dipasang oleh BIOS atau program lain",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "Pemacu sudah menemui {count} unit pengiraan semasa bermula, lebih daripada 24 yang biasa. BIOS atau program but lain mungkin menghidupkannya: ubah di sana, jika tidak kedua-duanya akan terus menetapkannya."
 }

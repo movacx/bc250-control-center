@@ -6555,5 +6555,7 @@
   "Normal power off": "通常の電源オフ",
   "Turn on with a gamepad": "ゲームパッドで電源を入れる",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "電源オフも変わります。以後、ゲームパッドや USB デバイスでコンピューターの電源を入れられます。この行から通常の電源オフに戻せます。",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialist の「カーネル互換性」はこのカーネルに対応し、このシステムのツールでビルドします。両方ではなく、どちらか一方を使ってください。"
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialist の「カーネル互換性」はこのカーネルに対応し、このシステムのツールでビルドします。両方ではなく、どちらか一方を使ってください。",
+  "Patch installed by the BIOS or another program": "パッチは BIOS か別のプログラムが適用したものです",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "ドライバーは起動時にすでに {count} 基の演算ユニットを検出しました。通常の 24 基より多く、BIOS か別の起動プログラムが有効にした可能性があります。そちらで変更してください。両方が設定し続けてしまいます。"
 }

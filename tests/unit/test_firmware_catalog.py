@@ -41,7 +41,7 @@ def test_the_recommended_default_is_the_chipset_menu_bios():
 
 def test_the_catalog_offers_the_versions_people_ask_for():
     assert set(FAMILIES_BY_KEY) == {
-        "p3-chipset-menu", "meimeidxe-v3", "p5-stock", "p3-stock", "p2-stock",
+        "p3-chipset-menu", "meimeidxe-v3", "bc250-native", "p5-stock", "p3-stock", "p2-stock",
     }
     assert FAMILIES_BY_KEY["p5-stock"].version.startswith("P5")
     assert FAMILIES_BY_KEY["p2-stock"].version.startswith("P2")
@@ -129,7 +129,9 @@ def test_what_each_image_unlocks(key, vram, cores, logos):
 
 
 def test_only_meimeidxe_resets_its_own_settings():
-    assert [family.key for family in FIRMWARE_FAMILIES if family.tool.clears_settings] == ["meimeidxe-v3"]
+    assert [family.key for family in FIRMWARE_FAMILIES if family.tool.clears_settings] == [
+        "meimeidxe-v3", "bc250-native",  # built on it, the same flasher
+    ]
 
 
 # ----------------------------------------------------------------- drives
@@ -229,4 +231,5 @@ def test_sizes_read_the_way_drives_are_sold(size, text):
 
 def test_every_image_in_the_catalog_can_take_a_custom_logo():
     """Checked against the real images in test_boot_logo_real_images.py."""
-    assert all(family.logo_replaceable for family in FIRMWARE_FAMILIES)
+    # Never checked against BC250 Native's image, so it is not offered there.
+    assert [family.key for family in FIRMWARE_FAMILIES if not family.logo_replaceable] == ["bc250-native"]

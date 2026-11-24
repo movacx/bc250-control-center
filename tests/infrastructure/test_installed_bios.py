@@ -122,11 +122,16 @@ def test_the_probe_keeps_what_the_checked_reader_throws_away(tmp_path):
     assert sondear_telemetria_vrm(tmp_path / "broken.json")["daemon"] == "unreadable"
 
 
-def test_onlinermms_bios_is_told_apart_from_the_meimeidxe_it_is_built_on():
+def test_onlinermms_bios_is_told_apart_only_by_the_usb_prepared_here():
+    """Its own variable is NV+BS, never visible in Linux; MeiMeiDXE's are."""
     from bc250cc.infrastructure.firmware import board as firmware_board
 
-    info = firmware_board.identify_installed_bios(
-        firmware_board.BoardFirmware("AMD BC-250", "AMI", "P3.00", "12/09/2021"),
-        efi_variables=("MeiMeiDXEv3CoreVar-49cc168d", "Bc250GpuConfig-dbd570a4"),
-    )
-    assert info.family == "bc250-native" and info.variant == "BC250 Native"
+    board = firmware_board.BoardFirmware("AMD BC-250", "AMI", "P3.00", "12/09/2021")
+    names = ("MeiMeiDXEv3CoreVar-49cc168d",)
+    kit = {"family": "bc250-native", "version": "P3.00", "seen": "P5.00"}
+    assert firmware_board.identify_installed_bios(board, efi_variables=names).family == "meimeidxe-v3"
+    assert firmware_board.identify_installed_bios(
+        board, efi_variables=names, prepared_kit=kit).family == "bc250-native"
+    # Prepared over another P3.00: nothing says it was ever flashed.
+    assert firmware_board.identify_installed_bios(
+        board, efi_variables=names, prepared_kit={**kit, "seen": "P3.00"}).family == "meimeidxe-v3"

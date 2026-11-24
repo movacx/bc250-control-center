@@ -4708,6 +4708,7 @@
    "_masks": "CU-0001",
    "_bounded_integer": "CU-0002",
    "_cus": "CU-0003",
+   "cus_found_at_driver_start": "CU-0183",
    "_topology_values": "CU-0004",
    "_persistence_values": "CU-0005",
    "_topology_freshness": "CU-0006",

@@ -6555,5 +6555,7 @@
   "Normal power off": "Encerramento normal",
   "Turn on with a gamepad": "Ligar com um comando",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "O encerramento também muda: depois, um comando ou um dispositivo USB pode ligar o computador. Na linha dele pode voltar ao encerramento normal.",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "A compatibilidade do kernel do keyboardspecialist suporta este kernel e compila com as ferramentas deste sistema. Use uma das duas, não ambas."
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "A compatibilidade do kernel do keyboardspecialist suporta este kernel e compila com as ferramentas deste sistema. Use uma das duas, não ambas.",
+  "Patch installed by the BIOS or another program": "Patch instalado pela BIOS ou por outro programa",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "O controlador já encontrou {count} unidades de computação ao arrancar, mais do que as 24 habituais. A BIOS ou outro programa de arranque pode tê-las ativado: altere-as lá, ou ambos continuarão a ajustá-las."
 }

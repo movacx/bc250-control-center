@@ -6555,5 +6555,7 @@
   "Normal power off": "Normal kapatma",
   "Turn on with a gamepad": "Oyun kumandasıyla açma",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Kapatma da değişir: sonrasında bir oyun kumandası veya USB aygıtı bilgisayarı açabilir. Satırından normal kapatmaya dönebilirsiniz.",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialist'in çekirdek uyumluluğu bu çekirdeği destekler ve bu sistemin kendi araçlarıyla derler. İkisinden birini kullanın, ikisini birden değil."
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialist'in çekirdek uyumluluğu bu çekirdeği destekler ve bu sistemin kendi araçlarıyla derler. İkisinden birini kullanın, ikisini birden değil.",
+  "Patch installed by the BIOS or another program": "Yama BIOS veya başka bir program tarafından kuruldu",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "Sürücü başlarken zaten {count} hesaplama birimi buldu, bu alışılmış 24'ten fazla. Bunları BIOS veya başka bir açılış programı etkinleştirmiş olabilir: orada değiştirin, yoksa ikisi de ayarlamaya devam eder."
 }

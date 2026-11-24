@@ -353,7 +353,7 @@ def test_patch_smu_runs_imports_and_reads_only_the_private_copy(helper, checkout
     _tamper_after_copy(
         helper, monkeypatch, repository, lambda name: evil.get(name, _evil(checkout.marker))
     )
-    launched, _statuses = _patch(helper, monkeypatch, {"payload": "legacy", "patch_active": False})
+    launched, _statuses = _patch(helper, monkeypatch, {"payload": "", "patch_active": False})
 
     assert helper._do_apply(validated, os.getuid(), os.getgid()) == 0
 
@@ -367,7 +367,7 @@ def test_patch_smu_runs_imports_and_reads_only_the_private_copy(helper, checkout
     # The reviewed payload and symbols, not what replaced them in the checkout.
     assert report["payload"] == "01020304"
     assert report["symbols"] == UPSTREAM["SMUPayload.symbols"].decode()
-    assert report["argv"] == ["-f"]
+    assert report["argv"] == []
     assert not checkout.marker.exists()
 
     command, options = launched[-1]

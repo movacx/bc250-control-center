@@ -173,16 +173,14 @@ def test_a_board_without_the_patch_is_never_sent_a_message(reader, monkeypatch):
     assert smu.messages == []
 
 
-def test_the_first_payload_is_replaced_when_nothing_else_needs_it(reader, monkeypatch):
+def test_the_first_payload_is_read_when_the_bios_or_another_program_installed_it(reader, monkeypatch):
+    # onlinermm's BIOS installs these same 176 bytes (evidence/payload-selection.json).
     smu = FakeSmu(reader, (reader.LEGACY_HANDLER, 0x00012350, 0x00012360), payload=LEGACY_BYTES)
     payload = _sample(reader, smu, monkeypatch, collector_installed=False)
 
-    assert payload["payload"] == "legacy"
-    # Inactive, so every front end (old Decky plugins included) asks for the
-    # patch, and the helper upgrades it.
-    assert payload["patch_active"] is False
-    assert payload["blocked_reason"] == "GDDR6_PATCH_INACTIVE"
-    assert smu.messages == []
+    assert payload["payload"] == "legacy" and payload["patch_active"] is True
+    assert payload["source"] == "existing-patch"
+    assert smu.messages == [(3, 0x5, (chip,)) for chip in range(8)]
 
 
 def test_the_first_payload_is_still_read_for_bc250_telemetry(reader, monkeypatch):
@@ -243,14 +241,14 @@ def test_the_handler_table_is_the_one_patch_smu_writes(reader):
     "status, arguments",
     [
         ({"payload": ""}, ()),
-        # Byte for byte the first payload, and BC250-Telemetry is not installed.
-        ({"payload": "legacy", "patch_active": False}, ("-f",)),
+        # The BIOS, the kernel driver or BC250-Telemetry put it there: never replaced.
+        ({"payload": "legacy", "patch_active": False}, None),
         # Kept for BC250-Telemetry, whose collector refuses any other one.
         ({"payload": "legacy", "patch_active": True}, None),
         ({"payload": "current", "patch_active": True}, None),
     ],
 )
-def test_patch_smu_is_forced_only_over_the_first_payload(helper, status, arguments):
+def test_patch_smu_never_writes_over_an_installed_payload(helper, status, arguments):
     assert helper._patch_arguments(status) == arguments
 
 
@@ -283,9 +281,8 @@ def _patch_run(helper, monkeypatch, tmp_path, status):
     return ran
 
 
-def test_the_first_payload_is_upgraded_in_place(helper, monkeypatch, tmp_path):
-    ran = _patch_run(helper, monkeypatch, tmp_path, {"payload": "legacy", "patch_active": False})
-    assert len(ran) == 1 and ran[0][-1] == "-f"
+def test_the_first_payload_is_left_where_another_program_put_it(helper, monkeypatch, tmp_path):
+    assert _patch_run(helper, monkeypatch, tmp_path, {"payload": "legacy", "patch_active": True}) == []
 
 
 def test_a_fresh_board_is_patched_without_force(helper, monkeypatch, tmp_path):
@@ -367,7 +364,7 @@ def test_a_session_keeps_going_when_some_chips_answer(helper, monkeypatch, capsy
 
 def test_the_session_passes_its_status_to_the_patch(helper, monkeypatch, capsys):
     """One status decides both whether to patch and whether to force it."""
-    status = {"payload": "legacy", "patch_active": False, "blocked_reason": "GDDR6_PATCH_INACTIVE"}
+    status = {"payload": "", "patch_active": False, "blocked_reason": "GDDR6_PATCH_INACTIVE"}
     live = {"patch_active": True, "chips": [{"chip": 0, "code": 38, "temperature_c": 36}]}
     answers = iter([dict(status), dict(live)])
     applied = []

@@ -163,10 +163,6 @@ REVIEWED_ARTIFACT_SHA256 = {
 STAGING_PARENT = "/run"
 #: No reviewed file comes close; anything bigger is not one of them.
 STAGED_FILE_MAX_BYTES = 1 << 20
-#: patch_smu.py refuses to write over a payload that is already installed
-#: unless it is given this. It is passed for one case only: the reader found
-#: the first payload, byte for byte, and nothing else in the payload area.
-FORCE_FLAG = "-f"
 
 #: The payload writes fixed SMU addresses that are only correct for the board
 #: firmware it was built against. The upstream README is explicit: "Do not use
@@ -699,12 +695,11 @@ def _patch_arguments(status: dict) -> tuple[str, ...] | None:
             "not at a payload this version recognises (or one that did not finish "
             "installing). Power the board off completely before trying again."
         )
-    if installed == "current" or status.get("patch_active"):
-        # The reviewed payload, or the first one kept for BC250-Telemetry.
+    if installed in {"current", "legacy"} or status.get("patch_active"):
+        # The reviewed payload, or the first one, which BC250-Telemetry, the
+        # kernel driver or onlinermm's BIOS installed: read, never replaced.
         return None
-    # The first payload waits for a chip with no time limit; the reviewed one
-    # replaces it under both locks, so no message can reach it mid-write.
-    return (FORCE_FLAG,) if installed == "legacy" else ()
+    return ()
 
 
 def _do_apply(

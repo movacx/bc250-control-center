@@ -47,6 +47,8 @@ LIVE_SESSION_SECONDS = 600
 EXTERNAL_SOURCE = "bc250-telemetry"
 #: ...and when the kernel's own bc250_memory driver did (MastaG's kernels).
 KERNEL_SOURCE = "bc250_memory"
+#: Our reading, through a patch the BIOS or another program installed.
+EXISTING_PATCH_SOURCE = "existing-patch"
 
 _EXTERNAL_INTERRUPTED = (
     "BC250-Telemetry's memory service stopped in the middle of an SMU "

@@ -69,6 +69,17 @@ class CuActionAvailability:
     apply_live: bool
 
 
+STOCK_CUS = 24
+
+
+def cus_found_at_driver_start(state: Mapping[str, object]) -> int:
+    """The driver's own count when it is above stock and was really read, else 0."""
+    if state.get("driver_topology_available") is not True or not state.get("available"):
+        return 0
+    found = _cus(_masks(state.get("driver_masks")))
+    return found if found > STOCK_CUS else 0
+
+
 def _topology_values(
     state: Mapping[str, object],
     masks: Sequence[int],

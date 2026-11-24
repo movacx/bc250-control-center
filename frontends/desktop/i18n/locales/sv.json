@@ -6555,5 +6555,7 @@
   "Normal power off": "Vanlig avstängning",
   "Turn on with a gamepad": "Slå på med en handkontroll",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Avstängningen ändras också: en handkontroll eller USB-enhet kan sedan slå på datorn. På dess rad kan du gå tillbaka till vanlig avstängning.",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialists kärnkompatibilitet stöder den här kärnan och bygger med systemets egna verktyg. Använd en av dem, inte båda."
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialists kärnkompatibilitet stöder den här kärnan och bygger med systemets egna verktyg. Använd en av dem, inte båda.",
+  "Patch installed by the BIOS or another program": "Patchen installerades av BIOS eller ett annat program",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "Drivrutinen hittade redan {count} beräkningsenheter när den startade, fler än de vanliga 24. BIOS eller ett annat startprogram kan ha slagit på dem: ändra dem där, annars fortsätter båda att ställa in dem."
 }

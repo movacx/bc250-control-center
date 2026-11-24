@@ -6555,5 +6555,7 @@
   "Normal power off": "Normaal uitschakelen",
   "Turn on with a gamepad": "Inschakelen met een gamepad",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Uitschakelen verandert ook: een gamepad of USB-apparaat kan de computer daarna inschakelen. In de rij kunt u terug naar normaal uitschakelen.",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "De kernelcompatibiliteit van keyboardspecialist ondersteunt deze kernel en bouwt met de hulpmiddelen van dit systeem. Gebruik een van de twee, niet allebei."
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "De kernelcompatibiliteit van keyboardspecialist ondersteunt deze kernel en bouwt met de hulpmiddelen van dit systeem. Gebruik een van de twee, niet allebei.",
+  "Patch installed by the BIOS or another program": "Patch geïnstalleerd door het BIOS of een ander programma",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "Het stuurprogramma vond bij het starten al {count} rekeneenheden, meer dan de gebruikelijke 24. Het BIOS of een ander opstartprogramma heeft ze misschien ingeschakeld: wijzig ze daar, anders blijven beide ze instellen."
 }

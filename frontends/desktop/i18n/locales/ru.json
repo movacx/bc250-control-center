@@ -6555,5 +6555,7 @@
   "Normal power off": "Обычное выключение",
   "Turn on with a gamepad": "Включение геймпадом",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Выключение тоже меняется: затем геймпад или USB-устройство сможет включить компьютер. В его строке можно вернуть обычное выключение.",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Совместимость ядра от keyboardspecialist поддерживает это ядро и собирает инструментами этой системы. Используйте одно из двух, не оба."
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Совместимость ядра от keyboardspecialist поддерживает это ядро и собирает инструментами этой системы. Используйте одно из двух, не оба.",
+  "Patch installed by the BIOS or another program": "Патч установлен BIOS или другой программой",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "Драйвер уже при запуске нашёл вычислительные блоки: {count}, больше обычных 24. Возможно, их включил BIOS или другая программа при загрузке: меняйте их там, иначе настраивать их будут оба."
 }

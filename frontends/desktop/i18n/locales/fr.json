@@ -6555,5 +6555,7 @@
   "Normal power off": "Arrêt normal",
   "Turn on with a gamepad": "Allumer avec une manette",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "L'arrêt change aussi : une manette ou un périphérique USB peut ensuite allumer l'ordinateur. Sa ligne permet de revenir à l'arrêt normal.",
-  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "La compatibilité du noyau de keyboardspecialist prend en charge ce noyau et compile avec les outils de ce système. Utilisez l'une des deux, pas les deux."
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "La compatibilité du noyau de keyboardspecialist prend en charge ce noyau et compile avec les outils de ce système. Utilisez l'une des deux, pas les deux.",
+  "Patch installed by the BIOS or another program": "Correctif installé par le BIOS ou un autre programme",
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "Le pilote a déjà trouvé {count} unités de calcul à son démarrage, plus que les 24 habituelles. Le BIOS ou un autre programme de démarrage les a peut-être activées : changez-les là, sinon les deux continueront à les régler."
 }
