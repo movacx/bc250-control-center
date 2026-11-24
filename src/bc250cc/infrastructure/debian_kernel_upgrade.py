@@ -203,7 +203,7 @@ def build_debian_kernel_command(
     ]
     if kernel:
         lines += [
-            f'candidate="$(apt-cache madison linux-image-amd64 | awk \'/{suite}/ {{print $3; exit}}\')"',
+            f'candidate="$(apt-cache madison linux-image-amd64 | awk \'/{suite}/ && !seen++ {{print $3}}\')"',
             f'test -n "$candidate" || {{ echo "ERROR: {suite} offers no linux-image-amd64."; exit 29; }}',
             f'dpkg --compare-versions "$candidate" ge {minimum} || '
             f'{{ echo "ERROR: the backports kernel $candidate is older than {minimum}."; exit 29; }}',
@@ -240,7 +240,7 @@ def build_debian_kernel_command(
         )
         lines += [
             f'mesa="{" ".join(MESA_PACKAGES)}"',
-            f"mesa_candidate=\"$(apt-cache madison {MESA_PROBE} | awk '/{suite}/ {{print $3; exit}}')\"",
+            f"mesa_candidate=\"$(apt-cache madison {MESA_PROBE} | awk '/{suite}/ && !seen++ {{print $3}}')\"",
             'if [ -n "$mesa_candidate" ] && '
             f'dpkg --compare-versions "$mesa_candidate" ge {mesa_minimum} && '
             f'apt-get install -s -t {suite} $mesa >/dev/null 2>&1; then',

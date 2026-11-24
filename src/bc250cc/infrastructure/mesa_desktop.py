@@ -177,7 +177,7 @@ def build_mesa_ppa_command(action: str, codename: str, *, source: Path = SOURCE_
         'if ! grep -rqsE "ppa\\.launchpadcontent\\.net/kisak/kisak-mesa" /etc/apt/sources.list /etc/apt/sources.list.d; then',
         '  bc250_key="$(mktemp)"; trap \'rm -f -- "$bc250_key"\' EXIT',
         f"  curl -fsSL {shlex.quote(PPA_KEY_URL)} -o \"$bc250_key\"",
-        '  bc250_fpr="$(gpg --show-keys --with-colons "$bc250_key" 2>/dev/null | awk -F: \'/^fpr/ {print $10; exit}\')"',
+        '  bc250_fpr="$(gpg --show-keys --with-colons "$bc250_key" 2>/dev/null | awk -F: \'/^fpr/ && !seen++ {print $10}\')"',
         f'  [ "$bc250_fpr" = {PPA_FINGERPRINT} ] || '
         '{ echo "ERROR: the signing key is $bc250_fpr, not the pinned one. Nothing was added."; exit 30; }',
         f'  sudo install -D -m 0644 "$bc250_key" {quoted_key}',
@@ -196,7 +196,9 @@ def build_mesa_ppa_command(action: str, codename: str, *, source: Path = SOURCE_
         '  echo "       Details: apt-get install -s $packages"',
         "  exit 29",
         "fi",
-        f'mesa_candidate="$(LC_ALL=C apt-cache policy {MESA_PACKAGES[1]} | awk \'/Candidate:/ {{print $2; exit}}\')"',
+        # awk reads to the end: leaving early can kill apt-cache with SIGPIPE, and
+        # pipefail then stops the workflow with no message (perhaps R-f9e08001).
+        f'mesa_candidate="$(LC_ALL=C apt-cache policy {MESA_PACKAGES[1]} | awk \'/Candidate:/ && !seen++ {{print $2}}\')"',
         f'dpkg --compare-versions "$mesa_candidate" ge {".".join(str(part) for part in MESA_MIN)} || '
         f'{{ echo "ERROR: the newest Mesa on offer is $mesa_candidate, older than {".".join(str(part) for part in MESA_MIN)}."; exit 29; }}',
         'echo "[INFO] Installing Mesa $mesa_candidate."',

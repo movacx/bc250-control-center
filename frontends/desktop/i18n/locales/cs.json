@@ -6539,5 +6539,17 @@
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Mění zavádění a u BIOS P3.00 jednu volbu BIOS, která se při odebrání vrátí. Když se deska neprobudí, odpojte ji na 30 sekund. Probudí ji jen USB zařízení v modrém portu.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Uspání se vrátí tak, jak ho měl systém, a volba BIOS na předchozí hodnotu.",
   "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Prototyp, vyzkoušený jen na desce autora. Než ho nahrajete, mějte jak přeprogramovat čip BIOS.",
-  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 a navíc nabídka BIOS, kde lze zapnout více výpočetních jednotek GPU a teplotu GDDR6. Obojí je ve výchozím stavu vypnuté."
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 a navíc nabídka BIOS, kde lze zapnout více výpočetních jednotek GPU a teplotu GDDR6. Obojí je ve výchozím stavu vypnuté.",
+  "Cyan did not find the BC-250 GPU.": "Cyan nenašel GPU BC-250.",
+  "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.": "Cyan hledá GPU na jedné pevné adrese PCI. Buď tento počítač není BC-250, nebo jiné zařízení PCIe přesunulo GPU na jinou adresu.",
+  "No NCT668x fan chip answered.": "Neodpověděl žádný čip ventilátorů NCT668x.",
+  "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.": "Ovladač přečetl ID, které nepatří čipu ventilátorů BC-250, a proto se odmítl načíst.",
+  "This action is only for a BC-250. If this computer is one, send a report with this code.": "Tato akce je pouze pro BC-250. Pokud jí tento počítač je, odešlete hlášení s tímto kódem.",
+  "HelixSR's setup could not build its network files.": "Instalace HelixSR nedokázala sestavit své soubory sítě.",
+  "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR je sestavuje kompilátorem shaderů pro Windows, který běží ve Wine. Kompilátor nebo Wine skončil, nebo chyběl potřebný soubor. Hry, které HelixSR už používají, se nezměnily.",
+  "A package repository of this system could not be refreshed by apt.": "apt nedokázal obnovit jeden z repozitářů tohoto systému.",
+  "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Řádky Err: výše ho uvádějí: obvykle dříve přidaný repozitář, jehož klíč chybí nebo jehož certifikát není platný. apt pokračuje se starým seznamem, takže akci mohlo zastavit něco jiného.",
+  "pacman stopped without changing anything.": "pacman se zastavil a nic nezměnil.",
+  "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman instalaci přerušil. Nejčastěji je disk plný nebo jen pro čtení; řádky nad chybou to uvádějí, pokud to pacman ví.",
+  "Fix what the lines above the error name, then run this action again.": "Opravte to, co uvádějí řádky nad chybou, a spusťte akci znovu."
 }

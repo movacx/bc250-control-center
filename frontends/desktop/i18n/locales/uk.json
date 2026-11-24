@@ -6539,5 +6539,17 @@
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Змінює завантаження й на BIOS P3.00 одне налаштування BIOS, яке повертається під час вилучення. Якщо плата не прокидається, вимкніть живлення на 30 секунд. Будить її лише USB-пристрій у синьому порту.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Сон повертається до системного, а налаштування BIOS до попереднього значення.",
   "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Прототип, перевірений лише на платі автора. Перед прошиванням майте спосіб перепрограмувати мікросхему BIOS.",
-  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 та меню BIOS, де можна ввімкнути більше обчислювальних блоків GPU і температуру GDDR6. Типово обидва вимкнені."
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 та меню BIOS, де можна ввімкнути більше обчислювальних блоків GPU і температуру GDDR6. Типово обидва вимкнені.",
+  "Cyan did not find the BC-250 GPU.": "Cyan не знайшов графічний процесор BC-250.",
+  "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.": "Cyan шукає графічний процесор за однією фіксованою адресою PCI. Або цей комп'ютер не BC-250, або інший пристрій PCIe перемістив графічний процесор на іншу адресу.",
+  "No NCT668x fan chip answered.": "Жоден чип вентиляторів NCT668x не відповів.",
+  "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.": "Драйвер прочитав ідентифікатор, який не належить чипу вентиляторів BC-250, тому відмовився завантажуватися.",
+  "This action is only for a BC-250. If this computer is one, send a report with this code.": "Ця дія лише для BC-250. Якщо цей комп'ютер — BC-250, надішліть звіт із цим кодом.",
+  "HelixSR's setup could not build its network files.": "Встановлення HelixSR не змогло зібрати файли мережі.",
+  "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR збирає їх компілятором шейдерів Windows, що працює у Wine. Компілятор або Wine зупинився, чи бракувало потрібного файлу. Ігри, які вже використовують HelixSR, не змінено.",
+  "A package repository of this system could not be refreshed by apt.": "apt не зміг оновити один із репозиторіїв цієї системи.",
+  "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Рядки Err: вище називають його: зазвичай це доданий раніше репозиторій без ключа або з недійсним сертифікатом. apt продовжує зі старим списком, тож, можливо, дію зупинило не це.",
+  "pacman stopped without changing anything.": "pacman зупинився, нічого не змінивши.",
+  "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman перервав встановлення. Найчастіше диск переповнений або лише для читання; рядки над помилкою називають причину, якщо pacman її знає.",
+  "Fix what the lines above the error name, then run this action again.": "Виправте те, що називають рядки над помилкою, і запустіть дію знову."
 }

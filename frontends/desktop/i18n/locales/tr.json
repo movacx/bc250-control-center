@@ -6539,5 +6539,17 @@
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Açılışı ve BIOS P3.00'da bir BIOS seçeneğini değiştirir; kaldırınca geri alınır. Kart uyanmazsa 30 saniye fişini çekin. Yalnızca mavi porttaki USB aygıtı uyandırır.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Uyku sistemdeki haline, BIOS seçeneği de önceki değerine döner.",
   "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Yalnızca yapanın kartında denenmiş bir prototip. Yazmadan önce BIOS yongasını yeniden programlama yolunuz olsun.",
-  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 ve daha fazla GPU hesaplama birimi ile GDDR6 sıcaklığını açabileceğiniz bir BIOS menüsü. İkisi de varsayılan olarak kapalıdır."
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 ve daha fazla GPU hesaplama birimi ile GDDR6 sıcaklığını açabileceğiniz bir BIOS menüsü. İkisi de varsayılan olarak kapalıdır.",
+  "Cyan did not find the BC-250 GPU.": "Cyan, BC-250'nin GPU'sunu bulamadı.",
+  "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.": "Cyan, GPU'yu tek bir sabit PCI adresinde arar. Ya bu bilgisayar bir BC-250 değildir ya da başka bir PCIe aygıtı GPU'yu farklı bir adrese taşımıştır.",
+  "No NCT668x fan chip answered.": "Hiçbir NCT668x fan yongası yanıt vermedi.",
+  "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.": "Sürücü, BC-250'nin fan yongasına ait olmayan bir kimlik okudu, bu yüzden yüklenmeyi reddetti.",
+  "This action is only for a BC-250. If this computer is one, send a report with this code.": "Bu işlem yalnızca BC-250 içindir. Bu bilgisayar bir BC-250 ise bu kodla bir rapor gönderin.",
+  "HelixSR's setup could not build its network files.": "HelixSR kurulumu ağ dosyalarını oluşturamadı.",
+  "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR bunları Wine'da çalışan bir Windows gölgelendirici derleyicisiyle oluşturur. Derleyici veya Wine durdu ya da gerekli bir dosya eksikti. HelixSR'yi zaten kullanan oyunlar değiştirilmedi.",
+  "A package repository of this system could not be refreshed by apt.": "apt, bu sistemin depolarından birini yenileyemedi.",
+  "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Yukarıdaki Err: satırları adını verir: genellikle daha önce eklenmiş, anahtarı eksik ya da sertifikası geçersiz bir depodur. apt eski listesiyle devam eder, bu yüzden işlemi durduran bu olmayabilir.",
+  "pacman stopped without changing anything.": "pacman hiçbir şeyi değiştirmeden durdu.",
+  "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman kurulumu iptal etti. En yaygın neden dolu ya da salt okunur bir disktir; pacman bildiğinde hatanın üstündeki satırlar bunu söyler.",
+  "Fix what the lines above the error name, then run this action again.": "Hatanın üstündeki satırların belirttiğini düzeltin, ardından bu işlemi yeniden çalıştırın."
 }

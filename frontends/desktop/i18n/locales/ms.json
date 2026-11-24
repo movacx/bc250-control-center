@@ -6539,5 +6539,17 @@
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Ia mengubah but dan, pada BIOS P3.00, satu pilihan BIOS yang dipulihkan apabila dibuang. Jika papan tidak bangun, cabut kuasa 30 saat. Hanya peranti USB pada port biru membangunkannya.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Suspend kembali seperti asal sistem dan pilihan BIOS kepada nilai terdahulu.",
   "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Prototaip, hanya diuji pada papan pengarangnya. Sediakan cara memprogram semula cip BIOS sebelum flash.",
-  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 serta menu BIOS untuk menghidupkan lebih banyak unit pengiraan GPU dan suhu GDDR6. Kedua-duanya dimatikan secara lalai."
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 serta menu BIOS untuk menghidupkan lebih banyak unit pengiraan GPU dan suhu GDDR6. Kedua-duanya dimatikan secara lalai.",
+  "Cyan did not find the BC-250 GPU.": "Cyan tidak menemui GPU BC-250.",
+  "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.": "Cyan mencari GPU pada satu alamat PCI tetap. Sama ada komputer ini bukan BC-250, atau peranti PCIe lain telah mengalihkan GPU ke alamat lain.",
+  "No NCT668x fan chip answered.": "Tiada cip kipas NCT668x yang menjawab.",
+  "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.": "Pemacu membaca ID yang bukan milik cip kipas BC-250, jadi ia enggan dimuatkan.",
+  "This action is only for a BC-250. If this computer is one, send a report with this code.": "Tindakan ini hanya untuk BC-250. Jika komputer ini ialah BC-250, hantar laporan dengan kod ini.",
+  "HelixSR's setup could not build its network files.": "Persediaan HelixSR tidak dapat membina fail rangkaiannya.",
+  "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR membinanya dengan pengkompil shader Windows yang berjalan dalam Wine. Pengkompil atau Wine terhenti, atau fail yang diperlukan tiada. Permainan yang sudah menggunakan HelixSR tidak diubah.",
+  "A package repository of this system could not be refreshed by apt.": "apt tidak dapat menyegarkan salah satu repositori sistem ini.",
+  "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Baris Err: di atas menamakannya: biasanya repositori yang ditambah dahulu dan kuncinya tiada atau sijilnya tidak sah. apt meneruskan dengan senarai lamanya, jadi mungkin bukan ini yang menghentikan tindakan.",
+  "pacman stopped without changing anything.": "pacman berhenti tanpa mengubah apa-apa.",
+  "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman membatalkan pemasangan. Sebab paling biasa ialah cakera penuh atau baca sahaja; baris di atas ralat menyatakannya apabila pacman mengetahuinya.",
+  "Fix what the lines above the error name, then run this action again.": "Betulkan perkara yang dinamakan baris di atas ralat, kemudian jalankan tindakan ini semula."
 }

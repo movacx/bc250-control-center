@@ -6539,5 +6539,17 @@
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "它会更改启动配置，并在 BIOS P3.00 上更改一个 BIOS 选项，移除时恢复。若主板无法唤醒，请断电 30 秒。只有蓝色接口上的 USB 设备能唤醒。",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "睡眠恢复为系统原有方式，BIOS 选项恢复为之前的值。",
   "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "原型，仅在作者的主板上测试过。刷写前请准备好重新烧录 BIOS 芯片的手段。",
-  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3，外加一个可开启更多 GPU 计算单元和 GDDR6 温度的 BIOS 菜单。两者默认关闭。"
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3，外加一个可开启更多 GPU 计算单元和 GDDR6 温度的 BIOS 菜单。两者默认关闭。",
+  "Cyan did not find the BC-250 GPU.": "Cyan 未找到 BC-250 的 GPU。",
+  "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.": "Cyan 在一个固定的 PCI 地址查找 GPU。要么这台电脑不是 BC-250,要么其他 PCIe 设备使 GPU 换到了别的地址。",
+  "No NCT668x fan chip answered.": "没有 NCT668x 风扇芯片响应。",
+  "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.": "驱动程序读到的 ID 不属于 BC-250 的风扇芯片,因此拒绝加载。",
+  "This action is only for a BC-250. If this computer is one, send a report with this code.": "此操作仅适用于 BC-250。如果这台电脑是 BC-250,请附上此代码发送报告。",
+  "HelixSR's setup could not build its network files.": "HelixSR 的安装程序无法生成其网络文件。",
+  "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR 使用在 Wine 中运行的 Windows 着色器编译器来生成这些文件。编译器或 Wine 已停止,或缺少所需文件。已在使用 HelixSR 的游戏没有改变。",
+  "A package repository of this system could not be refreshed by apt.": "apt 无法刷新此系统的某个软件源。",
+  "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "上方的 Err: 行写出了它的名称:通常是以前添加的软件源,缺少密钥或证书无效。apt 会继续使用旧列表,因此这未必是操作停止的原因。",
+  "pacman stopped without changing anything.": "pacman 已停止,未更改任何内容。",
+  "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman 中止了安装。最常见的原因是磁盘已满或只读;pacman 知道原因时,错误上方的行会写明。",
+  "Fix what the lines above the error name, then run this action again.": "修复错误上方各行指出的问题,然后重新运行此操作。"
 }

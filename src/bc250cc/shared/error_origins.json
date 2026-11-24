@@ -870,6 +870,12 @@
   "bc250cc/infrastructure/container_network.py": {
    "setup_lines": "DIST-0016"
   },
+  "bc250cc/infrastructure/core_unlock_attempts.py": {
+   "attempts_path": "CPU-0368",
+   "chosen_mask": "CPU-0369",
+   "record_attempt": "CPU-0370",
+   "recent_attempts": "CPU-0371"
+  },
   "bc250cc/infrastructure/core_unlock_persistence.py": {
    "CoreUnlockPersistence.boot_service_active": "CPU-0308",
    "CoreUnlockPersistence.to_dict": "CPU-0212",
@@ -2264,6 +2270,8 @@
    "collect_system_state": "CORE-0098",
    "split_sections": "DIAG-0171",
    "collect_attachments": "CORE-0099",
+   "report_area": "DIAG-0192",
+   "for_area": "DIAG-0193",
    "collect_readonly_attachments": "DIAG-0177"
   },
   "bc250cc/infrastructure/report_identity.py": {

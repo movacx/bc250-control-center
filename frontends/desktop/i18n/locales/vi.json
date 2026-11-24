@@ -6539,5 +6539,17 @@
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Nó đổi cấu hình khởi động và, với BIOS P3.00, một tùy chọn BIOS, được trả lại khi gỡ. Nếu bo không thức dậy, rút điện 30 giây. Chỉ thiết bị USB ở cổng xanh dương mới đánh thức được.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Chế độ ngủ trở lại như của hệ thống và tùy chọn BIOS về giá trị trước.",
   "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Bản thử, chỉ kiểm tra trên bo của tác giả. Hãy có cách nạp lại chip BIOS trước khi flash.",
-  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 cùng menu BIOS cho phép bật thêm đơn vị tính toán GPU và nhiệt độ GDDR6. Mặc định cả hai đều tắt."
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 cùng menu BIOS cho phép bật thêm đơn vị tính toán GPU và nhiệt độ GDDR6. Mặc định cả hai đều tắt.",
+  "Cyan did not find the BC-250 GPU.": "Cyan không tìm thấy GPU của BC-250.",
+  "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.": "Cyan tìm GPU tại một địa chỉ PCI cố định. Hoặc máy tính này không phải BC-250, hoặc một thiết bị PCIe khác đã chuyển GPU sang địa chỉ khác.",
+  "No NCT668x fan chip answered.": "Không có chip quạt NCT668x nào trả lời.",
+  "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.": "Trình điều khiển đọc được ID không phải của chip quạt BC-250 nên từ chối nạp.",
+  "This action is only for a BC-250. If this computer is one, send a report with this code.": "Thao tác này chỉ dành cho BC-250. Nếu máy tính này là BC-250, hãy gửi báo cáo kèm mã này.",
+  "HelixSR's setup could not build its network files.": "Trình cài đặt HelixSR không thể tạo các tệp mạng của nó.",
+  "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR tạo chúng bằng trình biên dịch shader của Windows chạy trong Wine. Trình biên dịch hoặc Wine đã dừng, hoặc thiếu một tệp cần thiết. Các trò chơi đang dùng HelixSR không bị thay đổi.",
+  "A package repository of this system could not be refreshed by apt.": "apt không thể làm mới một kho gói của hệ thống này.",
+  "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Các dòng Err: ở trên nêu tên nó: thường là kho được thêm trước đây, thiếu khóa hoặc chứng chỉ không hợp lệ. apt tiếp tục với danh sách cũ, nên có thể đây không phải điều đã dừng thao tác.",
+  "pacman stopped without changing anything.": "pacman đã dừng mà không thay đổi gì.",
+  "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman đã hủy cài đặt. Nguyên nhân thường gặp nhất là đĩa đầy hoặc chỉ đọc; các dòng phía trên lỗi nêu rõ khi pacman biết.",
+  "Fix what the lines above the error name, then run this action again.": "Sửa điều mà các dòng phía trên lỗi nêu ra, rồi chạy lại thao tác này."
 }

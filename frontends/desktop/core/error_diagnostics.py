@@ -853,6 +853,28 @@ _RULES = (
     ),
 ) + _RULES
 
+# The desktop's copies of catalog codes whose markers already identify them.
+_RULES = (
+    *(
+        _Rule(code, patterns, error_catalog.BY_CODE[code].summary, error_catalog.BY_CODE[code].cause,
+              error_catalog.BY_CODE[code].action)
+        for code, patterns in (
+            ("BC250-FAN-003", (r"chip id 0xffff is outside the nuvoton",)),
+            ("BC250-GPU-009", (r"cyan skillfish gpu not found at expected pci bus",)),
+        )
+    ),
+    *_RULES,
+    *(
+        _Rule(code, patterns, error_catalog.BY_CODE[code].summary, error_catalog.BY_CODE[code].cause,
+              error_catalog.BY_CODE[code].action)
+        for code, patterns in (
+            ("BC250-UPSCALE-003", (r"helixsr-setup\] error:", r"the network was not built\. helixsr is installed")),
+            ("BC250-PKG-009", (r"failed to commit transaction \(transaction aborted",)),
+            ("BC250-PKG-008", (r"some index files failed to download",)),
+        )
+    ),
+)
+
 
 _CONTEXT_FALLBACKS = (
     ("BC250-GPU-900", ("gpu", "governor", "cyan", "oberon"), "The GPU operation could not be completed.", "The active governor, its service, configuration, or live hardware state did not accept the request.", "Refresh GPU status, verify the selected governor, and retry with a profile offered by the current page."),

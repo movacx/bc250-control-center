@@ -6539,5 +6539,17 @@
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "它會變更開機設定，並在 BIOS P3.00 上變更一個 BIOS 選項，移除時還原。若主機板無法喚醒，請斷電 30 秒。只有藍色連接埠上的 USB 裝置能喚醒。",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "睡眠恢復為系統原有方式，BIOS 選項恢復為先前的值。",
   "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "原型，僅在作者的主機板上測試過。刷寫前請準備好重新燒錄 BIOS 晶片的方法。",
-  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3，外加一個可開啟更多 GPU 運算單元和 GDDR6 溫度的 BIOS 選單。兩者預設關閉。"
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3，外加一個可開啟更多 GPU 運算單元和 GDDR6 溫度的 BIOS 選單。兩者預設關閉。",
+  "Cyan did not find the BC-250 GPU.": "Cyan 找不到 BC-250 的 GPU。",
+  "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.": "Cyan 在一個固定的 PCI 位址尋找 GPU。要不是這台電腦不是 BC-250,就是其他 PCIe 裝置讓 GPU 換到了別的位址。",
+  "No NCT668x fan chip answered.": "沒有 NCT668x 風扇晶片回應。",
+  "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.": "驅動程式讀到的 ID 不屬於 BC-250 的風扇晶片,因此拒絕載入。",
+  "This action is only for a BC-250. If this computer is one, send a report with this code.": "此操作僅適用於 BC-250。如果這台電腦是 BC-250,請附上此代碼傳送報告。",
+  "HelixSR's setup could not build its network files.": "HelixSR 的安裝程式無法產生其網路檔案。",
+  "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR 使用在 Wine 中執行的 Windows 著色器編譯器產生這些檔案。編譯器或 Wine 已停止,或缺少所需檔案。已在使用 HelixSR 的遊戲沒有改變。",
+  "A package repository of this system could not be refreshed by apt.": "apt 無法重新整理此系統的某個套件庫。",
+  "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "上方的 Err: 行寫出了它的名稱:通常是以前加入的套件庫,缺少金鑰或憑證無效。apt 會繼續使用舊清單,因此這未必是操作停止的原因。",
+  "pacman stopped without changing anything.": "pacman 已停止,未變更任何內容。",
+  "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman 中止了安裝。最常見的原因是磁碟已滿或唯讀;pacman 知道原因時,錯誤上方的行會寫明。",
+  "Fix what the lines above the error name, then run this action again.": "修正錯誤上方各行指出的問題,然後重新執行此操作。"
 }

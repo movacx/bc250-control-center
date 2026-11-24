@@ -6539,5 +6539,17 @@
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "起動設定と、BIOS P3.00ではBIOSの項目を1つ変更し、削除時に元へ戻します。復帰しない場合は30秒間電源を抜いてください。青いポートのUSB機器だけで復帰します。",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "サスペンドはシステム本来の動作に、BIOSの項目は以前の値に戻ります。",
   "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "試作品で、作者のボードでのみ確認されています。書き込む前にBIOSチップを書き直せる手段を用意してください。",
-  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 に、GPU演算ユニットの追加とGDDR6温度を有効にできるBIOSメニューを加えたものです。初期設定はどちらもオフです。"
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 に、GPU演算ユニットの追加とGDDR6温度を有効にできるBIOSメニューを加えたものです。初期設定はどちらもオフです。",
+  "Cyan did not find the BC-250 GPU.": "Cyan が BC-250 の GPU を見つけられませんでした。",
+  "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.": "Cyan は固定された 1 つの PCI アドレスで GPU を探します。このコンピューターが BC-250 ではないか、別の PCIe デバイスによって GPU のアドレスが変わっています。",
+  "No NCT668x fan chip answered.": "NCT668x ファンチップからの応答がありません。",
+  "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.": "ドライバーが読み取った ID は BC-250 のファンチップのものではないため、読み込みを拒否しました。",
+  "This action is only for a BC-250. If this computer is one, send a report with this code.": "この操作は BC-250 専用です。このコンピューターが BC-250 の場合は、このコードを付けてレポートを送信してください。",
+  "HelixSR's setup could not build its network files.": "HelixSR のセットアップがネットワークファイルを作成できませんでした。",
+  "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR は Wine 上で動く Windows のシェーダーコンパイラーで作成します。コンパイラーか Wine が停止したか、必要なファイルがありませんでした。すでに HelixSR を使っているゲームは変更されていません。",
+  "A package repository of this system could not be refreshed by apt.": "apt がこのシステムのリポジトリの 1 つを更新できませんでした。",
+  "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "上の Err: の行に名前があります。多くは以前に追加されたリポジトリで、キーがないか証明書が無効です。apt は古い一覧で続行するため、操作が止まった原因ではない可能性もあります。",
+  "pacman stopped without changing anything.": "pacman は何も変更せずに停止しました。",
+  "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman がインストールを中止しました。多くはディスクの空き不足か読み取り専用が原因です。pacman が原因を把握している場合は、エラーの上の行に記載されています。",
+  "Fix what the lines above the error name, then run this action again.": "エラーの上の行に示された問題を直してから、もう一度実行してください。"
 }

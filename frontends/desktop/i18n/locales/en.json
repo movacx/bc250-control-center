@@ -6539,5 +6539,17 @@
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.",
   "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.",
-  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default."
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.",
+  "Cyan did not find the BC-250 GPU.": "Cyan did not find the BC-250 GPU.",
+  "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.": "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.",
+  "No NCT668x fan chip answered.": "No NCT668x fan chip answered.",
+  "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.": "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.",
+  "This action is only for a BC-250. If this computer is one, send a report with this code.": "This action is only for a BC-250. If this computer is one, send a report with this code.",
+  "HelixSR's setup could not build its network files.": "HelixSR's setup could not build its network files.",
+  "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.",
+  "A package repository of this system could not be refreshed by apt.": "apt could not refresh one of this system's repositories.",
+  "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.",
+  "pacman stopped without changing anything.": "pacman stopped without changing anything.",
+  "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.",
+  "Fix what the lines above the error name, then run this action again.": "Fix what the lines above the error name, then run this action again."
 }

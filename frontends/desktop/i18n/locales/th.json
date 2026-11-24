@@ -6539,5 +6539,17 @@
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "เปลี่ยนการบูตและตัวเลือก BIOS หนึ่งรายการบน BIOS P3.00 ซึ่งจะคืนค่าเมื่อลบ หากบอร์ดไม่ตื่น ให้ถอดปลั๊ก 30 วินาที ปลุกได้ด้วยอุปกรณ์ USB ในพอร์ตสีน้ำเงินเท่านั้น",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "การพักเครื่องกลับเป็นแบบเดิมของระบบ และตัวเลือก BIOS กลับเป็นค่าเดิม",
   "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "ต้นแบบ ทดสอบบนบอร์ดของผู้สร้างเท่านั้น เตรียมวิธีเขียนชิป BIOS ใหม่ก่อนแฟลช",
-  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 พร้อมเมนู BIOS ที่เปิดหน่วยประมวลผล GPU เพิ่มและอุณหภูมิ GDDR6 ได้ ค่าเริ่มต้นปิดทั้งสอง"
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 พร้อมเมนู BIOS ที่เปิดหน่วยประมวลผล GPU เพิ่มและอุณหภูมิ GDDR6 ได้ ค่าเริ่มต้นปิดทั้งสอง",
+  "Cyan did not find the BC-250 GPU.": "Cyan ไม่พบ GPU ของ BC-250",
+  "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.": "Cyan ค้นหา GPU ที่ที่อยู่ PCI คงที่เพียงแห่งเดียว คอมพิวเตอร์เครื่องนี้อาจไม่ใช่ BC-250 หรืออุปกรณ์ PCIe อื่นทำให้ GPU ย้ายไปที่อยู่อื่น",
+  "No NCT668x fan chip answered.": "ไม่มีชิปพัดลม NCT668x ตอบสนอง",
+  "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.": "ไดรเวอร์อ่าน ID ที่ไม่ใช่ของชิปพัดลมใน BC-250 จึงปฏิเสธการโหลด",
+  "This action is only for a BC-250. If this computer is one, send a report with this code.": "การทำงานนี้ใช้กับ BC-250 เท่านั้น หากคอมพิวเตอร์เครื่องนี้ใช่ โปรดส่งรายงานพร้อมรหัสนี้",
+  "HelixSR's setup could not build its network files.": "การตั้งค่า HelixSR ไม่สามารถสร้างไฟล์เครือข่ายได้",
+  "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR สร้างไฟล์เหล่านี้ด้วยคอมไพเลอร์เชเดอร์ของ Windows ที่ทำงานใน Wine คอมไพเลอร์หรือ Wine หยุดทำงาน หรือขาดไฟล์ที่จำเป็น เกมที่ใช้ HelixSR อยู่แล้วไม่ถูกเปลี่ยนแปลง",
+  "A package repository of this system could not be refreshed by apt.": "apt ไม่สามารถรีเฟรชคลังแพ็กเกจแห่งหนึ่งของระบบนี้ได้",
+  "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "บรรทัด Err: ด้านบนระบุชื่อไว้ มักเป็นคลังที่เพิ่มไว้ก่อนหน้าซึ่งไม่มีคีย์หรือใบรับรองไม่ถูกต้อง apt ทำงานต่อด้วยรายการเดิม จึงอาจไม่ใช่สาเหตุที่ทำให้การทำงานหยุด",
+  "pacman stopped without changing anything.": "pacman หยุดโดยไม่เปลี่ยนแปลงสิ่งใด",
+  "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman ยกเลิกการติดตั้ง สาเหตุที่พบบ่อยที่สุดคือดิสก์เต็มหรืออ่านได้อย่างเดียว บรรทัดเหนือข้อผิดพลาดจะระบุไว้เมื่อ pacman ทราบ",
+  "Fix what the lines above the error name, then run this action again.": "แก้ไขสิ่งที่บรรทัดเหนือข้อผิดพลาดระบุ แล้วเรียกใช้การทำงานนี้อีกครั้ง"
 }

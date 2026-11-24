@@ -48,6 +48,41 @@ class ErrorCode:
 # rules, so all 30 locales already translate it. Adding a status or marker
 # here costs no new translation work; inventing new sentences would.
 _CODES: tuple[ErrorCode, ...] = (
+    # First in the catalog on purpose: a later text rule wins, and these four
+    # name what stopped, never why. The lists apt could not refresh are often
+    # somebody else's broken repository (R-e33c7380, R-d798ec44).
+    ErrorCode(
+        "BC250-PKG-008",
+        "A package repository of this system could not be refreshed by apt.",
+        "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.",
+        "Fix what the lines above the error name, then run this action again.",
+        markers=("Some index files failed to download",),
+    ),
+    # R-fc1cfbe2, R-f4c9a114: pacman's last words, the cause is above them.
+    ErrorCode(
+        "BC250-PKG-009",
+        "pacman stopped without changing anything.",
+        "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.",
+        "Fix what the lines above the error name, then run this action again.",
+        markers=("failed to commit transaction .transaction aborted",),
+    ),
+    # R-767bbe68, R-536c885c, R-d2cec179, R-a45942d4.
+    ErrorCode(
+        "BC250-UPSCALE-003",
+        "HelixSR's setup could not build its network files.",
+        "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.",
+        "In Steam, verify the files of the Proton version in use, then run this action again.",
+        # No brackets: the terminal wrapper reads markers as regular expressions.
+        markers=("helixsr-setup. error:", "The network was not built. HelixSR is installed"),
+    ),
+    # The computer of R-f31ee6a1, R-90b7cec7 and R-3650e716 was not a BC-250.
+    ErrorCode(
+        "BC250-GPU-009",
+        "Cyan did not find the BC-250 GPU.",
+        "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.",
+        "This action is only for a BC-250. If this computer is one, send a report with this code.",
+        markers=("Cyan Skillfish GPU not found at expected PCI bus",),
+    ),
     ErrorCode(
         "BC250-CMD-001",
         "A required program or generated command is missing.",
@@ -374,6 +409,15 @@ _CODES: tuple[ErrorCode, ...] = (
             'rebuilt nct6687 has vermagic',
         ),
     ),
+    # After FAN-001 and KERNEL-001, whose words the same output carries
+    # (R-e33c7380, R-adbf79fa: the computer was not a BC-250).
+    ErrorCode(
+        "BC250-FAN-003",
+        "No NCT668x fan chip answered.",
+        "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.",
+        "This action is only for a BC-250. If this computer is one, send a report with this code.",
+        markers=("chip ID 0xffff is outside the Nuvoton",),
+    ),
     ErrorCode(
         "BC250-CPU-001",
         "The CPU tuning result could not be applied or verified.",
@@ -391,7 +435,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "The password dialog was cancelled, closed, timed out, or rejected the supplied password.",
         "Run the action again and finish the administrator password dialog.",
         exit_statuses=(),
-        markers=('sudo: timed out reading password', 'sudo: a password is required', 'Error executing command as another user: Not authorized', 'QUICK_ACCESS_AUTH',),
+        markers=('incorrect password attempt', 'sudo: timed out reading password', 'sudo: a password is required', 'Error executing command as another user: Not authorized', 'QUICK_ACCESS_AUTH',),
     ),
     # Quick Access refuses to run at all: not root, no systemd host, or no
     # BC-250 present. All three exit 10, so the marker decides which applies.
@@ -557,6 +601,8 @@ _CODES: tuple[ErrorCode, ...] = (
             # Not a bare "nghttp2": package lists carry libnghttp2.
             'nghttp2 shuts down connection', 'FRAME_SIZE_ERROR', 'returned error: 5',
             'Connection timed out', 'Operation timed out',
+            # curl 35 and 56 (R-c436fef5); not a bare reset, Wine prints that too.
+            'Recv failure: Connection reset', 'Send failure: Connection reset',
         ),
     ),
     # A compiler, linker or make stopped (R-bb33f44b). After NET-001 so a

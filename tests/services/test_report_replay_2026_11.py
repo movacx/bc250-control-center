@@ -385,3 +385,22 @@ def test_declining_the_package_manager_is_a_calm_cancel(tmp_path):
 def test_a_real_failure_after_a_yes_is_still_diagnosed(tmp_path):
     output = _terminal(":: Proceed with installation? [Y/n] y\nerror: failed to commit transaction", tmp_path)
     assert "Diagnostic code" in output
+
+
+def test_failures_that_had_no_code_of_their_own():
+    from bc250cc.shared import error_catalog
+    from frontends.desktop.core.error_diagnostics import diagnose_error
+
+    for text, code in (
+        ('Error: Message("Cyan Skillfish GPU not found at expected PCI bus location")', "BC250-GPU-009"),
+        ("nct6687: chip ID 0xffff is outside the Nuvoton NCT668x range (0xD000-0xDFFF)", "BC250-FAN-003"),
+        ("[helixsr-setup] error: the setup stopped (exit 1)", "BC250-UPSCALE-003"),
+        ("W: Some index files failed to download. They have been ignored, or old ones used instead.", "BC250-PKG-008"),
+        ("error: failed to commit transaction (transaction aborted)", "BC250-PKG-009"),
+    ):
+        assert diagnose_error(text).code == code
+        assert error_catalog.BY_CODE[code]
+    # A full disk is why pacman aborted: the precise code keeps winning.
+    assert diagnose_error(
+        "No space left on device\nerror: failed to commit transaction (transaction aborted)"
+    ).code == "BC250-STORAGE-001"

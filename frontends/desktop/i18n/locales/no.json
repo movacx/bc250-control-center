@@ -6539,5 +6539,17 @@
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Den endrer oppstarten og på BIOS P3.00 ett BIOS-valg, som settes tilbake ved fjerning. Våkner ikke kortet, ta strømmen i 30 sekunder. Bare en USB-enhet i en blå port vekker det.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Hvilemodus blir som systemet hadde den, og BIOS-valget får tilbake sin tidligere verdi.",
   "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "En prototype, bare testet på forfatterens kort. Ha en måte å omprogrammere BIOS-brikken på før du flasher.",
-  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 pluss en BIOS-meny der du kan slå på flere GPU-regneenheter og GDDR6-temperaturen. Begge er av som standard."
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 pluss en BIOS-meny der du kan slå på flere GPU-regneenheter og GDDR6-temperaturen. Begge er av som standard.",
+  "Cyan did not find the BC-250 GPU.": "Cyan fant ikke GPU-en til BC-250.",
+  "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.": "Cyan ser etter GPU-en på én fast PCI-adresse. Enten er ikke denne datamaskinen en BC-250, eller så har en annen PCIe-enhet flyttet GPU-en til en annen adresse.",
+  "No NCT668x fan chip answered.": "Ingen NCT668x-viftebrikke svarte.",
+  "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.": "Driveren leste en ID som ikke hører til viftebrikken på BC-250, og nektet derfor å laste.",
+  "This action is only for a BC-250. If this computer is one, send a report with this code.": "Denne handlingen er bare for en BC-250. Hvis denne datamaskinen er en, send en rapport med denne koden.",
+  "HelixSR's setup could not build its network files.": "Oppsettet til HelixSR klarte ikke å bygge nettverksfilene sine.",
+  "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR bygger dem med en Windows-shaderkompilator som kjører i Wine. Kompilatoren eller Wine stoppet, eller en nødvendig fil manglet. Spill som allerede bruker HelixSR, ble ikke endret.",
+  "A package repository of this system could not be refreshed by apt.": "apt klarte ikke å oppdatere en av pakkekildene på dette systemet.",
+  "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Linjene med Err: ovenfor nevner den: som regel en kilde lagt til tidligere, der nøkkelen mangler eller sertifikatet er ugyldig. apt fortsetter med den gamle listen, så det er kanskje ikke dette som stoppet handlingen.",
+  "pacman stopped without changing anything.": "pacman stoppet uten å endre noe.",
+  "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman avbrøt installasjonen. Den vanligste årsaken er en full eller skrivebeskyttet disk; linjene over feilen nevner den når pacman vet det.",
+  "Fix what the lines above the error name, then run this action again.": "Rett det linjene over feilen nevner, og kjør handlingen på nytt."
 }

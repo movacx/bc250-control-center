@@ -6539,5 +6539,17 @@
   "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Zmienia rozruch i w BIOS P3.00 jedną opcję, przywracaną przy usuwaniu. Jeśli płyta się nie wybudzi, odłącz zasilanie na 30 sekund. Wybudza ją tylko urządzenie USB w niebieskim porcie.",
   "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Usypianie wraca do ustawień systemu, a opcja BIOS do poprzedniej wartości.",
   "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Prototyp, testowany tylko na płycie autora. Przed wgraniem miej sposób na przeprogramowanie układu BIOS.",
-  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 oraz menu BIOS, w którym można włączyć więcej jednostek obliczeniowych GPU i temperaturę GDDR6. Domyślnie oba są wyłączone."
+  "MeiMeiDXE v3 plus a BIOS menu where you can turn on more GPU compute units and the GDDR6 temperature. Both are off by default.": "MeiMeiDXE v3 oraz menu BIOS, w którym można włączyć więcej jednostek obliczeniowych GPU i temperaturę GDDR6. Domyślnie oba są wyłączone.",
+  "Cyan did not find the BC-250 GPU.": "Cyan nie znalazł GPU BC-250.",
+  "Cyan looks for the GPU at one fixed PCI address. Either this computer is not a BC-250, or another PCIe device moved the GPU to a different address.": "Cyan szuka GPU pod jednym stałym adresem PCI. Albo ten komputer nie jest BC-250, albo inne urządzenie PCIe przeniosło GPU pod inny adres.",
+  "No NCT668x fan chip answered.": "Żaden układ wentylatorów NCT668x nie odpowiedział.",
+  "The driver read an ID that does not belong to the fan chip of the BC-250, so it refused to load.": "Sterownik odczytał identyfikator, który nie należy do układu wentylatorów BC-250, więc odmówił załadowania.",
+  "This action is only for a BC-250. If this computer is one, send a report with this code.": "To działanie jest tylko dla BC-250. Jeśli ten komputer nim jest, wyślij zgłoszenie z tym kodem.",
+  "HelixSR's setup could not build its network files.": "Instalator HelixSR nie zdołał zbudować plików sieci.",
+  "HelixSR builds them with a Windows shader compiler that runs in Wine. The compiler or Wine stopped, or a file it needs was missing. Games that already use HelixSR were not changed.": "HelixSR buduje je kompilatorem shaderów dla Windows działającym w Wine. Kompilator lub Wine się zatrzymał albo brakowało potrzebnego pliku. Gry, które już używają HelixSR, nie zostały zmienione.",
+  "A package repository of this system could not be refreshed by apt.": "apt nie zdołał odświeżyć jednego z repozytoriów tego systemu.",
+  "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Wiersze Err: powyżej je wskazują: zwykle to dodane wcześniej repozytorium bez klucza lub z nieważnym certyfikatem. apt działa dalej ze starą listą, więc być może to nie to zatrzymało działanie.",
+  "pacman stopped without changing anything.": "pacman zatrzymał się, niczego nie zmieniając.",
+  "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman przerwał instalację. Najczęściej dysk jest pełny lub tylko do odczytu; wiersze nad błędem podają przyczynę, jeśli pacman ją zna.",
+  "Fix what the lines above the error name, then run this action again.": "Napraw to, co wskazują wiersze nad błędem, i uruchom działanie ponownie."
 }
