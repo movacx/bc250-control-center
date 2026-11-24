@@ -151,10 +151,10 @@ class ComputeUnitsPage(Page):
             Note(detail, "warn" if pending else "dim"), Note(spread, "dim" if balance.balanced else "warn"),
             Choice(tr("Unlock / Sync"), lambda ui_: self._read_live(ctx, ui_), info=Info(tr(
                 "Prepare the CU tools, then press Unlock / Sync to read the live WGP table."))),
-            Choice(tr("Apply now"), apply_live, enabled=bool(pending) and ready,
+            Choice(tr("Apply now"), apply_live, tone="primary", enabled=bool(pending) and ready,
                    badge=count_label(pending, "WGP pair") if pending else "", badge_tone="warn",
                    info=Info(guide, blocked=locked)),
-            Choice(tr("Reset selection"), lambda ui_: state.pop("masks", None), enabled=bool(pending), info=Info(tr(
+            Choice(tr("Reset selection"), lambda ui_: state.pop("masks", None), enabled=bool(pending), id="revert", info=Info(tr(
                 "No pending WGP changes.") if not pending else detail))])
         installed = bool(data.get("service_installed"))
         steps = tr("Select the WGP pairs above, then use the buttons below in order — Apply now, Save selection, "

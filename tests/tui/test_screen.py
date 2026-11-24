@@ -147,9 +147,10 @@ def test_enter_runs_the_selected_action_and_asks_for_confirmation_first():
     screen.show_tab("service")
     press(screen, 10)
     layout = screen.build()
-    index = next(i for i, c in enumerate(layout.choices) if c.label == "Restart")
+    index = next(i for i, c in enumerate(layout.choices) if c.label.startswith("Governor service"))
     screen.cursor[screen._slot()] = index
     screen._reveal(screen._slot(), layout.choice_rows[index])
+    screen.choose = lambda title, options: "restart"
     asked = []
     screen.confirm = lambda message, danger=False: asked.append(message) or False
     press(screen, 10)

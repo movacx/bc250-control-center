@@ -40,11 +40,11 @@ def test_every_page_builds_without_qt(tmp_path):
     assert result.returncode == 0, result.stderr
 
 
-def test_headings_become_boxes_and_a_loose_button_stays_with_its_group():
+def test_headings_become_sections_and_a_loose_button_stays_with_its_group():
     blocks = [Heading("One"), Note("a"), Panel("Two", [Note("b")]), Choice("Apply", lambda ui: None)]
     text = lines(build_page(blocks, 60, GLYPHS))
-    assert text[0].startswith("╭─ One") and text[3].startswith("╭─ Two")
-    assert "[ Apply ]" in text[5] and text[6].startswith("╰")
+    assert text[0].startswith("One ─") and text[3].startswith("Two ─")
+    assert "Apply" in text[5] and not set("╭╰│") & set("".join(text))
 
 
 def test_groups_share_a_wide_screen_in_reading_order():
@@ -171,8 +171,9 @@ def test_settings_apply_at_once_and_survive_a_bad_file():
     assert preferences.read({"tui_accent": "nope", "tui_interval": 99, "tui_live_bar": "x"}) == preferences.DEFAULTS
     window, screen = make_screen()
     screen.apply_preferences({"tui_style": "formal", "tui_live_bar": False})
+    assert screen.glyphs.top[0] == "┌"
     screen.draw()
-    assert "┌" in window.text() and "╭" not in window.text()
+    assert "╭" not in window.text()
 
 
 def test_the_sidebar_folds_away_and_the_menu_replaces_it():

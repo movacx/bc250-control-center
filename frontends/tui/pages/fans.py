@@ -488,7 +488,7 @@ class FansPage(Page):
                 mine["draft"] = with_mode(draft, chosen)
 
         blocks = [Choice(tr("Name"), rename, row["label"] or "—"),
-                  Choice(tr("Mode"), pick_mode, f"< {tr(dict(view.MODE_LABELS)[mode])} >", adjust=cycle_mode, tone="accent")]
+                  Choice(tr("Mode"), pick_mode, f"< {tr(dict(view.MODE_LABELS)[mode])} >", adjust=cycle_mode)]
         if mode == "firmware":
             blocks.append(Note(tr("The BIOS fan curve drives this header. BC250 Control Center does not write to it."), "dim"))
         else:
@@ -586,7 +586,7 @@ class FansPage(Page):
             blocks.append(Note(tr(view.READ_ONLY_NOTE), "warn"))
         elif not system.get("enabled") and mode in ("curve", "mix"):
             blocks.append(Note(tr("Curves are followed by control from boot. Without it, only the desktop follows one curve, after you log in."), "dim"))
-        actions_row = Buttons([Choice(tr("Revert"), lambda ui_: mine.pop("draft", None), enabled=dirty),
+        actions_row = Buttons([Choice(tr("Revert"), lambda ui_: mine.pop("draft", None), enabled=dirty, id="revert"),
                                Choice(tr("Apply"), apply, enabled=dirty and not error, tone="primary")])
         badge = tr("Unapplied changes") if dirty else live
         # The form beside its curve (as the desktop's editor), stacked on a narrow terminal.

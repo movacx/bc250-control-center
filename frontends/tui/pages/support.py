@@ -116,7 +116,7 @@ class SupportPage(Page):
                        badge=entry["id"], id=entry["id"], info=Info("\n\n".join((
                            known_errors.localized(entry["guide"]["summary"], language),
                            " · ".join(entry.get("codes") or ()))))) for entry in entries]
-        return [Panel(tr("Search"), [Choice(tr("Search"), search, (query or "--") + " ›"),
+        return [Panel("", [Choice(tr("Search"), search, (query or "--") + " ›"),
                                      Choice(tr("Area"), pick, (names.get(module) or tr("All")) + " ›")]),
                 Panel(tr("Known errors"), rows or [Note(tr("No results"), "dim")], badge=str(len(rows)), wide=True)]
 

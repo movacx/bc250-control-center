@@ -66,10 +66,14 @@ def test_click_toggles_an_option_and_arrows_adjust_without_opening_a_prompt(monk
     event(monkeypatch, screen, x, y)
     assert screen.ctx.state('cpu')['target']['manual']
     screen.draw()
-    y = next(y for y, (_x, text) in screen._row_at.items() if '< -34 scale >' in text)
-    left, text = screen._row_at[y]
+    layout = screen.build()
+    index = next(i for i, c in enumerate(layout.choices) if c.label == 'Scale')
+    screen.cursor[screen._slot()] = index
+    screen._reveal(screen._slot(), layout.choice_rows[index])
+    screen.draw()
+    y, left, right = screen._arrows_at
     screen.ask_int = lambda *args: pytest.fail('the arrow opened a prompt')
-    event(monkeypatch, screen, left + text.index('>'), y)
+    event(monkeypatch, screen, right - 1, y)
     assert screen.ctx.state('cpu')['target']['scale'] == -33
 
 
@@ -153,8 +157,8 @@ def test_console_wheel_scrolls_and_sidebar_click_cannot_interrupt_or_navigate(mo
 def test_resized_or_refreshed_hit_regions_never_activate_an_old_action(monkeypatch):
     window, screen = make_screen()
     screen.goto('gpu')
-    x, y = point(screen, 'Gaming')
-    screen.confirm = lambda *args, **kwargs: pytest.fail('stale action was dispatched')
+    x, y = point(screen, 'Minimum frequency')
+    screen.ask_int = screen.confirm = lambda *args, **kwargs: pytest.fail('stale action was dispatched')
     screen.ctx.page_data['gpu'] = dict(screen.ctx.page_data['gpu'])
     event(monkeypatch, screen, x, y)
     window.width += 20

@@ -141,13 +141,11 @@ class PointerSupport:
             if cell is None or choice.pad.place is None:
                 return
             choice.pad.place(*cell)
-        elif choice.adjust:
-            left, text = self._row_at.get(event.y, (0, ''))
-            _index, char = character_at(text, event.x - left)
-            if char in ('<', '>'):
-                choice.adjust(self, -1 if char == '<' else 1)
-                self._layout_key = None
-                return
+        elif choice.adjust and self._arrows_at and event.y == self._arrows_at[0] \
+                and self._arrows_at[1] <= event.x < self._arrows_at[2]:
+            choice.adjust(self, -1 if event.x < self._arrows_at[1] + 2 else 1)
+            self._layout_key = None
+            return
         self._activate(choice)
 
     def _modal_mouse(self):

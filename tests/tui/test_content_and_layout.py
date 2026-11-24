@@ -34,9 +34,9 @@ def test_wrap_never_exceeds_the_width_even_for_one_long_word():
 
 
 def test_gauge_draws_a_heavy_line_over_a_hairline_and_clamps():
-    assert gauge(0, 0.5, 10, "ok", ASCII) == [("", "dim"), ("=====", "ok"), ("-----", "dim")]
-    assert gauge(0, 2.0, 4, "ok", ASCII)[1] == ("====", "ok")
-    assert gauge(0.25, 0.75, 8, "accent", UNICODE) == [("──", "dim"), ("━━━━", "accent"), ("──", "dim")]
+    assert gauge(0, 0.5, 10, "ok", ASCII) == [("", "edge"), ("=====", "bar"), ("-----", "edge")]
+    assert gauge(0, 2.0, 4, "ok", ASCII)[1] == ("====", "bar")
+    assert gauge(0.25, 0.75, 8, "accent", UNICODE) == [("──", "edge"), ("━━━━", "bar"), ("──", "edge")]
     assert sum(len(text) for text, _ in gauge(0, -1, 6, "", UNICODE)) == 6
 
 
@@ -88,19 +88,19 @@ def test_cards_side_by_side_keep_every_button_and_each_row_knows_whose_span_is_w
     left = Panel("Left", [Buttons([Choice("One", lambda ui: pressed.append(1)), Choice("Two", lambda ui: None)])])
     right = Panel("Right", [Choice("Three", lambda ui: None)], action=Choice("Export", lambda ui: None))
     layout = build_layout([Split([left], [right], minimum=60)], 100, UNICODE)
-    assert [c.label for c in layout.choices] == ["Export", "One", "Two", "Three"]
-    row = next(r for r in layout.rows if r.owners and 1 in r.owners and 2 in r.owners)  # both buttons on one row
+    assert [c.label for c in layout.choices] == ["Export", "One", "Three", "Two"]
+    row = next(r for r in layout.rows if r.owners and 1 in r.owners and 2 in r.owners)  # one from each side
     texts = {owner: "".join(t for (t, _), o in zip(row.spans, row.owners) if o == owner) for owner in (1, 2)}
-    assert "One" in texts[1] and "Two" in texts[2]
+    assert "One" in texts[1] and "Three" in texts[2]
     assert all(cell_width("".join(t for t, _ in r.spans)) == 100 for r in layout.rows)  # nothing spills past the edge
 
 
-def test_buttons_share_space_and_remain_compact_on_a_narrow_terminal():
+def test_actions_take_one_row_each_so_up_and_down_reach_them_all():
     from frontends.tui.content import Buttons
 
     block = Buttons([Choice("Save", lambda ui: None), Choice("Remove permanently", lambda ui: None, tone="bad")])
     wide = build_layout([block], 60, UNICODE)
-    assert len(wide.rows) == 1 and wide.choice_rows == [0, 0]
+    assert len(wide.rows) == 2 and wide.choice_rows == [0, 1]
     phone = build_layout([block], 20, UNICODE)
     assert phone.choice_rows == [0, 1] and all(cell_width("".join(t for t, _ in row.spans)) <= 20 for row in phone.rows)
 
@@ -110,7 +110,9 @@ def test_the_range_rail_marks_the_chosen_span_and_turns_red_past_the_danger_stop
 
     rail = build_layout([Slider([500, 1000, 2000, 2400], 500, 2000, 2000)], 40, UNICODE).rows[0]
     tones = {tone for text, tone in rail.spans if "━" in text or "●" in text}
-    assert tones == {"accent"} and any(tone == "bad" for _text, tone in rail.spans)
+    assert tones == {"", "bar"}  # the safe span carries no alarm
+    hot = build_layout([Slider([500, 1000, 2000, 2400], 500, 2400, 2000)], 40, UNICODE).rows[0]
+    assert any(tone == "bad" for _text, tone in hot.spans)
 
 
 def test_a_pad_cell_is_a_tap_target_of_its_own():

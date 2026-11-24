@@ -23,6 +23,7 @@ from ..content import (
     Field,
     Grid,
     Heading,
+    Info,
     Meter,
     Note,
     Panel,
@@ -37,7 +38,6 @@ from ..content import (
 from ..i18n import tr
 from .base import (
     Page,
-    check,
     guarded,
     load_meter,
     metric_blocks,
@@ -142,14 +142,21 @@ class GpuPage(Page):
             payload = [item.payload() for item in shown]
             guarded(ui_, tr("Export to Decky"), lambda: service.exportar_perfiles_gpu_decky(payload))
 
-        profiles = Panel(tr("Operating profile"), [
-            *[Choice(tr(item.label), lambda ui_, item=item: apply_profile(ui_, item),
-                     f"{item.minimum_mhz:>4} – {item.maximum_mhz} MHz   {voltages.get(item.maximum_mhz) or '--'} mV",
-                     mark=(item.minimum_mhz, item.maximum_mhz) == (want_min, want_max),
-                     edit=lambda ui_, item=item: edit(ui_, item), id=f"profile:{item.key}") for item in shown],
-            Choice(tr("Edit profile") + " ›", lambda ui_: edit(ui_, next((
-                item for item in shown if (item.minimum_mhz, item.maximum_mhz) == (want_min, want_max)), shown[0])), enabled=bool(shown)),
-            Choice(tr("Export to Decky"), export)])
+        matching = next((item for item in shown if (item.minimum_mhz, item.maximum_mhz) == (want_min, want_max)), None)
+
+        def describe(item):
+            return f"{tr(item.label)}   {item.minimum_mhz}–{item.maximum_mhz} MHz"
+
+        def step_profile(ui_, direction):
+            if shown:
+                index = shown.index(matching) if matching in shown else (-1 if direction > 0 else 0)
+                apply_profile(ui_, shown[(index + direction) % len(shown)])
+
+        def pick_profile(ui_):
+            chosen = ui_.choose(tr("Operating profile"), [(item.key, describe(item)) for item in shown])
+            item = next((item for item in shown if item.key == chosen), None)
+            if item is not None:
+                apply_profile(ui_, item)
 
         # -- range: the rail over the TOML points, red past 2000 MHz
         def step(which):
@@ -184,21 +191,28 @@ class GpuPage(Page):
             return edit_
 
         dirty = (want_min, want_max) != (current_min, current_max)
-        rail = Panel(tr("Frequency range"), [
-            Slider(stops, want_min, want_max, SAFE_CEILING),
-            Choice(tr("Minimum frequency"), type_in("min"), f"< {want_min} MHz >", adjust=step("min")),
-            Choice(tr("Maximum frequency"), type_in("max"), f"< {want_max} MHz >", adjust=step("max"),
-                   tone="bad" if want_max > SAFE_CEILING else ""),
-            Field(tr("Active range"), f"{current_min}–{current_max} MHz"),
-            Buttons([Choice(tr("Review and apply range"), apply_range, tone="primary", enabled=dirty),
-                     Choice(tr("Reset selection"), lambda ui_: [mine.pop(key, None) for key in ("min", "max", "profile_key")],
-                            enabled=dirty),
-                     Choice(tr("Save for boot"), save_boot, enabled=not dirty)]),
-            Note(tr("Apply the selected range before saving it for startup."), "dim")],
-            badge=f"{want_min} – {want_max} MHz", badge_tone="warn" if (want_min, want_max) != (current_min, current_max)
-            else "accent")
+        def was(value, current):
+            """A value not applied yet shows what it replaces."""
+            return f"< {value} MHz >" + ("" if value == current else f"   {current} {'→' if ui.unicode else '->'} {value}")
 
-        left = [profiles, rail]
+        rail = Panel(tr("Frequency range"), [
+            Choice(tr("Operating profile"), pick_profile, f"< {tr(matching.label) if matching else tr('Custom')} >", adjust=step_profile,
+                   edit=lambda ui_: edit(ui_, matching or shown[0]) if shown else None, enabled=bool(shown), id="profile",
+                   info=Info(tr("Pick a validated profile or set the range by hand. Every change is checked against the board before it runs, and the telemetry beside it is read-only."))),
+            Choice(tr("Minimum frequency"), type_in("min"), was(want_min, current_min), adjust=step("min"), id="min", info=Info(tr("Governor floor for this profile.")),
+                   tone="warn" if want_min != current_min else ""),
+            Choice(tr("Maximum frequency"), type_in("max"), was(want_max, current_max), adjust=step("max"), id="max", info=Info(tr("Governor ceiling for this profile.")),
+                   tone="bad" if want_max > SAFE_CEILING else "warn" if want_max != current_max else ""),
+            Slider(stops, want_min, want_max, SAFE_CEILING),
+            Choice(tr("Review and apply range"), apply_range, tone="primary", enabled=dirty,
+                   info=Info(tr("This updates the active governor range through D-Bus. The TOML safe-point configuration is not rewritten."))),
+            Choice(tr("Reset selection"), lambda ui_: [mine.pop(key, None) for key in ("min", "max", "profile_key")], enabled=dirty, id="revert"),
+            Choice(tr("Save for boot"), save_boot, enabled=not dirty,
+                   info=Info(tr("This writes the currently active Cyan D-Bus range to the managed TOML. Cyan will use it at the next startup. The running GPU range and governor service will not be changed."),
+                             blocked=tr("Apply the selected range before saving it for startup.") if dirty else ""))],
+            badge=tr("Unapplied changes") if dirty else f"{current_min}–{current_max} MHz", badge_tone="warn" if dirty else "dim")
+
+        left = [rail]
         if backend.startswith("cyan"):  # -- Cyan kernel compatibility
             opts = mine.setdefault("compat", {
                 "set_method": cyan.get("set_method", "smu"), "usage_method": cyan.get("method", "busy-flag"),
@@ -223,14 +237,20 @@ class GpuPage(Page):
                             opts["set_method"], opts["usage_method"], opts["metrics"], opts["frequencies"], opts["temp_read"])):
                         mine.pop("compat", None)
 
+            def flip(key):
+                return lambda ui_, _direction=1: opts.update({key: not opts[key]})
+
+            saved = {"set_method": cyan.get("set_method", "smu"), "usage_method": cyan.get("method", "busy-flag"),
+                     "temp_read": cyan.get("temp_read", "drm"), "metrics": bool(cyan.get("fix_metrics", True)),
+                     "frequencies": bool(cyan.get("fix_frequency", False))}
             left.append(Panel(tr("Cyan kernel compatibility"), [
                 picker("set_method", SET_METHODS, tr("Governor method")),
                 picker("usage_method", USAGE_METHODS, tr("Usage reading")),
                 picker("temp_read", TEMP_READS, tr("Temperature reading")),
-                check(governor_fix_label("metrics"), opts["metrics"], lambda ui_: opts.update(metrics=not opts["metrics"])),
-                check(governor_fix_label("frequency"), opts["frequencies"],
-                      lambda ui_: opts.update(frequencies=not opts["frequencies"])),
-                Buttons([Choice(tr("Apply compatibility"), apply_compat)])],
+                Choice(governor_fix_label("metrics"), flip("metrics"), f"< {tr('Enabled' if opts['metrics'] else 'Disabled')} >", adjust=flip("metrics")),
+                Choice(governor_fix_label("frequency"), flip("frequencies"), f"< {tr('Enabled' if opts['frequencies'] else 'Disabled')} >",
+                       adjust=flip("frequencies")),
+                Choice(tr("Apply compatibility"), apply_compat, tone="warn" if opts != saved else "", enabled=True)],
                 badge=tr("Extended range") if unlocked else "", badge_tone="bad"))
 
         # -- right: telemetry, service, laboratory, risk
@@ -239,13 +259,15 @@ class GpuPage(Page):
         ceiling = max(high, 1)
         clock = state.get("sclk_actual", gpu.get("frequency_mhz"))
         live = Panel(tr("Live"), [
-            Meter(tr("Core clock"), percent(float(clock) / ceiling * 100) if clock else None, number(clock, "MHz"), "accent"),
+            Meter(tr("Core clock"), percent(float(clock) / ceiling * 100) if clock else None, number(clock, "MHz"), ""),
             temperature_meter(tr("Temperature"), temperature),
             load_meter(tr("GPU load"), busy),
             Field(tr("GPU voltage"), number(state.get("voltaje_actual", gpu.get("voltage_mv")), "mV")),
             Field(tr("GPU power"), number(gpu.get("power_w"), "W")),
-            trend(ctx, "°C · 2 min", "gpu_temp", "°C")],
-            badge=number(clock, "MHz"), badge_tone="accent")
+            trend(ctx, "°C · 2 min", "gpu_temp", "°C")])
+        points = Panel(tr("GPU voltage curve"), [Grid(["MHz", "mV", ""], [
+            [str(f), str(v), "●" if want_min <= f <= want_max and ui.unicode else "*" if want_min <= f <= want_max else ""]
+            for f, v in sorted(voltages.items())], gap=4)]) if voltages else None
         tiles = Tiles([
             Tile(tr("Core clock"), number(state.get("sclk_actual", gpu.get("frequency_mhz")), "MHz")),
             Tile(tr("GPU voltage"), number(state.get("voltaje_actual", gpu.get("voltage_mv")), "mV")),
@@ -261,12 +283,23 @@ class GpuPage(Page):
             return handler
 
         running = state.get("service_active") == "active"
-        service_panel = Panel(tr("Governor service"), [Field(tr("Status"), tr("Active") if running else tr("Stopped"), "ok" if running else "warn"), Buttons([
-            Choice(tr("View status"), lambda ui_: guarded(ui_, tr("View status"), service.status_governor)),
-            Choice(tr("Restart"), control("reiniciar", tr("Restart service"))),
-            Choice(tr("Stop governor"), control("desactivar", tr("Stop governor"), True), tone="bad") if running
-            else Choice(tr("Start governor"), control("activar", tr("Start governor")), tone="primary")])],
-            badge=backend or tr("Not detected"), badge_tone="ok" if running else "warn")
+        def service_menu(ui_):
+            options = [("status", tr("View status")), ("restart", tr("Restart"))]
+            options.append(("stop", tr("Stop governor")) if running else ("start", tr("Start governor")))
+            chosen = ui_.choose(tr("Governor service"), options)
+            if chosen == "status":
+                guarded(ui_, tr("View status"), service.status_governor)
+            elif chosen == "restart":
+                control("reiniciar", tr("Restart service"))(ui_)
+            elif chosen == "stop":
+                control("desactivar", tr("Stop governor"), True)(ui_)
+            elif chosen == "start":
+                control("activar", tr("Start governor"))(ui_)
+
+        service_panel = Panel(tr("Service"), [Choice(
+            tr("Governor service") + " ›", service_menu, badge=tr("Active") if running else tr("Stopped"),
+            badge_tone="ok" if running else "warn",
+            info=Info(tr("Start governor runs it now and saves it for startup (enables the service). Stop governor stops it and removes it from startup (disables the service).")))])
 
         def open_config(ui_):
             path = str(state.get("config_path") or "")
@@ -274,10 +307,10 @@ class GpuPage(Page):
             if ok and isinstance(text, str):
                 ui_.show_text(path, text)
 
-        lab = Panel(tr("Voltage laboratory"), [Buttons([
-            Choice(tr("Open laboratory"), lambda ui_: ui_.show_tab("voltage"), tone="primary"),
-            Choice(tr("Open config.toml"), open_config, enabled=bool(state.get("config_path")))])],
-            badge=f"{want_max} MHz · {voltages.get(want_max) or '--'} mV", badge_tone="accent")
+        lab = Panel(tr("Voltage laboratory"), [
+            Choice(tr("Open laboratory") + " ›", lambda ui_: ui_.show_tab("voltage"), badge=f"{want_max} MHz · {voltages.get(want_max) or '--'} mV"),
+            Choice(tr("Open config.toml") + " ›", open_config, enabled=bool(state.get("config_path"))),
+            Choice(tr("Export to Decky"), export, info=Info(tr("Sends these three GPU cards to Decky, so Game Mode offers the same ranges. Export again whenever you edit one here.")))])
 
         right = [tiles, service_panel, lab]
         if high_points.get("available"):  # -- the +2000 MHz points live behind a warning
@@ -287,10 +320,9 @@ class GpuPage(Page):
                     guarded(ui_, label, lambda: service.alternar_puntos_gpu_altos(not unlocked))
 
             extra = list(high_points.get("frequencies") or ()) or [2050, 2400]
-            right.append(Panel(tr("DANGER ZONE"), [
-                Note(f"{tr('TOML points above 2000 MHz')} · {extra[0]}–{extra[-1]} MHz · ≤ {EXTRA_VOLTAGE_MV} mV", "bad"),
-                Buttons([Choice(tr("Re-comment the +2000 MHz points" if unlocked else "Uncomment +2000 MHz points"),
-                                toggle_high, tone="bad")])],
+            right.append(Panel(tr("DANGER ZONE").capitalize(), [
+                Choice(tr("Re-comment the +2000 MHz points" if unlocked else "Uncomment +2000 MHz points"), toggle_high, tone="bad",
+                       info=Info("", f"{tr('TOML points above 2000 MHz')} · {extra[0]}–{extra[-1]} MHz · ≤ {EXTRA_VOLTAGE_MV} mV"))],
                 badge=tr("Enabled" if unlocked else "Locked"), badge_tone="bad" if unlocked else "dim", danger=True))
 
         # -- advanced diagnostics: folded, as on the desktop
@@ -304,10 +336,10 @@ class GpuPage(Page):
             return terminal_form([service_panel, *[item for item in left if isinstance(item, Panel)
                                   and item.title == tr("Cyan kernel compatibility")]])
         if tab == "monitor":
-            return terminal_form([live, Panel(tr("Sensors"), [tiles]), advanced])
+            return [live, Panel(tr("Sensors"), [tiles]), *([points] if points else []), advanced]
         compatibility = [item for item in left if isinstance(item, Panel) and item.title == tr("Cyan kernel compatibility")]
         risk = [item for item in right if isinstance(item, Panel) and item.danger]
-        return [profiles, rail, *compatibility, live, service_panel, lab, *risk]
+        return [rail, service_panel, *compatibility, lab, *risk, live, *([points] if points else [])]
 
     # ------------------------------------------------------------ voltage laboratory
 

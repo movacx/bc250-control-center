@@ -24,6 +24,11 @@ class HardwareWorkspaceTests(unittest.TestCase):
             Glyphs.for_terminal(unicode_ok=True),
         )
 
+    def pick(self, key, name):
+        """Take ``name`` from the operating profile's list."""
+        self.ui.choose = lambda _title, options: next(k for k, text in options if text.startswith(name))
+        self.choose(key, "Operating profile").handler(self.ui)
+
     def choose(self, key, label, tab=""):
         return next(
             choice for choice in self.layout(key, tab).choices if choice.label == label
@@ -33,7 +38,8 @@ class HardwareWorkspaceTests(unittest.TestCase):
         layout = self.layout("cpu")
         labels = [choice.label for choice in layout.choices]
         for label in (
-            "Average board",
+            "Operating profile",
+            "Frequency",
             "Apply configuration + automatic scale",
             "Save for startup",
             "Review persistence",
@@ -62,7 +68,7 @@ class HardwareWorkspaceTests(unittest.TestCase):
         self.assertTrue(any(choice.pad for choice in self.layout("cu").choices))
 
     def test_gpu_selection_is_a_draft_until_apply(self):
-        self.choose("gpu", "Balanced").handler(self.ui)
+        self.pick("gpu", "Balanced")
         self.assertFalse(
             any(call[0].startswith("aplicar") for call in self.ctx.service.calls)
         )
@@ -72,7 +78,7 @@ class HardwareWorkspaceTests(unittest.TestCase):
         self.assertTrue(self.ui.confirmations)
 
     def test_declining_gpu_apply_preserves_the_draft(self):
-        self.choose("gpu", "Balanced").handler(self.ui)
+        self.pick("gpu", "Balanced")
         self.ui.confirm_answer = False
         self.choose("gpu", "Review and apply range").handler(self.ui)
         self.assertFalse(self.ctx.service.calls)
@@ -83,9 +89,7 @@ class HardwareWorkspaceTests(unittest.TestCase):
         for label in (
             "Review and apply range",
             "Save for boot",
-            "View status",
-            "Restart",
-            "Stop governor",
+            "Governor service ›",
         ):
             self.assertIn(label, labels)
         self.assertNotIn("service", dict(self.pages["gpu"].tabs(self.ctx)))
@@ -103,7 +107,7 @@ class HardwareWorkspaceTests(unittest.TestCase):
         row.handler(self.ui)
         self.assertEqual(self.ctx.service.calls, [("gestionar_acpi", ("acpi-install",), {})])
 
-    def test_buttons_keep_edges_in_colour_and_monochrome_layouts(self):
+    def test_actions_keep_weight_and_tone_in_colour_and_monochrome_layouts(self):
         for unicode_ok in (True, False):
             layout = build_layout(
                 [
@@ -117,10 +121,8 @@ class HardwareWorkspaceTests(unittest.TestCase):
                 50,
                 Glyphs.for_terminal(unicode_ok=unicode_ok),
             )
-            text = "".join(text for text, _ in layout.rows[0].spans)
-            self.assertIn("[", text)
-            self.assertIn("]", text)
-            self.assertEqual(layout.choice_rows, [0, 0])
+            self.assertEqual([row.spans[0] for row in layout.rows], [("Apply", "!"), ("Remove", "bad")])
+            self.assertEqual(layout.choice_rows, [0, 1])
 
     def test_arrow_keys_move_between_profiles_that_the_e_key_edits(self):
         layout = self.layout("cpu", width=120)
@@ -136,10 +138,10 @@ class HardwareWorkspaceTests(unittest.TestCase):
         first = next(
             i
             for i, choice in enumerate(layout.choices)
-            if choice.label == "Average board"
+            if choice.label == "Operating profile"
         )
         second = next(
-            i for i, choice in enumerate(layout.choices) if choice.label == "Mid point"
+            i for i, choice in enumerate(layout.choices) if choice.label == "Frequency"
         )
         screen.cursor[slot] = first
         screen._content_key("down")
@@ -160,11 +162,11 @@ class HardwareWorkspaceTests(unittest.TestCase):
         screen._view = lambda: 1000
         screen.current_choice = lambda: layout.choices[screen.cursor[slot]]
         first = next(
-            i for i, choice in enumerate(layout.choices) if choice.label == "Mid point"
+            i for i, choice in enumerate(layout.choices) if choice.label == "Frequency"
         )
         screen.cursor[slot] = first
         screen._content_key("down")
-        self.assertEqual(layout.choices[screen.cursor[slot]].label, "Safe maximum")
+        self.assertEqual(layout.choices[screen.cursor[slot]].label, "VID")
         for _ in range(len(layout.choices)):
             screen._content_key("down")
             self.assertTrue(layout.choices[screen.cursor[slot]].enabled)
@@ -176,7 +178,7 @@ class HardwareWorkspaceTests(unittest.TestCase):
                     self.assertLess(index, len(layout.choices))
 
     def test_cpu_apply_still_requires_confirmation_and_runs_in_console(self):
-        self.choose("cpu", "Mid point").handler(self.ui)
+        self.pick("cpu", "Mid point")
         self.choose("cpu", "Apply configuration + automatic scale").handler(self.ui)
         self.assertIn(
             ("ejecutar_cpu_oc_temporal", (3850, 1150, 90), {}), self.ctx.service.calls

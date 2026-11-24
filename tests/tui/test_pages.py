@@ -64,7 +64,8 @@ def test_gpu_profile_is_staged_then_applied_after_confirmation():
     service = FakeService()
     ctx, ui = make_context(service), FakeUI()
     layout = render(build_pages()["gpu"], ctx, ui)
-    choice(layout, "Balanced").handler(ui)
+    ui.choose = lambda title, options: next(key for key, text in options if text.startswith("Balanced"))
+    choice(layout, "Operating profile").handler(ui)
     assert not service.calls
     choice(render(build_pages()["gpu"], ctx, ui), "Review and apply range").handler(ui)
     assert ("aplicar_perfil_gpu", (500, 1500), {}) in service.calls
@@ -88,7 +89,7 @@ def test_cancelling_a_prompt_changes_nothing():
             return None
 
     ui = Cancelling()
-    next(c for c in render(build_pages()["cpu"], ctx, ui).choices if c.label == "Edit profile ›").handler(ui)  # the profile pencil: name, then a cancelled number
+    next(c for c in render(build_pages()["cpu"], ctx, ui).choices if c.label == "Operating profile").edit(ui)  # the profile pencil: name, then a cancelled number
     assert service.calls == []
 
 

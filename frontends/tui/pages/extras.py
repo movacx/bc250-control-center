@@ -17,7 +17,7 @@ from bc250cc.application.system.cachyos_kernel import DEPENDENCY_NOTE
 from bc250cc.shared.contract import vram_size_choices
 from frontends.desktop.core.upscaling_rows import game_matrix_rows
 
-from ..content import Buttons, Choice, Field, Info, Note, Panel
+from ..content import Buttons, Choice, Field, Gap, Info, Note, Panel
 from ..i18n import tr, tr_format
 from . import compat
 from .base import Page, guarded, os_family
@@ -140,7 +140,7 @@ class AdditionalSettingsPage(Page):
         family, name = os_family(ctx)
         build = {"boot": self._boot_options, "upscaling": self._upscaling, "memory": self._memory, "drivers": self._drivers}.get(
             tab or "compatibility", self._compatibility)
-        return [Note(tr_format("Detected system: {distribution}", distribution=name), "dim")] + build(ctx, data, family)
+        return [Note(tr_format("Detected system: {distribution}", distribution=name), "dim"), Gap()] + build(ctx, data, family)
 
     # -- Compatibility: System, GPU governor, Kernel and graphics, Video, then the reboot options ---------
 
@@ -165,7 +165,7 @@ class AdditionalSettingsPage(Page):
                           lambda m=method, k=key: getattr(service, m)(k), "", key in ("uninstall", "disable"), confirm=key != "status")
                    for method, entries, families in GFX1013 if family in families for key, name in entries]
         graphics = [compat.component(
-            tr("GFX1013 async compute"), tr("Async compute detected" if detected else gfx_state or "Not installed"),
+            tr("GFX1013 async compute"), tr("Async compute detected" if detected else "Manual only" if gfx_state == "manual-untested" else gfx_state or "Not installed"),
             "ok" if detected else "dim",
             tr("Kernel and Mesa must be matched. The interface enables installation only on a reviewed distribution path."),
             actions)] if family != "steamos" else []
@@ -348,7 +348,7 @@ class AdditionalSettingsPage(Page):
                     draft.clear()
 
         rows.append(Buttons([Choice(tr("Apply"), save, tone="primary", enabled=bool(changed)),
-                             Choice(tr("Revert"), lambda ui_: draft.clear(), enabled=bool(changed))]))
+                             Choice(tr("Revert"), lambda ui_: draft.clear(), enabled=bool(changed), id="revert")]))
         return [Panel(f"HelixSR · {tr('Settings')}", rows, badge=tr("Unapplied changes") if changed else "", badge_tone="warn")]
 
     @staticmethod

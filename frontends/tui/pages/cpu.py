@@ -25,7 +25,6 @@ from ..content import (
     Buttons,
     Choice,
     Field,
-    Gap,
     Gauges,
     Info,
     Meter,
@@ -144,10 +143,38 @@ class CpuPage(Page):
             payload = [{key: item[key] for key in ("key", "name", "frequency", "vid", "temperature")} for item in profiles]
             guarded(ui_, tr("Export to Decky"), lambda: service.exportar_perfiles_cpu_decky(payload))
 
-        cards = [Choice(tr(item["name"]), lambda ui_, i=index: target.update(profile=i),
-                        f"{item['frequency']} MHz   {item['vid']:>4} mV   {number(item['temperature'], '°C')}",
-                        mark=index == target["profile"], edit=lambda ui_, i=index: edit(ui_, i), id=f"profile:{item['key']}")
-                 for index, item in enumerate(profiles)]
+        def keep() -> None:
+            if ctx.settings is not None:
+                ctx.settings.save_local_config({"tui_cpu_profiles": [dict(item) for item in profiles]})
+
+        def pick_profile(ui_):
+            index = ui_.choose(tr("Operating profile"), [(i, f"{tr(item['name'])}   {item['frequency']} MHz · {item['vid']} mV")
+                                                         for i, item in enumerate(profiles)])
+            if index is not None:
+                target.update(profile=index)
+
+        def value_row(key, label, unit, low, high, by):
+            def adjust(ui_, direction):
+                chosen[key] = max(low, min(high, chosen[key] + by * direction))
+                keep()
+
+            def type_in(ui_):
+                value = ui_.ask_int(f"{tr(label)} ({unit})", low, high, chosen[key])
+                if value is not None:
+                    chosen[key] = value
+                    keep()
+
+            return Choice(tr(label), type_in, f"< {chosen[key]} {unit} >", adjust=adjust, id=key, info=Info(tr(
+                "This is the voltage limit used by automatic detection. A lower VID asks the detector to use less voltage. It is a detection target, not a fixed voltage saved for boot."))
+                if key == "vid" else None)
+
+        cards = [
+            Choice(tr("Operating profile"), pick_profile, f"< {tr(chosen['name'])} >", id="profile",
+                   adjust=lambda ui_, d: target.update(profile=(target["profile"] + d) % len(profiles)),
+                   edit=lambda ui_: edit(ui_, target["profile"])),
+            value_row("frequency", "Frequency", "MHz", *FREQUENCY_MHZ, 50),
+            value_row("vid", "VID", "mV", *VID_MV, 5),
+            value_row("temperature", "Temperature cap", "°C", *TEMPERATURE_C, 1)]
 
         # -- live scale test, then the one apply button
         def apply(ui_):
@@ -162,18 +189,20 @@ class CpuPage(Page):
                     mine["last"] = f
 
         scale_rows = [
-            check(tr("Use manual scale"), target["manual"], lambda ui_: target.update(manual=not target["manual"])),
+            Choice(tr("Use manual scale"), lambda ui_: target.update(manual=not target["manual"]),
+                   f"< {tr('Enabled' if target['manual'] else 'Disabled')} >", adjust=lambda ui_, d: target.update(manual=not target["manual"]),
+                   info=Info(tr("Scale is not mV. More negative means less voltage. Test it live first; only then can it be saved for boot."))),
             *([stepper(tr("Scale"), target, "scale", *SCALE, 1, "scale")] if target["manual"] else [])]
         apply_button = Buttons([Choice(tr("Apply temporary OC + manual scale") if target["manual"]
                                        else tr("Apply configuration + automatic scale"), apply, tone="primary"),
-                                Choice(tr("Export to Decky"), export)])
-        profile_panel = Panel(tr("Operating profile"), [*cards, Choice(tr("Edit profile") + " ›", lambda ui_: edit(ui_, target["profile"])), Gap(), *scale_rows, apply_button])
+                                Choice(tr("Export to Decky"), export, info=Info(tr("Sends these three cards to the Decky Quick Access panel, so in Game Mode you pick the same profiles with the controller. Edit here, export, and Decky shows your names and values.")))])
+        profile_panel = Panel(tr("Operating profile"), [*cards, *scale_rows, apply_button])
         clock = cpu.get("frequency_mhz")
         live_panel = Panel(tr("Live"), [
-            Meter(tr("Frequency"), percent(float(clock) / FREQUENCY_MHZ[1] * 100) if clock else None, number(clock, "MHz"), "accent"),
+            Meter(tr("Frequency"), percent(float(clock) / FREQUENCY_MHZ[1] * 100) if clock else None, number(clock, "MHz"), ""),
             temperature_meter(tr("Temperature"), cpu.get("temperature_c")),
             load_meter(tr("CPU usage"), cpu.get("usage_percent")),
-            trend(ctx, "°C · 2 min", "cpu_temp", "°C")], badge=number(clock, "MHz"), badge_tone="accent")
+            trend(ctx, "°C · 2 min", "cpu_temp", "°C")])
 
         overview = [Field(tr(label), str(processor.get(key) or tr("Not exposed"))) for key, label in OVERVIEW]
         overview.append(Field(tr("Total CPU load"), number(processor.get("total_usage_percent", cpu.get("usage_percent")), "%", 0)))
@@ -214,7 +243,7 @@ class CpuPage(Page):
         shape = tr_format("{cores} cores / {threads} threads", cores=unlock.get("physical_cores") or "--",
                           threads=unlock.get("logical_cpus") or "--")
         cores_panel = Panel(tr("Live core monitor"), [Gauges(slots, minimum=25)],
-                            badge=shape, badge_tone="accent")
+                            badge=shape, badge_tone="dim")
 
         # -- boot persistence
         def save_boot(ui_):
@@ -289,7 +318,7 @@ class CpuPage(Page):
         def guide(ui_):
             ui_.show_text(tr("Firmware persistence guide"), GUIDE_URL)
 
-        danger = Panel(tr("DANGER ZONE"), [
+        danger = Panel(tr("DANGER ZONE").capitalize(), [
             Note(tr("Unlock hidden CPU cores"), "bad"),
             Choice(tr("Temporary"), lambda ui_: target.update(unlock_mode="temporary"),
                    detail=tr("Until the next full power-off. Nothing is installed."),
