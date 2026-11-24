@@ -168,8 +168,8 @@ class RemoteAccessPage(Page):
 
         def change(label, **updates):
             def handler(ui_):
-                if ui_.confirm(tr(label), danger=True):
-                    guarded(ui_, tr(label), lambda: remote_access.configure(**updates))
+                if ui_.confirm(f"SSH: {tr(label)}", danger=True):
+                    guarded(ui_, f"SSH · {tr(label)}", lambda: remote_access.configure(**updates))
             return handler
 
         supported = bool(ssh.get("supported", ssh.get("systemd"))) and bool(ssh.get("unit"))
@@ -179,7 +179,6 @@ class RemoteAccessPage(Page):
                 Field(tr("Boot persistence"), tr("Enabled" if boot else "Disabled")),
                 *[Field(tr("Command"), f"ssh -p {port} {user}@{address}") for address in addresses],
                 Note(str(ssh.get("detail") or ""), "dim"),
-                Choice(tr("Stop SSH" if active else "Start SSH"),
-                       change("Stop SSH" if active else "Start SSH", active=not active), enabled=supported),
-                Choice(tr("Disable SSH at boot" if boot else "Enable SSH at boot"),
-                       change("Disable SSH at boot" if boot else "Enable SSH at boot", boot=not boot), enabled=supported)]
+                Choice(tr("Stop" if active else "Start") + " SSH", change("Stop" if active else "Start", active=not active), enabled=supported),
+                Choice(f"{tr('Disable' if boot else 'Enable')} · {tr('Boot persistence')}",
+                       change("Disable" if boot else "Enable", boot=not boot), enabled=supported)]

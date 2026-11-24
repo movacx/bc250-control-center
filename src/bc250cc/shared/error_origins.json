@@ -339,8 +339,13 @@
    "build_runtime_metric": "SYS-0016",
    "governor_warning_needed": "SYS-0017"
   },
+  "bc250cc/application/system/daemon_service.py": {
+   "running": "SYS-0350",
+   "command": "SYS-0351"
+  },
   "bc250cc/application/system/diagnostics.py": {
    "collect_diagnostics": "CORE-0137",
+   "system_rows": "CORE-0369",
    "collect_readonly_attachments": "CORE-0242"
   },
   "bc250cc/application/system/process_termination_policy.py": {

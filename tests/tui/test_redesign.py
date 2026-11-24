@@ -163,3 +163,40 @@ def test_a_saved_cpu_profile_out_of_range_falls_back_to_the_shipped_one():
 
     assert valid_profile({"frequency": 9000, "vid": 1050, "temperature": 90}, PROFILES[0]) == PROFILES[0]
     assert valid_profile({"frequency": 3600, "vid": 1050, "temperature": 85, "name": "Mine"}, PROFILES[0])["frequency"] == 3600
+
+
+def test_settings_apply_at_once_and_survive_a_bad_file():
+    from frontends.tui import preferences
+
+    assert preferences.read({"tui_accent": "nope", "tui_interval": 99, "tui_live_bar": "x"}) == preferences.DEFAULTS
+    window, screen = make_screen()
+    screen.apply_preferences({"tui_style": "formal", "tui_live_bar": False})
+    screen.draw()
+    assert "┌" in window.text() and "╭" not in window.text()
+
+
+def test_the_sidebar_folds_away_and_the_menu_replaces_it():
+    window, screen = make_screen()
+    screen.handle_key("b")
+    screen.draw()
+    assert screen.focus == "content" and screen._content_box()[0] == 2
+    window.queue = [27]
+    screen.handle_key("esc")  # opens the section menu instead of an invisible sidebar
+    assert screen.focus == "content"
+
+
+def test_the_handbook_is_searchable_and_reads_for_this_system():
+    from frontends.tui.pages.support import SupportPage, entry_text
+
+    from .fakes import FakeUI, make_context
+
+    ctx, ui = make_context(), FakeUI()
+    ctx.state("system")["os"] = ("arch", "Arch Linux")
+    page = SupportPage()
+    everything = build_page(page.build(ctx, page.load(ctx), "errors", ui), 100, GLYPHS).choices
+    ctx.state("support")["query"] = "pacman"
+    found = build_page(page.build(ctx, page.load(ctx), "errors", ui), 100, GLYPHS).choices
+    assert 2 < len(found) < len(everything)
+    from bc250cc.shared import known_errors
+
+    assert "pacman" in entry_text(known_errors.for_id("PKG-01"), "arch")

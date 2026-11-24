@@ -19,6 +19,7 @@ from ..content import (
     PadRow,
     Panel,
     Spans,
+    pad,
 )
 from ..i18n import tr, tr_format
 from .base import Page, guarded
@@ -102,19 +103,19 @@ class ComputeUnitsPage(Page):
                                       f"active_cu_number={data['amdgpu_active_cus']}" if data.get("amdgpu_active_cus") else "")))
         facts = [(label, str(value)) for label, value in (
             ("UMR", data.get("umr")), ("UMR inst", data.get("umr_instance")), ("ASIC", data.get("asic")), ("amdgpu", mode),
-            ("CPU", data.get("cpu_summary")), ("Source", data.get("register_source")),
-            ("Legend", data.get("legend") or "D+ driver+routed, S+ SPI+routed, D! driver+off, -- off")) if value]
+            ("CPU", data.get("cpu_summary")), (tr("Source"), data.get("register_source")),
+            (" ", "   ".join(f"{token} {tr(label)}" for token, label in LEGEND))) if value]
         grid = Panel("BC-250 CU Dashboard / Live Dispatch", [
-            Spans([[(f"{label:<11}", "dim"), (": ", "dim"), (value, "")] for label, value in facts]), Gap(),
+            Spans([[(pad(label.strip(), 11), "dim"), (": " if label.strip() else "  ", "dim"), (value, "")] for label, value in facts]), Gap(),
             Pad([f"WGP{c}\n{2 * c}-{2 * c + 1}" for c in range(WGPS)], pad_rows,
                 tuple(state.get("cursor", (0, 0))), move, toggle, "CUs",
-                place=lambda r, c: state.update(cursor=(r, c)), corner="Row", classic=True, extra=("SPI", "CC"), info=Info(tr(
+                place=lambda r, c: state.update(cursor=(r, c)), corner="SE/SH", classic=True, extra=("SPI", "CC"), info=Info(tr(
                     "Live routing is temporary until the current table is saved and the boot service is installed. One WGP "
                     "always represents two CUs; individual CUs cannot be toggled separately."))),
-            Spans([[("CUs active & routed", "dim"), (": ", "dim"), (f"{active}/40", "warn!" if pending else "ok!")],
-                   [(f"{'Boot sync':<19}", "dim"), (": ", "dim"), (str(data.get("boot_sync") or "--").lower(), "")]]),
+            Spans([[(pad(tr("Active CUs"), 26), "dim"), (": ", "dim"), (f"{active}/40", "warn!" if pending else "ok!")],
+                   [(pad(tr("Boot sync"), 26), "dim"), (": ", "dim"), (tr(str(data.get("boot_sync") or "--")), "")]]),
             *([Legend([("■" if ui.unicode else "#", tr("Unapplied changes"), "warn")])] if pending else []),
-        ], badge=str(data.get("mode") or ""), badge_tone="accent", wide=True)
+        ], badge=tr(str(data.get("mode") or "")), badge_tone="accent", wide=True)
 
         # -- the target and what to do with it
         def apply_live(ui_):

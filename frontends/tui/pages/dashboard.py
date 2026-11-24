@@ -219,7 +219,7 @@ class DashboardPage(Page):
 
         # What the board is doing first, then what its memory and its regulators read.
         return [cpu_card, gpu_card, self._gddr6(ctx, data.get("gddr6") or {}, data.get("sample") or {}),
-                self._power(sensors), cool_card, disk_card]
+                self._power(sensors, ctx.service, (data.get("tools") or {}).get("accessories") or {}), cool_card, disk_card]
 
     @staticmethod
     def _bios(ctx):
@@ -285,7 +285,7 @@ class DashboardPage(Page):
     # -- power rails ------------------------------------------------------------
 
     @staticmethod
-    def _power(sensors):
+    def _power(sensors, service=None, accessories=None):
         rails = [(name, number(sensors.get(f"vrm_{key}_voltage_v"), "", 3), number(sensors.get(f"vrm_{key}_current_a"), "", 1),
                   number(sensors.get(f"vrm_{key}_power_w"), "", 1), number(sensors.get(f"vrm_{key}_temperature_c"), "", 0))
                  for key, name in (("cpu", "VRM CPU"), ("gpu", "VRM GPU"))]
@@ -293,8 +293,12 @@ class DashboardPage(Page):
         rows = [*rails, ("Vin", number(sensors.get("vrm_input_voltage_v"), "", 2), "", "", ""),
                 ("VRM MOS", "", "", "", number(mos, "", 0))]
         missing = all(cell in ("", "--") for row in rows for cell in row[1:])
+        restart = []
+        if missing and (accessories or {}).get("vrm_sensor", {}).get("state") in ("installed", "active"):
+            restart = [Choice(tr("Restart driver"), lambda ui_: ui_.confirm(tr("Restart driver"))
+                              and guarded(ui_, tr("Restart driver"), service.reiniciar_sensor_vrm))]
         return Panel(tr("Power delivery"), [
-            Note(tr("Not detected"), "dim") if missing else
+            *restart, Note(tr("Not detected"), "dim") if missing else
             Grid(["", "V", "A", "W", "°C"], rows, gap=4),
             *([] if total is None else [Gap(), Meter(tr("Total board power"), percent(float(total) / 220 * 100), number(total, "W", 1),
                                                      "accent")])],

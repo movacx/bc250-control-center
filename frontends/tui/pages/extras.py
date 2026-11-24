@@ -278,7 +278,7 @@ class AdditionalSettingsPage(Page):
                     *([Action(tr_format("Update all games ({count})", count=helixsr["outdated_games"]),
                               lambda: service.gestionar_helixsr("update_all"))] if helixsr.get("outdated_games") else [])]
                 if helixsr.get("current") else [])]),
-            *self._games(service, helixsr, fsr4, ready)]
+            *self._games(service, helixsr, fsr4, ready), *self._helixsr_settings(ctx, service, helixsr)]
 
     @staticmethod
     def _add_game(ui, service):
@@ -313,6 +313,43 @@ class AdditionalSettingsPage(Page):
             actions.append(Action(tr("Uninstall"), lambda: run("uninstall"), "", True))
         number_ = str(state.get("version") or "")
         return compat.component(title + (f" {number_}" if number_ and installed else ""), tr(status), tone, detail, actions)
+
+    def _helixsr_settings(self, ctx, service, helixsr):
+        """What HelixSR writes into its games: a draft until it is applied to all of them."""
+        saved = helixsr.get("settings") or {}
+        if not helixsr.get("current") or not saved:
+            return []
+        draft = ctx.state(self.key).setdefault("helixsr", {})
+        bridge = str(helixsr.get("layout") or "") == "3"
+        rows = []
+        if bridge:
+            entries = [(str(row["id"]), f"{row['section']} · {row['key']}", tuple(row["choices"])) for row in helixsr.get("bridge_settings") or ()]
+        else:
+            entries = [(key, key.replace(".", " · "), (True, False) if isinstance(value, bool) else ())
+                       for key, value in saved.items() if isinstance(value, (bool, int, float)) and not key.startswith("H3:")]
+        for key, label, choices in entries:
+            value = draft.get(key, saved.get(key))
+            shown = tr("Enabled" if value else "Disabled") if isinstance(value, bool) else str(value)
+
+            def step(ui_, direction, key=key, choices=choices, value=value):
+                if choices:
+                    index = choices.index(value) if value in choices else 0
+                    draft[key] = choices[(index + direction) % len(choices)]
+                else:
+                    draft[key] = round(max(0.0, float(value) + 0.1 * direction), 2)
+
+            rows.append(Choice(label, lambda ui_, s=step: s(ui_, 1), f"< {shown} >", adjust=step, id=key,
+                               tone="warn" if key in draft and draft[key] != saved.get(key) else ""))
+        changed = {key: value for key, value in draft.items() if value != saved.get(key)}
+
+        def save(ui_):
+            if ui_.confirm(f"HelixSR · {tr('Settings')}: " + ", ".join(f"{k.split(':')[-1]} = {v}" for k, v in changed.items())):
+                if guarded(ui_, f"HelixSR · {tr('Settings')}", lambda: service.guardar_ajustes_helixsr(dict(changed))):
+                    draft.clear()
+
+        rows.append(Buttons([Choice(tr("Apply"), save, tone="primary", enabled=bool(changed)),
+                             Choice(tr("Revert"), lambda ui_: draft.clear(), enabled=bool(changed))]))
+        return [Panel(f"HelixSR · {tr('Settings')}", rows, badge=tr("Unapplied changes") if changed else "", badge_tone="warn")]
 
     @staticmethod
     def _games(service, helixsr, fsr4, ready):

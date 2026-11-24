@@ -359,6 +359,8 @@ class Screen(PaletteSupport, PointerSupport):
         gpu, cpu = metrics.get("gpu") or {}, metrics.get("cpu") or {}
         status = (f"GPU {number(gpu.get('frequency_mhz'), 'MHz')} {number(gpu.get('temperature_c'), '°C')}   "
                   f"CPU {number(cpu.get('frequency_mhz'), 'MHz')} {number(cpu.get('temperature_c'), '°C')} ")
+        if self._live_bar():
+            status = ""  # the bar along the bottom says it
         title = " BC250 Control Center"
         where = tr(self.page.title)
         version = available_version(self.ctx)

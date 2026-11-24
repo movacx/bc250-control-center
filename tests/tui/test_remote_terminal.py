@@ -51,7 +51,7 @@ def test_ssh_start_and_boot_policy_are_independent_and_require_confirmation(isol
     reveal(ctx)
     layout = render(page, ctx, ui, 'ssh')
     choice(layout, 'Start SSH').handler(ui)
-    choice(layout, 'Enable SSH at boot').handler(ui)
+    choice(layout, 'Enable · Boot persistence').handler(ui)
     assert calls == [{'active': True}, {'boot': True}]
     assert all(danger for _text, danger in ui.confirmations)
 
@@ -61,7 +61,7 @@ def test_unsupported_init_disables_ssh_instead_of_faking_success(isolated_remote
     reveal(ctx)
     layout = render(RemoteAccessPage(), ctx, ui, 'ssh')
     assert not choice(layout, 'Start SSH').enabled
-    assert not choice(layout, 'Enable SSH at boot').enabled
+    assert not choice(layout, 'Enable · Boot persistence').enabled
 
 
 @pytest.mark.parametrize('manager,expected', [('systemd', ['start', 'sshd.service']),
