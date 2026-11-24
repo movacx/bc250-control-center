@@ -23,6 +23,7 @@ from subprocess import TimeoutExpired
 
 from bc250cc.application.system import web_access
 from bc250cc.application.system.privacy import redact_machine
+from bc250cc.shared.operation_contract import OperationExit
 from frontends.tui.console import Console
 from frontends.web.actions import ACTIONS
 from frontends.web.ssh_worker import PREFIX
@@ -166,7 +167,11 @@ class SSHSession:
                 if answer["id"] in (None, identifier):
                     result = answer["result"]
                     with self._state_lock:
-                        self.job_console.finish(bool(result.get("ok")) or (self._monitor_stopped and result.get("exit_code") in (-2, 130)), result.get("error", ""))
+                        status = result.get("exit_code")
+                        if self.job_console.interrupted and status == -2:
+                            status = OperationExit.CANCELLED
+                        self.job_console.exit_status = status
+                        self.job_console.finish(bool(result.get("ok")) or (self._monitor_stopped and status in (-2, OperationExit.CANCELLED)), result.get("error", ""))
                         self._active = False
                     break
 
@@ -184,6 +189,7 @@ class SSHSession:
             with self._state_lock:
                 if self._active:
                     self._monitor_stopped = self._kind == "gddr6.monitor"
+                    self.job_console.interrupted = True
                     self.console.interrupt()
             return {"ok": True}
         if op != "action" or values.get("action") not in ACTIONS:
@@ -206,12 +212,16 @@ class SSHSession:
             return {"id": 0}
         lines = console.view(240)[0]
         text = "\n".join("".join(run[0] for run in line).rstrip() for line in lines)
+        action_needed = console.done.is_set() and console.exit_status == OperationExit.ACTION_NEEDED
         waiting = self._active and bool(re.search(r"BC250 Linux password:\s*$", text))
         interactive = self._active and (waiting or bool(re.search(r"[:?：？]\s*$|\[[yYnN/]+\]\s*$", text)))
         return {"id": self._job_id, "kind": getattr(self, "_kind", ""),
                 "sample": getattr(self, "_sample", {}), "sample_age": time.monotonic() - getattr(self, "_sample_at", 0.0),
                 "label": console.label, "done": console.done.is_set(),
-                "ok": console.succeeded if console.done.is_set() else None, "message": "",
+                "ok": console.succeeded if console.done.is_set() else None,
+                "message": redact_machine(text.strip()) if action_needed else "",
+                "cancelled": console.done.is_set() and not console.succeeded and console.exit_status == OperationExit.CANCELLED,
+                "action_needed": action_needed,
                 "text": redact_machine(text), "waiting": waiting, "interactive": interactive}
 
     def login_input(self, text: str) -> bool:

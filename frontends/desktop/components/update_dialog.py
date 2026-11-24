@@ -43,6 +43,7 @@ from PyQt6.QtWidgets import (
 from bc250cc.infrastructure.install_source import detect_install_source
 from bc250cc.infrastructure.self_update import (
     ReleaseInfo,
+    UpdateCancelled,
     UpdateError,
     UpdatePlan,
     discard_update,
@@ -50,6 +51,7 @@ from bc250cc.infrastructure.self_update import (
     fetch_latest_release,
     plan_update,
 )
+from bc250cc.shared.operation_contract import CANCELLED_MESSAGE, OperationExit
 from bc250cc.shared.version import application_version
 
 from ..core.raw_errors import remember
@@ -395,6 +397,7 @@ class _DownloadThread(QThread):
     progressed = pyqtSignal(int, int)
     completed = pyqtSignal(str)
     failed = pyqtSignal(str)
+    cancelled = pyqtSignal()
 
     def __init__(self, asset, parent=None) -> None:
         super().__init__(parent)
@@ -414,6 +417,9 @@ class _DownloadThread(QThread):
 
         try:
             path = download_asset(self._asset, progress=progress, cancelled=lambda: self._cancel)
+        except UpdateCancelled:
+            self.cancelled.emit()
+            return
         except UpdateError as error:
             remember(error)
             self.failed.emit(str(error))
@@ -690,7 +696,7 @@ class UpdateDialog(QDialog):
         if state == "done":
             self.restart_requested.emit()
             return
-        if state == "failed":
+        if state in {"failed", "cancelled"}:
             self._retry()
             return
         plan = self._plan
@@ -718,6 +724,7 @@ class UpdateDialog(QDialog):
             thread.progressed.connect(self._downloading)
             thread.completed.connect(self._downloaded_ready)
             thread.failed.connect(lambda message: self._fail("download", message))
+            thread.cancelled.connect(lambda: self._cancelled("download"))
             self._download = thread
             self._download_started = time.monotonic()
             thread.start()
@@ -886,6 +893,9 @@ class UpdateDialog(QDialog):
             return
         self._poll.stop()
         self._follow_install_tail()
+        if code == OperationExit.CANCELLED:
+            self._cancelled("install")
+            return
         if code != 0:
             self._fail("install", tr_format("The installer ended with code {code}. The terminal shows why.", code=code))
             if not self.isVisible():
@@ -920,6 +930,17 @@ class UpdateDialog(QDialog):
     def _follow_install_tail(self) -> None:
         if self._launch is not None:
             self._new_log_lines(getattr(self._launch, "log_file", ""))
+
+    def _cancelled(self, stage: str) -> None:
+        self._state = "cancelled"
+        self._poll.stop()
+        self.rail.set_working(False)
+        self.rail.set_tone("blue")
+        self.stages[stage].set_state("pending", tr(CANCELLED_MESSAGE))
+        self.eyebrow.setText(tr(CANCELLED_MESSAGE))
+        self.later_button.setText(tr("Close"))
+        self.primary.setText(tr("Try again"))
+        self.primary.setEnabled(True)
 
     def _fail(self, stage: str, message: str) -> None:
         self._state = "failed"

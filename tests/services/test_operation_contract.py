@@ -42,6 +42,13 @@ def test_failure_report_provides_conservative_next_action(tmp_path):
     assert "matching the running kernel" in report.safe_next_action
 
 
+def test_cancelled_report_has_neutral_wording(tmp_path):
+    report = parse_operation_log(tmp_path / "log", exit_code=OperationExit.CANCELLED)
+    assert report.cancelled
+    assert not report.successful
+    assert report.safe_next_action == "Cancelled."
+
+
 def test_unknown_failure_never_recommends_blind_retry(tmp_path):
     report = parse_operation_log(tmp_path / "missing.log", exit_code=199)
     assert "Inspect" in report.safe_next_action

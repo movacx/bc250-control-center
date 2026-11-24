@@ -10,6 +10,7 @@ from bc250cc.infrastructure.terminal_repository import (
     TerminalLaunchResult,
     TerminalRepository,
 )
+from bc250cc.shared.operation_contract import OperationExit
 
 
 def test_wrapper_preserves_command_exit_status_and_logs_quoted_text(tmp_path):
@@ -66,6 +67,55 @@ def test_a_command_not_found_keeps_the_shells_own_meaning(tmp_path):
 def _run_wrapper(tmp_path, command):
     wrapped = workflow_wrapper(command, tmp_path / "status", tmp_path / "log")
     return subprocess.run(["/usr/bin/bash", "-c", wrapped], input="\n", check=False, capture_output=True, text=True)
+
+
+@pytest.mark.parametrize(("command", "status"), [
+    ("echo ':: Proceed with installation? [Y/n] n'; exit 1", OperationExit.CANCELLED),
+    ("printf '\\033[1m:: Proceed with installation? [Y/n] N\\033[0m\\n'; "
+     "echo '[ERROR] Operation failed at line 12 with exit code 1'; exit 1", OperationExit.CANCELLED),
+    ("echo ':: Proceed with installation? [Y/n] y'; echo 'error: failed to commit transaction'; exit 1", 1),
+    ("echo ':: Proceed with installation? [Y/n]'; exit 1", 1),
+    ("echo ':: Proceed with installation? [Y/n] n'; echo 'error: failed to roll back'; exit 1", 1),
+    ("echo ':: Proceed with installation? [Y/n] n'; exit 0", 0),
+    ("echo 'Error executing command as another user: Request dismissed'; exit 126", OperationExit.CANCELLED),
+    ("echo 'Permission denied'; exit 126", 126),
+    ("echo 'Do you want to continue? [Y/n] n'; echo Abort.; exit 1", OperationExit.CANCELLED),
+    ("echo 'Is this ok [y/N]: n'; echo 'Operation aborted by the user.'; exit 1", OperationExit.CANCELLED),
+])
+def test_wrapper_only_classifies_explicit_terminal_cancellation(tmp_path, command, status):
+    result = _run_wrapper(tmp_path, command)
+    assert result.returncode == status
+    assert int((tmp_path / "status").read_text()) == status
+    if status == OperationExit.CANCELLED:
+        assert "Cancelled:" in result.stdout
+        assert "Diagnostic code" not in result.stdout
+        assert "You can share" not in result.stdout
+    elif status:
+        assert "Diagnostic code" in result.stdout
+
+
+def test_workflow_scopes_locale_to_package_tools_and_keeps_prompt_input(tmp_path, monkeypatch):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    package = bin_dir / "pacman"
+    package.write_text(
+        '#!/bin/sh\nIFS= read -r answer\nprintf "package=%s/%s answer=%s\\n" "$LC_ALL" "$LANGUAGE" "$answer"\n'
+    )
+    sudo = bin_dir / "sudo"
+    sudo.write_text('#!/bin/sh\nexec env "$@"\n')
+    package.chmod(0o755)
+    sudo.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}:{os.environ['PATH']}")
+    command = (
+        'export LANGUAGE=es; printf "workflow=%s\\n" "$LANGUAGE"; '
+        'printf "y\\n" | pacman; printf "n\\n" | sudo pacman; '
+        'printf "workflow=%s\\n" "$LANGUAGE"'
+    )
+    wrapped = workflow_wrapper(command, tmp_path / "status", tmp_path / "log", hold=False, inherit_tty=True)
+    result = subprocess.run(["bash", "-c", wrapped], check=True, capture_output=True, text=True)
+    assert "package=C.UTF-8/C answer=y" in result.stdout
+    assert "package=C.UTF-8/C answer=n" in result.stdout
+    assert result.stdout.count("workflow=es") == 2
 
 
 def test_wrapper_explains_the_error_that_stopped_the_workflow(tmp_path):

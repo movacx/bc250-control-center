@@ -26,13 +26,13 @@ def _inputs(repository_url, destination) -> tuple[str, Path, str, str]:
 
 
 def _clear_stale_lock(qdest: str) -> str:
-    """An interrupted earlier run leaves .git/index.lock behind, and every
-    later preparation then failed on "Unable to create index.lock". It is
-    removed only while no git process runs at all."""
+    """Remove top-level lock files only when pgrep confirms git is idle."""
     return (
-        f"if [ -e {qdest}/.git/index.lock ] && ! pgrep -x git >/dev/null 2>&1; then "
-        f"rm -f {qdest}/.git/index.lock; "
-        'echo "[INFO] Removed a stale git lock left by an interrupted earlier run"; fi; '
+        f"for bc250_git_lock in {qdest}/.git/*.lock; do "
+        '[ -f "$bc250_git_lock" ] || continue; '
+        'if pgrep -x git >/dev/null 2>&1; then break; else [ "$?" -eq 1 ] || break; fi; '
+        'rm -f -- "$bc250_git_lock" && '
+        'echo "[INFO] Removed a stale git lock left by an interrupted earlier run"; done; '
     )
 
 

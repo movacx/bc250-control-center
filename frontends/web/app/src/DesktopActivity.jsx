@@ -57,7 +57,8 @@ export default function Activity({ job, inlineConsole, canType, onClose, monitor
     }
   }, [job.waiting, job.text]);
   useEffect(() => { if (output.current) output.current.scrollTop = output.current.scrollHeight; }, [job.text, expanded, hasInline, job.waiting]);
-  useEffect(() => { if (job.done && !job.ok && !hasInline) setExpanded(true); }, [job.done, job.ok, hasInline]);
+  const failed = job.done && !job.ok && !job.cancelled && !job.action_needed;
+  useEffect(() => { if (failed && !hasInline) setExpanded(true); }, [failed, hasInline]);
 
   useEffect(() => { if (job.waiting && !submitted && !sending) passwordInput.current?.focus(); }, [job.waiting, submitted, sending]);
 
@@ -109,8 +110,8 @@ export default function Activity({ job, inlineConsole, canType, onClose, monitor
   // shared password prompt and failure details, without a second status bar.
   if (mobile && monitorVisible && job.kind === "gddr6.monitor" && !job.waiting && !error && (!job.done || job.ok)) return null;
 
-  const status = job.done ? (job.ok ? t("Done") : t("Failed")) : job.waiting ? t("Administrator password") : t("Running…");
-  const tone = job.done ? (job.ok ? "green" : "red") : "blue";
+  const status = job.action_needed ? job.message : job.cancelled ? t("Cancelled.") : job.done ? (job.ok ? t("Done") : t("Failed")) : job.waiting ? t("Administrator password") : t("Running…");
+  const tone = failed ? "red" : job.ok ? "green" : "blue";
   const open = () => {
     if (hasInline) {
       const console = [...document.querySelectorAll("[data-job-console]")].find(node => node.dataset.jobConsole === inlineConsole);

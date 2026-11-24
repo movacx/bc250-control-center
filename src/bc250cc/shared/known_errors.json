@@ -6472,7 +6472,7 @@
         "BC250-GENERAL-001"
       ],
       "match": [
-        "Proceed with installation\\? \\[Y/n\\]"
+        "(?m)^\\s*(?:::\\s*)?Proceed with installation\\? \\[Y/n\\][ \\t]+n[ \\t]*\\r?$"
       ],
       "keywords": {
         "und": [

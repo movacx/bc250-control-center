@@ -18,6 +18,12 @@ from bc250cc.application.system.workflow_console import (
     set_embedded_terminal_launcher,
     set_translator,
 )
+from bc250cc.shared.errors import ActionNeeded
+from bc250cc.shared.operation_contract import (
+    CANCELLED_MESSAGE,
+    OperationCancelled,
+    OperationExit,
+)
 from frontends.desktop.i18n import set_language, tr
 from frontends.tui.runtime import Context, describe_error, describe_result
 from frontends.web.actions import ACTIONS, Invalid
@@ -30,7 +36,7 @@ class InheritedTerminal:
     inherit_tty = True
 
     def __init__(self):
-        self.failed = False
+        self.status = 0
 
     def run(self, argv):
         try:
@@ -38,7 +44,8 @@ class InheritedTerminal:
         except OSError as error:
             print(describe_error(error), flush=True)
             status = 127
-        self.failed |= status != 0
+        if status and self.status in (0, OperationExit.CANCELLED):
+            self.status = status
         return status
 
     def __call__(self, request):
@@ -49,7 +56,10 @@ class InheritedTerminal:
                                     status_file=request.status_file, log_file=request.log_file)
 
     def shell(self, command):
-        if self.run(list(command) if isinstance(command, (list, tuple)) else ["bash", "-c", command]):
+        status = self.run(list(command) if isinstance(command, (list, tuple)) else ["bash", "-c", command])
+        if status == OperationExit.CANCELLED:
+            raise OperationCancelled()
+        if status:
             raise RuntimeError("The hardware workflow did not complete successfully.")
         return ""
 
@@ -77,15 +87,21 @@ def main() -> int:
         if level and request.get("confirmed") is not True:
             raise Invalid("confirmation")
         result = work()
-        if terminal.failed:
-            return 1
+        if terminal.status:
+            return OperationExit.CANCELLED if terminal.status == OperationExit.CANCELLED else 1
         message = describe_result(result)
         if message:
             print(message, flush=True)
         return 0
-    except (Exception, KeyboardInterrupt) as error:
-        print(describe_error(error) if isinstance(error, Exception) else "Operation cancelled.", flush=True)
-        return 130 if isinstance(error, KeyboardInterrupt) else 1
+    except (OperationCancelled, KeyboardInterrupt):
+        print(tr(CANCELLED_MESSAGE), flush=True)
+        return OperationExit.CANCELLED
+    except ActionNeeded as error:
+        print(tr(str(error)), flush=True)
+        return OperationExit.ACTION_NEEDED
+    except Exception as error:
+        print(describe_error(error), flush=True)
+        return 1
 
 
 if __name__ == "__main__":

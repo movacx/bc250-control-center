@@ -160,7 +160,9 @@ function Shell({ session, onLogout }) {
       setJob(next);
       if (next.done) {
         setAgain((n) => n + 1);
-        setToast(next.ok ? { tone: "ok", text: next.message || t("Done") } : { tone: "bad", text: t("The workflow did not finish successfully.") });
+        if (next.cancelled) setToast({ tone: "neutral", text: t("Cancelled.") });
+        else if (next.action_needed) setToast({ tone: "neutral", text: next.message });
+        else setToast(next.ok ? { tone: "ok", text: next.message || t("Done") } : { tone: "bad", text: t("The workflow did not finish successfully.") });
       } else timer = setTimeout(tick, 600);
     };
     tick();
@@ -206,7 +208,7 @@ function Shell({ session, onLogout }) {
       {confirm && confirm.level !== 1 && !confirm.inline && <Confirm spec={confirm} onCancel={() => { setConfirm(null); confirm.onCancel?.(); }} onGo={() => go(confirm)} />}
       {(job && (jobId || running)) && <Activity job={job} monitorVisible={monitorInDashboard} inlineConsole={inlineConsole} canType={session.password} onClose={() => { setJob(null); setJobId(0); }} />}
       {sshOpen && <SSH onClose={() => setSshOpen(false)} canType={session.password} />}
-      {toast && <div className={`toast ${toast.tone}`} role="status"><Icon name={toast.tone === "ok" ? "check_green" : "warning_orange"} /><span>{toast.text}</span><button className="ghost" aria-label={t("Close")} onClick={() => setToast(null)}><Icon name="close_gray" /></button></div>}
+      {toast && <div className={`toast ${toast.tone}`} role="status">{toast.tone !== "neutral" && <Icon name={toast.tone === "ok" ? "check_green" : "warning_orange"} />}<span>{toast.text}</span><button className="ghost" aria-label={t("Close")} onClick={() => setToast(null)}><Icon name="close_gray" /></button></div>}
     </App.Provider>
   );
 }

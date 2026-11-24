@@ -8,10 +8,12 @@ import pytest
 
 import bc250cc.infrastructure.cu_repository as cu_repository_module
 import frontends.desktop.pages.compute_units as compute_units_module
+from bc250cc.application.compute_units.operations import ComputeUnitsPreparationNeeded
 from bc250cc.infrastructure.cu_repository import (
     QUICK_ACCESS_CU_RUNTIME_HELPER_PROTOCOL,
     CURepository,
 )
+from bc250cc.shared.operation_contract import OperationCancelled
 from frontends.desktop.i18n import SUPPORTED_LANGUAGES, set_language, tr
 from frontends.desktop.pages.compute_units import ComputeUnitsPage
 
@@ -432,7 +434,7 @@ def test_cancelled_cu_authorization_is_not_reported_as_a_hardware_failure(qtbot)
     controller = type(
         "Controller",
         (),
-        {"obtener_estado_cu": lambda self: (_ for _ in ()).throw(RuntimeError("CU_AUTHORIZATION_CANCELLED"))},
+        {"obtener_estado_cu": lambda self: (_ for _ in ()).throw(OperationCancelled())},
     )()
     page = ComputeUnitsPage(controller)
     qtbot.addWidget(page)
@@ -446,6 +448,27 @@ def test_cancelled_cu_authorization_is_not_reported_as_a_hardware_failure(qtbot)
     assert errors == []
     assert page.current_state.get("fresh") is not True
     assert any(action[0] == "Live refresh canceled" for action in page._session_actions)
+
+
+@pytest.mark.parametrize("restart", [False, True])
+def test_unlock_sync_offers_preparation_or_restart_for_missing_umr(qtbot, restart):
+    def refused():
+        raise ComputeUnitsPreparationNeeded(restart=restart)
+
+    page = ComputeUnitsPage(SimpleNamespace(obtener_estado_cu=refused))
+    qtbot.addWidget(page)
+    page.current_state["privileged_backend_ready"] = True
+    prompts = []
+    page._show_not_prepared = lambda reason: prompts.append(("prepare", reason))
+    page._show_info = lambda title, reason: prompts.append((title, reason))
+    page._show_error = lambda *_args: pytest.fail("Missing UMR should be a notice")
+
+    page.refresh_authorized()
+    qtbot.waitUntil(lambda: page._worker is None, timeout=2000)
+
+    assert prompts == [
+        ("Restart" if restart else "prepare", str(ComputeUnitsPreparationNeeded(restart=restart)))
+    ]
 
 
 def test_unlock_sync_explains_when_protected_backend_is_missing(qtbot):
@@ -507,12 +530,15 @@ def test_prepare_cu_tools_requests_only_manager_and_its_dependencies(qtbot, monk
     (
         "Error executing command as another user: Request dismissed",
         "Authentication cancelled",
-        "Not authorized",
         "GDBus.Error:org.freedesktop.PolicyKit1.Error.Cancelled",
     ),
 )
 def test_cu_repository_recognizes_localized_polkit_cancellation(message):
     assert CURepository._autorizacion_cancelada(message) is True
+
+
+def test_cu_repository_keeps_polkit_denial_as_a_failure():
+    assert not CURepository._autorizacion_cancelada("Not authorized")
 
 
 def test_canceled_authorization_copy_is_localized_in_every_language():

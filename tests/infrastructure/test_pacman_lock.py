@@ -75,18 +75,22 @@ def test_the_release_refuses_an_unexpected_path(path):
         pacman_lock.release_command(Path(path))
 
 
-def _release(tmp_path: Path, lock: Path, running: str = "", *, with_pgrep: bool = True):
+def _release(tmp_path: Path, lock: Path, running: str = "", *, with_pgrep: bool = True, on_wait=""):
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(exist_ok=True)
+    proc = tmp_path / "proc"
+    proc.mkdir(exist_ok=True)
+    (proc / "stat").write_text(f"btime {int(time.time()) - 100}\n")
     if with_pgrep:
         (bin_dir / "pgrep").write_text(
             "#!/bin/bash\n"
+            '[ -e "$LOCK.done" ] && exit 1\n'
             'names="$RUNNING"\n'
             '[ -z "$names" ] && exit 1\n'
-            'if [ "$2" = pacman ]; then case " $names " in *" pacman "*) exit 0;; *) exit 1;; esac; fi\n'
             'i=1; for n in $names; do echo "$i $n"; i=$((i+1)); done\n'
         )
-    (bin_dir / "sudo").write_text('#!/bin/bash\nexec "$@"\n')
+    (bin_dir / "sudo").write_text('#!/bin/bash\nexec /bin/bash "${@:2}"\n')
+    (bin_dir / "sleep").write_text(f"#!/bin/bash\n{on_wait}\nexit 0\n")
     for tool in bin_dir.iterdir():
         tool.chmod(0o755)
     path = f"{bin_dir}:/usr/bin:/bin" if with_pgrep else f"{bin_dir}:/nonexistent"
@@ -95,8 +99,8 @@ def _release(tmp_path: Path, lock: Path, running: str = "", *, with_pgrep: bool 
             target = Path("/usr/bin") / tool
             (bin_dir / tool).symlink_to(target)
     return subprocess.run(
-        ["/bin/bash", "-c", pacman_lock.release_command(lock)],
-        env={"PATH": path, "RUNNING": running}, capture_output=True, text=True, timeout=30,
+        ["/bin/bash", "-c", pacman_lock.release_command(lock).replace("/proc/", f"{proc}/")],
+        env={"PATH": path, "RUNNING": running, "LOCK": str(lock)}, capture_output=True, text=True, timeout=30,
     )
 
 
@@ -142,3 +146,34 @@ def test_the_refusal_is_diagnosed_as_a_busy_package_manager(tmp_path):
     shown = subprocess.run(["bash", "-c", wrapped], input="", text=True, capture_output=True,
                            timeout=30, check=False).stdout
     assert "Diagnostic code: BC250-PKG-001" in shown
+
+@pytest.mark.parametrize("args, busy", [
+    ("-Qq", False), ("-Si umr", False), ("-Ss umr", False), ("-Sp umr", False),
+    ("-T umr", False), ("--version", False), ("-F file", False),
+    ("-S umr", True), ("-Sy", True), ("-F -y", True), ("-Syu", True),
+    ("-Q --unknown", True), ("-Si -y", True),
+])
+def test_query_classification_matches_release(tmp_path, args, busy):
+    proc = _proc(tmp_path, "pacman", boot=0)
+    cmdline = b"\0".join(arg.encode() for arg in ["pacman", *args.split()]) + b"\0"
+    (proc / "100" / "cmdline").write_bytes(cmdline)
+    lock = _lock(tmp_path)
+    state = pacman_lock.lock_state(lock, proc=proc, pacman_present=True)
+    assert (state["state"] == pacman_lock.IN_USE) == busy
+    (proc / "1").mkdir()
+    (proc / "1" / "cmdline").write_bytes(cmdline)
+    result = _release(tmp_path, lock, running="pacman")
+    assert lock.exists() == busy
+    assert result.returncode == int(busy)
+    assert "()" not in result.stdout
+
+
+@pytest.mark.parametrize("replace_lock", [False, True])
+def test_release_rechecks_after_a_process_exits(tmp_path, replace_lock):
+    lock = _lock(tmp_path)
+    on_wait = 'touch "$LOCK.done"'
+    if replace_lock:
+        on_wait += '; mv "$LOCK" "$LOCK.previous"; touch "$LOCK"'
+    result = _release(tmp_path, lock, running="pacman", on_wait=on_wait)
+    assert lock.exists() == replace_lock
+    assert result.returncode == int(replace_lock)

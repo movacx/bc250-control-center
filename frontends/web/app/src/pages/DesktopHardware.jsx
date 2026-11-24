@@ -40,7 +40,7 @@ function SessionConsole({ kind }) {
   useEffect(() => { if (output.current) output.current.scrollTop = output.current.scrollHeight; }, [job?.text]);
   return <div className="desktop-console-host">
     <pre className="console desktop-session-console" ref={output} tabIndex={0} data-job-console={kind} aria-label={t("Terminal output")}>{matches ? job.text || t("Waiting for data…") : t("No hardware command has been run.")}</pre>
-    {matches && <><TerminalInput job={job} canType={session?.password} /><div className="desktop-console-actions"><span role="status">{job.done ? (job.ok ? t("Done") : t("Failed")) : job.waiting ? t("Administrator password") : t("Running…")}</span>{!job.done && <Btn small kind="danger" onClick={stopJob}>{t("Stop")}</Btn>}</div></>}
+    {matches && <><TerminalInput job={job} canType={session?.password} /><div className="desktop-console-actions"><span role="status">{job.action_needed ? job.message : job.cancelled ? t("Cancelled.") : job.done ? (job.ok ? t("Done") : t("Failed")) : job.waiting ? t("Administrator password") : t("Running…")}</span>{!job.done && <Btn small kind="danger" onClick={stopJob}>{t("Stop")}</Btn>}</div></>}
   </div>;
 }
 function Overview({ processor, cpu }) {

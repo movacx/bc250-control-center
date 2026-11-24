@@ -133,6 +133,12 @@ def test_a_failed_workflow_stays_open_with_its_exit_code(qtbot, panel):
     assert "se rompio" in panel.view.screen.full_text()
 
 
+def test_a_cancelled_workflow_uses_a_neutral_tone_and_cannot_be_reported(qtbot, panel):
+    assert run_and_wait(qtbot, panel, "exit 130") == 130
+    assert panel.state_label.property("tone") == "plain"
+    assert panel.report_button.isHidden()
+
+
 def test_turning_auto_hide_off_keeps_a_successful_workflow_on_screen(qtbot, panel):
     panel.set_auto_hide(False)
     run_and_wait(qtbot, panel, "exit 0")

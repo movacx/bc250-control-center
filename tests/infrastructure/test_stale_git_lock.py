@@ -3,8 +3,8 @@ later run failed on "Unable to create index.lock: File exists"."""
 
 from __future__ import annotations
 
+import os
 import shlex
-import shutil
 import subprocess
 
 import pytest
@@ -12,16 +12,18 @@ import pytest
 from bc250cc.infrastructure.source_checkout import _clear_stale_lock
 
 
-@pytest.mark.skipif(shutil.which("pgrep") is None, reason="pgrep is required")
-def test_a_stale_index_lock_is_removed_when_no_git_runs(tmp_path):
-    lock = tmp_path / ".git" / "index.lock"
-    lock.parent.mkdir()
-    lock.write_text("", encoding="utf-8")
+@pytest.mark.parametrize("status", [0, 1, 2])
+def test_only_top_level_locks_are_removed_when_git_is_idle(tmp_path, status):
+    git = tmp_path / ".git"
+    (git / "refs").mkdir(parents=True)
+    locks = [git / name for name in ("index.lock", "shallow.lock", "config.lock", "HEAD.lock", "packed-refs.lock")]
+    keep = [git / "HEAD", git / "refs" / "branch.lock"]
+    for path in locks + keep:
+        path.touch()
+    pgrep = tmp_path / "pgrep"
+    pgrep.write_text(f"#!/bin/sh\nexit {status}\n")
+    pgrep.chmod(0o755)
     script = _clear_stale_lock(shlex.quote(str(tmp_path))) + "true"
-    # A git process elsewhere on this machine keeps the lock: the check is
-    # deliberately conservative. Only assert when none is running.
-    if subprocess.run(["pgrep", "-x", "git"], capture_output=True).returncode == 0:
-        pytest.skip("a git process is running on this machine")
-    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, check=True)
-    assert not lock.exists()
-    assert "stale git lock" in result.stdout
+    subprocess.run(["bash", "-c", script], check=True, env={"PATH": f"{tmp_path}:{os.defpath}"})
+    assert all(path.exists() == (status != 1) for path in locks)
+    assert all(path.exists() for path in keep)

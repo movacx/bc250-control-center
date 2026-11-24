@@ -8,6 +8,7 @@ import tempfile
 import time
 from pathlib import Path
 
+from bc250cc.infrastructure.bazzite_deployment import probe_bazzite_reboot_pending
 from bc250cc.infrastructure.cu_dashboard import clean_dashboard, parse_dashboard
 from bc250cc.infrastructure.cu_kernel_unlock import kernel_cu_unlock_active
 from bc250cc.infrastructure.cu_operations import (
@@ -21,6 +22,10 @@ from bc250cc.platform.init.services import (
 from bc250cc.shared import contract
 from bc250cc.shared.errors import ActionNeeded
 from bc250cc.shared.failure_text import describe_failure
+from bc250cc.shared.operation_contract import (
+    POLKIT_DISMISSED_PATTERN,
+    OperationCancelled,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -97,16 +102,7 @@ class CURepository:
 
     @staticmethod
     def _autorizacion_cancelada(texto):
-        normalizado = str(texto or '').strip().lower()
-        return any(fragmento in normalizado for fragmento in (
-            'request dismissed',
-            'authentication cancelled',
-            'authentication canceled',
-            'cancelled by user',
-            'canceled by user',
-            'not authorized',
-            'org.freedesktop.policykit1.error.cancelled',
-        ))
+        return bool(re.search(POLKIT_DISMISSED_PATTERN, str(texto or ''), re.IGNORECASE))
 
 
     def _dashboard_cu_cache_path(self):
@@ -505,10 +501,11 @@ class CURepository:
         command = pkexec_argv(pkexec, str(DESKTOP_CU_HELPER), *args)
         rc, out, err = self._ejecutar(command, timeout=240)
         if rc != 0:
-            detail = describe_failure(rc, out, err)
-            if self._autorizacion_cancelada(detail):
-                raise RuntimeError('CU_AUTHORIZATION_CANCELLED')
-            raise RuntimeError(detail)
+            if Path(command[0]).name == 'pkexec' and (
+                rc == 126 or self._autorizacion_cancelada(err)
+            ):
+                raise OperationCancelled()
+            raise RuntimeError(describe_failure(rc, out, err))
         text = (out or '').strip()
         if text:
             if self._dashboard_cu_tiene_tabla(text):
@@ -756,6 +753,8 @@ class CURepository:
         estado['source_kind'] = 'live'
         if not estado.get('available'):
             if 'umr was not found' in str(texto or '').lower():
+                if 'umr' in probe_bazzite_reboot_pending()['packages']:
+                    raise ActionNeeded('UMR is installed in the staged deployment. Restart to finish its installation.')
                 raise ActionNeeded(
                     'The CU backend cannot find the UMR executable. Prepare the UMR component '
                     'from the Dashboard; on Bazzite, reboot if its installation is queued '

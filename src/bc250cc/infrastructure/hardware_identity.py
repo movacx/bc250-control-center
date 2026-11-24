@@ -1,23 +1,36 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 BC250_GPU_DEVICE_ID = "0x13fe"
+_CPU_INFO = Path("/proc/cpuinfo")
+_DMI_ROOT = Path("/sys/class/dmi/id")
+
+
+def _platform_text_identity() -> str:
+    dmi_read = False
+    dmi_unreadable = False
+    dmi_files = (_DMI_ROOT / name for name in ("board_name", "product_name", "product_version"))
+    for path in (_CPU_INFO, *dmi_files):
+        try:
+            identity = path.read_text(encoding="utf-8", errors="replace").strip().lower()
+        except FileNotFoundError:
+            continue
+        except OSError:
+            dmi_unreadable |= path.parent == _DMI_ROOT
+            continue
+        if "bc-250" in identity:
+            return "present"
+        dmi_read |= path.parent == _DMI_ROOT and bool(identity)
+    return "absent" if dmi_read and not dmi_unreadable else "unknown"
 
 
 def is_bc250_platform() -> bool:
-    identity_files = (
-        Path("/proc/cpuinfo"),
-        Path("/sys/class/dmi/id/board_name"),
-        Path("/sys/class/dmi/id/product_name"),
-        Path("/sys/class/dmi/id/product_version"),
-    )
-    for path in identity_files:
-        try:
-            if "bc-250" in path.read_text(encoding="utf-8", errors="ignore").lower():
-                return True
-        except OSError:
-            continue
+    return _platform_text_identity() == "present" or _bc250_drm_present()
+
+
+def _bc250_drm_present() -> bool:
     for device in Path("/sys/class/drm").glob("card*/device"):
         try:
             vendor = (device / "vendor").read_text().strip().lower()
@@ -30,7 +43,8 @@ def is_bc250_platform() -> bool:
 
 
 #: The AMD BC-250's GPU on the PCI bus.
-_BC250_PCI = ("0x1002", "0x13fe")
+_BC250_PCI = ("0x1002", BC250_GPU_DEVICE_ID)
+_PCI_ID = re.compile(r"0x[0-9a-f]{4}")
 
 
 def bc250_identity(pci_root: Path = Path("/sys/bus/pci/devices")) -> str:
@@ -57,13 +71,19 @@ def bc250_identity(pci_root: Path = Path("/sys/bus/pci/devices")) -> str:
             continue
         if (vendor, device_id) == _BC250_PCI:
             return "present"
+        if not (_PCI_ID.fullmatch(vendor) and _PCI_ID.fullmatch(device_id)):
+            complete = False
     return "absent" if complete else "unknown"
 
 
 def require_bc250_hardware() -> None:
     """Stop a hardware workflow before sudo, a clone or an install when this
     computer has no BC-250 (R-ffde613d and 11 more reports from one PC)."""
-    if bc250_identity() == "absent":
+    if (
+        _platform_text_identity() == "absent"
+        and not _bc250_drm_present()
+        and bc250_identity() == "absent"
+    ):
         from bc250cc.shared.error_catalog import HARDWARE_GATE_MESSAGE
         from bc250cc.shared.errors import ActionNeeded
 

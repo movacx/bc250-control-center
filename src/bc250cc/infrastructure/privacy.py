@@ -125,7 +125,7 @@ def _other_accounts() -> tuple[set[str], set[str]]:
                 continue
             users.add(entry.pw_name)
             gecos = entry.pw_gecos.split(",")[0].strip()
-            if len(gecos) >= 4 and any(character.isalpha() for character in gecos):
+            if len(gecos) >= 3 and any(character.isalpha() for character in gecos):
                 real.add(gecos)
     except (ImportError, KeyError, OSError):
         pass
@@ -255,7 +255,9 @@ def redact_machine(text: object) -> str:
     for name in sorted(known["hosts"], key=len, reverse=True):
         text = _word(name, "<host>", text, left=r"(?<![\w.-])", right=r"(?![\w-])")
     for name in sorted(known["real"], key=len, reverse=True):
-        text = re.sub(re.escape(name), "<name>", text, flags=re.I)
+        # Digits and underscores often separate names in account paths.
+        pattern = r"(?<![^\W\d_])" + re.escape(name).replace(r"\ ", r"[ _]+") + r"(?![^\W\d_])"
+        text = re.sub(pattern, "<name>", text, flags=re.I)
     # The account name also shows outside the home folder (/var/tmp/pamac-
     # build-<name>, "[sudo] password for <name>").
     for name in sorted(known["users"], key=len, reverse=True):

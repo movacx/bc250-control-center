@@ -59,6 +59,11 @@ from bc250cc.infrastructure.install_source import (
 )
 from bc250cc.infrastructure.persistence.config_paths import app_cache_dir
 from bc250cc.infrastructure.release_check import RELEASES_PAGE_URL, USER_AGENT
+from bc250cc.shared.operation_contract import (
+    POLKIT_DISMISSED_PATTERN,
+    OperationCancelled,
+    OperationExit,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +81,10 @@ _SHA256 = re.compile(r"[0-9a-f]{64}")
 
 class UpdateError(RuntimeError):
     """Something the dialog should say, in words, and stop at."""
+
+
+class UpdateCancelled(UpdateError, OperationCancelled):
+    """The user stopped a download."""
 
 
 @dataclass(frozen=True)
@@ -428,7 +437,7 @@ def download_asset(
                 raise UpdateError(f"The download answered {response.status}.")
             while True:
                 if cancelled is not None and cancelled():
-                    raise UpdateError("Cancelled.")
+                    raise UpdateCancelled()
                 chunk = response.read(CHUNK_BYTES)
                 if not chunk:
                     break
@@ -460,17 +469,23 @@ def download_asset(
 
 
 # ``bc250_admin CMD...`` runs CMD as root. With a graphical agent it asks
-# through pkexec's window; when that window is dismissed (126) or no agent
-# answers (127) the terminal asks through sudo instead of failing.
-_ADMIN_FUNCTION = """bc250_admin() {
-  if [ "${BC250_GRAPHICAL_AUTH:-0}" = 1 ] && command -v pkexec >/dev/null 2>&1; then
-    pkexec "$@"
+# through pkexec's window. Fall back to sudo when no agent can ask.
+_ADMIN_FUNCTION = f"""bc250_admin() {{
+  if [ "${{BC250_GRAPHICAL_AUTH:-0}}" = 1 ] && command -v pkexec >/dev/null 2>&1; then
+    case "$1" in
+      pacman|dnf|apt) pkexec /usr/bin/env LC_ALL=C.UTF-8 LANGUAGE=C "$@" ;;
+      *) pkexec "$@" ;;
+    esac
     bc250_rc=$?
-    if [ "$bc250_rc" -ne 126 ] && [ "$bc250_rc" -ne 127 ]; then return "$bc250_rc"; fi
+    if [ "$bc250_rc" -eq 126 ]; then return {OperationExit.CANCELLED}; fi
+    if [ "$bc250_rc" -ne 127 ]; then return "$bc250_rc"; fi
     echo "The authorization window did not answer; asking for the password in this terminal."
   fi
-  sudo "$@"
-}"""
+  case "$1" in
+    pacman|dnf|apt) LC_ALL=C.UTF-8 LANGUAGE=C sudo "$@" ;;
+    *) sudo "$@" ;;
+  esac
+}}"""
 
 # rpm-ostree talks to its daemon over D-Bus and asks Polkit itself, so it runs
 # without sudo: the desktop shows its authorization window. Only when Polkit
@@ -497,22 +512,27 @@ def _rpm_ostree_install(path: str) -> str:
     layered = shlex.quote(_RPM_OSTREE_LAYERED)
     return f"""bc250_rpm_ostree() {{
   bc250_log=$(mktemp)
-  rpm-ostree "$@" 2>&1 | tee "$bc250_log"
+  LC_ALL=C.UTF-8 LANGUAGE=C rpm-ostree "$@" 2>&1 | tee "$bc250_log"
   bc250_rc=${{PIPESTATUS[0]}}
   bc250_busy=0
   if grep -q 'Transaction in progress' "$bc250_log"; then bc250_busy=1; fi
+  if [ "$bc250_rc" -ne 0 ] && awk 'NF {{last=$0}} END {{print last}}' "$bc250_log" |
+      grep -qiE {shlex.quote(POLKIT_DISMISSED_PATTERN)}; then
+    rm -f "$bc250_log"
+    return {OperationExit.CANCELLED}
+  fi
   if [ "$bc250_rc" -ne 0 ] && grep -qiE 'authoriz|not allowed|polkit' "$bc250_log"; then
     rm -f "$bc250_log"
     echo "No authorization window answered; asking for the password in this terminal."
-    sudo rpm-ostree "$@"
+    LC_ALL=C.UTF-8 LANGUAGE=C sudo rpm-ostree "$@"
     return $?
   fi
   # A 404 means the cached repository metadata is older than the mirrors
   # (updates-archive after a Fedora bump): refresh it and try once more.
   if [ "$bc250_rc" -ne 0 ] && grep -qE 'Status code: 404|All mirrors were tried' "$bc250_log"; then
     echo "Repository metadata is out of date; refreshing it and trying once more..."
-    rpm-ostree refresh-md --force 2>&1 || sudo rpm-ostree refresh-md --force
-    rpm-ostree "$@" 2>&1 | tee "$bc250_log"
+    LC_ALL=C.UTF-8 LANGUAGE=C rpm-ostree refresh-md --force 2>&1 || LC_ALL=C.UTF-8 LANGUAGE=C sudo rpm-ostree refresh-md --force
+    LC_ALL=C.UTF-8 LANGUAGE=C rpm-ostree "$@" 2>&1 | tee "$bc250_log"
     bc250_rc=${{PIPESTATUS[0]}}
   fi
   # rpm-ostree re-resolves every layered package. One that this Fedora release
@@ -578,7 +598,7 @@ if command -v steamos-readonly >/dev/null 2>&1 && steamos-readonly status 2>&1 |
   steamos-readonly disable || exit 70
   bc250_restore=1
 fi
-pacman -U --noconfirm -- "$bc250_package"
+LC_ALL=C.UTF-8 LANGUAGE=C pacman -U --noconfirm -- "$bc250_package"
 bc250_rc=$?
 if [ "$bc250_restore" = 1 ]; then
   echo "Restoring SteamOS read-only protection."

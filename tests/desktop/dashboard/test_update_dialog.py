@@ -119,6 +119,18 @@ def test_a_failed_install_says_so_and_keeps_the_bar_where_it_stopped(qtbot, wind
     assert not dialog.release_button.isHidden()
 
 
+def test_a_cancelled_install_keeps_the_retry_without_failure(qtbot, window, monkeypatch):
+    toasts = []
+    monkeypatch.setattr(module, "show_toast", lambda *args, **kwargs: toasts.append(args))
+    dialog = _installing(qtbot, window, module.EMBEDDED_TERMINAL_NAME)
+    window.workflow_watch.finished.emit(window.controller.launch, 130)
+    assert dialog._state == "cancelled"
+    assert dialog.eyebrow.text() == tr("Cancelled.")
+    assert dialog.stages["install"].state != "failed"
+    assert dialog.primary.isEnabled()
+    assert toasts == []
+
+
 def test_a_failed_install_can_be_tried_again(qtbot, window):
     """A password nobody typed in time (Bazzite, controller on a sofa) costs a click."""
     dialog = UpdateDialog(window, installed="1.19.3")

@@ -16,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 from bc250cc.infrastructure import diagnostic_journal
+from bc250cc.shared.operation_contract import OperationExit
 
 from .error_diagnostics import (
     ErrorDiagnosis,
@@ -116,7 +117,7 @@ def record_terminal_failure(result: object, exit_code: int) -> None:
     A workflow closed by hand prints none and is not recorded: stopping one
     is a choice, not a fault.
     """
-    if not exit_code:
+    if exit_code in (0, OperationExit.CANCELLED):
         return
     log_file = str(getattr(result, "log_file", "") or "")
     try:

@@ -5,6 +5,16 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from bc250cc.domain.compute_units import WgpMaskTable
+from bc250cc.shared.errors import ActionNeeded
+
+
+class ComputeUnitsPreparationNeeded(ActionNeeded):
+    def __init__(self, *, restart: bool = False):
+        self.restart = restart
+        super().__init__(
+            "Restart to use the staged Compute Units tools."
+            if restart else "Prepare the Compute Units tools to install UMR."
+        )
 
 
 def validate_cu_masks(masks: object) -> tuple[int, int, int, int]:

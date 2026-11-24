@@ -2111,7 +2111,11 @@ if test "${{#bc250_dlss_args[@]}}" -eq 0; then
   echo "License: {DLSS_LICENSE}"
   bc250_answer=""
   printf 'Download it now? [y/N] '
-  read -r bc250_answer || bc250_answer=""
+  if ! read -r bc250_answer; then
+    rm -rf -- "$bc250_dlss_dir"
+    echo "ERROR: no answer could be read from this terminal; nothing was downloaded."
+    exit 1
+  fi
   case "$bc250_answer" in
     y|Y|yes|YES) ;;
     *)

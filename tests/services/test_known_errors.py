@@ -77,6 +77,12 @@ def test_shared_codes_keep_both_install_and_runtime_candidates():
     assert handbook.for_message("umr: error while loading shared libraries: libLLVM.so")[0]["id"] == "CU-02"
 
 
+def test_pacman_confirmation_requires_evidence_of_refusal():
+    prompt = ":: Proceed with installation? [Y/n]"
+    assert "PKG-06" in {entry["id"] for entry in handbook.for_message(f"{prompt} n")}
+    assert "PKG-06" not in {entry["id"] for entry in handbook.for_message(f"{prompt} y\nerror: failed to commit")}
+
+
 def test_actual_error_outranks_a_historically_wrong_code():
     entries = handbook.for_message("BC250-DBUS-001 curl: (22) The requested URL returned error: 504")
     assert entries[0]["id"] == "GFX-03"

@@ -7,12 +7,14 @@ from pathlib import Path
 
 import psutil
 
+from bc250cc.application.compute_units.operations import ComputeUnitsPreparationNeeded
 from bc250cc.application.system.process_termination_policy import (
     ProcessIdentity,
     authorize_process_termination,
 )
 from bc250cc.domain.common.proceso import Proceso
 from bc250cc.domain.common.rendimiento import Rendimiento
+from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
 from bc250cc.infrastructure.polkit_session import normalize_polkit_error, pkexec_argv
 from bc250cc.shared.failure_text import describe_failure
 
@@ -432,12 +434,15 @@ class SistemaService:
         return self.repo.estado_bc250()
 
     def aplicar_rango_bc250(self, minimo, maximo):
+        require_bc250_hardware()
         return self.repo.aplicar_rango_bc250(minimo, maximo)
 
     def guardar_rango_gpu_arranque(self):
+        require_bc250_hardware()
         return self.repo.guardar_rango_gpu_arranque()
 
     def fijar_frecuencia_bc250(self, frecuencia):
+        require_bc250_hardware()
         return self.repo.fijar_frecuencia_bc250(frecuencia)
 
     def estado_herramientas_bc250(self):
@@ -646,11 +651,13 @@ class SistemaService:
         desactivar_conflictos=False,
         governor_preference=None,
     ):
+        require_bc250_hardware()
         return self.repo.instalar_governor(
             confirmar_conflictos, desactivar_conflictos, governor_preference
         )
 
     def cambiar_governor(self, governor):
+        require_bc250_hardware()
         return self.repo.cambiar_governor(governor)
 
     def desinstalar_governor(self, governor):
@@ -659,6 +666,8 @@ class SistemaService:
     def controlar_governor(
         self, accion, confirmar_conflictos=False, desactivar_conflictos=False, reset_cyan_fix_flags=False
     ):
+        if accion not in ('stop', 'disable', 'status'):
+            require_bc250_hardware()
         return self.repo.controlar_governor(
             accion, confirmar_conflictos, desactivar_conflictos, reset_cyan_fix_flags
         )
@@ -682,46 +691,58 @@ class SistemaService:
         return self.repo.status_governor()
 
     def abrir_laboratorio_voltaje_gpu(self):
+        require_bc250_hardware()
         return self.repo.abrir_laboratorio_voltaje_gpu()
 
     def aplicar_laboratorio_voltaje_gpu(self, nivel):
+        require_bc250_hardware()
         return self.repo.aplicar_laboratorio_voltaje_gpu(nivel)
 
     def aplicar_laboratorio_voltaje_gpu_personalizado(self, valores):
+        require_bc250_hardware()
         return self.repo.aplicar_laboratorio_voltaje_gpu_personalizado(valores)
 
     def aplicar_perfil_gpu(self, minimo, maximo):
+        require_bc250_hardware()
         return self.repo.aplicar_perfil_gpu(minimo, maximo)
 
     def exportar_perfiles_gpu_decky(self, profiles):
         return self.repo.exportar_perfiles_gpu_decky(profiles)
 
     def fijar_piso_gpu_persistente(self, minimo):
+        require_bc250_hardware()
         return self.repo.fijar_piso_gpu_persistente(minimo)
 
     def alternar_puntos_gpu_altos(self, enabled):
+        require_bc250_hardware()
         return self.repo.alternar_puntos_gpu_altos(enabled)
 
     def configurar_compatibilidad_gpu_cyan(
         self, set_method, usage_method, fix_metrics, fix_frequency, temp_read=None
     ):
+        require_bc250_hardware()
         return self.repo.configurar_compatibilidad_gpu_cyan(
             set_method, usage_method, fix_metrics, fix_frequency, temp_read
         )
 
     def instalar_cpu_oc(self):
+        require_bc250_hardware()
         return self.repo.instalar_cpu_oc()
 
     def instalar_core_unlock(self):
+        require_bc250_hardware()
         return self.repo.instalar_core_unlock()
 
     def instalar_umr(self):
+        require_bc250_hardware()
         return self.repo.instalar_umr()
 
     def ejecutar_cpu_oc_temporal(self, frecuencia, vid, temp=90):
+        require_bc250_hardware()
         return self.repo.ejecutar_cpu_oc_temporal(frecuencia, vid, temp)
 
     def comando_cpu_oc_temporal_embebido(self, frecuencia, vid, temp=90):
+        require_bc250_hardware()
         return self.repo.comando_cpu_oc_temporal_embebido(frecuencia, vid, temp)
 
     def exportar_perfiles_cpu_decky(self, profiles):
@@ -740,17 +761,20 @@ class SistemaService:
         return self.repo.evaluar_aplicacion_manual_cpu(frequency, scale, temperature)
 
     def comando_cpu_scale_live_embebido(self, scale_override, confirm_scale_jump=False, frequency_override=None, temperature_override=None):
+        require_bc250_hardware()
         return self.repo.comando_cpu_scale_live_embebido(scale_override, confirm_scale_jump, frequency_override, temperature_override)
 
     def registrar_prueba_escala_cpu(self, scale_override, frequency_override=None, temperature_override=None):
         return self.repo.registrar_prueba_escala_cpu(scale_override, frequency_override, temperature_override)
 
     def comando_cpu_oc_manual_embebido(self, frequency, scale, temperature=90, confirm_manual=False):
+        require_bc250_hardware()
         return self.repo.comando_cpu_oc_manual_embebido(
             frequency, scale, temperature, confirm_manual
         )
 
     def comando_cpu_oc_manual_verificado_embebido(self, frequency, scale, temperature=90, confirm_manual=False):
+        require_bc250_hardware()
         return self.repo.comando_cpu_oc_manual_verificado_embebido(
             frequency, scale, temperature, confirm_manual
         )
@@ -762,6 +786,7 @@ class SistemaService:
         return self.repo.estado_prueba_escala_cpu(scale_override, frequency_override, temperature_override)
 
     def preparar_evidencia_persistencia_escala_cpu(self, scale_override, frequency_override, temperature_override):
+        require_bc250_hardware()
         return self.repo.preparar_evidencia_persistencia_escala_cpu(
             scale_override, frequency_override, temperature_override
         )
@@ -770,6 +795,7 @@ class SistemaService:
         return self.repo.estado_cpu_qam_runtime()
 
     def comando_cpu_oc_persistente_embebido(self, scale_override=None, confirm_scale_jump=False, frequency_override=None, temperature_override=None):
+        require_bc250_hardware()
         return self.repo.comando_cpu_oc_persistente_embebido(scale_override, confirm_scale_jump, frequency_override, temperature_override)
 
     def estado_cpu_oc_persistente(self):
@@ -782,11 +808,13 @@ class SistemaService:
         return self.repo.estado_desbloqueo_nucleos_cpu()
 
     def comando_desbloquear_nucleos_cpu(self, ignore_core_mask=False, accept_mask=None):
+        require_bc250_hardware()
         return self.repo.comando_desbloquear_nucleos_cpu(
             ignore_core_mask=ignore_core_mask, accept_mask=accept_mask
         )
 
     def comando_persistir_desbloqueo_nucleos_cpu(self, ignore_core_mask=False, accept_mask=None):
+        require_bc250_hardware()
         return self.repo.comando_persistir_desbloqueo_nucleos_cpu(
             ignore_core_mask=ignore_core_mask, accept_mask=accept_mask
         )
@@ -798,51 +826,73 @@ class SistemaService:
         return self.repo.estado_gddr6_memory_temp()
 
     def comando_preparar_gddr6_memory_temp(self):
+        require_bc250_hardware()
         return self.repo.comando_preparar_gddr6_memory_temp()
 
     def comando_estado_smu_vram(self):
+        require_bc250_hardware()
         return self.repo.comando_estado_smu_vram()
 
     def comando_leer_temperatura_vram(self):
+        require_bc250_hardware()
         return self.repo.comando_leer_temperatura_vram()
 
     def leer_temperatura_vram(self, *, chips=True):
+        require_bc250_hardware()
         return self.repo.leer_temperatura_vram(chips=chips)
 
     def ultima_temperatura_vram(self):
         return self.repo.ultima_temperatura_vram()
 
     def comando_monitorizar_vram(self, seconds=None, *, ignore_governor=False):
+        require_bc250_hardware()
         extra = {'ignore_governor': True} if ignore_governor else {}
         if seconds is None:
             return self.repo.comando_monitorizar_vram(**extra)
         return self.repo.comando_monitorizar_vram(seconds, **extra)
 
     def comando_aplicar_parche_vram(self):
+        require_bc250_hardware()
         return self.repo.comando_aplicar_parche_vram()
 
+    def _require_cu_runtime(self):
+        require_bc250_hardware()
+        tools = self.repo.estado_herramientas_bc250()
+        if tools.get('umr'):
+            return
+        pending = tools.get('bazzite_reboot_pending') or {}
+        if 'umr' in (pending.get('packages') or ()):
+            raise ComputeUnitsPreparationNeeded(restart=True)
+        raise ComputeUnitsPreparationNeeded()
+
     def obtener_mapa_cu(self):
+        self._require_cu_runtime()
         return self.repo.obtener_mapa_cu()
 
     def obtener_dashboard_cu(self):
+        self._require_cu_runtime()
         return self.repo.obtener_dashboard_cu()
 
     def ejecutar_cu_manager(self, accion):
+        self._require_cu_runtime()
         return self.repo.ejecutar_cu_manager(accion)
 
     def estado_fans_bc250(self):
         return self.repo.estado_fans_bc250()
 
     def cargar_nct6683_solo_lectura(self):
+        require_bc250_hardware()
         return self.repo.cargar_nct6683_solo_lectura()
 
     def preparar_nct6687_control_pwm(self):
+        require_bc250_hardware()
         return self.repo.preparar_nct6687_control_pwm()
 
     def desactivar_nct6687_control_pwm(self):
         return self.repo.desactivar_nct6687_control_pwm()
 
     def aplicar_pwm_fan(self, pwm, valor):
+        require_bc250_hardware()
         return self.repo.aplicar_pwm_fan(pwm, valor)
 
     def restaurar_pwm_automatico(self, pwm):
@@ -855,9 +905,11 @@ class SistemaService:
         return self.repo.estado_control_fan_sistema()
 
     def sincronizar_control_fan_sistema(self, politica):
+        require_bc250_hardware()
         return self.repo.sincronizar_control_fan_sistema(politica)
 
     def activar_control_fan_sistema(self, politica):
+        require_bc250_hardware()
         return self.repo.activar_control_fan_sistema(politica)
 
     def desactivar_control_fan_sistema(self):
@@ -873,13 +925,20 @@ class SistemaService:
         return self.repo.obtener_estado_cu_cache()
 
     def obtener_estado_cu(self):
+        self._require_cu_runtime()
         return self.repo.obtener_estado_cu()
 
     def aplicar_tabla_cu(self, masks):
+        self._require_cu_runtime()
         return self.repo.aplicar_tabla_cu(masks)
 
     def guardar_tabla_cu(self, masks):
+        self._require_cu_runtime()
         return self.repo.guardar_tabla_cu(masks)
 
     def ejecutar_accion_cu_grafica(self, accion):
+        if accion == 'remove_service':
+            require_bc250_hardware()
+        else:
+            self._require_cu_runtime()
         return self.repo.ejecutar_accion_cu_grafica(accion)

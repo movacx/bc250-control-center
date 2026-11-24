@@ -22,6 +22,8 @@ from PyQt6.QtCore import QPointF, QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPen, QPolygonF
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
+from bc250cc.shared.operation_contract import CANCELLED_MESSAGE, OperationExit
+
 from ..components.widgets import icon
 from ..i18n import tr, tr_format, translate_workflow_title
 from .pty_session import PtySession
@@ -427,12 +429,14 @@ class ConsoleTab(QWidget):
         if getattr(self, "stop_requested", False):
             outcome = "stopped"
         else:
-            outcome = {0: "completed", 124: "timeout", 130: "cancelled"}.get(code, "failed")
+            outcome = {0: "completed", 124: "timeout", OperationExit.CANCELLED: "cancelled"}.get(code, "failed")
         if not self.closing_window:
             self._record_workflow(outcome, code)
         if code == 0:
             self.set_state(tr("Completed"), "ok")
             self.view.feed(b"\r\n")
+        elif code == OperationExit.CANCELLED:
+            self.set_state(tr(CANCELLED_MESSAGE), "plain")
         else:
             # A failed workflow is exactly the one whose output matters, so
             # the tab says what the exit code was and keeps it on screen.

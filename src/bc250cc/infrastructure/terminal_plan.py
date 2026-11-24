@@ -24,6 +24,10 @@ import shlex
 from pathlib import Path
 
 from bc250cc.shared import error_catalog
+from bc250cc.shared.operation_contract import (
+    POLKIT_DISMISSED_PATTERN,
+    OperationExit,
+)
 
 from .terminal_transcript import LOG_SYNC_OSC, log_sync_path
 
@@ -48,8 +52,32 @@ _LOG_SYNC_WAIT_TICKS = 50  # of 0.1 s: only a console that is not reading waits 
 # specific rule id would be a lie.
 _WORKFLOW_REPORTED_CODE = "BC250-WORKFLOW-001"
 
+CANCELLED_EXIT = int(OperationExit.CANCELLED)
+
 #: Printed instead of a diagnosis when the user declined at a prompt.
 CANCELLED_MESSAGE = "Cancelled: you answered no. Steps before this question may already have changed the system."
+
+#: The last thing a package tool leaves on screen after a "no": the answered
+#: prompt itself, or what apt and dnf print after it.
+_REFUSED = r"\[(Y/n|y/N)\]:?[[:space:]]+no?[[:space:]]*$|^Operation aborted( by the user)?[.]?$|^Abort[.]$"
+
+# Scope the locale to package tools, including calls that go through sudo.
+PACKAGE_LOCALE_SHELL = r"""
+bc250_package_tools='apt apt-get apt-cache dpkg pacman pacman-conf dnf dnf4 dnf5 rpm rpm-ostree zypper apk emerge'
+for bc250_tool in $bc250_package_tools; do
+    type -P "$bc250_tool" >/dev/null || continue
+    eval "$bc250_tool() { LC_ALL=C.UTF-8 LANGUAGE=C command $bc250_tool \"\$@\"; }"
+    export -f "$bc250_tool"
+done
+sudo() {
+    case " $bc250_package_tools " in
+        *" ${1:-} "*) LC_ALL=C.UTF-8 LANGUAGE=C command sudo "$@" ;;
+        *) command sudo "$@" ;;
+    esac
+}
+export bc250_package_tools
+if type -P sudo >/dev/null; then export -f sudo; else unset -f sudo; fi
+"""
 
 # Exit statuses defined by bash and coreutils themselves, so they mean the
 # same thing whatever ran. Every other number belongs to the program that
@@ -266,7 +294,7 @@ def _evidence_render_shell(translate=None) -> str:
     translate = translate if callable(translate) else _TRANSLATOR
     heading = translate("Last lines from the workflow output:")
     return (
-        'if [ "$status" -ne 0 ] && [ -n "$evidence" ]; then '
+        f'if [ "$status" -ne 0 ] && [ "$status" -ne {CANCELLED_EXIT} ] && [ -n "$evidence" ]; then '
         f'printf "\\n%s\\n" "{heading}"; '
         'if [ -n "${root_cause:-}" ]; then printf "%s\\n" "$root_cause" | sed "s/^/  /"; echo "  ..."; fi; '
         'printf "%s\\n" "$evidence" | sed "s/^/  /"; '
@@ -400,23 +428,28 @@ def workflow_wrapper(
         summary_sink = f"2>&1 | tee -a {log}"
     return (
         # Diagnosis reads the tools' own words, and a sudo or pacman speaking
-        # Polish or French matched no rule (R-e1eaa882, R-8db5f5cd). This changes
-        # the language of messages only, not the character set.
-        "export LANGUAGE=en; bc250_start=$SECONDS; "
+        # Polish or French matched no rule (R-e1eaa882, R-8db5f5cd).
+        f"{PACKAGE_LOCALE_SHELL}\nexport LANGUAGE=en; bc250_start=$SECONDS; "
         f"{run}"
         'bc250_raw_status=$status; bc250_elapsed=$((SECONDS - bc250_start)); '
         f"{wait_for_log}"
         f"{_evidence_capture_shell(log_path)}; "
-        # R-097a4530: answering "n" to the package manager is a choice, not a
-        # failure: status 130, a calm line, no diagnosis and no report.
-        'bc250_last=$(printf "%s\\n" "$evidence" | awk \'NF{l=$0} END{print l}\'); '
-        'case "$bc250_last" in *"[Y/n] n"|*"[y/N] n"|*"[Y/n] N"|*"[y/N] N") status=130;; esac; '
+        # Match the final evidence for the refusal, even after a generic ERR trap.
+        'bc250_last=$(printf "%s\\n" "$error_scan" | tr "\\r" "\\n" '
+        '| LC_ALL=C sed -E $\'s/\\033\\\\[[0-?]*[ -/]*[@-~]//g\' '
+        '| awk \'NF && $0 !~ /^\\[ERROR\\] Operation failed at line [0-9]+ with exit code [0-9]+[.]?$/ {l=$0} END{print l}\'); '
+        'if [ "$status" -eq 1 ] && printf "%s\\n" "$bc250_last" '
+        f'| grep -qiE {shlex.quote(_REFUSED)}; then '
+        f'status={CANCELLED_EXIT}; '
+        'elif [ "$status" -eq 126 ] && printf "%s\\n" "$bc250_last" '
+        f'| grep -qiE {shlex.quote(POLKIT_DISMISSED_PATTERN)}; then '
+        f'status={CANCELLED_EXIT}; fi; '
         f"printf '%s\\n' \"$status\" > {status}; "
         "{ echo; "
         # A successful run reports success, not a number. Only a failure needs
         # a diagnosis, and the raw status stays in the technical detail below.
         f"if [ \"$status\" -eq 0 ]; then echo \"{finished_ok}\"; "
-        f"elif [ \"$status\" -eq 130 ]; then printf '%s\\n' {shlex.quote(translate(CANCELLED_MESSAGE))}; "
+        f"elif [ \"$status\" -eq {CANCELLED_EXIT} ]; then printf '%s\\n' {shlex.quote(translate(CANCELLED_MESSAGE))}; "
         f"else echo \"{finished_failed}\"; fi; "
         f"{_first_error_shell(translate)}; "
         f"{_stale_pacman_lock_check_shell()}; "
@@ -424,7 +457,7 @@ def workflow_wrapper(
         f"{_evidence_render_shell(translate)}; "
         'printf "BC250_WORKFLOW exit_status=%d duration_seconds=%d\\n" "$bc250_raw_status" "$bc250_elapsed"; '
         f"echo \"{saved_log}: {log_path!s}\"; "
-        f"echo \"{share_hint}\"; }} "
+        f'if [ "$status" -ne {CANCELLED_EXIT} ]; then echo "{share_hint}"; fi; }} '
         f"{summary_sink}; "
         f"{closing}exit \"$status\""
     )

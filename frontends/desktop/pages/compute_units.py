@@ -28,8 +28,15 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from bc250cc.application.compute_units.operations import ComputeUnitsPreparationNeeded
 from bc250cc.application.gpu.telemetry import TelemetryText, present_gpu_telemetry
+from bc250cc.shared.errors import ActionNeeded
 from bc250cc.shared.failure_text import describe_failure
+from bc250cc.shared.operation_contract import (
+    CANCELLED_MESSAGE,
+    OperationCancelled,
+    OperationExit,
+)
 
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
 from ..components.dialogs import enable_adaptive_dialog
@@ -116,6 +123,7 @@ def _render_telemetry_text(value: TelemetryText) -> str:
 class CuTask(QThread):
     succeeded = pyqtSignal(object)
     failed = pyqtSignal(str)
+    stopped = pyqtSignal(object)
 
     def __init__(self, operation: Callable[[], object], parent: QWidget | None = None):
         super().__init__(parent)
@@ -124,6 +132,8 @@ class CuTask(QThread):
     def run(self) -> None:
         try:
             self.succeeded.emit(self.operation())
+        except (ActionNeeded, OperationCancelled) as error:
+            self.stopped.emit(error)
         except Exception as error:  # pragma: no cover - exercised on hardware
             remember(error)
             self.failed.emit(str(error))
@@ -1643,6 +1653,9 @@ class ComputeUnitsPage(QWidget):
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
+        self._start_tool_preparation()
+
+    def _start_tool_preparation(self) -> None:
         self._run_task(
             "Preparing Compute Units tools",
             lambda: self.controller.instalar_dependencias_bc250(
@@ -1693,14 +1706,6 @@ class ComputeUnitsPage(QWidget):
             self._register_event(event_action, success_message, success_detail)
 
         def failed(message: str) -> None:
-            if str(message or "").strip() == "CU_AUTHORIZATION_CANCELLED":
-                self._set_busy(False, "")
-                self._record_action(
-                    "Live refresh canceled",
-                    "Administrator authorization was canceled. The last verified CU state remains unchanged.",
-                    "blue",
-                )
-                return
             # Keep the last authorized masks visible, but do not continue to
             # label them as a fresh live read after a failed write/verification.
             self.current_state["fresh"] = False
@@ -1708,8 +1713,25 @@ class ComputeUnitsPage(QWidget):
             self._record_action("Operation failed", message, "red")
             self._show_error("Compute Units operation failed", message)
 
+        def stopped(error: Exception) -> None:
+            self._set_busy(False, "")
+            if isinstance(error, ComputeUnitsPreparationNeeded):
+                if error.restart:
+                    self._show_info("Restart", str(error))
+                else:
+                    self._show_not_prepared(str(error))
+            elif isinstance(error, OperationCancelled):
+                self._record_action(
+                    "Live refresh canceled",
+                    "Administrator authorization was canceled. The last verified CU state remains unchanged.",
+                    "blue",
+                )
+            else:
+                self._show_info("Compute Units", str(error))
+
         worker.succeeded.connect(complete)
         worker.failed.connect(failed)
+        worker.stopped.connect(stopped)
         worker.finished.connect(self._worker_finished)
         worker.finished.connect(worker.deleteLater)
         worker.start()
@@ -1777,6 +1799,8 @@ class ComputeUnitsPage(QWidget):
                         "red",
                     )
                     self.refresh()
+            elif code == str(OperationExit.CANCELLED):
+                self._record_action(CANCELLED_MESSAGE, "", "blue")
             else:
                 self._record_action(
                     "Compute Units preparation failed",
@@ -1934,15 +1958,18 @@ class ComputeUnitsPage(QWidget):
         show_toast(self, title, message, tone="blue")
 
     def _show_not_prepared(self, reason: str) -> None:
-        InfoDialog(
+        dialog = ConfirmDialog(
             "Prepare Compute Units tools",
             "Prepare the CU tools, then press Unlock / Sync to read the live WGP table.",
-            icon_name="warning_orange",
             parent=self,
+            summary=(("Status", reason),),
+            notice="The existing distribution-specific dependency workflow will prepare UMR and bc250-cu-live-manager. Package installation may open a visible terminal and request administrator authentication.",
+            confirm_text="Prepare CU tools",
             eyebrow="COMPUTE UNITS",
-            notice=reason,
-            tone="orange",
-        ).exec()
+            tone="blue",
+        )
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._start_tool_preparation()
 
     def _show_error(self, title: str, message: str) -> None:
         normalized = str(message or "").lower()

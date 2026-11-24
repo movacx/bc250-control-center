@@ -294,3 +294,13 @@ def test_volume_names_go(text, expected):
 def test_the_pattern_layer_needs_no_machine(monkeypatch):
     monkeypatch.setattr(privacy, "_personal", lambda: (_ for _ in ()).throw(AssertionError("looked up")))
     assert privacy.redact_patterns("SerialNumber: X9 from 192.168.1.9") == "SerialNumber: <serial> from <ip>"
+
+
+def test_real_names_end_at_letters_only(monkeypatch):
+    known = privacy._personal()
+    known["real"] = {"Deck", "Ana Perez", "Ana"}
+    monkeypatch.setattr(privacy, "_personal", lambda: known)
+    assert clean("cachyos-deckify (DECK) 2ana3 Ana_Perez ana@host") == (
+        "cachyos-deckify (<name>) 2<name>3 <name> <name>@host"
+    )
+    assert "ana" not in clean("/home/Ana_Perez/log").lower()

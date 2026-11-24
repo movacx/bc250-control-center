@@ -212,7 +212,26 @@ def test_a_desktop_asks_in_a_window_and_the_terminal_stays_the_fallback(tmp_path
     assert f"bc250_admin {program} " in command
 
 
-def _fake_rpm_ostree(tmp_path: Path, status_json: str, *, busy_polls: int = 0, deny: bool = False) -> Path:
+def test_a_dismissed_authorization_never_tries_a_second_password_prompt(tmp_path):
+    data = b"test package"
+    package = tmp_path / "test.pkg.tar.zst"
+    package.write_bytes(data)
+    asset = ReleaseAsset(package.name, len(data), "https://x", hashlib.sha256(data).hexdigest())
+    plan = UpdatePlan("package", asset=asset, manager="pacman")
+    command = (
+        'pkexec() { printf "%s\\n" "$*"; return 126; }\n'
+        'sudo() { echo "unexpected fallback"; return 7; }\n'
+        + install_command(plan, package, graphical=True)
+    )
+    result = subprocess.run(["bash", "-c", command], capture_output=True, text=True, check=False)
+    assert result.returncode == 130
+    assert "LC_ALL=C.UTF-8 LANGUAGE=C pacman" in result.stdout
+    assert "unexpected fallback" not in result.stdout
+
+
+def _fake_rpm_ostree(
+    tmp_path: Path, status_json: str, *, busy_polls: int = 0, deny: bool = False, dismiss: bool = False,
+) -> Path:
     """A stand-in rpm-ostree that records its calls and answers ``status``."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
@@ -229,12 +248,13 @@ JSON
   exit 0
 fi
 echo "rpm-ostree $*" >> {calls}
+if [ {int(dismiss)} = 1 ]; then echo "error: Authorization failed: Request dismissed"; exit 1; fi
 if [ {1 if deny else 0} = 1 ] && [ "$(id -un)" != root ] && [ -z "${{BC250_FAKE_SUDO:-}}" ]; then echo "error: Authorization required"; exit 1; fi
 echo "Staging deployment...done"
 """)
     (bin_dir / "sudo").write_text(f"""#!/usr/bin/env bash
 echo "sudo $*" >> {calls}
-BC250_FAKE_SUDO=1 "$@"
+BC250_FAKE_SUDO=1 exec env "$@"
 """)
     (bin_dir / "sleep").write_text("#!/usr/bin/env bash\nexit 0\n")
     for tool in bin_dir.iterdir():
@@ -291,6 +311,13 @@ def test_rpm_ostree_falls_back_to_sudo_when_polkit_cannot_ask(tmp_path):
     lines = calls.splitlines()
     assert lines[0].startswith("rpm-ostree install ")
     assert lines[1].startswith("sudo rpm-ostree install ")
+
+
+def test_rpm_ostree_keeps_a_polkit_dismissal_cancelled(tmp_path):
+    status = '{"transaction": null, "deployments": [{}]}'
+    code, calls, _out = _run_rpm_ostree_update(tmp_path, status, dismiss=True)
+    assert code == 130
+    assert "sudo " not in calls
 
 
 def test_rpm_ostree_refuses_a_package_that_changed_in_the_cache(tmp_path):

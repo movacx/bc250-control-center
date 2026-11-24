@@ -126,6 +126,7 @@ raise SystemExit(0 if value == "dummy-secret" else 1)
         session.request("interrupt")
         assert wait_for(lambda: session.view().get("done"))
         assert not session.view()["ok"]
+        assert session.view()["cancelled"]
         assert session.ready and not session.closed
     finally:
         session.close()

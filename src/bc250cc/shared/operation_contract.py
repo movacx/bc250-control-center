@@ -8,6 +8,16 @@ from enum import IntEnum
 from pathlib import Path
 
 RESULT_PREFIX = "BC250_RESULT"
+CANCELLED_MESSAGE = "Cancelled."
+POLKIT_DISMISSED_PATTERN = (
+    "request dismissed|authentication cancell?ed|cancell?ed by user|"
+    "org[.]freedesktop[.]policykit1[.]error[.]cancelled"
+)
+
+
+class OperationCancelled(RuntimeError):
+    def __init__(self):
+        super().__init__(CANCELLED_MESSAGE)
 
 
 class OperationExit(IntEnum):
@@ -35,6 +45,8 @@ class OperationExit(IntEnum):
     CYAN_DBUS = 62
     STEAMOS_ROOT_STATE = 70
     STEAMOS_ROOT_RESTORE = 71
+    ACTION_NEEDED = 78
+    CANCELLED = 130
 
 
 _SAFE_NEXT_ACTIONS = {
@@ -98,7 +110,13 @@ class OperationReport:
         return self.exit_code == OperationExit.REBOOT_REQUIRED
 
     @property
+    def cancelled(self) -> bool:
+        return self.exit_code == OperationExit.CANCELLED
+
+    @property
     def safe_next_action(self) -> str:
+        if self.cancelled:
+            return CANCELLED_MESSAGE
         if self.exit_code == 0:
             if self.verified_success:
                 return "No further system action is required; keep the exported workflow log for recovery evidence."

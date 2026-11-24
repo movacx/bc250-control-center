@@ -117,12 +117,19 @@ CUs active & routed: 32/40
     assert result["legend"] == "D+ driver+routed, S+ SPI+routed, D! driver+off, -- off"
 
 
-def test_missing_umr_is_a_preparation_notice_not_a_topology_format_error():
+def test_missing_umr_is_a_preparation_notice_not_a_topology_format_error(monkeypatch):
     import pytest
 
     from bc250cc.shared.errors import ActionNeeded
 
+    monkeypatch.setattr("bc250cc.infrastructure.cu_repository.probe_bazzite_reboot_pending",
+                        lambda: {"packages": ["git"]})
     with pytest.raises(ActionNeeded, match='Prepare the UMR component'):
         CURepository()._estado_cu_autorizado(
             '+--- BC-250 CU Dashboard ---+\n[WARN] UMR register view skipped; umr was not found.'
         )
+
+    monkeypatch.setattr("bc250cc.infrastructure.cu_repository.probe_bazzite_reboot_pending",
+                        lambda: {"packages": ["umr"]})
+    with pytest.raises(ActionNeeded, match="installed in the staged deployment. Restart"):
+        CURepository()._estado_cu_autorizado("umr was not found")

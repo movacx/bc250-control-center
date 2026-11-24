@@ -13,6 +13,7 @@ refuses while a package manager is running.
 
 from __future__ import annotations
 
+import re
 import shlex
 import shutil
 import subprocess
@@ -53,6 +54,23 @@ def lock_path() -> Path:
     return DEFAULT_LOCK
 
 
+# Match complete argv entries. Unknown switches and refreshes stay busy.
+_READ_ONLY = (
+    rb"[^\0]+\0(?:"
+    rb"(?:-Q[cegiklmnpqstudo]*|--query)|(?:-F[lqox]*|--files)|"
+    rb"(?:-T|--deptest|-V|--version)|"
+    rb"(?:-S[islpgq]*[islpg][islpgq]*|(?:-S|--sync)\0(?:-[islpg]+|--(?:info|search|list|print|groups)))"
+    rb")\0(?:([^-\0][^\0]*|-[iqslpg]+|--(?:info|search|list|print|groups|quiet))\0)*"
+)
+
+
+def _pacman_query(entry: Path) -> bool:
+    try:
+        return re.fullmatch(_READ_ONLY, (entry / "cmdline").read_bytes()) is not None
+    except OSError:
+        return False
+
+
 def running_package_managers(proc: Path = Path("/proc")) -> tuple[str, ...]:
     """The package managers running now, by process name, each once."""
     found: list[str] = []
@@ -66,6 +84,8 @@ def running_package_managers(proc: Path = Path("/proc")) -> tuple[str, ...]:
         try:
             name = (entry / "comm").read_text(encoding="utf-8", errors="replace").strip()
         except OSError:
+            continue
+        if name == "pacman" and _pacman_query(entry):
             continue
         if name in PACKAGE_MANAGERS and name not in found:
             found.append(name)
@@ -130,22 +150,37 @@ def release_command(lock: Path | None = None) -> str:
         raise ValueError("Unexpected pacman lock path")
     quoted = shlex.quote(text)
     managers = "|".join(PACKAGE_MANAGERS)
-    return "; ".join((
+    # The terminal may run outside the app's Python environment.
+    query_check = shlex.quote(
+        "import re,sys; from pathlib import Path; "
+        f"sys.exit(0 if re.fullmatch({_READ_ONLY!r}, Path(sys.argv[1]).read_bytes()) else 1)"
+    )
+    script = "; ".join((
         "set -u",
         f"bc250_lock={quoted}",
         'echo "== pacman database lock: $bc250_lock =="',
         'if [ ! -e "$bc250_lock" ]; then echo "OK: pacman is not locked; nothing was changed."; exit 0; fi',
         "command -v pgrep >/dev/null 2>&1 || "
         '{ echo "ERROR: pgrep is missing, so a running package manager cannot be ruled out; the lock was left in place."; exit 1; }',
+        'exec 3< "$bc250_lock" || exit 1',
         'bc250_boot="$(awk \'/^btime /{print $2}\' /proc/stat 2>/dev/null)"',
-        'bc250_mtime="$(stat -c %Y -- "$bc250_lock" 2>/dev/null || echo 0)"',
-        f'bc250_running="$(pgrep -x \'{managers}\' -l 2>/dev/null | awk \'{{print $2}}\' | sort -u | tr \'\\n\' \' \')"',
+        'bc250_mtime="$(stat -Lc %Y /dev/fd/3 2>/dev/null)" || exit 1',
         'bc250_old=0; [ -n "$bc250_boot" ] && [ "$bc250_mtime" -lt "$bc250_boot" ] && bc250_old=1',
-        'if pgrep -x pacman >/dev/null 2>&1 || { [ -n "$bc250_running" ] && [ "$bc250_old" -eq 0 ]; }; then '
+        'for bc250_try in 1 2 3 4; do bc250_running=; bc250_busy=0; '
+        f"bc250_list=$(pgrep -x -l '{managers}') || {{ [ \"$?\" -eq 1 ] || exit 1; }}; "
+        'while read -r pid name; do [ -n "$name" ] || continue; '
+        f'if [ "$name" = pacman ] && python3 -I -c {query_check} "/proc/$pid/cmdline" 2>/dev/null; then continue; fi; '
+        'bc250_running="${bc250_running:+$bc250_running }$name"; '
+        '[ "$name" = pacman ] || [ "$bc250_old" -eq 0 ] || continue; bc250_busy=1; '
+        'done <<< "$bc250_list"; [ "$bc250_busy" -eq 1 ] || break; '
+        '[ "$bc250_try" -eq 4 ] || sleep 1; done',
+        'if [ "$bc250_busy" -eq 1 ]; then '
         'echo "ERROR: A package manager is still running ($bc250_running), so pacman is busy. '
         'Nothing was removed: let it finish or close it, then check again."; exit 1; fi',
         '[ -n "$bc250_running" ] && echo "[INFO] $bc250_running is open, but the lock is older than this boot, so it was left by an interrupted update."',
-        'sudo rm -f -- "$bc250_lock"',
+        # A transaction may have replaced the original lock during the wait.
+        'if [ "$bc250_lock" -ef /dev/fd/3 ]; then rm -f -- "$bc250_lock"; fi',
         'if [ -e "$bc250_lock" ]; then echo "ERROR: The lock could not be removed."; exit 1; fi',
         'echo "OK: The pacman lock was removed. Run sudo pacman -Syu once to finish the interrupted update, then try the action again."',
     ))
+    return "sudo bash -c " + shlex.quote(script)
