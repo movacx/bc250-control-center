@@ -104,7 +104,7 @@ class ComputeUnitsPage(Page):
         facts = [(label, str(value)) for label, value in (
             ("UMR", data.get("umr")), ("UMR inst", data.get("umr_instance")), ("ASIC", data.get("asic")), ("amdgpu", mode),
             ("CPU", data.get("cpu_summary")), (tr("Source"), data.get("register_source")),
-            (" ", "   ".join(f"{token} {tr(label)}" for token, label in LEGEND))) if value]
+            *((" ", "   ".join(f"{token} {tr(label)}" for token, label in LEGEND[i:i + 2])) for i in (0, 2))) if value]
         grid = Panel("BC-250 CU Dashboard / Live Dispatch", [
             Spans([[(pad(label.strip(), 11), "dim"), (": " if label.strip() else "  ", "dim"), (value, "")] for label, value in facts]), Gap(),
             Pad([f"WGP{c}\n{2 * c}-{2 * c + 1}" for c in range(WGPS)], pad_rows,

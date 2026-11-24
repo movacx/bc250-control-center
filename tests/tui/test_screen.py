@@ -292,7 +292,10 @@ def test_a_long_page_scrolls_and_never_acts_on_an_item_off_screen():
     assert screen.scroll[screen._slot()] > 0 and screen.current_choice() is not None
 
 
-def test_the_title_bar_carries_live_gpu_and_cpu_readings():
+def test_the_readings_are_always_in_view_along_the_bottom_or_in_the_title():
     window, screen = make_screen()
+    screen.draw()
+    assert "1500 MHz" in window.line(window.height - 2) and "1500 MHz" not in window.line(0)
+    screen.prefs["tui_live_bar"] = False
     screen.draw()
     assert "GPU 1500 MHz" in window.line(0) and "CPU" in window.line(0)
