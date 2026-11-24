@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "A fenti Err: sorok megnevezik: többnyire egy korábban hozzáadott tároló, amelynek hiányzik a kulcsa vagy érvénytelen a tanúsítványa. Az apt a régi listával folytatja, ezért lehet, hogy nem ez állította le a műveletet.",
   "pacman stopped without changing anything.": "A pacman leállt, és semmit nem változtatott.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "A pacman megszakította a telepítést. A leggyakoribb ok a megtelt vagy csak olvasható lemez; a hiba feletti sorok megnevezik, ha a pacman tudja.",
-  "Fix what the lines above the error name, then run this action again.": "Javítsa, amit a hiba feletti sorok megneveznek, majd futtassa újra a műveletet."
+  "Fix what the lines above the error name, then run this action again.": "Javítsa, amit a hiba feletti sorok megneveznek, majd futtassa újra a műveletet.",
+  "Normal power off": "Normál kikapcsolás",
+  "Turn on with a gamepad": "Bekapcsolás játékvezérlővel",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "A kikapcsolás is megváltozik: utána egy játékvezérlő vagy USB-eszköz bekapcsolhatja a számítógépet. A sorában visszaállhat a normál kikapcsolásra."
 }

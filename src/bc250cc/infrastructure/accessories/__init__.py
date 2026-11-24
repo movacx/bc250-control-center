@@ -72,6 +72,8 @@ def accessory_command(component: str, action: str, *, family: str, tool_dir: Pat
         }[action]()
     if component == "real_sleep" and action in {"mode-s3", "mode-hibernate"}:
         return real_sleep.set_mode_command(action.removeprefix("mode-"))
+    if component == "real_sleep" and action in {"poweroff-default", "poweroff-wake"}:
+        return real_sleep.set_power_off_command(action.removeprefix("poweroff-"))
     if action not in {"install", "remove"}:
         raise ValueError(f"Unsupported accessory action: {action or '--'}")
     if component == "thermalright":

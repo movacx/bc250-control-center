@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Редовете Err: по-горе го назовават: обикновено добавено по-рано хранилище с липсващ ключ или невалиден сертификат. apt продължава със стария си списък, така че това може да не е причината за спирането.",
   "pacman stopped without changing anything.": "pacman спря, без да промени нищо.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman прекъсна инсталирането. Най-честата причина е пълен диск или диск само за четене; редовете над грешката я назовават, когато pacman я знае.",
-  "Fix what the lines above the error name, then run this action again.": "Поправете това, което редовете над грешката посочват, и изпълнете действието отново."
+  "Fix what the lines above the error name, then run this action again.": "Поправете това, което редовете над грешката посочват, и изпълнете действието отново.",
+  "Normal power off": "Обикновено изключване",
+  "Turn on with a gamepad": "Включване с геймпад",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Изключването също се променя: след това геймпад или USB устройство може да включи компютъра. От реда му може да върнете обикновеното изключване."
 }

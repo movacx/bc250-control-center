@@ -30,6 +30,11 @@ DIRECTORY = "/etc/bc250-sleep"
 BACKUP = "/var/lib/bc250-control-center/real-sleep/bios-before"
 BOOT_UNIT = "/etc/systemd/system/bc250-sleep-boot.service"
 DROPIN = "/etc/systemd/system/systemd-suspend.service.d/bc250-sleep.conf"
+#: Its presence is upstream's own record of the "wake" power-off.
+POWEROFF_DROPIN = "/etc/systemd/system/systemd-poweroff.service.d/bc250-sleep.conf"
+UNLOCK_UNIT = "/etc/systemd/system/bc250-core-unlock.service"
+UNLOCK_LINK = "/etc/systemd/system/sysinit.target.wants/bc250-core-unlock.service"
+UNLOCK_STATE = "/var/lib/bc250-core-unlock/state.json"
 
 
 def _read(path: Path) -> str:
@@ -54,6 +59,29 @@ def _homes(root: Path) -> set[Path]:
     return homes
 
 
+def unlocked_from_mask(root: Path = Path("/")) -> int | None:
+    """The factory core mask, when our boot service proves it; None otherwise.
+
+    The mask itself needs root. The service without extra arguments writes only
+    on 0x77, so a service that wrote and then saw 16 threads means 0x77. With
+    --accept-mask it also writes on 0x77, and with --force-mask on anything, so
+    neither says which cores came back. "unlocked" alone says nothing either: a
+    board unlocked by its BIOS reads the same, without any attempt.
+    """
+    link = root / UNLOCK_LINK.lstrip("/")
+    started = re.findall(r"^ExecStart=(.*)$", _read(root / UNLOCK_UNIT.lstrip("/")), re.M)
+    if not link.is_symlink() or len(started) != 1:
+        return None
+    if not started[0].split()[-2:] == ["apply", "--boot"]:
+        return None
+    try:
+        record = json.loads(_read(root / UNLOCK_STATE.lstrip("/")))
+    except ValueError:
+        return None
+    proven = isinstance(record, dict) and record.get("status") == "unlocked" and record.get("last_attempt_boot_id")
+    return 0x77 if proven else None
+
+
 def inventory(family: str, *, root: Path = Path("/"), core_mask: int | None = None,
               logical_cpus: int | None = None) -> dict:
     """Unprivileged file inspection; root redirects every path for fixtures.
@@ -72,6 +100,8 @@ def inventory(family: str, *, root: Path = Path("/"), core_mask: int | None = No
             )
         except ValueError:
             logical_cpus = len(re.findall(r"^processor\s*:", _read(root / "proc/cpuinfo"), re.M))
+    if core_mask is None and logical_cpus > 12:
+        core_mask = unlocked_from_mask(root)
     blocked = logical_cpus > 12 and core_mask != 0x77
     conflicts = []
     for home in _homes(root):
@@ -107,6 +137,7 @@ def inventory(family: str, *, root: Path = Path("/"), core_mask: int | None = No
     return {
         "state": state, "reason": reason, "version": VERSION,
         "mode": mode if mode in {"s3", "hibernate"} else "",
+        "power_off": "wake" if (root / POWEROFF_DROPIN.lstrip("/")).is_file() else "default",
         "s3_supported": s3_supported, "spare_cores_blocked": blocked,
         "conflicts": tuple(conflicts),
         "needs_swap": not any(row and "zram" not in row[0] for row in swaps),
@@ -185,13 +216,31 @@ def saved_bytes():
         sys.exit("ERROR: BIOS backup is invalid; refusing to guess original settings.")
     return [value.lower() for value in values]
 
+def set_aside():
+    """Keep the record, dated, but never as the original of a later install."""
+    from datetime import datetime
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    kept = backup.with_name(f"bios-before.kept-{stamp}")
+    number = 1
+    while kept.exists() or kept.is_symlink():
+        kept = backup.with_name(f"bios-before.kept-{stamp}-{number}")
+        number += 1
+    backup.rename(kept)
+    print(f"The earlier record was kept as {kept}.")
+
 p300 = Path("/sys/class/dmi/id/bios_version").read_text().strip() == "P3.00"
 if sys.argv[1] == "record":
     if not p300:
         print("Not BIOS P3.00: the sleep program does not write its BIOS option here.")
-    elif backup.exists() or backup.is_symlink():
-        saved_bytes()
-    elif (values := read_bytes()) == WRITTEN:
+        sys.exit(0)
+    values = read_bytes()
+    if backup.exists() or backup.is_symlink():
+        if values in (WRITTEN, saved_bytes()):
+            sys.exit(0)
+        # Neither what sleep writes nor what was recorded: the owner changed it
+        # since, and that is what a later removal has to bring back.
+        set_aside()
+    if values == WRITTEN:
         # Installed before by other means: these are not the owner's values.
         print("The BIOS option is already set for sleep; its earlier value is not known and is not recorded.")
     else:
@@ -209,12 +258,14 @@ else:
         sys.exit(0)
     values = saved_bytes()
     if not p300:
-        print("This board no longer runs BIOS P3.00, so the recorded option was not written back. The record was kept.")
+        print("This board no longer runs BIOS P3.00, so the recorded option was not written back.")
+        set_aside()
         sys.exit(0)
     if read_bytes() != WRITTEN:
         # Changed in the BIOS menu, or another BIOS was flashed: the present
         # values are somebody's choice, not what this program left.
-        print("The BIOS option is no longer the one sleep writes, so it was left as it is. The record was kept.")
+        print("The BIOS option is no longer the one sleep writes, so it was left as it is.")
+        set_aside()
         sys.exit(0)
     subprocess.run(["python3", "tools/setvar.py", *values], check=True)
     if read_bytes() != values:
@@ -236,7 +287,8 @@ def install_command(family: str, *, mode: str = "s3", core_mask: int | None = No
     probe = "import json, re\nfrom pathlib import Path\n"
     probe += f"REASON_CORES={REASON_CORES!r}\nREASON_CONFLICT={REASON_CONFLICT!r}\n"
     probe += f"VERSION={VERSION!r}\nFAMILIES={set(FAMILIES)!r}\nDIRECTORY={DIRECTORY!r}\nBOOT_UNIT={BOOT_UNIT!r}\nDROPIN={DROPIN!r}\n"
-    probe += "\n".join(inspect.getsource(function) for function in (_read, _homes, inventory))
+    probe += "".join(f"{name}={globals()[name]!r}\n" for name in ("POWEROFF_DROPIN", "UNLOCK_UNIT", "UNLOCK_LINK", "UNLOCK_STATE"))
+    probe += "\n".join(inspect.getsource(function) for function in (_read, _homes, unlocked_from_mask, inventory))
     probe += f"\ninfo = inventory({family.strip().lower()!r}, core_mask={core_mask!r})\n"
     probe += 'if info["spare_cores_blocked"] or info["conflicts"] or info["state"] == "unsupported":\n'
     probe += '    raise SystemExit("ERROR: " + (info["reason"] or "Resolve core mask and sleep conflicts before installing."))\n'
@@ -257,6 +309,18 @@ def remove_command(family: str) -> str:
 def set_mode_command(mode: str) -> str:
     return "\n".join(_header("Real sleep mode") + [_board_check()] + _mode_check(mode) + [
         f"sudo {DIRECTORY}/bc250-sleep mode {mode}",
+    ])
+
+
+def set_power_off_command(mode: str) -> str:
+    """Upstream's own switch: "wake" lets a gamepad turn the board on again."""
+    if mode not in {"default", "wake"}:
+        raise ValueError("The power-off mode must be default or wake.")
+    program = f"{DIRECTORY}/bc250-sleep"
+    return "\n".join(_header("Real sleep power-off") + [
+        _board_check(), f"sudo {program} shutdown {mode}",
+        f'[ "$({program} shutdown)" = {mode} ] || {{ echo "ERROR: the power-off mode did not change."; exit 1; }}',
+        "echo 'OK: the power-off mode changed.'",
     ])
 
 

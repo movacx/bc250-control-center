@@ -1647,6 +1647,10 @@ class PreparationPagesMixin:
                 "remove": card.add_action("Remove", {"accessory": key, "op": "remove"}, danger=True),
                 "upstream": card.add_action("Open upstream project", {"accessory": key, "op": "upstream"}),
             }
+            if key == "real_sleep":
+                buttons["poweroff"] = card.add_action(
+                    "Normal power off", {"accessory": key, "op": "poweroff-default"},
+                )
             self.accessory_buttons[key] = buttons
             note = _label("", "dashboardComponentDetail")
             note.setProperty("accessoryNote", True)

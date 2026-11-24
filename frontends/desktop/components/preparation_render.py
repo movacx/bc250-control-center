@@ -292,6 +292,12 @@ class PreparationRenderMixin:
             buttons["remove"], text="Remove", payload={"accessory": "real_sleep", "op": "remove"},
             visible=state in {"installed", "broken"},
         )
+        wake = info.get("power_off") == "wake"
+        card.update_action(
+            buttons["poweroff"], text="Normal power off" if wake else "Turn on with a gamepad",
+            payload={"accessory": "real_sleep", "op": "poweroff-default" if wake else "poweroff-wake"},
+            visible=state == "installed",
+        )
         self._accessory_notes["real_sleep"].setText(tr(note) if note else "")
         self._accessory_notes["real_sleep"].setVisible(bool(note))
 

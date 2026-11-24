@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Οι γραμμές Err: παραπάνω το κατονομάζουν: συνήθως ένα αποθετήριο που προστέθηκε παλιότερα και του λείπει το κλειδί ή το πιστοποιητικό του δεν είναι έγκυρο. Το apt συνεχίζει με την παλιά λίστα, οπότε ίσως να μην είναι αυτό που σταμάτησε την ενέργεια.",
   "pacman stopped without changing anything.": "Το pacman σταμάτησε χωρίς να αλλάξει τίποτα.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "Το pacman διέκοψε την εγκατάσταση. Η συνηθέστερη αιτία είναι γεμάτος δίσκος ή δίσκος μόνο για ανάγνωση· οι γραμμές πάνω από το σφάλμα την αναφέρουν όταν το pacman τη γνωρίζει.",
-  "Fix what the lines above the error name, then run this action again.": "Διορθώστε αυτό που αναφέρουν οι γραμμές πάνω από το σφάλμα και εκτελέστε ξανά την ενέργεια."
+  "Fix what the lines above the error name, then run this action again.": "Διορθώστε αυτό που αναφέρουν οι γραμμές πάνω από το σφάλμα και εκτελέστε ξανά την ενέργεια.",
+  "Normal power off": "Κανονικός τερματισμός",
+  "Turn on with a gamepad": "Ενεργοποίηση με χειριστήριο",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Αλλάζει και ο τερματισμός: ένα χειριστήριο ή μια συσκευή USB μπορεί μετά να ανοίξει τον υπολογιστή. Από τη γραμμή του μπορείτε να επιστρέψετε στον κανονικό τερματισμό."
 }

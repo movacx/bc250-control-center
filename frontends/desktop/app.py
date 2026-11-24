@@ -1633,6 +1633,10 @@ class ControlCenterWindow(QMainWindow):
         "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. "
         "If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it."
     )
+    REAL_SLEEP_POWER_OFF = (
+        "Power off changes too: a gamepad or a USB device can then turn the computer on. "
+        "Its row lets you go back to the normal power off."
+    )
     REAL_SLEEP_REMOVE = "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value."
 
     def _dashboard_accessory(self, accessory: str, operation: str) -> None:
@@ -1666,11 +1670,13 @@ class ControlCenterWindow(QMainWindow):
                 argv = self.controller.accessory_configure_argv(accessory)
                 if not QProcess.startDetached(argv[0], argv[1:]):
                     raise RuntimeError(tr_format("{program} could not be started.", program=program))
-            elif accessory == "real_sleep" and operation in {"mode-s3", "mode-hibernate"}:
+            elif accessory == "real_sleep" and operation in {
+                "mode-s3", "mode-hibernate", "poweroff-default", "poweroff-wake",
+            }:
                 self.controller.manage_accessory(accessory, operation)
             elif accessory == "real_sleep" and operation == "install":
                 dialog = ConfirmDialog(
-                    tr_format("Install {program}?", program=program), self.REAL_SLEEP_INSTALL,
+                    tr_format("Install {program}?", program=program), "\n\n".join((tr(self.REAL_SLEEP_INSTALL), tr(self.REAL_SLEEP_POWER_OFF))),
                     confirm_text="Install", tone="red", parent=self,
                 )
                 if dialog.exec() == dialog.DialogCode.Accepted:

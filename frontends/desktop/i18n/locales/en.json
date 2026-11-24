@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.",
   "pacman stopped without changing anything.": "pacman stopped without changing anything.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.",
-  "Fix what the lines above the error name, then run this action again.": "Fix what the lines above the error name, then run this action again."
+  "Fix what the lines above the error name, then run this action again.": "Fix what the lines above the error name, then run this action again.",
+  "Normal power off": "Normal power off",
+  "Turn on with a gamepad": "Turn on with a gamepad",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off."
 }

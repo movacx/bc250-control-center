@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "De regels met Err: hierboven noemen hem: meestal een eerder toegevoegde bron waarvan de sleutel ontbreekt of het certificaat ongeldig is. apt gaat verder met de oude lijst, dus dit hoeft niet te zijn wat de actie stopte.",
   "pacman stopped without changing anything.": "pacman stopte zonder iets te wijzigen.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman heeft de installatie afgebroken. Meestal is de schijf vol of alleen-lezen; de regels boven de fout noemen het als pacman het weet.",
-  "Fix what the lines above the error name, then run this action again.": "Los op wat de regels boven de fout noemen en voer de actie opnieuw uit."
+  "Fix what the lines above the error name, then run this action again.": "Los op wat de regels boven de fout noemen en voer de actie opnieuw uit.",
+  "Normal power off": "Normaal uitschakelen",
+  "Turn on with a gamepad": "Inschakelen met een gamepad",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Uitschakelen verandert ook: een gamepad of USB-apparaat kan de computer daarna inschakelen. In de rij kunt u terug naar normaal uitschakelen."
 }

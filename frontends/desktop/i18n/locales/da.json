@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Linjerne Err: ovenfor nævner det: som regel et lager, der er tilføjet tidligere, og som mangler sin nøgle eller har et ugyldigt certifikat. apt fortsætter med sin gamle liste, så det er måske ikke det, der stoppede handlingen.",
   "pacman stopped without changing anything.": "pacman stoppede uden at ændre noget.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman afbrød installationen. Den hyppigste årsag er en fuld eller skrivebeskyttet disk; linjerne over fejlen nævner den, når pacman kender den.",
-  "Fix what the lines above the error name, then run this action again.": "Ret det, som linjerne over fejlen nævner, og kør handlingen igen."
+  "Fix what the lines above the error name, then run this action again.": "Ret det, som linjerne over fejlen nævner, og kør handlingen igen.",
+  "Normal power off": "Normal slukning",
+  "Turn on with a gamepad": "Tænd med en gamepad",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Slukning ændres også: en gamepad eller USB-enhed kan derefter tænde computeren. I dens række kan du gå tilbage til normal slukning."
 }

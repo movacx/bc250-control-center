@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "위의 Err: 줄에 이름이 있습니다. 보통 전에 추가한 저장소로, 키가 없거나 인증서가 유효하지 않습니다. apt는 이전 목록으로 계속하므로 작업이 멈춘 원인이 아닐 수도 있습니다.",
   "pacman stopped without changing anything.": "pacman이 아무것도 변경하지 않고 멈췄습니다.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman이 설치를 중단했습니다. 디스크가 가득 찼거나 읽기 전용인 경우가 가장 많으며, pacman이 원인을 아는 경우 오류 위의 줄에 나옵니다.",
-  "Fix what the lines above the error name, then run this action again.": "오류 위의 줄이 가리키는 것을 고친 뒤 이 작업을 다시 실행하세요."
+  "Fix what the lines above the error name, then run this action again.": "오류 위의 줄이 가리키는 것을 고친 뒤 이 작업을 다시 실행하세요.",
+  "Normal power off": "일반 전원 끄기",
+  "Turn on with a gamepad": "게임패드로 켜기",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "전원 끄기도 바뀝니다. 이후 게임패드나 USB 장치로 컴퓨터를 켤 수 있습니다. 해당 행에서 일반 전원 끄기로 되돌릴 수 있습니다."
 }

@@ -32,3 +32,12 @@ def test_installed_it_offers_the_other_mode_and_remove(qtbot):
     # Without BIOS P3.00 there is no S3 to go back to.
     _sidebar, buttons = _row(qtbot, state="installed", mode="hibernate", s3_supported=False)
     assert buttons["configure"].isHidden()
+
+
+def test_the_power_off_button_offers_the_other_way(qtbot):
+    _sidebar, buttons = _row(qtbot, state="installed", mode="s3", power_off="wake")
+    assert buttons["poweroff"].request_payload["op"] == "poweroff-default"
+    _sidebar, buttons = _row(qtbot, state="installed", mode="s3", power_off="default")
+    assert buttons["poweroff"].request_payload["op"] == "poweroff-wake"
+    _sidebar, buttons = _row(qtbot, state="not-installed")
+    assert buttons["poweroff"].isHidden()

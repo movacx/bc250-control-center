@@ -677,6 +677,7 @@
   "bc250cc/infrastructure/accessories/real_sleep.py": {
    "_read": "DRV-0185",
    "_homes": "DRV-0186",
+   "unlocked_from_mask": "DRV-0198",
    "inventory": "DRV-0187",
    "_header": "DRV-0188",
    "_board_check": "DRV-0189",
@@ -686,6 +687,7 @@
    "install_command": "DRV-0193",
    "remove_command": "DRV-0194",
    "set_mode_command": "DRV-0195",
+   "set_power_off_command": "DRV-0199",
    "status_command": "DRV-0196"
   },
   "bc250cc/infrastructure/accessories/thermalright.py": {

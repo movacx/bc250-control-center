@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Rândurile Err: de mai sus îl numesc: de obicei un depozit adăugat mai demult, căruia îi lipsește cheia sau al cărui certificat nu este valabil. apt continuă cu lista veche, deci poate nu aceasta a oprit acțiunea.",
   "pacman stopped without changing anything.": "pacman s-a oprit fără să schimbe nimic.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman a întrerupt instalarea. Cel mai des discul este plin sau doar pentru citire; rândurile de deasupra erorii o spun când pacman știe.",
-  "Fix what the lines above the error name, then run this action again.": "Remediați ce numesc rândurile de deasupra erorii, apoi rulați din nou acțiunea."
+  "Fix what the lines above the error name, then run this action again.": "Remediați ce numesc rândurile de deasupra erorii, apoi rulați din nou acțiunea.",
+  "Normal power off": "Oprire normală",
+  "Turn on with a gamepad": "Pornire cu un gamepad",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Se schimbă și oprirea: apoi un gamepad sau un dispozitiv USB poate porni calculatorul. Din rândul său puteți reveni la oprirea normală."
 }

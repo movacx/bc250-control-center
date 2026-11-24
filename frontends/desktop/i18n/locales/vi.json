@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Các dòng Err: ở trên nêu tên nó: thường là kho được thêm trước đây, thiếu khóa hoặc chứng chỉ không hợp lệ. apt tiếp tục với danh sách cũ, nên có thể đây không phải điều đã dừng thao tác.",
   "pacman stopped without changing anything.": "pacman đã dừng mà không thay đổi gì.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman đã hủy cài đặt. Nguyên nhân thường gặp nhất là đĩa đầy hoặc chỉ đọc; các dòng phía trên lỗi nêu rõ khi pacman biết.",
-  "Fix what the lines above the error name, then run this action again.": "Sửa điều mà các dòng phía trên lỗi nêu ra, rồi chạy lại thao tác này."
+  "Fix what the lines above the error name, then run this action again.": "Sửa điều mà các dòng phía trên lỗi nêu ra, rồi chạy lại thao tác này.",
+  "Normal power off": "Tắt nguồn bình thường",
+  "Turn on with a gamepad": "Bật bằng tay cầm",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Cách tắt nguồn cũng thay đổi: sau đó tay cầm hoặc thiết bị USB có thể bật máy tính. Ở hàng của nó, bạn có thể quay lại cách tắt nguồn bình thường."
 }

@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Raderna med Err: ovan namnger den: oftast en källa som lagts till tidigare och vars nyckel saknas eller vars certifikat är ogiltigt. apt fortsätter med sin gamla lista, så det kanske inte var detta som stoppade åtgärden.",
   "pacman stopped without changing anything.": "pacman stannade utan att ändra något.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman avbröt installationen. Vanligast är att disken är full eller skrivskyddad; raderna ovanför felet säger det när pacman vet.",
-  "Fix what the lines above the error name, then run this action again.": "Åtgärda det som raderna ovanför felet nämner och kör åtgärden igen."
+  "Fix what the lines above the error name, then run this action again.": "Åtgärda det som raderna ovanför felet nämner och kör åtgärden igen.",
+  "Normal power off": "Vanlig avstängning",
+  "Turn on with a gamepad": "Slå på med en handkontroll",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Avstängningen ändras också: en handkontroll eller USB-enhet kan sedan slå på datorn. På dess rad kan du gå tillbaka till vanlig avstängning."
 }

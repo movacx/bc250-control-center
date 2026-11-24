@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Рядки Err: вище називають його: зазвичай це доданий раніше репозиторій без ключа або з недійсним сертифікатом. apt продовжує зі старим списком, тож, можливо, дію зупинило не це.",
   "pacman stopped without changing anything.": "pacman зупинився, нічого не змінивши.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman перервав встановлення. Найчастіше диск переповнений або лише для читання; рядки над помилкою називають причину, якщо pacman її знає.",
-  "Fix what the lines above the error name, then run this action again.": "Виправте те, що називають рядки над помилкою, і запустіть дію знову."
+  "Fix what the lines above the error name, then run this action again.": "Виправте те, що називають рядки над помилкою, і запустіть дію знову.",
+  "Normal power off": "Звичайне вимкнення",
+  "Turn on with a gamepad": "Увімкнення геймпадом",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Вимкнення теж змінюється: потім геймпад або USB-пристрій зможе увімкнути комп'ютер. У його рядку можна повернути звичайне вимкнення."
 }

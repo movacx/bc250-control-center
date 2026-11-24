@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "As linhas Err: acima o nomeiam: em geral um repositório adicionado antes cuja chave falta ou cujo certificado não é válido. O apt continua com a lista antiga, então talvez não tenha sido isso que parou a ação.",
   "pacman stopped without changing anything.": "O pacman parou sem mudar nada.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "O pacman cancelou a instalação. O mais comum é um disco cheio ou somente leitura; as linhas acima do erro dizem quando o pacman sabe.",
-  "Fix what the lines above the error name, then run this action again.": "Corrija o que as linhas acima do erro indicam e execute a ação de novo."
+  "Fix what the lines above the error name, then run this action again.": "Corrija o que as linhas acima do erro indicam e execute a ação de novo.",
+  "Normal power off": "Desligamento normal",
+  "Turn on with a gamepad": "Ligar com um controle",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "O desligamento também muda: depois, um controle ou um dispositivo USB pode ligar o computador. Na linha dele você pode voltar ao desligamento normal."
 }

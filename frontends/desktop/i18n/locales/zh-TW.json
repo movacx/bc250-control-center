@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "上方的 Err: 行寫出了它的名稱:通常是以前加入的套件庫,缺少金鑰或憑證無效。apt 會繼續使用舊清單,因此這未必是操作停止的原因。",
   "pacman stopped without changing anything.": "pacman 已停止,未變更任何內容。",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman 中止了安裝。最常見的原因是磁碟已滿或唯讀;pacman 知道原因時,錯誤上方的行會寫明。",
-  "Fix what the lines above the error name, then run this action again.": "修正錯誤上方各行指出的問題,然後重新執行此操作。"
+  "Fix what the lines above the error name, then run this action again.": "修正錯誤上方各行指出的問題,然後重新執行此操作。",
+  "Normal power off": "一般關機",
+  "Turn on with a gamepad": "用手把開機",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "關機方式也會改變:之後手把或 USB 裝置可以開啟電腦。您可以在其所在列恢復一般關機。"
 }

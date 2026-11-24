@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "Wiersze Err: powyżej je wskazują: zwykle to dodane wcześniej repozytorium bez klucza lub z nieważnym certyfikatem. apt działa dalej ze starą listą, więc być może to nie to zatrzymało działanie.",
   "pacman stopped without changing anything.": "pacman zatrzymał się, niczego nie zmieniając.",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman przerwał instalację. Najczęściej dysk jest pełny lub tylko do odczytu; wiersze nad błędem podają przyczynę, jeśli pacman ją zna.",
-  "Fix what the lines above the error name, then run this action again.": "Napraw to, co wskazują wiersze nad błędem, i uruchom działanie ponownie."
+  "Fix what the lines above the error name, then run this action again.": "Napraw to, co wskazują wiersze nad błędem, i uruchom działanie ponownie.",
+  "Normal power off": "Zwykłe wyłączanie",
+  "Turn on with a gamepad": "Włączanie gamepadem",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Zmienia się też wyłączanie: gamepad lub urządzenie USB może potem włączyć komputer. W jego wierszu można wrócić do zwykłego wyłączania."
 }

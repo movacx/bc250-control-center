@@ -39,7 +39,7 @@ def installed(root):
 def test_supported_board_without_installation(board, family):
     assert real_sleep.inventory(family, root=board) == {
         "state": "not-installed", "reason": "", "version": "1.2.3", "mode": "",
-        "s3_supported": True, "spare_cores_blocked": False, "conflicts": (), "needs_swap": True,
+        "s3_supported": True, "spare_cores_blocked": False, "conflicts": (), "needs_swap": True, "power_off": "default",
     }
 
 
@@ -249,8 +249,16 @@ def test_the_recorded_bios_option_comes_back(tmp_path):
 ])
 def test_a_bios_that_changed_meanwhile_is_left_alone(tmp_path, current, bios):
     result, values, backup = _run_bios(tmp_path, "restore", current, bios=bios, saved=AUTO)
-    assert result.returncode == 0 and values == current and backup.exists()
-    assert "record was kept" in result.stdout
+    assert result.returncode == 0 and values == current and not backup.exists()
+    kept = list(backup.parent.glob("bios-before.kept-*"))
+    assert len(kept) == 1 and kept[0].read_text().split() == AUTO
+    assert "kept as" in result.stdout
+    # A later install starts from what the BIOS holds now, never from the old record.
+    if bios == "P3.00":
+        other = tmp_path / "again"
+        other.mkdir()
+        _result, _values, fresh = _run_bios(other, "record", current)
+        assert fresh.read_text().split() == current
 
 
 def test_the_value_sleep_itself_wrote_is_never_recorded_as_the_owners(tmp_path):
@@ -263,3 +271,45 @@ def test_the_value_sleep_itself_wrote_is_never_recorded_as_the_owners(tmp_path):
 def test_without_a_record_nothing_is_written(tmp_path):
     result, values, _backup = _run_bios(tmp_path, "restore", SET)
     assert result.returncode == 0 and values == SET
+
+
+def test_a_record_the_owner_changed_over_is_set_aside_not_reused(tmp_path):
+    mine = ["0x6f6=0x01", "0x6f7=0xc0", "0x6f8=0x02"]
+    result, _values, backup = _run_bios(tmp_path, "record", mine, saved=AUTO)
+    assert result.returncode == 0 and backup.read_text().split() == mine
+    assert next(backup.parent.glob("bios-before.kept-*")).read_text().split() == AUTO
+
+
+def test_reinstalling_over_a_working_install_keeps_the_record(tmp_path):
+    result, _values, backup = _run_bios(tmp_path, "record", SET, saved=AUTO)
+    assert result.returncode == 0 and backup.read_text().split() == AUTO
+    assert not list(backup.parent.glob("bios-before.kept-*"))
+
+
+def _unlock_service(root, arguments="", **state):
+    write(root, real_sleep.UNLOCK_UNIT, f"[Service]\nExecStart=/usr/bin/python3 -I /var/lib/x apply --boot{arguments}\n")
+    link = root / real_sleep.UNLOCK_LINK.lstrip("/")
+    link.parent.mkdir(parents=True)
+    link.symlink_to(real_sleep.UNLOCK_UNIT)
+    write(root, real_sleep.UNLOCK_STATE, __import__("json").dumps({"status": "unlocked", "last_attempt_boot_id": "b", **state}))
+
+
+@pytest.mark.parametrize("arguments, state, mask", [
+    ("", {}, 0x77),
+    (" --accept-mask 0xB7", {}, None),        # it writes on 0x77 too
+    (" --force-mask", {}, None),
+    ("", {"last_attempt_boot_id": ""}, None),  # unlocked by something else
+    ("", {"status": "refused"}, None),
+])
+def test_the_mask_is_taken_only_from_a_service_that_proves_it(tmp_path, arguments, state, mask):
+    _unlock_service(tmp_path, arguments, **state)
+    assert real_sleep.unlocked_from_mask(tmp_path) == mask
+
+
+def test_the_power_off_mode_goes_through_upstreams_own_switch(board):
+    assert real_sleep.inventory("steamos", root=board)["power_off"] == "default"
+    write(board, real_sleep.POWEROFF_DROPIN)
+    assert real_sleep.inventory("steamos", root=board)["power_off"] == "wake"
+    assert "bc250-sleep shutdown default" in real_sleep.set_power_off_command("default")
+    with pytest.raises(ValueError):
+        real_sleep.set_power_off_command("now")

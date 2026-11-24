@@ -6551,5 +6551,8 @@
   "The Err: lines above name it: usually a repository added earlier whose key is missing or whose certificate is not valid. apt goes on with its old list, so this may not be what stopped the action.": "上の Err: の行に名前があります。多くは以前に追加されたリポジトリで、キーがないか証明書が無効です。apt は古い一覧で続行するため、操作が止まった原因ではない可能性もあります。",
   "pacman stopped without changing anything.": "pacman は何も変更せずに停止しました。",
   "pacman aborted the installation. A full or read-only disk is the most common reason; the lines above the error name it when pacman knows it.": "pacman がインストールを中止しました。多くはディスクの空き不足か読み取り専用が原因です。pacman が原因を把握している場合は、エラーの上の行に記載されています。",
-  "Fix what the lines above the error name, then run this action again.": "エラーの上の行に示された問題を直してから、もう一度実行してください。"
+  "Fix what the lines above the error name, then run this action again.": "エラーの上の行に示された問題を直してから、もう一度実行してください。",
+  "Normal power off": "通常の電源オフ",
+  "Turn on with a gamepad": "ゲームパッドで電源を入れる",
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "電源オフも変わります。以後、ゲームパッドや USB デバイスでコンピューターの電源を入れられます。この行から通常の電源オフに戻せます。"
 }
