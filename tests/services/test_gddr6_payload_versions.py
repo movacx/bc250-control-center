@@ -173,14 +173,15 @@ def test_a_board_without_the_patch_is_never_sent_a_message(reader, monkeypatch):
     assert smu.messages == []
 
 
-def test_the_first_payload_is_read_when_the_bios_or_another_program_installed_it(reader, monkeypatch):
-    # onlinermm's BIOS installs these same 176 bytes (evidence/payload-selection.json).
+def test_the_first_payload_from_the_bios_is_neither_replaced_nor_read(reader, monkeypatch):
+    # onlinermm's BIOS installs these same 176 bytes (evidence/payload-selection.json),
+    # which wait for a chip with no time limit.
     smu = FakeSmu(reader, (reader.LEGACY_HANDLER, 0x00012350, 0x00012360), payload=LEGACY_BYTES)
     payload = _sample(reader, smu, monkeypatch, collector_installed=False)
 
-    assert payload["payload"] == "legacy" and payload["patch_active"] is True
-    assert payload["source"] == "existing-patch"
-    assert smu.messages == [(3, 0x5, (chip,)) for chip in range(8)]
+    assert payload["payload"] == "legacy" and payload["patch_active"] is False
+    assert payload["blocked_reason"] == "GDDR6_PATCH_EXISTING"
+    assert smu.messages == []
 
 
 def test_the_first_payload_is_still_read_for_bc250_telemetry(reader, monkeypatch):
@@ -241,8 +242,6 @@ def test_the_handler_table_is_the_one_patch_smu_writes(reader):
     "status, arguments",
     [
         ({"payload": ""}, ()),
-        # The BIOS, the kernel driver or BC250-Telemetry put it there: never replaced.
-        ({"payload": "legacy", "patch_active": False}, None),
         # Kept for BC250-Telemetry, whose collector refuses any other one.
         ({"payload": "legacy", "patch_active": True}, None),
         ({"payload": "current", "patch_active": True}, None),
@@ -250,6 +249,11 @@ def test_the_handler_table_is_the_one_patch_smu_writes(reader):
 )
 def test_patch_smu_never_writes_over_an_installed_payload(helper, status, arguments):
     assert helper._patch_arguments(status) == arguments
+
+
+def test_a_patch_of_the_bios_is_never_written_over(helper):
+    with pytest.raises(RuntimeError, match="GDDR6_PATCH_EXISTING"):
+        helper._patch_arguments({"payload": "legacy", "patch_active": False})
 
 
 def test_an_unrecognised_patch_is_never_written_over(helper):
@@ -281,7 +285,7 @@ def _patch_run(helper, monkeypatch, tmp_path, status):
     return ran
 
 
-def test_the_first_payload_is_left_where_another_program_put_it(helper, monkeypatch, tmp_path):
+def test_the_first_payload_is_kept_for_bc250_telemetry(helper, monkeypatch, tmp_path):
     assert _patch_run(helper, monkeypatch, tmp_path, {"payload": "legacy", "patch_active": True}) == []
 
 

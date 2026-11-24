@@ -66,7 +66,9 @@ def unlocked_from_mask(root: Path = Path("/")) -> int | None:
     on 0x77, so a service that wrote and then saw 16 threads means 0x77. With
     --accept-mask it also writes on 0x77, and with --force-mask on anything, so
     neither says which cores came back. "unlocked" alone says nothing either: a
-    board unlocked by its BIOS reads the same, without any attempt.
+    board unlocked by its BIOS reads the same, without any attempt. The record
+    must be of this boot, and no BIOS or unit override may unlock cores too: the
+    disk can have moved to another board.
     """
     link = root / UNLOCK_LINK.lstrip("/")
     started = re.findall(r"^ExecStart=(.*)$", _read(root / UNLOCK_UNIT.lstrip("/")), re.M)
@@ -78,7 +80,18 @@ def unlocked_from_mask(root: Path = Path("/")) -> int | None:
         record = json.loads(_read(root / UNLOCK_STATE.lstrip("/")))
     except ValueError:
         return None
-    proven = isinstance(record, dict) and record.get("status") == "unlocked" and record.get("last_attempt_boot_id")
+    boot = _read(root / "proc/sys/kernel/random/boot_id")
+    override = root / (UNLOCK_UNIT.lstrip("/") + ".d")
+    try:
+        bios_unlocks = any(
+            entry.name.lower().startswith("meimeidxe") for entry in (root / "sys/firmware/efi/efivars").iterdir()
+        )
+    except OSError:
+        bios_unlocks = False
+    proven = (
+        isinstance(record, dict) and record.get("status") == "unlocked" and record.get("last_attempt_boot_id")
+        and boot and record.get("last_run_boot_id") == boot and not override.exists() and not bios_unlocks
+    )
     return 0x77 if proven else None
 
 

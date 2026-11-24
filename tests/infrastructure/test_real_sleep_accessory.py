@@ -291,7 +291,8 @@ def _unlock_service(root, arguments="", **state):
     link = root / real_sleep.UNLOCK_LINK.lstrip("/")
     link.parent.mkdir(parents=True)
     link.symlink_to(real_sleep.UNLOCK_UNIT)
-    write(root, real_sleep.UNLOCK_STATE, __import__("json").dumps({"status": "unlocked", "last_attempt_boot_id": "b", **state}))
+    write(root, real_sleep.UNLOCK_STATE, __import__("json").dumps({"status": "unlocked", "last_attempt_boot_id": "b", "last_run_boot_id": "now", **state}))
+    write(root, "proc/sys/kernel/random/boot_id", "now\n")
 
 
 @pytest.mark.parametrize("arguments, state, mask", [
@@ -300,6 +301,7 @@ def _unlock_service(root, arguments="", **state):
     (" --force-mask", {}, None),
     ("", {"last_attempt_boot_id": ""}, None),  # unlocked by something else
     ("", {"status": "refused"}, None),
+    ("", {"last_run_boot_id": "another boot"}, None),
 ])
 def test_the_mask_is_taken_only_from_a_service_that_proves_it(tmp_path, arguments, state, mask):
     _unlock_service(tmp_path, arguments, **state)
@@ -313,3 +315,14 @@ def test_the_power_off_mode_goes_through_upstreams_own_switch(board):
     assert "bc250-sleep shutdown default" in real_sleep.set_power_off_command("default")
     with pytest.raises(ValueError):
         real_sleep.set_power_off_command("now")
+
+
+def test_a_bios_or_an_override_that_unlocks_too_proves_nothing(tmp_path):
+    _unlock_service(tmp_path)
+    variable = tmp_path / "sys/firmware/efi/efivars/MeiMeiDXEv3CoreVar-49cc168d"
+    write(tmp_path, str(variable.relative_to(tmp_path)))
+    assert real_sleep.unlocked_from_mask(tmp_path) is None
+    variable.unlink()
+    assert real_sleep.unlocked_from_mask(tmp_path) == 0x77
+    write(tmp_path, real_sleep.UNLOCK_UNIT + ".d/override.conf")
+    assert real_sleep.unlocked_from_mask(tmp_path) is None

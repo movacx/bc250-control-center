@@ -695,10 +695,14 @@ def _patch_arguments(status: dict) -> tuple[str, ...] | None:
             "not at a payload this version recognises (or one that did not finish "
             "installing). Power the board off completely before trying again."
         )
-    if installed in {"current", "legacy"} or status.get("patch_active"):
-        # The reviewed payload, or the first one, which BC250-Telemetry, the
-        # kernel driver or onlinermm's BIOS installed: read, never replaced.
+    if installed == "current" or status.get("patch_active"):
+        # The reviewed payload, or the first one kept for BC250-Telemetry.
         return None
+    if installed == "legacy":
+        raise RuntimeError(
+            "GDDR6_PATCH_EXISTING: the BIOS or another program already installed "
+            "a memory temperature patch. It is not written over."
+        )
     return ()
 
 

@@ -6556,6 +6556,6 @@
   "Turn on with a gamepad": "게임패드로 켜기",
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "전원 끄기도 바뀝니다. 이후 게임패드나 USB 장치로 컴퓨터를 켤 수 있습니다. 해당 행에서 일반 전원 끄기로 되돌릴 수 있습니다.",
   "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialist의 커널 호환성은 이 커널을 지원하며 이 시스템의 도구로 빌드합니다. 둘 다가 아니라 하나만 사용하세요.",
-  "Patch installed by the BIOS or another program": "패치는 BIOS 또는 다른 프로그램이 설치함",
-  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "드라이버가 시작할 때 이미 컴퓨트 유닛 {count}개를 찾았으며, 보통의 24개보다 많습니다. BIOS나 다른 부팅 프로그램이 켰을 수 있습니다. 그쪽에서 바꾸지 않으면 둘 다 계속 설정합니다."
+  "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "드라이버가 시작할 때 이미 컴퓨트 유닛 {count}개를 찾았으며, 보통의 24개보다 많습니다. BIOS나 다른 부팅 프로그램이 켰을 수 있습니다. 그쪽에서 바꾸지 않으면 둘 다 계속 설정합니다.",
+  "The BIOS or another program already installed a memory temperature patch. Control Center neither replaces it nor reads through it, because it can hang. BC250-Telemetry can show its readings.": "BIOS나 다른 프로그램이 이미 메모리 온도 패치를 설치했습니다. 멈출 수 있으므로 Control Center는 이를 바꾸지도, 이를 통해 읽지도 않습니다. BC250-Telemetry에서 값을 볼 수 있습니다."
 }

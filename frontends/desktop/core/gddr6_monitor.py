@@ -47,8 +47,6 @@ LIVE_SESSION_SECONDS = 600
 EXTERNAL_SOURCE = "bc250-telemetry"
 #: ...and when the kernel's own bc250_memory driver did (MastaG's kernels).
 KERNEL_SOURCE = "bc250_memory"
-#: Our reading, through a patch the BIOS or another program installed.
-EXISTING_PATCH_SOURCE = "existing-patch"
 
 _EXTERNAL_INTERRUPTED = (
     "BC250-Telemetry's memory service stopped in the middle of an SMU "
@@ -58,6 +56,10 @@ _EXTERNAL_INTERRUPTED = (
 _GOVERNOR_STARTING = (
     "The GPU governor is starting, and while it starts it uses the same SMU "
     "queue as these readings. They resume once it is running."
+)
+_PATCH_EXISTING = (
+    "The BIOS or another program already installed a memory temperature patch. Control Center neither "
+    "replaces it nor reads through it, because it can hang. BC250-Telemetry can show its readings."
 )
 _PATCH_UNKNOWN = (
     "The SMU already has a memory-temperature patch this version does not "
@@ -96,6 +98,7 @@ _SESSION_ERRORS = (
         "Another BC-250 tool is using the SMU right now. Wait for it to finish "
         "and try again.",
     ),
+    ("GDDR6_PATCH_EXISTING", _PATCH_EXISTING),
     ("GDDR6_PATCH_UNKNOWN", _PATCH_UNKNOWN),
     ("GDDR6_NO_CHIP_ANSWERED", _NO_CHIP_ANSWERED),
 )
@@ -325,6 +328,8 @@ class Gddr6Reading:
             )
         if self.blocked_reason == "GDDR6_GOVERNOR_UNSETTLED":
             return _GOVERNOR_RESTARTING if self.governor_state == "restarting" else _GOVERNOR_STARTING
+        if self.blocked_reason == "GDDR6_PATCH_EXISTING":
+            return _PATCH_EXISTING
         if self.blocked_reason == "GDDR6_PATCH_UNKNOWN":
             return _PATCH_UNKNOWN
         if self.blocked_reason == "GDDR6_KERNEL_DRIVER_NO_SENSOR":

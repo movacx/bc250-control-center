@@ -55,7 +55,6 @@ from ..core.error_diagnostics import (
 )
 from ..core.external_links import open_external_url, update_checks_enabled
 from ..core.gddr6_monitor import (
-    EXISTING_PATCH_SOURCE,
     EXTERNAL_SOURCE,
     KERNEL_SOURCE,
     gddr6_monitor_for,
@@ -1119,8 +1118,6 @@ class DashboardPage(QWidget):
             )
             if reading.source == EXTERNAL_SOURCE:
                 hotspot = f"{hotspot} · {tr('Read by BC250-Telemetry')}"
-            elif reading.source == EXISTING_PATCH_SOURCE:
-                hotspot = f"{hotspot} · {tr('Patch installed by the BIOS or another program')}"
             elif reading.source == KERNEL_SOURCE:
                 hotspot = f"{hotspot} · {tr('Read by the kernel driver (bc250_memory)')}"
             summary.set_detail(hotspot)
