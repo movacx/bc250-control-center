@@ -204,10 +204,9 @@ class RealToolkitRows(ToolRows):
             self._watch.stop()
 
     def _look_again(self):
-        from bc250cc.infrastructure import steamos_real_toolkit, steamos_root_guard
+        from bc250cc.application.preparation.steamos_providers import real_toolkit_running
 
-        session = steamos_root_guard.read_session(steamos_real_toolkit.STATE_ROOT)
-        if not steamos_root_guard.session_running(session):
+        if not real_toolkit_running():
             self.set_running('')
 
     def set_root_state(self, mode, *, running=False, interrupted=False, action=''):

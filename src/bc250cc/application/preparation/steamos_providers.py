@@ -15,12 +15,22 @@ from bc250cc.infrastructure.steamos_toolkit_conflicts import BULK_COMPONENTS
 
 __all__ = (
     "ALTERNATIVE_ACTIONS", "alternative_action_keys", "protected_actions", "real_toolkit_action_keys",
+    "real_toolkit_running",
 )
 
 
 def real_toolkit_action_keys() -> tuple[str, ...]:
     """Every action the Real Toolkit adapter dispatches, in registry order."""
     return tuple(action.key for action in ACTIONS)
+
+
+def real_toolkit_running() -> bool:
+    """Whether a Real Toolkit action holds its session now."""
+    from bc250cc.infrastructure import steamos_real_toolkit, steamos_root_guard
+
+    return bool(steamos_root_guard.session_running(
+        steamos_root_guard.read_session(steamos_real_toolkit.STATE_ROOT)
+    ))
 
 
 def alternative_action_keys() -> tuple[str, ...]:
