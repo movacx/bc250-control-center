@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from bc250cc.infrastructure.core_unlock_attempts import chosen_mask, record_attempt
+
+__all__ = ["chosen_mask", "core_unlock_controls", "record_attempt"]
+
 
 def core_unlock_controls(unlock: dict) -> dict:
     persistence = unlock.get("persistence") or {}

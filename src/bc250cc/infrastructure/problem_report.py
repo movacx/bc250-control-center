@@ -31,7 +31,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from bc250cc.infrastructure.report_attachments import redact_machine
+from bc250cc.infrastructure.report_attachments import (
+    for_area,
+    redact_machine,
+    report_area,
+)
 from bc250cc.shared.paths import state_root
 
 #: The maintainer's report service.
@@ -319,7 +323,10 @@ def payload(report: Report, *, now: datetime | None = None) -> dict:
     ]
     document["attachments"] = [
         {"name": _short(name), "text": _long(text, keep_end=name.lower().startswith(("last workflow", "kernel log")))}
-        for name, text in without_repeats(report.attachments, report.workflow_log)
+        for name, text in without_repeats(
+            for_area(report.attachments, report_area(report.error.code, report.notes + report.steps + report.expected)),
+            report.workflow_log,
+        )
     ]
     return _with_contact(_clean(document), contact)
 

@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from bc250cc.application.cpu.core_unlock import chosen_mask, record_attempt
 from bc250cc.domain.cpu import FREQUENCY_RANGE
 from bc250cc.shared.failure_text import describe_failure
 
@@ -2039,6 +2040,9 @@ class CpuSmuPage(QWidget):
         self.process = QProcess(self)
         self._last_stderr = ""
         self._operation = operation
+        self._unlock_chosen = chosen_mask(command) if operation in CORE_UNLOCK_OPERATIONS else ""
+        if self._unlock_chosen:
+            record_attempt(operation, chosen=self._unlock_chosen, result="started")
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.SeparateChannels)
         self.process.readyReadStandardOutput.connect(self._read_stdout)
         self.process.readyReadStandardError.connect(self._read_stderr)
@@ -2083,6 +2087,11 @@ class CpuSmuPage(QWidget):
             mask = reported_core_mask(self._last_stderr) or reported_core_mask(
                 self.console.toPlainText()[-4000:]
             ) if self._operation in CORE_UNLOCK_OPERATIONS else None
+            if self._operation in CORE_UNLOCK_OPERATIONS:
+                record_attempt(
+                    self._operation, chosen=getattr(self, "_unlock_chosen", ""), reported=mask,
+                    result=f"stopped (exit {exit_code})",
+                )
             view = getattr(self, "_unified_cpu_control", None)
             if mask is not None and view is not None:
                 view.set_board_core_mask(mask)

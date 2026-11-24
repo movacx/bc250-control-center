@@ -2174,6 +2174,11 @@ while :; do
     continue
   fi
   kill "$bc250_progress" 2>/dev/null || true
+  # What the setup wrote, kept for a problem report: the work folder goes away.
+  bc250_kept="${{XDG_DATA_HOME:-$HOME/.local/share}}/HelixSR/last-failed-build.log"
+  {{ echo "HelixSR {version}"; tail -c 400000 -- "$bc250_wine_log"
+    find "$bc250_work" -type f -name '*.log' ! -path "$bc250_wine_log" -size -4M -exec sh -c 'for f do echo "[${{f##*/}}]"; tail -n 200 -- "$f"; done' sh {{}} +
+  }} > "$bc250_kept" 2>/dev/null || true
   rm -rf -- "$bc250_dlss_dir" "$bc250_work"
   echo
   echo "The network was not built. HelixSR is installed; use Build network files to try again."

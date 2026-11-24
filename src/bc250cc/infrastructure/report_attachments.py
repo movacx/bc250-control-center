@@ -257,7 +257,8 @@ def _upstream_logs() -> str:
     """The logs the other projects' installers keep, condensed."""
     from bc250cc.infrastructure.problem_report import clean_log, condense_log
 
-    paths = [Path.home() / ".cache/directmesh-build/build.log", Path.home() / ".cache/directmesh-build/setup.log"]
+    paths = [Path.home() / ".cache/directmesh-build/build.log", Path.home() / ".cache/directmesh-build/setup.log",
+             Path.home() / ".local/share/HelixSR/last-failed-build.log"]
     try:
         from .steamos_real_toolkit import STATE_ROOT
 
@@ -355,6 +356,19 @@ def _core_unlock() -> str:
         return f"(not available: {error})"
     lines = [f"physical cores: {len(cores)}", f"logical CPUs: {logical}"]
     lines += [f"{key}: {value}" for key, value in state.items()]
+    # The mask is readable only as root: what the tools already said about it.
+    from .core_unlock_attempts import recent_attempts
+    from .core_unlock_persistence import BOOT_SERVICE_STATE, BOOT_SERVICE_UNIT
+
+    started = re.findall(r"^ExecStart=.*$", diag._read(BOOT_SERVICE_UNIT, 6000), re.M)
+    if started:
+        lines.append("boot service: " + started[0])
+    record = diag._read(BOOT_SERVICE_STATE, 4000).strip()
+    if record:
+        lines.append("boot service record: " + " ".join(record.split()))
+    tried = recent_attempts()
+    if tried:
+        lines.append("[attempts from this app]\n" + "\n".join(tried))
     return "\n".join(lines)
 
 
@@ -438,6 +452,43 @@ def collect_attachments() -> list[tuple[str, str]]:
         seen.add(title.lower())
         unique.append((title, body))
     return unique
+
+
+#: Sections that say nothing about a failure of that area. Everything not
+#: named stays, and an area not listed here keeps every section.
+_FAN_AND_SENSORS = {"Kernel log: fan chip and sensors", "Sensors (hwmon)", "sensors"}
+AREA_WITHOUT: dict[str, frozenset[str]] = {
+    "upscaling": frozenset(_FAN_AND_SENSORS | {
+        "Core unlock", "Black box", "Previous boot", "Kernel log (unfiltered)",
+        "BC-250 services and their journals", "Configuration files",
+    }),
+    "packages": frozenset(_FAN_AND_SENSORS | {"Core unlock", "Black box", "Previous boot", "Graphics stack"}),
+    "fans": frozenset({"Graphics stack", "Build tools", "Logs of other installers", "Core unlock"}),
+    "compute-units": frozenset(_FAN_AND_SENSORS | {"Build tools", "Logs of other installers"}),
+}
+#: Only codes that name one subject. GENERAL, WORKFLOW, PROTOCOL, GPU and the
+#: rest can be anything, and their reports keep everything.
+_AREA_OF_CODE = {
+    "UPSCALE": "upscaling", "PROTON": "upscaling", "PKG": "packages", "NET": "packages",
+    "FAN": "fans", "CU": "compute-units", "UMR": "compute-units",
+}
+
+
+def report_area(code: str, words: str = "") -> str:
+    """The area a report is about, or "" when that is not certain.
+
+    Someone who wrote something may be describing another problem than the
+    error on screen, so their report is never shortened.
+    """
+    if str(words or "").strip():
+        return ""
+    parts = str(code or "").split("-")
+    return _AREA_OF_CODE.get(parts[1], "") if len(parts) == 3 and parts[0] == "BC250" else ""
+
+
+def for_area(attachments, area: str) -> list[tuple[str, str]]:
+    without = AREA_WITHOUT.get(area, frozenset())
+    return [(name, text) for name, text in attachments if name not in without]
 
 
 def collect_readonly_attachments() -> list[tuple[str, str]]:

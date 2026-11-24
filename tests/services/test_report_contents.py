@@ -49,3 +49,33 @@ def test_recent_actions_list_successes_too(monkeypatch, tmp_path):
     monkeypatch.setattr(parts.diag, "workflow_log_directory", lambda: tmp_path)
     text = parts._recent_actions()
     assert "Free /var space · completed · exit 0 after 4 s" in text and "interrupted" in text
+
+
+def test_a_report_drops_only_what_its_area_never_needs():
+    from bc250cc.infrastructure import report_attachments as parts
+
+    every = [(title, "x") for title, _read in (*parts.diag.SECTIONS, *parts.STATE_SECTIONS)]
+    for code in ("BC250-GENERAL-001", "BC250-WORKFLOW-001", "BC250-GPU-001", "", "free text - with dashes - here"):
+        assert parts.for_area(every, parts.report_area(code)) == every
+    short = dict(parts.for_area(every, parts.report_area("BC250-UPSCALE-001")))
+    assert "Kernel log (unfiltered)" not in short
+    assert {"Last workflow logs", "Boot and deployments", "Application log", "GPU device", "Storage"} <= set(short)
+    assert parts.report_area("BC250-UPSCALE-001", "also my fans stopped") == ""
+    names = {title for title, _text in every}
+    for area, dropped in parts.AREA_WITHOUT.items():
+        assert dropped <= names, area
+
+
+def test_unlock_attempts_keep_the_mask_chosen_and_the_mask_read(monkeypatch, tmp_path):
+    from bc250cc.infrastructure import core_unlock_attempts as unlock
+
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+    helper = ["pkexec", "helper", "--repo", "/x", "--reboot"]
+    assert unlock.chosen_mask(helper) == "standard 0x77"
+    assert unlock.chosen_mask([*helper, "--accept-mask", "0xb7"]) == "only 0xB7"
+    assert unlock.chosen_mask(["bash", "-c", "rm -f x; exec helper --reboot --ignore-core-mask"]) == "any (check skipped)"
+    assert unlock.chosen_mask(["bash", "-c", "rm -f x; exec helper --reboot"]) == "standard 0x77"
+    for number in range(20):
+        unlock.record_attempt("Unlock", chosen="standard 0x77", reported=0xB7, result=f"stopped (exit {number})")
+    rows = unlock.recent_attempts()
+    assert len(rows) == unlock.KEPT and "mask read: 0xB7" in rows[-1] and "exit 19" in rows[-1]
