@@ -42,17 +42,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
 
+from bc250cc.application.system import kernel_option_rows
 from bc250cc.infrastructure.system_setup import (
-    CH7218_QUIRK_OPTION,
-    CH7218_VRR_OPTION,
     CU_UNLOCK_OPTION,
-    HDMI21_OFF_OPTION,
-    HIDE_BOOT_MESSAGES_OPTION,
-    MEMORY_SENSOR_OPTION,
-    PCON_FORCE_DSC_OPTION,
-    RELINK_AT_BOOT_OPTION,
-    RELINK_OFF_OPTION,
-    SCHED_POLICY_OPTION,
 )
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
@@ -3151,38 +3143,9 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
     _KERNEL_ACTION_WIDTH = 176
     _KERNEL_ROW_HEIGHT = 46
 
-    #: The two boot options, in the order the panel shows them.
-    KERNEL_OPTION_ROWS = (
-        ("mitigations=off", "CPU security mitigations", "Disable mitigations", "Restore mitigations"),
-        ("nosmt", "Simultaneous multithreading (SMT)", "Disable SMT", "Restore SMT"),
-        (CU_UNLOCK_OPTION, "Compute Units unlock (kernel)", "Unlock all 40 CUs", "Restore CU lock"),
-        (HIDE_BOOT_MESSAGES_OPTION, "Boot messages (hides the RDSEED warning)", "Hide boot messages", "Show boot messages"),
-        (SCHED_POLICY_OPTION, "GPU scheduler policy (non-HWS)", "Use non-HWS scheduling", "Restore default scheduling"),
-        (HDMI21_OFF_OPTION, "HDMI 2.1 and DSC negotiation", "Turn HDMI 2.1 off", "Turn HDMI 2.1 on"),
-        (RELINK_OFF_OPTION, "Picture recovery after a mode change", "Turn recovery off", "Turn recovery on"),
-        # Opt-in fixes of MastaG's kernel, each for one symptom; off by default there.
-        (CH7218_QUIRK_OPTION, "4K120 black screen fix (UGREEN / CH7218 adapter)", "Turn the CH7218 fix on", "Turn the CH7218 fix off"),
-        (CH7218_VRR_OPTION, "VRR on CH7218 firmware 07.00.69", "Force VRR on the adapter", "Stop forcing VRR"),
-        (PCON_FORCE_DSC_OPTION, "Force DSC on a VMM7100 adapter (experimental)", "Force DSC", "Stop forcing DSC"),
-        (RELINK_AT_BOOT_OPTION, "Picture recovery at boot (experimental)", "Recover at boot", "Stop recovering at boot"),
-        # Off on purpose: the driver patches the SMU firmware and shares its mailbox.
-        (MEMORY_SENSOR_OPTION, "GDDR6 temperature from the kernel (bc250_memory)", "Load at boot", "Stop loading at boot"),
-    )
-    #: Options only the BC-250 kernel has a parameter for: offered where the
-    #: kernel reports it (or where one is already staged, to take it back).
-    KERNEL_PARAMETER_OPTIONS = frozenset({
-        HDMI21_OFF_OPTION, RELINK_OFF_OPTION,
-        CH7218_QUIRK_OPTION, CH7218_VRR_OPTION, PCON_FORCE_DSC_OPTION, RELINK_AT_BOOT_OPTION,
-        MEMORY_SENSOR_OPTION,
-    })
-    #: Options that give something up, and so are drawn as a warning. Unlocking
-    #: compute units gives nothing up: it is the BC-250 kernel's own method.
-    #: Hiding boot messages risks nothing for the board; it is explained in its
-    #: confirmation, not painted red.
-    KERNEL_OPTION_NEUTRAL = frozenset({
-        CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION, SCHED_POLICY_OPTION, HDMI21_OFF_OPTION, RELINK_OFF_OPTION,
-        CH7218_QUIRK_OPTION, CH7218_VRR_OPTION, PCON_FORCE_DSC_OPTION, RELINK_AT_BOOT_OPTION,
-    })
+    KERNEL_OPTION_ROWS = kernel_option_rows.ROWS
+    KERNEL_PARAMETER_OPTIONS = kernel_option_rows.PARAMETER_OPTIONS
+    KERNEL_OPTION_NEUTRAL = kernel_option_rows.NEUTRAL
 
 
     def _request_smt_live(self) -> None:

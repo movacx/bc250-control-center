@@ -21,8 +21,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..i18n import tr
 from .. import theme
+from ..i18n import tr
 from ..theme import COLORS
 from .style_state import set_style_property
 

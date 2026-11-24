@@ -44,7 +44,6 @@ fixes that for this module too.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field, replace
 from typing import Sequence
 
@@ -66,6 +65,42 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from bc250cc.application.cpu.core_unlock import (
+    CORE_MASK_BOOT_RISK as CORE_MASK_BOOT_RISK,
+)
+from bc250cc.application.cpu.core_unlock import (
+    CORE_MASK_PICK_HINT as CORE_MASK_PICK_HINT,
+)
+from bc250cc.application.cpu.core_unlock import (
+    CORE_MASK_READ_TEXT as CORE_MASK_READ_TEXT,
+)
+from bc250cc.application.cpu.core_unlock import (
+    CORE_MASK_SEEN as CORE_MASK_SEEN,
+)
+from bc250cc.application.cpu.core_unlock import (
+    CORE_MASK_SEEN_TEXT as CORE_MASK_SEEN_TEXT,
+)
+from bc250cc.application.cpu.core_unlock import (
+    CORE_MASK_STANDARD_TEXT as CORE_MASK_STANDARD_TEXT,
+)
+from bc250cc.application.cpu.core_unlock import (
+    CORE_MASK_STOCK as CORE_MASK_STOCK,
+)
+from bc250cc.application.cpu.core_unlock import (
+    CORE_MASK_WARNINGS as CORE_MASK_WARNINGS,
+)
+from bc250cc.application.cpu.core_unlock import (
+    IGNORE_CORE_MASK_HINT as IGNORE_CORE_MASK_HINT,
+)
+from bc250cc.application.cpu.core_unlock import (
+    IGNORE_CORE_MASK_LABEL as IGNORE_CORE_MASK_LABEL,
+)
+from bc250cc.application.cpu.core_unlock import (
+    is_six_core_mask as is_six_core_mask,
+)
+from bc250cc.application.cpu.core_unlock import (
+    reported_core_mask as reported_core_mask,
+)
 from bc250cc.shared.contract import (
     CPU_FREQUENCY_RANGE,
     CPU_FREQUENCY_STEP_MHZ,
@@ -105,32 +140,6 @@ MANUAL_SCALE_HINT = (
 #: unlocks only a board that really reads that mask (--accept-mask) instead of
 #: skipping the check for any mask.
 CORE_MASK_LABEL = "Core mask of this board"
-CORE_MASK_STOCK = 0x77
-#: Masks read on real boards: 0xB7 (R-643035c1, rw-r-r-0644 issue 4), 0xE7
-#: (issue 37), 0x7D (R-1bad18d0, rw-r-r-0644 issue 2) and 0xD7 (same issue).
-CORE_MASK_STANDARD_TEXT = "0x77 · standard (normal check)"
-CORE_MASK_SEEN = (0xB7, 0xE7, 0x7D, 0xD7)
-#: What an owner said about a mask, in brackets after it (0xE7: issue 37).
-CORE_MASK_WARNINGS = {0xE7: "crashed one board: possibly defective cores"}
-CORE_MASK_SEEN_TEXT = "{mask} · not verified"
-CORE_MASK_READ_TEXT = "{mask} · read on this board"
-#: The sentences shared by the mask list, the force box and both confirmations.
-CORE_MASK_PICK_HINT = (
-    "Pick the mask the unlock tool reported for this board. It goes ahead only "
-    "when the board really reads that mask."
-)
-CORE_MASK_BOOT_RISK = (
-    "A board with another mask may fail to start after the unlock. Unplugging it "
-    "for a few seconds brings it back to 6 cores."
-)
-IGNORE_CORE_MASK_LABEL = "Force a non-standard core mask (-f)"
-IGNORE_CORE_MASK_HINT = (
-    "The unlock tool refuses boards whose core mask is not 0x77, because a "
-    "different mask usually means the factory disabled cores that were "
-    "defective. This passes -f to skip that check: all 8 cores are enabled."
-)
-
-
 def core_mask_hint() -> str:
     return tr(CORE_MASK_PICK_HINT) + "\n\n" + tr(CORE_MASK_BOOT_RISK)
 
@@ -139,27 +148,6 @@ def ignore_core_mask_hint() -> str:
     return tr(IGNORE_CORE_MASK_HINT) + "\n\n" + tr(CORE_MASK_BOOT_RISK)
 
 
-def is_six_core_mask(mask: int) -> bool:
-    """Three enabled cores on each four-core CCX, the only shape the tools accept."""
-    return 0 <= mask <= 0xFF and (mask & 0x0F).bit_count() == 3 and (mask & 0xF0).bit_count() == 3
-
-
-_REPORTED_MASK = re.compile(
-    r"core (?:presence )?mask(?: is)?:?\s+0x(?:0{6})?([0-9a-f]{2})\b|mask still 0x([0-9a-f]{2})\b", re.I
-)
-
-
-def reported_core_mask(text: object) -> int | None:
-    """The 6-core mask a tool's message names for this board, or None.
-
-    Both tools print the mask they read before refusing, and the boot service
-    keeps it in its note; nothing readable without root says it.
-    """
-    for match in _REPORTED_MASK.finditer(str(text or "")):
-        mask = int(match[1] or match[2], 16)
-        if is_six_core_mask(mask):
-            return mask
-    return None
 
 
 #: Width below which the two workspace columns stack. Same breakpoint the GPU

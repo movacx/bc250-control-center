@@ -38,6 +38,7 @@ from bc250cc.application.preparation.gpu_dependency_plan import (
     DEFAULT_PREPARATION_COMPONENTS,
     GpuDependencyPlan,
 )
+from bc250cc.application.system.kernel_option_rows import CONFIRMATIONS
 from bc250cc.domain.gpu.oberon import OBERON_DESKTOP_PROFILES
 from bc250cc.domain.gpu.profiles import (
     default_cyan_profiles,
@@ -51,17 +52,8 @@ from bc250cc.infrastructure.gpu.governor_toml import (
     VOLTAGE_BOOST_START_MHZ,
 )
 from bc250cc.infrastructure.system_setup import (
-    CH7218_QUIRK_OPTION,
-    CH7218_VRR_OPTION,
     CU_UNLOCK_OPTION,
     CU_UNLOCK_THERMAL_NOTE,
-    HDMI21_OFF_OPTION,
-    HIDE_BOOT_MESSAGES_OPTION,
-    MEMORY_SENSOR_OPTION,
-    PCON_FORCE_DSC_OPTION,
-    RELINK_AT_BOOT_OPTION,
-    RELINK_OFF_OPTION,
-    SCHED_POLICY_OPTION,
 )
 
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
@@ -1173,119 +1165,9 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         if changed in options:
             # Adding any of them changes how the board runs, so it is asked
             # first; restoring needs no question.
+            title, body, confirm_text, tone = CONFIRMATIONS.get(changed, CONFIRMATIONS["nosmt"])
             if changed == CU_UNLOCK_OPTION:
-                title = "Unlock all 40 compute units with the kernel"
-                body = (
-                    "The BC-250 kernel unlocks the compute units by itself when amdgpu starts, so umr "
-                    "and the CU live manager are not needed. Turn off the live manager's boot service "
-                    "so only one of them sets the CUs. A board with a damaged CU pair cannot run all "
-                    "40. The change applies after reboot and can be restored from Control Center."
-                )
                 body = tr(body) + "\n\n" + tr(CU_UNLOCK_THERMAL_NOTE)
-                confirm_text, tone = "Unlock 40 CUs", "orange"
-            elif changed == "mitigations=off":
-                title = "Disable CPU security mitigations"
-                body = (
-                    "This disables optional kernel protections against multiple CPU vulnerabilities. "
-                    "It may improve performance in some workloads. The change applies after reboot "
-                    "and can be restored from Control Center."
-                )
-                confirm_text, tone = "Disable mitigations", "red"
-            elif changed == HIDE_BOOT_MESSAGES_OPTION:
-                title = "Hide the kernel's boot messages"
-                body = (
-                    "The BC-250's CPU makes the kernel print a warning about its random-number "
-                    "instructions (RDSEED) at every boot. This hides it by silencing all kernel messages "
-                    "on screen while the system starts, errors included, so a boot problem will show "
-                    "nothing there. It fixes nothing: the messages stay in dmesg and the system log. "
-                    "The change applies after reboot and can be restored from Control Center."
-                )
-                confirm_text, tone = "Hide boot messages", "orange"
-            elif changed == SCHED_POLICY_OPTION:
-                title = "Use the non-HWS GPU scheduler"
-                body = (
-                    "Some systems and games run smoother with the software GPU scheduler "
-                    "(amdgpu.sched_policy=2), others slower, so measure yours. ROCm and KFD work needs it. "
-                    "The change applies after reboot and can be restored from Control Center."
-                )
-                confirm_text, tone = "Use non-HWS scheduling", "orange"
-            elif changed == HDMI21_OFF_OPTION:
-                title = "Turn HDMI 2.1 negotiation off"
-                body = (
-                    "This removes 4K120 at 4:4:4 through a DisplayPort to HDMI 2.1 adapter. Only do it if "
-                    "that negotiation gives you a black screen or flicker. The change applies after "
-                    "reboot and can be restored from Control Center."
-                )
-                confirm_text, tone = "Turn HDMI 2.1 off", "orange"
-            elif changed == RELINK_OFF_OPTION:
-                title = "Turn picture recovery off"
-                body = (
-                    "The kernel re-detects the display when the picture stays off after a mode change. "
-                    "Turning this off leaves a lost picture as it is. The change applies after reboot "
-                    "and can be restored from Control Center."
-                )
-                confirm_text, tone = "Turn recovery off", "orange"
-            elif changed == CH7218_QUIRK_OPTION:
-                title = "Turn the CH7218 adapter fix on"
-                body = (
-                    "Only for a DisplayPort to HDMI 2.1 adapter with a Chrontel CH7218 chip (UGREEN and "
-                    "others) where 4K60 works but 4K90 or 4K120 gives a black screen. It makes the driver "
-                    "treat the adapter as the HDMI 2.1 converter it is. Many CH7218 adapters work without "
-                    "it and nothing tells them apart, so leave it off unless you have that symptom. It "
-                    "needs HDMI 2.1 negotiation on. The change applies after reboot and can be restored "
-                    "from Control Center."
-                )
-                confirm_text, tone = "Turn the CH7218 fix on", "orange"
-            elif changed == CH7218_VRR_OPTION:
-                title = "Force VRR on the CH7218 adapter"
-                body = (
-                    "UGREEN's 07.00.69 firmware for the CH7218 adapter no longer tells the driver that it "
-                    "supports VRR, so none is offered although the TV has it. This makes the driver assume "
-                    "it does. It was tested on one setup: if the picture misbehaves with VRR on, turn it "
-                    "off again. It needs HDMI 2.1 negotiation on. The change applies after reboot and can "
-                    "be restored from Control Center."
-                )
-                confirm_text, tone = "Force VRR on the adapter", "orange"
-            elif changed == PCON_FORCE_DSC_OPTION:
-                title = "Force DSC on the adapter"
-                body = (
-                    "Experimental. For a DisplayPort to HDMI 2.1 adapter that reports no DSC decoder, such "
-                    "as the Cable Matters 102101 (VMM7100), and so gives 4K120 in 4:2:2 instead of RGB. "
-                    "The driver then drives it as if it had DSC. Either 4K120 comes out in full colour, or "
-                    "the screen stays black at 4K120 and you turn it off again. The change applies after "
-                    "reboot and can be restored from Control Center."
-                )
-                confirm_text, tone = "Force DSC", "orange"
-            elif changed == RELINK_AT_BOOT_OPTION:
-                title = "Recover the picture at boot"
-                body = (
-                    "Experimental. Re-detects the display once on the first screen of each boot, for an "
-                    "adapter that was already stuck before the machine started. Each re-detect costs a real "
-                    "mode change, so leave it off unless you have that symptom. The change applies after "
-                    "reboot and can be restored from Control Center."
-                )
-                confirm_text, tone = "Recover at boot", "orange"
-            elif changed == MEMORY_SENSOR_OPTION:
-                title = "Load the GDDR6 memory driver at boot"
-                body = (
-                    "The kernel's bc250_memory driver then publishes the temperature of the eight GDDR6 "
-                    "chips all the time, without pressing Monitor live. To read it, the driver patches the "
-                    "SMU firmware in memory, and it asks the SMU for readings through the same single "
-                    "mailbox that Cyan and CPU overclocking use. It does not make the board more stable: "
-                    "it adds one more user to that mailbox, and if two of them collide the board can "
-                    "freeze until it is switched off at the plug. Leave it off unless you need the "
-                    "temperature all the time. The change applies after reboot; to undo the patch, "
-                    "switch the board off completely."
-                )
-                confirm_text, tone = "Load at boot", "orange"
-            else:
-                title = "Disable simultaneous multithreading"
-                body = (
-                    "The CPU runs one thread per core: 6 or 8 threads instead of 12 or 16. Some games "
-                    "run smoother, others slower; measure yours. The change applies after reboot and "
-                    "can be restored from Control Center."
-                )
-                confirm_text, tone = "Disable SMT", "orange"
             confirmation = ConfirmDialog(
                 tr(title),
                 # The unlock's body is already translated: it carries the
