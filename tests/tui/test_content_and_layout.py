@@ -102,7 +102,7 @@ def test_buttons_share_space_and_remain_compact_on_a_narrow_terminal():
     wide = build_layout([block], 60, UNICODE)
     assert len(wide.rows) == 1 and wide.choice_rows == [0, 0]
     phone = build_layout([block], 20, UNICODE)
-    assert phone.choice_rows == [0, 1] and cell_width("".join(t for t, _ in phone.rows[0].spans)) == 20
+    assert phone.choice_rows == [0, 1] and all(cell_width("".join(t for t, _ in row.spans)) <= 20 for row in phone.rows)
 
 
 def test_the_range_rail_marks_the_chosen_span_and_turns_red_past_the_danger_stop():

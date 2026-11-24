@@ -2,7 +2,20 @@
 
 from __future__ import annotations
 
-from bc250cc.application.cpu.core_unlock import core_unlock_controls
+from bc250cc.application.cpu.core_unlock import (
+    CORE_MASK_BOOT_RISK,
+    CORE_MASK_PICK_HINT,
+    CORE_MASK_READ_TEXT,
+    CORE_MASK_SEEN,
+    CORE_MASK_SEEN_TEXT,
+    CORE_MASK_STANDARD_TEXT,
+    CORE_MASK_STOCK,
+    CORE_MASK_WARNINGS,
+    IGNORE_CORE_MASK_HINT,
+    accepted_mask,
+    core_unlock_controls,
+    reported_core_mask,
+)
 from frontends.desktop.core.cpu_refresh_presenter import (
     present_cpu_persistence,
     present_cpu_tuning,
@@ -13,6 +26,7 @@ from ..content import (
     Buttons,
     Choice,
     Field,
+    Info,
     Meter,
     Note,
     Panel,
@@ -47,6 +61,14 @@ def said(text) -> str:
     """A presenter's CpuText in the interface language."""
     return text.template if text.literal else tr_format(text.template, **dict(text.values)) if text.values \
         else tr(text.template)
+
+
+def mask_text(mask: int, board_mask: int | None) -> str:
+    if mask == CORE_MASK_STOCK:
+        return tr(CORE_MASK_STANDARD_TEXT)
+    text = tr_format(CORE_MASK_READ_TEXT if mask == board_mask else CORE_MASK_SEEN_TEXT, mask=f"0x{mask:02X}")
+    warning = CORE_MASK_WARNINGS.get(mask)
+    return f"{text} ({tr(warning)})" if warning else text
 
 
 class CpuPage(Page):
@@ -191,6 +213,16 @@ class CpuPage(Page):
             "Already unlocked" if unlock.get("unlocked") else "Unlock cores and restart"
         )
 
+        # The mask a tool read on this board, when one has said it.
+        board_mask = reported_core_mask((unlock.get("persistence") or {}).get("boot_service_note"))
+        target.setdefault("mask", board_mask or CORE_MASK_STOCK)
+        masks = list(dict.fromkeys((CORE_MASK_STOCK, *([board_mask] if board_mask else []), *CORE_MASK_SEEN)))
+
+        def pick_mask(ui_):
+            chosen = ui_.choose(tr("Core mask of this board"), [(mask, mask_text(mask, board_mask)) for mask in masks])
+            if chosen is not None:
+                target["mask"] = chosen
+
         def unlock_cores(ui_):
             message = tr(unlock_label)
             if persistent_mode:
@@ -201,11 +233,16 @@ class CpuPage(Page):
                     "unlock, the service stops itself after two restarts. To skip it for one "
                     "boot, add bc250.core_unlock=0 to the kernel command line."
                 )
+            if target["force_mask"]:
+                message += "\n\n" + tr(IGNORE_CORE_MASK_HINT) + "\n\n" + tr(CORE_MASK_BOOT_RISK)
+            elif target["mask"] != CORE_MASK_STOCK:
+                message += "\n\n" + mask_text(target["mask"], board_mask) + "\n\n" + tr(CORE_MASK_BOOT_RISK)
             if ui_.confirm(message, danger=True):
                 command = (service.comando_persistir_desbloqueo_nucleos_cpu if persistent_mode
                            else service.comando_desbloquear_nucleos_cpu)
+                mask = accepted_mask(target["mask"], target["force_mask"])
                 guarded(ui_, tr("Unlock cores"), lambda: ui_.shell(
-                    command(ignore_core_mask=target["force_mask"])))
+                    command(ignore_core_mask=target["force_mask"], accept_mask=mask)))
 
         def remove_unlock_persistence(ui_):
             if ui_.confirm(tr(
@@ -231,6 +268,9 @@ class CpuPage(Page):
             *([Note(tr(controls["note"]), "bad")] if controls["note"] else []),
             *([Note(tr(controls["hint"]), "dim")] if controls["hint"] and
               (persistent_mode or not controls["offered"]) else []),
+            Choice(tr("Core mask of this board"), pick_mask, mask_text(target["mask"], board_mask) + " ›",
+                   enabled=unlock_allowed and not target["force_mask"],
+                   info=Info(tr(CORE_MASK_PICK_HINT), tr(CORE_MASK_BOOT_RISK))),
             check(tr("Force a non-standard core mask (-f)"), target["force_mask"],
                   lambda ui_: target.update(force_mask=not target["force_mask"]), enabled=unlock_allowed),
             Buttons([Choice(tr(unlock_label), unlock_cores, tone="bad", enabled=unlock_allowed),

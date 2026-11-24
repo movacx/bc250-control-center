@@ -603,6 +603,9 @@ class SistemaService:
     def guardar_ajustes_helixsr(self, values):
         return self.repo.guardar_ajustes_helixsr(values)
 
+    def gestionar_directmesh(self, action):
+        return self.repo.gestionar_directmesh(action)
+
     def gestionar_gfx1013_fedora(self, action):
         return self.repo.gestionar_gfx1013_fedora(action)
 

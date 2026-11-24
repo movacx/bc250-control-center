@@ -15,7 +15,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from bc250cc.application.fan.board_actions import FanBoardError
+from bc250cc.shared.errors import ActionNeeded
 from bc250cc.shared.failure_text import describe_failure
+from bc250cc.shared.operation_contract import OperationCancelled
 
 from .i18n import tr, tr_format
 
@@ -24,8 +26,15 @@ logger = logging.getLogger(__name__)
 HISTORY_SAMPLES = 120
 
 
+def operation_tone(error: BaseException) -> str:
+    """Red only for a fault: a refusal or something to do first is neither."""
+    return "" if isinstance(error, OperationCancelled) else "warn" if isinstance(error, ActionNeeded) else "bad"
+
+
 def describe_error(error: BaseException) -> str:
     """An exception as text a person can act on, with the catalogue's code."""
+    if isinstance(error, (OperationCancelled, ActionNeeded)):
+        return tr(str(error))
     if isinstance(error, FanBoardError):
         text = tr_format(error.message, **error.values) if error.values else tr(error.message)
         if error.notice:
@@ -129,6 +138,15 @@ class Poller:
     def refresh(self) -> None:
         self._loaded.pop(self.active, None)
         self._wake.set()
+
+    def prefetch(self) -> None:
+        """Read every page once, so the command palette knows their actions."""
+        def read() -> None:
+            for key, page in self.pages.items():
+                if page.loads and key not in self._loaded and not self._stop.is_set():
+                    self._load(key, page)
+
+        threading.Thread(target=read, name="bc250-tui-prefetch", daemon=True).start()
 
     def _metrics_loop(self) -> None:
         while not self._stop.is_set():

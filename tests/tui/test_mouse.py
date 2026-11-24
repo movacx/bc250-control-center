@@ -31,15 +31,15 @@ def hit(screen, key):
     return 0, left, y, 0, curses.BUTTON1_PRESSED
 
 
-def test_sidebar_has_categories_and_firmware_settings_stay_pinned_after_resize():
+def test_sidebar_has_categories_and_every_section_stays_reachable_after_resize():
     window, screen = make_screen(height=24, width=100)
     for height in (24, 40, 14):
         window.height = height
         screen.draw()
-        assert screen._sidebar_at[height - 4] == screen.order.index('firmware')
-        assert screen._sidebar_at[height - 2] == screen.order.index('settings')
+        assert screen.section in screen._sidebar_at.values()
         if height >= 24:
-            assert all(group in window.text() for group in ('HARDWARE', 'MONITORING', 'SYSTEM'))
+            assert set(screen._sidebar_at.values()) == set(range(len(screen.order)))
+            assert all(group in window.text() for group in ('Hardware', 'Monitoring', 'System'))
     for key, target in [('0', 'firmware'), ('.', 'remote'), (',', 'settings')]:
         screen.handle_key(key)
         assert screen.page_key == target

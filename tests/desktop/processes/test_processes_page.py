@@ -178,9 +178,9 @@ def test_gpu_memory_is_vram_and_gtt():
 def test_the_application_name_follows_the_language(monkeypatch):
     record = ProcessRecord(pid=1, memoria=100 * MB, app_key="app:files", app_name="Files",
                            app_names={"es": "Archivos", "de": "Dateien"})
-    monkeypatch.setattr(page_module, "current_language", lambda: "es-419")
+    monkeypatch.setattr("frontends.desktop.core.process_entries.current_language", lambda: "es-419")
     assert build_entries([record], grouped=True, view="all")[0].name == "Archivos"
-    monkeypatch.setattr(page_module, "current_language", lambda: "fr")
+    monkeypatch.setattr("frontends.desktop.core.process_entries.current_language", lambda: "fr")
     assert build_entries([record], grouped=True, view="all")[0].name == "Files"
 
 

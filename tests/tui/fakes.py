@@ -65,6 +65,13 @@ class FakeService:
         return [SimpleNamespace(pid=10, nombre="game", memoria=2**30, protegido=False),
                 SimpleNamespace(pid=1, nombre="systemd", memoria=2**20, protegido=True)]
 
+    def inventario_procesos(self):
+        return {"oomd": False, "processes": [
+            SimpleNamespace(pid=10, nombre="game", app_name="game", app_key="game", kind="app", memoria=2**30, pss=2**30,
+                            cpu_percent=12.0, gpu_percent=40.0, vram=2**28, gtt=2**27, protegido=False),
+            SimpleNamespace(pid=1, nombre="systemd", app_name="systemd", app_key="systemd", kind="app", memoria=2**24,
+                            pss=2**24, cpu_percent=0.0, protegido=True, razon="system")]}
+
     def blackbox_estado(self, rows=None):
         return {"running": False, "state_text": "stopped", "directory": "/tmp/bb", "autostart": {"supported": True},
                 "rows": [{"time": "00:00:01", "clock": "1500Mhz"}]}

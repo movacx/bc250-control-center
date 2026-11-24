@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from bc250cc.shared.version import __version__
+from frontends.desktop.core.temperature_unit import UNITS, unit_symbol, use_unit
 from frontends.desktop.i18n import LANGUAGE_OPTIONS
 
 from ..content import Choice, Field, Gap, Heading, Note
@@ -25,6 +26,37 @@ ALERT_FIELDS = (
 def theme_label(code: str) -> str:
     label = tr(dict(THEMES).get(code, "System"))
     return f"{label} (mono)" if code == "mono" else label
+
+
+def known_errors_guide(ui, family: str) -> None:
+    """The error handbook: search it, pick an entry, read what to do on this system."""
+    from bc250cc.shared import known_errors
+
+    language = current_language()
+    query = ui.ask_text(tr("Search"), "")
+    if query is None:
+        return
+    entries = [match.entry for match in known_errors.search_matches(query)] if query.strip() else list(known_errors.load())
+    if not entries:
+        ui.notify(tr("No results"), "warn")
+        return
+    identity = ui.choose(tr("Known errors"), [(entry["id"], f"{entry['id']}  {known_errors.localized(entry['guide']['title'], language)}")
+                                              for entry in entries])
+    entry = known_errors.for_id(identity) if identity else None
+    if entry is None:
+        return
+    parts = [known_errors.localized(entry["guide"]["title"], language), ""]
+    for title, key in (("What you see", "symptom"), ("Why it happens", "cause")):
+        parts += [tr(title), known_errors.localized(entry[key], language), ""]
+    fix = known_errors.fix_for(entry, family)
+    if fix:
+        parts.append(tr("How to fix it"))
+        for step in fix.get("article") or ():
+            parts.append(known_errors.localized(step["text"], language))
+            parts += [f"    {command}" for command in step.get("commands") or ()]
+    if known_errors.needs_update(entry, __version__):
+        parts += ["", tr("Update now")]
+    ui.show_text(entry["id"], "\n".join(parts))
 
 
 class SettingsPage(Page):
@@ -67,7 +99,13 @@ class SettingsPage(Page):
                     ctx.state("ui")["theme"] = chosen
                     ui_.apply_theme(chosen)
 
+            def unit(ui_):
+                chosen = ui_.choose(tr("Temperature unit"), [(key, unit_symbol(key)) for key in UNITS])
+                if chosen is not None and self._save(ctx, ui_, {"tui_temperature_unit": chosen}):
+                    use_unit(chosen)
+
             out += [Choice(tr("Language"), language, f"{config.get('idioma', 'auto')} ({current_language()})"),
+                    Choice(tr("Temperature unit"), unit, unit_symbol()),
                     Choice(tr("Theme"), theme, theme_label(ctx.state("ui").get("theme", "auto")))]
         elif tab == "notifications":
             out.append(Field(tr("Alerts"), tr("Yes") if config.get("alertas_activas") else tr("No")))
@@ -112,7 +150,8 @@ class SettingsPage(Page):
 
             from .extras import INSTALL, run
 
-            out += [Choice(tr("Diagnostics"), diagnose), Choice(tr("Recovery"), snapshots),
+            out += [Choice(tr("Known errors") + " ›", lambda ui_: known_errors_guide(ui_, os_family(ctx)[0])),
+                    Choice(tr("Diagnostics"), diagnose), Choice(tr("Recovery"), snapshots),
                     Choice(tr("Create a recovery snapshot"), snapshot), Choice(tr("History & reports"), events),
                     # The desktop keeps these two with its settings and dashboard, not with Additional settings.
                     Choice(tr("BC250-Telemetry service") + " ›", lambda ui_: run(

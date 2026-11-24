@@ -17,7 +17,7 @@ from ..content import (
     percent,
 )
 from ..i18n import tr
-from ..runtime import Context, describe_error, describe_result
+from ..runtime import Context, describe_error, describe_result, operation_tone
 
 
 class UI(Protocol):
@@ -65,7 +65,7 @@ def guarded(ui: UI, label: str, work: Callable[[], Any], *, success: str = "") -
     """Run a mutating service call in the console pane and report its outcome."""
     ok, result = ui.run(label, work)
     if isinstance(result, BaseException):
-        ui.notify(describe_error(result), "bad")
+        ui.notify(describe_error(result), operation_tone(result))
     elif ok:
         ui.notify(describe_result(result) or success or tr("Done"), "ok")
     ui.refresh()

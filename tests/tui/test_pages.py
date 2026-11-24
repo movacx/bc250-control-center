@@ -317,27 +317,36 @@ def test_fans_boot_service_turns_on_with_the_policy_after_confirmation():
 def test_protected_processes_cannot_be_acted_on():
     ctx, ui = make_context(), FakeUI()
     layout = render(build_pages()["processes"], ctx, ui)
-    protected = choice(layout, "systemd")
-    assert not protected.enabled
-    assert choice(layout, "game").enabled
+    rows = {name: c for c in layout.choices if c.dense for name in ("systemd", "game") if name in c.label}
+    assert not rows["systemd"].enabled and rows["systemd"].info.blocked
+    assert rows["game"].enabled
 
 
 def test_closing_a_process_needs_a_choice_and_a_confirmation():
     service = FakeService()
-    ctx, ui = make_context(service), FakeUI(choices=["close"])
-    choice(render(build_pages()["processes"], ctx, ui), "game").handler(ui)
+    ctx, ui = make_context(service), FakeUI()
+    page = build_pages()["processes"]
+    next(c for c in render(page, ctx, ui).choices if c.dense and "game" in c.label).handler(ui)
+    assert not service.calls  # selecting does nothing yet
+    ui.confirm_answer = False
+    choice(render(page, ctx, ui), "End selected tasks").handler(ui)
+    assert not service.calls
+    ui.confirm_answer = True
+    choice(render(page, ctx, ui), "End selected tasks").handler(ui)
     assert any(call[0] == "cerrar_procesos" for call in service.calls)
     assert ui.confirmations[-1][1] is True
 
 
 def test_extras_only_offers_what_applies_to_the_detected_family():
     service = FakeService()
-    service.estado_herramientas_bc250 = lambda: {"bazzite_smt": {"available": True, "configured": False}}
+    service.estado_herramientas_bc250 = lambda: {"bazzite_smt": {"available": True, "configured": False},
+                                                 "steamos_readonly": {"available": True, "state": "enabled"}}
     ctx, ui = make_context(service), FakeUI()
     page = AdditionalSettingsPage()
     ctx.state("system")["os"] = ("steamos", "SteamOS")
     text = text_of(render(page, ctx, ui, "compatibility"))
-    assert "SteamOS read-only mode" in text and "Disable SMT" in text  # the SMT card follows the snapshot
+    assert "SteamOS read-only mode" in text and "multithreading" in text  # the SMT card follows the snapshot
+    service.estado_herramientas_bc250 = lambda: {}
     ctx.state("system")["os"] = ("bazzite", "Bazzite")
     assert "SteamOS read-only mode" not in text_of(render(page, ctx, ui, "compatibility"))
 
@@ -349,7 +358,7 @@ def test_extras_reboot_card_runs_its_service_method_after_a_dangerous_confirmati
     ctx, ui = make_context(service), FakeUI()
     layout = render(AdditionalSettingsPage(), ctx, ui, "compatibility")
     assert "Reboot required" in text_of(layout)
-    choice(layout, "Disable SMT").handler(ui)
+    next(c for c in layout.choices if "multithreading" in c.label).handler(ui)
     assert ("gestionar_smt_bazzite", ("disable",), {}) in service.calls
     assert ui.confirmations[-1][1] is True  # disabling SMT is a dangerous action
 

@@ -80,12 +80,13 @@ def main(argv: list[str] | None = None) -> int:
         set_embedded_terminal_launcher,
         set_translator,
     )
+    from frontends.desktop.core.temperature_unit import use_unit
 
     from .i18n import set_language, tr
     from .pages import build_pages
     from .runtime import Context, Poller
     from .screen import SIDEBAR_ORDER, Screen
-    from .support import check_in_background
+    from .support import check_in_background, desktop_temperature_unit
 
     # Passwords are asked in the console pane (pkttyagent, sudo), never in a desktop window.
     os.environ[TERMINAL_AUTH_ENV] = "1"
@@ -99,6 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:  # an unreadable config must not stop the interface
         logging.getLogger(__name__).warning("Could not read the saved settings", exc_info=True)
     set_language(args.lang or config.get("idioma", "auto"))
+    use_unit(config.get("tui_temperature_unit") or desktop_temperature_unit())
     set_translator(tr)  # what the workflow wrapper prints (Completed, the log path) in this language
     ctx = Context(
         service=container.system_service, settings=container.settings_service,

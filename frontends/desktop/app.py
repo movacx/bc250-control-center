@@ -19,6 +19,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from bc250cc.application.system import accessory_rows
+
 from .components.async_tools import BackgroundExecutor, pending_background_tasks
 from .components.density import MANAGED_PROPERTY, apply_layout_density
 from .components.modal_scrim import ModalScrim
@@ -1628,16 +1630,9 @@ class ControlCenterWindow(QMainWindow):
         "apu_telemetry": ("https://github.com/onlinermm/BC250-Telemetry", "BC250-Telemetry"),
         "real_sleep": ("https://github.com/superkeka/bc250-sleep", "bc250-sleep"),
     }
-    #: What installing it does to the board, said before anything runs.
-    REAL_SLEEP_INSTALL = (
-        "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. "
-        "If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it."
-    )
-    REAL_SLEEP_POWER_OFF = (
-        "Power off changes too: a gamepad or a USB device can then turn the computer on. "
-        "Its row lets you go back to the normal power off."
-    )
-    REAL_SLEEP_REMOVE = "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value."
+    REAL_SLEEP_INSTALL = accessory_rows.REAL_SLEEP_INSTALL
+    REAL_SLEEP_POWER_OFF = accessory_rows.REAL_SLEEP_POWER_OFF
+    REAL_SLEEP_REMOVE = accessory_rows.REAL_SLEEP_REMOVE
 
     def _dashboard_accessory(self, accessory: str, operation: str) -> None:
         """A case accessory card: install, remove, configure or read about it."""
@@ -1687,16 +1682,7 @@ class ControlCenterWindow(QMainWindow):
                 # Removing takes the program away; the owner's own themes and
                 # profiles stay, which the dialog says. Audio and TV settings
                 # have no profiles: what Control Center added goes, nothing else.
-                body = self.REAL_SLEEP_REMOVE if accessory == "real_sleep" else (
-                    "The driver and its DKMS build are removed. Its readings stop showing until you "
-                    "install it again; dkms and the kernel headers stay."
-                    if accessory in {"vram_sensor", "vrm_sensor"}
-                    else "The settings Control Center added are removed and the previous behaviour returns. "
-                    "Packages installed for it stay."
-                    if accessory in {"hdmi_ac3", "hdmi_cec"}
-                    else "The program and the service Control Center set up for it are removed. "
-                    "Your own themes and profiles are kept."
-                )
+                body = accessory_rows.removal_text(accessory)
                 dialog = ConfirmDialog(
                     tr_format("Remove {program}?", program=program),
                     body,

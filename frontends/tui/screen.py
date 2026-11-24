@@ -9,20 +9,26 @@ import os
 import threading
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
+from bc250cc.shared.errors import ActionNeeded
 from bc250cc.shared.failure_text import describe_failure
+from bc250cc.shared.operation_contract import OperationCancelled, OperationExit
 
 from .console import Console
 from .content import cell_width, clip, number, pad, wrap
 from .i18n import tr, tr_format
 from .keys import ALIASES, name_of
-from .layout import Glyphs, Layout, build_layout
+from .layout import Glyphs, Layout, build_page
+from .palette import PaletteSupport
 from .pointer import PointerSupport, character_at
 from .runtime import Context, Poller, describe_error
 from .support import available_version, report
 
 MIN_WIDTH, MIN_HEIGHT = 60, 14
+DETAILS_WIDTH, DETAILS_FROM = 40, 128
+COLUMN_REACH = 32  # cells: further away than this is another column of boxes
 TOAST_SECONDS = 6.0
 TONE_PAIRS = {"ok": 1, "warn": 2, "bad": 3, "accent": 4}
 #: The desktop sidebar: its groups, in its order.
@@ -43,12 +49,23 @@ SCROLLBACK_ALL = 10**6
 ASCII_MAP = str.maketrans({
     "…": ".", "·": "-", "│": "|", "─": "-", "┌": "+", "┐": "+", "└": "+", "┘": "+", "├": "+", "┤": "+", "┬": "+",
     "┴": "+", "┼": "+", "▲": "^", "▼": "v", "↑": "^", "↓": "v", "→": ">", "←": "<", "–": "-", "—": "-", "▏": "_", "›": ">",
-    "•": "*", "█": "#", "░": "-", "━": "=", "┃": "#", "▴": "^", "▾": "v", "●": "*", "°": "o", "✓": "+", "✗": "x",
+    "•": "*", "█": "#", "░": "-", "━": "=", "┃": "#", "▴": "^", "▾": "v", "●": "*", "°": "o", "╭": "+", "╮": "+", "╰": "+", "╯": "+", "▌": ">", "✓": "+", "✗": "x",
 })
 
 
 class Quit(Exception):
     pass
+
+
+@dataclass
+class Job:
+    """One action of this session, for the Activity list."""
+
+    label: str
+    page: str
+    started: float  # wall clock
+    console: Console
+    outcome: str = "running"  # running, completed, cancelled, stopped (something to do first), failed
 
 
 def detect_light_background(environ=None) -> bool:
@@ -60,7 +77,20 @@ def detect_light_background(environ=None) -> bool:
         return False
 
 
-class Screen(PointerSupport):
+def outcome_of(console: Console) -> str:
+    """How an action ended; a refusal or something to do first is not a failure."""
+    if not console.done.is_set():
+        return "running"
+    if console.succeeded:
+        return "completed"
+    if isinstance(console.result, OperationCancelled) or console.exit_status == OperationExit.CANCELLED:
+        return "cancelled"
+    if isinstance(console.result, ActionNeeded) or console.exit_status == OperationExit.ACTION_NEEDED:
+        return "stopped"
+    return "failed"
+
+
+class Screen(PaletteSupport, PointerSupport):
     """Draws the interface and answers the pages' requests (the ``UI`` contract)."""
 
     def __init__(
@@ -96,6 +126,11 @@ class Screen(PointerSupport):
         self._cells_at: dict[int, list[tuple[int, int, int, int]]] = {}  # y -> Pad cells (x0, x1, row, column)
         self._tab_at: list[tuple[int, int, str]] = []
         self._hits: list[tuple[int, int, int, str]] = []  # (y, x from, x to, key): legacy row geometry
+        self._explained: set[str] = set()  # pages whose rows carry details
+        self.job: Console | None = None  # the running action, also while its console is out of view
+        self.console_hidden = False
+        self.activity: list[Job] = []
+        self._frame = set("─│╭╮╰╯├┤┬┴┼┃━ -|+") | set("".join(self.glyphs.top + self.glyphs.mid + self.glyphs.bottom))
         self._row_at: dict[int, tuple[int, str]] = {}  # y -> (x, text) of a drawn item, for terminal row inspection
         self._pointer_drag = None
         self._geometry_size = self.size()
@@ -120,7 +155,8 @@ class Screen(PointerSupport):
             colour = False
         light = theme == "light" or (theme == "auto" and detect_light_background())
         attrs = {"": curses.A_NORMAL, "dim": curses.A_DIM, "accent": curses.A_BOLD, "sel": curses.A_REVERSE | curses.A_BOLD,
-                 "ok": curses.A_NORMAL, "warn": curses.A_BOLD, "bad": curses.A_BOLD | curses.A_UNDERLINE}
+                 "ok": curses.A_NORMAL, "warn": curses.A_BOLD, "bad": curses.A_BOLD | curses.A_UNDERLINE,
+                 "edge": curses.A_DIM}
         if colour:
             try:
                 curses.use_default_colors()
@@ -130,18 +166,16 @@ class Screen(PointerSupport):
                     curses.init_pair(pair, color, -1)  # -1: the terminal's own background
                 for tone, pair in TONE_PAIRS.items():
                     attrs[tone] = curses.color_pair(pair) | (curses.A_BOLD if tone in ("accent", "bad") else 0)
-                if curses.COLORS >= 256:  # softer tones, and buttons filled the way the desktop fills them
-                    text = (28, 130, 160, 61) if light else (114, 221, 210, 147)
-                    fills = {"ok": 29, "warn": 136, "bad": 167, "accent": 62, "dim": 240}
+                if curses.COLORS >= 256:  # softer tones, close to the desktop's
+                    text = (28, 130, 160, 26) if light else (114, 179, 167, 75)
                     for (tone, pair), color in zip(TONE_PAIRS.items(), text):
                         curses.init_pair(pair, color, -1)
-                    for offset, (tone, color) in enumerate(fills.items()):
-                        curses.init_pair(10 + offset, 255, color)
-                        curses.init_pair(20 + offset, color, -1)
-                        attrs["btn:" + tone] = curses.color_pair(10 + offset)
-                        attrs["edge:" + tone] = curses.color_pair(20 + offset)
-                    curses.init_pair(30, 243 if light else 246, -1)  # secondary text: grey, not the font's dim
-                    attrs["dim"] = curses.color_pair(30)
+                    # secondary text, borders, and the selected row: greys, not the font's dim or a full reverse
+                    for tone, pair, fore, back in (("dim", 30, 243 if light else 245, -1), ("edge", 31, 250 if light else 238, -1),
+                                                   ("sel", 32, 16 if light else 255, 189 if light else 24)):
+                        curses.init_pair(pair, fore, back)
+                        attrs[tone] = curses.color_pair(pair)
+                    attrs["sel"] |= curses.A_BOLD
             except curses.error:
                 pass
         self.attrs = attrs
@@ -211,8 +245,12 @@ class Screen(PointerSupport):
     def _content_box(self) -> tuple[int, int]:
         """(x, width) of the content text: after the sidebar, its rule and the cursor column."""
         width = self.size()[1]
-        x = self.sidebar_width(width) + 4
-        return x, max(20, width - x - 1)
+        x = self.sidebar_width(width) + 3
+        return x, max(20, width - x - 1 - self._details_width())
+
+    def _details_width(self) -> int:
+        """Columns of the Details pane: only on a wide screen, and on a page whose rows explain themselves."""
+        return DETAILS_WIDTH + 1 if self.size()[1] >= DETAILS_FROM and self.page_key in self._explained else 0
 
     # -------------------------------------------------------------- draw
 
@@ -233,9 +271,23 @@ class Screen(PointerSupport):
                 from .content import Note
 
                 blocks = [Note(describe_error(error), "bad")]
-        self._layout = build_layout(blocks, content_width, self.glyphs)
+        explained = any(choice.info for choice in self._page_choices(blocks))
+        if explained != (self.page_key in self._explained):  # the pane appears or goes: lay out again beside it
+            (self._explained.add if explained else self._explained.discard)(self.page_key)
+            content_width = self._content_box()[1]
+        self._layout = build_page(blocks, content_width, self.glyphs)
         self._layout_key = key
         return self._layout
+
+    @staticmethod
+    def _page_choices(blocks):
+        pending = list(blocks)
+        while pending:
+            block = pending.pop()
+            if hasattr(block, "handler") and hasattr(block, "info"):
+                yield block
+            for name in ("blocks", "left", "right", "choices", "cards"):
+                pending.extend(getattr(block, name, None) or ())
 
     def draw(self) -> None:
         height, width = self.size()
@@ -270,41 +322,46 @@ class Screen(PointerSupport):
         version = available_version(self.ctx)
         if version:  # the desktop's update badge: Settings › About installs it
             title += "   ↑ " + tr_format("Version {version} is available", version=version)
-        gap = width - cell_width(title) - cell_width(status)
-        self.put(0, 0, title + " " * gap + status if gap > 1 else pad(title, width), curses.A_REVERSE | curses.A_BOLD)
+        self.put(0, 0, title, self.attrs["accent"])
+        job = self.job
+        if job is not None and not job.done.is_set():
+            frames = SPINNER[0 if self.unicode else 1]
+            title += "   " + frames[int(time.monotonic() * 8) % len(frames)] + " " + job.label
+            self.put(0, cell_width(" BC250 Control Center"), title[len(" BC250 Control Center"):], self.attrs["warn"],
+                     max(0, width - cell_width(status) - 24))
+        if width - cell_width(title) - cell_width(status) > 1:
+            self.put(0, width - cell_width(status), status, self.attrs["dim"])
 
     def _draw_sidebar(self, height: int, side: int) -> None:
         self._sidebar_at = {}
-        pinned = [key for key in ("firmware", "settings") if key in self.order]
-        entries = []
+        entries: list[tuple[int | None, str]] = []
+        roomy = height - 4 >= len(self.order) + 2 * sum(bool(group) for group, _keys in SIDEBAR) + 1
         for group, keys in SIDEBAR:
-            available = [key for key in keys if key in self.order and key not in pinned]
-            if group and available:
-                entries.append((None, tr(group).upper()))
+            available = [key for key in keys if key in self.order]
+            if not available:
+                continue
+            if entries and (group or roomy):
+                if roomy:
+                    entries.append((None, ""))
+            if group:
+                entries.append((None, tr(group)))
             entries.extend((self.order.index(key), tr(self.pages[key].title)) for key in available)
-        view = max(1, height - 6)
+        view = max(1, height - 3)
         selected = next((i for i, (index, _) in enumerate(entries) if index == self.section), 0)
         offset = max(0, min(selected - view + 1, len(entries) - view))
-
-        def entry(y, index, label):
-            shortcut = next((hotkey for hotkey, key in SHORTCUTS.items() if key == self.order[index]), " ")
-            text = pad(f" {shortcut} {label}", side)
-            attr = self.attrs["sel"] if index == self.section and self.focus == "sidebar" else \
-                self.attrs["accent"] if index == self.section else 0
-            self.put(y, 0, text, attr)
-            self._sidebar_at[y] = index
-
         for y, (index, label) in enumerate(entries[offset:offset + view], 2):
             if index is None:
-                self.put(y, 1, label, self.attrs["dim"], side - 2)
-            else:
-                entry(y, index, label)
-        for key, y in (("firmware", height - 4), ("settings", height - 2)):
-            if key in self.order:
-                entry(y, self.order.index(key), tr(self.pages[key].title))
-        self.put(height - 3, 1, self.glyphs.rule * max(0, side - 2), self.attrs["dim"])
+                self.put(y, 2, label, self.attrs["dim"], side - 2)
+                continue
+            shortcut = next((hotkey for hotkey, key in SHORTCUTS.items() if key == self.order[index]), "")
+            here = index == self.section
+            attr = self.attrs["sel"] if here and self.focus == "sidebar" else self.attrs["accent"] if here else 0
+            self.put(y, 1, pad(f"{'▌' if here else ' '}{label}", side - 2), attr)
+            if shortcut and not (here and self.focus == "sidebar"):
+                self.put(y, side - 2, shortcut, self.attrs["edge"])
+            self._sidebar_at[y] = index
         for row in range(1, height - 1):
-            self.put(row, side, self.glyphs.v, self.attrs["dim"])
+            self.put(row, side, self.glyphs.v, self.attrs["edge"])
 
     def _draw_tabs(self, x: int, width: int) -> int:
         """The tab strip; returns the first row below it."""
@@ -321,12 +378,10 @@ class Screen(PointerSupport):
         for key, label in tabs:
             text = f" {label} "
             selected = key == current
-            attr = (self.attrs["sel"] if self.focus == "content" else self.attrs["accent"] | curses.A_REVERSE) \
-                if selected else self.attrs["dim"]
-            self.put(row, column, text, attr, width - column)
+            attr = self.attrs["accent"] | curses.A_UNDERLINE if selected else self.attrs["dim"]
+            self.put(row, column + 1, label, attr, width - column)
             self._hits.append((row, column, column + cell_width(text), f"tab:{key}"))
             column += cell_width(text) + 1
-        self.put(row + 1, x, self.glyphs.h * max(0, width - x - 1), self.attrs["dim"])
         return row + 2
 
     def _view(self) -> int:
@@ -335,7 +390,7 @@ class Screen(PointerSupport):
 
     def _draw_content(self, height: int, width: int) -> None:
         x, _content_width = self._content_box()
-        top = self._draw_tabs(x - 2, width)
+        top = self._draw_tabs(x - 1, width)
         layout = self.build()
         self._rendered_layout = layout
         self._rendered_data = self.ctx.page_data.get(self.page_key)
@@ -351,7 +406,7 @@ class Screen(PointerSupport):
             if row.choice is not None:
                 first = line == 0 or layout.rows[offset + line - 1].choice != row.choice
                 if row.choice == cursor and self.focus == "content" and first:
-                    self.put(y, x - 2, self.glyphs.cursor, self.attrs["accent"])
+                    self.put(y, x - 1, self.glyphs.cursor, self.attrs["accent"])
             if any(owner is not None for owner in owners):
                 self._row_at[y] = (x, "".join(text for text, _tone in row.spans))
             self._cells_at[y] = [(x + a, x + b, r, c) for a, b, r, c in row.cells]
@@ -364,16 +419,14 @@ class Screen(PointerSupport):
                 selected = owner is not None and owner == cursor and self.focus == "content"  # a plain owner is < 0
                 bold = row.bold or tone.endswith("!")
                 tone = tone.rstrip("!")
-                if tone.startswith("btn:"):  # a filled button or badge: white words on its colour
-                    own = self.attrs.get(tone)
-                    attr = (own if own is not None else self.attrs.get(tone[4:], 0) | curses.A_REVERSE) | curses.A_BOLD
-                    attr ^= curses.A_REVERSE if selected else 0
-                elif tone.startswith("edge:"):  # legacy edge emphasis
-                    attr = self.attrs.get(tone, self.attrs.get(tone[5:], 0))
-                else:
-                    attr = self.attrs.get(tone, 0) | (curses.A_BOLD if bold else 0) | (curses.A_REVERSE if selected else 0)
-                    if tone == "sel" and self.focus != "content":
-                        attr = self.attrs["accent"]
+                attr = self.attrs.get(tone, 0) | (curses.A_BOLD if bold else 0)
+                if selected:
+                    attr = self.attrs["sel"]
+                elif owner is not None and owner < 0 and -1 - owner == cursor and self.focus == "content" \
+                        and tone in ("edge", "dim") and set(text) <= self._frame:
+                    attr = self.attrs["accent"]  # the box of the card or grid that has the cursor
+                elif tone == "sel" and self.focus != "content":
+                    attr = self.attrs["accent"]
                 self.put(y, column, text, attr, limit=width - column - 1)
                 column += width_
         if len(layout.rows) > view:  # a scrollbar: the thumb is where this view sits on the page
@@ -383,12 +436,43 @@ class Screen(PointerSupport):
             for line in range(view):
                 thumb = start <= line < start + size
                 self.put(top + line, width - 1, "┃" if thumb else self.glyphs.v,
-                         self.attrs["accent" if thumb else "dim"])
+                         self.attrs["dim" if thumb else "edge"])
+        if self._details_width():
+            self._draw_details(top, height, width)
+
+    def _draw_details(self, top: int, height: int, width: int) -> None:
+        choice = self.current_choice() if self.focus == "content" else None
+        if choice is None or choice.info is None:
+            return
+        left, inner = width - DETAILS_WIDTH - 1, DETAILS_WIDTH - 4
+        lines = self._details_lines(choice, inner)[:max(1, height - top - 4)]
+        g, edge = self.glyphs, self.attrs["edge"]
+        self.put(top, left, g.top[0] + g.h * (DETAILS_WIDTH - 2) + g.top[2], edge)
+        self.put(top, left + 2, " " + clip(choice.label.strip(" ›"), DETAILS_WIDTH - 6) + " ", curses.A_BOLD)
+        for line, (text, tone) in enumerate(lines, 1):
+            self.put(top + line, left, g.v, edge)
+            self.put(top + line, left + 2, text, self.attrs.get(tone, 0))
+            self.put(top + line, left + DETAILS_WIDTH - 1, g.v, edge)
+        self.put(top + len(lines) + 1, left, g.bottom[0] + g.h * (DETAILS_WIDTH - 2) + g.bottom[2], edge)
+
+    @staticmethod
+    def _details_lines(choice, width: int) -> list[tuple[str, str]]:
+        info, lines = choice.info, []
+        for title, text, tone in (("Unavailable", info.blocked, "warn"), ("", info.summary, ""),
+                                  ("Risk", info.risk, "warn"), ("Undo", info.undo, "")):
+            if not text:
+                continue
+            if lines:
+                lines.append(("", ""))
+            if title:
+                lines.append((tr(title), "warn" if tone else "dim"))
+            lines += [(line, tone if title == "Unavailable" else "") for line in wrap(text, width)]
+        return lines
 
     def _hints(self) -> list[tuple[str, str]]:
         if self.focus == "sidebar":
-            return [("↑↓", "Move"), ("Enter", "Open"), ("F2", "Go to section"), ("/", "Search"), ("?", "Help"),
-                    ("q", "Quit")]
+            return [("↑↓", "Move"), ("Enter", "Open"), (":", "Commands"), ("/", "Search"), ("a", "Activity"),
+                    ("?", "Help"), ("q", "Quit")]
         choice = self.current_choice()
         hints = [("↑↓", "Move")]
         if choice is not None and choice.adjust:
@@ -397,7 +481,9 @@ class Screen(PointerSupport):
             hints.append(("Enter", "Select" if choice.pad else "Open"))
         if self._tabs():
             hints.append(("[ ] F3", "Views"))
-        return hints + [("Esc", "Back"), ("?", "Help")]
+        if choice is not None and choice.info is not None and not self._details_width():
+            hints.append(("i", "Details"))
+        return hints + [(":", "Commands"), ("a", "Activity"), ("Esc", "Back"), ("?", "Help")]
 
     def _draw_footer(self, height: int, width: int) -> None:
         if self.toast and self.toast[2] > time.monotonic():  # over the keys for its few seconds
@@ -438,10 +524,11 @@ class Screen(PointerSupport):
             frames = SPINNER[0 if self.unicode else 1]
             mark, tone = frames[int(time.monotonic() * 8) % len(frames)], "accent"
         else:
-            mark, tone = ("✓", "ok") if console.succeeded else ("✗", "bad")
+            mark, tone = {"completed": ("✓", "ok"), "failed": ("✗", "bad")}.get(outcome_of(console), ("·", "dim"))
         elapsed = int((console.finished_at or time.monotonic()) - console.started)
         clock = f"{elapsed // 60:02d}:{elapsed % 60:02d}"
-        status = (tr("Completed") if console.succeeded else tr("The workflow did not finish successfully.")) if done else ""
+        status = {"completed": tr("Completed"), "cancelled": tr("Cancelled."), "stopped": "",
+                  "failed": tr("The workflow did not finish successfully.")}[outcome_of(console)] if done else ""
         # Top: what ran, how it ended and how long it took; below it, where the full log is.
         top = 1
         self.put(top, x, f"{mark} {console.label}" + (f"  ·  {status}" if status else ""), self.attrs[tone] | curses.A_BOLD,
@@ -470,8 +557,8 @@ class Screen(PointerSupport):
             for line in range(view):
                 self.put(top + 2 + line, width - 1, "┃" if start <= line < start + thumb else self.glyphs.v,
                          self.attrs["accent" if start <= line < start + thumb else "dim"])
-        hints = [("Enter Esc", "Close")] if done else [("Esc Ctrl+C", "Cancel")]
-        if console.reportable:
+        hints = [("Enter Esc", "Close")] if done else [("Esc Ctrl+C", "Cancel"), ("F6", "Hide")]
+        if console.reportable and outcome_of(console) == "failed":
             hints.append(("r", "Report this problem"))
         self._draw_hints(hints + [("PgUp", "Scroll"), ("PgDn", "Scroll")], y=height - self._bottom())
 
@@ -522,6 +609,14 @@ class Screen(PointerSupport):
             self.notify(tr("Refreshing…"))
         elif key == "/":
             self.search()
+        elif key == ":":
+            self.command_palette()
+        elif key == "a":
+            self.show_activity()
+        elif key == "i" and self.focus == "content":
+            choice = self.current_choice()
+            if choice is not None and choice.info is not None:
+                self.show_details(choice)
         elif key == "f3":
             self.tab_menu()
         elif key == "f6":
@@ -538,6 +633,33 @@ class Screen(PointerSupport):
                 self._go(self.order.index(target))
         else:
             (self._sidebar_key if self.focus == "sidebar" else self._content_key)(key)
+
+    def show_details(self, choice) -> None:
+        lines = self._details_lines(choice, min(60, self.size()[1] - 8))
+        self.show_text(choice.label.strip(" ›"), "\n".join(text for text, _tone in lines), compact=True)
+
+    def show_activity(self) -> None:
+        """What ran in this session, newest first; Enter reads its output."""
+        if not self.activity:
+            self.notify(tr("No recent activity"))
+            return
+        words = {"running": "Running…", "completed": "Completed", "cancelled": "Cancelled.", "stopped": "Unavailable",
+                 "failed": "Failed"}
+        options = []
+        for index, job in reversed(list(enumerate(self.activity))):
+            options.append((index, f"{time.strftime('%H:%M', time.localtime(job.started))}  "
+                                   f"{pad(tr(words[job.outcome]), 14)} {job.label}"))
+        picked = self.choose(tr("Activity"), options)
+        if picked is None:
+            return
+        job = self.activity[picked]
+        if job.console is self.job and not job.console.done.is_set():
+            self.console_hidden = False
+            return
+        text = "\n".join("".join(run[0] for run in line).rstrip() for line in job.console.view(SCROLLBACK_ALL)[0])
+        if job.console.log_file:
+            text += f"\n\n{tr('Full log saved to')} {job.console.log_file}"
+        self.show_text(job.label, text)
 
     def _focus(self, where: str) -> None:
         """Move between the panes; entering the content picks the first item in view."""
@@ -574,8 +696,11 @@ class Screen(PointerSupport):
         current_row = layout.choice_rows[cursor] if shown else -1
         candidates = [i for i, choice in enumerate(layout.choices) if choice.enabled and
                       (layout.choice_rows[i] > current_row if step > 0 else layout.choice_rows[i] < current_row)]
-        target = min(candidates, key=lambda i: (abs(layout.choice_rows[i] - current_row),
-                     abs(choice_column(layout, i) - choice_column(layout, cursor)))) if shown and candidates else -1
+        # Stay in this column of boxes while it has anything further; then the nearest.
+        here = choice_column(layout, cursor) if shown else 0
+        target = min(candidates, key=lambda i: (abs(choice_column(layout, i) - here) > COLUMN_REACH,
+                     abs(layout.choice_rows[i] - current_row), abs(choice_column(layout, i) - here))) \
+            if shown and candidates else -1
         if not shown:
             target = self._first_shown(layout, slot, step)
         if abs(step) == 1 and 0 <= target < len(layout.choices):
@@ -652,6 +777,8 @@ class Screen(PointerSupport):
         same_row = [i for i, choice in enumerate(layout.choices) if choice.enabled and
                     layout.choice_rows[i] == layout.choice_rows[cursor]] if 0 <= cursor < len(layout.choices) else []
         siblings = [i for i in same_row if i > cursor] if key == "right" else [i for i in same_row if i < cursor]
+        if key in ("left", "right") and current is not None and not current.adjust and not siblings:
+            siblings = self._beside(layout, cursor, 1 if key == "right" else -1)
         if key in ("left", "right") and current is not None and not current.adjust and current.pad is None and siblings:
             self.cursor[slot] = min(siblings) if key == "right" else max(siblings)
         elif key in ("left", "right") and current is not None and current.adjust:
@@ -663,6 +790,16 @@ class Screen(PointerSupport):
         elif key in ("enter", "space") and current is not None:
             self._activate(current)
 
+
+    @staticmethod
+    def _beside(layout: Layout, cursor: int, side: int) -> list[int]:
+        """The nearest item in the next column of boxes, for a row with none on its own line."""
+        from .layout import choice_column
+
+        here, row = choice_column(layout, cursor), layout.choice_rows[cursor]
+        there = [i for i, choice in enumerate(layout.choices) if choice.enabled
+                 and (choice_column(layout, i) - here) * side > COLUMN_REACH]
+        return [min(there, key=lambda i: (abs(layout.choice_rows[i] - row), abs(choice_column(layout, i) - here)))] if there else []
 
     def _present(self) -> None:
         """Commit page and dialog changes in the same frame, including idle jobs."""
@@ -717,6 +854,7 @@ class Screen(PointerSupport):
         rows = [
             ("↑ ↓  j k", tr("Move")), ("→ Enter l", tr("Open")), ("← Esc h", tr("Back")),
             ("Tab / S-Tab", tr("Move")), ("F6", tr("Switch pane")),
+            (":", tr("Commands")), ("a", tr("Activity")), ("i", tr("Details")),
             ("F2", tr("Go to section")), ("F3", tr("Views")), ("[ ]", tr("Previous / next tab")), ("1-9 0 ,", tr("Go to section")),
             ("/", tr("Search")), ("PgUp PgDn", tr("Scroll")), ("r", tr("Refresh")), ("?", tr("Help")), ("q", tr("Quit")),
         ]
@@ -729,14 +867,14 @@ class Screen(PointerSupport):
         box_w = min(total - 2, max(width, inner + 2, 30))
         box_h = min(height - 2, len(lines) + 2)
         top, left = max(0, (height - box_h) // 2), max(0, (total - box_w) // 2)
-        g, accent = self.glyphs, self.attrs["accent"]
+        g, accent = self.glyphs, self.attrs["accent"] & ~curses.A_BOLD
         self.put(top, left, g.top[0] + g.h * (box_w - 2) + g.top[2], accent)
-        self.put(top, left + 2, f" {clip(title, box_w - 6)} ", accent)
+        self.put(top, left + 2, f" {clip(title, box_w - 6)} ", curses.A_BOLD)
         for row in range(1, box_h - 1):
             index = offset + row - 1
             line = lines[index] if index < len(lines) else ""
             self.put(top + row, left, g.v, accent)
-            self.put(top + row, left + 1, pad(f" {line}", box_w - 2), curses.A_REVERSE if index == selected else 0)
+            self.put(top + row, left + 1, pad(f" {line}", box_w - 2), self.attrs["sel"] if index == selected else 0)
             self.put(top + row, left + box_w - 1, g.v, accent)
         self.put(top + box_h - 1, left, g.bottom[0] + g.h * (box_w - 2) + g.bottom[2], accent)
         if footer:
@@ -786,7 +924,7 @@ class Screen(PointerSupport):
         if not body or cell_width(title) > 48:
             title, body = tr("Confirm"), message
         while True:
-            width = min(self.size()[1] - 4, 56)
+            width = min(self.size()[1] - 4, 76)
             self.draw()
             lines = wrap(body, max(10, width - 4)) + ["", ""]
             top, left, box_h, box_w = self._box(title, lines, width=width)
@@ -904,7 +1042,7 @@ class Screen(PointerSupport):
             else:
                 offset = max(0, min(offset, max(0, len(lines) - view)))
                 self.stdscr.erase()
-                self.put(0, 0, pad(f" {title}", width), curses.A_REVERSE | curses.A_BOLD)
+                self.put(0, 0, pad(f" {title}", width), self.attrs["accent"])
                 for index, line in enumerate(lines[offset:offset + view]):
                     self.put(1 + index, 1, line)
                 self.put(height - 1, 1, pad(f"{offset + 1}-{min(len(lines), offset + view)}/{len(lines)}  "
@@ -928,10 +1066,17 @@ class Screen(PointerSupport):
         """
         if self._foreground is not None:
             return self._foreground(label, work)
+        if self.job is not None and not self.job.done.is_set():
+            # One action at a time: two would write to the same system.
+            self.notify(tr_format("Another action is running: {name}", name=self.job.label), "warn")
+            return False, OperationCancelled()
         console = Console(label, *self._console_size())  # the pty starts at the pane's size, not 80x24
-        self.active_console, self.console_scroll = console, 0
+        self.job = self.active_console = console
+        self.console_scroll, self.console_hidden = 0, False
+        job = Job(label, self.page_key, time.time(), console)
+        self.activity = [*self.activity[-49:], job]
 
-        def job() -> None:
+        def work_thread() -> None:
             try:
                 with console.password_agent(), contextlib.redirect_stdout(console), contextlib.redirect_stderr(console):
                     result = work()
@@ -942,24 +1087,39 @@ class Screen(PointerSupport):
                 console.write(f"\n{describe_error(error)}\n")
                 console.finish(False, error)
 
-        threading.Thread(target=job, name="bc250-tui-job", daemon=True).start()
+        threading.Thread(target=work_thread, name="bc250-tui-job", daemon=True).start()
         closed_with = ""
         try:
-            while not (console.done.is_set() and console.succeeded and not console.has_output):
+            while not (console.done.is_set() and (self.console_hidden or (console.succeeded and not console.has_output))):
                 self.draw()
                 self._present()
                 code = self._getch()
-                closed_with = self._console_key(console, code) if code != -1 else ""
+                if code == -1:
+                    continue
+                if self.console_hidden:  # it keeps running while the rest of the interface is used
+                    try:
+                        self.handle(code)
+                    except Quit:
+                        self.console_hidden = False
+                        self.active_console = console
+                        self.notify(tr_format("Another action is running: {name}", name=label), "warn")
+                    self.active_console = None if self.console_hidden else console
+                    continue
+                closed_with = self._console_key(console, code)
+                if closed_with == "hide":
+                    closed_with, self.console_hidden, self.active_console = "", True, None
                 if closed_with:
                     break
         finally:
-            self.active_console = None
+            job.outcome = outcome_of(console)
+            self.active_console = self.job = None
+            self.console_hidden = False
             self._layout_key = None
             self._repaint()
         if closed_with == "report":  # the failed workflow's own log goes with the report
             log = "\n".join("".join(run[0] for run in line).rstrip() for line in console.view(SCROLLBACK_ALL)[0])
             report(self, title=label, log=log, workflow_details={
-                "action": label, "page": self.page_key, "exit_status": console.exit_status,
+                "action": label, "page": job.page, "exit_status": console.exit_status,
                 "duration_seconds": round(console.finished_at - console.started, 2),
                 "outcome": "timeout" if console.exit_status == 124 else "failed",
             })
@@ -971,12 +1131,14 @@ class Screen(PointerSupport):
         if key == "mouse":
             key = self._console_mouse()
             code = {"esc": 27, "enter": 10}.get(key, 0)
+        if key == "f6" and not console.done.is_set():
+            return "hide"
         if key in ("pgup", "pgdn"):
             self.console_scroll += (1 if key == "pgup" else -1) * max(1, self.size()[0] - 6)
         elif console.done.is_set():
             if key in ("esc", "enter", "q", "space"):
                 return "close"
-            if key == "r" and console.reportable:
+            if key == "r" and console.reportable and outcome_of(console) == "failed":
                 return "report"
             if key in ("up", "down", "home", "end"):
                 self.console_scroll += {"up": 1, "down": -1, "home": 10**6, "end": -10**6}[key]

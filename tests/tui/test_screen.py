@@ -95,9 +95,9 @@ def test_the_sidebar_groups_sections_like_the_desktop():
     window, screen = make_screen()
     screen.draw()
     rows = [window.line(y) for y in range(window.height)]
-    hardware = next(i for i, row in enumerate(rows) if "HARDWARE" in row)
+    hardware = next(i for i, row in enumerate(rows) if "Hardware" in row)
     assert "CPU" in rows[hardware + 1] and "Compute Units" in rows[hardware + 2]
-    assert any("MONITORING" in row for row in rows)
+    assert any("Monitoring" in row for row in rows)
 
 
 def test_search_jumps_to_an_item_or_a_section():

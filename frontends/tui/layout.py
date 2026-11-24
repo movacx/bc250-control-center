@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from .content import (
     Block,
     Buttons,
+    Card,
     Chart,
     Choice,
     Columns,
@@ -47,9 +48,9 @@ class Glyphs:
     #: box drawing: horizontal, vertical, then corners/tees as (left, middle, right) per row kind
     h: str = "─"
     v: str = "│"
-    top: tuple = ("┌", "┬", "┐")
+    top: tuple = ("╭", "┬", "╮")
     mid: tuple = ("├", "┼", "┤")
-    bottom: tuple = ("└", "┴", "┘")
+    bottom: tuple = ("╰", "┴", "╯")
 
     @classmethod
     def for_terminal(cls, *, unicode_ok: bool) -> "Glyphs":
@@ -310,6 +311,18 @@ def _framed(inner: Layout, width: int, glyphs: Glyphs, tone: str, head: list[tup
     return box
 
 
+def _card(item: Card, width: int, glyphs: Glyphs, columns: tuple[int, int] | None = None) -> Layout:
+    columns = columns or _columns(item.blocks, width - 4, (width - 4) * 11 // 20)
+    inner = build_layout(list(item.blocks), width - 4, glyphs, card=True, columns=columns)
+    value = [(f" {item.value} ", "accent!")] if item.value else []
+    return _framed(inner, width, glyphs, "edge", _edge(glyphs, width, "edge", [(item.title, "!")], value))
+
+
+def _stretch(box: Layout, height: int, width: int, glyphs: Glyphs, tone: str = "edge") -> None:
+    while len(box.rows) < height:
+        box.rows.insert(-1, Row([(glyphs.v, tone), (" " * (width - 2), ""), (glyphs.v, tone)]))
+
+
 def _edge(glyphs: Glyphs, width: int, tone: str, left: list[tuple[str, str]], right: list[tuple[str, str]]):
     """A box's top edge: ``┌─ left ──── right ─┐``, the spans cut to fit."""
     room = width - 7 - sum(cell_width(text) for text, _tone in right)
@@ -324,12 +337,9 @@ def button_spans(choice: Choice, glyphs: Glyphs, width: int, fill: bool = False)
 
     ``fill`` aligns adjacent actions to their allocated columns.
     """
-    tone = "dim" if not choice.enabled else {"primary": "accent", "": "accent"}.get(choice.tone, choice.tone)
+    tone = "dim" if not choice.enabled else {"primary": "accent!", "": "accent"}.get(choice.tone, choice.tone)
     text = clip(choice.label, max(1, width - 4))
-    button = f"[{f' {text} '.center(max(1, width - 2))}]" if fill else f"[ {text} ]"
-    if choice.enabled and choice.tone in ("primary", "bad"):
-        return [(button, "btn:" + tone)]
-    return [(button, tone)]
+    return [(f"[ {text} ]" + " " * (max(0, width - cell_width(text) - 4) if fill else 0), tone)]
 
 
 def _columns(blocks, width: int, label_cap: int) -> tuple[int, int]:
@@ -361,7 +371,7 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
         if isinstance(block, Heading) and card:
             if layout.rows:
                 add([("", "")])
-            add([(clip(block.text.upper(), width), "dim")], bold=True)
+            add([(clip(block.text, width), "dim")], bold=True)
         elif isinstance(block, Heading):  # one row: the title, then a rule to the edge
             title = clip(block.text, width - 2)
             add([(title, "accent"), (" " + glyphs.rule * (width - cell_width(title) - 1), "dim")], bold=True)
@@ -401,25 +411,21 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
             add([(pad(block.label, label_width), "dim"), ("  ", ""),
                  *gauge((block.start - block.low) / span, (block.end - block.low) / span, bar_width, block.tone, glyphs),
                  ("  ", ""), (block.text.rjust(meter_text), block.tone)])
+        elif isinstance(block, Card):
+            _side_by_side(layout, [_card(block, width, glyphs)], [width])
         elif isinstance(block, Columns):
             count = len(block.cards)
             fit = max(1, min(count, (width + 3) // (block.minimum + 3)))
-            each = (width - 3 * (fit - 1)) // fit  # a card left alone keeps the grid's width
-            shared = _columns([b for item in block.cards for b in item.blocks], each, each * 11 // 20)
+            each = (width - (fit - 1)) // fit  # a card left alone keeps the grid's width
+            shared = _columns([b for item in block.cards for b in item.blocks], each - 4, (each - 4) * 11 // 20)
             for first in range(0, count, fit):
-                group = block.cards[first:first + fit]
                 parts = []
-                for item in group:
-                    inner = build_layout(list(item.blocks), each, glyphs, card=True, columns=shared)
-                    # The headline reading sits on the title row, over a rule the card's width.
-                    title = clip(item.title, each - cell_width(item.value) - 1)
-                    inner.rows[0:0] = [
-                        Row([(title, "accent"), (" " * (each - cell_width(title) - cell_width(item.value)), ""),
-                             (item.value, "accent")], bold=True),
-                        Row([(glyphs.rule * each, "dim")])]
-                    parts.append(inner)
-                _side_by_side(layout, parts, [each] * len(group), " | " if glyphs.rule == "-" else " │ ")
-                add([("", "")])
+                for item in block.cards[first:first + fit]:
+                    parts.append(_card(item, each, glyphs, shared))
+                tallest = max(len(part.rows) for part in parts)
+                for part in parts:  # boxes side by side end on one line
+                    _stretch(part, tallest, each, glyphs)
+                _side_by_side(layout, parts, [each] * len(parts), " ")
         elif isinstance(block, Chart):
             for spans in chart_rows(block, width, glyphs):
                 add(spans)
@@ -471,13 +477,13 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                     line([""] + [cell.note for cell in prow.cells] + [""], [""] + tones[1:] + [""], r)
             rule(g.bottom)
         elif isinstance(block, Panel):
-            tone = "bad" if block.danger else "dim"
+            tone = "bad" if block.danger else "edge"
             inner = build_layout(([Note(block.subtitle, "dim")] if block.subtitle else []) + list(block.blocks),
                                  width - 4, glyphs, label_cap)
             action = button_spans(block.action, glyphs, width // 3) if block.action else []
-            right = ([(f" {block.badge} ", "btn:" + block.badge_tone)] if block.badge else []) \
+            right = ([(f" {block.badge} ", block.badge_tone)] if block.badge else []) \
                 + ([(" ", "")] if block.badge and action else []) + action
-            head = _edge(glyphs, width, tone, [(block.title, ("bad" if block.danger else "accent") + "!")], right)
+            head = _edge(glyphs, width, tone, [(block.title, "bad!" if block.danger else "!")], right)
             owners = [None] * (len(head) - 1 - len(action)) + [len(inner.choices)] * len(action) + [None]
             if action:
                 inner.choices.append(block.action)
@@ -494,25 +500,26 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                     box = Layout()
                     tone = "accent" if tile.active else "dim"
                     own = 0 if tile.handler else None
+                    plain_own = None if own is None else -1
                     if tile.handler:
                         box.choices.append(Choice(tile.label, tile.handler))
                         box.choice_rows.append(0)
                     if tile.edit:  # the pencil sits on the bottom edge, so the name keeps the top one
                         box.choices.append(Choice(f"{tile.edit_label}: {tile.label}", tile.edit))
                     box.rows.append(Row(_edge(glyphs, each, tone, [(("[x] " if tile.active else "[ ] ") + tile.label if tile.handler else tile.label, "accent!" if tile.active else "dim")], []), owners=None,
-                                        choice=own))
+                                        choice=own, plain=True))
                     lines = [(tile.value, (tile.tone or "") + "!")]
                     if any(item.hint for item in block.tiles[first:first + fit]):
                         lines.append((tile.hint, "dim"))
                     for text, line_tone in lines:
                         box.rows.append(Row([(glyphs.v + " ", tone), (pad(text, each - 4), line_tone), (" " + glyphs.v, tone)],
-                                            owners=[own] * 3))
+                                            owners=[plain_own] * 3))
                     label = clip(tile.edit_label, each - 6) if tile.edit else ""
                     fill = glyphs.h * (each - 2 - (cell_width(label) + 3 if label else 0))
                     bottom = [(glyphs.bottom[0] + fill, tone)] + ([(f" {label} ", "accent"), (glyphs.h, tone)] if label else []) \
                         + [(glyphs.bottom[2], tone)]
-                    pen = len(box.choices) - 1 if tile.edit else own
-                    box.rows.append(Row(bottom, owners=[own] + ([pen, own] if label else []) + [own]))
+                    pen = len(box.choices) - 1 if tile.edit else plain_own
+                    box.rows.append(Row(bottom, owners=[plain_own] + ([pen, plain_own] if label else []) + [plain_own]))
                     if tile.edit:
                         box.choice_rows.append(len(box.rows) - 1)
                     boxes.append(box)
@@ -524,7 +531,6 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                                                         for i in range(0, len(needs), k)))
             for first in range(0, len(block.choices), fit):
                 group = needs[first:first + fit]
-                spare = max(0, width - sum(group) - 2 * (len(group) - 1))
                 spans, owners = [], []
                 for position, choice in enumerate(block.choices[first:first + fit]):
                     if spans:
@@ -532,8 +538,7 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                         owners.append(None)
                     layout.choices.append(choice)
                     layout.choice_rows.append(len(layout.rows))
-                    each = group[position] + spare // len(group) + (spare % len(group) if position == len(group) - 1 else 0)
-                    parts = button_spans(choice, glyphs, min(width, each), fill=True)
+                    parts = button_spans(choice, glyphs, min(width, group[position]))
                     spans += parts
                     owners += [len(layout.choices) - 1] * len(parts)
                 layout.rows.append(Row(spans, owners=owners))
@@ -572,7 +577,7 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 if spans and used + size > width:
                     add(spans)
                     spans, used = [], 0
-                spans += [(f" {chip} ", "btn:" + tone), (f" {meaning}   ", "dim")]
+                spans += [(f" {chip}", tone + "!"), (f" {meaning}   ", "dim")]
                 used += size
             if spans:
                 add(spans)
@@ -595,15 +600,112 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                      else block.label + "  ") if detail else clip(block.label, width)
             tone = block.tone if block.enabled else "dim"
             # A button does something; "( )"/"[x]" are options and "›" opens a menu of its own.
-            button = not (detail or block.adjust or block.label.startswith(("(", "[")) or block.label.endswith("›"))
+            button = not (detail or block.adjust or block.info or block.label.startswith(("(", "[")) or block.label.endswith("›"))
             if button:  # it does something, it is not a value
                 add(button_spans(block, glyphs, width), choice=index)
             else:
                 chip = f" {block.badge} " if block.badge else ""
+                if chip and cell_width(label) + cell_width(chip) > width - 1:  # the state is never the part that is cut
+                    label = clip(label, max(8, width - cell_width(chip) - 1))
                 room = max(0, width - cell_width(label) - cell_width(chip) - (1 if chip else 0))
                 text = clip(detail, room)
                 spans = [(label, tone), (text, "accent" if block.adjust else "dim")]
                 if chip:
-                    spans += [(" " * (room - cell_width(text) + 1), ""), (chip, "btn:" + block.badge_tone)]
+                    spans += [(" " * (room - cell_width(text) + 1), ""), (chip, block.badge_tone)]
                 add(spans, choice=index)
     return _reading_order(layout)
+
+
+#: A group needs this many columns before a second column of groups is worth having.
+GROUP_MIN = 50
+
+
+def page_groups(blocks: list[Block]) -> list[tuple[bool, list[Block]]]:
+    """A page's top-level blocks as (boxed, blocks) units, in order.
+
+    A Heading starts a group that runs to the next heading, and a Panel is one
+    already; what follows a Panel without a heading (its Apply button) stays
+    with it. Everything else keeps the whole width.
+    """
+    units: list[tuple[bool, list[Block]]] = []
+    heading: Panel | None = None
+    for block in blocks:
+        if isinstance(block, Heading):
+            heading = Panel(block.text, [])
+            units.append((True, [heading]))
+        elif isinstance(block, Columns):
+            heading = None
+            units += [(True, [card]) for card in block.cards]
+        elif isinstance(block, (Panel, Split, Chart, Pad)):
+            heading = None
+            # A wide table (the fan channels) is unreadable in half a screen.
+            wide = isinstance(block, Panel) and any(isinstance(b, Pad) and len(b.headers) > 5 for b in block.blocks)
+            units.append((isinstance(block, Panel) and not wide, [block]))
+        elif heading is not None:
+            heading.blocks.append(block)
+        elif isinstance(block, Gap):
+            continue
+        elif units and units[-1][0] and isinstance(units[-1][1][0], Panel) and isinstance(block, (Buttons, Choice, Note)):
+            panel = units[-1][1][0]  # its Apply button, drawn inside its box
+            units[-1][1][0] = replace(panel, blocks=[*panel.blocks, block])
+        else:
+            units.append((False, [block]))
+    for _boxed, unit in units:
+        for block in unit:
+            if isinstance(block, Panel) and isinstance(block.blocks, list):
+                while block.blocks and isinstance(block.blocks[-1], Gap):
+                    block.blocks.pop()
+    return units
+
+
+def build_page(blocks: list[Block], width: int, glyphs: Glyphs) -> Layout:
+    """A whole page: groups in boxes, in two or three columns when they fit."""
+    layout = Layout()
+    width = max(20, width)
+    units = page_groups(blocks)
+    fit = max(1, min(3, (width + 1) // (GROUP_MIN + 1)))
+    index = 0
+    while index < len(units):
+        run = []
+        while index < len(units) and units[index][0]:
+            run.append(units[index][1])
+            index += 1
+        if not run:
+            _side_by_side(layout, [build_layout(units[index][1], width, glyphs)], [width])
+            index += 1
+            continue
+        count = min(fit, len(run))
+        each = (width - (count - 1)) // count
+        boxes = [build_layout(unit, each, glyphs) for unit in run]
+        columns: list[Layout] = []
+        for part in _balance([len(box.rows) for box in boxes], count):
+            column = Layout()
+            for position in part:
+                _side_by_side(column, [boxes[position]], [each])
+            columns.append(column)
+        _side_by_side(layout, columns, [each] * len(columns), " ")
+    return _reading_order(layout)
+
+
+def _balance(heights: list[int], count: int) -> list[list[int]]:
+    """Boxes split over ``count`` columns in reading order, the tallest column as short as possible."""
+    if count <= 1:
+        return [list(range(len(heights)))]
+    low, high = max(heights), sum(heights)
+    while low < high:  # the smallest height that fits
+        limit = (low + high) // 2
+        columns, used = 1, 0
+        for height in heights:
+            if used and used + height > limit:
+                columns, used = columns + 1, 0
+            used += height
+        low, high = (low, limit) if columns <= count else (limit + 1, high)
+    out: list[list[int]] = [[]]
+    used = 0
+    for position, height in enumerate(heights):
+        if used and used + height > low and len(out) < count:
+            out.append([])
+            used = 0
+        out[-1].append(position)
+        used += height
+    return out

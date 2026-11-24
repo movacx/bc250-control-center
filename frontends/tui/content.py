@@ -10,6 +10,8 @@ import unicodedata
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+from frontends.desktop.core.temperature_unit import localize_temperature_text
+
 # Tones ("", ok, warn, bad, dim, accent) map to terminal palette colours, so a
 # light or dark terminal keeps its own contrast: no background is ever painted.
 
@@ -223,6 +225,17 @@ class Choice:
     dense: bool = False  # a row of a long list: no touch spacing (the whole row is already the target)
     badge: str = ""  # a status chip at the row's right edge (Active, Not installed…)
     badge_tone: str = "dim"
+    info: "Info | None" = None  # what the Details pane says while the row is selected
+
+
+@dataclass(frozen=True, slots=True)
+class Info:
+    """What a person should know before opening a row."""
+
+    summary: str = ""
+    risk: str = ""
+    undo: str = ""
+    blocked: str = ""
 
 
 @dataclass(slots=True)
@@ -311,7 +324,8 @@ def number(value: object, unit: str = "", digits: int = 0, missing: str = "--") 
         shown = f"{float(value):.{digits}f}"
     except (TypeError, ValueError):
         return missing
-    return f"{shown} {unit}".rstrip()
+    text = f"{shown} {unit}".rstrip()
+    return localize_temperature_text(text) if unit == "°C" else text
 
 
 def size(value: object, missing: str = "--") -> str:

@@ -17,15 +17,24 @@ from .content import size
 from .i18n import tr, tr_format
 
 
-def update_checks_enabled() -> bool:
-    """The desktop's own switch (Settings › Updates), read from its ini file."""
+def desktop_setting(key: str, default: str) -> str:
+    """One of the desktop's [settings], read from its ini file without Qt."""
     config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     parser = configparser.ConfigParser()
     try:
         parser.read(config / "bc250-control-center" / "ui.conf", encoding="utf-8")
     except configparser.Error:
-        return True
-    return parser.get("settings", "update_check", fallback="true").strip().lower() in {"1", "true", "yes", "on"}
+        return default
+    return parser.get("settings", key, fallback=default).strip()
+
+
+def update_checks_enabled() -> bool:
+    """The desktop's own switch (Settings › Updates)."""
+    return desktop_setting("update_check", "true").lower() in {"1", "true", "yes", "on"}
+
+
+def desktop_temperature_unit() -> str:
+    return desktop_setting("temperature_unit", "celsius")
 
 
 def check_in_background(ctx, *, force: bool = False) -> None:

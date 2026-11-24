@@ -90,24 +90,18 @@ class HardwareWorkspaceTests(unittest.TestCase):
             self.assertIn(label, labels)
         self.assertNotIn("service", dict(self.pages["gpu"].tabs(self.ctx)))
 
-    def test_additional_settings_expand_one_group_without_actions_on_open(self):
-        layout = self.layout("extras", "compatibility")
-        self.assertFalse(
-            any(choice.label == "Install correction" for choice in layout.choices)
-        )
-        toggle = next(
-            choice
-            for choice in layout.choices
-            if choice.label.startswith("Configure · CPU power")
-        )
-        toggle.handler(self.ui)
+    def test_a_component_row_offers_its_actions_and_runs_only_a_confirmed_one(self):
+        row = next(choice for choice in self.layout("extras", "compatibility").choices
+                   if choice.label.startswith("CPU power"))
+        self.assertTrue(row.info and row.info.summary)
+        row.handler(self.ui)  # the menu was left without picking anything
         self.assertFalse(self.ctx.service.calls)
-        self.assertTrue(
-            any(
-                choice.label == "Install correction"
-                for choice in self.layout("extras", "compatibility").choices
-            )
-        )
+        self.ui.choices, self.ui.confirm_answer = [0], False
+        row.handler(self.ui)
+        self.assertFalse(self.ctx.service.calls)
+        self.ui.choices, self.ui.confirm_answer = [0], True
+        row.handler(self.ui)
+        self.assertEqual(self.ctx.service.calls, [("gestionar_acpi", ("acpi-install",), {})])
 
     def test_buttons_keep_edges_in_colour_and_monochrome_layouts(self):
         for unicode_ok in (True, False):

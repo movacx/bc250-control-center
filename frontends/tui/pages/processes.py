@@ -1,12 +1,18 @@
-"""Processes: what runs, and the same close / pause / cache actions."""
+"""Processes: the desktop's table of applications, with the same protected close and pause."""
 
 from __future__ import annotations
 
-from ..content import Choice, Gap, Heading, Note, size
-from ..i18n import tr
+from frontends.desktop.core.process_entries import build_entries
+
+from ..content import Choice, Info, Note, Panel, cell_width, clip, number, pad, size
+from ..i18n import tr, tr_format
 from .base import Page, guarded
 
 MAX_ROWS = 200
+TABS = (("apps", "Applications"), ("background", "Background"), ("system", "System"), ("all", "All"))
+SORTS = (("memory", "Memory"), ("cpu", "CPU"), ("gpu", "GPU"), ("vram", "GPU memory"), ("name", "Name"))
+#: Columns after the name: CPU, GPU, memory, GPU memory.
+WIDTHS = (7, 7, 11, 11)
 
 
 class ProcessesPage(Page):
@@ -14,43 +20,89 @@ class ProcessesPage(Page):
     title = "Processes"
     interval = 4.0
 
+    def tabs(self, ctx):
+        return [(key, tr(label)) for key, label in TABS]
+
     def load(self, ctx):
-        return ctx.service.procesos(ocultar_sistema=True)
+        return ctx.service.inventario_procesos()
 
     def build(self, ctx, data, tab, ui):
-        service = ctx.service
-        processes = sorted(data or [], key=lambda proc: getattr(proc, "memoria", 0), reverse=True)[:MAX_ROWS]
-        column = min(38, max([len(str(getattr(p, "nombre", ""))) for p in processes] + [len(tr("Name"))]) + 3)
-        out = [Heading(tr("Processes")), Note(f"{tr('Name'):<{column}}{'PID':>8}  {tr('Memory'):>10}", "dim")]
-        if not processes:
-            out.append(Note(ctx.page_error.get(self.key) or tr("Waiting for data…"), "dim"))
-        for proc in processes:
-            name = str(getattr(proc, "nombre", "?"))
-            pid = getattr(proc, "pid", 0)
-            protected = bool(getattr(proc, "protegido", False))
+        service, state = ctx.service, ctx.state(self.key)
+        data = data if isinstance(data, dict) else {}
+        picked: set[str] = state.setdefault("picked", set())
+        sort, query = state.setdefault("sort", "memory"), state.setdefault("query", "")
+        entries = build_entries(data.get("processes") or (), grouped=True, view=tab or "apps", query=query)
+        entries.sort(key=lambda entry: entry.sort_value(sort), reverse=sort != "name")
+        picked.intersection_update(entry.key for entry in entries)
+        out = []
+        game = next((entry for entry in entries if entry.kind == "game"), None)
+        if game is not None:
+            out.append(Panel(game.name, [
+                Note(self._numbers(game), ""),
+                Choice(tr("Resume game" if game.paused else "Pause game"),
+                       lambda ui_: self._pause(ui_, service, [game]), enabled=bool(game.closable))],
+                badge=tr("Paused" if game.paused else "Running"), badge_tone="warn" if game.paused else "ok"))
 
-            def act(ui_, proc=proc, name=name, pid=pid):
-                choice = ui_.choose(f"{name} ({pid})", [
-                    ("close", tr("Close")), ("pause", tr("Pause")), ("resume", tr("Resume")),
-                ])
-                if choice is None:
-                    return
-                if choice == "close":
-                    if ui_.confirm(f"{tr('Close')}: {name} ({pid})", danger=True):
-                        guarded(ui_, tr("Close"), lambda: service.cerrar_procesos([proc]))
-                else:
-                    paused = choice == "pause"
-                    guarded(ui_, name, lambda: service.pausar_procesos([proc], pausar=paused))
+        def find(ui_):
+            text = ui_.ask_text(tr("Search"), query)
+            if text is not None:
+                state["query"] = text.strip()
 
-            out.append(Choice(
-                name, act if not protected else None,
-                f"{pid:>8}  {size(getattr(proc, 'memoria', None)):>10}" + ("  *" if protected else ""),
-                enabled=not protected, tone="dim" if protected else "",
-            ))
+        def order(ui_):
+            chosen = ui_.choose(tr("Sort by"), [(key, tr(label)) for key, label in SORTS])
+            if chosen is not None:
+                state["sort"] = chosen
 
-        def clean(ui_):
-            if ui_.confirm(tr("Release Linux page cache")):
-                guarded(ui_, tr("Free cache"), service.limpiar_cache)
+        chosen = [entry for entry in entries if entry.key in picked]
+        out.append(Panel(tr("Actions"), [
+            Choice(tr("Search"), find, (query or "--") + " ›"),
+            Choice(tr("Sort by"), order, tr(dict(SORTS)[sort]) + " ›"),
+            Choice(tr("End selected tasks") if chosen else tr("No applications selected"),
+                   lambda ui_: self._end(ui_, service, chosen), tone="bad", enabled=bool(chosen)),
+            Choice(tr("Resume" if chosen and all(e.paused for e in chosen) else "Pause"),
+                   lambda ui_: self._pause(ui_, service, chosen), enabled=bool(chosen)),
+            Choice(tr("Free cache"), lambda ui_: ui_.confirm(tr("Release Linux page cache"))
+                   and guarded(ui_, tr("Free cache"), service.limpiar_cache)),
+        ], subtitle=tr("systemd-oomd is running: if the paused game's memory goes to swap, it may close the game and "
+                       "Steam with it.") if data.get("oomd") and game is not None and game.paused else ""))
+        name_w = min(34, max([cell_width(entry.name) for entry in entries] + [12]) + 5)
+        heads = (tr("CPU"), tr("GPU"), tr("Memory"), tr("GPU memory"))
+        rows = [Note(" " * name_w + "".join(clip(head, width - 1).rjust(width) for head, width in zip(heads, WIDTHS)), "dim")]
+        if not entries:
+            rows.append(Note(ctx.page_error.get(self.key) or (tr("No results") if data else tr("Waiting for data…")), "dim"))
+        rows += [self._row(service, picked, entry, name_w) for entry in entries[:MAX_ROWS]]
+        return [*out, Panel(tr("Processes"), rows, badge=str(len(entries)))]
 
-        out += [Gap(), Heading(tr("Actions")), Choice(tr("Free cache"), clean)]
-        return out
+    @staticmethod
+    def _numbers(entry) -> str:
+        return (f"CPU {number(entry.cpu, '%')}   GPU {number(entry.gpu, '%')}   {tr('Memory')} {size(entry.memory)}   "
+                f"{tr('GPU memory')} {size(entry.vram)}")
+
+    def _row(self, service, picked, entry, name_w):
+        mark = "[x] " if entry.key in picked else "    " if entry.fully_protected else "[ ] "
+        cells = (number(entry.cpu, "%"), number(entry.gpu, "%"), size(entry.memory), size(entry.vram) if entry.vram else "--")
+
+        def toggle(_ui):
+            picked.symmetric_difference_update({entry.key})
+
+        status, _tone, reason = entry.status()
+        return Choice(pad(mark + entry.name, name_w) + "".join(cell.rjust(width) for cell, width in zip(cells, WIDTHS)),
+                      None if entry.fully_protected else toggle, dense=True, enabled=not entry.fully_protected,
+                      tone="dim" if entry.fully_protected else "",
+                      info=Info(f"{tr(status)} · {entry.subtitle}", "", "", reason if entry.fully_protected else ""))
+
+    @staticmethod
+    def _end(ui, service, entries):
+        targets = [process for entry in entries for process in entry.closable]
+        kept = sum(entry.protected_count for entry in entries)
+        names = ", ".join(entry.name for entry in entries[:6])
+        note = " " + tr_format("Partial · {count} protected", count=kept) if kept else ""
+        if targets and ui.confirm(f"{tr('Close')}: {names} ({len(targets)}){note}", danger=True):
+            guarded(ui, tr("Close"), lambda: service.cerrar_procesos(targets))
+
+    @staticmethod
+    def _pause(ui, service, entries):
+        targets = [process for entry in entries for process in entry.closable]
+        pausing = not all(entry.paused for entry in entries)
+        if targets:
+            guarded(ui, tr("Pause" if pausing else "Resume"), lambda: service.pausar_procesos(targets, pausar=pausing))
