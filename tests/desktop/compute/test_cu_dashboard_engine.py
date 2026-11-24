@@ -131,5 +131,5 @@ def test_missing_umr_is_a_preparation_notice_not_a_topology_format_error(monkeyp
 
     monkeypatch.setattr("bc250cc.infrastructure.cu_repository.probe_bazzite_reboot_pending",
                         lambda: {"packages": ["umr"]})
-    with pytest.raises(ActionNeeded, match="installed in the staged deployment. Restart"):
+    with pytest.raises(ActionNeeded, match="Restart to use the staged"):
         CURepository()._estado_cu_autorizado("umr was not found")

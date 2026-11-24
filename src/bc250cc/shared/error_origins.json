@@ -76,6 +76,7 @@
    "_get_bit": "CORE-0201"
   },
   "bc250cc/application/compute_units/operations.py": {
+   "ComputeUnitsPreparationNeeded.__init__": "CU-0185",
    "validate_cu_masks": "CU-0106",
    "plan_cu_mask_operations": "CU-0107"
   },
@@ -85,6 +86,9 @@
    "ApplicationContainer.system_status": "CORE-0003"
   },
   "bc250cc/application/cpu/core_unlock.py": {
+   "is_six_core_mask": "CPU-0372",
+   "reported_core_mask": "CPU-0373",
+   "accepted_mask": "CPU-0374",
    "core_unlock_controls": "CPU-0333"
   },
   "bc250cc/application/cpu/use_cases.py": {
@@ -286,10 +290,19 @@
   },
   "bc250cc/application/preparation/steamos_providers.py": {
    "real_toolkit_action_keys": "PREP-0134",
+   "real_toolkit_direct_action_keys": "PREP-0143",
    "real_toolkit_running": "PREP-0142",
    "alternative_action_keys": "PREP-0135",
    "_components": "PREP-0136",
-   "protected_actions": "PREP-0137"
+   "protected_actions": "PREP-0137",
+   "steamos_ownership": "PREP-0144"
+  },
+  "bc250cc/application/preparation/toolkit_rows.py": {
+   "installed_status": "PREP-0145",
+   "toolkit_presentation": "PREP-0146",
+   "primary_label": "PREP-0147",
+   "is_removal": "PREP-0148",
+   "reads_only": "PREP-0149"
   },
   "bc250cc/application/recovery/release_gates.py": {
    "qualification_requirements": "SET-0134",
@@ -305,6 +318,9 @@
    "RecoveryRepository._resolve_snapshot": "SET-0142",
    "RecoveryRepository.recovery_plan": "SET-0143",
    "RecoveryRepository.export_recovery_snapshot": "SET-0144"
+  },
+  "bc250cc/application/system/accessory_rows.py": {
+   "removal_text": "CORE-0350"
   },
   "bc250cc/application/system/activity_service.py": {
    "ActivityService.__init__": "CORE-0004",
@@ -353,6 +369,23 @@
    "SystemStatus.from_capabilities": "CORE-0009",
    "SystemStatus.to_dict": "CORE-0010",
    "detect_system_status": "CORE-0011"
+  },
+  "bc250cc/application/system/temperature_unit.py": {
+   "normalize_unit": "CORE-0351",
+   "unit_symbol": "CORE-0352",
+   "celsius_to_fahrenheit": "CORE-0353",
+   "fahrenheit_to_celsius": "CORE-0354",
+   "to_display": "CORE-0355",
+   "from_display": "CORE-0356",
+   "to_display_int": "CORE-0357",
+   "from_display_int": "CORE-0358",
+   "to_display_delta": "CORE-0359",
+   "from_display_delta": "CORE-0360",
+   "format_temperature": "CORE-0361",
+   "format_temperature_delta": "CORE-0362",
+   "temperature_number": "CORE-0363",
+   "_convert_number": "CORE-0364",
+   "localize_temperature_text": "CORE-0365"
   },
   "bc250cc/domain/common/proceso.py": {
    "Proceso.__init__": "PROC-0091",
@@ -1695,7 +1728,9 @@
    "build_gpu_state_snapshot": "GPU-0609"
   },
   "bc250cc/infrastructure/hardware_identity.py": {
+   "_platform_text_identity": "SYS-0346",
    "is_bc250_platform": "SYS-0041",
+   "_bc250_drm_present": "SYS-0347",
    "bc250_identity": "SYS-0326",
    "require_bc250_hardware": "SYS-0327",
    "cpu_threads_present": "SYS-0332",
@@ -1964,6 +1999,7 @@
   },
   "bc250cc/infrastructure/pacman_lock.py": {
    "lock_path": "CORE-0281",
+   "_pacman_query": "CORE-0366",
    "running_package_managers": "CORE-0282",
    "boot_time": "CORE-0283",
    "lock_state": "CORE-0284",
@@ -2526,6 +2562,9 @@
   },
   "bc250cc/infrastructure/steamos_real_toolkit.py": {
    "_guard_shell": "DIST-0161",
+   "kernel_series": "DIST-0223",
+   "old_glibc": "DIST-0224",
+   "known_combined_failure": "DIST-0225",
    "launch_command": "DIST-0151",
    "action_for": "DIST-0147",
    "guarded_component": "DIST-0171",
@@ -2534,9 +2573,24 @@
    "valid_revision": "DIST-0183",
    "archive_url": "DIST-0184",
    "prepare_entrypoint": "DIST-0149",
-   "prepare_snapshot": "DIST-0150"
+   "prepare_snapshot": "DIST-0150",
+   "read_toolkit_text": "DIST-0226",
+   "_icd_valid": "DIST-0227",
+   "graphics_evidence": "DIST-0228",
+   "component_evidence": "DIST-0229",
+   "build_id": "DIST-0230",
+   "read_install_record": "DIST-0231",
+   "tracked_evidence": "DIST-0232",
+   "record_scope": "DIST-0233",
+   "lost_after_update": "DIST-0234",
+   "toolkit_restore_actions": "DIST-0235"
   },
   "bc250cc/infrastructure/steamos_real_toolkit_recovery.py": {
+   "_protected_path": "DIST-0236",
+   "unsafe_grub_recovery": "DIST-0237",
+   "unsafe_boot_paths": "DIST-0238",
+   "unsafe_recovery": "DIST-0239",
+   "refuse_unsafe_install": "DIST-0240",
    "adapt_revert_all": "DIST-0177",
    "adapt_recovery_flag": "DIST-0172",
    "adapt_recovery_ctl": "DIST-0173"
@@ -2571,14 +2625,23 @@
    "_wait_for_lock": "DIST-0214",
    "combined_module_active": "DIST-0215",
    "_require_prerequisites": "DIST-0216",
+   "_reachable": "DIST-0241",
+   "_preflight_space": "DIST-0242",
+   "preflight": "DIST-0243",
+   "_preflight_ownership": "DIST-0244",
+   "show_preflight": "DIST-0245",
+   "_recovery_block": "DIST-0246",
+   "_installation_evidence": "DIST-0247",
+   "_pending_restore": "DIST-0248",
+   "_put_back": "DIST-0249",
+   "_installed_components": "DIST-0250",
+   "_update_install_record": "DIST-0251",
    "run_action": "DIST-0154",
    "_resolve_or_cached": "DIST-0190"
   },
   "bc250cc/infrastructure/steamos_real_toolkit_state.py": {
-   "_old_glibc": "DIST-0217",
    "_alternative_kernel": "DIST-0222",
-   "_text": "DIST-0155",
-   "_icd_valid": "DIST-0156",
+   "_alternative_proton": "DIST-0252",
    "probe_real_toolkit": "DIST-0157"
   },
   "bc250cc/infrastructure/steamos_rescue.py": {
@@ -2740,6 +2803,7 @@
    "SistemaService.gestionar_fsr4_bc250": "SYS-0194",
    "SistemaService.gestionar_helixsr": "SYS-0195",
    "SistemaService.guardar_ajustes_helixsr": "SYS-0196",
+   "SistemaService.gestionar_directmesh": "SYS-0348",
    "SistemaService.gestionar_gfx1013_fedora": "SYS-0197",
    "SistemaService.gestionar_gfx1013_bazzite": "SYS-0198",
    "SistemaService.gestionar_gfx1013_source": "SYS-0199",
@@ -2805,6 +2869,7 @@
    "SistemaService.ultima_temperatura_vram": "SYS-0257",
    "SistemaService.comando_monitorizar_vram": "SYS-0258",
    "SistemaService.comando_aplicar_parche_vram": "SYS-0259",
+   "SistemaService._require_cu_runtime": "SYS-0349",
    "SistemaService.obtener_mapa_cu": "SYS-0260",
    "SistemaService.obtener_dashboard_cu": "SYS-0261",
    "SistemaService.ejecutar_cu_manager": "SYS-0262",
@@ -3199,12 +3264,14 @@
    "Operation.__post_init__": "CORE-0026"
   },
   "bc250cc/shared/operation_contract.py": {
+   "OperationCancelled.__init__": "CORE-0367",
    "OperationEvent.successful": "CORE-0027",
    "OperationReport.successful": "CORE-0028",
    "OperationReport.has_structured_evidence": "CORE-0029",
    "OperationReport.verified_success": "CORE-0030",
    "OperationReport.component_failures": "CORE-0031",
    "OperationReport.reboot_required": "CORE-0032",
+   "OperationReport.cancelled": "CORE-0368",
    "OperationReport.safe_next_action": "CORE-0033",
    "parse_result_line": "CORE-0034",
    "parse_operation_log": "CORE-0035"
@@ -4092,6 +4159,7 @@
    "PreparationRenderMixin._render_fsr4_games": "UPS-0034",
    "PreparationRenderMixin._hide_superseded_native_rows": "UPS-0305",
    "PreparationRenderMixin._label_steamos_origins": "UPS-0304",
+   "PreparationRenderMixin._render_steamos_provider_details": "UPS-0328",
    "PreparationRenderMixin._apply_compatibility_filter": "UPS-0035",
    "PreparationRenderMixin.set_state": "UPS-0036"
   },
@@ -4099,6 +4167,7 @@
    "_localized": "UI-0783",
    "_detail": "UI-0874",
    "action_label": "UI-0777",
+   "action_question": "UI-0875",
    "_primary_label": "UI-0784",
    "ToolRows.__init__": "UI-0789",
    "ToolRows.cards_for": "UI-0790",
@@ -4112,7 +4181,6 @@
    "RealToolkitRows.set_root_state": "UI-0799",
    "RealToolkitRows._apply_root_status": "UI-0800",
    "RealToolkitRows.set_provider_state": "UI-0796",
-   "_installed": "UI-0801",
    "SteamOSAlternativeRows.__init__": "UI-0797",
    "SteamOSAlternativeRows.set_provider_state": "UI-0798"
   },
@@ -4300,6 +4368,7 @@
    "UpdateDialog._password_requested": "UPD-0037",
    "UpdateDialog._workflow_finished": "UPD-0038",
    "UpdateDialog._follow_install_tail": "UPD-0039",
+   "UpdateDialog._cancelled": "UPD-0087",
    "UpdateDialog._fail": "UPD-0040",
    "UpdateDialog.resumable": "UPD-0041",
    "UpdateDialog._show_terminal": "UPD-0042",
@@ -5119,6 +5188,29 @@
    "UiPreferences._normalize_stored_codes": "SET-0015",
    "report_glow_enabled": "SET-0016"
   },
+  "frontends/desktop/core/process_entries.py": {
+   "formato_bytes": "PROC-0144",
+   "ProcessEntry.memory_exact": "PROC-0145",
+   "ProcessEntry.memory": "PROC-0146",
+   "ProcessEntry.cpu": "PROC-0147",
+   "ProcessEntry.gpu": "PROC-0148",
+   "ProcessEntry.vram": "PROC-0149",
+   "ProcessEntry.vram_only": "PROC-0150",
+   "ProcessEntry.gtt": "PROC-0151",
+   "ProcessEntry.memory_tooltip": "PROC-0152",
+   "ProcessEntry.gpu_memory_tooltip": "PROC-0153",
+   "ProcessEntry.threads": "PROC-0154",
+   "ProcessEntry.closable": "PROC-0155",
+   "ProcessEntry.protected_count": "PROC-0156",
+   "ProcessEntry.fully_protected": "PROC-0157",
+   "ProcessEntry.paused": "PROC-0158",
+   "ProcessEntry.started": "PROC-0159",
+   "ProcessEntry.subtitle": "PROC-0160",
+   "ProcessEntry.status": "PROC-0161",
+   "ProcessEntry.sort_value": "PROC-0162",
+   "localized_name": "PROC-0163",
+   "build_entries": "PROC-0164"
+  },
   "frontends/desktop/core/raw_errors.py": {
    "capture": "UI-0536",
    "remember": "UI-0537",
@@ -5184,15 +5276,14 @@
   },
   "frontends/desktop/core/temperature_unit.py": {
    "temperature_unit_notifier": "UI-0850",
-   "normalize_unit": "UI-0851",
    "_settings": "UI-0852",
    "load_temperature_unit": "UI-0853",
    "temperature_unit": "UI-0854",
    "set_temperature_unit": "UI-0855",
+   "use_unit": "UI-0876",
    "is_fahrenheit": "UI-0856",
+   "_unit": "UI-0877",
    "unit_symbol": "UI-0857",
-   "celsius_to_fahrenheit": "UI-0858",
-   "fahrenheit_to_celsius": "UI-0859",
    "to_display": "UI-0860",
    "from_display": "UI-0861",
    "to_display_int": "UI-0862",
@@ -5202,7 +5293,6 @@
    "format_temperature": "UI-0866",
    "format_temperature_delta": "UI-0867",
    "temperature_number": "UI-0868",
-   "_convert_number": "UI-0869",
    "localize_temperature_text": "UI-0870",
    "reset_for_tests": "UI-0871"
   },
@@ -5577,6 +5667,7 @@
    "ComputeUnitsPage.remove_service": "CU-0090",
    "ComputeUnitsPage._run_confirmed_action": "CU-0091",
    "ComputeUnitsPage.prepare_tools": "CU-0092",
+   "ComputeUnitsPage._start_tool_preparation": "CU-0184",
    "ComputeUnitsPage._run_task": "CU-0093",
    "ComputeUnitsPage._watch_dependency_preparation": "CU-0094",
    "ComputeUnitsPage._worker_finished": "CU-0095",
@@ -5618,8 +5709,6 @@
   "frontends/desktop/pages/cpu_control_view.py": {
    "core_mask_hint": "CPU-0358",
    "ignore_core_mask_hint": "CPU-0359",
-   "is_six_core_mask": "CPU-0360",
-   "reported_core_mask": "CPU-0361",
    "CpuProfile.summary": "CPU-0060",
    "CpuProfile.detail": "CPU-0061",
    "CpuProfile.values": "CPU-0062",
@@ -6797,30 +6886,9 @@
    "SensorBoard.retranslate": "TEL-0268"
   },
   "frontends/desktop/pages/processes.py": {
-   "formato_bytes": "PROC-0001",
    "_percent_text": "PROC-0002",
    "icono_app": "PROC-0003",
    "process_stylesheet": "PROC-0004",
-   "ProcessEntry.memory_exact": "PROC-0005",
-   "ProcessEntry.memory": "PROC-0006",
-   "ProcessEntry.cpu": "PROC-0007",
-   "ProcessEntry.gpu": "PROC-0008",
-   "ProcessEntry.vram": "PROC-0009",
-   "ProcessEntry.vram_only": "PROC-0010",
-   "ProcessEntry.gtt": "PROC-0011",
-   "ProcessEntry.memory_tooltip": "PROC-0012",
-   "ProcessEntry.gpu_memory_tooltip": "PROC-0013",
-   "ProcessEntry.threads": "PROC-0014",
-   "ProcessEntry.closable": "PROC-0015",
-   "ProcessEntry.protected_count": "PROC-0016",
-   "ProcessEntry.fully_protected": "PROC-0017",
-   "ProcessEntry.paused": "PROC-0018",
-   "ProcessEntry.started": "PROC-0019",
-   "ProcessEntry.subtitle": "PROC-0020",
-   "ProcessEntry.status": "PROC-0021",
-   "ProcessEntry.sort_value": "PROC-0022",
-   "localized_name": "PROC-0023",
-   "build_entries": "PROC-0024",
    "ProcessTask.__init__": "PROC-0025",
    "ProcessTask._performance": "PROC-0026",
    "ProcessTask._snapshot": "PROC-0027",
@@ -7176,6 +7244,8 @@
   "CORE-0315",
   "CPU-0314",
   "CPU-0315",
+  "CPU-0360",
+  "CPU-0361",
   "DASH-0012",
   "DASH-0029",
   "DASH-0322",
@@ -7217,7 +7287,10 @@
   "DIAG-0141",
   "DIAG-0142",
   "DIST-0129",
+  "DIST-0155",
+  "DIST-0156",
   "DIST-0164",
+  "DIST-0217",
   "DRV-0153",
   "DRV-0154",
   "DRV-0159",
@@ -7365,6 +7438,27 @@
   "ONB-0162",
   "ONB-0163",
   "ONB-0166",
+  "PROC-0001",
+  "PROC-0005",
+  "PROC-0006",
+  "PROC-0007",
+  "PROC-0008",
+  "PROC-0009",
+  "PROC-0010",
+  "PROC-0011",
+  "PROC-0012",
+  "PROC-0013",
+  "PROC-0014",
+  "PROC-0015",
+  "PROC-0016",
+  "PROC-0017",
+  "PROC-0018",
+  "PROC-0019",
+  "PROC-0020",
+  "PROC-0021",
+  "PROC-0022",
+  "PROC-0023",
+  "PROC-0024",
   "SET-0048",
   "SET-0049",
   "SET-0076",
@@ -7462,6 +7556,11 @@
   "UI-0785",
   "UI-0786",
   "UI-0787",
-  "UI-0788"
+  "UI-0788",
+  "UI-0801",
+  "UI-0851",
+  "UI-0858",
+  "UI-0859",
+  "UI-0869"
  ]
 }

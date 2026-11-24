@@ -111,8 +111,7 @@ class AdditionalSettingsPage(Page):
         except Exception:
             drivers = {}
         # Both read files only, and change with every package action: read with the page.
-        from bc250cc.infrastructure.kernel_headers import headers_state
-        from bc250cc.infrastructure.pacman_lock import lock_state
+        from bc250cc.application.system.package_state import headers_state, lock_state
 
         state = {}
         for key, read in (("lock", lock_state), ("headers", headers_state)):

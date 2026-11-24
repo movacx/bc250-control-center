@@ -8,6 +8,16 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from bc250cc.infrastructure.steamos_real_toolkit import (
+    COMBINED_GLIBC_REASON as COMBINED_GLIBC_REASON,
+)
+from bc250cc.infrastructure.steamos_real_toolkit import (
+    COMBINED_NATIVE_ROUTE as COMBINED_NATIVE_ROUTE,
+)
+from bc250cc.infrastructure.steamos_real_toolkit_recovery import (
+    RECOVERY_REMOVE as RECOVERY_REMOVE,
+)
+
 from .steamos_providers import protected_actions
 
 REAL_TOOLKIT_SCOPE = 'SteamOS · rpf16rj'

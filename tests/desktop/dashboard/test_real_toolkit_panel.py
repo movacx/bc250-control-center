@@ -638,7 +638,7 @@ def test_steam_os_management_surfaces_ownership_and_update_losses(qtbot, tmp_pat
     assert 'Files from Real Toolkit were found for ACPI power management.' in cards['verify'].detail.text()
     assert 'Files from keyboardspecialist were found for Mesa / RADV.' in cards['verify'].detail.text()
     assert 'restart' in cards['verify'].detail.text()
-    assert 'Missing since the SteamOS update (AMDGPU module).' in cards['verify'].detail.text()
+    assert 'Missing since the SteamOS update (AMDGPU).' in cards['verify'].detail.text()
     assert cards['recovery-remove'].status.text() == 'Unsafe recovery entry'
     assert 'regenerate GRUB' in cards['recovery-remove'].detail.text()
     assert 'glibc 2.44' in cards['combined-install'].detail.text()

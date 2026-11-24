@@ -14,15 +14,12 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtWidgets import QPushButton as IconButton
 
 from bc250cc.application.preparation.steamos_providers import steamos_ownership
-from bc250cc.application.system.cachyos_kernel import DEPENDENCY_NOTE
-from bc250cc.infrastructure.steamos_real_toolkit import (
+from bc250cc.application.preparation.toolkit_rows import (
     COMBINED_GLIBC_REASON,
     COMBINED_NATIVE_ROUTE,
-)
-from bc250cc.infrastructure.steamos_real_toolkit_recovery import (
     RECOVERY_REMOVE,
-    RECOVERY_UNSAFE,
 )
+from bc250cc.application.system.cachyos_kernel import DEPENDENCY_NOTE
 
 from ..core.feature_visibility import (
     FSR4_UI_ENABLED,
@@ -54,13 +51,13 @@ def _directmesh_version(tag: object) -> tuple[int, ...]:
 SENSOR_DRIVERS = frozenset({"vram_sensor", "vrm_sensor", "apu_telemetry"})
 
 _STEAMOS_COMPONENT_NAMES = {
-    "amdgpu": "AMDGPU module", "radv": "Mesa / RADV", "acpi": "ACPI power management",
-    "audio": "Audio", "ac3": "Dolby Digital · AC-3", "dual-audio": "Dual audio output",
+    "amdgpu": "AMDGPU", "radv": "Mesa / RADV", "acpi": "ACPI power management",
+    "audio": "Audio and TV", "ac3": "Dolby Digital · AC-3", "dual-audio": "Dual audio output",
     "video": "Hardware video · VA-API", "recovery": "Boot recovery · GRUB", "proton": "Proton · FSR4",
     "alternative-proton": "BC-250 GE-Proton", "xbox-adapter": "Xbox wireless adapter",
     "aic8800": "AIC8800 · Wi-Fi / Bluetooth", "dualsense": "DualSense",
-    "cec": "HDMI-CEC", "cec-retrain": "CEC link retrain", "be200": "Intel BE200",
-    "cpu": "CPU governor", "gpu": "GPU governor", "cu": "Compute units", "cores": "Core unlock",
+    "cec": "HDMI-CEC", "cec-retrain": "HDMI-CEC", "be200": "Intel BE200",
+    "cpu": "CPU / SMU", "gpu": "GPU Governor", "cu": "Compute units", "cores": "Unlock cores",
     "fans": "Fans", "openlinkhub": "OpenLinkHub",
 }
 
@@ -1212,7 +1209,7 @@ class PreparationRenderMixin:
         if toolkit.get("unsafe_recovery"):
             recovery = cards["recovery-remove"]
             recovery.set_status("Unsafe recovery entry", "red")
-            recovery.detail.setText(" ".join((tr(RECOVERY_UNSAFE), tr(RECOVERY_REMOVE))))
+            recovery.detail.setText(tr(RECOVERY_REMOVE))
         if toolkit.get("combined_build_blocked") and not toolkit.get("foreign_graphics"):
             cards["combined-install"].detail.setText(" ".join((tr(COMBINED_GLIBC_REASON), tr(COMBINED_NATIVE_ROUTE))))
 

@@ -754,7 +754,7 @@ class CURepository:
         if not estado.get('available'):
             if 'umr was not found' in str(texto or '').lower():
                 if 'umr' in probe_bazzite_reboot_pending()['packages']:
-                    raise ActionNeeded('UMR is installed in the staged deployment. Restart to finish its installation.')
+                    raise ActionNeeded('Restart to use the staged Compute Units tools.')
                 raise ActionNeeded(
                     'The CU backend cannot find the UMR executable. Prepare the UMR component '
                     'from the Dashboard; on Bazzite, reboot if its installation is queued '
