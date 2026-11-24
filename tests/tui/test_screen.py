@@ -131,7 +131,7 @@ def test_tabs_cycle_with_brackets_and_arrows_inside_the_content():
     press(screen, ord("5"))
     assert screen.page_key == "extras" and screen._tab_key() == "compatibility"
     press(screen, ord("]"))
-    assert screen._tab_key() == "upscaling"  # the desktop's order
+    assert screen._tab_key() == "boot"
     press(screen, ord("["), ord("["))
     assert screen._tab_key() == "drivers"  # wraps around
     press(screen, 10)  # Enter: into the content

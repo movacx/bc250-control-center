@@ -106,6 +106,14 @@ def render(args):
     set_language(args.lang)
     width, height = (int(part) for part in args.size.split("x"))
     window, ctx = Window(width, height), make_context()
+    if args.live:  # this machine's own readings; loading a page only reads
+        from bc250cc.application import ApplicationContainer
+        from frontends.tui.runtime import record_metrics
+        container = ApplicationContainer.production()
+        ctx.service, ctx.settings, ctx.activity = container.system_service, container.settings_service, container.activity_service
+        for _ in range(2):
+            ctx.metrics = ctx.service.metricas_tiempo_real()
+        record_metrics(ctx, ctx.metrics)
     for patch in colour_patches(0 if args.mono else 256):
         patch.start()
     screen = Screen(window, ctx, build_pages(), None, theme="mono" if args.mono else "light" if args.light else "dark",
@@ -136,7 +144,7 @@ def main() -> int:
     parser.add_argument("--keys", default="", help="keys to press first, separated by spaces (down down i)")
     parser.add_argument("--scroll", type=int, default=0)
     parser.add_argument("--png", default="")
-    for flag in ("ascii", "mono", "light", "focus"):
+    for flag in ("ascii", "mono", "light", "focus", "live"):
         parser.add_argument("--" + flag, action="store_true")
     args = parser.parse_args()
     window = render(args)

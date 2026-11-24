@@ -6,18 +6,19 @@ from bc250cc.domain.compute_units import WgpMaskTable
 from frontends.desktop.core.cu_balance import engine_balance
 from frontends.desktop.i18n import count_label
 
-from ..compact import terminal_form
 from ..content import (
-    Buttons,
     Choice,
     Field,
+    Gap,
     Grid,
+    Info,
     Legend,
     Note,
     Pad,
     PadCell,
     PadRow,
     Panel,
+    Spans,
 )
 from ..i18n import tr, tr_format
 from .base import Page, guarded
@@ -56,8 +57,9 @@ class ComputeUnitsPage(Page):
         data = (data or {}).get("cu") if isinstance(data, dict) else None
         if not isinstance(data, dict) or not data.get("rows"):
             message = (data or {}).get("error") if isinstance(data, dict) else ""
-            return [Note(str(message or ctx.page_error.get(self.key) or tr("Waiting for data…")), "dim"),
-                    Buttons([Choice(tr("Unlock / Sync"), lambda ui_: self._read_live(ctx, ui_), tone="primary")])]
+            return [Panel("BC-250 CU Dashboard / Live Dispatch", [
+                Note(str(message or ctx.page_error.get(self.key) or tr("Waiting for data…")), "dim"),
+                Choice(tr("Unlock / Sync"), lambda ui_: self._read_live(ctx, ui_), tone="primary")])]
         masks, live = self._masks(ctx, data), self._live(data)
         rows = data["rows"][:ROWS]
         try:
@@ -83,21 +85,36 @@ class ComputeUnitsPage(Page):
 
         pad_rows = []
         for r, mask in enumerate(masks):
-            tokens = list(rows[r].get("tokens") or []) if r < len(rows) else []
+            source = rows[r] if r < len(rows) else {}
+            tokens = list(source.get("tokens") or [])
             cells = []
             for c in range(WGPS):
                 on, was = bool(mask & (1 << c)), bool(live[r] & (1 << c)) if r < len(live) else True
                 token = tokens[c] if on and was and c < len(tokens) else ("S+" if on else "--")
                 tone = "warn" if on != was else TOKEN_TONES.get(token, "ok") if on else "dim"
                 cells.append(PadCell(token, tone))
-            pad_rows.append(PadRow(str(rows[r].get("name") if r < len(rows) else f"SE{r // 2}.SH{r % 2}"), cells,
-                                   f"{bin(mask).count('1') * 2}/10", "warn" if r < len(live) and mask != live[r] else "accent"))
-        grid = Panel(tr("Compute Units"), [
-            Legend([(token, tr(label), TOKEN_TONES[token]) for token, label in LEGEND]),
+            changed = r < len(live) and mask != live[r]
+            pad_rows.append(PadRow(str(source.get("name") or f"SE{r // 2}.SH{r % 2}"), cells,
+                                   f"{bin(mask).count('1') * 2}/10", "warn" if changed else "",
+                                   extra=[(f"0x{mask:02x}", "warn" if changed else ""), (str(source.get("cc") or "--"), "dim")]))
+        # The live manager's own dashboard, line for line, with cells that can be toggled.
+        mode = ", ".join(filter(None, (f"bc250_cc_write_mode={data['amdgpu_mode']}" if data.get("amdgpu_mode") else "",
+                                      f"active_cu_number={data['amdgpu_active_cus']}" if data.get("amdgpu_active_cus") else "")))
+        facts = [(label, str(value)) for label, value in (
+            ("UMR", data.get("umr")), ("UMR inst", data.get("umr_instance")), ("ASIC", data.get("asic")), ("amdgpu", mode),
+            ("CPU", data.get("cpu_summary")), ("Source", data.get("register_source")),
+            ("Legend", data.get("legend") or "D+ driver+routed, S+ SPI+routed, D! driver+off, -- off")) if value]
+        grid = Panel("BC-250 CU Dashboard / Live Dispatch", [
+            Spans([[(f"{label:<11}", "dim"), (": ", "dim"), (value, "")] for label, value in facts]), Gap(),
             Pad([f"WGP{c}\n{2 * c}-{2 * c + 1}" for c in range(WGPS)], pad_rows,
-                tuple(state.get("cursor", (0, 0))), move, toggle, "CU\n/10",
-                place=lambda r, c: state.update(cursor=(r, c)), corner="SE/SH")],
-            badge=str(data.get("mode") or ""), badge_tone="accent")
+                tuple(state.get("cursor", (0, 0))), move, toggle, "CUs",
+                place=lambda r, c: state.update(cursor=(r, c)), corner="Row", classic=True, extra=("SPI", "CC"), info=Info(tr(
+                    "Live routing is temporary until the current table is saved and the boot service is installed. One WGP "
+                    "always represents two CUs; individual CUs cannot be toggled separately."))),
+            Spans([[("CUs active & routed", "dim"), (": ", "dim"), (f"{active}/40", "warn!" if pending else "ok!")],
+                   [(f"{'Boot sync':<19}", "dim"), (": ", "dim"), (str(data.get("boot_sync") or "--").lower(), "")]]),
+            *([Legend([("■" if ui.unicode else "#", tr("Unapplied changes"), "warn")])] if pending else []),
+        ], badge=str(data.get("mode") or ""), badge_tone="accent", wide=True)
 
         # -- the target and what to do with it
         def apply_live(ui_):
@@ -126,39 +143,39 @@ class ComputeUnitsPage(Page):
                            se0=balance.se0, se1=balance.se1) if balance.balanced else tr_format(
             "SE0 {se0} · SE1 {se1} CUs — unbalanced: performs like {effective} CUs; {idle} CUs on the stronger engine "
             "only add heat.", se0=balance.se0, se1=balance.se1, effective=balance.effective, idle=balance.idle)
+        locked = "" if ready else str(data.get("privileged_backend_reason") or detail)
+        guide = tr("Live routing is temporary until the current table is saved and the boot service is installed. One WGP "
+                   "always represents two CUs; individual CUs cannot be toggled separately.")
         target = Panel(tr_format("Target: {count} / 40 CUs", count=active), [
             Note(detail, "warn" if pending else "dim"), Note(spread, "dim" if balance.balanced else "warn"),
-            Buttons([Choice(tr("Unlock / Sync"), lambda ui_: self._read_live(ctx, ui_)),
-                     Choice(tr("Reset selection"), lambda ui_: state.pop("masks", None), enabled=bool(pending)),
-                     Choice(tr("Apply now"), apply_live, tone="primary", enabled=bool(pending) and ready)])])
-
-        shown = state.get("registers", False)
+            Choice(tr("Unlock / Sync"), lambda ui_: self._read_live(ctx, ui_), info=Info(tr(
+                "Prepare the CU tools, then press Unlock / Sync to read the live WGP table."))),
+            Choice(tr("Apply now"), apply_live, enabled=bool(pending) and ready,
+                   badge=count_label(pending, "WGP pair") if pending else "", badge_tone="warn",
+                   info=Info(guide, blocked=locked)),
+            Choice(tr("Reset selection"), lambda ui_: state.pop("masks", None), enabled=bool(pending), info=Info(tr(
+                "No pending WGP changes.") if not pending else detail))])
+        installed = bool(data.get("service_installed"))
+        steps = tr("Select the WGP pairs above, then use the buttons below in order — Apply now, Save selection, "
+                   "Install service — to make the change survive a reboot.")
         persistence = Panel(tr("Boot persistence"), [
-            Field(tr("Target"), f"{active}/40 CUs"),
-            Field(tr("Status"), tr("Enabled" if data.get("service_enabled") else "Installed" if data.get("service_installed") else "Not installed")),
-            Note(tr("Select the WGP pairs above, then use the buttons below in order — Apply now, Save selection, "
-                    "Install service — to make the change survive a reboot."), "dim"),
-            Buttons([Choice(tr("Save selection"), save, enabled=ready),
-                     Choice(tr("Install service"), action("install_service", "Install service"), enabled=ready),
-                     Choice(tr("Remove service"), action("remove_service", "Remove service", True), tone="bad",
-                            enabled=bool(data.get("service_installed"))),
-                     Choice(tr("Restore factory"), action("factory", "Restore factory", True), enabled=ready)])])
-        left = [target, persistence, Note(tr(
-            "Live routing is temporary until the current table is saved and the boot service is installed. One WGP "
-            "always represents two CUs; individual CUs cannot be toggled separately."), "dim")]
-        if shown or tab == "registers":
-            left.append(Panel(tr("Register diagnostics"), [Grid(["SE/SH", "SPI", "CC", "driver", tr("Target")], [
-                [str(row.get("name")), str(row.get("spi")), str(row.get("cc")), f"0x{int(row.get('driver_mask', 0)):02x}",
-                 f"0x{masks[index]:02x}"] for index, row in enumerate(rows)])]))
-
-        if tab == "boot":
-            return terminal_form([persistence, left[2]])
+            Choice(tr("Save selection"), save, enabled=ready, badge=tr(str(data.get("boot_sync") or "")) if data.get("boot_sync") else "",
+                   info=Info(steps, blocked=locked)),
+            Choice(tr("Install service"), action("install_service", "Install service"), enabled=ready, info=Info(steps, blocked=locked)),
+            Choice(tr("Remove service"), action("remove_service", "Remove service", True), tone="bad", enabled=installed,
+                   info=Info(steps, blocked="" if installed else tr("Not installed"))),
+            Choice(tr("Restore factory"), action("factory", "Restore factory", True), tone="bad", enabled=ready,
+                   info=Info(steps, blocked=locked))],
+            badge=tr("Enabled" if data.get("service_enabled") else "Installed" if installed else "Not installed"),
+            badge_tone="ok" if data.get("service_enabled") else "dim")
         if tab == "registers":
-            return terminal_form([left[-1], Field(tr("Source"), str(data.get("source") or "--")),
-                                  Choice(tr("Raw status"), lambda ui_: ui_.show_text(
-                                      tr("Raw status"), str(data.get("raw") or "--")))])
-        return terminal_form([grid, target, persistence,
-                              Note(tr("Apply the selection first, then save it and enable the startup service."), "dim")])
+            return [Panel(tr("Register diagnostics"), [
+                Grid(["SE/SH", "SPI", "CC", "driver", tr("Target")], [
+                    [str(row.get("name")), str(row.get("spi")), str(row.get("cc")), f"0x{int(row.get('driver_mask', 0)):02x}",
+                     f"0x{masks[index]:02x}"] for index, row in enumerate(rows)]),
+                Field(tr("Source"), str(data.get("source") or "--")),
+                Choice(tr("Raw status") + " ›", lambda ui_: ui_.show_text(tr("Raw status"), str(data.get("raw") or "--")))])]
+        return [grid, target, persistence]
 
     def _read_live(self, ctx, ui):
         ok, result = ui.run(tr("Unlock / Sync"), ctx.service.obtener_estado_cu)

@@ -79,7 +79,7 @@ def test_details_take_a_wide_screen_and_a_box_on_a_narrow_one():
     screen.goto("extras")
     screen._focus("content")
     screen.draw()
-    assert "Upstream CPU idle" not in window.text()
+    assert "remains available" not in window.text()  # one clipped line, the rest behind "i"
     window.queue = [27]
     press(screen, ord("i"))
 

@@ -21,11 +21,12 @@ from frontends.desktop.core.cpu_refresh_presenter import (
     present_cpu_tuning,
 )
 
-from ..compact import terminal_form
 from ..content import (
     Buttons,
     Choice,
     Field,
+    Gap,
+    Gauges,
     Info,
     Meter,
     Note,
@@ -38,7 +39,16 @@ from ..content import (
     percent,
 )
 from ..i18n import tr, tr_format
-from .base import Page, check, guarded, metric_blocks, stepper
+from .base import (
+    Page,
+    check,
+    guarded,
+    load_meter,
+    metric_blocks,
+    stepper,
+    temperature_meter,
+    trend,
+)
 from .dashboard import _safe
 
 # Mirrors cpu_command_policy.validate_detection_target, which stays the authority.
@@ -118,10 +128,10 @@ class CpuPage(Page):
             payload = [{key: item[key] for key in ("key", "name", "frequency", "vid", "temperature")} for item in profiles]
             guarded(ui_, tr("Export to Decky"), lambda: service.exportar_perfiles_cpu_decky(payload))
 
-        cards = Tiles([Tile(tr(item["name"]), f"{item['frequency']} MHz", f"{item['vid']} mV · {item['temperature']} °C",
-                            handler=lambda ui_, i=index: target.update(profile=i), active=index == target["profile"],
-                            edit=lambda ui_, i=index: edit(ui_, i), edit_label=tr("Edit")) for index, item in enumerate(profiles)], minimum=20)
-        profile_panel = Panel(tr("Operating profile"), [cards])
+        cards = [Choice(tr(item["name"]), lambda ui_, i=index: target.update(profile=i),
+                        f"{item['frequency']} MHz   {item['vid']:>4} mV   {number(item['temperature'], '°C')}",
+                        mark=index == target["profile"], edit=lambda ui_, i=index: edit(ui_, i), id=f"profile:{item['key']}")
+                 for index, item in enumerate(profiles)]
 
         # -- live scale test, then the one apply button
         def apply(ui_):
@@ -135,11 +145,19 @@ class CpuPage(Page):
                 if guarded(ui_, tr("CPU / SMU"), lambda: service.ejecutar_cpu_oc_temporal(f, v, t)):
                     mine["last"] = f
 
-        scale_panel = Panel(tr("Live scale test"), [
+        scale_rows = [
             check(tr("Use manual scale"), target["manual"], lambda ui_: target.update(manual=not target["manual"])),
-            *([stepper(tr("Scale"), target, "scale", *SCALE, 1, "scale")] if target["manual"] else [])])
+            *([stepper(tr("Scale"), target, "scale", *SCALE, 1, "scale")] if target["manual"] else [])]
         apply_button = Buttons([Choice(tr("Apply temporary OC + manual scale") if target["manual"]
-                                       else tr("Apply configuration + automatic scale"), apply, tone="primary")])
+                                       else tr("Apply configuration + automatic scale"), apply, tone="primary"),
+                                Choice(tr("Export to Decky"), export)])
+        profile_panel = Panel(tr("Operating profile"), [*cards, Choice(tr("Edit profile") + " ›", lambda ui_: edit(ui_, target["profile"])), Gap(), *scale_rows, apply_button])
+        clock = cpu.get("frequency_mhz")
+        live_panel = Panel(tr("Live"), [
+            Meter(tr("Frequency"), percent(float(clock) / FREQUENCY_MHZ[1] * 100) if clock else None, number(clock, "MHz"), "accent"),
+            temperature_meter(tr("Temperature"), cpu.get("temperature_c")),
+            load_meter(tr("CPU usage"), cpu.get("usage_percent")),
+            trend(ctx, "°C · 2 min", "cpu_temp", "°C")], badge=number(clock, "MHz"), badge_tone="accent")
 
         overview = [Field(tr(label), str(processor.get(key) or tr("Not exposed"))) for key, label in OVERVIEW]
         overview.append(Field(tr("Total CPU load"), number(processor.get("total_usage_percent", cpu.get("usage_percent")), "%", 0)))
@@ -171,7 +189,7 @@ class CpuPage(Page):
         for index in range(8):
             item = cores.get(index)
             if item is None:
-                slots.append(Field(f"N{index + 1}", tr("Hidden"), "dim"))
+                slots.append(Meter(f"N{index + 1}", None, tr("Hidden")))
                 continue
             usage, clock = item.get("usage_percent"), item.get("frequency_mhz")
             slots.append(Meter(f"N{index + 1}", percent(usage),
@@ -179,7 +197,7 @@ class CpuPage(Page):
                                load_tone(usage)))
         shape = tr_format("{cores} cores / {threads} threads", cores=unlock.get("physical_cores") or "--",
                           threads=unlock.get("logical_cpus") or "--")
-        cores_panel = Panel(tr("Live core monitor"), [Split(slots[:4], slots[4:], ratio=0.5, minimum=64)],
+        cores_panel = Panel(tr("Live core monitor"), [Gauges(slots, minimum=25)],
                             badge=shape, badge_tone="accent")
 
         # -- boot persistence
@@ -280,7 +298,7 @@ class CpuPage(Page):
             *([] if persistent_mode else [Choice(tr("Firmware persistence guide") + " ›", guide)]),
         ], danger=True)
 
-        sections = {"tuning": [profile_panel, scale_panel, apply_button, persistence, Buttons([Choice(tr("Export to Decky"), export)])],
+        sections = {"tuning": [profile_panel, persistence, live_panel, cores_panel],
                     "monitor": [runtime, cores_panel, overview_panel],
                     "boot": [persistence], "cores": [cores_panel, danger]}
-        return terminal_form(sections.get(tab, sections["tuning"]))
+        return sections.get(tab, sections["tuning"])

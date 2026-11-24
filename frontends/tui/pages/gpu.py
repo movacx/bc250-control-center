@@ -21,9 +21,9 @@ from ..content import (
     Buttons,
     Choice,
     Field,
-    Gap,
     Grid,
     Heading,
+    Meter,
     Note,
     Panel,
     Slider,
@@ -32,9 +32,19 @@ from ..content import (
     heat_tone,
     load_tone,
     number,
+    percent,
 )
 from ..i18n import tr
-from .base import Page, check, guarded, metric_blocks, waiting
+from .base import (
+    Page,
+    check,
+    guarded,
+    load_meter,
+    metric_blocks,
+    temperature_meter,
+    trend,
+    waiting,
+)
 
 TABS = (("governor", "Hardware control"), ("voltage", "Voltage laboratory"), ("monitor", "Sensors"))
 #: Level -> label. 0 restores the governor's own curve; 1..5 add 10..50 mV above 2000 MHz.
@@ -115,11 +125,14 @@ class GpuPage(Page):
             payload = [item.payload() for item in shown]
             guarded(ui_, tr("Export to Decky"), lambda: service.exportar_perfiles_gpu_decky(payload))
 
-        profiles = Panel(tr("Operating profile"), [Tiles([
-            Tile(tr(item.label), f"{item.minimum_mhz} – {item.maximum_mhz} MHz",
-                 f"{voltages.get(item.maximum_mhz) or '--'} mV", handler=lambda ui_, item=item: apply_profile(ui_, item),
-                 active=(item.minimum_mhz, item.maximum_mhz) == (want_min, want_max),
-                 edit=lambda ui_, item=item: edit(ui_, item), edit_label=tr("Edit")) for item in shown], minimum=20)])
+        profiles = Panel(tr("Operating profile"), [
+            *[Choice(tr(item.label), lambda ui_, item=item: apply_profile(ui_, item),
+                     f"{item.minimum_mhz:>4} – {item.maximum_mhz} MHz   {voltages.get(item.maximum_mhz) or '--'} mV",
+                     mark=(item.minimum_mhz, item.maximum_mhz) == (want_min, want_max),
+                     edit=lambda ui_, item=item: edit(ui_, item), id=f"profile:{item.key}") for item in shown],
+            Choice(tr("Edit profile") + " ›", lambda ui_: edit(ui_, next((
+                item for item in shown if (item.minimum_mhz, item.maximum_mhz) == (want_min, want_max)), shown[0])), enabled=bool(shown)),
+            Choice(tr("Export to Decky"), export)])
 
         # -- range: the rail over the TOML points, red past 2000 MHz
         def step(which):
@@ -143,10 +156,28 @@ class GpuPage(Page):
             if ui_.confirm(tr("Save active range for startup")):
                 guarded(ui_, tr("Save active range for startup"), service.guardar_rango_gpu_arranque)
 
+        def type_in(which):
+            def edit_(ui_):
+                label = tr("Minimum frequency" if which == "min" else "Maximum frequency")
+                value = ui_.ask_int(f"{label} (MHz)", low, high, want_min if which == "min" else want_max)
+                if value is not None:
+                    mine.pop("profile_key", None)
+                    mine.update({"min": value, "max": max(value, want_max)} if which == "min" else
+                                {"max": value, "min": min(value, want_min)})
+            return edit_
+
+        dirty = (want_min, want_max) != (current_min, current_max)
         rail = Panel(tr("Frequency range"), [
             Slider(stops, want_min, want_max, SAFE_CEILING),
-            Choice(tr("Minimum frequency"), None, f"< {want_min} MHz >", adjust=step("min")),
-            Choice(tr("Maximum frequency"), None, f"< {want_max} MHz >", adjust=step("max"))],
+            Choice(tr("Minimum frequency"), type_in("min"), f"< {want_min} MHz >", adjust=step("min")),
+            Choice(tr("Maximum frequency"), type_in("max"), f"< {want_max} MHz >", adjust=step("max"),
+                   tone="bad" if want_max > SAFE_CEILING else ""),
+            Field(tr("Active range"), f"{current_min}–{current_max} MHz"),
+            Buttons([Choice(tr("Review and apply range"), apply_range, tone="primary", enabled=dirty),
+                     Choice(tr("Reset selection"), lambda ui_: [mine.pop(key, None) for key in ("min", "max", "profile_key")],
+                            enabled=dirty),
+                     Choice(tr("Save for boot"), save_boot, enabled=not dirty)]),
+            Note(tr("Apply the selected range before saving it for startup."), "dim")],
             badge=f"{want_min} – {want_max} MHz", badge_tone="warn" if (want_min, want_max) != (current_min, current_max)
             else "accent")
 
@@ -188,6 +219,16 @@ class GpuPage(Page):
         # -- right: telemetry, service, laboratory, risk
         busy = gpu.get("usage_percent") if gpu.get("usage_percent") is not None else gpu.get("compute_busy_percent")
         temperature = gpu.get("temperature_c")
+        ceiling = max(high, 1)
+        clock = state.get("sclk_actual", gpu.get("frequency_mhz"))
+        live = Panel(tr("Live"), [
+            Meter(tr("Core clock"), percent(float(clock) / ceiling * 100) if clock else None, number(clock, "MHz"), "accent"),
+            temperature_meter(tr("Temperature"), temperature),
+            load_meter(tr("GPU load"), busy),
+            Field(tr("GPU voltage"), number(state.get("voltaje_actual", gpu.get("voltage_mv")), "mV")),
+            Field(tr("GPU power"), number(gpu.get("power_w"), "W")),
+            trend(ctx, "°C · 2 min", "gpu_temp", "°C")],
+            badge=number(clock, "MHz"), badge_tone="accent")
         tiles = Tiles([
             Tile(tr("Core clock"), number(state.get("sclk_actual", gpu.get("frequency_mhz")), "MHz")),
             Tile(tr("GPU voltage"), number(state.get("voltaje_actual", gpu.get("voltage_mv")), "mV")),
@@ -203,7 +244,7 @@ class GpuPage(Page):
             return handler
 
         running = state.get("service_active") == "active"
-        service_panel = Panel(tr("Governor service"), [Buttons([
+        service_panel = Panel(tr("Governor service"), [Field(tr("Status"), tr("Active") if running else tr("Stopped"), "ok" if running else "warn"), Buttons([
             Choice(tr("View status"), lambda ui_: guarded(ui_, tr("View status"), service.status_governor)),
             Choice(tr("Restart"), control("reiniciar", tr("Restart service"))),
             Choice(tr("Stop governor"), control("desactivar", tr("Stop governor"), True), tone="bad") if running
@@ -246,15 +287,10 @@ class GpuPage(Page):
             return terminal_form([service_panel, *[item for item in left if isinstance(item, Panel)
                                   and item.title == tr("Cyan kernel compatibility")]])
         if tab == "monitor":
-            return terminal_form([tiles, advanced, lab, *right[3:]])
-        persistence = Panel(tr("Boot persistence"), [
-            Field(tr("Active range"), f"{current_min}–{current_max} MHz"),
-            Note(tr("Apply the selected range before saving it for startup."), "dim"),
-            Buttons([Choice(tr("Save for boot"), save_boot, enabled=(want_min, want_max) == (current_min, current_max))])])
+            return terminal_form([live, Panel(tr("Sensors"), [tiles]), advanced])
         compatibility = [item for item in left if isinstance(item, Panel) and item.title == tr("Cyan kernel compatibility")]
-        return terminal_form([profiles, rail,
-            Buttons([Choice(tr("Review and apply range"), apply_range, tone="primary", enabled=(want_min, want_max) != (current_min, current_max))]),
-            persistence, service_panel, *compatibility, Buttons([Choice(tr("Export to Decky"), export)])])
+        risk = [item for item in right if isinstance(item, Panel) and item.danger]
+        return [profiles, rail, *compatibility, live, service_panel, lab, *risk]
 
     # ------------------------------------------------------------ voltage laboratory
 
@@ -277,15 +313,13 @@ class GpuPage(Page):
                 mine["level"] = value
             return handler
 
-        out = [Heading(tr("GPU voltage curve")), Note(tr("Choose a curve or a preset first"), "dim"),
-               Heading(tr("Curve boost"))]
+        out = [Heading(tr("Curve boost"))]
         for value, label in LEVELS:
             on = level == value
-            out.append(Choice(f"({'x' if on else ' '}) +{value * 10} mV  {tr(label)}", pick(value), tone="ok" if on else ""))
+            out.append(Choice(f"+{value * 10} mV  {tr(label)}", pick(value), mark=on))
         edit_points = tr("Custom\nEdit active points").split("\n")[-1]
-        out.append(Choice(f"({'x' if level == -1 else ' '}) {tr('Custom')}  {edit_points}", pick(-1),
-                          tone="ok" if level == -1 else ""))
-        out.append(Gap())
+        out.append(Choice(f"{tr('Custom')}  {edit_points}", pick(-1), mark=level == -1))
+        out.append(Heading(tr("GPU voltage curve")))
         rows = []
         for row in table.rows:
             if table.custom_mode and row.custom_available:
@@ -335,7 +369,6 @@ class GpuPage(Page):
             if ok:
                 custom.clear()
 
-        out += [Gap(),
-                Choice(tr("Restore governor defaults"), lambda ui_: review(ui_, True), tone="warn"),
-                Choice(tr("Review and apply"), review, tone="accent")]
+        out += [Buttons([Choice(tr("Review and apply"), review, tone="primary"),
+                         Choice(tr("Restore governor defaults"), lambda ui_: review(ui_, True), tone="warn")])]
         return out

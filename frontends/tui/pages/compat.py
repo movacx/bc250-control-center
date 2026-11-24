@@ -238,25 +238,28 @@ def kernel_options(service, setup: dict) -> Panel | None:
     arguments = state.get("arguments") or {}
     allowed = set(state.get("allowed") or (row[0] for row in kernel_option_rows.ROWS))
     managed = {key for key, value in arguments.items() if (value or {}).get("managed")}
-    rows = []
+    rows, missing = [], []
     for option, title, add, restore in kernel_option_rows.ROWS:
         item = arguments.get(option) or {}
         parameter = option in kernel_option_rows.PARAMETER_OPTIONS
         supported = ((state.get("parameters") or {}).get(option) or {}).get("supported") if parameter else \
             (state.get("cu_unlock") or {}).get("supported") if option == kernel_option_rows.CU_UNLOCK_OPTION else True
-        if option not in allowed or not (supported or item.get("managed") or item.get("configured") or item.get("external")):
-            continue
+        if option not in allowed:
+            continue  # another boot loader's or another distribution's option
+        offered = bool(supported or item.get("managed") or item.get("configured") or item.get("external"))
         status, tone = (("Set outside Control Center", "accent") if item.get("external") else
                         ("Reboot required", "warn") if bool(item.get("configured")) != bool(item.get("active")) else
-                        ("Enabled", "ok") if item.get("active") else ("Disabled", "dim"))
+                        ("Enabled", "ok") if item.get("active") else ("Disabled", "dim") if offered else ("Not available here", "dim"))
         on = option in managed
         wanted = tuple(sorted(managed - {option} if on else managed | {option}))
         name, text, button, weight = kernel_option_rows.CONFIRMATIONS.get(option, kernel_option_rows.CONFIRMATIONS["nosmt"])
         question = "" if on else tr(text)
-        actions = [] if item.get("external") else [Action(tr(restore if on else add), lambda w=wanted: service.gestionar_opciones_kernel(w),
+        actions = [] if item.get("external") or not offered else [Action(tr(restore if on else add), lambda w=wanted: service.gestionar_opciones_kernel(w),
                                                           question, not on and weight == "red", confirm=not on)]
-        rows.append(component(tr(title), tr(status), tone, tr(text), actions, undo=tr(restore),
-                              blocked=tr("Set outside Control Center") if item.get("external") else ""))
+        row = component(tr(title), tr(status), tone, f"{tr('Kernel argument')}: {option}\n\n{tr(text)}", actions, undo=tr(restore),
+                        blocked=tr("Set outside Control Center") if item.get("external") else
+                        "" if offered else tr("Not available here"))
+        (rows if offered else missing).append(row)
     smt = state.get("smt") or {}
     if smt.get("supported") and "nosmt" in allowed:
         now = str(smt.get("control") or "") == "on"
@@ -266,7 +269,7 @@ def kernel_options(service, setup: dict) -> Panel | None:
                                  "options say."),
                               [Action(tr("Turn SMT off now" if now else "Turn SMT on now"),
                                       lambda: service.gestionar_smt_vivo("off" if now else "on"))]))
-    return Panel(tr("Kernel boot options"), rows) if rows else None
+    return Panel(tr("Kernel boot options"), rows + missing, badge=str(state.get("backend") or "")) if rows or missing else None
 
 
 # -- Graphics ---------------------------------------------------------------------------------------

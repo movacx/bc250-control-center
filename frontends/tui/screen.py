@@ -9,7 +9,7 @@ import os
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from bc250cc.shared.errors import ActionNeeded
@@ -126,6 +126,7 @@ class Screen(PaletteSupport, PointerSupport):
         self._cells_at: dict[int, list[tuple[int, int, int, int]]] = {}  # y -> Pad cells (x0, x1, row, column)
         self._tab_at: list[tuple[int, int, str]] = []
         self._hits: list[tuple[int, int, int, str]] = []  # (y, x from, x to, key): legacy row geometry
+        self._names: dict[tuple[str, str], list[tuple[str, int]]] = {}  # what each item was, per page and tab
         self._explained: set[str] = set()  # pages whose rows carry details
         self.job: Console | None = None  # the running action, also while its console is out of view
         self.console_hidden = False
@@ -236,7 +237,9 @@ class Screen(PaletteSupport, PointerSupport):
 
 
     def _bottom(self) -> int:
-        return 1
+        """Rows under the content: the keys, and a line about the selected row where no pane explains it."""
+        roomy = self.size()[0] >= 20
+        return 2 if roomy and self.active_console is None and self.page_key in self._explained and not self._details_width() else 1
 
     def sidebar_width(self, width: int) -> int:
         longest = max(cell_width(tr(self.pages[key].title)) for key in self.order) + 5
@@ -277,14 +280,29 @@ class Screen(PaletteSupport, PointerSupport):
             content_width = self._content_box()[1]
         self._layout = build_page(blocks, content_width, self.glyphs)
         self._layout_key = key
+        self._keep_place(self._layout)
         return self._layout
+
+    def _keep_place(self, layout: Layout) -> None:
+        """A refresh can add or remove rows: the cursor stays on the same thing, never on its number."""
+        slot = self._slot()
+        counts: dict[str, int] = {}
+        names = []
+        for choice in layout.choices:
+            counts[choice.identity] = counts.get(choice.identity, 0) + 1
+            names.append((choice.identity, counts[choice.identity]))
+        before, self._names[slot] = self._names.get(slot), names
+        index = self.cursor.get(slot, -1)
+        if before is None or before == names or not 0 <= index < len(before):
+            return
+        self.cursor[slot] = names.index(before[index]) if before[index] in names else min(index, len(names) - 1)
 
     @staticmethod
     def _page_choices(blocks):
         pending = list(blocks)
         while pending:
             block = pending.pop()
-            if hasattr(block, "handler") and hasattr(block, "info"):
+            if hasattr(block, "info") and (hasattr(block, "handler") or hasattr(block, "toggle")):
                 yield block
             for name in ("blocks", "left", "right", "choices", "cards"):
                 pending.extend(getattr(block, name, None) or ())
@@ -319,10 +337,13 @@ class Screen(PaletteSupport, PointerSupport):
         status = (f"GPU {number(gpu.get('frequency_mhz'), 'MHz')} {number(gpu.get('temperature_c'), '°C')}   "
                   f"CPU {number(cpu.get('frequency_mhz'), 'MHz')} {number(cpu.get('temperature_c'), '°C')} ")
         title = " BC250 Control Center"
+        where = tr(self.page.title)
         version = available_version(self.ctx)
         if version:  # the desktop's update badge: Settings › About installs it
             title += "   ↑ " + tr_format("Version {version} is available", version=version)
         self.put(0, 0, title, self.attrs["accent"])
+        if width >= 100 and not version:
+            self.put(0, cell_width(title) + 1, "· " + where, self.attrs["dim"])
         job = self.job
         if job is not None and not job.done.is_set():
             frames = SPINNER[0 if self.unicode else 1]
@@ -425,8 +446,8 @@ class Screen(PaletteSupport, PointerSupport):
                 elif owner is not None and owner < 0 and -1 - owner == cursor and self.focus == "content" \
                         and tone in ("edge", "dim") and set(text) <= self._frame:
                     attr = self.attrs["accent"]  # the box of the card or grid that has the cursor
-                elif tone == "sel" and self.focus != "content":
-                    attr = self.attrs["accent"]
+                elif tone == "sel" and not (self.focus == "content" and owner is not None and -1 - owner == cursor):
+                    attr = self.attrs["accent"] | curses.A_UNDERLINE  # its place, while the cursor is elsewhere
                 self.put(y, column, text, attr, limit=width - column - 1)
                 column += width_
         if len(layout.rows) > view:  # a scrollbar: the thumb is where this view sits on the page
@@ -448,7 +469,7 @@ class Screen(PaletteSupport, PointerSupport):
         lines = self._details_lines(choice, inner)[:max(1, height - top - 4)]
         g, edge = self.glyphs, self.attrs["edge"]
         self.put(top, left, g.top[0] + g.h * (DETAILS_WIDTH - 2) + g.top[2], edge)
-        self.put(top, left + 2, " " + clip(choice.label.strip(" ›"), DETAILS_WIDTH - 6) + " ", curses.A_BOLD)
+        self.put(top, left + 2, " " + clip(choice.label.strip(" ›") or tr(self.page.title), DETAILS_WIDTH - 6) + " ", curses.A_BOLD)
         for line, (text, tone) in enumerate(lines, 1):
             self.put(top + line, left, g.v, edge)
             self.put(top + line, left + 2, text, self.attrs.get(tone, 0))
@@ -459,7 +480,7 @@ class Screen(PaletteSupport, PointerSupport):
     def _details_lines(choice, width: int) -> list[tuple[str, str]]:
         info, lines = choice.info, []
         for title, text, tone in (("Unavailable", info.blocked, "warn"), ("", info.summary, ""),
-                                  ("Risk", info.risk, "warn"), ("Undo", info.undo, "")):
+                                  ("Risk", info.risk, "warn"), ("Restore", info.undo, "")):
             if not text:
                 continue
             if lines:
@@ -481,6 +502,8 @@ class Screen(PaletteSupport, PointerSupport):
             hints.append(("Enter", "Select" if choice.pad else "Open"))
         if self._tabs():
             hints.append(("[ ] F3", "Views"))
+        if choice is not None and choice.edit:
+            hints.append(("e", "Edit"))
         if choice is not None and choice.info is not None and not self._details_width():
             hints.append(("i", "Details"))
         return hints + [(":", "Commands"), ("a", "Activity"), ("Esc", "Back"), ("?", "Help")]
@@ -490,6 +513,12 @@ class Screen(PaletteSupport, PointerSupport):
             self.put(height - 1, 1, pad(self.toast[0], width - 2), self.attrs.get(self.toast[1], 0) | curses.A_BOLD)
         else:
             self._draw_hints(self._hints())
+        choice = self.current_choice() if self._bottom() == 2 and self.focus == "content" else None
+        if choice is not None and choice.info is not None:
+            x, width_ = self._content_box()
+            blocked = choice.info.blocked
+            self.put(height - 2, x, clip(" ".join((blocked or choice.info.summary).split()), width_),
+                     self.attrs["warn" if blocked else "dim"])
 
     def _draw_hints(self, hints: list[tuple[str, str]], tail: str = "", tail_attr: int = 0, *, y: int = -1) -> None:
         """A row of keys in the accent colour with what they do dimmed (the bottom row by default).
@@ -617,6 +646,9 @@ class Screen(PaletteSupport, PointerSupport):
             choice = self.current_choice()
             if choice is not None and choice.info is not None:
                 self.show_details(choice)
+        elif key == "e" and self.focus == "content" and getattr(self.current_choice(), "edit", None):
+            choice = self.current_choice()
+            self._activate(replace(choice, handler=choice.edit))
         elif key == "f3":
             self.tab_menu()
         elif key == "f6":

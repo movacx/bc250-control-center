@@ -31,7 +31,7 @@ from ..content import (
     PadCell,
     PadRow,
     Panel,
-    Raw,
+    Spans,
     Split,
     number,
 )
@@ -47,6 +47,7 @@ ADVANCED = (("min_percent", "Minimum PWM", 0, 100), ("max_percent", "Maximum PWM
             ("start_percent", "Spin-up kick", 0, 100))
 MAX_POINTS = engine.CURVE_MAX_POINTS
 PLOT_ROWS = 9
+BRAILLE = ((0x01, 0x08), (0x02, 0x10), (0x04, 0x20), (0x40, 0x80))
 PLOT_COLS = 44  # with the axis labels, 50 columns: an 80x24 terminal's content
 
 
@@ -54,29 +55,63 @@ def say(template: str, values: dict | None = None) -> str:
     return tr_format(template, **values) if values else tr(template)
 
 
-def plot(points, current_temp) -> list[str]:
-    """The curve as a small chart: duty on the vertical axis, temperature across."""
+def plot(points, current_temp, *, unicode: bool = True, chosen: int = -1) -> list[list[tuple[str, str]]]:
+    """The curve over a faint grid: duty up, temperature across, its points marked and the reading now."""
     if not points:
         return []
     points = sorted([int(t), int(s)] for t, s in points)
-    low, high = min(t for t, _s in points) - 5, max(t for t, _s in points) + 5
-    grid = [[" "] * PLOT_COLS for _ in range(PLOT_ROWS)]
-    for col in range(PLOT_COLS):
-        temp = low + (high - low) * col / (PLOT_COLS - 1)
-        row = PLOT_ROWS - 1 - round(engine.interpolate(points, temp) / 100 * (PLOT_ROWS - 1))
-        grid[row][col] = "."
-    for temp, speed in points:
-        col = round((temp - low) / (high - low) * (PLOT_COLS - 1))
-        grid[PLOT_ROWS - 1 - round(speed / 100 * (PLOT_ROWS - 1))][col] = "o"
-    if current_temp is not None and low <= current_temp <= high:
-        col = round((current_temp - low) / (high - low) * (PLOT_COLS - 1))
-        for row in range(PLOT_ROWS):
-            if grid[row][col] == " ":
-                grid[row][col] = "|"
-    lines = [f"{round(100 * (PLOT_ROWS - 1 - index) / (PLOT_ROWS - 1)):>3} % " + "".join(row)
-             for index, row in enumerate(grid)]
-    lines.append("      " + f"{low:.0f} °C".ljust(PLOT_COLS - 8) + f"{high:.0f} °C")
-    return lines
+    low, high = min(20, points[0][0] - 5) // 10 * 10, -(-max(90, points[-1][0] + 5) // 10) * 10
+    dots_x, dots_y = (2, 4) if unicode else (1, 1)
+    width, height = PLOT_COLS, PLOT_ROWS
+    masks = [[0] * width for _ in range(height)]
+
+    def column(temp: float, scale: int = 1) -> int:
+        return round((temp - low) / (high - low) * (width * scale - 1))
+
+    def line(duty: float, scale: int = 1) -> int:
+        return height * scale - 1 - round(duty / 100 * (height * scale - 1))
+
+    previous = None
+    for x in range(width * dots_x):
+        y = line(engine.interpolate(points, low + (high - low) * x / (width * dots_x - 1)), dots_y)
+        for step in range(min(y, previous if previous is not None else y), max(y, previous if previous is not None else y) + 1):
+            masks[step // dots_y][x // dots_x] |= BRAILLE[step % 4][x % 2] if unicode else 1
+        previous = y
+    now = column(current_temp) if current_temp is not None and low <= current_temp <= high else None
+    marks = {(line(s), column(t)): index for index, (t, s) in enumerate(points)}
+    every = {column(temp): temp for temp in range(low, high + 1, 10)}
+    rows = []
+    for y in range(height):
+        duty = round(100 * (height - 1 - y) / (height - 1))
+        spans = [(f"{duty:>3} % " if y % 2 == 0 else "      ", "dim"), ("│" if unicode else "|", "edge")]
+        for x in range(width):
+            if (y, x) in marks:
+                picked = marks[y, x] == chosen
+                cell = ("●" if unicode else "o", "warn!" if picked else "accent!")
+            elif masks[y][x]:
+                cell = (chr(0x2800 + masks[y][x]) if unicode else ".", "accent")
+            elif x == now:
+                cell = ("┊" if unicode else "|", "ok")
+            elif y % 2 == 0 and x % 2 == 0:
+                cell = ("·" if unicode else " ", "edge")
+            else:
+                cell = (" ", "")
+            if spans[-1][1] == cell[1] and len(spans) > 2:
+                spans[-1] = (spans[-1][0] + cell[0], cell[1])
+            else:
+                spans.append(cell)
+        rows.append(spans)
+    rows.append([("      ", ""), (("└" if unicode else "+") + ("─" if unicode else "-") * width, "edge")])
+    axis = [" "] * (width + 4)
+    for x, temp in every.items():
+        text = str(temp)
+        start = max(0, min(width - len(text) + 2, x - len(text) // 2 + 1))
+        axis[start:start + len(text)] = text
+    rows.append([("      ", ""), ("".join(axis).rstrip() + " °C", "dim")])
+    if now is not None:
+        rows.append([("       ", ""), (tr("Now") + " ", "dim"), (number(current_temp, "°C", 1), "ok"),
+                     (" → " if unicode else " > ", "dim"), (f"{round(engine.interpolate(points, current_temp))} %", "accent!")])
+    return rows
 
 
 def with_mode(entry: dict, mode: str) -> dict:
@@ -314,13 +349,13 @@ class FansPage(Page):
             if ui_.confirm(f"{tr('Turn on control from boot')}\n{tr('Channel')}: {overview['channels_text']}"):
                 guarded(ui_, tr("Turn on"), lambda: service.activar_control_fan_sistema(policy))
 
-        buttons = [Choice(f"{tr('Profile')}: {tr(current)}", apply_profile, enabled=not external, tone="primary"),
-                   Choice(tr("Save as…"), save_profile, enabled=not external)]
+        rows = [Choice(tr("Profile"), apply_profile, f"{tr(current)} ›", enabled=not external),
+                Choice(tr("Control from boot"), boot, tr("Enabled") if enabled else tr("Disabled"),
+                       enabled=(enabled or bool(system.get("available"))) and not external, tone="ok" if enabled else "")]
+        buttons = [Choice(tr("Save as…"), save_profile, enabled=not external)]
         if saved:
             buttons.append(Choice(tr("Delete"), delete_profile, enabled=not external))
-        buttons.append(Choice(f"[{'x' if enabled else ' '}] {tr('Control from boot')}", boot,
-                              enabled=(enabled or bool(system.get("available"))) and not external))
-        return Panel(tr("Fans"), [Buttons(buttons), Note(say(template, values), TONES.get(tone, "dim"))])
+        return Panel(tr("Fans"), [*rows, Buttons(buttons), Note(say(template, values), TONES.get(tone, "dim"))], wide=True)
 
     def _table(self, ctx, mine, rows, row, dirty, open_channel, sensors, driver):
         """Every header as one row of a grid: arrows move, Enter opens it."""
@@ -445,7 +480,8 @@ class FansPage(Page):
             temperature = row["temperature"]
             if temperature is None:
                 temperature = view.finite_number(((ctx.metrics or {}).get("gpu") or {}).get("temperature_c"))
-            curve = [Raw(plot(draft.get("points") or [], temperature), "accent"), *self._points(mine, draft, set_draft)]
+            curve = [Spans(plot(draft.get("points") or [], temperature, unicode=getattr(ui, "unicode", True),
+                                chosen=(mine.get("point_cursor") or (0, 0))[0])), *self._points(mine, draft, set_draft)]
         elif mode == "mix":
             blocks.append(Note(tr("The fan takes the highest PWM of these curves, each on its own sensor."), "dim"))
             for index, member in enumerate(draft.get("mix") or []):
@@ -521,14 +557,18 @@ class FansPage(Page):
                 set_draft(points=sorted(changed))
 
         def add(ui_):
-            last = points[-1]
-            set_draft(points=points + [[min(110, last[0] + 5), min(100, last[1] + 5)]])
+            # After the chosen point: halfway to the next one, or a little past the last.
+            here = points[r]
+            after = points[r + 1] if r + 1 < len(points) else [min(110, here[0] + 10), min(100, here[1] + 10)]
+            new = [(here[0] + after[0]) // 2, (here[1] + after[1]) // 2]
+            if new[0] not in [t for t, _s in points]:
+                set_draft(points=sorted(points + [new]))
 
         rows = [PadRow(f"#{index + 1}", [PadCell(f"{t} °C"), PadCell(f"{s} %")]) for index, (t, s) in enumerate(points)]
         return [Pad([tr("Temperature"), tr("PWM %")], rows, (r, c), move, edit,
                     place=lambda rr, cc: mine.update(point_cursor=(rr, cc))),
                 Buttons([Choice(tr("Add point"), add, enabled=len(points) < MAX_POINTS),
-                         Choice(tr("Remove point"), lambda ui_: set_draft(points=points[:-1]),
+                         Choice(tr("Remove point"), lambda ui_: set_draft(points=points[:r] + points[r + 1:]),
                                 enabled=len(points) > engine.CURVE_MIN_POINTS)])]
 
     # ----------------------------------------------------------------- boot

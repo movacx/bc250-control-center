@@ -87,7 +87,7 @@ class ProcessesPage(Page):
 
         status, _tone, reason = entry.status()
         return Choice(pad(mark + entry.name, name_w) + "".join(cell.rjust(width) for cell, width in zip(cells, WIDTHS)),
-                      None if entry.fully_protected else toggle, dense=True, enabled=not entry.fully_protected,
+                      None if entry.fully_protected else toggle, dense=True, enabled=not entry.fully_protected, id="app:" + entry.key,
                       tone="dim" if entry.fully_protected else "",
                       info=Info(f"{tr(status)} · {entry.subtitle}", "", "", reason if entry.fully_protected else ""))
 

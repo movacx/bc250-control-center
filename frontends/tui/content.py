@@ -122,6 +122,21 @@ class Raw:
 
 
 @dataclass(slots=True)
+class Spans:
+    """Lines already split into coloured pieces (a chart, a schematic)."""
+
+    lines: Sequence[Sequence[tuple[str, str]]]
+
+
+@dataclass(slots=True)
+class Gauges:
+    """Small labelled bars in as many columns as fit (the eight memory chips)."""
+
+    items: Sequence["Meter"]
+    minimum: int = 26
+
+
+@dataclass(slots=True)
 class Gap:
     pass
 
@@ -169,6 +184,7 @@ class PadRow:
     cells: Sequence[PadCell]
     tail: str = ""
     tail_tone: str = ""
+    extra: Sequence[tuple[str, str]] = ()  # (text, tone) of the read-only columns
 
 
 @dataclass(slots=True)
@@ -187,6 +203,9 @@ class Pad:
     tail_header: str = ""
     place: Callable[[int, int], None] | None = None  # a tap on a cell puts the cursor there first
     corner: str = ""  # over the row names; any header may carry a second line after "\n"
+    classic: bool = False  # drawn with + - | like a command-line tool's own table, in every terminal
+    info: "Info | None" = None
+    extra: Sequence[str] = ()  # headers of read-only columns between the cells and the tail
 
 
 @dataclass(slots=True)
@@ -226,6 +245,13 @@ class Choice:
     badge: str = ""  # a status chip at the row's right edge (Active, Not installed…)
     badge_tone: str = "dim"
     info: "Info | None" = None  # what the Details pane says while the row is selected
+    mark: bool | None = None  # one of a set of options: a filled or empty radio before the label
+    edit: Callable[[object], None] | None = None  # what the "e" key changes (a profile's own numbers)
+    id: str = ""  # what the row is, when its label changes with every reading
+
+    @property
+    def identity(self) -> str:
+        return self.id or self.label
 
 
 @dataclass(frozen=True, slots=True)
@@ -252,6 +278,7 @@ class Panel:
     badge_tone: str = "dim"
     action: "Choice | None" = None  # a button on the title row (Export to Decky, Show ›)
     danger: bool = False
+    wide: bool = False  # keeps the page's whole width
 
 
 @dataclass(slots=True)
@@ -309,7 +336,7 @@ class Legend:
 
 
 Block = Heading | Field | Meter | Trend | Note | Grid | Raw | Gap | Choice | Card | Columns | Track | Pad | Chart \
-    | Panel | Tiles | Buttons | Split | Slider | Legend
+    | Panel | Tiles | Buttons | Split | Slider | Legend | Spans | Gauges
 
 
 def percent(value: object, default: float | None = None) -> float | None:

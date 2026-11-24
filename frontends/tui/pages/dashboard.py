@@ -10,15 +10,17 @@ from bc250cc.domain.telemetry import voltage_mv
 from frontends.desktop.core.dashboard_presenter import FAN_OWNER_LABELS
 
 from ..content import (
+    Buttons,
     Card,
     Choice,
-    Columns,
     Field,
     Gap,
+    Gauges,
     Grid,
     Heading,
     Meter,
     Note,
+    Panel,
     heat_tone,
     load_tone,
     number,
@@ -106,7 +108,8 @@ class DashboardPage(Page):
             (("daemon", "cu", "performance", "cpu_persistence", "fan_system"), MEDIUM_SECONDS,
              (service.estado_bc250_daemon, service.obtener_estado_cu_cache, service.rendimiento,
               service.estado_cpu_oc_persistente, service.estado_control_fan_sistema)),
-            (("tools", "gddr6"), SLOW_SECONDS, (service.estado_herramientas_bc250, service.estado_gddr6_memory_temp)),
+            (("gddr6",), MEDIUM_SECONDS, (service.estado_gddr6_memory_temp,)),
+            (("tools",), SLOW_SECONDS, (service.estado_herramientas_bc250,)),
         ):
             if now - state.get(f"{keys[0]}_at", -seconds) >= seconds or ctx.page_data.get(self.key) is None:
                 state[f"{keys[0]}_at"] = now
@@ -120,7 +123,12 @@ class DashboardPage(Page):
                                                        data["config"] or {})
         return data
 
+    def tabs(self, ctx):
+        return [("overview", tr("Dashboard")), ("prepare", tr("Prepare BC250 system"))]
+
     def build(self, ctx, data, tab, ui):
+        if tab == "prepare":
+            return self._prepare(ctx, data or {}, ui) + self._telemetry(ctx)
         if not ctx.metrics:
             return [Note(ctx.metrics_error or tr("Waiting for data…"), "bad" if ctx.metrics_error else "dim")]
         data = data or {}
@@ -148,7 +156,7 @@ class DashboardPage(Page):
         clocks = cpu.get("per_core_frequency_mhz") or []
         for index in range(8):
             if index >= max(len(usage), len(clocks)):
-                cores.append(Field(f"N{index + 1}", tr("Hidden"), "dim"))
+                cores.append(Meter(f"N{index + 1}", None, tr("Hidden")))
                 continue
             freq = clocks[index] if index < len(clocks) else None
             value = usage[index] if index < len(usage) else None
@@ -168,7 +176,7 @@ class DashboardPage(Page):
             Field(tr("Core voltage"), number(cpu_voltage / 1000 if cpu_voltage is not None else None, "V", 3)),
             Field(tr("Registered OC"), oc),
             Field(tr("Topology"), f"{cpu.get('physical_cores', '--')} / {cpu.get('logical_cores', '--')}"),
-            Heading(tr("Live core monitor")), *cores,
+            Heading(tr("Live core monitor")), Gauges(cores, minimum=25),
         ], number(cpu.get("frequency_mhz", 0) / 1000 if cpu.get("frequency_mhz") else None, "GHz", 2))
         gpu_card = Card(tr("Graphics"), [
             Heading(tr("Thermal")),
@@ -177,10 +185,8 @@ class DashboardPage(Page):
             Heading(tr("Power")),
             Field(tr("GPU power"), number(power.get("value_w", gpu.get("power_w")), "W", 0)),
             Field(tr("GPU voltage"), number((gpu.get("voltage_mv") or 0) / 1000 if gpu.get("voltage_mv") else None, "V", 3)),
-            Heading(tr("Clocks")),
-            Field("MCLK", number(gpu.get("memory_frequency_mhz"), "MHz")),
-            Field("SOCCLK", number(gpu.get("soc_frequency_mhz"), "MHz")),
-            Field("FCLK", number(gpu.get("fabric_frequency_mhz"), "MHz")),
+            Field("MCLK · SOC · FCLK", " · ".join(number(gpu.get(key)) for key in (
+                "memory_frequency_mhz", "soc_frequency_mhz", "fabric_frequency_mhz")) + " MHz"),
             Heading(tr("Memory")),
             memory_meter("VRAM", gpu.get("vram_used"), gpu.get("vram_total")),
             memory_meter("GTT", gpu.get("gtt_used"), gpu.get("gtt_total")),
@@ -196,28 +202,24 @@ class DashboardPage(Page):
         fan_cycle = pump.get("pwm")
         duty = round(int(fan_cycle) * 100 / 255) if isinstance(fan_cycle, int) else None
         cool_card = Card(tr("Cooling"), [
-            Heading(tr("Fan")),
             Meter(tr("PWM duty"), percent(duty), number(duty, "%"), "accent"),
             Field(tr("PWM mode"), tr(FAN_OWNER_LABELS.get(owner, "Not detected"))),
             Field(tr("Controller"), str(pump.get("name") or "--")),
             *heat(tr("Board temperature"), sensors.get("board_temperature_c")),
-            Heading(tr("M.2 drive")),
+        ], number(pump.get("rpm"), "RPM"))
+        disk_card = Card(tr("Storage"), [
             *heat(tr("Temperature"), sensors.get("nvme_temperature_c")),
             *heat(tr("Hotspot"), sensors.get("nvme_hotspot_temperature_c")),
             memory_meter(tr("Used"), disk.get("used", performance.get("disco_usado")),
                          disk.get("total", performance.get("disco_total"))),
             memory_meter("Swap", memory.get("swap_used"), memory.get("swap_total")),
             *extra_disk_meters(disk.get("volumes", performance.get("discos"))),
-            Heading("BIOS"),
-            Field(tr("Release"), str(data.get("bios") or ctx.state(self.key).get("bios") or self._bios(ctx))),
-        ], number(pump.get("rpm"), "RPM"))
+            Field("BIOS", str(data.get("bios") or ctx.state(self.key).get("bios") or self._bios(ctx))),
+        ])
 
-        out = [Columns([cpu_card, gpu_card, cool_card], minimum=40), Gap()]
-        out += self._gddr6(ctx, data.get("gddr6") or {}, data.get("sample") or {})
-        out += self._power(sensors)
-        out += self._telemetry(ctx)
-        out += self._prepare(ctx, data, ui)
-        return out
+        # What the board is doing first, then what its memory and its regulators read.
+        return [cpu_card, gpu_card, self._gddr6(ctx, data.get("gddr6") or {}, data.get("sample") or {}),
+                self._power(sensors), cool_card, disk_card]
 
     @staticmethod
     def _bios(ctx):
@@ -242,17 +244,16 @@ class DashboardPage(Page):
         chips = sample.get("chips") or external.get("chips") or []
         average = sample.get("average_c", external.get("average_c"))
         hotspot = sample.get("hotspot_c", external.get("hotspot_c"))
-        out = [Heading(tr("GDDR6 memory temperature"))]
+        out = []
         if average is not None:
-            reading, tone = f"{number(average, '°C', 1)}   {tr('Hotspot')} {number(hotspot, '°C', 1)}", heat_tone(hotspot)
+            out += [temperature_meter(tr("Average across 8 chips"), average), temperature_meter(tr("Hottest chip"), hotspot)]
         else:
-            reading, tone = sample.get("error") or status.get("governor_state") or tr("Waiting for data…"), "dim"
-        out.append(Field(tr("Status"), str(reading), tone))
-        for first in range(0, len(chips[:8]), 4):
-            group = chips[first:first + 4]
-            out.append(Grid([f"Chip {c.get('chip')}" for c in group],
-                            [[f"{number(c.get('temperature_c'), '°C', 1)}  MR3 0x{int(c.get('code', 0)):02X}" for c in group]],
-                            gap=6))
+            out.append(Field(tr("Status"), str(sample.get("error") or status.get("governor_state") or tr("Waiting for data…")), "dim"))
+        if chips:
+            hottest = max((c.get("temperature_c") or 0 for c in chips[:8]), default=0)
+            out += [Gap(), Gauges([Meter(f"Chip {c.get('chip')}", percent((c.get("temperature_c") or 0) / 110 * 100),
+                                         number(c.get("temperature_c"), "°C", 0) + (" ▴" if c.get("temperature_c") == hottest else "  "),
+                                         heat_tone(c.get("temperature_c"), 85, 95)) for c in chips[:8]], minimum=24), Gap()]
 
         def read(ui_):
             ok, result = ui_.run(tr("GDDR6 memory temperature"), lambda: service.leer_temperatura_vram(chips=True))
@@ -264,10 +265,12 @@ class DashboardPage(Page):
             if ui_.confirm(tr("Prepare readings")):
                 guarded(ui_, tr("GDDR6 memory temperature"), service.comando_preparar_gddr6_memory_temp)
 
-        out.append(Choice(tr("Refresh"), read, enabled=bool(status.get("reader_ready", True))))
+        buttons = [Choice(tr("Refresh"), read, enabled=bool(status.get("reader_ready", True)))]
         if not status.get("repository_ready"):
-            out.append(Choice(tr("Prepare readings"), prepare))
-        return out + [Gap()]
+            buttons.append(Choice(tr("Prepare readings"), prepare))
+        source = tr("Kernel driver") if status.get("kernel_driver") else ""
+        return Panel(tr("GDDR6 memory temperature"), [*out, Buttons(buttons)],
+                     badge=number(hotspot, "°C", 0) if hotspot is not None else source, badge_tone=heat_tone(hotspot, 85, 95))
 
     @staticmethod
     def _telemetry(ctx):
@@ -283,18 +286,19 @@ class DashboardPage(Page):
 
     @staticmethod
     def _power(sensors):
-        rails = [
-            ("Vin", number(sensors.get("vrm_input_voltage_v"), "V", 2)),
-            (tr("CPU voltage"), number(sensors.get("vrm_cpu_voltage_v"), "V", 3)),
-            (tr("GPU voltage"), number(sensors.get("vrm_gpu_voltage_v"), "V", 3)),
-            (tr("CPU current"), number(sensors.get("vrm_cpu_current_a"), "A", 1)),
-            (tr("GPU current"), number(sensors.get("vrm_gpu_current_a"), "A", 1)),
-            ("VRM CPU · " + tr("Power"), number(sensors.get("vrm_cpu_power_w"), "W", 1)),
-            ("VRM GPU · " + tr("Power"), number(sensors.get("vrm_gpu_power_w"), "W", 1)),
-            (tr("Total board power"), number(sensors.get("vrm_total_power_w"), "W", 1)),
-        ]
-        return [Heading(tr("Power")), *[Field(label, tr("Not detected") if value == "--" else value,
-                "dim" if value == "--" else "") for label, value in rails], Gap()]
+        rails = [(name, number(sensors.get(f"vrm_{key}_voltage_v"), "", 3), number(sensors.get(f"vrm_{key}_current_a"), "", 1),
+                  number(sensors.get(f"vrm_{key}_power_w"), "", 1), number(sensors.get(f"vrm_{key}_temperature_c"), "", 0))
+                 for key, name in (("cpu", "VRM CPU"), ("gpu", "VRM GPU"))]
+        total, mos = sensors.get("vrm_total_power_w"), sensors.get("vrm_mos_temperature_c")
+        rows = [*rails, ("Vin", number(sensors.get("vrm_input_voltage_v"), "", 2), "", "", ""),
+                ("VRM MOS", "", "", "", number(mos, "", 0))]
+        missing = all(cell in ("", "--") for row in rows for cell in row[1:])
+        return Panel(tr("Power delivery"), [
+            Note(tr("Not detected"), "dim") if missing else
+            Grid(["", "V", "A", "W", "°C"], rows, gap=4),
+            *([] if total is None else [Gap(), Meter(tr("Total board power"), percent(float(total) / 220 * 100), number(total, "W", 1),
+                                                     "accent")])],
+            badge=number(total, "W", 0) if total is not None else "", badge_tone="accent")
 
     # -- system preparation ------------------------------------------------------
 

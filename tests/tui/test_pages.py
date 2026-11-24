@@ -88,7 +88,7 @@ def test_cancelling_a_prompt_changes_nothing():
             return None
 
     ui = Cancelling()
-    next(c for c in render(build_pages()["cpu"], ctx, ui).choices if c.label.strip().startswith("Edit:")).handler(ui)  # the profile pencil: name, then a cancelled number
+    next(c for c in render(build_pages()["cpu"], ctx, ui).choices if c.label == "Edit profile ›").handler(ui)  # the profile pencil: name, then a cancelled number
     assert service.calls == []
 
 
@@ -292,7 +292,7 @@ def test_the_dashboard_cooling_card_shows_the_followed_fan():
 def test_fans_built_in_profile_goes_to_the_turning_headers():
     ctx, _service = fan_context()
     ui = FakeUI(choices=["Quiet"])
-    choice(render(build_pages()["fans"], ctx, ui, "channels"), "Profile: Balanced").handler(ui)
+    choice(render(build_pages()["fans"], ctx, ui, "channels"), "Profile").handler(ui)
     assert set(ctx.settings.config["fan_channels"]) == {"2", "3"}
     assert ctx.settings.config["fan_active_mode"] == "Quiet"
 
@@ -345,7 +345,8 @@ def test_extras_only_offers_what_applies_to_the_detected_family():
     page = AdditionalSettingsPage()
     ctx.state("system")["os"] = ("steamos", "SteamOS")
     text = text_of(render(page, ctx, ui, "compatibility"))
-    assert "SteamOS read-only mode" in text and "multithreading" in text  # the SMT card follows the snapshot
+    assert "multithreading" in text_of(render(page, ctx, ui, "boot"))
+    assert "SteamOS read-only mode" in text  # the SMT card follows the snapshot
     service.estado_herramientas_bc250 = lambda: {}
     ctx.state("system")["os"] = ("bazzite", "Bazzite")
     assert "SteamOS read-only mode" not in text_of(render(page, ctx, ui, "compatibility"))
@@ -356,7 +357,7 @@ def test_extras_reboot_card_runs_its_service_method_after_a_dangerous_confirmati
     service.estado_herramientas_bc250 = lambda: {"bazzite_smt": {"available": True, "configured": False,
                                                                  "reboot_required": True}}
     ctx, ui = make_context(service), FakeUI()
-    layout = render(AdditionalSettingsPage(), ctx, ui, "compatibility")
+    layout = render(AdditionalSettingsPage(), ctx, ui, "boot")
     assert "Reboot required" in text_of(layout)
     next(c for c in layout.choices if "multithreading" in c.label).handler(ui)
     assert ("gestionar_smt_bazzite", ("disable",), {}) in service.calls

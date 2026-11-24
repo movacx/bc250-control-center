@@ -7,6 +7,9 @@ what is worth offering on this system, from the tools snapshot.
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 from bc250cc.application.preparation.gpu_dependency_plan import (
     build_gpu_dependency_plan,
 )
@@ -18,7 +21,7 @@ from . import compat
 from .base import Page, guarded, os_family
 from .compat import Action
 
-TAB_TITLES = (("compatibility", "Compatibility"), ("upscaling", "Upscaling"), ("memory", "Memory & Swap"),
+TAB_TITLES = (("compatibility", "Compatibility"), ("boot", "Kernel boot options"), ("upscaling", "Upscaling"), ("memory", "Memory & Swap"),
               ("drivers", "Drivers"))
 MEMORY_POLICIES = (
     ("current", "Keep current configuration"),
@@ -124,7 +127,7 @@ class AdditionalSettingsPage(Page):
     def build(self, ctx, data, tab, ui):
         data = data or {}
         family, name = os_family(ctx)
-        build = {"upscaling": self._upscaling, "memory": self._memory, "drivers": self._drivers}.get(
+        build = {"boot": self._boot_options, "upscaling": self._upscaling, "memory": self._memory, "drivers": self._drivers}.get(
             tab or "compatibility", self._compatibility)
         return [Note(tr_format("Detected system: {distribution}", distribution=name), "dim")] + build(ctx, data, family)
 
@@ -142,8 +145,6 @@ class AdditionalSettingsPage(Page):
             compat.pacman_lock(service, data.get("lock") or {}),
             compat.read_only_mode(service, tools.get("steamos_readonly") or {}),
         ) if choice is not None])]
-        options = compat.kernel_options(service, setup)
-        out += [options] if options else []
         out.append(Panel(tr("GPU Governor"), [self._governor(ctx, tools, *entry) for entry in GOVERNORS]))
 
         gfx = tools.get("gfx1013_compute") or {}
@@ -176,6 +177,14 @@ class AdditionalSettingsPage(Page):
             session = (tools.get("steamos_readonly") or {}).get("toolkit_session") or {}
             out += compat.real_toolkit(service, tools, session)
             out.append(compat.alternative(service, tools))
+        return out
+
+    # -- Kernel boot options -------------------------------------------------------------------------
+
+    def _boot_options(self, ctx, data, family):
+        service, tools = ctx.service, data.get("tools") or {}
+        options = compat.kernel_options(service, tools.get("system_setup") or {})
+        out = [options] if options else []
         reboot = []
         for key, title, detail, method, disable, restore in REBOOT_CARDS:
             option = tools.get(key) or {}
@@ -188,7 +197,17 @@ class AdditionalSettingsPage(Page):
                 Action(tr(label), lambda m=method, a=action: getattr(service, m)(a), "", action != "restore")],
                 undo=tr(restore[1])))
         if reboot:
-            out.append(Panel(tr("Kernel boot options"), reboot))
+            out.append(Panel(tr("Kernel boot options"), reboot, badge=family))
+        if not out:
+            out.append(Panel(tr("Kernel boot options"), [Note(tr("Not available here"), "dim")]))
+        try:
+            arguments = Path("/proc/cmdline").read_text(encoding="utf-8").split()
+        except OSError:
+            arguments = []
+        if arguments:
+            out.append(Panel(tr("Kernel"), [Note("  ".join(
+                part for part in arguments if not part.startswith(("root=", "rd.luks", "resume=", "cryptdevice="))), "dim")],
+                subtitle=os.uname().release))
         return out
 
     @staticmethod

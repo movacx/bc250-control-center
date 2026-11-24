@@ -122,7 +122,7 @@ class HardwareWorkspaceTests(unittest.TestCase):
             self.assertIn("]", text)
             self.assertEqual(layout.choice_rows, [0, 0])
 
-    def test_arrow_keys_move_between_profiles_even_with_edit_buttons(self):
+    def test_arrow_keys_move_between_profiles_that_the_e_key_edits(self):
         layout = self.layout("cpu", width=120)
         screen = Screen.__new__(Screen)
         slot = ("cpu", "tuning")
@@ -142,9 +142,9 @@ class HardwareWorkspaceTests(unittest.TestCase):
             i for i, choice in enumerate(layout.choices) if choice.label == "Mid point"
         )
         screen.cursor[slot] = first
-        screen._content_key("right")
+        screen._content_key("down")
         self.assertEqual(screen.cursor[slot], second)
-        screen._content_key("left")
+        screen._content_key("up")
         self.assertEqual(screen.cursor[slot], first)
 
     def test_focus_follows_visual_rows_and_skips_disabled_actions(self):
@@ -164,7 +164,7 @@ class HardwareWorkspaceTests(unittest.TestCase):
         )
         screen.cursor[slot] = first
         screen._content_key("down")
-        self.assertEqual(layout.choices[screen.cursor[slot]].label, "Edit: Mid point")
+        self.assertEqual(layout.choices[screen.cursor[slot]].label, "Safe maximum")
         for _ in range(len(layout.choices)):
             screen._content_key("down")
             self.assertTrue(layout.choices[screen.cursor[slot]].enabled)

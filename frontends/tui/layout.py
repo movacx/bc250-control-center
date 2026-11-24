@@ -13,6 +13,7 @@ from .content import (
     Columns,
     Field,
     Gap,
+    Gauges,
     Grid,
     Heading,
     Legend,
@@ -22,6 +23,7 @@ from .content import (
     Panel,
     Raw,
     Slider,
+    Spans,
     Split,
     Tiles,
     Track,
@@ -345,8 +347,8 @@ def button_spans(choice: Choice, glyphs: Glyphs, width: int, fill: bool = False)
 def _columns(blocks, width: int, label_cap: int) -> tuple[int, int]:
     """(label width, value-text width) for ``blocks``: the two columns every row lines up on."""
     label_width = min(label_cap, max(12, width // 2), max(
-        [cell_width(b.label) for b in blocks if isinstance(b, (Field, Meter, Trend, Track)) or (
-            isinstance(b, Choice) and b.detail)] + [8]))
+        [cell_width(b.label) + (4 if isinstance(b, Choice) and b.mark is not None else 0)
+         for b in blocks if isinstance(b, (Field, Meter, Trend, Track)) or (isinstance(b, Choice) and b.detail)] + [8]))
     return label_width, max([cell_width(b.text) for b in blocks if isinstance(b, (Meter, Track, Trend))] + [0])
 
 
@@ -403,9 +405,32 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 for index, cell in enumerate(row):
                     widths[index] = max(widths[index], cell_width(str(cell)))
             gap = " " * block.gap
-            add([(gap.join(pad(str(h), widths[i]) for i, h in enumerate(block.headers)), "dim")], bold=True)
+            numeric = [index > 0 and all(str(row[index])[:1].isdigit() or str(row[index]) in ("", "--", "—", "-") for row in block.rows)
+                       for index in range(len(block.headers))]
+
+            def cells(values):
+                return gap.join(" " * (widths[i] - cell_width(str(v))) + str(v) if numeric[i] else pad(str(v), widths[i])
+                                for i, v in enumerate(values))
+
+            add([(cells(block.headers), "dim")])
             for row in block.rows:
-                add([(gap.join(pad(str(c), widths[i]) for i, c in enumerate(row)), "")])
+                add([(cells(row), "")])
+        elif isinstance(block, Spans):
+            for spans in block.lines:
+                add(list(spans))
+        elif isinstance(block, Gauges):
+            fit = max(1, min(len(block.items), (width + 3) // (block.minimum + 3)))
+            each = (width - 3 * (fit - 1)) // fit
+            names = max(cell_width(item.label) for item in block.items)
+            texts = max(cell_width(item.text) for item in block.items)
+            bar = max(MIN_BAR, each - names - texts - 3)
+            for first in range(0, len(block.items), fit):
+                spans = []
+                for item in block.items[first:first + fit]:
+                    spans += [("   ", "")] if spans else []
+                    spans += [(pad(item.label, names) + " ", "dim"), *gauge(0, item.fraction or 0, bar, item.tone, glyphs),
+                              ("  " + item.text.rjust(texts), item.tone if item.fraction is not None else "dim")]
+                add(spans)
         elif isinstance(block, Track):
             span = (block.high - block.low) or 1.0
             add([(pad(block.label, label_width), "dim"), ("  ", ""),
@@ -431,9 +456,10 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 add(spans)
         elif isinstance(block, Pad):
             index = len(layout.choices)
-            layout.choices.append(Choice("", block.toggle, pad=block))
+            layout.choices.append(Choice("", block.toggle, pad=block, info=block.info, id="pad:" + str(block.corner)))
             layout.choice_rows.append(len(layout.rows))
             cols = len(block.headers)
+            extra = list(block.extra)
             # The values set the columns' widths; headers widen them only while the cells keep room for a note.
             name_w = max(cell_width(row.name) for row in block.rows) + 2
             tail_w = max(cell_width(row.tail) for row in block.rows) + 2
@@ -444,8 +470,18 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 name_w, tail_w = max(name_w, heads[0]), max(tail_w, heads[1])
             cell_w = max(4, min(18, (width - name_w - tail_w - (cols + 3)) // max(1, cols)))
             notes = cell_w >= note_w  # too narrow for "ROUTED": the token and its colour say it
-            widths = [name_w] + [cell_w] * cols + [tail_w]
-            g = glyphs
+            extra_w = [max([cell_width(head)] + [cell_width(row.extra[i][0]) for row in block.rows if i < len(row.extra)]) + 2
+                       for i, head in enumerate(extra)]
+            if block.classic:
+                cell_w = min(cell_w, 6)
+                while extra_w and name_w + cell_w * cols + sum(extra_w) + tail_w + cols + len(extra_w) + 3 > width:
+                    if cell_w > 4:
+                        cell_w -= 1
+                    else:  # a narrow terminal keeps the cells and gives up the registers, last first
+                        extra_w.pop()
+                        extra.pop()
+            widths = [name_w] + [cell_w] * cols + extra_w + [tail_w]
+            g = Glyphs.for_terminal(unicode_ok=False) if block.classic else glyphs
 
             def rule(kind):
                 left, mid, right = kind
@@ -466,15 +502,18 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 layout.rows.append(Row(row, index, plain=True, cells=cells))
 
             rule(g.top)
-            heads = [str(text).split("\n") for text in [block.corner, *block.headers, block.tail_header]]
+            heads = [str(text).split("\n") for text in [block.corner, *block.headers, *extra, block.tail_header]]
             for level in range(max(len(head) for head in heads)):
-                line([head[level] if level < len(head) else "" for head in heads], ["" if level == 0 else "dim"] * (cols + 2))
+                line([head[level] if level < len(head) else "" for head in heads], ["" if level == 0 else "dim"] * len(widths))
             rule(g.mid)
             for r, prow in enumerate(block.rows):  # the token says the state, the colour repeats it
-                tones = ["accent"] + [("sel" if (r, c) == block.cursor else cell.tone) for c, cell in enumerate(prow.cells)]
-                line([prow.name] + [cell.text for cell in prow.cells] + [prow.tail], tones + [prow.tail_tone], r)
+                tones = ["" if block.classic else "accent"] + [("sel" if (r, c) == block.cursor else cell.tone)
+                                                               for c, cell in enumerate(prow.cells)]
+                more = list(prow.extra)[:len(extra)]
+                line([prow.name] + [cell.text for cell in prow.cells] + [text for text, _tone in more] + [prow.tail],
+                     tones + [tone for _text, tone in more] + [prow.tail_tone], r)
                 if notes and any(cell.note for cell in prow.cells):
-                    line([""] + [cell.note for cell in prow.cells] + [""], [""] + tones[1:] + [""], r)
+                    line([""] + [cell.note for cell in prow.cells] + [""] * (len(extra) + 1), [""] + tones[1:] + [""] * (len(extra) + 1), r)
             rule(g.bottom)
         elif isinstance(block, Panel):
             tone = "bad" if block.danger else "edge"
@@ -596,11 +635,15 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
             layout.choice_rows.append(len(layout.rows))
             detail = block.detail
             # A value sits in the same column as every Field's, so a section reads as one table.
-            label = (pad(block.label, label_width + 2) if cell_width(block.label) <= label_width
-                     else block.label + "  ") if detail else clip(block.label, width)
+            name = block.label if block.mark is None else \
+                ("(" + ("●" if glyphs.rule == "─" else "*") + ") " if block.mark else "( ) ") + block.label
+            label = (pad(name, label_width + 2) if cell_width(name) <= label_width
+                     else name + "  ") if detail else clip(name, width)
             tone = block.tone if block.enabled else "dim"
+            if block.mark:
+                tone = tone or "accent!"
             # A button does something; "( )"/"[x]" are options and "›" opens a menu of its own.
-            button = not (detail or block.adjust or block.info or block.label.startswith(("(", "[")) or block.label.endswith("›"))
+            button = not (detail or block.adjust or block.info or block.mark is not None or block.label.startswith(("(", "[")) or block.label.endswith("›"))
             if button:  # it does something, it is not a value
                 add(button_spans(block, glyphs, width), choice=index)
             else:
@@ -610,8 +653,10 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 room = max(0, width - cell_width(label) - cell_width(chip) - (1 if chip else 0))
                 text = clip(detail, room)
                 spans = [(label, tone), (text, "accent" if block.adjust else "dim")]
+                # The whole line is the target, so the whole line is what lights up.
+                spans.append((" " * max(0, room - cell_width(text) + (1 if chip else 0)), ""))
                 if chip:
-                    spans += [(" " * (room - cell_width(text) + 1), ""), (chip, block.badge_tone)]
+                    spans.append((chip, block.badge_tone))
                 add(spans, choice=index)
     return _reading_order(layout)
 
@@ -633,6 +678,9 @@ def page_groups(blocks: list[Block]) -> list[tuple[bool, list[Block]]]:
         if isinstance(block, Heading):
             heading = Panel(block.text, [])
             units.append((True, [heading]))
+        elif isinstance(block, Card):
+            heading = None
+            units.append((True, [block]))
         elif isinstance(block, Columns):
             heading = None
             units += [(True, [card]) for card in block.cards]
@@ -640,6 +688,7 @@ def page_groups(blocks: list[Block]) -> list[tuple[bool, list[Block]]]:
             heading = None
             # A wide table (the fan channels) is unreadable in half a screen.
             wide = isinstance(block, Panel) and any(isinstance(b, Pad) and len(b.headers) > 5 for b in block.blocks)
+            wide = wide or (isinstance(block, Panel) and block.wide)
             units.append((isinstance(block, Panel) and not wide, [block]))
         elif heading is not None:
             heading.blocks.append(block)
