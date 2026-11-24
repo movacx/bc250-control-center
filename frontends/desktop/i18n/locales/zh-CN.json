@@ -6525,5 +6525,7 @@
   "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "更新整个系统（Arch 系使用 sudo pacman -Syu），重新安装 gcc 和 gcc-libs，然后重试。",
   "The disk is read-only.": "磁盘处于只读状态。",
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux 将 Control Center 写入的文件夹挂载为只读。文件系统出错时（例如断电后）会这样。",
-  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "请保存工作并重启。如再次出现，请先用发行版的修复工具检查文件系统。"
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "请保存工作并重启。如再次出现，请先用发行版的修复工具检查文件系统。",
+  "What were you doing just before?": "出错前您正在做什么？",
+  "You already sent this one: {id}. Send it again only if something changed.": "您已发送过此报告：{id}。仅在有变化时再次发送。"
 }

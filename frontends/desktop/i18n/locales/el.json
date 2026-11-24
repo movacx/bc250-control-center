@@ -6525,5 +6525,7 @@
   "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Ενημερώστε όλο το σύστημα (sudo pacman -Syu σε συστήματα Arch), επανεγκαταστήστε τα πακέτα gcc και gcc-libs και επαναλάβετε την ενέργεια.",
   "The disk is read-only.": "Ο δίσκος είναι μόνο για ανάγνωση.",
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Το Linux προσάρτησε τον φάκελο του Control Center μόνο για ανάγνωση. Συμβαίνει όταν το σύστημα αρχείων έχει σφάλματα, π.χ. μετά από διακοπή ρεύματος.",
-  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Αποθηκεύστε τη δουλειά σας και κάντε επανεκκίνηση. Αν επαναληφθεί, ελέγξτε πρώτα το σύστημα αρχείων με το εργαλείο της διανομής."
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Αποθηκεύστε τη δουλειά σας και κάντε επανεκκίνηση. Αν επαναληφθεί, ελέγξτε πρώτα το σύστημα αρχείων με το εργαλείο της διανομής.",
+  "What were you doing just before?": "Τι κάνατε ακριβώς πριν;",
+  "You already sent this one: {id}. Send it again only if something changed.": "Το έχετε ήδη στείλει: {id}. Στείλτε το ξανά μόνο αν άλλαξε κάτι."
 }

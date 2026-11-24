@@ -6525,5 +6525,7 @@
   "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "전체 시스템을 업데이트하고(Arch 계열은 sudo pacman -Syu) gcc와 gcc-libs를 다시 설치한 뒤 작업을 다시 실행하세요.",
   "The disk is read-only.": "디스크가 읽기 전용입니다.",
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux가 Control Center가 쓰는 폴더를 읽기 전용으로 마운트했습니다. 정전 후처럼 파일 시스템에 오류가 있을 때 그렇게 합니다.",
-  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "작업을 저장하고 다시 시작하세요. 반복되면 먼저 배포판의 복구 도구로 파일 시스템을 검사하세요."
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "작업을 저장하고 다시 시작하세요. 반복되면 먼저 배포판의 복구 도구로 파일 시스템을 검사하세요.",
+  "What were you doing just before?": "바로 전에 무엇을 하고 있었나요?",
+  "You already sent this one: {id}. Send it again only if something changed.": "이미 보낸 보고서입니다: {id}. 달라진 것이 있을 때만 다시 보내세요."
 }

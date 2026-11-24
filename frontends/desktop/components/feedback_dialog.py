@@ -389,16 +389,26 @@ class FeedbackDialog(QDialog):
         column.addWidget(_row(_field("Which part of the app?", self.area), _field("Error code", self.code)))
         self.frequency = _Choice(form.FREQUENCIES)
         self.worked_before = _Choice(form.WORKED_BEFORE)
-        column.addWidget(_row(
+        # From an error window the app already knows what failed and where; the
+        # one thing only the person knows is what came before it. Few filled in
+        # the long form (5 steps in 147 reports), so it stays for the reports
+        # people start by themselves.
+        self._from_error = bool(self._reference or self._raw or self._title)
+        history = _row(
             _field("How often does it happen?", self.frequency),
             _field("Did it work before?", self.worked_before),
-        ))
+        )
+        history.setVisible(not self._from_error)
+        column.addWidget(history)
         self.seen = _Checks(form.SEEN, columns=1)
         column.addWidget(_field("What did you see?", self.seen))
         self.steps = _text_box("1. Open …  2. Press …  3. …", 84)
-        column.addWidget(_field("Steps to reproduce", self.steps))
+        column.addWidget(_field(
+            "What were you doing just before?" if self._from_error else "Steps to reproduce", self.steps))
         self.expected = _text_box('Example: "The governor keeps running after a restart"', 64)
-        column.addWidget(_field("What did you expect to happen?", self.expected))
+        expected = _field("What did you expect to happen?", self.expected)
+        expected.setVisible(not self._from_error)
+        column.addWidget(expected)
 
         system, rows = _group("Your system")
         note = QLabel(tr("Filled in from this system. Change anything that is wrong."))
@@ -559,6 +569,10 @@ class FeedbackDialog(QDialog):
         area = form.AREA_BY_SECTION.get(area_hint) or form.suggested_area(context) or form.suggested_area(summary)
         if area:
             self.area.set_value(area)
+        earlier = form.earlier_report(code, summary, application_version()) if self._from_error else None
+        if earlier:
+            self._set_status(tr_format(
+                "You already sent this one: {id}. Send it again only if something changed.", id=earlier["id"]))
         if terminal:
             self.terminal.setPlainText(form.clean_log(terminal))
 

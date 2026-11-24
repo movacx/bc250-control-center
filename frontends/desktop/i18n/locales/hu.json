@@ -6525,5 +6525,7 @@
   "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Frissítsd az egész rendszert (Arch-alapún: sudo pacman -Syu), telepítsd újra a gcc és gcc-libs csomagot, majd ismételd meg.",
   "The disk is read-only.": "A lemez csak olvasható.",
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "A Linux csak olvashatóként csatolta a Control Center mappáját. Ez fájlrendszerhibáknál történik, például áramszünet után.",
-  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Mentsd el a munkád és indíts újra. Ha ismétlődik, először ellenőrizd a fájlrendszert a disztribúció javítóeszközével."
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Mentsd el a munkád és indíts újra. Ha ismétlődik, először ellenőrizd a fájlrendszert a disztribúció javítóeszközével.",
+  "What were you doing just before?": "Mit csináltál közvetlenül előtte?",
+  "You already sent this one: {id}. Send it again only if something changed.": "Ezt már elküldted: {id}. Csak akkor küldd újra, ha valami változott."
 }

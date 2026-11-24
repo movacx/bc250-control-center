@@ -6525,5 +6525,7 @@
   "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Actualizează tot sistemul (sudo pacman -Syu pe sisteme Arch), reinstalează pachetele gcc și gcc-libs și repetă acțiunea.",
   "The disk is read-only.": "Discul este doar în citire.",
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux a montat doar în citire dosarul în care scrie Control Center. Se întâmplă la erori ale sistemului de fișiere, de exemplu după o pană de curent.",
-  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Salvează-ți munca și repornește. Dacă se repetă, verifică întâi sistemul de fișiere cu unealta distribuției tale."
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Salvează-ți munca și repornește. Dacă se repetă, verifică întâi sistemul de fișiere cu unealta distribuției tale.",
+  "What were you doing just before?": "Ce făceai chiar înainte?",
+  "You already sent this one: {id}. Send it again only if something changed.": "Ai trimis deja acest raport: {id}. Trimite-l din nou doar dacă s-a schimbat ceva."
 }

@@ -6525,5 +6525,7 @@
   "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Das ganze System aktualisieren (sudo pacman -Syu auf Arch-Systemen), die Pakete gcc und gcc-libs neu installieren und die Aktion wiederholen.",
   "The disk is read-only.": "Der Datenträger ist schreibgeschützt.",
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux hat den Ordner, in den Control Center schreibt, schreibgeschützt eingehängt. Das passiert bei Dateisystemfehlern, etwa nach einem Stromausfall.",
-  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Arbeit speichern und neu starten. Wiederholt es sich, zuerst das Dateisystem mit dem Reparaturwerkzeug der Distribution prüfen."
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Arbeit speichern und neu starten. Wiederholt es sich, zuerst das Dateisystem mit dem Reparaturwerkzeug der Distribution prüfen.",
+  "What were you doing just before?": "Was hast du direkt davor gemacht?",
+  "You already sent this one: {id}. Send it again only if something changed.": "Das hast du schon gesendet: {id}. Nur erneut senden, wenn sich etwas geändert hat."
 }

@@ -6525,5 +6525,7 @@
   "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Päivitä koko järjestelmä (sudo pacman -Syu Arch-pohjaisissa), asenna paketit gcc ja gcc-libs uudelleen ja toista toiminto.",
   "The disk is read-only.": "Levy on vain luku -tilassa.",
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux liitti Control Centerin kirjoituskansion vain luku -tilaan. Niin käy tiedostojärjestelmän virheissä, esimerkiksi sähkökatkon jälkeen.",
-  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Tallenna työsi ja käynnistä uudelleen. Jos se toistuu, tarkista ensin tiedostojärjestelmä jakelun korjaustyökalulla."
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Tallenna työsi ja käynnistä uudelleen. Jos se toistuu, tarkista ensin tiedostojärjestelmä jakelun korjaustyökalulla.",
+  "What were you doing just before?": "Mitä olit tekemässä juuri ennen?",
+  "You already sent this one: {id}. Send it again only if something changed.": "Lähetit tämän jo: {id}. Lähetä uudelleen vain, jos jokin muuttui."
 }

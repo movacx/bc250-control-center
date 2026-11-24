@@ -6525,5 +6525,7 @@
   "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Cập nhật toàn hệ thống (sudo pacman -Syu trên hệ Arch), cài lại gcc và gcc-libs rồi chạy lại.",
   "The disk is read-only.": "Ổ đĩa đang ở chế độ chỉ đọc.",
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux đã gắn thư mục mà Control Center ghi vào ở chế độ chỉ đọc. Điều này xảy ra khi hệ thống tệp có lỗi, ví dụ sau khi mất điện.",
-  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Lưu công việc và khởi động lại. Nếu lặp lại, trước hết hãy kiểm tra hệ thống tệp bằng công cụ của bản phân phối."
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Lưu công việc và khởi động lại. Nếu lặp lại, trước hết hãy kiểm tra hệ thống tệp bằng công cụ của bản phân phối.",
+  "What were you doing just before?": "Ngay trước đó bạn đang làm gì?",
+  "You already sent this one: {id}. Send it again only if something changed.": "Bạn đã gửi báo cáo này: {id}. Chỉ gửi lại nếu có gì thay đổi."
 }

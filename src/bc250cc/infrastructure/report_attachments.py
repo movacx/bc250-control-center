@@ -83,9 +83,9 @@ def _kernel_log_full() -> str:
         current = "(kernel log is not readable without administrator authorization)"
     current_lines = current.splitlines()
     return "\n".join((
-        f"[this boot, last {min(250, len(current_lines))} of {len(current_lines)} lines]",
-        *current_lines[-250:],
-        "[previous boot, last 60 lines]",
+        f"[this boot, last {min(120, len(current_lines))} of {len(current_lines)} lines]",
+        *current_lines[-120:],
+        "[previous boot, last 40 lines]",
         *previous.splitlines()[-60:],
     ))
 
@@ -160,6 +160,12 @@ def _application_files() -> str:
                 head = diag._run(["git", "-C", str(checkout), "log", "-1", "--format=%h %cs %s"])
                 lock = " · index.lock present" if (checkout / ".git/index.lock").exists() else ""
                 lines.append(f"{checkout.name}: {head or '?'}{lock}")
+    # Files of ours in places others write too: who wrote them, not what they say
+    # (R-6d0f3190: "it was not written by BC250 Control Center").
+    for path in sorted(glob.glob("/usr/local/bin/bc250*")):
+        facts = diag._run(["stat", "-c", "%A %U %s bytes %y", path])
+        owned = "ours" if "Managed by BC250 Control Center" in diag._read(path, 2000) else "no mark of ours"
+        lines.append(f"{path}: {facts or '?'} · {owned}")
     helixsr = Path.home() / ".local/share/HelixSR"
     if helixsr.is_dir():
         lines.append("[HelixSR]\n" + diag._run(["ls", "-la", str(helixsr)]))
@@ -176,6 +182,94 @@ def _workflow_logs() -> str:
         tail = clean_log(diag._ANSI.sub("", diag._read(path, 400_000))).splitlines()[-150:]
         blocks.append(f"[{path.name}]\n" + "\n".join(tail))
     return "\n\n".join(blocks) or "(no workflow has been run from the app yet)"
+
+
+def _recent_actions() -> str:
+    """The last workflows, successes too: what was done, when, how it ended."""
+    import json
+    from datetime import datetime
+
+    rows = []
+    for path in sorted(diag.workflow_log_directory().glob("workflow-*.log"), key=_mtime, reverse=True)[:25]:
+        text = diag._read(path, 400_000)
+        found = re.findall(r"^BC250_CONTEXT (\{.*\})$", text, re.M)
+        try:
+            context = json.loads(found[-1]) if found else {}
+        except ValueError:
+            context = {}
+        status = re.findall(r"^BC250_WORKFLOW exit_status=(\d+) duration_seconds=(\d+)", text, re.M)
+        ended = datetime.fromtimestamp(_mtime(path)).astimezone().isoformat(timespec="seconds")
+        name = str(context.get("action") or path.name)
+        outcome = str(context.get("outcome") or ("ended" if status else "still running or interrupted"))
+        detail = f" · exit {status[-1][0]} after {status[-1][1]} s" if status else ""
+        rows.append(f"{ended} · {name} · {outcome}{detail}")
+    return "\n".join(rows) or "(no workflow has been run from the app yet)"
+
+
+def _running_now() -> str:
+    """Who holds a lock: the package manager or a SteamOS toolkit action."""
+    lines = []
+    try:
+        from .pacman_lock import lock_state
+
+        state = lock_state()
+        if state.get("state") in {"in-use", "stale"}:
+            lines.append("pacman lock: " + str(state.get("state")) + " " + ", ".join(state.get("holders") or ()))
+    except Exception as error:  # noqa: BLE001 - a report section never fails the report
+        lines.append(f"pacman lock: not read ({type(error).__name__})")
+    try:
+        from . import steamos_real_toolkit, steamos_root_guard
+
+        session = steamos_root_guard.read_session(steamos_real_toolkit.STATE_ROOT)
+        if session:
+            running = "running" if steamos_root_guard.session_running(session) else "ended without closing"
+            lines.append(f"Real Toolkit: {session.get('action')} · {running} · started {session.get('started')}")
+    except Exception as error:  # noqa: BLE001
+        lines.append(f"Real Toolkit: not read ({type(error).__name__})")
+    names = "pacman|paru|yay|dnf|apt-get|rpm-ostree|dkms|ninja|make|cargo"
+    running = diag._run(["pgrep", "-x", "-l", names])
+    if running:
+        lines.append("[processes]\n" + running)
+    return "\n".join(lines) or "(nothing)"
+
+
+def _toolchain() -> str:
+    """The programs a build uses: a broken compiler looks like the fault of what it builds."""
+    lines = []
+    for command in (["gcc", "--version"], ["ld", "--version"], ["ld.lld", "--version"], ["clang", "--version"],
+                    ["python3", "--version"], ["ldd", "--version"], ["dkms", "--version"]):
+        if shutil.which(command[0]):
+            lines.append(f"{command[0]}: " + (diag._run(command, merge=True).splitlines() or ["?"])[0])
+    found = sorted({*glob.glob("/usr/lib/libgcc_s.so*"), *glob.glob("/usr/lib64/libgcc_s.so*"),
+                    *glob.glob("/usr/lib/x86_64-linux-gnu/libgcc_s.so*")})
+    lines.append("libgcc_s: " + (", ".join(found) or "missing"))
+    try:
+        from .kernel_headers import headers_state
+
+        state = headers_state()
+        lines.append("kernel headers: " + " · ".join(f"{key}={value}" for key, value in state.items() if value))
+    except Exception as error:  # noqa: BLE001
+        lines.append(f"kernel headers: not read ({type(error).__name__})")
+    return "\n".join(lines)
+
+
+def _upstream_logs() -> str:
+    """The logs the other projects' installers keep, condensed."""
+    from bc250cc.infrastructure.problem_report import clean_log, condense_log
+
+    paths = [Path.home() / ".cache/directmesh-build/build.log", Path.home() / ".cache/directmesh-build/setup.log"]
+    try:
+        from .steamos_real_toolkit import STATE_ROOT
+
+        paths += sorted((STATE_ROOT / "last-failure").glob("*.log"), key=_mtime, reverse=True)[:2]
+    except OSError:
+        pass
+    blocks = []
+    for path in paths:
+        text = diag._read(path, 2_000_000)
+        if text.strip():
+            blocks.append(f"[{path.name}]\n" + condense_log(clean_log(diag._ANSI.sub("", text)), 5_000))
+    return "\n\n".join(blocks) or "(none)"
 
 
 def _mtime(path: Path) -> float:
@@ -274,6 +368,10 @@ STATE_SECTIONS = (
     ("Storage", _storage_detail),
     ("Control Center files and tools", _application_files),
     ("Packages", _packages_full),
+    ("Recent actions", _recent_actions),
+    ("Running now", _running_now),
+    ("Build tools", _toolchain),
+    ("Logs of other installers", _upstream_logs),
     ("Last workflow logs", _workflow_logs),
     ("Application log", _application_log),
     ("Control Center settings", _settings),

@@ -6525,5 +6525,7 @@
   "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Werk het hele systeem bij (sudo pacman -Syu op Arch-systemen), installeer gcc en gcc-libs opnieuw en herhaal de actie.",
   "The disk is read-only.": "De schijf is alleen-lezen.",
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux heeft de map waarin Control Center schrijft alleen-lezen aangekoppeld. Dat gebeurt bij fouten in het bestandssysteem, bijvoorbeeld na een stroomstoring.",
-  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Sla je werk op en herstart. Gebeurt het weer, controleer dan eerst het bestandssysteem met het herstelprogramma van je distributie."
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Sla je werk op en herstart. Gebeurt het weer, controleer dan eerst het bestandssysteem met het herstelprogramma van je distributie.",
+  "What were you doing just before?": "Wat was je net daarvoor aan het doen?",
+  "You already sent this one: {id}. Send it again only if something changed.": "Deze heb je al verstuurd: {id}. Stuur hem alleen opnieuw als er iets veranderd is."
 }

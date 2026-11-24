@@ -6525,5 +6525,7 @@
   "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Oppdater hele systemet (sudo pacman -Syu på Arch-baserte systemer), installer gcc og gcc-libs på nytt og kjør handlingen igjen.",
   "The disk is read-only.": "Disken er skrivebeskyttet nå.",
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux monterte mappen Control Center skriver til som skrivebeskyttet. Det skjer ved feil i filsystemet, for eksempel etter et strømbrudd.",
-  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Lagre arbeidet og start på nytt. Skjer det igjen, kontroller først filsystemet med distribusjonens reparasjonsverktøy."
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Lagre arbeidet og start på nytt. Skjer det igjen, kontroller først filsystemet med distribusjonens reparasjonsverktøy.",
+  "What were you doing just before?": "Hva gjorde du rett før?",
+  "You already sent this one: {id}. Send it again only if something changed.": "Du har allerede sendt denne: {id}. Send den på nytt bare hvis noe er endret."
 }

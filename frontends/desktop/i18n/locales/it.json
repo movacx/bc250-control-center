@@ -6525,5 +6525,7 @@
   "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Aggiorna tutto il sistema (sudo pacman -Syu su sistemi Arch), reinstalla i pacchetti gcc e gcc-libs e ripeti l'azione.",
   "The disk is read-only.": "Il disco è in sola lettura.",
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux ha montato in sola lettura la cartella in cui scrive Control Center. Lo fa se il file system ha errori, per esempio dopo un blackout.",
-  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Salva il lavoro e riavvia. Se si ripete, controlla prima il file system con lo strumento di riparazione della tua distribuzione."
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Salva il lavoro e riavvia. Se si ripete, controlla prima il file system con lo strumento di riparazione della tua distribuzione.",
+  "What were you doing just before?": "Cosa stavi facendo subito prima?",
+  "You already sent this one: {id}. Send it again only if something changed.": "L'hai già inviata: {id}. Inviala di nuovo solo se qualcosa è cambiato."
 }

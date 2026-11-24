@@ -2145,6 +2145,10 @@
    "suggested_cores": "DIAG-0167",
    "history_items": "DIAG-0168",
    "os_release_subset": "DIAG-0169",
+   "condense_log": "DIAG-0184",
+   "without_repeats": "DIAG-0185",
+   "_same_log": "DIAG-0186",
+   "earlier_report": "DIAG-0187",
    "clean_log": "DIAG-0170"
   },
   "bc250cc/infrastructure/process_inventory.py": {
@@ -2247,6 +2251,10 @@
    "_size_key": "CORE-0093",
    "_application_files": "CORE-0094",
    "_workflow_logs": "CORE-0095",
+   "_recent_actions": "DIAG-0188",
+   "_running_now": "DIAG-0189",
+   "_toolchain": "DIAG-0190",
+   "_upstream_logs": "DIAG-0191",
    "_mtime": "CORE-0096",
    "_packages_full": "CORE-0097",
    "_application_log": "DIAG-0173",

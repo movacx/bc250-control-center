@@ -299,7 +299,7 @@ def payload(report: Report, *, now: datetime | None = None) -> dict:
         "upstreams": revisions,
         **workflow_details,
         "title": _short(report.workflow_title),
-        "log": _long(report.workflow_log, keep_end=True),
+        "log": _long(condense_log(report.workflow_log), keep_end=True),
     }
     document["system"] = {_short(key): _short(value) for key, value in report.system.items()}
     document["os_release"] = {key: _short(value) for key, value in report.os_release.items()}
@@ -319,7 +319,7 @@ def payload(report: Report, *, now: datetime | None = None) -> dict:
     ]
     document["attachments"] = [
         {"name": _short(name), "text": _long(text, keep_end=name.lower().startswith(("last workflow", "kernel log")))}
-        for name, text in report.attachments
+        for name, text in without_repeats(report.attachments, report.workflow_log)
     ]
     return _with_contact(_clean(document), contact)
 
@@ -609,6 +609,84 @@ def os_release_subset(values: dict[str, str]) -> dict[str, str]:
 _LOG_SYNC = re.compile(r"\x1b?\]777;[^\x07\n]*\x07?")
 #: The credits every workflow prints first (common.sh): the same in every log.
 CREDITS = re.compile(r"^(?:== )?Third-party credits(?: ==)?\n(?:Explicit workflows[^\n]*\n)?(?:- [^\n]*\n?)*", re.M)
+
+
+#: A line that says why something failed, in the words of compilers, package
+#: managers, curl, git and this app's own scripts.
+_ERROR_LINE = re.compile(
+    r"(^|[\s:\[])(fatal|error|ERROR|FATAL|FAILED|E:)(:|\]|\s\S)|\*\*\* \[|undefined reference"
+    r"|No such file or directory|not found \(required by|Traceback \(most recent|[A-Z]\w+Error: |^curl: \("
+    r"|unable to |cannot find |Permission denied|No space left"
+)
+#: What a long log keeps: its start (versions, what was asked), every line
+#: that names a failure with what is around it, and its end.
+LOG_LIMIT = 60_000
+_LOG_HEAD, _LOG_TAIL, _LOG_ERRORS = 60, 260, 120
+
+
+def condense_log(text: str, limit: int = LOG_LIMIT) -> str:
+    """The log whole when it fits; otherwise its start, its errors and its end.
+
+    The end alone lost the cause: a parallel build prints hundreds of lines
+    after the one that failed (R-b94fbe2e, R-6d239d09).
+    """
+    text = str(text or "")
+    if len(text) <= limit:
+        return text
+    lines = text.splitlines()
+    keep = set(range(min(_LOG_HEAD, len(lines)))) | set(range(max(0, len(lines) - _LOG_TAIL), len(lines)))
+    found = 0
+    for index, line in enumerate(lines):
+        if index in keep or not _ERROR_LINE.search(line):
+            continue
+        keep.update(range(max(0, index - 2), min(len(lines), index + 4)))
+        found += 1
+        if found >= _LOG_ERRORS:
+            break
+    parts: list[str] = []
+    previous = -1
+    for index in sorted(keep):
+        if index != previous + 1:
+            parts.append(f"… ({index - previous - 1} lines cut) …")
+        parts.append(lines[index] if len(lines[index]) <= 600 else lines[index][:600] + " …")
+        previous = index
+    result = "\n".join(parts)
+    return result if len(result) <= limit * 2 else result[:limit // 2] + "\n… (cut) …\n" + result[-limit:]
+
+
+def without_repeats(attachments, workflow_log: str) -> list[tuple[str, str]]:
+    """The attachments that say something, and the report's own log only once."""
+    own = {line.strip() for line in str(workflow_log or "").splitlines() if len(line.strip()) > 20}
+    kept = []
+    for name, text in attachments:
+        body = str(text or "").strip()
+        if name == "Last workflow logs" and own:
+            blocks = [block for block in re.split(r"\n\n(?=\[workflow-)", body) if not _same_log(block, own)]
+            body = "\n\n".join(blocks).strip()
+        if len(body) < 3 or (body.startswith("(") and "\n" not in body and len(body) < 120):
+            continue  # "—", "(no helper log)": nothing to read
+        kept.append((name, body))
+    return kept
+
+
+def _same_log(block: str, own: set[str]) -> bool:
+    lines = [line.strip() for line in block.splitlines()[1:] if len(line.strip()) > 20]
+    # The last lines of the block are written after the report's copy was taken.
+    sample = [line for line in lines if not line.startswith(("BC250_CONTEXT", "Full log saved"))][-30:]
+    return len(sample) >= 4 and sum(line in own for line in sample) >= 0.8 * len(sample)
+
+
+def earlier_report(code: str, summary: str, version: str, sent: list[dict] | None = None) -> dict | None:
+    """The report this computer already sent about the same failure, if any."""
+    wanted = " ".join(str(summary or "").split()).casefold()
+    for item in sent_reports() if sent is None else sent:
+        if str(item.get("kind") or KIND_PROBLEM) != KIND_PROBLEM or str(item.get("version") or "") != str(version or ""):
+            continue
+        if wanted and " ".join(str(item.get("summary") or "").split()).casefold() == wanted and str(
+            item.get("code") or ""
+        ) == str(code or ""):
+            return item
+    return None
 
 
 def clean_log(text: str) -> str:

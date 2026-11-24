@@ -6525,5 +6525,7 @@
   "Update the whole system (sudo pacman -Syu on Arch-based systems), reinstall the gcc and gcc-libs packages, then run the action again.": "Kemas kini seluruh sistem (sudo pacman -Syu pada sistem berasaskan Arch), pasang semula pakej gcc dan gcc-libs, kemudian ulangi.",
   "The disk is read-only.": "Cakera adalah baca sahaja.",
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux melekapkan folder tempat Control Center menulis sebagai baca sahaja. Ia berlaku apabila sistem fail bermasalah, contohnya selepas bekalan terputus.",
-  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Simpan kerja anda dan mulakan semula. Jika berulang, semak sistem fail dahulu dengan alat pembaikan distribusi anda."
+  "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Simpan kerja anda dan mulakan semula. Jika berulang, semak sistem fail dahulu dengan alat pembaikan distribusi anda.",
+  "What were you doing just before?": "Apa yang anda lakukan sejurus sebelum itu?",
+  "You already sent this one: {id}. Send it again only if something changed.": "Anda telah menghantar yang ini: {id}. Hantar semula hanya jika ada perubahan."
 }
