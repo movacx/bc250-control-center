@@ -18,3 +18,13 @@ def isolated_remote_access(monkeypatch):
     monkeypatch.setattr(web_access, "access_key", lambda **kwargs: "TEST-TEST")
     monkeypatch.setattr(remote_access, "configure", lambda **kwargs: None)
     return web, ssh
+
+
+@pytest.fixture(autouse=True)
+def english_again():
+    """A test that switches the interface language leaves the next one in English."""
+    from frontends.tui.i18n import set_language
+
+    set_language("en")
+    yield
+    set_language("en")
