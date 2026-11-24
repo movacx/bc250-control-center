@@ -6557,5 +6557,8 @@
   "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "关机方式也会改变:之后手柄或 USB 设备可以开启电脑。您可以在其所在行恢复普通关机。",
   "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialist 的内核兼容性支持此内核,并使用本系统自带的工具编译。两者选其一,不要同时使用。",
   "The driver already found {count} compute units when it started, more than the usual 24. The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.": "驱动程序启动时已找到 {count} 个计算单元,多于通常的 24 个。可能是 BIOS 或其他启动程序开启的:请在那里更改,否则两者会一直各自设置。",
-  "The BIOS or another program already installed a memory temperature patch. Control Center neither replaces it nor reads through it, because it can hang. BC250-Telemetry can show its readings.": "BIOS 或其他程序已安装显存温度补丁。由于它可能卡死,Control Center 既不替换也不通过它读取。BC250-Telemetry 可以显示其读数。"
+  "The BIOS or another program already installed a memory temperature patch. Control Center neither replaces it nor reads through it, because it can hang. BC250-Telemetry can show its readings.": "BIOS 或其他程序已安装显存温度补丁。由于它可能卡死,Control Center 既不替换也不通过它读取。BC250-Telemetry 可以显示其读数。",
+  "crashed one board: possibly defective cores": "曾使一块主板崩溃:核心可能有缺陷",
+  "It needs the compiler and the headers of the running kernel. Install them first: the Kernel headers row above has Repair.": "需要编译器和当前内核的头文件。请先安装：上方的内核头文件一行有“修复”。",
+  "Only S3 (memory) here: this system's initramfs does not bring a hibernated session back.": "此处仅支持 S3（内存）：本系统的 initramfs 不会恢复休眠的会话。"
 }

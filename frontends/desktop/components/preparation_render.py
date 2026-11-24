@@ -277,7 +277,9 @@ class PreparationRenderMixin:
         hibernate = info.get("mode") == "hibernate"
         note = reason or (
             "Hibernation needs a swap file or partition on the disk; there is only compressed memory now."
-            if info.get("needs_swap") and (hibernate or not info.get("s3_supported")) else ""
+            if info.get("needs_swap") and (hibernate or not info.get("s3_supported")) else
+            "Only S3 (memory) here: this system's initramfs does not bring a hibernated session back."
+            if info.get("hibernate_ready") is False else ""
         )
         card.update_action(
             buttons["install"], text="Install", payload={"accessory": "real_sleep", "op": "install"},
@@ -286,7 +288,8 @@ class PreparationRenderMixin:
         card.update_action(
             buttons["configure"], text="Use S3 (memory)" if hibernate else "Use hibernation",
             payload={"accessory": "real_sleep", "op": "mode-s3" if hibernate else "mode-hibernate"},
-            visible=state == "installed" and (not hibernate or bool(info.get("s3_supported"))),
+            visible=state == "installed" and (
+                bool(info.get("s3_supported")) if hibernate else info.get("hibernate_ready") is not False),
         )
         card.update_action(
             buttons["remove"], text="Remove", payload={"accessory": "real_sleep", "op": "remove"},

@@ -312,3 +312,15 @@ def test_a_refused_unlock_hands_the_mask_to_the_card(qtbot):
     source = __import__("inspect").getsource(CpuSmuPage._process_finished)
     assert cpu_control_integration._ATTRIBUTE in source
     assert "Unlock CPU cores and restart" in CORE_UNLOCK_OPERATIONS
+
+
+def test_a_mask_an_owner_saw_crash_says_so_in_brackets(qtbot):
+    from frontends.desktop.pages.cpu_control_view import CORE_MASK_LABEL, CoreMaskLine
+
+    line = CoreMaskLine(CORE_MASK_LABEL)
+    qtbot.addWidget(line)
+    assert "not verified (crashed one board" in line._text(0xE7)
+    assert "(" not in line._text(0xB7)
+    # It is still said when that is the mask this board reads.
+    line.set_board_mask(0xE7)
+    assert "read on this board (crashed one board" in line._text(0xE7)

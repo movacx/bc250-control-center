@@ -41,3 +41,9 @@ def test_the_power_off_button_offers_the_other_way(qtbot):
     assert buttons["poweroff"].request_payload["op"] == "poweroff-wake"
     _sidebar, buttons = _row(qtbot, state="not-installed")
     assert buttons["poweroff"].isHidden()
+
+
+def test_hibernation_is_not_offered_where_it_would_lose_the_session(qtbot):
+    sidebar, buttons = _row(qtbot, state="installed", mode="s3", hibernate_ready=False)
+    assert buttons["configure"].isHidden()
+    assert sidebar._accessory_notes["real_sleep"].text().startswith("Only S3")

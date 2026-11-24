@@ -678,6 +678,8 @@
   "bc250cc/infrastructure/accessories/real_sleep.py": {
    "_read": "DRV-0185",
    "_homes": "DRV-0186",
+   "build_ready": "DRV-0200",
+   "resume_ready": "DRV-0201",
    "unlocked_from_mask": "DRV-0198",
    "inventory": "DRV-0187",
    "_header": "DRV-0188",

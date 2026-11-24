@@ -40,11 +40,12 @@ def test_supported_board_without_installation(board, family):
     assert real_sleep.inventory(family, root=board) == {
         "state": "not-installed", "reason": "", "version": "1.2.3", "mode": "",
         "s3_supported": True, "spare_cores_blocked": False, "conflicts": (), "needs_swap": True, "power_off": "default",
+        "hibernate_ready": family != "cachyos",
     }
 
 
 def test_unsupported_family_and_board(board):
-    assert real_sleep.inventory("arch", root=board)["state"] == "unsupported"
+    assert real_sleep.inventory("fedora", root=board)["state"] == "unsupported"
     write(board, "sys/class/dmi/id/board_name", "Another board")
     info = real_sleep.inventory("steamos", root=board)
     assert info["state"] == "unsupported" and info["reason"]
@@ -186,7 +187,7 @@ def test_bios_and_mask_guards_and_explicit_subcommands():
 def test_invalid_inputs_are_refused():
     for builder in (real_sleep.install_command, real_sleep.remove_command):
         with pytest.raises(RuntimeError):
-            builder("arch")
+            builder("fedora")
     with pytest.raises(ValueError):
         real_sleep.install_command("steamos", mode="reboot")
     with pytest.raises(ValueError):
@@ -326,3 +327,50 @@ def test_a_bios_or_an_override_that_unlocks_too_proves_nothing(tmp_path):
     assert real_sleep.unlocked_from_mask(tmp_path) == 0x77
     write(tmp_path, real_sleep.UNLOCK_UNIT + ".d/override.conf")
     assert real_sleep.unlocked_from_mask(tmp_path) is None
+
+
+def arch(root, *, build=True, distro="arch"):
+    write(root, "etc/os-release", f'NAME="x"\nID={distro}\n')
+    write(root, "proc/sys/kernel/osrelease", "7.3.5-arch1-1\n")
+    write(root, "proc/version", "Linux version 7.3.5 (gcc)\n")
+    write(root, "etc/mkinitcpio.conf", "HOOKS=(base udev filesystems fsck)\n")
+    if build:
+        write(root, "usr/lib/modules/7.3.5-arch1-1/build/Makefile")
+        for program in ("gcc", "make", "objdump"):
+            write(root, f"usr/bin/{program}")
+
+
+def test_arch_itself_is_offered_and_its_derivatives_are_not(board):
+    arch(board)
+    info = real_sleep.inventory("arch", root=board)
+    assert info["state"] == "not-installed" and not info["reason"]
+    write(board, "etc/os-release", "ID=endeavouros\n")
+    assert real_sleep.inventory("arch", root=board)["state"] == "unsupported"
+
+
+def test_arch_without_headers_is_refused_before_a_partial_update(board):
+    arch(board, build=False)
+    assert real_sleep.inventory("arch", root=board)["reason"] == real_sleep.REASON_TOOLS
+    script = real_sleep.install_command("arch")
+    assert 'info["reason"] == REASON_TOOLS' in script and "def build_ready" in script
+    # A kernel built with clang needs clang, not gcc.
+    arch(board)
+    write(board, "proc/version", "Linux version (clang version 21)\n")
+    assert real_sleep.inventory("arch", root=board)["reason"] == real_sleep.REASON_TOOLS
+
+
+@pytest.mark.parametrize("conf,extra,cmdline,ready", [
+    ("HOOKS=(base udev fsck)", "", "root=x", False),
+    ("HOOKS=(base systemd fsck)", "", "root=x", True),
+    ("HOOKS=(base udev resume)", "", "root=x", False),
+    ("HOOKS=(base udev resume)", "", "root=x resume=/dev/x", True),
+    ("HOOKS=(base udev)", "HOOKS+=(resume)", "resume=/dev/x", True),
+    ("#HOOKS=(systemd)\nHOOKS=(base udev)", "", "", False),
+])
+def test_hibernation_needs_an_initramfs_that_resumes(board, conf, extra, cmdline, ready):
+    write(board, "etc/mkinitcpio.conf", conf + "\n")
+    write(board, "etc/mkinitcpio.conf.d/x.conf", extra + "\n")
+    write(board, "proc/cmdline", cmdline + "\n")
+    assert real_sleep.resume_ready(board) is ready
+    assert "resume_ready" in real_sleep.set_mode_command("hibernate")
+    assert "resume_ready" not in real_sleep.set_mode_command("s3")

@@ -110,6 +110,8 @@ CORE_MASK_STOCK = 0x77
 #: (issue 37), 0x7D (R-1bad18d0, rw-r-r-0644 issue 2) and 0xD7 (same issue).
 CORE_MASK_STANDARD_TEXT = "0x77 · standard (normal check)"
 CORE_MASK_SEEN = (0xB7, 0xE7, 0x7D, 0xD7)
+#: What an owner said about a mask, in brackets after it (0xE7: issue 37).
+CORE_MASK_WARNINGS = {0xE7: "crashed one board: possibly defective cores"}
 CORE_MASK_SEEN_TEXT = "{mask} · not verified"
 CORE_MASK_READ_TEXT = "{mask} · read on this board"
 #: The sentences shared by the mask list, the force box and both confirmations.
@@ -592,7 +594,9 @@ class CoreMaskLine(QWidget):
         if mask == CORE_MASK_STOCK:
             return tr(CORE_MASK_STANDARD_TEXT)
         source = CORE_MASK_READ_TEXT if mask == self._board_mask else CORE_MASK_SEEN_TEXT
-        return tr_format(source, mask=f"0x{mask:02X}")
+        text = tr_format(source, mask=f"0x{mask:02X}")
+        warning = CORE_MASK_WARNINGS.get(mask)
+        return f"{text} ({tr(warning)})" if warning else text
 
     def set_board_mask(self, mask: int | None) -> None:
         """List and pick the mask a tool read on this board (once per reading)."""
