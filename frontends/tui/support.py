@@ -9,6 +9,7 @@ console pane or on a background thread, never on the drawing thread.
 from __future__ import annotations
 
 import configparser
+import json
 import os
 import threading
 from pathlib import Path
@@ -111,10 +112,10 @@ def report(ui, *, title: str = "", log: str = "", workflow_details=None) -> None
         if expected is None:
             return
     contact = ui.ask_text(tr("Telegram or Discord username"), "")
-    if contact is None or not ui.confirm(tr("Send") + "?"):
+    if contact is None:
         return
 
-    def send() -> str:
+    def build():
         from bc250cc.shared.version import application_version
 
         facts = read_report_facts()
@@ -122,11 +123,21 @@ def report(ui, *, title: str = "", log: str = "", workflow_details=None) -> None
                                                "install", "distribution", "bios", "cores") if key in facts}
         fields["history"] = form.history_items(facts.get("history", ()))
         problem = kind == form.KIND_PROBLEM
-        document = form.Report(
+        return form.Report(
             kind=kind, expected=expected, summary=text if problem else "", notes="" if problem else text, contact=contact,
             version=str(facts.get("version") or application_version()), opened_from="tui",
             language=current_language(), workflow_title=title if log else "", workflow_log=form.clean_log(log),
             workflow_details=dict(workflow_details or {}), **fields)
+
+    # The same document that would leave, already without personal data: read first, then decide.
+    ok, document = ui.run(tr("Preview"), build)
+    if not ok or not isinstance(document, form.Report):
+        return
+    ui.show_text(tr("Preview"), json.dumps(form.payload(document), indent=2, ensure_ascii=False))
+    if not ui.confirm(tr("Send") + "?"):
+        return
+
+    def send() -> str:
         try:
             return f"{tr('Thanks, it was sent')} ({form.submit(document)})"
         except form.ReportError as error:

@@ -8,18 +8,30 @@ the desktop Fans page and the web interface use.
 
 from __future__ import annotations
 
+import json
+import time
+from pathlib import Path
+
 from bc250cc.application.fan import board_view as view
 from bc250cc.application.fan.board_actions import (
     FanBoardActions,
     FanBoardError,
     needs_low_duty_confirmation,
 )
+from bc250cc.application.fan.calibration import CalibrationResult, calibrate
+from bc250cc.application.fan.calibration_io import hottest_temperature, read_int
 from bc250cc.application.fan.system_control import (
     build_system_fan_policy,
     policy_overview,
 )
 from bc250cc.domain.fan import engine
 from bc250cc.domain.fan.channels import BUILTIN_MODE_NAMES
+from bc250cc.domain.fan.profile_exchange import (
+    MAX_DOCUMENT_BYTES,
+    channel_profiles_document,
+    imported_profile_updates,
+    parse_channel_profiles_document,
+)
 
 from ..content import (
     Buttons,
@@ -48,7 +60,7 @@ ADVANCED = (("min_percent", "Minimum PWM", 0, 100), ("max_percent", "Maximum PWM
 MAX_POINTS = engine.CURVE_MAX_POINTS
 PLOT_ROWS = 9
 BRAILLE = ((0x01, 0x08), (0x02, 0x10), (0x04, 0x20), (0x40, 0x80))
-PLOT_COLS = 44  # with the axis labels, 50 columns: an 80x24 terminal's content
+PLOT_COLS = 38  # with the axis labels, 50 columns: an 80x24 terminal's content
 
 
 def say(template: str, values: dict | None = None) -> str:
@@ -280,7 +292,8 @@ class FansPage(Page):
             driver = "No NCT fan controller was found. Prepare the PWM driver to read and control the fans."
         elif fans_state and not view.control_available(fans_state):
             driver = "The fans are shown read-only. Prepare the nct6687 PWM driver to control them."
-        table = self._table(ctx, mine, rows, row, dirty, open_channel, sensors, driver)
+        narrow = hasattr(ui, "size") and ui.size()[1] < 110
+        table = self._table(ctx, mine, rows, row, dirty, open_channel, sensors, driver, narrow)
         editor = self._editor(ctx, ui, mine, row, draft, dirty, apply, actions, external, system)
         return out + table + editor
 
@@ -352,12 +365,37 @@ class FansPage(Page):
         rows = [Choice(tr("Profile"), apply_profile, f"{tr(current)} ›", enabled=not external),
                 Choice(tr("Control from boot"), boot, tr("Enabled") if enabled else tr("Disabled"),
                        enabled=(enabled or bool(system.get("available"))) and not external, tone="ok" if enabled else "")]
-        buttons = [Choice(tr("Save as…"), save_profile, enabled=not external)]
+        def export(ui_):
+            path = ui_.ask_text(tr("Export fan profiles"), str(Path.home() / "bc250-fan-profiles.json"))
+            if path:
+                document = channel_profiles_document(list(config.get("fan_profiles") or []), config)
+                ok, _result = ui_.run(tr("Export fan profiles"), lambda: Path(path).expanduser().write_text(
+                    json.dumps(document, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"))
+                ui_.notify(tr("Saved") if ok else tr("Could not export fan profiles"), "ok" if ok else "bad")
+
+        def bring_in(ui_):
+            path = ui_.ask_text(tr("Import fan profiles"), str(Path.home() / "bc250-fan-profiles.json"))
+            if not path:
+                return
+
+            def work():
+                source = Path(path).expanduser()
+                if source.stat().st_size > MAX_DOCUMENT_BYTES:
+                    raise ValueError("This file is not a BC250 fan profile export.")
+                bundle = parse_channel_profiles_document(json.loads(source.read_text(encoding="utf-8")))
+                ctx.settings.save_local_config(imported_profile_updates(
+                    ctx.settings.read_local_config(), bundle, snapshot_name=source.stem[:24]))
+                return tr("Fan profiles imported")
+
+            self._run(ctx, ui_, tr("Import fan profiles"), work)
+
+        buttons = [Choice(tr("Save as…"), save_profile, enabled=not external),
+                   Choice(tr("Export to a file…"), export), Choice(tr("Import from a file…"), bring_in, enabled=not external)]
         if saved:
             buttons.append(Choice(tr("Delete"), delete_profile, enabled=not external))
         return Panel(tr("Fans"), [*rows, Buttons(buttons), Note(say(template, values), TONES.get(tone, "dim"))], wide=True)
 
-    def _table(self, ctx, mine, rows, row, dirty, open_channel, sensors, driver):
+    def _table(self, ctx, mine, rows, row, dirty, open_channel, sensors, driver, narrow=False):
         """Every header as one row of a grid: arrows move, Enter opens it."""
         count = len(rows)
         cursor = tuple(mine.get("cursor") or (rows.index(row), 0))
@@ -378,19 +416,24 @@ class FansPage(Page):
             r = (mine.get("cursor") or cursor)[0]
             open_channel(ui_, rows[r]["pwm"])
 
+        # A narrow terminal keeps what changes: the mode, the output and the speed.
+        shown = (1, 4, 5) if narrow else (0, 1, 2, 3, 4, 5)
+        heads = ["BIOS", tr("Mode"), tr("Follows"), "°C", tr("PWM %"), "RPM"]
         pad_rows = []
         for item in rows:
             mode = tr(item["mode_label"]) + (f" · {tr('Pump')}" if item["role"] == "pump" and item["mode"] != "firmware" else "")
             temperature = f"{item['temperature']:.1f}" if item["temperature"] is not None else "—"
             mark = ">" if item["pwm"] == row["pwm"] else " "
-            pad_rows.append(PadRow(f"{mark} {item['label'] or item['short_header']}", [
+            cells = [
                 PadCell(str(item["bios"] or "—")),
                 PadCell(mode, "accent" if item["mode"] != "firmware" else ""),
                 PadCell(say(item["follows"], item["follows_values"]) if item["mode"] != "firmware" else "—"),
                 PadCell(temperature),
                 PadCell(str(item["duty"]) if item["duty"] is not None else "—"),
                 PadCell(str(item["rpm"]) if item["rpm"] is not None else "—", "ok" if (item["rpm"] or 0) > 0 else "dim"),
-            ], say(item["state"]), TONES.get(item["tone"], "dim")))
+            ]
+            pad_rows.append(PadRow(f"{mark} {item['label'] or item['short_header']}", [cells[i] for i in shown],
+                                   say(item["state"]), TONES.get(item["tone"], "dim")))
         counts = [tr_format("{count} channels", count=count),
                   tr_format("{count} turning", count=sum(1 for r in rows if (r["rpm"] or 0) > 0)),
                   tr_format("{count} controlled", count=sum(1 for r in rows if r["mode"] != "firmware"))]
@@ -401,7 +444,7 @@ class FansPage(Page):
         readings = " · ".join(f"{name} {number(value, '°C', 1)}" for name, value in (
             ("GPU", gpu.get("temperature_c")), ("CPU", cpu.get("temperature_c")),
             ("VRM", now.get("vrm_temperature_c")), (tr("Board"), now.get("board_temperature_c"))))
-        blocks = [Pad(["BIOS", tr("Mode"), tr("Follows"), "°C", tr("PWM %"), "RPM"], pad_rows, cursor, move, toggle,
+        blocks = [Pad([heads[i] for i in shown], pad_rows, cursor, move, toggle,
                       tr("State"), place=lambda r, c: mine.update(cursor=(r, 0)), corner=tr("Fan"))]
         if driver:
             blocks.append(Note(tr(driver), "warn"))
@@ -516,6 +559,26 @@ class FansPage(Page):
                 stall = bool(draft.get("stall_detect", True))
                 blocks.append(Choice(f"  [{'x' if stall else ' '}] {tr('Warn when the fan stops while it should turn')}",
                                      lambda ui_: set_draft(stall_detect=not stall)))
+        def calibrate_fan(ui_):
+            question = tr("The fan goes to full speed, then down step by step until it stops, then up until it starts "
+                          "again. It takes one to two minutes and stops at once if the board reaches 80 °C. "
+                          "It ends at full speed; nothing is saved until you press Apply.")
+            if not ui_.confirm(f"{tr('Calibrate this fan')}: {question}", danger=True):
+                return
+            ok, result = ui_.run(tr("Calibrate this fan"), lambda: self._calibrate(ctx, ui_, pwm))
+            if not ok or not isinstance(result, CalibrationResult):
+                return
+            if result.aborted:
+                ui_.notify(tr(result.aborted), "warn")
+                return
+            mine["draft"] = {**draft, "min_percent": result.proposed_min, "start_percent": result.proposed_start}
+            mine["advanced"] = True
+            ui_.notify(tr_format("Keeps turning down to {stop}, starts at {start}. Review the proposal and press Apply.",
+                                 stop="--" if result.stop_percent is None else f"{result.stop_percent} %",
+                                 start="--" if result.start_percent is None else f"{result.start_percent} %"), "ok")
+
+        if mode in ("curve", "mix"):
+            blocks.append(Choice(tr("Calibrate") + " ›", calibrate_fan, enabled=bool(row["writable"]) and not floor))
         error = validation_error(pwm, draft)
         if error:
             blocks.append(Note(error, "bad"))
@@ -530,6 +593,32 @@ class FansPage(Page):
         body = [Split(blocks, curve, ratio=0.44, minimum=96)] if curve else blocks
         return [Panel(title, [*body, actions_row], subtitle=identity, badge=badge,
                       badge_tone="warn" if dirty else "dim")]
+
+    @staticmethod
+    def _calibrate(ctx, ui, pwm: int):
+        """Measure where the fan stops and starts; runs in the console, Ctrl+C ends it at full speed."""
+        service, console = ctx.service, getattr(ui, "job", None)
+        hwmon = str((service.estado_fans_bc250().get("sensores") or {}).get("path") or "")
+        if not hwmon:
+            raise RuntimeError(tr("This channel is read-only until the PWM driver is prepared."))
+
+        def cancelled() -> bool:
+            return bool(console is not None and console.interrupted)
+
+        def write(percent: int) -> None:
+            raw = view.percent_to_pwm(percent)
+            template, values = view.verify_pwm_result(service.aplicar_pwm_fan(pwm, raw), pwm=pwm, raw=raw)
+            if template:
+                raise RuntimeError(say(template, values))
+            print(f"PWM {percent:>3} %", flush=True)
+
+        def sleep(seconds: float) -> None:
+            end = time.monotonic() + seconds
+            while time.monotonic() < end and not cancelled():
+                time.sleep(0.1)
+
+        return calibrate(write=write, read_rpm=lambda: read_int(Path(hwmon) / f"fan{pwm}_input"),
+                         hottest_c=hottest_temperature, sleep=sleep, cancelled=cancelled)
 
     @staticmethod
     def _points(mine, draft, set_draft):

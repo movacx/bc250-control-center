@@ -120,3 +120,46 @@ def test_a_refusal_is_not_a_failure():
         console = Console("Action", 10, 60)
         console.finish(False, error)
         assert outcome_of(console) == expected
+
+
+def test_a_game_row_runs_its_own_action_and_memory_asks_before_the_chosen_policy():
+    from frontends.tui.pages.extras import AdditionalSettingsPage
+
+    from .fakes import FakeService, FakeUI, make_context
+
+    service = FakeService()
+    service.estado_herramientas_bc250 = lambda: {
+        "helixsr": {"installed": True, "current": True, "network_ready": True, "version": "2.0",
+                    "games": [{"appid": "7", "kind": "game", "name": "Game", "state": "available"}]},
+        "system_setup": {"helper_available": True, "memory": {"policies": ["swap-16"], "swap_targets": {"/home": {}}}}}
+    ctx, ui = make_context(service), FakeUI()
+    ctx.state("system")["os"] = ("arch", "Arch Linux")
+    page = AdditionalSettingsPage()
+    data = page.load(ctx)
+    service.calls.clear()
+    rows = build_page(page.build(ctx, data, "upscaling", ui), 100, GLYPHS).choices
+    next(row for row in rows if row.label.startswith("Game · HelixSR")).handler(ui)
+    assert service.calls == [("gestionar_helixsr", ("game_install:7",), {})]
+
+    def choice(label):
+        return next(row for row in build_page(page.build(ctx, data, "memory", ui), 100, GLYPHS).choices if row.label == label)
+
+    assert not choice("Apply Swap").enabled
+    ui.choices = ["swap-16"]
+    choice("Swap").handler(ui)
+    ui.choices = ["/home"]
+    choice("Swapfile location").handler(ui)
+    service.calls.clear()
+    ui.confirm_answer = False
+    choice("Apply Swap").handler(ui)
+    assert not service.calls
+    ui.confirm_answer = True
+    choice("Apply Swap").handler(ui)
+    assert service.calls == [("preparar_memoria", ("swap-16", 0), {"takeover_zram": False, "target_mount": "/home"})]
+
+
+def test_a_saved_cpu_profile_out_of_range_falls_back_to_the_shipped_one():
+    from frontends.tui.pages.cpu import PROFILES, valid_profile
+
+    assert valid_profile({"frequency": 9000, "vid": 1050, "temperature": 90}, PROFILES[0]) == PROFILES[0]
+    assert valid_profile({"frequency": 3600, "vid": 1050, "temperature": 85, "name": "Mine"}, PROFILES[0])["frequency"] == 3600

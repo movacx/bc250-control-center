@@ -78,6 +78,12 @@ class GpuPage(Page):
         return [(key, tr(label)) for key, label in TABS]
 
     def load(self, ctx):
+        mine = ctx.state(self.key)
+        if "profiles" not in mine and ctx.settings is not None:
+            try:
+                mine["saved"] = ctx.settings.read_local_config().get("tui_gpu_profiles") or ()
+            except Exception:  # an unreadable config leaves the shipped profiles
+                mine["saved"] = ()
         return ctx.service.estado_bc250()
 
     def build(self, ctx, data, tab, ui):
@@ -110,8 +116,15 @@ class GpuPage(Page):
         def apply_profile(ui_, profile):
             mine.update(min=profile.minimum_mhz, max=profile.maximum_mhz, profile_key=profile.key)
 
-        edited = mine.setdefault("profiles", {})
-        shown = [edited.get(item.key, item) for item in profiles_for_allowed_range(low, high, governor=governor)]
+        shipped = profiles_for_allowed_range(low, high, governor=governor)
+        if "profiles" not in mine:
+            kept = {item.get("key"): item for item in mine.pop("saved", None) or () if isinstance(item, dict)}
+            mine["profiles"] = {item.key: replace(item, label=str(kept[item.key].get("label") or item.label),
+                                                  minimum_mhz=kept[item.key]["min"], maximum_mhz=kept[item.key]["max"])
+                                for item in shipped if item.key in kept and all(isinstance(kept[item.key].get(k), int) for k in ("min", "max"))
+                                and low <= kept[item.key]["min"] <= kept[item.key]["max"] <= high}
+        edited = mine["profiles"]
+        shown = [edited.get(item.key, item) for item in shipped]
 
         def edit(ui_, profile):
             name = ui_.ask_text(tr("Profile name"), tr(profile.label))
@@ -120,6 +133,10 @@ class GpuPage(Page):
             if maximum is not None:
                 edited[profile.key] = replace(profile, label=name.strip() or profile.label, minimum_mhz=minimum,
                                               maximum_mhz=maximum)
+                if ctx.settings is not None:
+                    ctx.settings.save_local_config({"tui_gpu_profiles": [
+                        {"key": item.key, "label": item.label, "min": item.minimum_mhz, "max": item.maximum_mhz}
+                        for item in edited.values()]})
 
         def export(ui_):
             payload = [item.payload() for item in shown]

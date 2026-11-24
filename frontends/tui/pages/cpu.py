@@ -73,6 +73,16 @@ def said(text) -> str:
         else tr(text.template)
 
 
+def valid_profile(saved, shipped: dict) -> dict:
+    """A saved profile, or the shipped one when anything in it is out of range."""
+    if not isinstance(saved, dict):
+        return dict(shipped)
+    for key, (low, high) in (("frequency", FREQUENCY_MHZ), ("vid", VID_MV), ("temperature", TEMPERATURE_C)):
+        if not isinstance(saved.get(key), int) or not low <= saved[key] <= high:
+            return dict(shipped)
+    return {**shipped, **{key: saved[key] for key in ("frequency", "vid", "temperature")}, "name": str(saved.get("name") or shipped["name"])}
+
+
 def mask_text(mask: int, board_mask: int | None) -> str:
     if mask == CORE_MASK_STOCK:
         return tr(CORE_MASK_STANDARD_TEXT)
@@ -98,12 +108,16 @@ class CpuPage(Page):
             "detection": _safe(service.estado_resultado_deteccion_cpu),
             "scale": _safe(service.estado_prueba_escala_cpu),
             "quick": _safe(service.estado_cpu_qam_runtime),
+            "config": _safe(ctx.settings.read_local_config) if ctx.settings is not None else {},
         }
 
     def build(self, ctx, data, tab, ui):
         service, data = ctx.service, data or {}
         mine = ctx.state(self.key)
-        profiles = mine.setdefault("profiles", [dict(item) for item in PROFILES])
+        if "profiles" not in mine:
+            kept = {item.get("key"): item for item in (data.get("config") or {}).get("tui_cpu_profiles") or () if isinstance(item, dict)}
+            mine["profiles"] = [valid_profile(kept.get(item["key"]), item) for item in PROFILES]
+        profiles = mine["profiles"]
         target = mine.setdefault("target", {"profile": 0, "scale": -34, "manual": False, "force_mask": False})
         chosen = profiles[target["profile"]]
         persistent, unlock = data.get("persistent") or {}, data.get("unlock") or {}
@@ -123,6 +137,8 @@ class CpuPage(Page):
                     return
                 profile[key] = value
             profiles[index] = {**profile, "name": name.strip() or profile["name"]}
+            if ctx.settings is not None:
+                ctx.settings.save_local_config({"tui_cpu_profiles": [dict(item) for item in profiles]})
 
         def export(ui_):
             payload = [{key: item[key] for key in ("key", "name", "frequency", "vid", "temperature")} for item in profiles]

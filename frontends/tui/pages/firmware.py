@@ -76,7 +76,9 @@ class FirmwarePage(Page):
             def progress(step, fraction, detail):
                 print(f"{step:<8} {fraction * 100:5.1f} %  {detail}", flush=True)
 
-            report, _steps = prepare_update_usb(family, image, drive, progress=progress)
+            console = getattr(ui, "job", None)
+            report, _steps = prepare_update_usb(family, image, drive, progress=progress,
+                                                cancelled=lambda: bool(console is not None and console.interrupted))
             return f"{tr('Done')}: {report.files} · {format_size(report.bytes_written)}"
 
         guarded(ui, family.title, work)

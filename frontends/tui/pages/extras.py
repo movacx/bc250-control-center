@@ -14,8 +14,10 @@ from bc250cc.application.preparation.gpu_dependency_plan import (
     build_gpu_dependency_plan,
 )
 from bc250cc.application.system.cachyos_kernel import DEPENDENCY_NOTE
+from bc250cc.shared.contract import vram_size_choices
+from frontends.desktop.core.upscaling_rows import game_matrix_rows
 
-from ..content import Buttons, Choice, Field, Note, Panel, Tile, Tiles
+from ..content import Buttons, Choice, Field, Info, Note, Panel
 from ..i18n import tr, tr_format
 from . import compat
 from .base import Page, guarded, os_family
@@ -31,6 +33,15 @@ MEMORY_POLICIES = (
     ("swap-32", "Disk swap · 32 GiB"),
     ("zswap-16", "ZSWAP + 16 GiB swapfile"),
     ("zswap-32", "Heavy games · ZSWAP + 32 GiB swapfile"),
+    ("restore", "Restore BC250 memory changes"),
+)
+SWAP_POLICIES = (
+    ("preserve", "Keep current configuration"),
+    ("swap-16", "Disk swap · 16 GiB"),
+    ("swap-32", "Disk swap · 32 GiB"),
+    ("zram", "ZRAM · up to 4 GiB"),
+    ("zswap-16", "Advanced · ZSWAP + 16 GiB swapfile"),
+    ("zswap-32", "Advanced heavy loads · ZSWAP + 32 GiB swapfile"),
     ("restore", "Restore BC250 memory changes"),
 )
 #: The ACPI correction's states, as the desktop's card names them.
@@ -251,35 +262,94 @@ class AdditionalSettingsPage(Page):
     def _upscaling(self, ctx, data, family):
         service = ctx.service
         tools = data.get("tools") or {}
-        out = []
-        for key, title, method, actions, detail in (
-                ("fsr4", "BC-250 FSR4 V3", service.gestionar_fsr4_bc250,
-                 (("install", "Install"), ("uninstall", "Uninstall")),
-                 "Installs OptiScaler and the BC250 FSR4 DLL into the games you choose, with a backup of every file it "
-                 "replaces. Your driver and Proton stay as they are."),
-                ("helixsr", "HelixSR", service.gestionar_helixsr,
-                 (("install", "Install"), ("update_all", "Update / repair"), ("uninstall", "Uninstall")), "")):
-            item = tools.get(key) or {}
-            installed = bool(item.get("installed"))
-            version = str(item.get("version") or "")
-            out.append(compat.component(
-                title + (f" {version}" if version else ""), tr("Installed" if installed else "Not installed"),
-                "ok" if installed else "dim", tr(detail) if detail else "",
-                [Action(tr(label), lambda a=action, m=method: m(a), "", action == "uninstall")
-                 for action, label in actions if installed or action == "install"]))
-            for game in item.get("games") or ():
-                if isinstance(game, dict) and game.get("name"):
-                    out.append(compat.component(f"  {game['name']}", tr("Installed" if game.get("installed") else "Not installed"),
-                                                "ok" if game.get("installed") else "dim", str(game.get("path") or ""), []))
-        return [Panel(tr("Upscaling"), out)]
+        fsr4, helixsr = tools.get("fsr4") or {}, tools.get("helixsr") or {}
+        ready = bool(helixsr.get("network_ready"))
+        return [Panel(tr("Upscaling"), [
+            self._upscaler(service.gestionar_fsr4_bc250, "BC-250 FSR4 V3", fsr4, tr(
+                "Installs OptiScaler and the BC250 FSR4 DLL into the games you choose, with a backup of every file it "
+                "replaces. Your driver and Proton stay as they are."), [
+                    Action(tr("Open configuration"), lambda: service.gestionar_fsr4_bc250("launch"), confirm=False)]
+                if fsr4.get("current") else []),
+            self._upscaler(service.gestionar_helixsr, "HelixSR", helixsr, tr(
+                "DLSS and FSR 4 networks on this GPU, put into each game by HelixSR's own installer."), [
+                    *([] if ready else [Action(tr("Build network files"), lambda: service.gestionar_helixsr("network"))]),
+                    Action(tr("Find FSR 3.1 games"), lambda: service.gestionar_helixsr("scan"), confirm=False),
+                    Action(tr("Add game"), show=lambda ui: self._add_game(ui, service)),
+                    *([Action(tr_format("Update all games ({count})", count=helixsr["outdated_games"]),
+                              lambda: service.gestionar_helixsr("update_all"))] if helixsr.get("outdated_games") else [])]
+                if helixsr.get("current") else [])]),
+            *self._games(service, helixsr, fsr4, ready)]
+
+    @staticmethod
+    def _add_game(ui, service):
+        folder = ui.ask_text(tr("Choose the game's folder"), "")
+        if folder and folder.strip():
+            guarded(ui, "HelixSR", lambda: service.gestionar_helixsr("add_folder:" + os.path.expanduser(folder.strip())))
+
+    @staticmethod
+    def _upscaler(run, title, state, detail, more):
+        installed, newer = bool(state.get("installed")), state.get("newer") or {}
+        status, tone = (("Update available", "warn") if newer and installed else ("Installed", "ok") if installed
+                        else ("Not installed", "dim") if state.get("supported", True) else ("Unsupported", "dim"))
+
+        def version(ui):
+            names = [(r["tag"], r["version"] + ("  " + tr("Recommended") if r.get("default") else "")) for r in state.get("releases") or ()]
+            picked = ui.choose(tr("Choose version"), names + [("", tr("Check for new releases"))])
+            if picked is not None:
+                guarded(ui, title, lambda: run(f"select:{picked}" if picked else "releases"))
+
+        actions = list(more)
+        if state.get("installer_available", True) and state.get("supported", True):
+            tag = str(newer.get("tag") or "")
+            actions.insert(0, Action(tr_format("Update to {version}", version=newer.get("version") or tag) if tag and installed
+                                     else tr("Reinstall") if installed else tr("Install"),
+                                     lambda: run(f"upgrade:{tag}" if tag and installed else "install")))
+            if state.get("releases"):
+                actions.append(Action(tr("Choose version"), show=version))
+        if state.get("steam_launch_option") or state.get("launch_option"):
+            actions.append(Action(tr("Steam launch option"), show=lambda ui: ui.show_text(
+                tr("Steam launch option"), str(state.get("steam_launch_option") or state.get("launch_option")))))
+        if installed:
+            actions.append(Action(tr("Uninstall"), lambda: run("uninstall"), "", True))
+        number_ = str(state.get("version") or "")
+        return compat.component(title + (f" {number_}" if number_ and installed else ""), tr(status), tone, detail, actions)
+
+    @staticmethod
+    def _games(service, helixsr, fsr4, ready):
+        """One row per game and tool, from the desktop's own table of what each offers."""
+        bridge = helixsr.get("bridge_games") if str(helixsr.get("layout") or "") == "3" and helixsr.get("current") else None
+        rows = game_matrix_rows(
+            [dict(game) for game in helixsr.get("games") or ()], [dict(game) for game in fsr4.get("games") or ()] if fsr4.get("current") else [],
+            helixsr_ready=ready, scaler_games=[dict(game) for game in helixsr.get("scaler_games") or ()],
+            scaler_ready=bool(helixsr.get("scaler_supported")), fg_ready=bool(helixsr.get("fg_ready")),
+            fsr4_installations=[dict(item) for item in fsr4.get("installations") or ()],
+            fsr4_backups=[dict(item) for item in fsr4.get("backups") or ()],
+            bridge_games=None if bridge is None else [dict(game) for game in bridge])
+        shown = []
+        for row in rows:
+            for tool, title, run in (("helixsr", "HelixSR", service.gestionar_helixsr), ("fsr4", "FSR4", service.gestionar_fsr4_bc250)):
+                cell = row.get(tool)
+                if not cell:
+                    continue
+                text, tone, note, offered = cell
+                shown.append(compat.component(
+                    f"{row['name']} · {title}", tr(text or "Available"), compat.TONES.get(tone or "", "dim"),
+                    "\n\n".join(filter(None, (tr(note) if note else "", str(row.get("folder") or "")))),
+                    [Action(tr(label), lambda r=run, a=action.partition("_")[2]: r(a), "", label.startswith(("Remove", "Undo")))
+                     for label, action, enabled in offered if enabled]))
+        return [Panel(tr("Games"), shown, badge=str(len(shown)))] if shown else []
 
     # -- Memory & Swap -------------------------------------------------------------------------------
 
     def _memory(self, ctx, data, family):
         service, state = ctx.service, ctx.state(self.key)
-        runtime = (data.get("tools") or {}).get("memory_runtime") or {}
+        tools = data.get("tools") or {}
+        runtime, setup = tools.get("memory_runtime") or {}, tools.get("system_setup") or {}
+        memory, ttm_state = setup.get("memory") or {}, setup.get("ttm") or {}
+        bazzite = family == "bazzite"
         presets = tuple(runtime.get("supported_ttm_gib_presets") or (8, 10, 12))
-        picks = state.setdefault("memory", {"policy": "current", "ttm": 0, "vram": 0})
+        keep = "current" if bazzite else "preserve"
+        picks = state.setdefault("memory", {"policy": keep, "ttm": 0, "vram": 0, "target": ""})
 
         def gib(value):
             return f"{value / 2**30:.1f} GiB" if value else "--"
@@ -291,35 +361,66 @@ class AdditionalSettingsPage(Page):
                     picks[key] = chosen
             return handler
 
-        def apply(ui_, label, work):
-            if ui_.confirm(tr(label), danger=True):
-                guarded(ui_, tr(label), work)
+        policies = [(key, tr(label)) for key, label in (MEMORY_POLICIES if bazzite else SWAP_POLICIES)]
+        policy = picks["policy"] if picks["policy"] in dict(policies) else keep
+        takeover = not bazzite and bool(memory.get("zram_takeover_available")) and policy in ("zswap-16", "zswap-32") \
+            and policy not in (memory.get("policies") or ())
+        reason = str((memory.get("policy_reasons") or {}).get(policy) or "")
+        allowed = policy != keep and (bazzite or not memory or takeover or policy == "restore"
+                                      or policy in (memory.get("policies") or ()) or policy in (memory.get("direct_switches") or ()))
+        note = tr("This disables the ZRAM the distribution set up by default; ZSWAP takes over once you reboot. Nothing else "
+                  "about that ZRAM configuration is touched, and it comes back if you restore this setting.") if takeover else \
+            tr("A reboot may be required.") if bazzite else \
+            tr("Optional system setup. Disk swap uses up to 32 GiB of storage; existing user swap is preserved. TTM is applied "
+               "live when supported. ZRAM and deferred restoration require a reboot. Hardware testing is still required.")
 
-        policies = [(key, tr(label)) for key, label in MEMORY_POLICIES]
+        def apply_swap(ui_):
+            target = picks["target"] if policy.endswith(("-16", "-32")) and not bazzite else ""
+            work = (lambda: service.preparar_memoria_bazzite(policy, 0)) if bazzite else \
+                (lambda: service.preparar_memoria(policy, 0, takeover_zram=takeover, target_mount=target))
+            if ui_.confirm(f"{tr('Apply Swap')}: {dict(policies)[policy]}" + (f"\n{target}" if target else "") + f"\n\n{note}", danger=True):
+                guarded(ui_, tr("Apply Swap"), work)
+
+        def apply_ttm(ui_):
+            value = int(picks["ttm"])
+            text = tr("The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes "
+                      "effect at the next reboot.")
+            if ui_.confirm(f"{tr('Apply TTM')}: {dict(ttm)[value]}\n\n{text}", danger=True):
+                guarded(ui_, tr("Apply TTM"), lambda: service.preparar_memoria(keep, value))
+
+        def apply_vram(ui_):
+            if ui_.confirm(f"{tr('Apply VRAM')}: {dict(vram)[int(picks['vram'])]}", danger=True):
+                guarded(ui_, tr("Apply VRAM"), lambda: service.preparar_vram(int(picks["vram"])))
+
         ttm = [(0, tr("Keep current TTM limit"))] + [(value, f"{value} GiB") for value in presets]
-        vram = [(0, tr("Keep current VRAM size"))] + [(size, f"{size} MB") for size in (512, 1024, 2048, 4096, 8192)]
-        summary = Tiles([
-            Tile(tr("Physical RAM"), gib(runtime.get("physical_ram_bytes")), ""),
-            Tile("ZRAM", gib(runtime.get("zram_total_bytes")) if runtime.get("zram_active") else tr("Disabled"), ""),
-            Tile(tr("Disk swap"), gib(runtime.get("backing_swap_total_bytes")) if runtime.get("backing_swap_active")
-                 else tr("None"), ""),
-            Tile("ZSWAP", tr("Active" if runtime.get("zswap_enabled") else "Disabled"), ""),
-            Tile(tr("GPU memory limit (TTM)"), gib(runtime.get("ttm_limit_bytes")), "")], minimum=18)
-        return [Panel(tr("Memory & Swap"), [summary]),
-                Panel(tr("Swap"), [Choice(tr("Swap"), pick("policy", "Swap", policies), dict(policies)[picks["policy"]] + " ›"),
-                                   Buttons([Choice(tr("Apply Swap"), lambda ui_: apply(
-                                       ui_, "Apply Swap", lambda: service.preparar_memoria(picks["policy"], 0)),
-                                       tone="primary")])]),
+        if memory.get("ttm_restore_available") or ttm_state.get("managed") or picks["ttm"] == -1:
+            ttm.append((-1, tr("Restore previous TTM limit")))
+        vram = [(0, tr("Keep current VRAM size"))] + [(size, f"{size} MB") for size in vram_size_choices()]
+        targets = [("", tr("Default (/var/lib)").replace("/var/lib", str(memory.get("default_swap_mount") or "/var/lib")))] + [
+            (target, target) for target in sorted(memory.get("swap_targets") or ()) if target]
+        location = [Choice(tr("Swapfile location"), pick("target", "Swapfile location", targets), dict(targets).get(picks["target"], picks["target"]) + " ›")] \
+            if len(targets) > 1 and policy.endswith(("-16", "-32")) and not bazzite else []
+        used, limit = runtime.get("ttm_limit_bytes"), runtime.get("physical_ram_bytes")
+        return [Panel(tr("Memory & Swap"), [
+                    Field(tr("Physical RAM"), gib(limit)),
+                    Field("ZRAM", gib(runtime.get("zram_total_bytes")) if runtime.get("zram_active") else tr("Disabled"),
+                          "ok" if runtime.get("zram_active") else "dim"),
+                    Field(tr("Disk swap"), gib(runtime.get("backing_swap_total_bytes")) if runtime.get("backing_swap_active")
+                          else tr("None"), "ok" if runtime.get("backing_swap_active") else "dim"),
+                    Field("ZSWAP", tr("Active" if runtime.get("zswap_enabled") else "Disabled"), "ok" if runtime.get("zswap_enabled") else "dim"),
+                    Field(tr("GPU memory limit (TTM)"), gib(used))]),
+                Panel(tr("Swap"), [
+                    Choice(tr("Swap"), pick("policy", "Swap", policies), dict(policies)[policy] + " ›", info=Info(note, blocked=tr(reason))),
+                    *location, *([Note(tr(reason), "warn")] if reason and not allowed else []),
+                    Buttons([Choice(tr("Apply Swap"), apply_swap, tone="primary", enabled=allowed)])]),
                 Panel(tr("GPU memory limit (TTM)"), [
-                    Choice(tr("TTM limit"), pick("ttm", "GPU memory limit (TTM)", ttm), dict(ttm)[picks["ttm"]] + " ›"),
-                    Buttons([Choice(tr("Apply TTM"), lambda ui_: apply(
-                        ui_, "Apply TTM", lambda: service.preparar_memoria("current", int(picks["ttm"]))),
-                        tone="primary", enabled=bool(picks["ttm"]))])]),
+                    Choice(tr("TTM limit"), pick("ttm", "GPU memory limit (TTM)", ttm), dict(ttm)[picks["ttm"]] + " ›", info=Info(
+                        tr("The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes "
+                           "effect at the next reboot."))),
+                    Buttons([Choice(tr("Apply TTM"), apply_ttm, tone="primary", enabled=bool(picks["ttm"]))])]),
                 Panel(tr("VRAM size (UMA_SIZE)"), [
                     Choice(tr("VRAM size"), pick("vram", "VRAM size (UMA_SIZE)", vram), dict(vram)[picks["vram"]] + " ›"),
-                    Buttons([Choice(tr("Apply VRAM"), lambda ui_: apply(
-                        ui_, "Apply VRAM", lambda: service.preparar_vram(int(picks["vram"]))),
-                        tone="primary", enabled=bool(picks["vram"]))])])]
+                    Buttons([Choice(tr("Apply VRAM"), apply_vram, tone="primary", enabled=bool(picks["vram"]))])])]
 
     # -- Drivers: network, printing and the external ones -------------------------------------------
 

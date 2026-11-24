@@ -145,6 +145,10 @@
   "bc250cc/application/fan/calibration.py": {
    "calibrate": "FAN-0502"
   },
+  "bc250cc/application/fan/calibration_io.py": {
+   "read_int": "FAN-0570",
+   "hottest_temperature": "FAN-0571"
+  },
   "bc250cc/application/fan/channels.py": {
    "LocalConfig.read_local_config": "FAN-0338",
    "LocalConfig.save_local_config": "FAN-0339",
@@ -3695,9 +3699,6 @@
    "PreparationComponentCard.gamepad_activate": "DASH-0092",
    "PreparationComponentCard.keyPressEvent": "DASH-0093",
    "PreparationComponentCard.set_capability": "DASH-0094",
-   "_undo_rows": "DASH-0095",
-   "_bridge_cells": "DASH-0316",
-   "game_matrix_rows": "DASH-0096",
    "PreparationInfoCard._status_tone": "DASH-0097",
    "PreparationInfoCard.__init__": "DASH-0098",
    "PreparationInfoCard._is_link_action": "DASH-0099",
@@ -5296,6 +5297,12 @@
    "localize_temperature_text": "UI-0870",
    "reset_for_tests": "UI-0871"
   },
+  "frontends/desktop/core/upscaling_rows.py": {
+   "_mapping": "UI-0878",
+   "_undo_rows": "UI-0879",
+   "_bridge_cells": "UI-0880",
+   "game_matrix_rows": "UI-0881"
+  },
   "frontends/desktop/core/voltage_keypad_guard.py": {
    "_direct_edit_active": "GPU-0032",
    "_top_level_widgets": "GPU-0033",
@@ -6018,8 +6025,6 @@
    "_combo": "FAN-0401",
    "_set_combo": "FAN-0402",
    "_restyle": "FAN-0403",
-   "_read_int": "FAN-0485",
-   "_hottest_temperature": "FAN-0486",
    "_wait": "FAN-0487",
    "_alignment": "FAN-0404",
    "ChannelTableModel.__init__": "FAN-0405",
@@ -7248,6 +7253,9 @@
   "CPU-0361",
   "DASH-0012",
   "DASH-0029",
+  "DASH-0095",
+  "DASH-0096",
+  "DASH-0316",
   "DASH-0322",
   "DASH-0325",
   "DECKY-0046",
@@ -7417,6 +7425,8 @@
   "FAN-0418",
   "FAN-0456",
   "FAN-0470",
+  "FAN-0485",
+  "FAN-0486",
   "GPU-0203",
   "GPU-0216",
   "GPU-0217",
