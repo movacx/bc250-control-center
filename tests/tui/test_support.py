@@ -43,8 +43,7 @@ def test_up_to_date_and_unreachable_read_differently():
     assert support.available_version(ctx) == ""
     text = " ".join(t for row in render(build_pages()["about"], ctx, FakeUI(), "about").rows for t, _ in row.spans)
     assert "You have the latest version." in text
-    assert not next(c for c in render(build_pages()["about"], ctx, FakeUI(), "about").choices
-                    if c.label == "Update now").enabled
+    assert not any(c.label == "Update now" for c in render(build_pages()["about"], ctx, FakeUI(), "about").choices)
 
 
 def test_the_desktop_switch_turns_the_check_off(tmp_path, monkeypatch):

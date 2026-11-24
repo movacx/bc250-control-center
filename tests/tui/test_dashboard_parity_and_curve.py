@@ -36,12 +36,14 @@ def test_dashboard_shows_voltage_registered_oc_vrm_and_storage_without_hiding_mi
 def test_dashboard_installs_telemetry_only_after_confirmation_and_in_the_console():
     service, ui = FakeService(), FakeUI()
     ctx = make_context(service)
-    choice(render(build_pages()['dashboard'], ctx, ui, 'prepare'), 'Install BC250-Telemetry').handler(ui)
+    ui.choose = lambda title, options: 'install'
+    choice(render(build_pages()['dashboard'], ctx, ui, 'prepare'), 'BC250-Telemetry service ›').handler(ui)
     assert ('gestionar_apu_telemetry', ('install',), {}) in service.calls
     assert ui.confirmations and ui.ran
     service.calls.clear()
     ui.confirm_answer = False
-    choice(render(build_pages()['dashboard'], ctx, ui, 'prepare'), 'Install BC250-Telemetry').handler(ui)
+    ui.choose = lambda title, options: 'install'
+    choice(render(build_pages()['dashboard'], ctx, ui, 'prepare'), 'BC250-Telemetry service ›').handler(ui)
     assert not service.calls
 
 

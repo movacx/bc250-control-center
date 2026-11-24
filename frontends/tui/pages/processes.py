@@ -54,7 +54,7 @@ class ProcessesPage(Page):
                 state["sort"] = chosen
 
         chosen = [entry for entry in entries if entry.key in picked]
-        out.append(Panel(tr("Actions"), [
+        out.append(Panel("", [
             Choice(tr("Search"), find, (query or "--") + " ›"),
             Choice(tr("Sort by"), order, tr(dict(SORTS)[sort]) + " ›"),
             Choice(tr("End selected tasks") if chosen else tr("No applications selected"),

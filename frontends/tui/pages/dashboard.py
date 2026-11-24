@@ -265,11 +265,11 @@ class DashboardPage(Page):
             if ui_.confirm(tr("Prepare readings")):
                 guarded(ui_, tr("GDDR6 memory temperature"), service.comando_preparar_gddr6_memory_temp)
 
-        buttons = [Choice(tr("Refresh"), read, enabled=bool(status.get("reader_ready", True)))]
+        buttons = [] if status.get("kernel_driver") else [Choice(tr("Refresh"), read, enabled=bool(status.get("reader_ready", True)))]  # the driver already feeds every refresh
         if not status.get("repository_ready"):
             buttons.append(Choice(tr("Prepare readings"), prepare))
         source = tr("Kernel driver") if status.get("kernel_driver") else ""
-        return Panel(tr("GDDR6 memory temperature"), [*out, Buttons(buttons)],
+        return Panel(tr("GDDR6 memory temperature"), [*out, *([Buttons(buttons)] if buttons else [])],
                      badge=number(hotspot, "°C", 0) if hotspot is not None else source, badge_tone=heat_tone(hotspot, 85, 95))
 
     @staticmethod
@@ -277,8 +277,6 @@ class DashboardPage(Page):
         from .extras import INSTALL, run
 
         return [Heading(tr("BC250-Telemetry service")),
-                Choice(tr("Install") + " BC250-Telemetry", lambda ui_: run(ui_, "BC250-Telemetry service",
-                       ctx.service.gestionar_apu_telemetry, (("install", "Install"),))),
                 Choice(tr("BC250-Telemetry service") + " ›", lambda ui_: run(
                     ui_, "BC250-Telemetry service", ctx.service.gestionar_apu_telemetry, INSTALL)), Gap()]
 

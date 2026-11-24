@@ -17,10 +17,10 @@ from bc250cc.application.system.cachyos_kernel import DEPENDENCY_NOTE
 from bc250cc.shared.contract import vram_size_choices
 from frontends.desktop.core.upscaling_rows import game_matrix_rows
 
-from ..content import Buttons, Choice, Field, Gap, Info, Note, Panel
+from ..content import Buttons, Choice, Field, Info, Note, Panel
 from ..i18n import tr, tr_format
 from . import compat
-from .base import Page, guarded, os_family
+from .base import Page, guarded, os_family, switch
 from .compat import Action
 
 TAB_TITLES = (("compatibility", "Compatibility"), ("boot", "Kernel boot options"), ("upscaling", "Upscaling"), ("memory", "Memory & Swap"),
@@ -137,10 +137,10 @@ class AdditionalSettingsPage(Page):
 
     def build(self, ctx, data, tab, ui):
         data = data or {}
-        family, name = os_family(ctx)
+        family, _name = os_family(ctx)
         build = {"boot": self._boot_options, "upscaling": self._upscaling, "memory": self._memory, "drivers": self._drivers}.get(
             tab or "compatibility", self._compatibility)
-        return [Note(tr_format("Detected system: {distribution}", distribution=name), "dim"), Gap()] + build(ctx, data, family)
+        return build(ctx, data, family)
 
     # -- Compatibility: System, GPU governor, Kernel and graphics, Video, then the reboot options ---------
 
@@ -194,7 +194,7 @@ class AdditionalSettingsPage(Page):
 
     def _boot_options(self, ctx, data, family):
         service, tools = ctx.service, data.get("tools") or {}
-        options = compat.kernel_options(service, tools.get("system_setup") or {})
+        options = compat.kernel_options(service, tools.get("system_setup") or {}, ctx.state(self.key))
         out = [options] if options else []
         reboot = []
         for key, title, detail, method, disable, restore in REBOOT_CARDS:
@@ -338,7 +338,23 @@ class AdditionalSettingsPage(Page):
                 else:
                     draft[key] = round(max(0.0, float(value) + 0.1 * direction), 2)
 
-            rows.append(Choice(label, lambda ui_, s=step: s(ui_, 1), f"< {shown} >", adjust=step, id=key,
+            def pick(ui_, key=key, label=label, choices=choices, value=value):
+                if choices:
+                    picked = ui_.choose(label, [(item, str(item)) for item in choices])
+                else:
+                    text = ui_.ask_text(label, str(value))
+                    try:
+                        picked = None if text is None else max(0.0, float(text.replace(",", ".")))
+                    except ValueError:
+                        ui_.notify(tr("Invalid"), "warn")
+                        picked = None
+                if picked is not None:
+                    draft[key] = picked
+
+            if isinstance(value, bool):
+                rows.append(switch(label, value, lambda ui_, key=key, value=value: draft.update({key: not value}), id=key))
+                continue
+            rows.append(Choice(label, pick, f"< {shown} >", adjust=step, id=key,
                                tone="warn" if key in draft and draft[key] != saved.get(key) else ""))
         changed = {key: value for key, value in draft.items() if value != saved.get(key)}
 
@@ -379,64 +395,67 @@ class AdditionalSettingsPage(Page):
     # -- Memory & Swap -------------------------------------------------------------------------------
 
     def _memory(self, ctx, data, family):
-        service, state = ctx.service, ctx.state(self.key)
-        tools = data.get("tools") or {}
+        service, tools = ctx.service, data.get("tools") or {}
         runtime, setup = tools.get("memory_runtime") or {}, tools.get("system_setup") or {}
         memory, ttm_state = setup.get("memory") or {}, setup.get("ttm") or {}
         bazzite = family == "bazzite"
         presets = tuple(runtime.get("supported_ttm_gib_presets") or (8, 10, 12))
         keep = "current" if bazzite else "preserve"
-        picks = state.setdefault("memory", {"policy": keep, "ttm": 0, "vram": 0, "target": ""})
-
+        
         def gib(value):
             return f"{value / 2**30:.1f} GiB" if value else "--"
 
-        def pick(key, title, options):
-            def handler(ui_):
-                chosen = ui_.choose(tr(title), options)
-                if chosen is not None:
-                    picks[key] = chosen
-            return handler
-
         policies = [(key, tr(label)) for key, label in (MEMORY_POLICIES if bazzite else SWAP_POLICIES)]
-        policy = picks["policy"] if picks["policy"] in dict(policies) else keep
-        takeover = not bazzite and bool(memory.get("zram_takeover_available")) and policy in ("zswap-16", "zswap-32") \
-            and policy not in (memory.get("policies") or ())
-        reason = str((memory.get("policy_reasons") or {}).get(policy) or "")
-        allowed = policy != keep and (bazzite or not memory or takeover or policy == "restore"
-                                      or policy in (memory.get("policies") or ()) or policy in (memory.get("direct_switches") or ()))
-        note = tr("This disables the ZRAM the distribution set up by default; ZSWAP takes over once you reboot. Nothing else "
-                  "about that ZRAM configuration is touched, and it comes back if you restore this setting.") if takeover else \
-            tr("A reboot may be required.") if bazzite else \
+        def verdict(policy):
+            """(allowed, takes over ZRAM, why not) for one swap policy."""
+            takeover = not bazzite and bool(memory.get("zram_takeover_available")) and policy in ("zswap-16", "zswap-32") \
+                and policy not in (memory.get("policies") or ())
+            allowed = bazzite or not memory or takeover or policy == "restore" \
+                or policy in (memory.get("policies") or ()) or policy in (memory.get("direct_switches") or ())
+            return allowed, takeover, str((memory.get("policy_reasons") or {}).get(policy) or "")
+
+        note = tr("A reboot may be required.") if bazzite else \
             tr("Optional system setup. Disk swap uses up to 32 GiB of storage; existing user swap is preserved. TTM is applied "
                "live when supported. ZRAM and deferred restoration require a reboot. Hardware testing is still required.")
 
-        def apply_swap(ui_):
-            target = picks["target"] if policy.endswith(("-16", "-32")) and not bazzite else ""
+        def set_swap(ui_):
+            policy = ui_.choose(tr("Swap"), [(key, label) for key, label in policies if key != keep])
+            if policy is None:
+                return
+            allowed, takeover, reason = verdict(policy)
+            if not allowed:
+                ui_.notify(tr(reason or "Not available here"), "warn")
+                return
+            target = ""
+            if len(targets) > 1 and policy.endswith(("-16", "-32")) and not bazzite:
+                target = ui_.choose(tr("Swapfile location"), targets)
+                if target is None:
+                    return
+            said = tr("This disables the ZRAM the distribution set up by default; ZSWAP takes over once you reboot. Nothing else "
+                      "about that ZRAM configuration is touched, and it comes back if you restore this setting.") if takeover else note
             work = (lambda: service.preparar_memoria_bazzite(policy, 0)) if bazzite else \
                 (lambda: service.preparar_memoria(policy, 0, takeover_zram=takeover, target_mount=target))
-            if ui_.confirm(f"{tr('Apply Swap')}: {dict(policies)[policy]}" + (f"\n{target}" if target else "") + f"\n\n{note}", danger=True):
+            if ui_.confirm(f"{tr('Apply Swap')}: {dict(policies)[policy]}" + (f"\n{target}" if target else "") + f"\n\n{said}", danger=True):
                 guarded(ui_, tr("Apply Swap"), work)
 
-        def apply_ttm(ui_):
-            value = int(picks["ttm"])
-            text = tr("The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes "
-                      "effect at the next reboot.")
-            if ui_.confirm(f"{tr('Apply TTM')}: {dict(ttm)[value]}\n\n{text}", danger=True):
+        def set_ttm(ui_):
+            value = ui_.choose(tr("GPU memory limit (TTM)"), ttm)
+            if value is not None and ui_.confirm(f"{tr('Apply TTM')}: {dict(ttm)[value]}\n\n{ttm_note}", danger=True):
                 guarded(ui_, tr("Apply TTM"), lambda: service.preparar_memoria(keep, value))
 
-        def apply_vram(ui_):
-            if ui_.confirm(f"{tr('Apply VRAM')}: {dict(vram)[int(picks['vram'])]}", danger=True):
-                guarded(ui_, tr("Apply VRAM"), lambda: service.preparar_vram(int(picks["vram"])))
+        def set_vram(ui_):
+            value = ui_.choose(tr("VRAM size (UMA_SIZE)"), vram)
+            if value is not None and ui_.confirm(f"{tr('Apply VRAM')}: {dict(vram)[value]}", danger=True):
+                guarded(ui_, tr("Apply VRAM"), lambda: service.preparar_vram(value))
 
-        ttm = [(0, tr("Keep current TTM limit"))] + [(value, f"{value} GiB") for value in presets]
-        if memory.get("ttm_restore_available") or ttm_state.get("managed") or picks["ttm"] == -1:
+        ttm_note = tr("The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes "
+                      "effect at the next reboot.")
+        ttm = [(value, f"{value} GiB") for value in presets]
+        if memory.get("ttm_restore_available") or ttm_state.get("managed"):
             ttm.append((-1, tr("Restore previous TTM limit")))
-        vram = [(0, tr("Keep current VRAM size"))] + [(size, f"{size} MB") for size in vram_size_choices()]
+        vram = [(size, f"{size} MB") for size in vram_size_choices()]
         targets = [("", tr("Default (/var/lib)").replace("/var/lib", str(memory.get("default_swap_mount") or "/var/lib")))] + [
             (target, target) for target in sorted(memory.get("swap_targets") or ()) if target]
-        location = [Choice(tr("Swapfile location"), pick("target", "Swapfile location", targets), dict(targets).get(picks["target"], picks["target"]) + " ›")] \
-            if len(targets) > 1 and policy.endswith(("-16", "-32")) and not bazzite else []
         used, limit = runtime.get("ttm_limit_bytes"), runtime.get("physical_ram_bytes")
         return [Panel(tr("Memory & Swap"), [
                     Field(tr("Physical RAM"), gib(limit)),
@@ -446,18 +465,10 @@ class AdditionalSettingsPage(Page):
                           else tr("None"), "ok" if runtime.get("backing_swap_active") else "dim"),
                     Field("ZSWAP", tr("Active" if runtime.get("zswap_enabled") else "Disabled"), "ok" if runtime.get("zswap_enabled") else "dim"),
                     Field(tr("GPU memory limit (TTM)"), gib(used))]),
-                Panel(tr("Swap"), [
-                    Choice(tr("Swap"), pick("policy", "Swap", policies), dict(policies)[policy] + " ›", info=Info(note, blocked=tr(reason))),
-                    *location, *([Note(tr(reason), "warn")] if reason and not allowed else []),
-                    Buttons([Choice(tr("Apply Swap"), apply_swap, tone="primary", enabled=allowed)])]),
-                Panel(tr("GPU memory limit (TTM)"), [
-                    Choice(tr("TTM limit"), pick("ttm", "GPU memory limit (TTM)", ttm), dict(ttm)[picks["ttm"]] + " ›", info=Info(
-                        tr("The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes "
-                           "effect at the next reboot."))),
-                    Buttons([Choice(tr("Apply TTM"), apply_ttm, tone="primary", enabled=bool(picks["ttm"]))])]),
-                Panel(tr("VRAM size (UMA_SIZE)"), [
-                    Choice(tr("VRAM size"), pick("vram", "VRAM size (UMA_SIZE)", vram), dict(vram)[picks["vram"]] + " ›"),
-                    Buttons([Choice(tr("Apply VRAM"), apply_vram, tone="primary", enabled=bool(picks["vram"]))])])]
+                Panel(tr("Settings"), [
+                    Choice(tr("Swap") + " ›", set_swap, info=Info(note)),
+                    Choice(tr("GPU memory limit (TTM)") + " ›", set_ttm, badge=gib(used), info=Info(ttm_note)),
+                    Choice(tr("VRAM size (UMA_SIZE)") + " ›", set_vram)])]
 
     # -- Drivers: network, printing and the external ones -------------------------------------------
 
@@ -512,5 +523,4 @@ class AdditionalSettingsPage(Page):
                 Note(tr("Prefer devices supported by in-kernel Linux drivers."), "dim"),
                 Buttons([Choice(tr("View compatibility guide"), lambda ui_: ui_.show_text(
                     tr("View compatibility guide"), f"{tr('Prefer devices supported by in-kernel Linux drivers.')}\n\n{GUIDE_URL}"))])],
-                subtitle=tr("Device-specific kernel modules are not generic driver packs."), badge=tr("Reference only"),
-                badge_tone="warn")]]
+                subtitle=tr("Device-specific kernel modules are not generic driver packs."), badge=tr("Reference only"))]]

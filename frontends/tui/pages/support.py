@@ -80,15 +80,8 @@ class SupportPage(Page):
 
         return [
             Panel(tr("Support"), [
-                Choice(tr("Report a problem"), report, info=Info(tr("Tell us what failed. We attach the diagnostics for you."))),
-                Choice(tr("Known errors") + " ›", open_tab("errors"), badge=str(len(known_errors.load())),
-                       info=Info(tr("Find an error and how to fix it."))),
-                Choice(tr("Sent reports") + " ›", open_tab("sent"), badge=str(len(data.get("sent") or ())),
-                       info=Info(tr("Keep the ID to ask about a report on GitHub or Discord. The list only exists on this computer."))),
-                Choice(tr("Diagnostics") + " ›", open_tab("diagnostics"),
-                       info=Info(tr("System diagnostics and the movement history."))),
-                Choice(tr("Guide") + " ›", open_tab("guide"))]),
-            Panel("GitHub · Discord", [Note("https://github.com/movacx/bc250-control-center/issues", "accent"), Note("Discord: @_movacx", "dim")])]
+                Choice(tr("Report a problem"), report, info=Info(tr("Tell us what failed. We attach the diagnostics for you.")))]),
+            Panel("GitHub · Discord", [Note("https://github.com/movacx/bc250-control-center/issues"), Note("Discord: @_movacx", "dim")])]
 
     # -- the error handbook ------------------------------------------------------------------------
 

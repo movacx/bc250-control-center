@@ -94,7 +94,7 @@ class Action:
 
 
 def component(title: str, status: str, tone: str, detail: str, actions: list[Action], *, risk: str = "", undo: str = "",
-              blocked: str = "") -> Choice:
+              blocked: str = "", on: bool | None = None) -> Choice:
     """A component's row. Enter offers its actions; with none, Details says why."""
     def perform(ui, action: Action) -> None:
         if action.show is not None:
@@ -111,7 +111,10 @@ def component(title: str, status: str, tone: str, detail: str, actions: list[Act
         if picked is not None:
             perform(ui, actions[picked])
 
-    return Choice(f"{title} ›" if actions else title, open_row, badge=status, badge_tone=tone,
+    if on is not None:  # a setting that is on or off, not a component with a menu
+        return Choice(f"[{'x' if on else ' '}] {title}", open_row, badge=status, badge_tone=tone, enabled=bool(actions),
+                      tone="" if actions else "dim", info=Info(detail, risk, undo, blocked), id=title)
+    return Choice(f"{title} ›" if len(actions) > 1 else title, open_row, badge=status, badge_tone=tone,
                   tone="" if actions else "dim", info=Info(detail, risk, undo, blocked))
 
 
@@ -231,7 +234,12 @@ def tv_control(ui, service) -> None:
 # -- Kernel boot options ----------------------------------------------------------------------------
 
 
-def kernel_options(service, setup: dict) -> Panel | None:
+#: Options whose name already says what switching them on does.
+TITLED = (kernel_option_rows.CU_UNLOCK_OPTION, kernel_option_rows.CH7218_QUIRK_OPTION, kernel_option_rows.CH7218_VRR_OPTION,
+          kernel_option_rows.PCON_FORCE_DSC_OPTION, kernel_option_rows.RELINK_AT_BOOT_OPTION, kernel_option_rows.MEMORY_SENSOR_OPTION)
+
+
+def kernel_options(service, setup: dict, mine: dict | None = None) -> Panel | None:
     state = setup.get("kernel_options") or {}
     if not (setup.get("helper_available") and state.get("available")):
         return None
@@ -256,19 +264,26 @@ def kernel_options(service, setup: dict) -> Panel | None:
         question = "" if on else tr(text)
         actions = [] if item.get("external") or not offered else [Action(tr(restore if on else add), lambda w=wanted: service.gestionar_opciones_kernel(w),
                                                           question, not on and weight == "red", confirm=not on)]
-        row = component(tr(title), tr(status), tone, f"{tr('Kernel argument')}: {option}\n\n{tr(text)}", actions, undo=tr(restore),
+        row = component(tr(title if option in TITLED or not offered else add), "" if status in ("Enabled", "Disabled") else tr(status), tone,
+                        f"{tr(title)} · {tr('Kernel argument')}: {option}\n\n{tr(text)}", actions, undo=tr(restore), on=bool(item.get("configured") or item.get("active")) if offered else None,
                         blocked=tr("Set outside Control Center") if item.get("external") else
                         "" if offered else tr("Not available here"))
         (rows if offered else missing).append(row)
     smt = state.get("smt") or {}
     if smt.get("supported") and "nosmt" in allowed:
         now = str(smt.get("control") or "") == "on"
-        rows.append(component(tr("SMT right now"), tr("Enabled" if now else "Disabled"), "ok" if now else "warn",
+        rows.append(component(tr("SMT right now"), "", "dim",
                               tr("The CPU runs one thread per core until you turn it back on or restart: some games run "
                                  "smoother, others slower. Nothing is saved: the next boot starts as the kernel boot "
                                  "options say."),
                               [Action(tr("Turn SMT off now" if now else "Turn SMT on now"),
-                                      lambda: service.gestionar_smt_vivo("off" if now else "on"))]))
+                                      lambda: service.gestionar_smt_vivo("off" if now else "on"))], on=now))
+    if missing:  # what this kernel or board cannot offer is there to look up, not to scroll past
+        mine = {} if mine is None else mine
+        shown = bool(mine.get("missing"))
+        rows.append(Choice(f"{'-' if shown else '+'} {tr('Not available here')} ({len(missing)})", lambda ui: mine.update(missing=not shown),
+                           tone="dim", id="missing", badge=" "))
+        missing = missing if shown else []
     return Panel(tr("Kernel boot options"), rows + missing, badge=str(state.get("backend") or "")) if rows or missing else None
 
 

@@ -53,15 +53,13 @@ class AboutPage(Page):
             Panel("BC250 Control Center", [
                 Field(tr("Version"), f"{__version__}  ·  {state}" if state else __version__, tone),
                 Choice(tr("Check for updates"), lambda ui_: self._check(ctx, ui_)),
-                Choice(tr("What's new") + " ›", lambda ui_: ui_.show_tab("updates")),
-                Choice(tr("Update now"), lambda ui_: self._update(ctx, ui_), enabled=bool(newer), badge=newer, badge_tone="warn"),
-                Choice(tr("Support") + " ›", lambda ui_: ui_.goto("support"))]),
+                *([Choice(tr("Update now"), lambda ui_: self._update(ctx, ui_), badge=newer, badge_tone="warn")] if newer else [])]),
             Panel(tr("Application"), [
                 Field(tr("Configuration folder"), str(config)), Field(tr("Data folder"), str(data)),
                 Field(tr("State and logs"), str(logs)), Field(tr("System data"), "/var/lib/bc250-control-center")]),
             Panel(tr(TITLE), [Note(tr(WHEN), "warn"), Choice(tr("Details") + " ›", lambda ui_: ui_.show_text(tr(TITLE), note)),
                               Field("Ko-fi", KOFI_URL), Field("Discord", "@_movacx")]),
-            Panel("GitHub", [Note("https://github.com/movacx/bc250-control-center", "accent")])]
+            Panel("GitHub", [Note("https://github.com/movacx/bc250-control-center")])]
 
     @staticmethod
     def _check(ctx, ui):

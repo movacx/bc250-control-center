@@ -367,8 +367,11 @@ class Screen(PaletteSupport, PointerSupport):
         if version:  # the desktop's update badge: Settings › About installs it
             title += "   ↑ " + tr_format("Version {version} is available", version=version)
         self.put(0, 0, title, self.attrs["dim"])
-        if width >= 100 and not version:
-            self.put(0, cell_width(title) + 2, where, curses.A_BOLD)
+        if not version:  # a narrow terminal gives up the application's name before the page's
+            at = cell_width(title) + 2 if width >= 100 else 1
+            if width < 100:
+                self.put(0, 0, " " * cell_width(title), 0)
+            self.put(0, at, where, curses.A_BOLD, max(0, width - at - cell_width(status) - 1))
         job = self.job
         if job is not None and not job.done.is_set():
             frames = SPINNER[0 if self.unicode else 1]
@@ -432,7 +435,7 @@ class Screen(PaletteSupport, PointerSupport):
             shortcut = next((hotkey for hotkey, key in SHORTCUTS.items() if key == self.order[index]), "")
             here = index == self.section
             attr = self.attrs["sel"] if here and self.focus == "sidebar" else curses.A_BOLD if here else self.attrs[""]
-            self.put(y, 1, pad(f" {label}", side - 2), attr)
+            self.put(y, 1, pad(clip(f" {label}", side - 4), side - 2), attr)
             if here:
                 self.put(y, 1, "▌", self.attrs["accent"])
             if shortcut and not (here and self.focus == "sidebar"):
@@ -504,7 +507,7 @@ class Screen(PaletteSupport, PointerSupport):
                         and tone in ("edge", "dim") and set(text) <= self._frame:
                     attr = self.attrs["accent"]  # the box of the card or grid that has the cursor
                 elif tone == "sel" and not (self.focus == "content" and owner is not None and -1 - owner == cursor):
-                    attr = self.attrs["accent"] | curses.A_UNDERLINE  # its place, while the cursor is elsewhere
+                    attr = self.attrs[""] | curses.A_BOLD  # its place, while the cursor is elsewhere
                 self.put(y, column, text, attr, limit=width - column - 1)
                 column += width_
             if start is not None and layout.choices[cursor].pad is None:

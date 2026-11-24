@@ -205,7 +205,8 @@ def test_fans_table_moves_with_the_arrows_and_the_editor_follows():
     assert table.move(1, 0) and ctx.state("fans")["pwm"] == 3
     assert not table.move(0, 1)  # sideways leaves the table
     shown = text_of(render(page, ctx, FakeUI(), "channels"))
-    assert "PWM 3 · J4003 Fan 2" in shown
+    assert "J4003 Fan 2 ─" in shown or "J4003 Fan 2 -" in shown
+    assert "PWM 3" in shown
 
 
 def test_fans_fixed_speed_on_a_channel_writes_verifies_and_saves_only_that_channel():
@@ -310,7 +311,7 @@ def test_fans_rename_never_changes_the_driven_channel():
 def test_fans_boot_service_turns_on_with_the_policy_after_confirmation():
     ctx, service = fan_context({"fan_channels": {"2": {"mode": "curve", "points": [[40, 50], [60, 75], [74, 100]]}}})
     ui = FakeUI()
-    choice(render(build_pages()["fans"], ctx, ui, "boot"), "Turn on").handler(ui)
+    choice(render(build_pages()["fans"], ctx, ui, "boot"), "Control from boot").handler(ui)
     call = next(c for c in service.calls if c[0] == "activar_control_fan_sistema")
     assert call[1][0]["channels"]["2"]["mode"] == "curve" and list(call[1][0]["channels"]) == ["2"]
 

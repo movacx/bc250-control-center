@@ -131,6 +131,11 @@ def check(label: str, on: bool, toggle: Callable[[UI], None], *, enabled: bool =
     return Choice(f"[{'x' if on else ' '}] {label}", toggle, enabled=enabled)
 
 
+def switch(label: str, on: bool, toggle: Callable[[UI], None], *, enabled: bool = True, info=None, id: str = "") -> Choice:
+    """A setting that is on or off: a box in the value column, Enter or Space flips it."""
+    return Choice(label, toggle, "[x]" if on else "[ ]", enabled=enabled, info=info, id=id)
+
+
 def stepper(label: str, store: dict, key: str, low: int, high: int, step: int, unit: str, *,
             enabled: bool = True) -> Choice:
     """A number: arrows (or a tap on < >) step it, Enter types it."""

@@ -49,7 +49,7 @@ from ..content import (
 )
 from ..i18n import tr, tr_format
 from ..runtime import describe_error
-from .base import Page, guarded
+from .base import Page, guarded, switch
 
 TABS = (("channels", "Channels"), ("boot", "Control from boot"), ("driver", "Driver"))
 MODES = tuple(key for key, _label in view.MODE_LABELS)
@@ -363,8 +363,8 @@ class FansPage(Page):
                 guarded(ui_, tr("Turn on"), lambda: service.activar_control_fan_sistema(policy))
 
         rows = [Choice(tr("Profile"), apply_profile, f"{tr(current)} ›", enabled=not external),
-                Choice(tr("Control from boot"), boot, tr("Enabled") if enabled else tr("Disabled"),
-                       enabled=(enabled or bool(system.get("available"))) and not external, tone="ok" if enabled else "")]
+                switch(tr("Control from boot"), enabled, boot,
+                       enabled=(enabled or bool(system.get("available"))) and not external)]
         def export(ui_):
             path = ui_.ask_text(tr("Export fan profiles"), str(Path.home() / "bc250-fan-profiles.json"))
             if path:
@@ -389,11 +389,17 @@ class FansPage(Page):
 
             self._run(ctx, ui_, tr("Import fan profiles"), work)
 
-        buttons = [Choice(tr("Save as…"), save_profile, enabled=not external),
-                   Choice(tr("Export to a file…"), export), Choice(tr("Import from a file…"), bring_in, enabled=not external)]
-        if saved:
-            buttons.append(Choice(tr("Delete"), delete_profile, enabled=not external))
-        return Panel(tr("Fans"), [*rows, Buttons(buttons), Note(say(template, values), TONES.get(tone, "dim"))], wide=True)
+        tasks = {"save": (tr("Save as…"), save_profile), "export": (tr("Export to a file…"), export),
+                 "import": (tr("Import from a file…"), bring_in), "delete": (tr("Delete"), delete_profile)}
+        offered = [key for key in tasks if key == "export" or not external and (key != "delete" or saved)]
+
+        def manage(ui_):
+            task = ui_.choose(tr("Profiles"), [(key, tasks[key][0]) for key in offered])
+            if task is not None:
+                tasks[task][1](ui_)
+
+        rows.append(Choice(tr("Profiles") + " ›", manage))
+        return Panel(tr("Fans"), [*rows, Note(say(template, values), TONES.get(tone, "dim"))], wide=True)
 
     def _table(self, ctx, mine, rows, row, dirty, open_channel, sensors, driver, narrow=False):
         """Every header as one row of a grid: arrows move, Enter opens it."""
@@ -423,7 +429,6 @@ class FansPage(Page):
         for item in rows:
             mode = tr(item["mode_label"]) + (f" · {tr('Pump')}" if item["role"] == "pump" and item["mode"] != "firmware" else "")
             temperature = f"{item['temperature']:.1f}" if item["temperature"] is not None else "—"
-            mark = ">" if item["pwm"] == row["pwm"] else " "
             cells = [
                 PadCell(str(item["bios"] or "—")),
                 PadCell(mode, "accent" if item["mode"] != "firmware" else ""),
@@ -432,7 +437,7 @@ class FansPage(Page):
                 PadCell(str(item["duty"]) if item["duty"] is not None else "—"),
                 PadCell(str(item["rpm"]) if item["rpm"] is not None else "—", "ok" if (item["rpm"] or 0) > 0 else "dim"),
             ]
-            pad_rows.append(PadRow(f"{mark} {item['label'] or item['short_header']}", [cells[i] for i in shown],
+            pad_rows.append(PadRow(item["label"] or item["short_header"], [cells[i] for i in shown],
                                    say(item["state"]), TONES.get(item["tone"], "dim")))
         counts = [tr_format("{count} channels", count=count),
                   tr_format("{count} turning", count=sum(1 for r in rows if (r["rpm"] or 0) > 0)),
@@ -445,7 +450,7 @@ class FansPage(Page):
             ("GPU", gpu.get("temperature_c")), ("CPU", cpu.get("temperature_c")),
             ("VRM", now.get("vrm_temperature_c")), (tr("Board"), now.get("board_temperature_c"))))
         blocks = [Pad([heads[i] for i in shown], pad_rows, cursor, move, toggle,
-                      tr("State"), place=lambda r, c: mine.update(cursor=(r, 0)), corner=tr("Fan"))]
+                      tr("State"), place=lambda r, c: mine.update(cursor=(r, 0)), whole=True, corner=tr("Fan"))]
         if driver:
             blocks.append(Note(tr(driver), "warn"))
         blocks += [Note(" · ".join(counts), "dim"), Note(readings, "dim")]
@@ -456,7 +461,7 @@ class FansPage(Page):
         mode = draft.get("mode", "firmware")
         curve: list = []
         bios = view.bios_number(pwm)
-        identity = f"PWM {pwm} · {row['header']}" + (f" · {tr_format('BIOS Fan {number}', number=bios)}" if bios else "")
+        identity = f"PWM {pwm}" + (f" · {row['header']}" if row["label"] else "") + (f" · {tr_format('BIOS Fan {number}', number=bios)}" if bios else "")
         live = f"{number(row['rpm'], 'RPM')} · {row['duty'] if row['duty'] is not None else '--'} %"
         title = row["label"] or row["header"]
         if external:
@@ -670,17 +675,6 @@ class FansPage(Page):
         policy = build_system_fan_policy(config)
         out_of_date = view.service_out_of_date(system, policy)
         template, values, tone = view.service_summary(system, policy)
-        out = [Heading(tr("Control from boot")),
-               Field(tr("State"), tr("Enabled") if enabled else tr("Disabled"), "ok" if enabled else "dim"),
-               Note(say(template, values), TONES.get(tone, "dim"))]
-        for row in rows:
-            if row["mode"] == "firmware" and not row["fault"]:
-                continue
-            reading = f"{row['temperature']:.1f} °C → " if row["temperature"] is not None else ""
-            target = f"{row['target']} %" if row["target"] is not None else "--"
-            value = f"{reading}{target} · {say(row['state'])}"
-            out.append(Field(f"PWM {row['pwm']} {row['label']}".strip(), value, TONES.get(row["tone"], "dim")))
-
         def toggle(ui_):
             if enabled:
                 if ui_.confirm(tr("Turn off control from boot")):
@@ -698,6 +692,17 @@ class FansPage(Page):
             if ui_.confirm(f"{tr('Turn on control from boot')}\n{tr('Channel')}: {overview['channels_text']}\n{tr('Follows')}: {follows}"):
                 guarded(ui_, tr("Turn on"), lambda: service.activar_control_fan_sistema(policy))
 
+        out = [Heading(tr("Control from boot")),
+               switch(tr("Control from boot"), enabled, toggle, enabled=(enabled or available) and not system.get("external")),
+               Note(say(template, values), TONES.get(tone, "dim"))]
+        for row in rows:
+            if row["mode"] == "firmware" and not row["fault"]:
+                continue
+            reading = f"{row['temperature']:.1f} °C → " if row["temperature"] is not None else ""
+            target = f"{row['target']} %" if row["target"] is not None else "--"
+            value = f"{reading}{target} · {say(row['state'])}"
+            out.append(Field(f"PWM {row['pwm']} {row['label']}".strip(), value, TONES.get(row["tone"], "dim")))
+
         def sync(ui_):
             if not view.policy_supported(system, policy):
                 ui_.notify(f"{tr(view.NOT_READY_TITLE)}: {tr('Update fan helper')}", "warn")
@@ -709,9 +714,7 @@ class FansPage(Page):
             if ui_.confirm(tr("Hand off to another program") if handing else tr("Take control back")):
                 guarded(ui_, tr("Fan control"), lambda: service.ceder_fan_a_otro_programa(handing))
 
-        out += [Choice(tr("Turn off") if enabled else tr("Turn on"), toggle, tone="warn" if enabled else "ok",
-                       enabled=(enabled or available) and not system.get("external")),
-                Choice(tr("Sync now"), sync, enabled=enabled and (out_of_date or state == "override")),
+        out += [Choice(tr("Sync now"), sync, enabled=enabled and (out_of_date or state == "override")),
                 Choice(tr("Take control back") if system.get("external") else tr("Hand off to another program"),
                        external)]
         return out

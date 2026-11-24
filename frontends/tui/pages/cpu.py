@@ -30,7 +30,6 @@ from ..content import (
     Meter,
     Note,
     Panel,
-    Split,
     Tile,
     Tiles,
     load_tone,
@@ -45,8 +44,8 @@ from .base import (
     load_meter,
     metric_blocks,
     stepper,
+    switch,
     temperature_meter,
-    trend,
 )
 from .dashboard import _safe
 
@@ -118,7 +117,14 @@ class CpuPage(Page):
             mine["profiles"] = [valid_profile(kept.get(item["key"]), item) for item in PROFILES]
         profiles = mine["profiles"]
         target = mine.setdefault("target", {"profile": 0, "scale": -34, "manual": False, "force_mask": False})
-        chosen = profiles[target["profile"]]
+        # The values on screen are a draft: stepping one never rewrites the saved profile it came from.
+        chosen = target.setdefault("values", dict(profiles[target["profile"]]))
+
+        def take(index):
+            target.update(profile=index, values=dict(profiles[index]))
+
+        base = profiles[target["profile"]]
+        edited = any(chosen[key] != base[key] for key in ("frequency", "vid", "temperature"))
         persistent, unlock = data.get("persistent") or {}, data.get("unlock") or {}
         processor = unlock.get("processor") or {}
         cpu = metric_blocks(ctx)["cpu"]
@@ -136,6 +142,7 @@ class CpuPage(Page):
                     return
                 profile[key] = value
             profiles[index] = {**profile, "name": name.strip() or profile["name"]}
+            take(index)
             if ctx.settings is not None:
                 ctx.settings.save_local_config({"tui_cpu_profiles": [dict(item) for item in profiles]})
 
@@ -143,34 +150,28 @@ class CpuPage(Page):
             payload = [{key: item[key] for key in ("key", "name", "frequency", "vid", "temperature")} for item in profiles]
             guarded(ui_, tr("Export to Decky"), lambda: service.exportar_perfiles_cpu_decky(payload))
 
-        def keep() -> None:
-            if ctx.settings is not None:
-                ctx.settings.save_local_config({"tui_cpu_profiles": [dict(item) for item in profiles]})
-
         def pick_profile(ui_):
             index = ui_.choose(tr("Operating profile"), [(i, f"{tr(item['name'])}   {item['frequency']} MHz · {item['vid']} mV")
                                                          for i, item in enumerate(profiles)])
             if index is not None:
-                target.update(profile=index)
+                take(index)
 
         def value_row(key, label, unit, low, high, by):
             def adjust(ui_, direction):
                 chosen[key] = max(low, min(high, chosen[key] + by * direction))
-                keep()
 
             def type_in(ui_):
                 value = ui_.ask_int(f"{tr(label)} ({unit})", low, high, chosen[key])
                 if value is not None:
                     chosen[key] = value
-                    keep()
 
             return Choice(tr(label), type_in, f"< {chosen[key]} {unit} >", adjust=adjust, id=key, info=Info(tr(
                 "This is the voltage limit used by automatic detection. A lower VID asks the detector to use less voltage. It is a detection target, not a fixed voltage saved for boot."))
                 if key == "vid" else None)
 
         cards = [
-            Choice(tr("Operating profile"), pick_profile, f"< {tr(chosen['name'])} >", id="profile",
-                   adjust=lambda ui_, d: target.update(profile=(target["profile"] + d) % len(profiles)),
+            Choice(tr("Operating profile"), pick_profile, f"< {tr('Custom') if edited else tr(base['name'])} >", id="profile",
+                   adjust=lambda ui_, d: take((target["profile"] + d) % len(profiles)),
                    edit=lambda ui_: edit(ui_, target["profile"])),
             value_row("frequency", "Frequency", "MHz", *FREQUENCY_MHZ, 50),
             value_row("vid", "VID", "mV", *VID_MV, 5),
@@ -189,8 +190,7 @@ class CpuPage(Page):
                     mine["last"] = f
 
         scale_rows = [
-            Choice(tr("Use manual scale"), lambda ui_: target.update(manual=not target["manual"]),
-                   f"< {tr('Enabled' if target['manual'] else 'Disabled')} >", adjust=lambda ui_, d: target.update(manual=not target["manual"]),
+            switch(tr("Use manual scale"), target["manual"], lambda ui_: target.update(manual=not target["manual"]),
                    info=Info(tr("Scale is not mV. More negative means less voltage. Test it live first; only then can it be saved for boot."))),
             *([stepper(tr("Scale"), target, "scale", *SCALE, 1, "scale")] if target["manual"] else [])]
         apply_button = Buttons([Choice(tr("Apply temporary OC + manual scale") if target["manual"]
@@ -201,12 +201,11 @@ class CpuPage(Page):
         live_panel = Panel(tr("Live"), [
             Meter(tr("Frequency"), percent(float(clock) / FREQUENCY_MHZ[1] * 100) if clock else None, number(clock, "MHz"), ""),
             temperature_meter(tr("Temperature"), cpu.get("temperature_c")),
-            load_meter(tr("CPU usage"), cpu.get("usage_percent")),
-            trend(ctx, "°C · 2 min", "cpu_temp", "°C")])
+            load_meter(tr("CPU usage"), cpu.get("usage_percent"))])
 
         overview = [Field(tr(label), str(processor.get(key) or tr("Not exposed"))) for key, label in OVERVIEW]
         overview.append(Field(tr("Total CPU load"), number(processor.get("total_usage_percent", cpu.get("usage_percent")), "%", 0)))
-        overview_panel = Panel(tr("Processor overview"), [Split(overview[:4], overview[4:], ratio=0.5, minimum=90)])
+        overview_panel = Panel(tr("Processor overview"), overview)
 
         # -- runtime status: what this session uses and what the next boot does
         enabled = str(persistent.get("enabled") or "").lower() == "enabled"
@@ -214,14 +213,11 @@ class CpuPage(Page):
         tuning = present_cpu_tuning(persistent, data.get("detection") or {}, data.get("scale") or {}, data.get("quick"),
                                     last_applied_frequency=mine.get("last"), scale_override_enabled=target["manual"])
         last = mine.get("last")
-        live = f"{number(cpu.get('temperature_c'), '°C', 0)} | {number(cpu.get('frequency_mhz'), 'MHz')}"
         runtime = Panel(tr("Runtime status"), [Tiles([
-            Tile(tr("Boot persistence"), said(stored.status_value), tone="ok" if enabled else ""),
-            Tile(tr("Last operation"), f"{last} MHz" if last else tr("None")),
+            *([Tile(tr("Last operation"), f"{last} MHz")] if last else []),
             Tile(tr("Applied tuning"), said(tuning.applied_value)),
             Tile(tr("Detection reference"), said(tuning.detection_value)),
-            Tile(tr("Active scale"), said(tuning.live_value)),
-            Tile(tr("Live CPU status"), live)], minimum=20)],
+            Tile(tr("Active scale"), said(tuning.live_value))], minimum=20)],
             badge=tr("Persistence" if enabled else "Temporary"), badge_tone="accent" if enabled else "ok")
 
         # -- live cores: eight slots, the ones the board hides read "Hidden"
@@ -318,15 +314,12 @@ class CpuPage(Page):
         def guide(ui_):
             ui_.show_text(tr("Firmware persistence guide"), GUIDE_URL)
 
-        danger = Panel(tr("DANGER ZONE").capitalize(), [
-            Note(tr("Unlock hidden CPU cores"), "bad"),
+        danger = Panel(tr("Unlock hidden CPU cores"), [
             Choice(tr("Temporary"), lambda ui_: target.update(unlock_mode="temporary"),
-                   detail=tr("Until the next full power-off. Nothing is installed."),
-                   badge=tr("Selected") if not persistent_mode else ""),
+                   mark=not persistent_mode, info=Info(tr("Until the next full power-off. Nothing is installed."))),
             Choice(tr("Persistence"), lambda ui_: target.update(unlock_mode="persistent"),
-                   detail=tr("Applied again by itself on every cold boot, without flashing the BIOS."),
-                   badge=tr("Selected") if persistent_mode else tr(controls["status"]),
-                   enabled=controls["offered"]),
+                   mark=persistent_mode, info=Info(tr("Applied again by itself on every cold boot, without flashing the BIOS.")),
+                   badge="" if persistent_mode else tr(controls["status"]), enabled=controls["offered"]),
             *([Field(tr("Status"), tr(controls["status"]))] if persistent_mode else []),
             *([Note(tr(controls["note"]), "bad")] if controls["note"] else []),
             *([Note(tr(controls["hint"]), "dim")] if controls["hint"] and
@@ -343,7 +336,7 @@ class CpuPage(Page):
             *([] if persistent_mode else [Choice(tr("Firmware persistence guide") + " ›", guide)]),
         ], danger=True)
 
-        sections = {"tuning": [profile_panel, persistence, live_panel, cores_panel],
+        sections = {"tuning": [profile_panel, persistence, live_panel],
                     "monitor": [runtime, cores_panel, overview_panel],
                     "boot": [persistence], "cores": [cores_panel, danger]}
         return sections.get(tab, sections["tuning"])

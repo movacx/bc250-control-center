@@ -144,17 +144,15 @@ def test_a_game_row_runs_its_own_action_and_memory_asks_before_the_chosen_policy
     def choice(label):
         return next(row for row in build_page(page.build(ctx, data, "memory", ui), 100, GLYPHS).choices if row.label == label)
 
-    assert not choice("Apply Swap").enabled
-    ui.choices = ["swap-16"]
-    choice("Swap").handler(ui)
-    ui.choices = ["/home"]
-    choice("Swapfile location").handler(ui)
     service.calls.clear()
-    ui.confirm_answer = False
-    choice("Apply Swap").handler(ui)
+    ui.choices, ui.confirm_answer = ["zram-8"], True
+    choice("Swap ›").handler(ui)
+    assert not service.calls  # this system does not offer that policy
+    ui.choices, ui.confirm_answer = ["swap-16", "/home"], False
+    choice("Swap ›").handler(ui)
     assert not service.calls
-    ui.confirm_answer = True
-    choice("Apply Swap").handler(ui)
+    ui.choices, ui.confirm_answer = ["swap-16", "/home"], True
+    choice("Swap ›").handler(ui)
     assert service.calls == [("preparar_memoria", ("swap-16", 0), {"takeover_zram": False, "target_mount": "/home"})]
 
 
@@ -201,3 +199,37 @@ def test_the_handbook_is_searchable_and_reads_for_this_system():
     from bc250cc.shared import known_errors
 
     assert "pacman" in entry_text(known_errors.for_id("PKG-01"), "arch")
+
+
+def test_a_switch_is_a_box_and_the_unavailable_kernel_options_stay_folded():
+    from frontends.tui.pages import compat
+    from frontends.tui.pages.base import switch
+
+    from .fakes import FakeUI, make_context
+
+    assert [switch("S", on, lambda ui: None).detail for on in (True, False)] == ["[x]", "[ ]"]
+    setup = {"helper_available": True, "kernel_options": {"available": True, "arguments": {"nosmt": {"configured": True, "active": True}}}}
+    mine: dict = {}
+    panel = compat.kernel_options(make_context().service, setup, mine)
+    assert "[x] Disable SMT" in [row.label for row in panel.blocks]
+    fold = panel.blocks[-1]
+    assert fold.label.startswith("+ Not available here")
+    fold.handler(FakeUI())
+    assert len(compat.kernel_options(make_context().service, setup, mine).blocks) > len(panel.blocks)
+
+
+def test_stepping_a_cpu_value_never_rewrites_the_saved_profile():
+    from frontends.tui.pages import build_pages
+
+    from .fakes import FakeUI, make_context
+
+    ctx, ui, page = make_context(), FakeUI(), build_pages()["cpu"]
+    ctx.settings.save_local_config = lambda updates: (_ for _ in ()).throw(AssertionError(updates))
+
+    def choice(label):
+        return next(c for c in build_page(page.build(ctx, page.load(ctx), "tuning", ui), 100, GLYPHS).choices if c.label == label)
+
+    choice("Frequency").adjust(ui, 1)
+    assert "Custom" in choice("Operating profile").detail
+    choice("Operating profile").adjust(ui, len(ctx.state("cpu")["profiles"]))  # all the way round: the profile as saved
+    assert "Average board" in choice("Operating profile").detail

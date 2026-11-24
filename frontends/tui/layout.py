@@ -34,7 +34,7 @@ from .content import (
     wrap,
 )
 
-LABEL_MAX = 30
+LABEL_MAX = 36
 LABEL_MIN = 24
 BAR_MAX = 24
 MIN_BAR = 4
@@ -491,29 +491,34 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 layout.rows.append(Row(row, index, plain=True))
 
             def line(texts, tones, r=None):
-                row, cells, x = [(g.v, "dim")], [], 1
+                bar = g.v if block.classic else " "
+                row, cells, x = [(bar, "dim")], [], 1
                 for c, (w, text, tone) in enumerate(zip(widths, texts, tones)):
-                    row.append((clip(text, w).center(w), tone))
-                    row.append((g.v, "dim"))
+                    row.append((clip(text, w).center(w) if block.classic or c else pad(clip(text, w), w), tone))
+                    row.append((bar, tone if tone == "sel" and block.whole else "dim"))
                     if r is not None and 0 < c <= cols:
                         cells.append((x, x + w, r, c - 1))
                     x += w + 1
                 layout.rows.append(Row(row, index, plain=True, cells=cells))
 
-            rule(g.top)
+            if block.classic:
+                rule(g.top)
             heads = [str(text).split("\n") for text in [block.corner, *block.headers, *extra, block.tail_header]]
             for level in range(max(len(head) for head in heads)):
-                line([head[level] if level < len(head) else "" for head in heads], ["" if level == 0 else "dim"] * len(widths))
-            rule(g.mid)
+                line([head[level] if level < len(head) else "" for head in heads], ["" if level == 0 and block.classic else "dim"] * len(widths))
+            if block.classic:
+                rule(g.mid)
             for r, prow in enumerate(block.rows):  # the token says the state, the colour repeats it
-                tones = [""] + [("sel" if (r, c) == block.cursor else cell.tone)
-                                                               for c, cell in enumerate(prow.cells)]
+                here = block.whole and r == block.cursor[0]
+                tones = ["sel" if here else ""] + ["sel" if here or (not block.whole and (r, c) == block.cursor) else cell.tone
+                                                   for c, cell in enumerate(prow.cells)]
                 more = list(prow.extra)[:len(extra)]
                 line([prow.name] + [cell.text for cell in prow.cells] + [text for text, _tone in more] + [prow.tail],
-                     tones + [tone for _text, tone in more] + [prow.tail_tone], r)
+                     tones + [tone for _text, tone in more] + ["sel" if here else prow.tail_tone], r)
                 if notes and any(cell.note for cell in prow.cells):
                     line([""] + [cell.note for cell in prow.cells] + [""] * (len(extra) + 1), [""] + tones[1:] + [""] * (len(extra) + 1), r)
-            rule(g.bottom)
+            if block.classic:
+                rule(g.bottom)
         elif isinstance(block, Panel):
             inner = build_layout(([Note(block.subtitle, "dim")] if block.subtitle else []) + list(block.blocks),
                                  width, glyphs, label_cap)
@@ -539,34 +544,27 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 layout.choices.append(choice)
                 layout.choice_rows.append(len(layout.rows))
                 add(button_spans(choice, glyphs, width), choice=len(layout.choices) - 1)
-        elif isinstance(block, Slider):  # the rail, then the stop labels on two staggered rows
+        elif isinstance(block, Slider):  # one line: where the chosen range sits between the two ends
             stops = list(block.stops)
             span = max(1, len(stops) - 1)
-            at = [round(index * (width - 1) / span) for index in range(len(stops))]
+            names = str(stops[0]), str(stops[-1])
+            room = max(4, width - len(names[0]) - len(names[1]) - 2)
+            at = [round(index * (room - 1) / span) for index in range(len(stops))]
             first = min(range(len(stops)), key=lambda i: abs(stops[i] - block.start))
             last = min(range(len(stops)), key=lambda i: abs(stops[i] - block.end))
             red = [block.danger is not None and stop > block.danger for stop in stops]
-            cells = []
-            for x in range(width):
+            cells = [(char, "dim") for char in names[0] + " "]
+            for x in range(room):
                 index = max(i for i in range(len(at)) if at[i] <= x)  # the stop at or left of this cell
                 hot = red[min(len(stops) - 1, index + (x > at[index]))]
                 if x in (at[first], at[last]):
                     cells.append(("●" if glyphs.rule == "─" else "O", "bad" if red[last] and x == at[last] else ""))
                 elif at[first] < x < at[last]:
                     cells.append((glyphs.fill, "bad" if hot else "bar"))
-                elif x in at:
-                    cells.append(("┼" if glyphs.rule == "─" else "+", "dim"))
                 else:
                     cells.append((glyphs.rule, "edge"))
+            cells += [(char, "dim") for char in " " + names[1]]
             add(_runs(cells))
-            for parity in (0, 1):
-                line = [(" ", "")] * width
-                for index in range(parity, len(stops), 2):
-                    text = str(stops[index])
-                    begin = max(0, min(width - len(text), at[index] - len(text) // 2))
-                    if all(char == " " for char, _tone in line[max(0, begin - 1):begin + len(text) + 1]):  # never touch
-                        line[begin:begin + len(text)] = [(char, "" if index in (first, last) else "dim") for char in text]
-                add(_runs(line))
         elif isinstance(block, Legend):
             spans, used = [], 0
             for chip, meaning, tone in block.items:

@@ -11,7 +11,7 @@ from frontends.desktop.core.diagnosis_groups import (
 
 from ..content import Choice, Field, Gap, Grid, Heading, Note
 from ..i18n import tr
-from .base import Page, guarded
+from .base import Page, guarded, switch
 
 PAGE_ROWS = 12
 
@@ -46,15 +46,14 @@ class BlackBoxPage(Page):
         autostart = status.get("autostart") or {}
         out = [
             Heading(tr("Black box")),
-            Field(tr("State"), str(status.get("state_text") or status.get("state") or "--"), "ok" if running else "warn"),
+            Field(tr("State"), tr("Running") if running else tr("Stopped")),
             Field(tr("Folder"), str(status.get("directory") or "--")),
-            Field(tr("Start with the session"), tr("Yes") if autostart.get("enabled") else tr("No")),
         ]
-        rows = status.get("rows") or []
+        rows, recorded = status.get("rows") or [], []
         if rows:
-            out += [Gap(), Grid(
-                ["time", "clock", "busy", "t_gpu", "t_cpu", "volts", "watts", "rpm"],
-                [[str(row.get(key, "")) for key in
+            recorded = [Gap(), Grid(
+                [tr("Time"), "MHz", "%", "GPU °C", "CPU °C", "mV", "W", "RPM"],
+                [[str(row.get(key, "")).removesuffix("Mhz").removesuffix("MHz").replace("fan", "F") for key in
                   ("time", "clock", "busy", "t_gpu", "t_cpu", "volts", "watts", "rpm")] for row in rows],
             )]
 
@@ -69,12 +68,10 @@ class BlackBoxPage(Page):
             enable = not autostart.get("enabled")
             guarded(ui_, tr("Start with the session"), lambda: service.blackbox_con_la_sesion(enable))
 
-        out += [Gap(), Heading(tr("Actions"))]
-        out.append(Choice(tr("Stop"), stop) if running else Choice(tr("Start"), start))
-        out.append(Choice(tr("Start with the session"), autostart_toggle,
-                          tr("Yes") if autostart.get("enabled") else tr("No"),
-                          enabled=bool(autostart.get("supported", True))))
-        return out
+        # What can be done first, then what was recorded.
+        return [*out, switch(tr("Start with the session"), bool(autostart.get("enabled")), autostart_toggle,
+                             enabled=bool(autostart.get("supported", True))),
+                Choice(tr("Stop"), stop) if running else Choice(tr("Start"), start), *recorded]
 
     def _diagnosis_tab(self, ctx, tab, ui):
         cache = self._diagnosis(ctx)

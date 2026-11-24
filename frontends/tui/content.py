@@ -203,6 +203,7 @@ class Pad:
     tail_header: str = ""
     place: Callable[[int, int], None] | None = None  # a tap on a cell puts the cursor there first
     corner: str = ""  # over the row names; any header may carry a second line after "\n"
+    whole: bool = False  # a row is one item: the cursor lights all of it
     classic: bool = False  # drawn with + - | like a command-line tool's own table, in every terminal
     info: "Info | None" = None
     extra: Sequence[str] = ()  # headers of read-only columns between the cells and the tail

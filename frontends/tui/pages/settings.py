@@ -9,10 +9,10 @@ from frontends.desktop.core.temperature_unit import UNITS, unit_symbol, use_unit
 from frontends.desktop.i18n import LANGUAGE_OPTIONS
 
 from .. import preferences
-from ..content import Choice, Field, Info, Note, Panel
-from ..i18n import current_language, set_language, tr
+from ..content import Choice, Info, Note, Panel
+from ..i18n import set_language, tr
 from . import compat
-from .base import Page, guarded
+from .base import Page, guarded, switch
 
 THEMES = (("auto", "System"), ("light", "Light"), ("dark", "Dark"), ("mono", "No colour"))
 TABS = (("general", "General"), ("appearance", "Appearance"), ("hardware", "Hardware"), ("terminal", "Terminal"),
@@ -85,8 +85,8 @@ class SettingsPage(Page):
                       info=Info(tr(detail)) if detail else None, id=key)
 
     def _switch(self, ctx, title: str, key: str, value: bool, *, detail: str = "") -> Choice:
-        return Choice(tr(title), lambda ui: self._save(ctx, ui, {key: not value}), tr("Enabled" if value else "Disabled"),
-                      tone="ok" if value else "", info=Info(tr(detail)) if detail else None, id=key)
+        return switch(tr(title), value, lambda ui: self._save(ctx, ui, {key: not value}),
+                      info=Info(tr(detail)) if detail else None, id=key)
 
     # -- tabs --------------------------------------------------------------------------------------
 
@@ -127,22 +127,14 @@ class SettingsPage(Page):
                              detail="Restore the last visited module when the application starts."),
                 self._switch(ctx, "Collapsed sidebar at launch", "tui_sidebar_collapsed", mine["tui_sidebar_collapsed"],
                              detail="Open the main navigation in compact mode.")]),
-            Panel(tr("Help"), [
-                Choice(tr("Keyboard shortcuts") + " ›", lambda ui_: ui_.show_text(tr("Keyboard shortcuts"), ui_.help_text())),
-                Choice(tr("Guide") + " ›", lambda ui_: (ui_.goto("support"), ui_.show_tab("guide"))),
-                Choice(tr("Support") + " ›", lambda ui_: ui_.goto("support")),
-                Choice(tr("About") + " ›", lambda ui_: ui_.goto("about")),
-                Choice(tr("Reset preferences"), reset, tone="bad")])]
+            Panel("", [Choice(tr("Reset preferences"), reset, tone="bad")])]
 
     def _appearance(self, ctx, data, config, mine, ui):
         return [
             Panel(tr("Theme and color"), [
                 self._pick(ctx, "Theme", "tui_theme", [(key, theme_label(key)) for key, _label in THEMES], mine["tui_theme"]),
                 self._pick(ctx, "Accent color", "tui_accent", [(key, tr(label)) for key, label in preferences.ACCENT_LABELS.items()],
-                           mine["tui_accent"], detail="Select the main interface accent used across modules."),
-                self._pick(ctx, "Style", "tui_style", [(key, tr(label)) for key, label in preferences.STYLES.items()], mine["tui_style"],
-                           detail="The register, in any theme. Standard keeps the rounded, lively look. Formal uses deeper, quieter "
-                                  "colours, squarer corners and flat cards.")]),
+                           mine["tui_accent"], detail="Select the main interface accent used across modules.")]),
             Panel(tr("Layout"), [
                 self._pick(ctx, "Density", "tui_density", [(key, tr(label)) for key, label in preferences.DENSITIES.items()],
                            mine["tui_density"]),
@@ -154,16 +146,14 @@ class SettingsPage(Page):
             self._pick(ctx, "GPU governor backend", "gpu_governor", [(key, tr(label)) for key, label in GOVERNORS],
                        str(config.get("gpu_governor") or "auto"), detail=(
                            "Only one GPU governor can be enabled at a time. Preparing another governor will ask before stopping the "
-                           "active one.")),
-            Choice(tr("GPU Governor") + " ›", lambda ui_: ui_.goto("gpu"))],
+                           "active one."))],
             subtitle=tr("Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module."))]
 
     def _terminal(self, ctx, data, config, mine, ui):
         return [Panel(tr("Built-in terminal"), [
             self._switch(ctx, "Hide the terminal when a workflow finishes without errors", "tui_auto_hide", mine["tui_auto_hide"],
                          detail="A workflow that fails keeps the terminal open so its output can be read."),
-            self._pick(ctx, "Sampling interval", "tui_interval", [(value, tr(label)) for value, label in INTERVALS], mine["tui_interval"]),
-            Choice(tr("Activity") + " ›", lambda ui_: ui_.show_activity())])]
+            self._pick(ctx, "Sampling interval", "tui_interval", [(value, tr(label)) for value, label in INTERVALS], mine["tui_interval"])])]
 
     def _telemetry(self, ctx, data, config, mine, ui):
         service, tools = ctx.service, data.get("tools") or {}
@@ -172,7 +162,7 @@ class SettingsPage(Page):
                                    for key, title, detail in compat.SENSORS) if row is not None]
         active = bool(data.get("daemon"))
 
-        def switch(ui_):
+        def flip(ui_):
             enable = not active
             text = tr("This runs systemctl --user enable --now bc250-control-centerd.service. The daemon records telemetry and "
                       "restores the saved fan mode after login: an enabled automatic curve, a named preset or the last manual "
@@ -189,9 +179,7 @@ class SettingsPage(Page):
                 lambda ui_: (ui_.goto("support"), ui_.show_tab("guide")))],
                 subtitle=tr("Where the board readings come from, and the background monitor.")),
             Panel(tr("Optional daemon"), [
-                Field(tr("Status"), tr("Running") if active else tr("Disabled"), "ok" if active else "dim"),
-                Choice(tr("Enable optional daemon" if not active else "Disable optional daemon"), switch,
-                       info=Info(tr("bc250-control-centerd keeps sampling while the app is closed."))),
+                switch(tr("Optional daemon"), active, flip, info=Info(tr("bc250-control-centerd keeps sampling while the app is closed."))),
                 self._pick(ctx, "Sampling interval", "daemon_interval_seconds", [(value, tr(label)) for value, label in INTERVALS],
                            config.get("daemon_interval_seconds", 2), detail="How often the daemon reads the sensors.")]),
             Panel(tr("Eight-core GPU telemetry"), [compat.component(
@@ -259,5 +247,4 @@ class SettingsPage(Page):
                 *[Choice(str(item.get("id") or item.get("snapshot_id") or item) if isinstance(item, dict) else str(item),
                          lambda ui_, i=item: plan(ui_, i), str(item.get("created_at") or item.get("label") or "") if isinstance(item, dict) else "")
                   for item in shots],
-                *([] if shots else [Note(tr("(empty)"), "dim")])]),
-            Panel(tr("Application"), [Field(tr("Language"), current_language())])]
+                *([] if shots else [Note(tr("(empty)"), "dim")])])]
