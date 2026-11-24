@@ -6181,7 +6181,7 @@
   "HelixSR cannot go into this game that way; its current HelixSR was kept.": "HelixSR:ää ei voi laittaa tähän peliin tällä tavalla; nykyinen HelixSR säilytettiin.",
   "Local name resolution is still unavailable. Use the numeric address.": "Paikallisten nimien selvitys ei ole vielä käytettävissä. Käytä numeerista osoitetta.",
   "Prepare the web server runtime from the ordinary Linux user session, not as root.": "Valmistele web-palvelimen ajoympäristö tavallisesta Linux-käyttäjäistunnosta, älä rootina.",
-  "Terminal authorization is unavailable. Run this action from the TUI console with polkit/pkttyagent installed and a working system D-Bus session.": "Päätteen valtuutus ei ole käytettävissä. Suorita tämä toiminto TUI-konsolista, jossa polkit/pkttyagent on asennettu ja järjestelmän D-Bus-istunto toimii.",
+  "Terminal authorization is unavailable. Run this action from the terminal interface, with sudo installed.": "Pääteoikeutus ei ole käytettävissä. Suorita toiminto päätekäyttöliittymästä, kun sudo on asennettu.",
   "The web server dependencies are unavailable after runtime preparation. Reinstall BC250 Control Center.": "Web-palvelimen riippuvuudet eivät ole käytettävissä ajoympäristön valmistelun jälkeen. Asenna BC250 Control Center uudelleen.",
   "The web server dependencies are unavailable: Cheroot >=11.1.2,<12 is required. Start web access from the desktop to prepare its isolated runtime.": "Web-palvelimen riippuvuudet eivät ole käytettävissä: Cheroot >=11.1.2,<12 vaaditaan. Käynnistä verkkokäyttö työpöydältä valmistellaksesi sen eristetyn ympäristön.",
   "The web server requirements file is missing. Reinstall BC250 Control Center.": "Web-palvelimen vaatimustiedosto puuttuu. Asenna BC250 Control Center uudelleen.",

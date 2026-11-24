@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
 
+from bc250cc.application.preparation import distribution_rows
 from bc250cc.application.preparation.steamos_providers import steamos_ownership
 from bc250cc.application.preparation.toolkit_rows import (
     COMBINED_GLIBC_REASON,
@@ -1138,11 +1139,10 @@ class PreparationRenderMixin:
 
     #: Where the provider's own row replaces ours on SteamOS. Ours stays visible for
     #: anyone who already has it installed, so it can still be updated or removed.
-    _SUPERSEDED_WHEN = frozenset({"", "not-installed", "unsupported", "managed-elsewhere", "hardware-vcn", "unknown"})
+    _SUPERSEDED_WHEN = distribution_rows.SUPERSEDED_WHEN
 
     #: ACPI states that mean this application put something there.
-    _NATIVE_ACPI_PRESENT = frozenset({"active", "pending-reboot", "not-active", "incomplete",
-                                      "outdated", "needs-repair", "needs-check"})
+    _NATIVE_ACPI_PRESENT = distribution_rows.NATIVE_ACPI_PRESENT
 
     def _hide_superseded_native_rows(self) -> None:
         """SteamOS offers the Real Toolkit's VA-API, AC-3, HDMI-CEC and Proton rows.

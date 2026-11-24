@@ -6181,7 +6181,7 @@
   "HelixSR cannot go into this game that way; its current HelixSR was kept.": "Không thể đưa HelixSR vào trò chơi này theo cách đó; HelixSR hiện tại đã được giữ nguyên.",
   "Local name resolution is still unavailable. Use the numeric address.": "Việc phân giải tên cục bộ vẫn chưa khả dụng. Hãy dùng địa chỉ dạng số.",
   "Prepare the web server runtime from the ordinary Linux user session, not as root.": "Hãy chuẩn bị môi trường máy chủ web từ phiên người dùng Linux thông thường, không phải bằng root.",
-  "Terminal authorization is unavailable. Run this action from the TUI console with polkit/pkttyagent installed and a working system D-Bus session.": "Xác thực qua terminal không khả dụng. Hãy chạy thao tác này từ bảng điều khiển TUI, với polkit/pkttyagent đã cài và một phiên D-Bus hệ thống đang hoạt động.",
+  "Terminal authorization is unavailable. Run this action from the terminal interface, with sudo installed.": "Không thể xác thực trong terminal. Hãy chạy thao tác này từ giao diện terminal, với sudo đã được cài đặt.",
   "The web server dependencies are unavailable after runtime preparation. Reinstall BC250 Control Center.": "Các thành phần phụ thuộc của máy chủ web không khả dụng sau khi chuẩn bị môi trường. Hãy cài lại BC250 Control Center.",
   "The web server dependencies are unavailable: Cheroot >=11.1.2,<12 is required. Start web access from the desktop to prepare its isolated runtime.": "Các thành phần phụ thuộc của máy chủ web không khả dụng: cần Cheroot >=11.1.2,<12. Hãy khởi động truy cập web từ màn hình nền để chuẩn bị môi trường cô lập của nó.",
   "The web server requirements file is missing. Reinstall BC250 Control Center.": "Thiếu tệp yêu cầu của máy chủ web. Hãy cài lại BC250 Control Center.",

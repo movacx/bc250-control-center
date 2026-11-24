@@ -42,6 +42,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
 
+from bc250cc.application.preparation.distribution_rows import distribution_group
 from bc250cc.application.system import accessory_rows, kernel_option_rows
 from bc250cc.infrastructure.system_setup import (
     CU_UNLOCK_OPTION,
@@ -3535,14 +3536,7 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
 
     @staticmethod
     def _distribution_group(family: str) -> str:
-        family = str(family or "").strip().lower()
-        if family in {"arch", "cachyos", "manjaro"}:
-            return "arch"
-        if family in {"ubuntu", "debian"}:
-            return "debian"
-        if family in {"steamos", "bazzite", "fedora"}:
-            return family
-        return "other"
+        return distribution_group(family)
 
     def _compatibility_filter_changed(self) -> None:
         identifier = str(self.compatibility_filter.currentData() or "detected")

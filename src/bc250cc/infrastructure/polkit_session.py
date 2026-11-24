@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import threading
 import time
 from collections.abc import Mapping, Sequence
@@ -24,7 +25,7 @@ AUTH_AGENT_MESSAGE = (
     "does not appear, check that your desktop has an active authentication agent."
 )
 
-#: Set by the terminal interface: authenticate on its console, never in a window.
+#: Set by the terminal interface: sudo asks on its console; polkit is never involved.
 TERMINAL_AUTH_ENV = "BC250_TERMINAL_AUTH"
 WEB_SUDO_AUTH_ENV = "BC250_WEB_SUDO_AUTH"
 TERMINAL_AGENT_READY: ContextVar[bool] = ContextVar("bc250_terminal_agent_ready", default=False)
@@ -166,9 +167,7 @@ def ensure_graphical_polkit_agent(
     global _DEFAULT_READY_STATE
     env = dict(os.environ if environment is None else environment)
     if env.get(TERMINAL_AUTH_ENV) == "1":
-        # The terminal interface registers its own textual agent (pkttyagent)
-        # for its process: a desktop window would be the wrong place to ask,
-        # and on a bare TTY there is none to show.
+        # The terminal interface authorizes with sudo on its own console.
         return PolkitAgentState(False, "terminal", "The terminal interface asks for the password itself.")
     default_probe = environment is None and proc_root == Path("/proc")
     if default_probe and _DEFAULT_READY_STATE is not None:
@@ -239,8 +238,18 @@ def ensure_graphical_polkit_agent(
         return PolkitAgentState(False, "missing", AUTH_AGENT_MESSAGE)
 
 
+def uses_sudo() -> bool:
+    """Whether this process authorizes with sudo instead of Polkit."""
+    return os.environ.get(WEB_SUDO_AUTH_ENV) == "1" or os.environ.get(TERMINAL_AUTH_ENV) == "1"
+
+
+def authorization_command(name: str) -> str:
+    """What a service that needs ``pkexec`` should look for: sudo where sudo authorizes."""
+    return "sudo" if name == "pkexec" and uses_sudo() else name
+
+
 def pkexec_prefix(executor: str, *, prepare_agent: bool = True) -> list[str]:
-    """Use graphical Polkit by default, or native sudo in the web action child."""
+    """Graphical Polkit on the desktop; native sudo in the terminal interface and the web action child."""
     value = str(executor or "")
     if not value or "\x00" in value:
         raise ValueError("Invalid privileged command")
@@ -252,11 +261,13 @@ def pkexec_prefix(executor: str, *, prepare_agent: bool = True) -> list[str]:
         if not sudo:
             raise RuntimeError("sudo is required for web hardware authorization.")
         return [sudo, "-p", "BC250 Linux password: ", "--"]
-    if os.environ.get(TERMINAL_AUTH_ENV) == "1" and not TERMINAL_AGENT_READY.get():
-        from bc250cc.shared.errors import ActionNeeded
+    if os.environ.get(TERMINAL_AUTH_ENV) == "1":
+        if not TERMINAL_AGENT_READY.get():  # a background reading: it must never ask
+            from bc250cc.shared.errors import ActionNeeded
 
-        raise ActionNeeded("Terminal authorization is unavailable. Run this action from the TUI console with "
-                           "polkit/pkttyagent installed and a working system D-Bus session.")
+            raise ActionNeeded("Terminal authorization is unavailable. Run this action from the terminal interface, "
+                               "with sudo installed.")
+        return [sys.executable, "-I", str(Path(__file__).with_name("terminal_sudo.py")), "--"]
     if prepare_agent:
         ensure_graphical_polkit_agent()
     return [value, "--disable-internal-agent"]
@@ -273,10 +284,10 @@ def pkexec_argv(
     if not values[0] or any("\x00" in value for value in values):
         raise ValueError("Invalid privileged command")
     prefix = pkexec_prefix(executor, prepare_agent=prepare_agent)
-    if os.environ.get(WEB_SUDO_AUTH_ENV) == "1" and Path(values[0]).name in {
-        "bc250-gddr6-temp-helper", "bc250-gddr6-temp-reader",
+    if uses_sudo() and Path(values[0]).name in {
+        "bc250-gddr6-temp-helper", "bc250-gddr6-temp-reader", "bc250-core-unlock-helper",
     }:
-        # Installed GDDR6 helpers predate SUDO_UID support. Supply their expected
+        # These installed helpers predate SUDO_UID support. Supply their expected
         # identity through sudo's checked environment-assignment syntax. The
         # current UID is fixed by the OS, never provided by a browser request.
         # sudo stops parsing assignments at --. After it, NAME=value is

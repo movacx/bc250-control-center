@@ -11,7 +11,8 @@ RESULT_PREFIX = "BC250_RESULT"
 CANCELLED_MESSAGE = "Cancelled."
 POLKIT_DISMISSED_PATTERN = (
     "request dismissed|authentication cancell?ed|cancell?ed by user|"
-    "org[.]freedesktop[.]policykit1[.]error[.]cancelled"
+    "org[.]freedesktop[.]policykit1[.]error[.]cancelled|"
+    "sudo: (a password is required|no password was provided|[0-9]+ incorrect password attempt)"
 )
 
 

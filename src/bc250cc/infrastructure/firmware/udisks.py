@@ -12,11 +12,16 @@ already carries the rest of the application's D-Bus traffic.
 
 from __future__ import annotations
 
+import getpass
 import json
+import os
 import re
 import shutil
 import subprocess
 from collections.abc import Callable
+
+from bc250cc.infrastructure.polkit_session import pkexec_argv, uses_sudo
+from bc250cc.infrastructure.terminal_sudo import CONSOLE_ENV, SOCKET_ENV
 
 BUS = "org.freedesktop.UDisks2"
 BLOCK_ROOT = "/org/freedesktop/UDisks2/block_devices"
@@ -77,13 +82,17 @@ class UDisksClient:
         command = [
             "busctl", "--system", "--json=short", f"--timeout={timeout}", *arguments,
         ]
+        if arguments[:1] == ["call"] and uses_sudo():
+            # UDisks would have Polkit ask whoever is on the desktop; root needs no asking.
+            command = pkexec_argv("pkexec", shutil.which("busctl") or "/usr/bin/busctl", *command[1:])
         result = self._runner(
             command,
             capture_output=True,
             text=True,
             check=False,
             timeout=timeout + 15,
-            env={"LC_ALL": "C", "PATH": "/usr/sbin:/usr/bin:/sbin:/bin"},
+            env={"LC_ALL": "C", "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+                 **{name: os.environ[name] for name in (SOCKET_ENV, CONSOLE_ENV) if name in os.environ}},
         )
         if result.returncode != 0:
             message = (result.stderr or result.stdout or "").strip()
@@ -163,7 +172,9 @@ class UDisksClient:
         if points:
             return points[0]
         try:
-            mounted = self._call(block_path(name), FILESYSTEM, "Mount", "a{sv}", "0", timeout=60)
+            # As root the mount would belong to root: ask for it in this user's name.
+            owner = ("1", "as-user", "s", getpass.getuser()) if uses_sudo() else ("0",)
+            mounted = self._call(block_path(name), FILESYSTEM, "Mount", "a{sv}", *owner, timeout=60)
         except UDisksError:
             # A desktop automounter can win the race to the new partition.
             points = self.mount_points(name)

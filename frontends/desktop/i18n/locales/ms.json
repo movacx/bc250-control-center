@@ -6181,7 +6181,7 @@
   "HelixSR cannot go into this game that way; its current HelixSR was kept.": "HelixSR tidak boleh dimasukkan ke dalam permainan ini dengan cara itu; HelixSR semasa dikekalkan.",
   "Local name resolution is still unavailable. Use the numeric address.": "Resolusi nama tempatan masih belum tersedia. Gunakan alamat berangka.",
   "Prepare the web server runtime from the ordinary Linux user session, not as root.": "Sediakan persekitaran pelayan web daripada sesi pengguna Linux biasa, bukan sebagai root.",
-  "Terminal authorization is unavailable. Run this action from the TUI console with polkit/pkttyagent installed and a working system D-Bus session.": "Kebenaran terminal tidak tersedia. Jalankan tindakan ini daripada konsol TUI, dengan polkit/pkttyagent dipasang dan sesi D-Bus sistem yang berfungsi.",
+  "Terminal authorization is unavailable. Run this action from the terminal interface, with sudo installed.": "Kebenaran terminal tidak tersedia. Jalankan tindakan ini dari antara muka terminal dengan sudo dipasang.",
   "The web server dependencies are unavailable after runtime preparation. Reinstall BC250 Control Center.": "Kebergantungan pelayan web tidak tersedia selepas persekitaran disediakan. Pasang semula BC250 Control Center.",
   "The web server dependencies are unavailable: Cheroot >=11.1.2,<12 is required. Start web access from the desktop to prepare its isolated runtime.": "Kebergantungan pelayan web tidak tersedia: Cheroot >=11.1.2,<12 diperlukan. Mulakan akses web daripada desktop untuk menyediakan persekitaran terasingnya.",
   "The web server requirements file is missing. Reinstall BC250 Control Center.": "Fail keperluan pelayan web tiada. Pasang semula BC250 Control Center.",

@@ -6181,7 +6181,7 @@
   "HelixSR cannot go into this game that way; its current HelixSR was kept.": "HelixSR 無法以這種方式放入此遊戲；已保留目前的 HelixSR。",
   "Local name resolution is still unavailable. Use the numeric address.": "本機名稱解析仍無法使用。請使用數字位址。",
   "Prepare the web server runtime from the ordinary Linux user session, not as root.": "請在一般的 Linux 使用者工作階段中準備網頁伺服器執行環境，不要以 root 身分。",
-  "Terminal authorization is unavailable. Run this action from the TUI console with polkit/pkttyagent installed and a working system D-Bus session.": "終端機授權無法使用。請在已安裝 polkit/pkttyagent 且系統 D-Bus 工作階段正常的 TUI 主控台中執行此操作。",
+  "Terminal authorization is unavailable. Run this action from the terminal interface, with sudo installed.": "終端機授權無法使用。請安裝 sudo 並從終端機介面執行此操作。",
   "The web server dependencies are unavailable after runtime preparation. Reinstall BC250 Control Center.": "準備執行環境後，網頁伺服器相依項目仍無法使用。請重新安裝 BC250 Control Center。",
   "The web server dependencies are unavailable: Cheroot >=11.1.2,<12 is required. Start web access from the desktop to prepare its isolated runtime.": "網頁伺服器相依項目無法使用：需要 Cheroot >=11.1.2,<12。請從桌面啟動網頁存取以準備其隔離環境。",
   "The web server requirements file is missing. Reinstall BC250 Control Center.": "缺少網頁伺服器的需求檔案。請重新安裝 BC250 Control Center。",

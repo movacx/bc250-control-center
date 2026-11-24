@@ -150,28 +150,73 @@ def test_r_on_a_failed_workflow_opens_the_report_with_its_log(screen, monkeypatc
     assert not ok and reported and reported[0][0] == "Prepare" and "broken package" in reported[0][1]
 
 
-def test_polkit_asks_in_the_console_through_a_textual_agent_for_this_process(tmp_path, monkeypatch):
-    """A stand-in pkttyagent: registers (closes the notify fd), asks, reads the answer."""
+def fake_sudo(tmp_path, monkeypatch):
+    """A stand-in sudo: asks on /dev/tty once per terminal, then runs the command as this user."""
     import os
 
-    agent = tmp_path / "pkttyagent"
-    agent.write_text(
+    sudo = tmp_path / "sudo"
+    sudo.write_text(
         "#!/bin/bash\n"
-        'echo "$@" > "$(dirname "$0")/args"\n'
-        'eval "exec $4>&-"\n'  # --process PID --notify-fd FD: close FD = registered
-        'printf "Password: "; read -r answer; echo "got:$answer" > "$(dirname "$0")/answer"; sleep 30\n')
-    agent.chmod(0o755)
+        'here="$(dirname "$0")"; echo "$@" >> "$here/args"\n'
+        'ticket="$here/ticket-$(ps -o sid= -p $$ | tr -d " ")"\n'
+        'if [ ! -e "$ticket" ]; then printf "%s" "$2" > /dev/tty; read -r answer < /dev/tty; echo "$answer" >> "$here/answers"; touch "$ticket"; fi\n'
+        'shift 2; while [ "$1" != "--" ]; do export "$1"; shift; done; shift; exec "$@"\n')
+    sudo.chmod(0o755)
     monkeypatch.setenv("PATH", f"{tmp_path}:{os.environ['PATH']}")
+
+
+def test_sudo_asks_in_the_console_once_and_a_helper_keeps_its_pipes(tmp_path, monkeypatch, never_the_real_sudo):
+    import subprocess
+    import threading
+
+    from bc250cc.infrastructure import polkit_session as auth
+
+    fake_sudo(tmp_path, monkeypatch)
+    monkeypatch.setenv(auth.TERMINAL_AUTH_ENV, "1")
     console = Console("auth")
-    with console.password_agent():
-        assert wait_for(lambda: "Password:" in text(console))
-        console.send(b"secret\r")
-        assert wait_for(lambda: (tmp_path / "answer").exists())
-    assert (tmp_path / "args").read_text().split()[:2] == ["--process", str(os.getpid())]
-    assert "got:secret" in (tmp_path / "answer").read_text()
+    results = []
+    try:
+        with console.password_agent():
+            argv = auth.pkexec_argv("pkexec", "/bin/sh", "-c", "read x; echo out:$x; echo err >&2; exit 7")
+            assert "pkexec" not in argv
+
+            def work():
+                for _ in range(2):  # the second is covered by sudo's own memory of that terminal
+                    results.append(subprocess.run(argv, input="hi\n", capture_output=True, text=True, timeout=20))
+            thread = threading.Thread(target=work)
+            thread.start()
+            assert wait_for(lambda: "Linux password" in text(console))
+            console.send(b"secret\r")
+            thread.join(20)
+        assert [(r.stdout, r.stderr, r.returncode) for r in results] == [("out:hi\n", "err\n", 7)] * 2
+        assert (tmp_path / "answers").read_text() == "secret\n"
+    finally:
+        never_the_real_sudo.stop()
 
 
-def test_without_pkttyagent_the_job_still_runs(monkeypatch):
+def test_a_console_workflow_lets_sudo_ask_on_its_own_pty(tmp_path, monkeypatch):
+    import shlex
+
+    from bc250cc.infrastructure import polkit_session as auth
+
+    fake_sudo(tmp_path, monkeypatch)
+    monkeypatch.setenv(auth.TERMINAL_AUTH_ENV, "1")
+    token = auth.TERMINAL_AGENT_READY.set(True)
+    try:
+        command = shlex.join(auth.pkexec_argv("pkexec", "/bin/echo", "done-here"))
+    finally:
+        auth.TERMINAL_AGENT_READY.reset(token)
+    console = Console("workflow")
+    import threading
+    thread = threading.Thread(target=lambda: console.run(["bash", "-c", command]))
+    thread.start()
+    assert wait_for(lambda: "Linux password" in text(console))
+    console.send(b"secret\r")
+    thread.join(20)
+    assert "done-here" in text(console)
+
+
+def test_without_sudo_the_job_still_runs(monkeypatch):
     monkeypatch.setattr("frontends.tui.console.shutil.which", lambda name: None)
     with Console("x").password_agent():
         pass

@@ -21,10 +21,12 @@ def inspect(port):
 
 
 def repair(port):
+    from bc250cc.infrastructure.polkit_session import pkexec_argv
+
     if not HELPER.is_file() or '"web-firewall-repair"' not in HELPER.read_text(encoding="utf-8"):
         raise ActionNeeded("Update or reinstall Control Center to install the LAN firewall helper.")
     try:
-        result = subprocess.run(["pkexec", str(HELPER), "web-firewall-repair", "--web-port", str(port)],
+        result = subprocess.run(pkexec_argv("pkexec", str(HELPER), "web-firewall-repair", "--web-port", str(port)),
                                 capture_output=True, text=True, timeout=240, check=False)
     except (OSError, subprocess.TimeoutExpired) as error:
         raise ActionNeeded("LAN firewall repair could not finish. Check its status before retrying.") from error

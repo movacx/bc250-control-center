@@ -28,3 +28,28 @@ def english_again():
     set_language("en")
     yield
     set_language("en")
+
+
+@pytest.fixture(autouse=True)
+def never_the_real_sudo(monkeypatch):
+    """No test may reach this machine's sudo: a wrong password there locks the owner's account.
+
+    A test about authorization puts a stand-in first in PATH and starts its own terminal.
+    """
+    from frontends.tui import console
+
+    terminal = console.SudoTerminal()
+    real_start = terminal._start
+
+    def start(for_console):
+        import shutil
+
+        found = shutil.which("sudo") or ""
+        if not found or found.startswith(("/usr/", "/bin/", "/sbin/", "/run/")):
+            return False
+        return real_start(for_console)
+
+    monkeypatch.setattr(terminal, "_start", start)
+    monkeypatch.setattr(console, "SUDO", terminal)
+    yield terminal
+    terminal.stop()

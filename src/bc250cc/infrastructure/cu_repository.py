@@ -501,9 +501,7 @@ class CURepository:
         command = pkexec_argv(pkexec, str(DESKTOP_CU_HELPER), *args)
         rc, out, err = self._ejecutar(command, timeout=240)
         if rc != 0:
-            if Path(command[0]).name == 'pkexec' and (
-                rc == 126 or self._autorizacion_cancelada(err)
-            ):
+            if self._autorizacion_cancelada(err) or (Path(command[0]).name == 'pkexec' and rc == 126):
                 raise OperationCancelled()
             raise RuntimeError(describe_failure(rc, out, err))
         text = (out or '').strip()

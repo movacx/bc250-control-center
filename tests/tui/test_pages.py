@@ -376,9 +376,7 @@ def test_extras_drivers_tab_lists_network_printing_and_external_drivers():
 def test_every_extras_entry_targets_a_method_the_real_service_has():
     from bc250cc.infrastructure.system_service import SistemaService
 
-    methods = [m for m, _a, _f in extras.GFX1013] + [card[3] for card in extras.REBOOT_CARDS] \
-        + [entry[1] for entry in extras.DISTRIBUTION]
-    for method in methods:
+    for method in [card[3] for card in extras.REBOOT_CARDS]:
         assert hasattr(SistemaService, method), method
 
 

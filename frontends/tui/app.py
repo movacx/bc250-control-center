@@ -83,13 +83,14 @@ def main(argv: list[str] | None = None) -> int:
     from frontends.desktop.core.temperature_unit import use_unit
 
     from . import preferences
+    from .console import SUDO
     from .i18n import set_language, tr
     from .pages import build_pages
     from .runtime import Context, Poller
     from .screen import Screen
     from .support import check_in_background, desktop_temperature_unit
 
-    # Passwords are asked in the console pane (pkttyagent, sudo), never in a desktop window.
+    # Passwords are asked in the console pane with sudo; polkit is never involved.
     os.environ[TERMINAL_AUTH_ENV] = "1"
     container = ApplicationContainer.production()
     if container.system_service is None or container.settings_service is None:
@@ -126,6 +127,7 @@ def main(argv: list[str] | None = None) -> int:
             screen.loop()
         finally:
             set_embedded_terminal_launcher(None)
+            SUDO.stop()
             poller.stop()
             last = ctx.state("ui").get("last_page")
             if last and last != config.get("tui_last_page"):

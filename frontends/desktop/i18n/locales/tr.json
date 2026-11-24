@@ -6181,7 +6181,7 @@
   "HelixSR cannot go into this game that way; its current HelixSR was kept.": "HelixSR bu oyuna bu şekilde eklenemez; mevcut HelixSR korundu.",
   "Local name resolution is still unavailable. Use the numeric address.": "Yerel ad çözümleme hâlâ kullanılamıyor. Sayısal adresi kullanın.",
   "Prepare the web server runtime from the ordinary Linux user session, not as root.": "Web sunucusu çalışma ortamını root olarak değil, normal Linux kullanıcı oturumundan hazırlayın.",
-  "Terminal authorization is unavailable. Run this action from the TUI console with polkit/pkttyagent installed and a working system D-Bus session.": "Terminal yetkilendirmesi kullanılamıyor. Bu eylemi polkit/pkttyagent kurulu ve çalışan bir sistem D-Bus oturumu olan TUI konsolundan çalıştırın.",
+  "Terminal authorization is unavailable. Run this action from the terminal interface, with sudo installed.": "Terminalde yetkilendirme kullanılamıyor. Bu işlemi sudo kuruluyken terminal arayüzünden çalıştırın.",
   "The web server dependencies are unavailable after runtime preparation. Reinstall BC250 Control Center.": "Çalışma ortamı hazırlandıktan sonra web sunucusu bağımlılıkları kullanılamıyor. BC250 Control Center'ı yeniden kurun.",
   "The web server dependencies are unavailable: Cheroot >=11.1.2,<12 is required. Start web access from the desktop to prepare its isolated runtime.": "Web sunucusu bağımlılıkları kullanılamıyor: Cheroot >=11.1.2,<12 gerekli. Yalıtılmış çalışma ortamını hazırlamak için web erişimini masaüstünden başlatın.",
   "The web server requirements file is missing. Reinstall BC250 Control Center.": "Web sunucusu gereksinimler dosyası eksik. BC250 Control Center'ı yeniden kurun.",

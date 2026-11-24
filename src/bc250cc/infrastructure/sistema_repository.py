@@ -30,7 +30,10 @@ from bc250cc.infrastructure.gpu_repository import GPURepository
 from bc250cc.infrastructure.memory_runtime import read_memory_runtime_state
 from bc250cc.infrastructure.persistence.activity_journal import activity_journal_path
 from bc250cc.infrastructure.persistence.configuracion_local import ConfiguracionLocal
-from bc250cc.infrastructure.polkit_session import normalize_polkit_error
+from bc250cc.infrastructure.polkit_session import (
+    authorization_command,
+    normalize_polkit_error,
+)
 from bc250cc.infrastructure.privilege_repository import PrivilegeRepository
 from bc250cc.infrastructure.realtime_metrics_policy import (
     bounded_percent,
@@ -610,7 +613,7 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         return out if rc == 0 else ''
 
     def _command_path(self, nombre):
-        return shutil.which(nombre) or ''
+        return shutil.which(authorization_command(nombre)) or ''
 
     def _git_path(self):
         if Path('/usr/bin/git').exists():

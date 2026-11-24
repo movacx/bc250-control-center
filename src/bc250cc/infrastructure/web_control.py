@@ -471,11 +471,12 @@ def set_autostart(enabled: bool) -> dict:
 
 def repair_local_name() -> dict:
     """Only the installed, protected helper may change resolver configuration."""
+    from bc250cc.infrastructure.polkit_session import pkexec_argv
     from bc250cc.infrastructure.system_setup import HELPER
 
     if not HELPER.is_file() or '"mdns-repair"' not in HELPER.read_text(encoding="utf-8"):
         raise ActionNeeded("Update or reinstall Control Center to install the local name repair helper.")
-    result = subprocess.run(["pkexec", str(HELPER), "mdns-repair"], capture_output=True,
+    result = subprocess.run(pkexec_argv("pkexec", str(HELPER), "mdns-repair"), capture_output=True,
                             text=True, timeout=240, check=False)
     if result.returncode:
         raise ActionNeeded(result.stderr.strip() or "Local name repair was cancelled or failed.")

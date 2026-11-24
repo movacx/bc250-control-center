@@ -279,6 +279,11 @@
    "preparation_plan": "PREP-0018",
    "verification_shell": "PREP-0019"
   },
+  "bc250cc/application/preparation/distribution_rows.py": {
+   "distribution_group": "PREP-0150",
+   "acpi_offered": "PREP-0151",
+   "native_row_offered": "PREP-0152"
+  },
   "bc250cc/application/preparation/gpu_dependency_plan.py": {
    "GpuDependencyPlan.has_conflicts": "GPU-0402",
    "GpuDependencyPlan.include_pwm": "GPU-0403",
@@ -2121,6 +2126,8 @@
    "_agent_running": "SYS-0056",
    "_ordered_candidates": "SYS-0057",
    "ensure_graphical_polkit_agent": "SYS-0058",
+   "uses_sudo": "SYS-0352",
+   "authorization_command": "SYS-0353",
    "pkexec_prefix": "SYS-0059",
    "pkexec_argv": "SYS-0060",
    "normalize_polkit_error": "SYS-0061"
@@ -2953,6 +2960,15 @@
    "TerminalRepository._write_launch_script": "SYS-0297",
    "TerminalRepository._try_embedded_terminal": "SYS-0298",
    "TerminalRepository._abrir_terminal": "SYS-0299"
+  },
+  "bc250cc/infrastructure/terminal_sudo.py": {
+   "sudo_argv": "SYS-0354",
+   "_descends_from": "SYS-0355",
+   "_answer": "SYS-0356",
+   "front": "SYS-0357",
+   "serve": "SYS-0358",
+   "request": "SYS-0359",
+   "main": "SYS-0360"
   },
   "bc250cc/infrastructure/terminal_transcript.py": {
    "log_sync_path": "SYS-0300",

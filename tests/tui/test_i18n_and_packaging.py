@@ -30,9 +30,15 @@ def _table_labels() -> set[str]:
     labels |= {text for _id, _name, *texts in extras.GOVERNORS for text in texts}  # the names are product names
     for _key, title, detail, _method, disable, restore in extras.REBOOT_CARDS:
         labels |= {title, detail, disable[1], restore[1]}
-    actions = [a for _m, a, _f in extras.GFX1013] + [entry[2] for entry in extras.DISTRIBUTION]
-    labels |= {entry[0] for entry in extras.DISTRIBUTION}
-    labels |= {label for group in actions for key, label in group if label != key}  # raw ids are shown untranslated
+    from frontends.desktop.core import compatibility_dialogs as dialogs
+    from frontends.tui.pages import graphics
+
+    labels |= {status for status, _tone in graphics.SOURCE_STATUS.values()}
+    labels |= {text for group in (dialogs.GFX1013_SOURCE, dialogs.VAAPI, dialogs.RADV_ASYNC) for dialog in group.values() for text in dialog[:3]}
+    labels |= {value for name, value in vars(dialogs).items() if name.isupper() and isinstance(value, str)}
+    for node in ast.walk(ast.parse(Path(graphics.__file__).read_text(encoding="utf-8"))):  # add("…"), drop("…"), _asked("…")
+        if isinstance(node, ast.Call) and getattr(node.func, "id", "") in ("add", "drop", "_asked"):
+            labels |= {part.value for part in ast.walk(node.args[0]) if isinstance(part, ast.Constant) and " " in str(part.value)}
     labels |= {label for _k, label in settings.THEMES} | {label for _k, label in settings.TABS}
     labels |= {label for _k, label, _lo, _hi in settings.ALERT_FIELDS}
     labels |= {page.title for page in build_pages().values()}

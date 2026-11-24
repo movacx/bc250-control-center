@@ -13,6 +13,7 @@ from typing import Any
 from bc250cc.application.preparation import toolkit_rows
 from bc250cc.application.preparation.steamos_providers import ALTERNATIVE_ACTIONS
 from bc250cc.application.system import accessory_rows, kernel_option_rows
+from frontends.desktop.core import compatibility_dialogs as dialogs
 
 from ..content import Choice, Info, Panel
 from ..i18n import tr, tr_format
@@ -337,18 +338,18 @@ def vaapi(service, state: dict) -> Choice:
 
     actions = []
     if supported and kind not in ("managed-elsewhere", "hardware-vcn", "active", "relogin-required"):
-        actions.append(Action(tr("Update" if kind == "outdated" else "Reinstall" if kind == "invalid" else "Install"), manage("install")))
+        actions.append(Action(tr("Update" if kind == "outdated" else "Reinstall" if kind == "invalid" else "Install"), manage("install"), tr(dialogs.VAAPI["install"][1]), True))
     if installed and kind != "invalid":
         actions.append(Action(tr("Test"), manage("test"), confirm=False))
     flatpak = state.get("flatpak") or {}
     if installed and kind not in ("invalid", "managed-elsewhere") and flatpak.get("available") \
             and (not flatpak.get("applied") or not state.get("alias", True)):
-        actions.append(Action(tr("Allow Flatpak apps"), manage("flatpak")))
+        actions.append(Action(tr("Allow Flatpak apps"), manage("flatpak"), tr(dialogs.VAAPI["flatpak"][1])))
     driver32 = str((state.get("driver32") or {}).get("state") or "unsupported")
     if installed and kind not in ("invalid", "managed-elsewhere") and driver32 in ("not-installed", "needs-libs"):
-        actions.append(Action(tr("Repair 32-bit driver" if driver32 == "needs-libs" else "Add 32-bit driver"), manage("install32")))
+        actions.append(Action(tr("Repair 32-bit driver" if driver32 == "needs-libs" else "Add 32-bit driver"), manage("install32"), tr(dialogs.VAAPI["install32"][1]), True))
     if installed:
-        actions.append(Action(tr("Remove"), manage("uninstall"), "", True))
+        actions.append(Action(tr("Remove"), manage("uninstall"), tr(dialogs.VAAPI["uninstall"][1]), True))
     return component(title, tr(status), tone, tr(sentence), actions,
                      blocked="" if supported else tr(str(state.get("blocked_reason") or "")))
 

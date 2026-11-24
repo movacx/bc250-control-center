@@ -7,6 +7,7 @@ import time
 from bc250cc.application.fan import board_view
 from bc250cc.application.preparation.component_engine import component_capabilities
 from bc250cc.domain.telemetry import voltage_mv
+from frontends.desktop.core import compatibility_dialogs as dialogs
 from frontends.desktop.core.dashboard_presenter import FAN_OWNER_LABELS
 
 from ..content import (
@@ -309,10 +310,12 @@ class DashboardPage(Page):
         state = ctx.state(self.key)
         family, name = os_family(ctx)
         capabilities = component_capabilities(type("Info", (), {"family": family})())
-        selected = state.setdefault("selected", {key for key, _label in COMPONENTS})
+        debian = family in ("debian", "ubuntu")  # there UMR may build LLVM: an explicit choice, as on the desktop
+        selected = state.setdefault("selected", {key for key, _label in COMPONENTS if not debian or key in ("runtime", "governor")})
         tools = data.get("tools") or {}
-        installed = {"governor": tools.get("governor_pkg"), "umr": tools.get("umr"),
-                     "cu_manager": tools.get("cu_manager_exists")}
+        capabilities = tools.get("prepare_components") or capabilities
+        installed = {"governor": tools.get("governor_pkg"), "umr": tools.get("umr"), "cu_manager": tools.get("cu_manager_exists"),
+                     **{key: True for key, item in capabilities.items() if item.get("installed")}}
         out = [Heading(tr("Prepare BC250 system")), Field(tr("Detected system"), name)]
         chosen = 0
         for key, label in COMPONENTS:
@@ -338,13 +341,26 @@ class DashboardPage(Page):
                 guarded(ui_, tr("Prepare BC250 system"), lambda: service.instalar_dependencias_bc250(
                     governor_preference=preference, include_pwm="fan_pwm" in components, components=components))
 
-        out.append(Choice(f"{tr('Prepare selected')} ({chosen})", prepare, enabled=bool(chosen), tone="accent"))
-        out += [Gap(), Heading("Decky")]
+        out.append(Choice(f"{tr('Prepare selected')} ({chosen})", prepare, enabled=bool(chosen) and "runtime" in selected, tone="accent"))
+        quick = tools.get("quick_access") or {}
+        if not quick.get("supported"):
+            return out
+        plugin_only = bool(quick.get("decky_detected")) and bool(quick.get("decky_frontend_compatible", True))
+        label = tr("Install / repair BC250 Quick Access" if plugin_only else "Install Decky + Quick Access (Beta)")
+        question = tr("This installs or repairs only the local BC250 Quick Access plugin and its protected helper inside an existing "
+                      "Decky installation. It does not reinstall Decky or apply a hardware setting. Continue?") if plugin_only else \
+            tr("Bazzite installs Decky through its native ujust setup-decky install workflow. BC250 then installs only its local "
+               "Quick Access panel. Continue?") if family == "bazzite" else tr(dialogs.DECKY_BOOTSTRAP)
 
         def decky(ui_):
-            if ui_.confirm(tr("Install Decky + Quick Access (Beta)")):
-                guarded(ui_, "Decky", lambda: service.preparar_quick_access_steamos(install_decky=True))
+            if ui_.confirm(f"{label}\n\n{question}", danger=True):
+                guarded(ui_, "Decky", lambda: service.preparar_quick_access_steamos(install_decky=not plugin_only))
 
-        out.append(Note(tr("Decky is optional. It is never installed by generic dependency preparation."), "dim"))
-        out.append(Choice(tr("Install Decky + Quick Access (Beta)"), decky))
+        out += [Gap(), Heading("Decky"), Note(tr(
+            "Quick Access is ready. Restart Game Mode or reload Decky if the panel is not visible yet." if quick.get("ready") else
+            "Decky must be updated because this Steam client uses the renamed initialization API."
+            if quick.get("decky_detected") and not plugin_only else
+            "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair."
+            if plugin_only else "Decky is optional. It is never installed by generic dependency preparation."), "dim"),
+            Choice(label, decky, enabled=bool(quick.get("decky_plugin_root_safe", True)))]
         return out

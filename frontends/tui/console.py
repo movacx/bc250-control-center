@@ -1,7 +1,7 @@
 """The console pane: a job's output and the pty its workflows run on.
 
-Workflows draw progress with carriage returns and cursor moves, and ``sudo`` or
-pkexec ask for a password on the controlling terminal, so commands get a real
+Workflows draw progress with carriage returns and cursor moves, and ``sudo``
+asks for a password on the controlling terminal, so commands get a real
 pseudo-terminal and their bytes go through the desktop console's own terminal
 emulator and transcript log. Nothing leaves the interface.
 """
@@ -18,6 +18,7 @@ import signal
 import struct
 import subprocess  # nosec B404 - the argv is the repository's reviewed workflow
 import sys
+import tempfile
 import termios
 import threading
 import time
@@ -25,6 +26,7 @@ import time
 from bc250cc.application.system.workflow_console import (
     TERMINAL_AGENT_READY,
     TranscriptLog,
+    terminal_sudo,
 )
 from frontends.desktop.console.terminal_screen import TerminalScreen
 
@@ -171,6 +173,7 @@ class Console:
         for name in ("DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY", "SSH_ASKPASS", "SUDO_ASKPASS"):
             env.pop(name, None)
         env["SSH_ASKPASS_REQUIRE"] = "never"
+        env[terminal_sudo.CONSOLE_ENV] = "1"  # what runs here has this pty for sudo to ask on
         try:
             process = subprocess.Popen(  # nosec B603
                 [sys.executable, "-m", "frontends.tui.pty_exec", *argv],
@@ -222,33 +225,89 @@ class Console:
 
     @contextlib.contextmanager
     def password_agent(self):
-        """While the job runs, Polkit asks for the password here, not in a desktop window.
-
-        pkexec authenticates its parent process, which for the helpers the
-        services call directly is this interface. A textual agent registered
-        for exactly this process (pkttyagent, part of polkit) takes those
-        requests on a pty of this console; the desktop's own agent keeps
-        serving the rest of the session, and a bare TTY, which has none,
-        works the same way.
-        """
-        agent = shutil.which("pkttyagent")
-        if agent is None:
-            yield
-            return
-        ready, notify = os.pipe()
-        process, master = self._spawn([agent, "--process", str(os.getpid()), "--notify-fd", str(notify)],
-                                      pass_fds=(notify,))
-        os.close(notify)
-        pump = threading.Thread(target=self._pump, args=(process, master), name="bc250-tui-polkit", daemon=True)
-        pump.start()
-        readable, _, _ = select.select([ready], [], [], 5)
-        os.close(ready)
-        registered = bool(readable) and process.poll() is None
-        token = TERMINAL_AGENT_READY.set(registered)
+        """While the job runs, a helper that needs root has sudo ask for the password here."""
+        ready = SUDO.attach(self)
+        token = TERMINAL_AGENT_READY.set(ready)
         try:
             yield
         finally:
             TERMINAL_AGENT_READY.reset(token)
-            if process.poll() is None:
-                process.terminate()
-            pump.join(2)
+            SUDO.detach(self)
+
+
+class SudoTerminal:
+    """The one pseudo-terminal on which sudo asks, whichever job is running.
+
+    It outlives the jobs so that sudo's own memory of the password (some
+    minutes, per terminal) covers the next action too, as in any shell.
+    """
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.console: Console | None = None
+        self.process: subprocess.Popen | None = None
+        self.master: int | None = None
+        self.folder = ""
+
+    def attach(self, console: Console) -> bool:
+        with self.lock:
+            self.console = console
+            if (self.process is None or self.process.poll() is not None) and not self._start(console):
+                return False
+            return True
+
+    def detach(self, console: Console) -> None:
+        with self.lock:
+            if self.console is console:
+                self.console = None
+            if console.master == self.master:
+                console.master = None
+
+    def _start(self, console: Console) -> bool:
+        if shutil.which("sudo") is None:
+            return False
+        self.stop()
+        self.folder = tempfile.mkdtemp(prefix="bc250-sudo-", dir=os.environ.get("XDG_RUNTIME_DIR") or None)
+        path = os.path.join(self.folder, "socket")
+        self.process, self.master = console._spawn([sys.executable, "-I", terminal_sudo.__file__, "--serve", path])
+        threading.Thread(target=self._pump, args=(self.process, self.master), name="bc250-tui-sudo", daemon=True).start()
+        for _attempt in range(100):
+            if os.path.exists(path):
+                os.environ[terminal_sudo.SOCKET_ENV] = path
+                return True
+            if self.process.poll() is not None:
+                break
+            time.sleep(0.05)
+        return False
+
+    def _pump(self, process: subprocess.Popen, master: int) -> None:
+        while process.poll() is None:
+            ready, _, _ = select.select([master], [], [], 0.2)
+            if not ready:
+                continue
+            try:
+                chunk = os.read(master, 65536)
+            except OSError:
+                break
+            if not chunk:
+                break
+            console = self.console
+            if console is not None:
+                console.master = master  # it asked: the keyboard answers it
+                console._feed(chunk)
+        with contextlib.suppress(OSError):
+            os.close(master)
+
+    def stop(self) -> None:
+        if self.process is not None and self.process.poll() is None:
+            self.process.terminate()
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                self.process.wait(2)
+        self.process = None
+        os.environ.pop(terminal_sudo.SOCKET_ENV, None)
+        if self.folder:
+            shutil.rmtree(self.folder, ignore_errors=True)
+            self.folder = ""
+
+
+SUDO = SudoTerminal()

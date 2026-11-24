@@ -15,7 +15,11 @@ from bc250cc.infrastructure.fan_transport import (
     select_pwm_transport,
     validate_pwm_request,
 )
-from bc250cc.infrastructure.polkit_session import normalize_polkit_error, pkexec_argv
+from bc250cc.infrastructure.polkit_session import (
+    authorization_command,
+    normalize_polkit_error,
+    pkexec_argv,
+)
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
 from bc250cc.infrastructure.system_fan_control import (
     FAN_EXTERNAL_MESSAGE,
@@ -1182,7 +1186,7 @@ for line in sys.stdin:
             return 1, '', str(error)
 
     def _command_path(self, nombre):
-        return shutil.which(nombre) or ''
+        return shutil.which(authorization_command(nombre)) or ''
 
     def _os_release(self):
         datos = {}

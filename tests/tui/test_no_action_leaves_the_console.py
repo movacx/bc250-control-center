@@ -1,7 +1,6 @@
 """Every action of every page reaches the services only inside ``ui.run``: the console pane.
 
-``ui.run`` is where workflows meet the embedded launcher, sudo and the Polkit
-agent, so a service call outside it is the one way an action could fall back to
+``ui.run`` is where workflows meet the embedded launcher and sudo, so a service call outside it is the one way an action could fall back to
 a terminal window or ask for a password where nobody sees it.
 """
 

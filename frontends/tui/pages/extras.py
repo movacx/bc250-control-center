@@ -10,16 +10,20 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from bc250cc.application.preparation.distribution_rows import (
+    acpi_offered,
+    distribution_group,
+    native_row_offered,
+)
 from bc250cc.application.preparation.gpu_dependency_plan import (
     build_gpu_dependency_plan,
 )
-from bc250cc.application.system.cachyos_kernel import DEPENDENCY_NOTE
 from bc250cc.shared.contract import vram_size_choices
 from frontends.desktop.core.upscaling_rows import game_matrix_rows
 
 from ..content import Buttons, Choice, Field, Info, Note, Panel
 from ..i18n import tr, tr_format
-from . import compat
+from . import compat, graphics
 from .base import Page, guarded, os_family, switch
 from .compat import Action
 
@@ -55,15 +59,6 @@ GOVERNORS = (("cyan-skillfish-governor-smu", "Cyan Skillfish Governor", "Arch ·
              ("oberon-governor", "Oberon Governor", "Alternative backend",
               "Alternative YAML-based backend. GPU telemetry repair remains a separate compatibility step."))
 INSTALL = (("status", "Status"), ("install", "Install"), ("uninstall", "Uninstall"))
-#: GFX1013 async compute: the reviewed path of each distribution (method, its actions, families).
-GFX1013 = (
-    ("gestionar_gfx1013_bazzite", INSTALL, ("bazzite",)),
-    ("gestionar_gfx1013_fedora", INSTALL + (("boot-patched", "boot-patched"), ("activate", "activate")), ("fedora",)),
-    ("gestionar_gfx1013_source", INSTALL + (("rebuild", "Rebuild"), ("enable", "Enable"), ("disable", "Disable")),
-     ("arch", "cachyos", "manjaro", "ubuntu", "debian")),
-    ("gestionar_radv_async", INSTALL + (("enable", "Enable"), ("disable", "Disable"), ("test", "Test")),
-     ("fedora", "arch", "cachyos", "manjaro", "ubuntu", "debian")),
-)
 #: Kernel options that need a reboot: (tools key, title, description, method, (disable, restore) labels).
 REBOOT_CARDS = (
     ("bazzite_mitigations", "CPU security mitigations",
@@ -78,15 +73,6 @@ REBOOT_CARDS = (
      "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on "
      "screen while the system starts; they stay in dmesg.", "gestionar_mensajes_arranque_bazzite",
      ("hide", "Hide boot messages"), ("restore", "Show boot messages")),
-)
-#: The distribution's own BC-250 stacks, offered only where they apply.
-DISTRIBUTION = (
-    ("BC250 SteamOS diagnostics", "diagnostico_steamos", (), ("steamos",)),
-    ("Newer kernel and Mesa for the BC-250", "gestionar_kernel_debian", (("install", "Install"),), ("debian",)),
-    ("Mesa", "gestionar_mesa_desktop", (("install", "Install"),), ("ubuntu",)),
-    ("Install BC-250 kernel and Mesa for Arch/CachyOS", "preparar_cachyos_bc250",
-     (("full", "Prepare everything"), ("kernel", "Kernel"), ("mesa", "Mesa"),
-      ("pahole", "Prepare dependencies")), ("arch", "cachyos")),
 )
 GUIDE_URL = ("https://github.com/morrownr/USB-WiFi/blob/main/home/"
              "USB_WiFi_Adapters_that_are_supported_with_Linux_in-kernel_drivers.md")
@@ -148,9 +134,9 @@ class AdditionalSettingsPage(Page):
         service = ctx.service
         tools = data.get("tools") or {}
         setup = tools.get("system_setup") or {}
-        accessories = tools.get("accessories") or {}
+        accessories, group = tools.get("accessories") or {}, distribution_group(family)
         out = [Panel(tr("System"), [choice for choice in (
-            self._acpi(service, setup.get("acpi") or {}),
+            self._acpi(service, setup.get("acpi") or {}) if acpi_offered(group, str((setup.get("acpi") or {}).get("status") or "")) else None,
             compat.real_sleep(service, accessories.get("real_sleep") or {}),
             compat.kernel_headers(service, data.get("headers") or {}),
             compat.pacman_lock(service, data.get("lock") or {}),
@@ -158,33 +144,21 @@ class AdditionalSettingsPage(Page):
         ) if choice is not None])]
         out.append(Panel(tr("GPU Governor"), [self._governor(ctx, tools, *entry) for entry in GOVERNORS]))
 
-        gfx = tools.get("gfx1013_compute") or {}
-        gfx_state = str(gfx.get("status") or "")
-        detected = gfx_state in ("available", "active")
-        actions = [Action(f"{method.removeprefix('gestionar_')} · {name if name == key else tr(name)}",
-                          lambda m=method, k=key: getattr(service, m)(k), "", key in ("uninstall", "disable"), confirm=key != "status")
-                   for method, entries, families in GFX1013 if family in families for key, name in entries]
-        graphics = [compat.component(
-            tr("GFX1013 async compute"), tr("Async compute detected" if detected else "Manual only" if gfx_state == "manual-untested" else gfx_state or "Not installed"),
-            "ok" if detected else "dim",
-            tr("Kernel and Mesa must be matched. The interface enables installation only on a reviewed distribution path."),
-            actions)] if family != "steamos" else []
-        mesh = compat.directmesh(service, tools.get("directmesh") or {})
-        graphics += [mesh] if mesh is not None else []
-        others = [item for item in DISTRIBUTION if family in item[3]]
-        for label, method, entries, _families in others:
-            graphics.append(compat.component(tr(label), "", "dim", "", [
-                Action(tr(name) if name != key else name, lambda m=method, k=key: getattr(service, m)(k),
-                       tr(DEPENDENCY_NOTE) if key == "pahole" else "", key in ("uninstall", "disable"), confirm=key != "status")
-                for key, name in entries] or [Action(tr(label), getattr(service, method))]))
-        if graphics:
-            out.append(Panel(tr("Kernel and graphics"), graphics))
-        out.append(Panel(tr("Video"), [compat.vaapi(service, tools.get("vaapi_video") or {})]))
+        mesh = compat.directmesh(service, tools.get("directmesh") or {}) if group != "steamos" else None
+        rows = [graphics.gfx1013(service, tools, family), graphics.mesa(service, tools), mesh, *graphics.mastag(service, tools, family)]
+        if any(rows):
+            out.append(Panel(tr("Kernel and graphics"), [row for row in rows if row is not None]))
+        video = tools.get("vaapi_video") or {}
+        if native_row_offered(group, str(video.get("state") or "")):
+            out.append(Panel(tr("Video"), [compat.vaapi(service, video)]))
         sensors = [row for row in (compat.accessory(service, key, title, detail, accessories.get(key) or {})
                                    for key, title, detail in compat.SENSORS) if row is not None]
         if sensors:
             out.append(Panel(tr("Sensors"), sensors))
-        if family == "steamos" and tools.get("steamos_real_toolkit"):
+        if group == "steamos":
+            out[0].blocks.append(compat.component(tr("BC250 SteamOS diagnostics"), "", "dim", "", [
+                Action(tr("BC250 SteamOS diagnostics"), service.diagnostico_steamos, confirm=False)]))
+        if group == "steamos" and tools.get("steamos_real_toolkit"):
             session = (tools.get("steamos_readonly") or {}).get("toolkit_session") or {}
             out += compat.real_toolkit(service, tools, session)
             out.append(compat.alternative(service, tools))
@@ -497,13 +471,18 @@ class AdditionalSettingsPage(Page):
         queues, printers = list(printing.get("queues") or ()), list(snapshot.get("usb_printers") or ())
         aic = snapshot.get("aic8800") or {}
         detected = bool(aic.get("loaded") or aic.get("candidate_detected"))
-        accessories = (data.get("tools") or {}).get("accessories") or {}
-        case = [row for row in (compat.accessory(service, key, title, detail, accessories.get(key) or {})
-                                for key, title, detail in compat.ACCESSORIES) if row is not None]
-        panels = [Panel(tr("Audio and TV"), case[:2])] if case else []
-        if case[2:]:
-            panels.append(Panel(tr("Case accessories"), case[2:]))
-        return [*[
+        accessories, group = (data.get("tools") or {}).get("accessories") or {}, distribution_group(family)
+        case = {key: row for key, row in ((key, compat.accessory(service, key, title, detail, accessories.get(key) or {}))
+                                for key, title, detail in compat.ACCESSORIES
+                                if key not in ("hdmi_ac3", "hdmi_cec")
+                                or native_row_offered(group, str((accessories.get(key) or {}).get("state") or ""))) if row is not None}
+        television = [case.pop(key) for key in ("hdmi_ac3", "hdmi_cec") if key in case]
+        panels = [Panel(tr("Audio and TV"), television)] if television else []
+        if case:
+            panels.append(Panel(tr("Case accessories"), list(case.values())))
+        # SteamOS has no route behind these two: it ships the firmware and BlueZ, and a package
+        # added to its read-only root is gone with the next update.
+        return [*([] if group == "steamos" else [
             Panel(tr("Network"), network + [Buttons([Choice(tr("Install support"), install("connectivity", "Network support"),
                                                             enabled="connectivity" in supported)])],
                   subtitle=tr("Active kernel drivers and official firmware packages.")),
@@ -515,7 +494,7 @@ class AdditionalSettingsPage(Page):
                       else tr("No USB printer detected"), "ok" if printers else "dim"),
                 Buttons([Choice(tr("Install support"), install("printing", "Printing support"),
                                 enabled="printing" in supported)])],
-                subtitle=tr("Driverless printing with CUPS, IPP and IPP-over-USB. Existing queues are preserved."))],
+                subtitle=tr("Driverless printing with CUPS, IPP and IPP-over-USB. Existing queues are preserved."))]),
             *panels,
             *[Panel(tr("External drivers"), [
                 Field("AIC8800", tr("Detected; automatic installation remains disabled.") if detected

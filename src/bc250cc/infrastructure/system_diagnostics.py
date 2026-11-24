@@ -181,8 +181,14 @@ def _kernel_text(boot: str = "0", *, allow_privileged: bool = True) -> tuple[str
     if not allow_privileged:
         return "", "unavailable without administrator authorization"
     dmesg = shutil.which("dmesg") or "/usr/bin/dmesg"
-    text = _run(["pkexec", dmesg], timeout=POLKIT_TIMEOUT_S)
-    return text, "dmesg via polkit"
+    from bc250cc.infrastructure.polkit_session import pkexec_argv, uses_sudo
+    from bc250cc.shared.errors import ActionNeeded
+
+    try:
+        command = pkexec_argv("pkexec", dmesg)
+    except ActionNeeded:  # nobody can be asked from here
+        return "", "unavailable without administrator authorization"
+    return _run(command, timeout=POLKIT_TIMEOUT_S), "dmesg via sudo" if uses_sudo() else "dmesg via polkit"
 
 
 def kernel_log_needs_password() -> bool:

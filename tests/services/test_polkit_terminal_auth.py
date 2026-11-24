@@ -43,7 +43,11 @@ def test_a_tui_background_thread_cannot_use_the_desktop_authentication_agent(mon
     token = auth.TERMINAL_AGENT_READY.set(True)
     errors = []
     try:
-        assert auth.pkexec_prefix('pkexec', prepare_agent=False) == ['pkexec', '--disable-internal-agent']
+        prefix = auth.pkexec_prefix('pkexec', prepare_agent=False)
+        assert prefix[-2].endswith('terminal_sudo.py') and prefix[-1] == '--' and 'pkexec' not in prefix
+        argv = auth.pkexec_argv('pkexec', '/usr/libexec/bc250-control-center/bc250-core-unlock-helper', '--reboot')
+        assert argv[-4].startswith('PKEXEC_UID=') and argv[-3] == '--'
+        assert auth.authorization_command('pkexec') == 'sudo'
         def background():
             try:
                 auth.pkexec_prefix('pkexec')

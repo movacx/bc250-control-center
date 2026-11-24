@@ -6181,7 +6181,7 @@
   "HelixSR cannot go into this game that way; its current HelixSR was kept.": "HelixSR을 이 방식으로 이 게임에 넣을 수 없습니다. 기존 HelixSR은 그대로 유지되었습니다.",
   "Local name resolution is still unavailable. Use the numeric address.": "로컬 이름 확인을 아직 사용할 수 없습니다. 숫자 주소를 사용하세요.",
   "Prepare the web server runtime from the ordinary Linux user session, not as root.": "웹 서버 런타임은 root가 아닌 일반 Linux 사용자 세션에서 준비하세요.",
-  "Terminal authorization is unavailable. Run this action from the TUI console with polkit/pkttyagent installed and a working system D-Bus session.": "터미널 인증을 사용할 수 없습니다. polkit/pkttyagent가 설치되어 있고 시스템 D-Bus 세션이 작동하는 TUI 콘솔에서 이 작업을 실행하세요.",
+  "Terminal authorization is unavailable. Run this action from the terminal interface, with sudo installed.": "터미널 인증을 사용할 수 없습니다. sudo를 설치하고 터미널 인터페이스에서 이 작업을 실행하세요.",
   "The web server dependencies are unavailable after runtime preparation. Reinstall BC250 Control Center.": "런타임을 준비한 뒤에도 웹 서버 종속성을 사용할 수 없습니다. BC250 Control Center를 다시 설치하세요.",
   "The web server dependencies are unavailable: Cheroot >=11.1.2,<12 is required. Start web access from the desktop to prepare its isolated runtime.": "웹 서버 종속성을 사용할 수 없습니다. Cheroot >=11.1.2,<12가 필요합니다. 데스크톱에서 웹 접속을 시작해 격리된 런타임을 준비하세요.",
   "The web server requirements file is missing. Reinstall BC250 Control Center.": "웹 서버 요구 사항 파일이 없습니다. BC250 Control Center를 다시 설치하세요.",

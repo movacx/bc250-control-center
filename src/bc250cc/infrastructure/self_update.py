@@ -58,6 +58,7 @@ from bc250cc.infrastructure.install_source import (
     UpdateChannel,
 )
 from bc250cc.infrastructure.persistence.config_paths import app_cache_dir
+from bc250cc.infrastructure.polkit_session import uses_sudo
 from bc250cc.infrastructure.release_check import RELEASES_PAGE_URL, USER_AGENT
 from bc250cc.shared.operation_contract import (
     POLKIT_DISMISSED_PATTERN,
@@ -509,10 +510,11 @@ _RPM_OSTREE_LAYERED = (
 
 def _rpm_ostree_install(path: str) -> str:
     busy = shlex.quote(_RPM_OSTREE_BUSY)
+    ostree = "sudo rpm-ostree" if uses_sudo() else "rpm-ostree"  # unprivileged, rpm-ostree asks Polkit
     layered = shlex.quote(_RPM_OSTREE_LAYERED)
     return f"""bc250_rpm_ostree() {{
   bc250_log=$(mktemp)
-  LC_ALL=C.UTF-8 LANGUAGE=C rpm-ostree "$@" 2>&1 | tee "$bc250_log"
+  LC_ALL=C.UTF-8 LANGUAGE=C {ostree} "$@" 2>&1 | tee "$bc250_log"
   bc250_rc=${{PIPESTATUS[0]}}
   bc250_busy=0
   if grep -q 'Transaction in progress' "$bc250_log"; then bc250_busy=1; fi
@@ -531,8 +533,8 @@ def _rpm_ostree_install(path: str) -> str:
   # (updates-archive after a Fedora bump): refresh it and try once more.
   if [ "$bc250_rc" -ne 0 ] && grep -qE 'Status code: 404|All mirrors were tried' "$bc250_log"; then
     echo "Repository metadata is out of date; refreshing it and trying once more..."
-    LC_ALL=C.UTF-8 LANGUAGE=C rpm-ostree refresh-md --force 2>&1 || LC_ALL=C.UTF-8 LANGUAGE=C sudo rpm-ostree refresh-md --force
-    LC_ALL=C.UTF-8 LANGUAGE=C rpm-ostree "$@" 2>&1 | tee "$bc250_log"
+    LC_ALL=C.UTF-8 LANGUAGE=C {ostree} refresh-md --force 2>&1 || LC_ALL=C.UTF-8 LANGUAGE=C sudo rpm-ostree refresh-md --force
+    LC_ALL=C.UTF-8 LANGUAGE=C {ostree} "$@" 2>&1 | tee "$bc250_log"
     bc250_rc=${{PIPESTATUS[0]}}
   fi
   # rpm-ostree re-resolves every layered package. One that this Fedora release
@@ -662,7 +664,7 @@ def install_command(
         )
     if plan.manager == "rpm-ostree":
         return f"{verify} || exit 1\n{_rpm_ostree_install(path)}"
-    auth = "BC250_GRAPHICAL_AUTH=1" if graphical else "BC250_GRAPHICAL_AUTH=0"
+    auth = "BC250_GRAPHICAL_AUTH=1" if graphical and not uses_sudo() else "BC250_GRAPHICAL_AUTH=0"
     if plan.manager == "pacman-steamos":
         from bc250cc.infrastructure.steamos_readonly import STEAMOS_PASSWORD_GUARD
 
