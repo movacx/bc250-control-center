@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux melekapkan folder tempat Control Center menulis sebagai baca sahaja. Ia berlaku apabila sistem fail bermasalah, contohnya selepas bekalan terputus.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Simpan kerja anda dan mulakan semula. Jika berulang, semak sistem fail dahulu dengan alat pembaikan distribusi anda.",
   "What were you doing just before?": "Apa yang anda lakukan sejurus sebelum itu?",
-  "You already sent this one: {id}. Send it again only if something changed.": "Anda telah menghantar yang ini: {id}. Hantar semula hanya jika ada perubahan."
+  "You already sent this one: {id}. Send it again only if something changed.": "Anda telah menghantar yang ini: {id}. Hantar semula hanya jika ada perubahan.",
+  "Experimental": "Eksperimen",
+  "Use hibernation": "Guna hibernasi",
+  "Use S3 (memory)": "Guna S3 (memori)",
+  "Install {program}?": "Pasang {program} sekarang?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Pengarang: superkeka. Menjadikan Suspend sistem berfungsi, dalam memori (S3) atau cakera. Eksperimen: hanya diuji pengarangnya di SteamOS.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Ia perlu tahu teras mana dibuka dan hanya mengenali yang biasa, jadi tidak ditawarkan semasa teras tambahan hidup.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Pemalam tidur lain atau pembetulan ACPI menggunakan fail yang sama. Buang dahulu.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Hibernasi memerlukan fail atau partisi swap pada cakera; kini hanya ada memori termampat.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Ia mengubah but dan, pada BIOS P3.00, satu pilihan BIOS yang dipulihkan apabila dibuang. Jika papan tidak bangun, cabut kuasa 30 saat. Hanya peranti USB pada port biru membangunkannya.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Suspend kembali seperti asal sistem dan pilihan BIOS kepada nilai terdahulu.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 serta menu BIOS yang menghidupkan unit pengiraan GPU dan suhu GDDR6 setiap kali bermula.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Prototaip, hanya diuji pada papan pengarangnya. Sediakan cara memprogram semula cip BIOS sebelum flash."
 }

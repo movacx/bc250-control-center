@@ -18,7 +18,6 @@ from .steamos_graphics_ownership import (
 from .steamos_real_toolkit import REPOSITORY, WORKSPACE, valid_revision
 from .steamos_toolkit_conflicts import NATIVE_COMPONENTS, native_conflicts
 
-
 #: The glibc the toolkit's downloaded Python is made for (see R-6d239d09).
 _TOOLKIT_GLIBC = (2, 44)
 

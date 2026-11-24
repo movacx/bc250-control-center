@@ -952,6 +952,8 @@ class PreparationPagesMixin:
         self._build_vaapi_card()
         layout.addWidget(self.vaapi_card)
         self._build_vram_sensor_card()
+        self._build_real_sleep_card()
+        layout.addWidget(self.real_sleep_card)
         layout.addWidget(self.apu_telemetry_card)
         layout.addWidget(self.vrm_sensor_card)
         layout.addWidget(self.vram_sensor_card)
@@ -994,6 +996,17 @@ class PreparationPagesMixin:
             scope_text="Board sensor",
             status_text="Checking",
         )
+
+    def _build_real_sleep_card(self) -> None:
+        """superkeka's bc250-sleep: the system's own Suspend starts to work."""
+        self.real_sleep_card = PreparationInfoCard(
+            "Sleep · bc250-sleep",
+            "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). "
+            "Experimental: its author has only tested it on SteamOS.",
+            scope_text="Experimental",
+            status_text="Checking",
+        )
+        self.real_sleep_card.hide()
 
     def _build_directmesh_card(self) -> None:
         """DirectMesh (lonewolf0622): Mesh shaders through upstream's installer.
@@ -1616,6 +1629,7 @@ class PreparationPagesMixin:
             "vram_sensor": self.vram_sensor_card,
             "vrm_sensor": self.vrm_sensor_card,
             "apu_telemetry": self.apu_telemetry_card,
+            "real_sleep": self.real_sleep_card,
         }
         for key, card, configure_text in (
             ("thermalright", self.thermalright_card, "Open configuration"),
@@ -1625,6 +1639,7 @@ class PreparationPagesMixin:
             ("vram_sensor", self.vram_sensor_card, "Open configuration"),
             ("vrm_sensor", self.vrm_sensor_card, "Open configuration"),
             ("apu_telemetry", self.apu_telemetry_card, "Open configuration"),
+            ("real_sleep", self.real_sleep_card, "Use hibernation"),
         ):
             buttons = {
                 "install": card.add_action("Install", {"accessory": key, "op": "install"}),
@@ -1639,7 +1654,9 @@ class PreparationPagesMixin:
             card.layout().insertWidget(2, note)
             self._accessory_notes[key] = note
             card.action_requested.connect(self._forward_accessory_action)
-            if card not in (self.vram_sensor_card, self.vrm_sensor_card, self.apu_telemetry_card):  # on Compatibility
+            if card not in (
+                self.vram_sensor_card, self.vrm_sensor_card, self.apu_telemetry_card, self.real_sleep_card,
+            ):  # on Compatibility
                 layout.addWidget(card)
 
 

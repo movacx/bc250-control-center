@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.",
   "What were you doing just before?": "What were you doing just before?",
-  "You already sent this one: {id}. Send it again only if something changed.": "You already sent this one: {id}. Send it again only if something changed."
+  "You already sent this one: {id}. Send it again only if something changed.": "You already sent this one: {id}. Send it again only if something changed.",
+  "Experimental": "Experimental",
+  "Use hibernation": "Use hibernation",
+  "Use S3 (memory)": "Use S3 (memory)",
+  "Install {program}?": "Install {program}?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it."
 }

@@ -390,7 +390,8 @@
         "unable to satisfy dependency",
         "could not satisfy dependencies",
         "error: target not found",
-        "Packages not found"
+        "Packages not found",
+        "Could not depsolve transaction"
       ],
       "exit_statuses": [],
       "retryable": false
@@ -737,6 +738,7 @@
     "SteamOS reports a writable root",
     "computed checksum did NOT match",
     "could not satisfy dependencies",
+    "Could not depsolve transaction",
     "QAM CPU detection uses a fixed",
     "QUICK_ACCESS_CU_SERVICE_REMOVE",
     "QUICK_ACCESS_CU_SERVICE_VERIFY",

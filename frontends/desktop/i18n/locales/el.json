@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Το Linux προσάρτησε τον φάκελο του Control Center μόνο για ανάγνωση. Συμβαίνει όταν το σύστημα αρχείων έχει σφάλματα, π.χ. μετά από διακοπή ρεύματος.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Αποθηκεύστε τη δουλειά σας και κάντε επανεκκίνηση. Αν επαναληφθεί, ελέγξτε πρώτα το σύστημα αρχείων με το εργαλείο της διανομής.",
   "What were you doing just before?": "Τι κάνατε ακριβώς πριν;",
-  "You already sent this one: {id}. Send it again only if something changed.": "Το έχετε ήδη στείλει: {id}. Στείλτε το ξανά μόνο αν άλλαξε κάτι."
+  "You already sent this one: {id}. Send it again only if something changed.": "Το έχετε ήδη στείλει: {id}. Στείλτε το ξανά μόνο αν άλλαξε κάτι.",
+  "Experimental": "Πειραματικό",
+  "Use hibernation": "Χρήση αδρανοποίησης",
+  "Use S3 (memory)": "Χρήση S3 (μνήμη)",
+  "Install {program}?": "Εγκατάσταση του {program};",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Δημιουργός: superkeka. Κάνει την αναστολή του συστήματος να λειτουργεί, στη μνήμη (S3) ή στον δίσκο. Πειραματικό: δοκιμασμένο από τον δημιουργό μόνο σε SteamOS.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Πρέπει να ξέρει ποιοι πυρήνες ξεκλειδώθηκαν και γνωρίζει μόνο τους συνηθισμένους, γι' αυτό δεν προσφέρεται όσο είναι ενεργοί οι επιπλέον.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Άλλο πρόσθετο αναστολής ή η διόρθωση ACPI χρησιμοποιεί τα ίδια αρχεία. Αφαιρέστε το πρώτα.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Η αδρανοποίηση χρειάζεται αρχείο ή διαμέρισμα swap στον δίσκο· τώρα υπάρχει μόνο συμπιεσμένη μνήμη.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Αλλάζει την εκκίνηση και, σε BIOS P3.00, μία επιλογή BIOS, που επανέρχεται στην αφαίρεση. Αν η πλακέτα δεν ξυπνήσει, βγάλτε την από το ρεύμα 30 δευτερόλεπτα. Την ξυπνά μόνο συσκευή USB σε μπλε θύρα.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Η αναστολή επιστρέφει όπως την είχε το σύστημα και η επιλογή BIOS στην προηγούμενη τιμή.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 και ένα μενού BIOS που ενεργοποιεί τις υπολογιστικές μονάδες GPU και τη θερμοκρασία GDDR6 σε κάθε εκκίνηση.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Πρωτότυπο, δοκιμασμένο μόνο στην πλακέτα του δημιουργού. Έχετε τρόπο να ξαναπρογραμματίσετε το τσιπ BIOS πριν το γράψετε."
 }

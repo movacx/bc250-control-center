@@ -11,11 +11,19 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from . import hdmi_ac3, hdmi_cec, openlinkhub, thermalright, vram_sensor, vrm_sensor
+from . import (
+    hdmi_ac3,
+    hdmi_cec,
+    openlinkhub,
+    real_sleep,
+    thermalright,
+    vram_sensor,
+    vrm_sensor,
+)
 
 logger = logging.getLogger(__name__)
 
-ACCESSORIES = ("thermalright", "corsair", "hdmi_ac3", "hdmi_cec", "vram_sensor", "vrm_sensor", "apu_telemetry")
+ACCESSORIES = ("thermalright", "corsair", "hdmi_ac3", "hdmi_cec", "vram_sensor", "vrm_sensor", "apu_telemetry", "real_sleep")
 #: Installed through its own workflow (``gestionar_apu_telemetry``), not a
 #: terminal command from here; listed for its card's state only.
 SERVICE_ACCESSORIES = frozenset({"apu_telemetry"})
@@ -39,6 +47,7 @@ def accessory_inventory(family: str, tool_dir: Path, *, distro_id: str = "", imm
         "hdmi_cec": lambda: hdmi_cec.inventory(family, tool_dir),
         "vram_sensor": lambda: vram_sensor.inventory(family),
         "vrm_sensor": lambda: vrm_sensor.inventory(family),
+        "real_sleep": lambda: real_sleep.inventory(distro_id if distro_id in real_sleep.FAMILIES else family),
         "apu_telemetry": lambda: accessory_state(family=family, distro_id=distro_id, immutable=immutable),
     }
     states = {}
@@ -61,6 +70,8 @@ def accessory_command(component: str, action: str, *, family: str, tool_dir: Pat
             "poweroff-install": lambda: hdmi_cec.poweroff_install_command(family),
             "poweroff-remove": lambda: hdmi_cec.poweroff_remove_command(family),
         }[action]()
+    if component == "real_sleep" and action in {"mode-s3", "mode-hibernate"}:
+        return real_sleep.set_mode_command(action.removeprefix("mode-"))
     if action not in {"install", "remove"}:
         raise ValueError(f"Unsupported accessory action: {action or '--'}")
     if component == "thermalright":
@@ -75,4 +86,9 @@ def accessory_command(component: str, action: str, *, family: str, tool_dir: Pat
         return (vram_sensor.install_command if action == "install" else vram_sensor.remove_command)(family)
     if component == "vrm_sensor":
         return (vrm_sensor.install_command if action == "install" else vrm_sensor.remove_command)(family)
+    if component == "real_sleep":
+        if action == "remove":
+            return real_sleep.remove_command(family)
+        info = real_sleep.inventory(family)
+        return real_sleep.install_command(family, mode="s3" if info["s3_supported"] else "hibernate")
     raise ValueError(f"Unsupported accessory: {component or '--'}")

@@ -139,6 +139,9 @@ class FirmwareFamily:
 # ------------------------------------------------------------------ sources
 
 _TUX = "https://gitlab.com/TuxThePenguin0/bc250-bios/-/raw/309a13b6ec8a1da79499f7305dc5519f570463ec"
+_ONLINERMM = (
+    "https://raw.githubusercontent.com/onlinermm/bc250-efi-cu-and-memory-temperature/28f448882704baf135bd3c4723c166e68f19e429"
+)
 _KENAVRU = "https://raw.githubusercontent.com/kenavru/BC-250/73dd0bbaaeb16c53acd75995771aeb38253f124d"
 _FORBIDDEN_DARKNESS = (
     "https://raw.githubusercontent.com/Forbidden-Darkness/"
@@ -314,6 +317,41 @@ FIRMWARE_FAMILIES: tuple[FirmwareFamily, ...] = (
             "ACPI patch: CPU P-states and C-states",
             "Learns the factory cores and can restore them",
             "Its own menu: Advanced › MeiMeiDXEv3 Menu",
+        ),
+    ),
+    FirmwareFamily(
+        key="bc250-native",
+        title="P3.00 BC250 Native 0.1.0",
+        version="P3.00",
+        origin="modded",
+        summary=(
+            "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start."
+        ),
+        caution=(
+            "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it."
+        ),
+        # The same flasher, byte for byte, and the same arguments as its project's own script.
+        tool=MEIMEIDXE_AFU,
+        images=(
+            FirmwareImage(
+                key="bc250-native",
+                label="BC250 Native 0.1.0",
+                rom=RemoteFile(
+                    url=f"{_ONLINERMM}/USB/Firmware/BC250_3.00_MeiMeiDXEv3-PUNSH-BC250-Native-0.1.0-CANDIDATE.rom",
+                    sha256="38a3c0ddd15d292727e741bc0b3e2b9e3fe877eb9fb8c605a8521ab721bddf53",
+                    size=ROM_BYTES,
+                    name="BC250_3.00_Native-0.1.0.rom",
+                ),
+            ),
+        ),
+        project="onlinermm/bc250-efi-cu-and-memory-temperature",
+        project_url="https://github.com/onlinermm/bc250-efi-cu-and-memory-temperature",
+        vram_menu=True,
+        cpu_cores=8,
+        # Its setup form (GpuForms.vfr) and its own design notes.
+        highlights=(
+            "GPU compute units",
+            "Memory temperature",
         ),
     ),
     FirmwareFamily(

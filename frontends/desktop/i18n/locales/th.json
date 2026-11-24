@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux เมานต์โฟลเดอร์ที่ Control Center เขียนเป็นแบบอ่านอย่างเดียว เกิดเมื่อระบบไฟล์มีข้อผิดพลาด เช่นหลังไฟดับ",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "บันทึกงานแล้วรีสตาร์ต หากเกิดซ้ำ ให้ตรวจระบบไฟล์ด้วยเครื่องมือของดิสทริบิวชันก่อน",
   "What were you doing just before?": "ก่อนหน้านั้นคุณกำลังทำอะไรอยู่",
-  "You already sent this one: {id}. Send it again only if something changed.": "คุณส่งรายการนี้แล้ว: {id} ส่งอีกครั้งเฉพาะเมื่อมีอะไรเปลี่ยน"
+  "You already sent this one: {id}. Send it again only if something changed.": "คุณส่งรายการนี้แล้ว: {id} ส่งอีกครั้งเฉพาะเมื่อมีอะไรเปลี่ยน",
+  "Experimental": "ทดลอง",
+  "Use hibernation": "ใช้ไฮเบอร์เนต",
+  "Use S3 (memory)": "ใช้ S3 (หน่วยความจำ)",
+  "Install {program}?": "ติดตั้ง {program} หรือไม่",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "ผู้สร้าง: superkeka ทำให้การพักเครื่องของระบบใช้งานได้ ในหน่วยความจำ (S3) หรือบนดิสก์ ทดลอง: ผู้สร้างทดสอบบน SteamOS เท่านั้น",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "ต้องรู้ว่าปลดล็อกคอร์ใด และรู้จักเฉพาะแบบมาตรฐาน จึงใช้ไม่ได้ขณะเปิดคอร์เพิ่ม",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "ปลั๊กอินพักเครื่องอื่นหรือการแก้ ACPI ใช้ไฟล์เดียวกัน ลบออกก่อน",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "ไฮเบอร์เนตต้องมีไฟล์หรือพาร์ติชัน swap บนดิสก์ ตอนนี้มีเพียงหน่วยความจำบีบอัด",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "เปลี่ยนการบูตและตัวเลือก BIOS หนึ่งรายการบน BIOS P3.00 ซึ่งจะคืนค่าเมื่อลบ หากบอร์ดไม่ตื่น ให้ถอดปลั๊ก 30 วินาที ปลุกได้ด้วยอุปกรณ์ USB ในพอร์ตสีน้ำเงินเท่านั้น",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "การพักเครื่องกลับเป็นแบบเดิมของระบบ และตัวเลือก BIOS กลับเป็นค่าเดิม",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 พร้อมเมนู BIOS ที่เปิดหน่วยประมวลผล GPU และอุณหภูมิ GDDR6 ทุกครั้งที่เปิดเครื่อง",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "ต้นแบบ ทดสอบบนบอร์ดของผู้สร้างเท่านั้น เตรียมวิธีเขียนชิป BIOS ใหม่ก่อนแฟลช"
 }

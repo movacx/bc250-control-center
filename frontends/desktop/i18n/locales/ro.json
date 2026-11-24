@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux a montat doar în citire dosarul în care scrie Control Center. Se întâmplă la erori ale sistemului de fișiere, de exemplu după o pană de curent.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Salvează-ți munca și repornește. Dacă se repetă, verifică întâi sistemul de fișiere cu unealta distribuției tale.",
   "What were you doing just before?": "Ce făceai chiar înainte?",
-  "You already sent this one: {id}. Send it again only if something changed.": "Ai trimis deja acest raport: {id}. Trimite-l din nou doar dacă s-a schimbat ceva."
+  "You already sent this one: {id}. Send it again only if something changed.": "Ai trimis deja acest raport: {id}. Trimite-l din nou doar dacă s-a schimbat ceva.",
+  "Experimental": "Experimental (în teste)",
+  "Use hibernation": "Folosește hibernarea",
+  "Use S3 (memory)": "Folosește S3 (memorie)",
+  "Install {program}?": "Instalezi {program}?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Autor: superkeka. Face să meargă suspendarea sistemului, în memorie (S3) sau pe disc (hibernare). Experimental: autorul a testat doar pe SteamOS.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Trebuie să știe ce nuclee au fost deblocate și le știe doar pe cele standard, deci nu e oferit cu nucleele suplimentare pornite.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Alt plugin de suspendare sau corecția ACPI folosește aceleași fișiere. Elimină-l întâi.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Hibernarea cere un fișier sau o partiție swap pe disc; acum există doar memorie comprimată.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Schimbă pornirea și, pe BIOS P3.00, o opțiune BIOS, readusă la eliminare. Dacă placa nu se trezește, scoate-o din priză 30 de secunde. O trezește doar un dispozitiv USB într-un port albastru.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Suspendarea revine la cea a sistemului, iar opțiunea BIOS la valoarea anterioară.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 plus un meniu BIOS care pornește unitățile de calcul GPU și temperatura GDDR6 la fiecare pornire.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Un prototip, testat doar pe placa autorului. Ai la îndemână un mod de a reprograma cipul BIOS înainte de scriere."
 }

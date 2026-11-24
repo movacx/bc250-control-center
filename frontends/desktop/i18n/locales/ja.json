@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Control Center が書き込むフォルダーを Linux が読み取り専用でマウントしました。停電後などファイルシステムにエラーがあるときに起こります。",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "作業を保存して再起動してください。繰り返す場合は、まずディストリビューションの修復ツールでファイルシステムを確認してください。",
   "What were you doing just before?": "直前に何をしていましたか？",
-  "You already sent this one: {id}. Send it again only if something changed.": "すでに送信済みです: {id}。何か変わった場合のみ再送してください。"
+  "You already sent this one: {id}. Send it again only if something changed.": "すでに送信済みです: {id}。何か変わった場合のみ再送してください。",
+  "Experimental": "実験的",
+  "Use hibernation": "休止状態を使う",
+  "Use S3 (memory)": "S3を使う（メモリ）",
+  "Install {program}?": "{program} をインストールしますか？",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "作者: superkeka。システム標準のサスペンドをメモリ（S3）またはディスク（休止）で動かします。実験的: 作者はSteamOSでのみ確認しています。",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "どのコアがアンロックされたかを知る必要があり、標準のものしか分からないため、追加コアが有効な間は使えません。",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "別のスリープ用プラグインかACPI修正が同じファイルを使っています。先に削除してください。",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "休止にはディスク上のスワップが必要です。今は圧縮メモリしかありません。",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "起動設定と、BIOS P3.00ではBIOSの項目を1つ変更し、削除時に元へ戻します。復帰しない場合は30秒間電源を抜いてください。青いポートのUSB機器だけで復帰します。",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "サスペンドはシステム本来の動作に、BIOSの項目は以前の値に戻ります。",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 に、起動ごとにGPU演算ユニットとGDDR6温度を有効にするBIOSメニューを加えたものです。",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "試作品で、作者のボードでのみ確認されています。書き込む前にBIOSチップを書き直せる手段を用意してください。"
 }

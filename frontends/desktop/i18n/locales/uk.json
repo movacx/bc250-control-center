@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux підключив теку, куди пише Control Center, лише для читання. Так буває за помилок файлової системи, наприклад після вимкнення живлення.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Збережіть роботу й перезавантажте. Якщо повториться, спершу перевірте файлову систему засобом вашого дистрибутива.",
   "What were you doing just before?": "Що ви робили безпосередньо перед цим?",
-  "You already sent this one: {id}. Send it again only if something changed.": "Ви вже надсилали це: {id}. Надішліть знову, лише якщо щось змінилося."
+  "You already sent this one: {id}. Send it again only if something changed.": "Ви вже надсилали це: {id}. Надішліть знову, лише якщо щось змінилося.",
+  "Experimental": "Експериментально",
+  "Use hibernation": "Використати гібернацію",
+  "Use S3 (memory)": "Використати S3 (пам'ять)",
+  "Install {program}?": "Встановити {program}?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Автор: superkeka. Вмикає власний сон системи: у пам'яті (S3) або на диску (гібернація). Експериментально: автор перевіряв лише в SteamOS.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Йому треба знати, які ядра розблоковано, а відомі лише стандартні, тому за ввімкнених додаткових ядер він недоступний.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Інший плагін сну або виправлення ACPI використовує ті самі файли. Спершу вилучіть його.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Для гібернації потрібен файл або розділ підкачки на диску; зараз є лише стиснена пам'ять.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Змінює завантаження й на BIOS P3.00 одне налаштування BIOS, яке повертається під час вилучення. Якщо плата не прокидається, вимкніть живлення на 30 секунд. Будить її лише USB-пристрій у синьому порту.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Сон повертається до системного, а налаштування BIOS до попереднього значення.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 та меню BIOS, яке під час кожного запуску вмикає обчислювальні блоки GPU і температуру GDDR6.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Прототип, перевірений лише на платі автора. Перед прошиванням майте спосіб перепрограмувати мікросхему BIOS."
 }

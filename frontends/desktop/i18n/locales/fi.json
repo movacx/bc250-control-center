@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux liitti Control Centerin kirjoituskansion vain luku -tilaan. Niin käy tiedostojärjestelmän virheissä, esimerkiksi sähkökatkon jälkeen.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Tallenna työsi ja käynnistä uudelleen. Jos se toistuu, tarkista ensin tiedostojärjestelmä jakelun korjaustyökalulla.",
   "What were you doing just before?": "Mitä olit tekemässä juuri ennen?",
-  "You already sent this one: {id}. Send it again only if something changed.": "Lähetit tämän jo: {id}. Lähetä uudelleen vain, jos jokin muuttui."
+  "You already sent this one: {id}. Send it again only if something changed.": "Lähetit tämän jo: {id}. Lähetä uudelleen vain, jos jokin muuttui.",
+  "Experimental": "Kokeellinen",
+  "Use hibernation": "Käytä horrostilaa",
+  "Use S3 (memory)": "Käytä S3:a (muisti)",
+  "Install {program}?": "Asennetaanko {program}?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Tekijä: superkeka. Saa järjestelmän oman valmiustilan toimimaan muistissa (S3) tai levyllä. Kokeellinen: tekijä on testannut vain SteamOS:llä.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Sen on tiedettävä, mitkä ytimet on avattu, ja se tuntee vain tavalliset, joten sitä ei tarjota lisäytimien ollessa päällä.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Toinen lepotilalisäosa tai ACPI-korjaus käyttää samoja tiedostoja. Poista se ensin.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Horrostila vaatii swap-tiedoston tai -osion levyllä; nyt on vain pakattua muistia.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Se muuttaa käynnistystä ja BIOS P3.00:ssa yhtä BIOS-asetusta, joka palautetaan poistettaessa. Jos levy ei herää, irrota virta 30 sekunniksi. Vain sinisen portin USB-laite herättää sen.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Valmiustila palaa järjestelmän omaksi ja BIOS-asetus aiempaan arvoonsa.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 ja BIOS-valikko, joka ottaa GPU:n laskentayksiköt ja GDDR6-lämpötilan käyttöön joka käynnistyksessä.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Prototyyppi, testattu vain tekijän levyllä. Varmista ennen asennusta, että voit ohjelmoida BIOS-piirin uudelleen."
 }

@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux připojil složku, do které Control Center zapisuje, jen pro čtení. Dělá to při chybách souborového systému, třeba po výpadku proudu.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Uložte si práci a restartujte. Pokud se to opakuje, nejdřív zkontrolujte souborový systém nástrojem své distribuce.",
   "What were you doing just before?": "Co jste dělali těsně předtím?",
-  "You already sent this one: {id}. Send it again only if something changed.": "Tohle už jste poslali: {id}. Pošlete to znovu, jen pokud se něco změnilo."
+  "You already sent this one: {id}. Send it again only if something changed.": "Tohle už jste poslali: {id}. Pošlete to znovu, jen pokud se něco změnilo.",
+  "Experimental": "Experimentální",
+  "Use hibernation": "Použít hibernaci",
+  "Use S3 (memory)": "Použít S3 (paměť)",
+  "Install {program}?": "Nainstalovat {program}?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Autor: superkeka. Zprovozní vlastní uspání systému, v paměti (S3) nebo na disk (hibernace). Experimentální: autor to zkoušel jen na SteamOS.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Musí vědět, která jádra byla odemčena, a zná jen standardní, proto se nenabízí, dokud jsou další jádra zapnutá.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Stejné soubory používá jiný doplněk pro uspání nebo oprava ACPI. Nejdřív je odeberte.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Hibernace potřebuje odkládací soubor nebo oddíl na disku; teď je jen komprimovaná paměť.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Mění zavádění a u BIOS P3.00 jednu volbu BIOS, která se při odebrání vrátí. Když se deska neprobudí, odpojte ji na 30 sekund. Probudí ji jen USB zařízení v modrém portu.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Uspání se vrátí tak, jak ho měl systém, a volba BIOS na předchozí hodnotu.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 a navíc nabídka BIOS, která při každém startu zapne výpočetní jednotky GPU a teplotu GDDR6.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Prototyp, vyzkoušený jen na desce autora. Než ho nahrajete, mějte jak přeprogramovat čip BIOS."
 }

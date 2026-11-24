@@ -43,7 +43,10 @@ from bc250cc.infrastructure.cpu_runtime_snapshot import read_cpu_runtime_snapsho
 from bc250cc.infrastructure.cpu_telemetry import build_cpu_telemetry
 from bc250cc.infrastructure.external_tools.catalog import EXTERNAL_TOOLS
 from bc250cc.infrastructure.governor_config_request import find_governor_config_helper
-from bc250cc.infrastructure.hardware_identity import cpu_threads_present, is_bc250_platform
+from bc250cc.infrastructure.hardware_identity import (
+    cpu_threads_present,
+    is_bc250_platform,
+)
 from bc250cc.infrastructure.polkit_session import pkexec_argv, pkexec_prefix
 from bc250cc.platform.init.services import (
     detect_init_manager,

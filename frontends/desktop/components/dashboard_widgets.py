@@ -3377,7 +3377,7 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, PacmanLo
         lines; the description and actions of a row open on demand.
         """
         self.compatibility_groups = (
-            ("System", (self.acpi_card, self.pacman_lock_card, self.kernel_headers_card,
+            ("System", (self.acpi_card, self.pacman_lock_card, self.kernel_headers_card, self.real_sleep_card,
                         *self.real_toolkit_rows.cards_for("system"))),
             ("GPU governor", (self.cyan_card, self.oberon_card)),
             # Mesa first: it is what leaves the desktop on the CPU, whatever the kernel does.

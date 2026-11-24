@@ -150,7 +150,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.",
         markers=('nothing provides', 'has unmet dependencies', 'Unmet dependencies', 'unable to satisfy dependency', 'could not satisfy dependencies', 'error: target not found',
                  # rpm-ostree, for a layered package the repositories no longer carry (R-506fdded).
-                 'Packages not found',),
+                 'Packages not found', 'Could not depsolve transaction',),
     ),
     # Wine's loader, when kernel32.dll is missing from the prefix or the build.
     ErrorCode(

@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux heeft de map waarin Control Center schrijft alleen-lezen aangekoppeld. Dat gebeurt bij fouten in het bestandssysteem, bijvoorbeeld na een stroomstoring.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Sla je werk op en herstart. Gebeurt het weer, controleer dan eerst het bestandssysteem met het herstelprogramma van je distributie.",
   "What were you doing just before?": "Wat was je net daarvoor aan het doen?",
-  "You already sent this one: {id}. Send it again only if something changed.": "Deze heb je al verstuurd: {id}. Stuur hem alleen opnieuw als er iets veranderd is."
+  "You already sent this one: {id}. Send it again only if something changed.": "Deze heb je al verstuurd: {id}. Stuur hem alleen opnieuw als er iets veranderd is.",
+  "Experimental": "Experimenteel",
+  "Use hibernation": "Slaapstand op schijf gebruiken",
+  "Use S3 (memory)": "S3 gebruiken (geheugen)",
+  "Install {program}?": "{program} installeren?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Auteur: superkeka. Laat de slaapstand van het systeem werken, in het geheugen (S3) of op schijf. Experimenteel: de auteur testte het alleen op SteamOS.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Het moet weten welke kernen zijn ontgrendeld en kent alleen de gewone, dus het is er niet zolang de extra kernen aan staan.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Een andere slaapplugin of de ACPI-fix gebruikt dezelfde bestanden. Verwijder die eerst.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Voor hibernatie is een swapbestand of -partitie op schijf nodig; er is nu alleen gecomprimeerd geheugen.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Het wijzigt het opstarten en bij BIOS P3.00 één BIOS-optie, die bij verwijderen wordt teruggezet. Wordt het bord niet wakker, haal dan 30 seconden de stroom eraf. Alleen een USB-apparaat in een blauwe poort wekt het.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "De slaapstand wordt weer die van het systeem en de BIOS-optie krijgt haar vorige waarde.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 plus een BIOS-menu dat bij elke start de GPU-rekeneenheden en de GDDR6-temperatuur inschakelt.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Een prototype, alleen getest op het bord van de auteur. Zorg dat je de BIOS-chip opnieuw kunt programmeren voor je flasht."
 }

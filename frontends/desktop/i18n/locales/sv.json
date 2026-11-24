@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux monterade mappen som Control Center skriver till som skrivskyddad. Det sker vid fel i filsystemet, till exempel efter ett strömavbrott.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Spara ditt arbete och starta om. Händer det igen, kontrollera först filsystemet med distributionens reparationsverktyg.",
   "What were you doing just before?": "Vad gjorde du precis innan?",
-  "You already sent this one: {id}. Send it again only if something changed.": "Du har redan skickat den här: {id}. Skicka igen bara om något har ändrats."
+  "You already sent this one: {id}. Send it again only if something changed.": "Du har redan skickat den här: {id}. Skicka igen bara om något har ändrats.",
+  "Experimental": "Experimentellt",
+  "Use hibernation": "Använd viloläge på disk",
+  "Use S3 (memory)": "Använd S3 (minne)",
+  "Install {program}?": "Installera {program}?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Upphovsman: superkeka. Får systemets eget vänteläge att fungera, i minnet (S3) eller på disk. Experimentellt: bara testat på SteamOS.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Det måste veta vilka kärnor som låsts upp och känner bara de vanliga, så det erbjuds inte med extrakärnorna på.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Ett annat vilotillägg eller ACPI-fixen använder samma filer. Ta bort det först.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Viloläge på disk kräver en växlingsfil eller -partition; nu finns bara komprimerat minne.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Ändrar starten och på BIOS P3.00 ett BIOS-val, som återställs vid borttagning. Vaknar kortet inte, dra ur strömmen i 30 sekunder. Bara en USB-enhet i en blå port väcker det.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Vänteläget blir som systemet hade det och BIOS-valet får sitt tidigare värde.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 plus en BIOS-meny som slår på GPU:ns beräkningsenheter och GDDR6-temperaturen vid varje start.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "En prototyp, bara testad på upphovsmannens kort. Ha ett sätt att programmera om BIOS-kretsen innan du flashar."
 }

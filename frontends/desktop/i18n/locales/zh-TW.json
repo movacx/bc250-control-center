@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux 將 Control Center 寫入的資料夾掛載為唯讀。檔案系統出錯時（例如斷電後）會這樣。",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "請儲存工作並重新啟動。若再次出現，請先用發行版的修復工具檢查檔案系統。",
   "What were you doing just before?": "發生前您正在做什麼？",
-  "You already sent this one: {id}. Send it again only if something changed.": "您已傳送過此報告：{id}。僅在有變化時再次傳送。"
+  "You already sent this one: {id}. Send it again only if something changed.": "您已傳送過此報告：{id}。僅在有變化時再次傳送。",
+  "Experimental": "實驗性",
+  "Use hibernation": "使用休眠模式",
+  "Use S3 (memory)": "使用 S3（記憶體）",
+  "Install {program}?": "安裝 {program}？",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "作者：superkeka。讓系統內建的睡眠可用，保存在記憶體（S3）或磁碟（休眠）。實驗性：作者僅在 SteamOS 上測試過。",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "它需要知道解鎖了哪些核心，而只認得標準的，因此額外核心開啟時不可用。",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "其他睡眠外掛或 ACPI 修復使用相同的檔案，請先移除。",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "休眠需要磁碟上的交換檔或分割區；目前只有壓縮記憶體。",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "它會變更開機設定，並在 BIOS P3.00 上變更一個 BIOS 選項，移除時還原。若主機板無法喚醒，請斷電 30 秒。只有藍色連接埠上的 USB 裝置能喚醒。",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "睡眠恢復為系統原有方式，BIOS 選項恢復為先前的值。",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3，外加一個 BIOS 選單，每次啟動時開啟 GPU 運算單元和 GDDR6 溫度。",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "原型，僅在作者的主機板上測試過。刷寫前請準備好重新燒錄 BIOS 晶片的方法。"
 }

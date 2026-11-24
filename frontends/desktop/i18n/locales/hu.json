@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "A Linux csak olvashatóként csatolta a Control Center mappáját. Ez fájlrendszerhibáknál történik, például áramszünet után.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Mentsd el a munkád és indíts újra. Ha ismétlődik, először ellenőrizd a fájlrendszert a disztribúció javítóeszközével.",
   "What were you doing just before?": "Mit csináltál közvetlenül előtte?",
-  "You already sent this one: {id}. Send it again only if something changed.": "Ezt már elküldted: {id}. Csak akkor küldd újra, ha valami változott."
+  "You already sent this one: {id}. Send it again only if something changed.": "Ezt már elküldted: {id}. Csak akkor küldd újra, ha valami változott.",
+  "Experimental": "Kísérleti",
+  "Use hibernation": "Hibernálás használata",
+  "Use S3 (memory)": "S3 használata (memória)",
+  "Install {program}?": "Telepíted: {program}?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Szerző: superkeka. Működővé teszi a rendszer saját alvását memóriában (S3) vagy lemezen. Kísérleti: szerzője csak SteamOS-en próbálta.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Tudnia kell, mely magok vannak feloldva, és csak a szokásosakat ismeri, ezért bekapcsolt plusz magokkal nem érhető el.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Egy másik alvásbővítmény vagy az ACPI-javítás ugyanezeket a fájlokat használja. Előbb távolítsd el.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "A hibernáláshoz swap fájl vagy partíció kell a lemezen; most csak tömörített memória van.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Módosítja az indítást és BIOS P3.00 esetén egy BIOS-beállítást, amelyet eltávolításkor visszaállít. Ha nem ébred fel, áramtalanítsd 30 másodpercre. Csak a kék portba dugott USB-eszköz ébreszti.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Az alvás visszaáll a rendszer szerintire, a BIOS-beállítás pedig a korábbi értékére.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 és egy BIOS-menü, amely minden indításkor bekapcsolja a GPU számítóegységeit és a GDDR6-hőmérsékletet.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Prototípus, csak a szerző alaplapján tesztelve. Flashelés előtt legyen mivel újraprogramozni a BIOS-chipet."
 }

@@ -120,3 +120,13 @@ def test_the_probe_keeps_what_the_checked_reader_throws_away(tmp_path):
     assert sondear_telemetria_vrm(tmp_path / "absent.json")["daemon"] == "missing"
     (tmp_path / "broken.json").write_text("{", encoding="utf-8")
     assert sondear_telemetria_vrm(tmp_path / "broken.json")["daemon"] == "unreadable"
+
+
+def test_onlinermms_bios_is_told_apart_from_the_meimeidxe_it_is_built_on():
+    from bc250cc.infrastructure.firmware import board as firmware_board
+
+    info = firmware_board.identify_installed_bios(
+        firmware_board.BoardFirmware("AMD BC-250", "AMI", "P3.00", "12/09/2021"),
+        efi_variables=("MeiMeiDXEv3CoreVar-49cc168d", "Bc250GpuConfig-dbd570a4"),
+    )
+    assert info.family == "bc250-native" and info.variant == "BC250 Native"

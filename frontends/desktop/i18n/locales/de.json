@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux hat den Ordner, in den Control Center schreibt, schreibgeschützt eingehängt. Das passiert bei Dateisystemfehlern, etwa nach einem Stromausfall.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Arbeit speichern und neu starten. Wiederholt es sich, zuerst das Dateisystem mit dem Reparaturwerkzeug der Distribution prüfen.",
   "What were you doing just before?": "Was hast du direkt davor gemacht?",
-  "You already sent this one: {id}. Send it again only if something changed.": "Das hast du schon gesendet: {id}. Nur erneut senden, wenn sich etwas geändert hat."
+  "You already sent this one: {id}. Send it again only if something changed.": "Das hast du schon gesendet: {id}. Nur erneut senden, wenn sich etwas geändert hat.",
+  "Experimental": "Experimentell",
+  "Use hibernation": "Ruhezustand verwenden",
+  "Use S3 (memory)": "S3 verwenden (Speicher)",
+  "Install {program}?": "{program} installieren?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Autor: superkeka. Damit funktioniert das Standby des Systems, im Speicher (S3) oder auf der Platte (Ruhezustand). Experimentell: vom Autor nur unter SteamOS getestet.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Es muss wissen, welche Kerne freigeschaltet sind, und kennt nur die üblichen; solange die Zusatzkerne laufen, wird es nicht angeboten.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Ein anderes Schlaf-Plugin oder die ACPI-Korrektur nutzt dieselben Dateien. Zuerst entfernen.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Der Ruhezustand braucht eine Swap-Datei oder -Partition; derzeit gibt es nur komprimierten Speicher.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Es ändert den Start und bei BIOS P3.00 eine BIOS-Option, die beim Entfernen zurückgesetzt wird. Wacht das Board nicht auf, 30 Sekunden vom Strom trennen. Nur ein USB-Gerät an einem blauen Port weckt es.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Standby ist wieder wie im System vorgesehen, und die BIOS-Option erhält ihren früheren Wert.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 plus ein BIOS-Menü, das bei jedem Start die GPU-Recheneinheiten und die GDDR6-Temperatur einschaltet.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Ein Prototyp, nur auf dem Board des Autors getestet. Vor dem Flashen eine Möglichkeit bereithalten, den BIOS-Chip neu zu programmieren."
 }

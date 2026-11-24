@@ -18,7 +18,7 @@ def test_a_gpu_failure_without_a_rule_shows_its_own_sentence():
 
 
 def test_a_dump_is_not_taken_for_a_sentence():
-    sections, _code = error_sections("first line of a dump\nsecond line of it.", context="GPU governor")
+    sections, _code = error_sections(chr(10).join(("first line of a dump", "second line of it.")), context="GPU governor")
     assert dict(sections)["What happened"] == "The GPU operation could not be completed."
 
 

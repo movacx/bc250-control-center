@@ -121,6 +121,7 @@ _P3_VARIANTS = {
     "p3-stock": "ASRock",
     "p3-chipset-menu": "Chipset Menu",
     "meimeidxe-v3": "MeiMeiDXE v3",
+    "bc250-native": "BC250 Native",
 }
 
 
@@ -146,6 +147,13 @@ def identify_installed_bios(
     # MeiMeiDXEv3CoreVar, MeiMeiDXEv3SmuUnlockVar... under the vendor GUID
     # 49cc168d-e8b0-4613-a807-16969986726f (read on a flashed board). Their
     # names are world-readable; their contents are not needed.
+    # onlinermm's BIOS is MeiMeiDXE plus its own settings variable (GpuForms.vfr),
+    # so it is asked about first.
+    if any(name.lower().startswith("bc250gpuconfig") for name in efi_variables):
+        return InstalledBios(
+            version, _P3_VARIANTS["bc250-native"], "bc250-native",
+            "The firmware keeps BC250 Native's own settings variable.",
+        )
     if any(name.lower().startswith("meimeidxe") for name in efi_variables):
         return InstalledBios(
             version, _P3_VARIANTS["meimeidxe-v3"], "meimeidxe-v3",

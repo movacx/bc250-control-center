@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux 将 Control Center 写入的文件夹挂载为只读。文件系统出错时（例如断电后）会这样。",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "请保存工作并重启。如再次出现，请先用发行版的修复工具检查文件系统。",
   "What were you doing just before?": "出错前您正在做什么？",
-  "You already sent this one: {id}. Send it again only if something changed.": "您已发送过此报告：{id}。仅在有变化时再次发送。"
+  "You already sent this one: {id}. Send it again only if something changed.": "您已发送过此报告：{id}。仅在有变化时再次发送。",
+  "Experimental": "实验性",
+  "Use hibernation": "使用休眠",
+  "Use S3 (memory)": "使用 S3（内存）",
+  "Install {program}?": "安装 {program}？",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "作者：superkeka。让系统自带的睡眠可用，保存在内存（S3）或磁盘（休眠）。实验性：作者仅在 SteamOS 上测试过。",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "它需要知道解锁了哪些核心，而只认识标准的，因此额外核心开启时不可用。",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "其他睡眠插件或 ACPI 修复使用相同的文件，请先移除。",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "休眠需要磁盘上的交换文件或分区；目前只有压缩内存。",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "它会更改启动配置，并在 BIOS P3.00 上更改一个 BIOS 选项，移除时恢复。若主板无法唤醒，请断电 30 秒。只有蓝色接口上的 USB 设备能唤醒。",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "睡眠恢复为系统原有方式，BIOS 选项恢复为之前的值。",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3，外加一个 BIOS 菜单，每次启动时开启 GPU 计算单元和 GDDR6 温度。",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "原型，仅在作者的主板上测试过。刷写前请准备好重新烧录 BIOS 芯片的手段。"
 }

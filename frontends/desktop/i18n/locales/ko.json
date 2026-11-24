@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux가 Control Center가 쓰는 폴더를 읽기 전용으로 마운트했습니다. 정전 후처럼 파일 시스템에 오류가 있을 때 그렇게 합니다.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "작업을 저장하고 다시 시작하세요. 반복되면 먼저 배포판의 복구 도구로 파일 시스템을 검사하세요.",
   "What were you doing just before?": "바로 전에 무엇을 하고 있었나요?",
-  "You already sent this one: {id}. Send it again only if something changed.": "이미 보낸 보고서입니다: {id}. 달라진 것이 있을 때만 다시 보내세요."
+  "You already sent this one: {id}. Send it again only if something changed.": "이미 보낸 보고서입니다: {id}. 달라진 것이 있을 때만 다시 보내세요.",
+  "Experimental": "실험적",
+  "Use hibernation": "최대 절전 사용",
+  "Use S3 (memory)": "S3 사용(메모리)",
+  "Install {program}?": "{program}을(를) 설치할까요?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "제작: superkeka. 시스템의 절전을 메모리(S3)나 디스크(최대 절전)로 작동하게 합니다. 실험적: 제작자는 SteamOS에서만 시험했습니다.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "어떤 코어가 풀렸는지 알아야 하는데 표준만 알고 있어, 추가 코어가 켜져 있는 동안은 제공되지 않습니다.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "다른 절전 플러그인이나 ACPI 수정이 같은 파일을 사용합니다. 먼저 제거하세요.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "최대 절전에는 디스크의 스왑이 필요합니다. 지금은 압축 메모리만 있습니다.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "부팅과 BIOS P3.00에서는 BIOS 옵션 하나를 바꾸며 제거하면 되돌립니다. 보드가 깨어나지 않으면 30초간 전원을 뽑으세요. 파란 포트의 USB 장치만 깨울 수 있습니다.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "절전은 시스템 기본 방식으로, BIOS 옵션은 이전 값으로 돌아갑니다.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3에 시작할 때마다 GPU 연산 유닛과 GDDR6 온도를 켜는 BIOS 메뉴를 더했습니다.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "제작자의 보드에서만 시험한 시제품입니다. 플래시하기 전에 BIOS 칩을 다시 프로그램할 방법을 준비하세요."
 }

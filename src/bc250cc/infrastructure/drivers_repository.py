@@ -463,6 +463,7 @@ class DriversRepository:
             "vram_sensor": "VRAM temperature (bc250-memory)",
             "vrm_sensor": "Power delivery readings (bc250-vrm)",
             "hdmi_cec": "TV control (HDMI-CEC)",
+            "real_sleep": "Sleep (bc250-sleep)",
         }
         title = {
             "wake-install": "TV control · wake the TV at start",

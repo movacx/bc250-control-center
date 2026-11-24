@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux, Control Center'ın yazdığı klasörü salt okunur bağladı. Dosya sisteminde hata olduğunda, örneğin elektrik kesintisinden sonra olur.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Çalışmanızı kaydedip yeniden başlatın. Tekrarlarsa önce dosya sistemini dağıtımınızın onarım aracıyla denetleyin.",
   "What were you doing just before?": "Hemen öncesinde ne yapıyordunuz?",
-  "You already sent this one: {id}. Send it again only if something changed.": "Bunu zaten gönderdiniz: {id}. Yalnızca bir şey değiştiyse yeniden gönderin."
+  "You already sent this one: {id}. Send it again only if something changed.": "Bunu zaten gönderdiniz: {id}. Yalnızca bir şey değiştiyse yeniden gönderin.",
+  "Experimental": "Deneysel",
+  "Use hibernation": "Hazırda beklet'i kullan",
+  "Use S3 (memory)": "S3 kullan (bellek)",
+  "Install {program}?": "{program} kurulsun mu?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Yapan: superkeka. Sistemin kendi uykusunu bellekte (S3) veya diskte çalışır hale getirir. Deneysel: yapan yalnızca SteamOS'ta denedi.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Hangi çekirdeklerin açıldığını bilmesi gerekir ve yalnızca standartları bilir; ek çekirdekler açıkken sunulmaz.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Başka bir uyku eklentisi veya ACPI düzeltmesi aynı dosyaları kullanıyor. Önce onu kaldırın.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Hazırda bekletme diskte takas dosyası veya bölümü ister; şu an yalnızca sıkıştırılmış bellek var.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Açılışı ve BIOS P3.00'da bir BIOS seçeneğini değiştirir; kaldırınca geri alınır. Kart uyanmazsa 30 saniye fişini çekin. Yalnızca mavi porttaki USB aygıtı uyandırır.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Uyku sistemdeki haline, BIOS seçeneği de önceki değerine döner.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 ve her açılışta GPU hesaplama birimlerini ve GDDR6 sıcaklığını açan bir BIOS menüsü.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Yalnızca yapanın kartında denenmiş bir prototip. Yazmadan önce BIOS yongasını yeniden programlama yolunuz olsun."
 }

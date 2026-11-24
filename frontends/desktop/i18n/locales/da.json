@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux har monteret den mappe, Control Center skriver til, som skrivebeskyttet. Det sker ved fejl i filsystemet, fx efter et strømsvigt.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Gem dit arbejde, og genstart. Sker det igen, så kontrollér først filsystemet med din distributions reparationsværktøj.",
   "What were you doing just before?": "Hvad lavede du lige inden?",
-  "You already sent this one: {id}. Send it again only if something changed.": "Du har allerede sendt denne: {id}. Send den kun igen, hvis noget er ændret."
+  "You already sent this one: {id}. Send it again only if something changed.": "Du har allerede sendt denne: {id}. Send den kun igen, hvis noget er ændret.",
+  "Experimental": "Eksperimentel",
+  "Use hibernation": "Brug dvale",
+  "Use S3 (memory)": "Brug S3 (hukommelse)",
+  "Install {program}?": "Installér {program}?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Forfatter: superkeka. Får systemets egen dvale til at virke, i hukommelsen (S3) eller på disken. Eksperimentel: kun testet af forfatteren på SteamOS.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Den skal vide, hvilke kerner der er låst op, og kender kun de normale, så den tilbydes ikke, mens de ekstra kerner er tændt.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Et andet dvaleplugin eller ACPI-rettelsen bruger de samme filer. Fjern det først.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Dvale på disk kræver en swapfil eller -partition; nu er der kun komprimeret hukommelse.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Den ændrer opstarten og på BIOS P3.00 én BIOS-indstilling, som sættes tilbage ved fjernelse. Vågner kortet ikke, så tag strømmen i 30 sekunder. Kun en USB-enhed i en blå port vækker det.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Dvale går tilbage til systemets egen, og BIOS-indstillingen til sin tidligere værdi.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 plus en BIOS-menu, der tænder GPU'ens beregningsenheder og GDDR6-temperaturen ved hver start.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "En prototype, kun testet på forfatterens kort. Hav en måde at omprogrammere BIOS-chippen på, før du flasher."
 }

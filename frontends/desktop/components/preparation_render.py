@@ -185,6 +185,9 @@ class PreparationRenderMixin:
             info = _mapping(accessories.get(key))
             state = str(info.get("state") or "")
             buttons = self.accessory_buttons[key]
+            if key == "real_sleep":
+                self._render_real_sleep(info)
+                continue
             if state not in self._ACCESSORY_STATES:
                 card.set_status("Checking", "gray")
                 for name in ("install", "configure", "remove"):
@@ -258,6 +261,39 @@ class PreparationRenderMixin:
             )
             self._accessory_notes[key].setText(tr(note))
             self._accessory_notes[key].setVisible(bool(note))
+
+    def _render_real_sleep(self, info: Mapping) -> None:
+        """Its row exists only where its author supports it."""
+        card, buttons = self.real_sleep_card, self.accessory_buttons["real_sleep"]
+        state = str(info.get("state") or "")
+        card.setVisible(state in {"not-installed", "installed", "broken"})
+        if state not in {"not-installed", "installed", "broken"}:
+            return
+        status, tone = {
+            "installed": ("Installed", "blue"), "broken": ("Incomplete", "orange"),
+        }.get(state, ("Not installed", "gray"))
+        card.set_status(status, tone)
+        reason = str(info.get("reason") or "") if state == "not-installed" else ""
+        hibernate = info.get("mode") == "hibernate"
+        note = reason or (
+            "Hibernation needs a swap file or partition on the disk; there is only compressed memory now."
+            if info.get("needs_swap") and (hibernate or not info.get("s3_supported")) else ""
+        )
+        card.update_action(
+            buttons["install"], text="Install", payload={"accessory": "real_sleep", "op": "install"},
+            visible=state != "installed", enabled=not reason, tooltip=reason,
+        )
+        card.update_action(
+            buttons["configure"], text="Use S3 (memory)" if hibernate else "Use hibernation",
+            payload={"accessory": "real_sleep", "op": "mode-s3" if hibernate else "mode-hibernate"},
+            visible=state == "installed" and (not hibernate or bool(info.get("s3_supported"))),
+        )
+        card.update_action(
+            buttons["remove"], text="Remove", payload={"accessory": "real_sleep", "op": "remove"},
+            visible=state in {"installed", "broken"},
+        )
+        self._accessory_notes["real_sleep"].setText(tr(note) if note else "")
+        self._accessory_notes["real_sleep"].setVisible(bool(note))
 
     def _reflow(self, width: int) -> None:
         tab_columns = (

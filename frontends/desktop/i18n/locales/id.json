@@ -6527,5 +6527,17 @@
   "Linux mounted the folder Control Center writes to as read-only. It does that when the file system has errors, after a power cut for example.": "Linux memasang folder tempat Control Center menulis sebagai hanya-baca. Itu terjadi bila sistem berkas bermasalah, misalnya setelah listrik padam.",
   "Save your work and restart. If it repeats, check the file system with your distribution's repair tool before anything else.": "Simpan pekerjaan Anda dan mulai ulang. Jika terulang, periksa dulu sistem berkas dengan alat perbaikan distribusi Anda.",
   "What were you doing just before?": "Apa yang Anda lakukan tepat sebelumnya?",
-  "You already sent this one: {id}. Send it again only if something changed.": "Anda sudah mengirim ini: {id}. Kirim lagi hanya jika ada yang berubah."
+  "You already sent this one: {id}. Send it again only if something changed.": "Anda sudah mengirim ini: {id}. Kirim lagi hanya jika ada yang berubah.",
+  "Experimental": "Eksperimental",
+  "Use hibernation": "Pakai hibernasi",
+  "Use S3 (memory)": "Pakai S3 (memori)",
+  "Install {program}?": "Pasang {program}?",
+  "Author: superkeka. Makes the system's own Suspend work, in memory (S3) or on disk (hibernation). Experimental: its author has only tested it on SteamOS.": "Pembuat: superkeka. Membuat Suspend bawaan sistem berfungsi, di memori (S3) atau di disk. Eksperimental: hanya diuji pembuatnya di SteamOS.",
+  "It needs to know which cores were unlocked and only knows the standard ones, so it is not offered while the extra cores are on.": "Ia perlu tahu inti mana yang dibuka dan hanya mengenal yang standar, jadi tidak ditawarkan saat inti tambahan menyala.",
+  "Another sleep plugin or the ACPI fix uses the same files. Remove it first to use this one.": "Plugin tidur lain atau perbaikan ACPI memakai berkas yang sama. Hapus dulu.",
+  "Hibernation needs a swap file or partition on the disk; there is only compressed memory now.": "Hibernasi perlu berkas atau partisi swap di disk; sekarang hanya ada memori terkompresi.",
+  "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it.": "Ini mengubah boot dan, pada BIOS P3.00, satu opsi BIOS yang dikembalikan saat dihapus. Jika papan tidak bangun, cabut listriknya 30 detik. Hanya perangkat USB di port biru yang membangunkannya.",
+  "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value.": "Suspend kembali seperti semula di sistem dan opsi BIOS kembali ke nilai sebelumnya.",
+  "MeiMeiDXE v3 plus a BIOS menu that turns on the GPU compute units and the GDDR6 temperature at every start.": "MeiMeiDXE v3 ditambah menu BIOS yang menyalakan unit komputasi GPU dan suhu GDDR6 setiap kali mulai.",
+  "A prototype, tested only on its author's board. Have a way to reprogram the BIOS chip before you flash it.": "Prototipe, hanya diuji di papan pembuatnya. Siapkan cara memprogram ulang chip BIOS sebelum mem-flash."
 }

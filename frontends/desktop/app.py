@@ -1626,7 +1626,14 @@ class ControlCenterWindow(QMainWindow):
         "vram_sensor": ("https://github.com/Hexxeh/bc250-memory-dkms", "bc250-memory"),
         "vrm_sensor": ("https://github.com/Hexxeh/bc250-vrm-dkms", "bc250-vrm"),
         "apu_telemetry": ("https://github.com/onlinermm/BC250-Telemetry", "BC250-Telemetry"),
+        "real_sleep": ("https://github.com/superkeka/bc250-sleep", "bc250-sleep"),
     }
+    #: What installing it does to the board, said before anything runs.
+    REAL_SLEEP_INSTALL = (
+        "It changes the boot and, on BIOS P3.00, one BIOS option, which is put back when you remove it. "
+        "If the board does not wake up, unplug it for 30 seconds. Only a USB device in a blue port wakes it."
+    )
+    REAL_SLEEP_REMOVE = "Suspend goes back to how the system had it, and the BIOS option returns to its earlier value."
 
     def _dashboard_accessory(self, accessory: str, operation: str) -> None:
         """A case accessory card: install, remove, configure or read about it."""
@@ -1659,13 +1666,22 @@ class ControlCenterWindow(QMainWindow):
                 argv = self.controller.accessory_configure_argv(accessory)
                 if not QProcess.startDetached(argv[0], argv[1:]):
                     raise RuntimeError(tr_format("{program} could not be started.", program=program))
+            elif accessory == "real_sleep" and operation in {"mode-s3", "mode-hibernate"}:
+                self.controller.manage_accessory(accessory, operation)
+            elif accessory == "real_sleep" and operation == "install":
+                dialog = ConfirmDialog(
+                    tr_format("Install {program}?", program=program), self.REAL_SLEEP_INSTALL,
+                    confirm_text="Install", tone="red", parent=self,
+                )
+                if dialog.exec() == dialog.DialogCode.Accepted:
+                    self.controller.manage_accessory(accessory, "install")
             elif operation == "install":
                 self.controller.manage_accessory(accessory, "install")
             elif operation == "remove":
                 # Removing takes the program away; the owner's own themes and
                 # profiles stay, which the dialog says. Audio and TV settings
                 # have no profiles: what Control Center added goes, nothing else.
-                body = (
+                body = self.REAL_SLEEP_REMOVE if accessory == "real_sleep" else (
                     "The driver and its DKMS build are removed. Its readings stop showing until you "
                     "install it again; dkms and the kernel headers stay."
                     if accessory in {"vram_sensor", "vrm_sensor"}
