@@ -106,15 +106,15 @@ def test_mouse_sgr_opens_remote_and_pinned_settings_on_an_actual_terminal(tmp_pa
     fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack('HHHH', 30, 100, 0, 0))
     try:
         read_until(fd, b'Dashboard')
-        # At 30 rows, the grouped sidebar places Remote access on row 18 and Settings on row 21.
+        # At 30 rows, the grouped sidebar places Remote access on row 18 and Settings on row 24.
         os.write(fd, b'\x1b[<0;4;18M\x1b[<0;4;18m')
         read_until(fd, b'Information protected')
         # Let the preceding click release finish before the next physical click;
         # ncurses coalesces simultaneous mouse reports in its input queue.
         time.sleep(.15)
-        os.write(fd, b'\x1b[<0;4;21M')
+        os.write(fd, b'\x1b[<0;4;24M')
         time.sleep(.05)
-        os.write(fd, b'\x1b[<0;4;21m')
+        os.write(fd, b'\x1b[<0;4;24m')
         read_until(fd, b'General')
         os.write(fd, b'q')
         deadline = time.monotonic() + 10

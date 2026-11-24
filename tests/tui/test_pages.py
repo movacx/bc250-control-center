@@ -35,7 +35,7 @@ def test_every_sidebar_page_builds_on_every_tab_without_a_service_error():
 def test_sidebar_covers_the_desktop_sections():
     assert set(build_pages()) == {
         "dashboard", "cpu", "gpu", "extras", "cu", "performance", "fans", "processes", "black_box",
-        "firmware", "remote", "settings",
+        "firmware", "remote", "settings", "support", "about",
     }
 
 
@@ -401,17 +401,19 @@ def test_settings_language_change_is_saved_and_applied():
     ctx.settings.save_local_config = saved.append
     page = build_pages()["settings"]
     layout = render(page, ctx, ui, "general")
-    choice(layout, "Language").handler(ui)
-    assert saved and saved[-1]["idioma"] == "es"
-    from frontends.tui.i18n import set_language
-    set_language("en")
+    from frontends.tui.i18n import current_language, set_language
+    try:
+        choice(layout, "Language").handler(ui)
+        assert saved == [{"tui_language": "es"}] and current_language() == "es"  # its own, not the desktop's
+    finally:
+        set_language("en")
 
 
 def test_settings_theme_is_saved_and_applied_to_the_screen():
     ctx, ui = make_context(), FakeUI(choices=["mono"])
     saved = []
     ctx.settings.save_local_config = saved.append
-    choice(render(build_pages()["settings"], ctx, ui, "general"), "Theme").handler(ui)
+    choice(render(build_pages()["settings"], ctx, ui, "appearance"), "Theme").handler(ui)
     assert ui.theme == "mono"
     assert saved[-1]["tui_theme"] == "mono"
 

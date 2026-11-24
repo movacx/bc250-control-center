@@ -16,8 +16,9 @@ from bc250cc.shared.errors import ActionNeeded
 from bc250cc.shared.failure_text import describe_failure
 from bc250cc.shared.operation_contract import OperationCancelled, OperationExit
 
+from . import preferences
 from .console import Console
-from .content import cell_width, clip, number, pad, wrap
+from .content import cell_width, clip, heat_tone, load_tone, number, pad, wrap
 from .i18n import tr, tr_format
 from .keys import ALIASES, name_of
 from .layout import Glyphs, Layout, build_page
@@ -33,8 +34,8 @@ TOAST_SECONDS = 6.0
 TONE_PAIRS = {"ok": 1, "warn": 2, "bad": 3, "accent": 4}
 #: The desktop sidebar: its groups, in its order.
 SIDEBAR = (("", ("dashboard",)), ("Hardware", ("cpu", "cu", "gpu", "extras")),
-           ("Monitoring", ("performance", "fans", "processes")), ("System", ("black_box", "remote")),
-           ("", ("firmware", "settings")))
+           ("Monitoring", ("performance", "fans", "processes")), ("System", ("black_box", "remote", "firmware")),
+           ("Help", ("support", "about", "settings")))
 SIDEBAR_ORDER = tuple(key for _group, keys in SIDEBAR for key in keys)
 SHORTCUTS = dict(zip("1234567890.,", ("dashboard", "cpu", "cu", "gpu", "extras", "performance", "fans",
                                     "processes", "black_box", "firmware", "remote", "settings")))
@@ -110,7 +111,7 @@ class Screen(PaletteSupport, PointerSupport):
         self.scroll: dict[tuple[str, str], int] = {}
         self.toast: tuple[str, str, float] | None = None
         self.unicode = self._unicode_ok()
-        self.glyphs = Glyphs.for_terminal(unicode_ok=self.unicode)
+        self.glyphs = Glyphs.for_terminal(unicode_ok=self.unicode, square=preferences.read(ctx.config)["tui_style"] == "formal")
         self.attrs: dict[str, int] = {}
         self._foreground = foreground  # tests run work directly through this
         self.active_console: Console | None = None
@@ -131,6 +132,8 @@ class Screen(PaletteSupport, PointerSupport):
         self.job: Console | None = None  # the running action, also while its console is out of view
         self.console_hidden = False
         self.activity: list[Job] = []
+        self.prefs = preferences.read(ctx.config)
+        self.collapsed = self.prefs["tui_sidebar_collapsed"]
         self._frame = set("─│╭╮╰╯├┤┬┴┼┃━ -|+") | set("".join(self.glyphs.top + self.glyphs.mid + self.glyphs.bottom))
         self._row_at: dict[int, tuple[int, str]] = {}  # y -> (x, text) of a drawn item, for terminal row inspection
         self._pointer_drag = None
@@ -146,6 +149,16 @@ class Screen(PaletteSupport, PointerSupport):
     def _unicode_ok() -> bool:
         encoding = (locale.getpreferredencoding(False) or "").upper().replace("-", "")
         return "UTF8" in encoding and os.environ.get("TERM", "") != "linux"
+
+    def apply_preferences(self, config: dict) -> None:
+        """What Settings changed, at once: colours, corners, the bar, the rate."""
+        self.prefs = preferences.read(config)
+        self.glyphs = Glyphs.for_terminal(unicode_ok=self.unicode, square=self.prefs["tui_style"] == "formal")
+        self.apply_theme(self.prefs["tui_theme"])
+        if self.poller:
+            self.poller.metrics_interval = float(self.prefs["tui_interval"])
+        self._layout_key = None
+        self._repaint()
 
     def apply_theme(self, theme: str) -> None:
         self.theme = theme
@@ -168,12 +181,13 @@ class Screen(PaletteSupport, PointerSupport):
                 for tone, pair in TONE_PAIRS.items():
                     attrs[tone] = curses.color_pair(pair) | (curses.A_BOLD if tone in ("accent", "bad") else 0)
                 if curses.COLORS >= 256:  # softer tones, close to the desktop's
-                    text = (28, 130, 160, 26) if light else (114, 179, 167, 75)
+                    dark_tone, light_tone, fill = preferences.ACCENTS[self.prefs["tui_accent"]]
+                    text = (28, 130, 160, light_tone) if light else (114, 179, 167, dark_tone)
                     for (tone, pair), color in zip(TONE_PAIRS.items(), text):
                         curses.init_pair(pair, color, -1)
                     # secondary text, borders, and the selected row: greys, not the font's dim or a full reverse
                     for tone, pair, fore, back in (("dim", 30, 243 if light else 245, -1), ("edge", 31, 250 if light else 238, -1),
-                                                   ("sel", 32, 16 if light else 255, 189 if light else 24)):
+                                                   ("sel", 32, 255, light_tone if light else fill)):
                         curses.init_pair(pair, fore, back)
                         attrs[tone] = curses.color_pair(pair)
                     attrs["sel"] |= curses.A_BOLD
@@ -238,22 +252,31 @@ class Screen(PaletteSupport, PointerSupport):
 
     def _bottom(self) -> int:
         """Rows under the content: the keys, and a line about the selected row where no pane explains it."""
+        rows = 1 + 2 * self._live_bar()
         roomy = self.size()[0] >= 20
-        return 2 if roomy and self.active_console is None and self.page_key in self._explained and not self._details_width() else 1
+        return rows + 1 if roomy and self.active_console is None and self.page_key in self._explained \
+            and not self._details_width() else rows
+
+    def _live_bar(self) -> bool:
+        """The readings along the bottom, where there is room for them."""
+        height, width = self.size()
+        return bool(self.prefs["tui_live_bar"]) and height >= 26 and width >= 76
 
     def sidebar_width(self, width: int) -> int:
+        if self.collapsed:
+            return 0
         longest = max(cell_width(tr(self.pages[key].title)) for key in self.order) + 5
         return max(16, min(longest, width // 3))
 
     def _content_box(self) -> tuple[int, int]:
         """(x, width) of the content text: after the sidebar, its rule and the cursor column."""
         width = self.size()[1]
-        x = self.sidebar_width(width) + 3
+        x = (self.sidebar_width(width) + 3) if not self.collapsed else 2
         return x, max(20, width - x - 1 - self._details_width())
 
     def _details_width(self) -> int:
         """Columns of the Details pane: only on a wide screen, and on a page whose rows explain themselves."""
-        return DETAILS_WIDTH + 1 if self.size()[1] >= DETAILS_FROM and self.page_key in self._explained else 0
+        return DETAILS_WIDTH + 1 if self.prefs["tui_details"] and self.size()[1] >= DETAILS_FROM and self.page_key in self._explained else 0
 
     # -------------------------------------------------------------- draw
 
@@ -353,10 +376,50 @@ class Screen(PaletteSupport, PointerSupport):
         if width - cell_width(title) - cell_width(status) > 1:
             self.put(0, width - cell_width(status), status, self.attrs["dim"])
 
+    def _draw_live_bar(self, height: int, width: int) -> None:
+        """What the board is doing now, always in view: clocks, heat, load, fan, memory and power."""
+        metrics = self.ctx.metrics or {}
+        part = {name: metrics.get(name) if isinstance(metrics.get(name), dict) else {} for name in ("gpu", "cpu", "memory", "sensors")}
+        gpu, cpu, memory, sensors = part["gpu"], part["cpu"], part["memory"], part["sensors"]
+        fan = ((self.ctx.page_data.get("dashboard") or {}).get("cooling_fan") or {}) if isinstance(self.ctx.page_data.get("dashboard"), dict) else {}
+        load = gpu.get("usage_percent") if gpu.get("usage_percent") is not None else gpu.get("compute_busy_percent")
+        power = sensors.get("vrm_total_power_w")
+        items = [
+            ("GPU", load, f"{number(gpu.get('frequency_mhz'), 'MHz')}  {number(gpu.get('temperature_c'), '°C')}", heat_tone(gpu.get("temperature_c"))),
+            ("CPU", cpu.get("usage_percent"), f"{number(cpu.get('frequency_mhz'), 'MHz')}  {number(cpu.get('temperature_c'), '°C')}",
+             heat_tone(cpu.get("temperature_c"))),
+            ("RAM", memory.get("usage_percent"), number(memory.get("usage_percent"), "%"), load_tone(memory.get("usage_percent"))),
+            (tr("Fan"), None, number(fan.get("rpm"), "RPM") if fan else "", ""),
+            (tr("Power"), None, number(power, "W") if power is not None else "", ""),
+        ]
+        items = [item for item in items if item[2] and item[2] != "--"]
+        y, x = height - 2, 2
+        self.put(height - 3, 0, self.glyphs.h * width, self.attrs["edge"])
+        bars = [item for item in items if item[1] is not None]
+        fixed = sum(cell_width(name) + cell_width(text) + 5 for name, _value, text, _tone in items)
+        bar = max(0, min(18, (width - 4 - fixed) // max(1, len(bars)) - 1))
+        for name, value, text, tone in items:
+            needed = cell_width(name) + cell_width(text) + 4 + (bar if value is not None else 0)
+            if x + needed > width:
+                break
+            self.put(y, x, name, self.attrs["dim"])
+            x += cell_width(name) + 1
+            if value is not None and bar >= 4:
+                filled = round(max(0.0, min(100.0, float(value))) / 100 * bar)
+                self.put(y, x, self.glyphs.fill * filled, self.attrs["accent"])
+                self.put(y, x + filled, self.glyphs.rule * (bar - filled), self.attrs["edge"])
+                x += bar + 1
+            self.put(y, x, text, self.attrs.get(tone, 0))
+            x += cell_width(text) + 3
+
     def _draw_sidebar(self, height: int, side: int) -> None:
         self._sidebar_at = {}
+        if not side:
+            return
+        if self._live_bar():
+            height -= 2
         entries: list[tuple[int | None, str]] = []
-        roomy = height - 4 >= len(self.order) + 2 * sum(bool(group) for group, _keys in SIDEBAR) + 1
+        roomy = self.prefs["tui_density"] == "comfortable" and height - 4 >= len(self.order) + 2 * sum(bool(group) for group, _keys in SIDEBAR) + 1
         for group, keys in SIDEBAR:
             available = [key for key in keys if key in self.order]
             if not available:
@@ -509,15 +572,17 @@ class Screen(PaletteSupport, PointerSupport):
         return hints + [(":", "Commands"), ("a", "Activity"), ("Esc", "Back"), ("?", "Help")]
 
     def _draw_footer(self, height: int, width: int) -> None:
+        if self._live_bar():
+            self._draw_live_bar(height, width)
         if self.toast and self.toast[2] > time.monotonic():  # over the keys for its few seconds
             self.put(height - 1, 1, pad(self.toast[0], width - 2), self.attrs.get(self.toast[1], 0) | curses.A_BOLD)
         else:
             self._draw_hints(self._hints())
-        choice = self.current_choice() if self._bottom() == 2 and self.focus == "content" else None
+        choice = self.current_choice() if self._bottom() in (2, 4) and self.focus == "content" else None
         if choice is not None and choice.info is not None:
             x, width_ = self._content_box()
             blocked = choice.info.blocked
-            self.put(height - 2, x, clip(" ".join((blocked or choice.info.summary).split()), width_),
+            self.put(height - self._bottom(), x, clip(" ".join((blocked or choice.info.summary).split()), width_),
                      self.attrs["warn" if blocked else "dim"])
 
     def _draw_hints(self, hints: list[tuple[str, str]], tail: str = "", tail_attr: int = 0, *, y: int = -1) -> None:
@@ -638,6 +703,11 @@ class Screen(PaletteSupport, PointerSupport):
             self.notify(tr("Refreshing…"))
         elif key == "/":
             self.search()
+        elif key == "b":
+            self.collapsed = not self.collapsed
+            self.focus = "content" if self.collapsed else self.focus
+            self._layout_key = None
+            self._repaint()
         elif key == ":":
             self.command_palette()
         elif key == "a":
@@ -695,6 +765,9 @@ class Screen(PaletteSupport, PointerSupport):
 
     def _focus(self, where: str) -> None:
         """Move between the panes; entering the content picks the first item in view."""
+        if where == "sidebar" and self.collapsed:
+            self.section_menu()  # the sidebar is folded away: the same list, as a menu
+            return
         if where == "content" and self.focus != "content":
             layout, slot = self.build(), self._slot()
             if not self._shown(layout, slot, self.cursor.get(slot, 0)):
@@ -750,6 +823,8 @@ class Screen(PaletteSupport, PointerSupport):
     def _go(self, index: int, *, remember: bool = True) -> None:
         index = max(0, min(len(self.order) - 1, index))
         self.section = index
+        if self.prefs["tui_reopen"]:
+            self.ctx.state("ui")["last_page"] = self.page_key
         self._layout_key = None
         self._repaint()
         if self.poller:
@@ -886,7 +961,7 @@ class Screen(PaletteSupport, PointerSupport):
         rows = [
             ("↑ ↓  j k", tr("Move")), ("→ Enter l", tr("Open")), ("← Esc h", tr("Back")),
             ("Tab / S-Tab", tr("Move")), ("F6", tr("Switch pane")),
-            (":", tr("Commands")), ("a", tr("Activity")), ("i", tr("Details")),
+            (":", tr("Commands")), ("b", tr("Menu")), ("a", tr("Activity")), ("i", tr("Details")),
             ("F2", tr("Go to section")), ("F3", tr("Views")), ("[ ]", tr("Previous / next tab")), ("1-9 0 ,", tr("Go to section")),
             ("/", tr("Search")), ("PgUp PgDn", tr("Scroll")), ("r", tr("Refresh")), ("?", tr("Help")), ("q", tr("Quit")),
         ]
@@ -1122,7 +1197,7 @@ class Screen(PaletteSupport, PointerSupport):
         threading.Thread(target=work_thread, name="bc250-tui-job", daemon=True).start()
         closed_with = ""
         try:
-            while not (console.done.is_set() and (self.console_hidden or (console.succeeded and not console.has_output))):
+            while not (console.done.is_set() and (self.console_hidden or (self.prefs["tui_auto_hide"] and console.succeeded) or (console.succeeded and not console.has_output))):
                 self.draw()
                 self._present()
                 code = self._getch()

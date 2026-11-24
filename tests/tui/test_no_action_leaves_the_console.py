@@ -11,9 +11,10 @@ from types import SimpleNamespace
 
 import pytest
 
+from frontends.tui.pages import about as about_page
 from frontends.tui.pages import build_pages
 from frontends.tui.pages import firmware as firmware_page
-from frontends.tui.pages import settings as settings_page
+from frontends.tui.pages import support as support_page
 
 from .fakes import FakeService, FakeUI, make_context
 from .test_pages import render
@@ -67,7 +68,7 @@ class Console(FakeUI):
 
 
 @pytest.fixture(autouse=True)
-def nothing_real(monkeypatch):
+def nothing_real(monkeypatch, tmp_path):
     """This test answers yes to every confirmation, so nothing it reaches may be real.
 
     Pages that call an application facade directly (firmware, diagnostics,
@@ -81,8 +82,14 @@ def nothing_real(monkeypatch):
 
     monkeypatch.setattr(subprocess, "Popen", refuse)
     monkeypatch.setattr(subprocess, "run", refuse)
-    for name in ("install_update", "report", "check_in_background"):
-        monkeypatch.setattr(settings_page, name, lambda *a, **k: None)
+    monkeypatch.setenv("HOME", str(tmp_path))  # "save to a file" answers with a path under the home folder
+    for name in ("install_update", "check_in_background"):
+        monkeypatch.setattr(about_page, name, lambda *a, **k: None)
+    for name in ("report", "clear_history", "diagnostic_report"):
+        monkeypatch.setattr(support_page, name, lambda *a, **k: "")
+    monkeypatch.setattr("bc250cc.application.system.diagnostics.system_rows", lambda: [("Version", "1")])
+    monkeypatch.setattr("bc250cc.application.system.updates.fetch_latest_release", lambda *a, **k: SimpleNamespace(
+        title="1", version="1", published_at="2026-01-01", notes="", page_url=""))
 
     def prepare_update_usb(*args, **kwargs):
         assert Watched.inside, "USB preparation outside the console"

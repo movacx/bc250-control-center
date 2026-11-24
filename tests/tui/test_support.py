@@ -26,12 +26,12 @@ def test_a_newer_release_shows_in_the_title_and_about_offers_the_update(monkeypa
     screen.ctx.state("ui")["update"] = UpdateStatus(installed="1.0.0", published="9.9.9", reachable=True)
     screen.draw()
     assert "9.9.9" in window.line(0)
-    layout = render(build_pages()["settings"], screen.ctx, FakeUI(), "about")
+    layout = render(build_pages()["about"], screen.ctx, FakeUI(), "about")
     update = next(c for c in layout.choices if c.label == "Update now")
     assert update.enabled
     installed = []
     monkeypatch.setattr(support, "install_update", lambda ctx, family: installed.append(family) or "ok")
-    monkeypatch.setattr("frontends.tui.pages.settings.install_update", support.install_update)
+    monkeypatch.setattr("frontends.tui.pages.about.install_update", support.install_update)
     ui = FakeUI()
     update.handler(ui)
     assert installed and ui.ran == ["Update now"]
@@ -41,9 +41,9 @@ def test_up_to_date_and_unreachable_read_differently():
     ctx = make_context()
     ctx.state("ui")["update"] = UpdateStatus(installed="9.9.9", published="9.9.9", reachable=True)
     assert support.available_version(ctx) == ""
-    text = " ".join(t for row in render(build_pages()["settings"], ctx, FakeUI(), "about").rows for t, _ in row.spans)
+    text = " ".join(t for row in render(build_pages()["about"], ctx, FakeUI(), "about").rows for t, _ in row.spans)
     assert "You have the latest version." in text
-    assert not next(c for c in render(build_pages()["settings"], ctx, FakeUI(), "about").choices
+    assert not next(c for c in render(build_pages()["about"], ctx, FakeUI(), "about").choices
                     if c.label == "Update now").enabled
 
 

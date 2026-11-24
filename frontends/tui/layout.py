@@ -55,7 +55,9 @@ class Glyphs:
     bottom: tuple = ("╰", "┴", "╯")
 
     @classmethod
-    def for_terminal(cls, *, unicode_ok: bool) -> "Glyphs":
+    def for_terminal(cls, *, unicode_ok: bool, square: bool = False) -> "Glyphs":
+        if unicode_ok and square:
+            return cls(top=("┌", "┬", "┐"), bottom=("└", "┴", "┘"))
         if unicode_ok:
             return cls()
         return cls(spark="._:-=+*#", cursor=">", rule="-", fill="=", h="-", v="|",

@@ -34,8 +34,8 @@ class Entry:
 def matches(entries: list[Entry], query: str) -> list[Entry]:
     words = plain(query).split()
     found = [entry for entry in entries if all(word in entry.haystack for word in words)]
-    return sorted(found, key=lambda entry: (entry.choice is not None and not words,
-                                            not all(word in plain(entry.label) for word in words)))
+    # A place before an action of the same name, and a name before a mention.
+    return sorted(found, key=lambda entry: (not all(word in plain(entry.label) for word in words), entry.choice is not None))
 
 
 def choices_of(blocks, group: str = ""):

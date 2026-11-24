@@ -82,10 +82,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     from frontends.desktop.core.temperature_unit import use_unit
 
+    from . import preferences
     from .i18n import set_language, tr
     from .pages import build_pages
     from .runtime import Context, Poller
-    from .screen import SIDEBAR_ORDER, Screen
+    from .screen import Screen
     from .support import check_in_background, desktop_temperature_unit
 
     # Passwords are asked in the console pane (pkttyagent, sudo), never in a desktop window.
@@ -99,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
         config = container.settings_service.read_local_config()
     except Exception:  # an unreadable config must not stop the interface
         logging.getLogger(__name__).warning("Could not read the saved settings", exc_info=True)
-    set_language(args.lang or config.get("idioma", "auto"))
+    set_language(args.lang or config.get("tui_language") or config.get("idioma", "auto"))
     use_unit(config.get("tui_temperature_unit") or desktop_temperature_unit())
     set_translator(tr)  # what the workflow wrapper prints (Completed, the log path) in this language
     ctx = Context(
@@ -108,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     theme = resolve_theme(args.theme, config)
     pages = build_pages()
-    poller = Poller(ctx, pages)
+    poller = Poller(ctx, pages, metrics_interval=float(preferences.read(config)["tui_interval"]))
 
     def start(stdscr) -> None:
         screen = Screen(stdscr, ctx, pages, poller, theme=theme)
@@ -116,15 +117,22 @@ def main(argv: list[str] | None = None) -> int:
         set_embedded_terminal_launcher(screen.launch_workflow)
         check_in_background(ctx)  # the title bar names a newer version when there is one
         ctx.state("ui")["theme"] = theme
-        if args.page in SIDEBAR_ORDER:
-            screen.focus = "content"
-            screen._go(screen.order.index(args.page))
+        first = args.page or (screen.prefs["tui_last_page"] if screen.prefs["tui_reopen"] else "") or screen.prefs["tui_start_page"]
+        if first in screen.order:
+            screen.focus = "content" if args.page or screen.collapsed else "sidebar"
+            screen._go(screen.order.index(first))
         poller.start()
         try:
             screen.loop()
         finally:
             set_embedded_terminal_launcher(None)
             poller.stop()
+            last = ctx.state("ui").get("last_page")
+            if last and last != config.get("tui_last_page"):
+                try:
+                    container.settings_service.save_local_config({"tui_last_page": last})
+                except Exception:  # only where to start next time
+                    logging.getLogger(__name__).debug("Could not save the last page", exc_info=True)
 
     os.environ.setdefault("ESCDELAY", "25")
     # Let ncurses query the actual TTY instead of stale exported dimensions.

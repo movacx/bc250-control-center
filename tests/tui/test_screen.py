@@ -88,7 +88,7 @@ def test_arrow_keys_move_the_sidebar_and_digits_jump_from_either_pane():
     press(screen, ord(","))
     assert screen.page_key == "settings"
     press(screen, 27, curses.KEY_UP)
-    assert screen.page_key == "firmware"
+    assert screen.page_key == "about"
 
 
 def test_the_sidebar_groups_sections_like_the_desktop():

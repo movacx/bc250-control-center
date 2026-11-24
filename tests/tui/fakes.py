@@ -139,6 +139,18 @@ class FakeUI:
     def apply_theme(self, theme):
         self.theme = theme
 
+    def apply_preferences(self, config):
+        self.theme = config.get("tui_theme", self.theme)
+
+    def help_text(self):
+        return ""
+
+    def show_activity(self):
+        pass
+
+    def goto(self, key):
+        self.page = key
+
 
 def make_context(service=None) -> Context:
     ctx = Context(service=service or FakeService(), settings=SimpleNamespace(
