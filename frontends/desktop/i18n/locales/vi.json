@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "Sửa điều mà các dòng phía trên lỗi nêu ra, rồi chạy lại thao tác này.",
   "Normal power off": "Tắt nguồn bình thường",
   "Turn on with a gamepad": "Bật bằng tay cầm",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Cách tắt nguồn cũng thay đổi: sau đó tay cầm hoặc thiết bị USB có thể bật máy tính. Ở hàng của nó, bạn có thể quay lại cách tắt nguồn bình thường."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Cách tắt nguồn cũng thay đổi: sau đó tay cầm hoặc thiết bị USB có thể bật máy tính. Ở hàng của nó, bạn có thể quay lại cách tắt nguồn bình thường.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Tương thích kernel của keyboardspecialist hỗ trợ kernel này và biên dịch bằng công cụ của chính hệ thống này. Chỉ dùng một trong hai, không dùng cả hai."
 }

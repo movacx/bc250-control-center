@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "Ret det, som linjerne over fejlen nævner, og kør handlingen igen.",
   "Normal power off": "Normal slukning",
   "Turn on with a gamepad": "Tænd med en gamepad",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Slukning ændres også: en gamepad eller USB-enhed kan derefter tænde computeren. I dens række kan du gå tilbage til normal slukning."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Slukning ændres også: en gamepad eller USB-enhed kan derefter tænde computeren. I dens række kan du gå tilbage til normal slukning.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialists kernekompatibilitet understøtter denne kerne og bygger med systemets egne værktøjer. Brug den ene af de to, ikke begge."
 }

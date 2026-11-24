@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "Korjaa se, minkä virheen yläpuoliset rivit nimeävät, ja suorita toiminto uudelleen.",
   "Normal power off": "Tavallinen sammutus",
   "Turn on with a gamepad": "Käynnistys peliohjaimella",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Myös sammutus muuttuu: peliohjain tai USB-laite voi sen jälkeen käynnistää tietokoneen. Sen rivillä voit palata tavalliseen sammutukseen."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Myös sammutus muuttuu: peliohjain tai USB-laite voi sen jälkeen käynnistää tietokoneen. Sen rivillä voit palata tavalliseen sammutukseen.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialistin ytimen yhteensopivuus tukee tätä ydintä ja kääntää tämän järjestelmän omilla työkaluilla. Käytä toista, älä molempia."
 }

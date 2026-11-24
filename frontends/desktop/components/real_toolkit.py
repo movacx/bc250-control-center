@@ -76,6 +76,13 @@ def _localized(pair):
     return tr(pair[0])
 
 
+def _detail(note, descriptions):
+    """A row's text: its note (one sentence, or several) or its description."""
+    if not note:
+        return _localized(descriptions)
+    return ' '.join(tr(part) for part in ((note,) if isinstance(note, str) else note))
+
+
 def action_label(key):
     return _localized(LABELS[key])
 
@@ -154,7 +161,7 @@ class ToolRows(QObject):
         for _category, names, descriptions, keys in self._specifications:
             card = self.cards[keys[0]]
             card.title.setText(tr(_localized(names)))
-            card.detail.setText(tr(self._notes.get(keys[0]) or _localized(descriptions)))
+            card.detail.setText(_detail(self._notes.get(keys[0]), descriptions))
             for index, key in enumerate(keys):
                 source = _primary_label(key) if index == 0 else _localized(self._labels[key])
                 button = self.buttons[key]
@@ -241,14 +248,16 @@ class RealToolkitRows(ToolRows):
         self.set_running(self._running)
         self._notes = {'combined-install': FOREIGN_GRAPHICS_NOTE} if foreign else {}
         if not foreign and state.get('old_glibc'):
-            self._notes['combined-install'] = COMBINED_GLIBC_NOTE
+            self._notes['combined-install'] = (
+                (COMBINED_GLIBC_NOTE, COMBINED_OTHER_ROUTE) if state.get('alternative_kernel') else COMBINED_GLIBC_NOTE
+            )
         if needs_combined:
             self._notes['ac3-install'] = AC3_NEEDS_COMBINED_NOTE
         if needs_radv:
             self._notes['proton-install'] = TOOLKIT_RADV_NOTE
         for _category, _names, descriptions, keys in self._specifications:
             card = self.cards[keys[0]]
-            card.detail.setText(tr(self._notes.get(keys[0]) or _localized(descriptions)))
+            card.detail.setText(_detail(self._notes.get(keys[0]), descriptions))
             if keys == ('verify',):
                 self._apply_root_status()  # this row reports the system's lock, not ownership
             elif any(key in protected for key in keys):
@@ -266,6 +275,11 @@ class RealToolkitRows(ToolRows):
 COMBINED_GLIBC_NOTE = (
     "On this SteamOS version the kernel part may stop while building, because the toolkit downloads build "
     "tools made for a newer system. Nothing is changed when that happens."
+)
+#: A hint only: nothing is started, and it is shown only where that route has the kernel.
+COMBINED_OTHER_ROUTE = (
+    "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. "
+    "Use one of the two, not both."
 )
 AC3_NEEDS_COMBINED_NOTE = (
     "Needs the combined display, audio and graphics fixes first: install them from Kernel and Mesa and restart."
@@ -321,7 +335,7 @@ class SteamOSAlternativeRows(ToolRows):
                                                  else 'orange' if orphaned else 'gray')
         self._notes = {'graphics-install': ORPHANED_RUNTIME_NOTE} if orphaned else {}
         for _category, _names, descriptions, keys in self._specifications:
-            self.cards[keys[0]].detail.setText(tr(self._notes.get(keys[0]) or _localized(descriptions)))
+            self.cards[keys[0]].detail.setText(_detail(self._notes.get(keys[0]), descriptions))
         kernel = dict(state.get('kernel') or {})
         if kernel.get('reboot_pending'):
             self.cards['kernel-install'].set_status('Reboot required', 'orange')

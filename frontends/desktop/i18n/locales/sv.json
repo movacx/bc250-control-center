@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "Åtgärda det som raderna ovanför felet nämner och kör åtgärden igen.",
   "Normal power off": "Vanlig avstängning",
   "Turn on with a gamepad": "Slå på med en handkontroll",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Avstängningen ändras också: en handkontroll eller USB-enhet kan sedan slå på datorn. På dess rad kan du gå tillbaka till vanlig avstängning."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Avstängningen ändras också: en handkontroll eller USB-enhet kan sedan slå på datorn. På dess rad kan du gå tillbaka till vanlig avstängning.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialists kärnkompatibilitet stöder den här kärnan och bygger med systemets egna verktyg. Använd en av dem, inte båda."
 }

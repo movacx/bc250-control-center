@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "Διορθώστε αυτό που αναφέρουν οι γραμμές πάνω από το σφάλμα και εκτελέστε ξανά την ενέργεια.",
   "Normal power off": "Κανονικός τερματισμός",
   "Turn on with a gamepad": "Ενεργοποίηση με χειριστήριο",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Αλλάζει και ο τερματισμός: ένα χειριστήριο ή μια συσκευή USB μπορεί μετά να ανοίξει τον υπολογιστή. Από τη γραμμή του μπορείτε να επιστρέψετε στον κανονικό τερματισμό."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Αλλάζει και ο τερματισμός: ένα χειριστήριο ή μια συσκευή USB μπορεί μετά να ανοίξει τον υπολογιστή. Από τη γραμμή του μπορείτε να επιστρέψετε στον κανονικό τερματισμό.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Η συμβατότητα πυρήνα του keyboardspecialist υποστηρίζει αυτόν τον πυρήνα και μεταγλωττίζει με τα εργαλεία αυτού του συστήματος. Χρησιμοποιήστε μία από τις δύο, όχι και τις δύο."
 }

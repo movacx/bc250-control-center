@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "Los op wat de regels boven de fout noemen en voer de actie opnieuw uit.",
   "Normal power off": "Normaal uitschakelen",
   "Turn on with a gamepad": "Inschakelen met een gamepad",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Uitschakelen verandert ook: een gamepad of USB-apparaat kan de computer daarna inschakelen. In de rij kunt u terug naar normaal uitschakelen."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Uitschakelen verandert ook: een gamepad of USB-apparaat kan de computer daarna inschakelen. In de rij kunt u terug naar normaal uitschakelen.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "De kernelcompatibiliteit van keyboardspecialist ondersteunt deze kernel en bouwt met de hulpmiddelen van dit systeem. Gebruik een van de twee, niet allebei."
 }

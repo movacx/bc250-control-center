@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "Corrija o que as linhas acima do erro indicam e execute a ação de novo.",
   "Normal power off": "Desligamento normal",
   "Turn on with a gamepad": "Ligar com um controle",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "O desligamento também muda: depois, um controle ou um dispositivo USB pode ligar o computador. Na linha dele você pode voltar ao desligamento normal."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "O desligamento também muda: depois, um controle ou um dispositivo USB pode ligar o computador. Na linha dele você pode voltar ao desligamento normal.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "A compatibilidade do kernel do keyboardspecialist suporta este kernel e compila com as ferramentas deste sistema. Use uma das duas, não ambas."
 }

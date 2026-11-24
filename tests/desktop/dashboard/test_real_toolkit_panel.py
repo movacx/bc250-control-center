@@ -594,3 +594,17 @@ def test_the_combined_fix_warns_where_its_build_tools_are_too_new():
     rows.set_provider_state({'old_glibc': True, 'graphics': {}})
     assert 'build' in rows.cards['combined-install'].detail.text()
     assert rows.buttons['combined-install'].isEnabled()
+    assert 'keyboardspecialist' not in rows.cards['combined-install'].detail.text()
+    # The other provider is named only on a kernel its pinned backend builds for.
+    rows.set_provider_state({'old_glibc': True, 'alternative_kernel': True, 'graphics': {}})
+    assert 'keyboardspecialist' in rows.cards['combined-install'].detail.text()
+    rows.retranslate_dynamic_copy()
+    assert 'keyboardspecialist' in rows.cards['combined-install'].detail.text()
+
+
+def test_the_other_route_is_offered_by_kernel_base_only():
+    from bc250cc.infrastructure.steamos_real_toolkit_state import _alternative_kernel
+
+    assert _alternative_kernel('7.2.7-valve2-1-neptune-72')
+    assert not _alternative_kernel('7.20.1-valve1')
+    assert not _alternative_kernel('7.3.5-2-cachyos')

@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "Opravte to, co uvádějí řádky nad chybou, a spusťte akci znovu.",
   "Normal power off": "Běžné vypnutí",
   "Turn on with a gamepad": "Zapnutí gamepadem",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Změní se i vypínání: počítač pak může zapnout gamepad nebo zařízení USB. V jeho řádku se lze vrátit k běžnému vypnutí."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Změní se i vypínání: počítač pak může zapnout gamepad nebo zařízení USB. V jeho řádku se lze vrátit k běžnému vypnutí.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Kompatibilita jádra od keyboardspecialist toto jádro podporuje a sestavuje nástroji tohoto systému. Použijte jedno, ne obojí."
 }

@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "Исправьте то, что называют строки над ошибкой, и запустите действие снова.",
   "Normal power off": "Обычное выключение",
   "Turn on with a gamepad": "Включение геймпадом",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Выключение тоже меняется: затем геймпад или USB-устройство сможет включить компьютер. В его строке можно вернуть обычное выключение."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Выключение тоже меняется: затем геймпад или USB-устройство сможет включить компьютер. В его строке можно вернуть обычное выключение.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Совместимость ядра от keyboardspecialist поддерживает это ядро и собирает инструментами этой системы. Используйте одно из двух, не оба."
 }

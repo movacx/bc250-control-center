@@ -2573,6 +2573,7 @@
   },
   "bc250cc/infrastructure/steamos_real_toolkit_state.py": {
    "_old_glibc": "DIST-0217",
+   "_alternative_kernel": "DIST-0222",
    "_text": "DIST-0155",
    "_icd_valid": "DIST-0156",
    "probe_real_toolkit": "DIST-0157"
@@ -4093,6 +4094,7 @@
   },
   "frontends/desktop/components/real_toolkit.py": {
    "_localized": "UI-0783",
+   "_detail": "UI-0874",
    "action_label": "UI-0777",
    "_primary_label": "UI-0784",
    "ToolRows.__init__": "UI-0789",

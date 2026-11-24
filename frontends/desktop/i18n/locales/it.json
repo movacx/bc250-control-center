@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "Correggi ciò che indicano le righe sopra l'errore, poi esegui di nuovo l'azione.",
   "Normal power off": "Spegnimento normale",
   "Turn on with a gamepad": "Accendi con un gamepad",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Cambia anche lo spegnimento: poi un gamepad o un dispositivo USB può accendere il computer. Dalla sua riga si può tornare allo spegnimento normale."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Cambia anche lo spegnimento: poi un gamepad o un dispositivo USB può accendere il computer. Dalla sua riga si può tornare allo spegnimento normale.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "La compatibilità del kernel di keyboardspecialist supporta questo kernel e compila con gli strumenti di questo sistema. Usa una delle due, non entrambe."
 }

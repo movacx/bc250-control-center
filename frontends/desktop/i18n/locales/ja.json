@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "エラーの上の行に示された問題を直してから、もう一度実行してください。",
   "Normal power off": "通常の電源オフ",
   "Turn on with a gamepad": "ゲームパッドで電源を入れる",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "電源オフも変わります。以後、ゲームパッドや USB デバイスでコンピューターの電源を入れられます。この行から通常の電源オフに戻せます。"
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "電源オフも変わります。以後、ゲームパッドや USB デバイスでコンピューターの電源を入れられます。この行から通常の電源オフに戻せます。",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialist の「カーネル互換性」はこのカーネルに対応し、このシステムのツールでビルドします。両方ではなく、どちらか一方を使ってください。"
 }

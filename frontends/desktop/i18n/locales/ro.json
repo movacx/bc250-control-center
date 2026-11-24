@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "Remediați ce numesc rândurile de deasupra erorii, apoi rulați din nou acțiunea.",
   "Normal power off": "Oprire normală",
   "Turn on with a gamepad": "Pornire cu un gamepad",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Se schimbă și oprirea: apoi un gamepad sau un dispozitiv USB poate porni calculatorul. Din rândul său puteți reveni la oprirea normală."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "Se schimbă și oprirea: apoi un gamepad sau un dispozitiv USB poate porni calculatorul. Din rândul său puteți reveni la oprirea normală.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "Compatibilitatea kernelului de la keyboardspecialist acceptă acest kernel și compilează cu uneltele acestui sistem. Folosiți una dintre ele, nu pe amândouă."
 }

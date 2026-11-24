@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "오류 위의 줄이 가리키는 것을 고친 뒤 이 작업을 다시 실행하세요.",
   "Normal power off": "일반 전원 끄기",
   "Turn on with a gamepad": "게임패드로 켜기",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "전원 끄기도 바뀝니다. 이후 게임패드나 USB 장치로 컴퓨터를 켤 수 있습니다. 해당 행에서 일반 전원 끄기로 되돌릴 수 있습니다."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "전원 끄기도 바뀝니다. 이후 게임패드나 USB 장치로 컴퓨터를 켤 수 있습니다. 해당 행에서 일반 전원 끄기로 되돌릴 수 있습니다.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialist의 커널 호환성은 이 커널을 지원하며 이 시스템의 도구로 빌드합니다. 둘 다가 아니라 하나만 사용하세요."
 }

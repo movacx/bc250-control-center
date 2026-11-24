@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "Javítsa, amit a hiba feletti sorok megneveznek, majd futtassa újra a műveletet.",
   "Normal power off": "Normál kikapcsolás",
   "Turn on with a gamepad": "Bekapcsolás játékvezérlővel",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "A kikapcsolás is megváltozik: utána egy játékvezérlő vagy USB-eszköz bekapcsolhatja a számítógépet. A sorában visszaállhat a normál kikapcsolásra."
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "A kikapcsolás is megváltozik: utána egy játékvezérlő vagy USB-eszköz bekapcsolhatja a számítógépet. A sorában visszaállhat a normál kikapcsolásra.",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "A keyboardspecialist kernelkompatibilitása támogatja ezt a kernelt, és a rendszer saját eszközeivel fordít. Az egyiket használja, ne mindkettőt."
 }

@@ -6554,5 +6554,6 @@
   "Fix what the lines above the error name, then run this action again.": "修复错误上方各行指出的问题,然后重新运行此操作。",
   "Normal power off": "普通关机",
   "Turn on with a gamepad": "用手柄开机",
-  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "关机方式也会改变:之后手柄或 USB 设备可以开启电脑。您可以在其所在行恢复普通关机。"
+  "Power off changes too: a gamepad or a USB device can then turn the computer on. Its row lets you go back to the normal power off.": "关机方式也会改变:之后手柄或 USB 设备可以开启电脑。您可以在其所在行恢复普通关机。",
+  "keyboardspecialist's Kernel compatibility supports this kernel and builds with this system's own tools. Use one of the two, not both.": "keyboardspecialist 的内核兼容性支持此内核,并使用本系统自带的工具编译。两者选其一,不要同时使用。"
 }

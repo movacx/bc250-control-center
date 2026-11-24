@@ -31,6 +31,18 @@ def _old_glibc() -> bool:
         return False
 
 
+def _alternative_kernel(kernel: str | None) -> bool:
+    """Whether the pinned keyboardspecialist backend has a patch set for this kernel.
+
+    Its build (bc250-audio-fix, read at the pinned revision) takes Python and
+    glibc from the stable image's own channels, so the mismatch above is not there.
+    """
+    from .steamos_amdgpu import SUPPORTED_KERNEL_BASES
+
+    release = str(kernel or platform.release())
+    return any(release.startswith(base + '.') for base in SUPPORTED_KERNEL_BASES)
+
+
 def _text(path: Path) -> str:
     try:
         with path.open(encoding='utf-8') as stream:
@@ -135,6 +147,7 @@ def probe_real_toolkit(*, root: Path = Path('/'), home: Path | None = None,
         'provider': REPOSITORY, 'reviewed_revision': revision, 'prepared': bool(prepared),
         'foreign_graphics': foreign_graphics,
         'old_glibc': _old_glibc(),
+        'alternative_kernel': _alternative_kernel(kernel),
         'workspace': str(state_root), 'components': components,
         'native_ownership': native_ownership,
         'graphics': {'state': graphics_state, 'icds': [str(p) for p in valid],
