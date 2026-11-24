@@ -1855,7 +1855,7 @@ umr --help
 
 **Qué se ve.** Desbloquear núcleos se detiene sin escribir nada y la salida dice «non-0x77 presence mask detected» o «unexpected core mask 0x…, expected 0x77».
 
-**Por qué pasa.** De fábrica, la BC-250 tiene 6 de sus 8 núcleos activos, con la máscara 0x77: tres núcleos en cada grupo (CCX). La herramienta oficial solo desbloquea placas con esa máscara. Si la tuya lee otra, como 0xB7 o 0x7E, la fábrica apagó otros dos núcleos, y pudo hacerlo porque estaban defectuosos. Por eso la herramienta se niega a seguir.
+**Por qué pasa.** De fábrica, la BC-250 tiene 6 de sus 8 núcleos activos, con la máscara 0x77: tres núcleos en cada grupo (CCX). La herramienta oficial solo desbloquea placas con esa máscara. Si la tuya lee otra, como 0xB7 o 0xE7, la fábrica apagó otros dos núcleos, y pudo hacerlo porque estaban defectuosos. Por eso la herramienta se niega a seguir.
 
 **Cómo se arregla.**
 
@@ -1867,7 +1867,7 @@ Busca en el mensaje la máscara que leyó la herramienta («core presence mask: 
 lscpu
 ```
 
-Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.
+Ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.
 
 Los dos núcleos que se activan no vienen probados de fábrica. Después de desbloquear, haz una prueba de estrés de unas horas y revisa el registro del kernel por errores de hardware (MCE). Si aparece alguno, vuelve a la configuración de fábrica.
 
@@ -1875,7 +1875,7 @@ Los dos núcleos que se activan no vienen probados de fábrica. Después de desb
 sudo dmesg | grep -iE 'mce|machine check'
 ```
 
-Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.
+Si tu máscara no está en esa lista, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.
 
 
 ### CPU (overclock, desbloqueo de núcleos, SMU)

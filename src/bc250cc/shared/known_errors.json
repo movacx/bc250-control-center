@@ -15041,8 +15041,8 @@
         "en": "Unlocking cores stops without writing anything and the output says “non-0x77 presence mask detected” or “unexpected core mask 0x…, expected 0x77”."
       },
       "cause": {
-        "es": "De fábrica, la BC-250 tiene 6 de sus 8 núcleos activos, con la máscara 0x77: tres núcleos en cada grupo (CCX). La herramienta oficial solo desbloquea placas con esa máscara. Si la tuya lee otra, como 0xB7 o 0x7E, la fábrica apagó otros dos núcleos, y pudo hacerlo porque estaban defectuosos. Por eso la herramienta se niega a seguir.",
-        "en": "From the factory the BC-250 runs 6 of its 8 cores, with the mask 0x77: three cores in each group (CCX). The official tool only unlocks boards with that mask. If yours reads another one, such as 0xB7 or 0x7E, the factory switched off two other cores, possibly because they were defective. That is why the tool refuses to go on."
+        "es": "De fábrica, la BC-250 tiene 6 de sus 8 núcleos activos, con la máscara 0x77: tres núcleos en cada grupo (CCX). La herramienta oficial solo desbloquea placas con esa máscara. Si la tuya lee otra, como 0xB7 o 0xE7, la fábrica apagó otros dos núcleos, y pudo hacerlo porque estaban defectuosos. Por eso la herramienta se niega a seguir.",
+        "en": "From the factory the BC-250 runs 6 of its 8 cores, with the mask 0x77: three cores in each group (CCX). The official tool only unlocks boards with that mask. If yours reads another one, such as 0xB7 or 0xE7, the factory switched off two other cores, possibly because they were defective. That is why the tool refuses to go on."
       },
       "distros": {
         "reported": [
@@ -15079,8 +15079,8 @@
             },
             {
               "text": {
-                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
-                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
+                "es": "Ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "Go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
@@ -15095,8 +15095,8 @@
             },
             {
               "text": {
-                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
-                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
+                "es": "Si tu máscara no está en esa lista, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is not in that list, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15121,8 +15121,8 @@
             },
             {
               "text": {
-                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
-                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
+                "es": "Ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "Go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
@@ -15137,8 +15137,8 @@
             },
             {
               "text": {
-                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
-                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
+                "es": "Si tu máscara no está en esa lista, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is not in that list, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15163,8 +15163,8 @@
             },
             {
               "text": {
-                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
-                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
+                "es": "Ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "Go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
@@ -15179,8 +15179,8 @@
             },
             {
               "text": {
-                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
-                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
+                "es": "Si tu máscara no está en esa lista, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is not in that list, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15205,8 +15205,8 @@
             },
             {
               "text": {
-                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
-                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
+                "es": "Ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "Go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
@@ -15221,8 +15221,8 @@
             },
             {
               "text": {
-                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
-                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
+                "es": "Si tu máscara no está en esa lista, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is not in that list, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15247,8 +15247,8 @@
             },
             {
               "text": {
-                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
-                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
+                "es": "Ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "Go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
@@ -15263,8 +15263,8 @@
             },
             {
               "text": {
-                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
-                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
+                "es": "Si tu máscara no está en esa lista, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is not in that list, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15289,8 +15289,8 @@
             },
             {
               "text": {
-                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
-                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
+                "es": "Ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "Go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
@@ -15305,8 +15305,8 @@
             },
             {
               "text": {
-                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
-                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
+                "es": "Si tu máscara no está en esa lista, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is not in that list, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }
@@ -15336,8 +15336,8 @@
             },
             {
               "text": {
-                "es": "Si la máscara es 0xB7 o 0x7E, ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
-                "en": "If the mask is 0xB7 or 0x7E, go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
+                "es": "Ve a CPU › Zona de riesgo, elige esa misma máscara en «Máscara de núcleos de esta placa» y vuelve a desbloquear. La app solo continúa si la placa lee exactamente la máscara elegida; con cualquier otra se vuelve a negar.",
+                "en": "Go to CPU › Danger zone, pick that same mask in “Core mask on this board” and unlock again. The app only goes on when the board reads exactly the chosen mask; with any other it refuses again."
               },
               "commands": []
             },
@@ -15350,8 +15350,8 @@
             },
             {
               "text": {
-                "es": "Si tu máscara no es 0xB7 ni 0x7E, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
-                "en": "If your mask is neither 0xB7 nor 0x7E, keep the board on its factory cores: the app does not offer to force other masks."
+                "es": "Si tu máscara no está en esa lista, deja la placa con sus núcleos de fábrica: la app no ofrece forzar otras máscaras.",
+                "en": "If your mask is not in that list, keep the board on its factory cores: the app does not offer to force other masks."
               },
               "commands": []
             }

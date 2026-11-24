@@ -168,6 +168,24 @@ const tokens = {
 
 var codes = [
 	{
+		code: "BC250-PKG-009",
+		markers: [
+			"failed to commit transaction .transaction aborted"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-GPU-009",
+		markers: [
+			"Cyan Skillfish GPU not found at expected PCI bus"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-GPU-008",
 		markers: [
 			"must be active before changing its voltage curve"
@@ -181,6 +199,24 @@ var codes = [
 		markers: [
 			"insufficient UIDs or GIDs available in user namespace",
 			"has no subordinate user and group IDs"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-FAN-003",
+		markers: [
+			"chip ID 0xffff is outside the Nuvoton"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-PKG-008",
+		markers: [
+			"Some index files failed to download"
 		],
 		exit_statuses: [
 		],
@@ -261,6 +297,16 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-PKG-006",
+		markers: [
+			"corrupted package .checksum",
+			"BC-250 repository is serving a damaged package"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-BUILD-002",
 		markers: [
 			"STEAMOS_AMDGPU_BUILD_FAILED"
@@ -323,6 +369,16 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-PKG-007",
+		markers: [
+			"database already registered",
+			"Database should be null"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-IMMUTABLE-001",
 		markers: [
 			"SteamOS reports a writable root",
@@ -375,6 +431,16 @@ var codes = [
 		exit_statuses: [
 			73,
 			74
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-UPSCALE-003",
+		markers: [
+			"helixsr-setup. error:",
+			"The network was not built. HelixSR is installed"
+		],
+		exit_statuses: [
 		],
 		retryable: false
 	},
@@ -464,6 +530,16 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-BUILD-004",
+		markers: [
+			"unable to find library -lgcc_s",
+			"cannot find -lgcc_s"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-WORKFLOW-001",
 		markers: [
 			"per-game install unexpectedly enabled the driver system-wide",
@@ -527,6 +603,7 @@ var codes = [
 	{
 		code: "BC250-AUTH-002",
 		markers: [
+			"incorrect password attempt",
 			"sudo: timed out reading password",
 			"sudo: a password is required",
 			"Error executing command as another user: Not authorized",
@@ -554,7 +631,8 @@ var codes = [
 			"unable to satisfy dependency",
 			"could not satisfy dependencies",
 			"error: target not found",
-			"Packages not found"
+			"Packages not found",
+			"Could not depsolve transaction"
 		],
 		exit_statuses: [
 		],
@@ -665,7 +743,9 @@ var codes = [
 			"FRAME_SIZE_ERROR",
 			"returned error: 5",
 			"Connection timed out",
-			"Operation timed out"
+			"Operation timed out",
+			"Recv failure: Connection reset",
+			"Send failure: Connection reset"
 		],
 		exit_statuses: [
 		],
@@ -861,14 +941,18 @@ var markers_longest_first = [
 	"Manual scale must reuse the detected thermal limit",
 	"bc250-detect returned values outside the requested",
 	"bc250-detect did not produce a valid configuration",
+	"failed to commit transaction .transaction aborted",
 	"QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling",
 	"Reviewed source commit is unavailable after fetch",
 	"Reviewed source revision could not be checked out",
+	"Cyan Skillfish GPU not found at expected PCI bus",
 	"must be active before changing its voltage curve",
 	"protected BC250 OpenRC service helper is missing",
+	"The network was not built. HelixSR is installed",
 	"target must be an even value from 24 through 40",
 	"Run automatic detection at this exact frequency",
 	"System management is locked by the application",
+	"BC-250 repository is serving a damaged package",
 	"Failed to restore SteamOS read-only protection",
 	"fork: retry: Resource temporarily unavailable",
 	"protected GDDR6 patch helper is not installed",
@@ -882,11 +966,13 @@ var markers_longest_first = [
 	"Another git process seems to be running",
 	"fork: Resource temporarily unavailable",
 	"has no subordinate user and group IDs",
+	"chip ID 0xffff is outside the Nuvoton",
 	"The GPU driver (amdgpu) did not start",
 	"invalid ip discovery binary signature",
 	"matching kernel-devel is unavailable",
 	"install the local name repair helper",
 	"Temporary failure in name resolution",
+	"Some index files failed to download",
 	"CU executor is missing or untrusted",
 	"umr is installed but does not start",
 	"persisted nct6687 source is missing",
@@ -909,9 +995,13 @@ var markers_longest_first = [
 	"SteamOS reports a writable root",
 	"computed checksum did NOT match",
 	"could not satisfy dependencies",
+	"Could not depsolve transaction",
 	"QAM CPU detection uses a fixed",
 	"QUICK_ACCESS_CU_SERVICE_REMOVE",
 	"QUICK_ACCESS_CU_SERVICE_VERIFY",
+	"Recv failure: Connection reset",
+	"Send failure: Connection reset",
+	"unable to find library -lgcc_s",
 	"a release is already installed",
 	"QUICK_ACCESS_CPU_SCALE_VERIFY",
 	"failed to retrieve some files",
@@ -931,8 +1021,11 @@ var markers_longest_first = [
 	"nct6687 could not be loaded",
 	"replaced the running kernel",
 	"nct6687.ko was not produced",
+	"database already registered",
+	"corrupted package .checksum",
 	"STEAMOS_AMDGPU_BUILD_FAILED",
 	"headers for another kernel",
+	"incorrect password attempt",
 	"could not create directory",
 	"is not protected by root:",
 	"QUICK_ACCESS_GPU_CONFLICT",
@@ -973,6 +1066,7 @@ var markers_longest_first = [
 	"PWM build prerequisites",
 	"QUICK_ACCESS_CPU_VERIFY",
 	"QUICK_ACCESS_GPU_HELPER",
+	"Database should be null",
 	"SteamOS read-only state",
 	"compilation terminated.",
 	"QUICK_ACCESS_PRIVILEGE",
@@ -986,6 +1080,7 @@ var markers_longest_first = [
 	"Module/kernel mismatch",
 	"smu returned status 0x",
 	"Could not resolve host",
+	"helixsr-setup. error:",
 	"QUICK_ACCESS_GPU_DBUS",
 	"QUICK_ACCESS_CU_TABLE",
 	"QUICK_ACCESS_CU_STATE",
@@ -1015,6 +1110,7 @@ var markers_longest_first = [
 	"CPU_BACKEND_MISSING",
 	"returned error: 404",
 	"Operation timed out",
+	"cannot find -lgcc_s",
 	"Could not get lock",
 	"database is locked",
 	"Unmet dependencies",
