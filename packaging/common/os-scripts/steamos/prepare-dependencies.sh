@@ -11,6 +11,7 @@ runtime_packages=(
   vulkan-tools mesa-utils polkit kmod curl ca-certificates tar zstd
   base-devel fakeroot debugedit gcc make pkgconf pahole dkms jq
 )
+bc250_fit_packages_to_interface runtime_packages
 
 BC250_STEAMOS_PACMAN_PREPARED=0
 cleanup_steamos_dependencies() {
@@ -76,7 +77,7 @@ install_umr() {
   verify_command umr
 }
 
-check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'from PyQt6.QtSvg import QSvgRenderer; from PyQt6.QtWidgets import QApplication; import psutil, pip, venv, ssl'; }
+check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_authorization; verify_command jq; verify_python_runtime; }
 check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }

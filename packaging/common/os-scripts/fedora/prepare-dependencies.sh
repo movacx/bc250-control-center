@@ -9,6 +9,7 @@ runtime_packages=(
   vulkan-tools polkit kmod curl ca-certificates make gcc elfutils-libelf-devel
   kernel-devel kernel-headers dkms dnf-plugins-core jq
 )
+bc250_fit_packages_to_interface runtime_packages
 
 install_runtime() {
   bold "${BC250_OS_LABEL:-Fedora family}: installing BC250 runtime dependencies"
@@ -36,7 +37,7 @@ install_umr() {
   verify_command umr
 }
 
-check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'from PyQt6.QtSvg import QSvgRenderer; from PyQt6.QtWidgets import QApplication; import psutil, pip, venv, ssl'; }
+check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_authorization; verify_command jq; verify_python_runtime; }
 check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }

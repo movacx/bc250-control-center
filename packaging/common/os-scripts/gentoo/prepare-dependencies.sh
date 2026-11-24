@@ -13,6 +13,7 @@ runtime_packages=(
   app-misc/ca-certificates app-arch/tar app-arch/zstd app-misc/jq sys-apps/dbus sys-apps/systemd-utils
   sys-devel/gcc sys-kernel/linux-headers sys-kernel/dkms
 )
+bc250_fit_packages_to_interface runtime_packages
 
 emerge_install() { as_root emerge --ask=n --verbose --update --deep --newuse "$@"; }
 
@@ -22,7 +23,7 @@ install_runtime() {
   verify_command python3
   verify_command git
   verify_command lspci
-  verify_command pkexec
+  verify_authorization
 }
 
 # The reviewed Cyan release is staged by the common integration after this
@@ -46,7 +47,7 @@ install_umr() {
   verify_command umr
 }
 
-check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'from PyQt6.QtSvg import QSvgRenderer; from PyQt6.QtWidgets import QApplication; import psutil, pip, venv, ssl'; }
+check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_authorization; verify_command jq; verify_python_runtime; }
 check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }

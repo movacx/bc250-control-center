@@ -163,8 +163,8 @@ def verification_shell(
     """
     normalized = normalize_components(selected)
     commands = [
-        'for cmd in python3 git lspci pkexec; do command -v "$cmd" >/dev/null 2>&1 && echo "OK: $cmd -> $(command -v "$cmd")" || { echo "ERROR: runtime command missing: $cmd"; exit 34; }; done',
-        'python3 -c "import PyQt6, psutil" || { echo "ERROR: Python GUI dependencies are unavailable"; exit 35; }',
+        'for cmd in python3 git lspci "$([ "${BC250_TERMINAL_AUTH:-0}" = 1 ] && echo sudo || echo pkexec)"; do command -v "$cmd" >/dev/null 2>&1 && echo "OK: $cmd -> $(command -v "$cmd")" || { echo "ERROR: runtime command missing: $cmd"; exit 34; }; done',
+        'python3 -c "import $([ "${BC250_TERMINAL_AUTH:-0}" = 1 ] && echo curses || echo PyQt6), psutil" || { echo "ERROR: Python GUI dependencies are unavailable"; exit 35; }',
     ]
     if "governor" in normalized:
         qgovernor = shlex.quote(governor_binary)

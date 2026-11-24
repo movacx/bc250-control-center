@@ -95,6 +95,7 @@ runtime_packages=(
   vulkan-tools polkit kmod make gcc elfutils-libelf-devel kernel-devel
   jq
 )
+bc250_fit_packages_to_interface runtime_packages
 
 install_all() {
   bold "${BC250_OS_LABEL:-Bazzite}: preparing BC250 host dependencies"
@@ -120,7 +121,7 @@ install_stress() { have stress || layer_packages stress; }
 install_sensors() { have sensors || layer_packages lm_sensors; }
 install_umr() { have umr || layer_packages umr; }
 
-check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'from PyQt6.QtSvg import QSvgRenderer; from PyQt6.QtWidgets import QApplication; import psutil, pip, venv, ssl'; }
+check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_authorization; verify_command jq; verify_python_runtime; }
 check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }

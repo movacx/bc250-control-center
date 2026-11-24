@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from typing import Any, Protocol
 
@@ -129,6 +130,11 @@ def load_meter(label: str, value: object) -> Meter:
 def check(label: str, on: bool, toggle: Callable[[UI], None], *, enabled: bool = True) -> Choice:
     """A checkbox row."""
     return Choice(f"[{'x' if on else ' '}] {label}", toggle, enabled=enabled)
+
+
+def has_display() -> bool:
+    """A window can open here: not on a plain TTY, not over SSH."""
+    return bool(os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY"))
 
 
 def switch(label: str, on: bool, toggle: Callable[[UI], None], *, enabled: bool = True, info=None, id: str = "") -> Choice:

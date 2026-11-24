@@ -155,3 +155,32 @@ def test_no_service_names_pkexec_directly():
                     and len(node.elts) > 1:
                 found.append(f"{path}:{node.lineno}")
     assert not found, found
+
+
+def test_preparing_from_the_terminal_interface_needs_neither_polkit_nor_qt(tmp_path):
+    """On a TTY-only system: the packages, the checks and the closing verification ask for sudo and curses."""
+    import os
+    import subprocess
+    from pathlib import Path
+
+    from bc250cc.application.preparation.component_engine import verification_shell
+
+    root = Path("packaging/common/os-scripts")
+    for family in ("arch", "bazzite", "fedora", "steamos", "debian", "alpine", "gentoo"):
+        text = (root / family / "prepare-dependencies.sh").read_text()
+        assert "verify_command pkexec" not in text and "import PyQt6" not in text and "bc250_fit_packages_to_interface" in text, family
+    script = ('have() { :; }; source <(sed -n "/^# The terminal interface authorizes/,\\$p" ' + str(root / "common/common.sh") + '); '
+              'p=(python python-pyqt6 qt6-svg polkit py3-qt6 libqt6svg6 dev-qt/qtbase sys-auth/polkit jq); '
+              'bc250_fit_packages_to_interface p; echo "${p[*]}"')
+    for auth, expected in (("1", "python jq"), ("0", "python python-pyqt6 qt6-svg polkit py3-qt6 libqt6svg6 dev-qt/qtbase sys-auth/polkit jq")):
+        done = subprocess.run(["bash", "-c", script], env={**os.environ, "BC250_TERMINAL_AUTH": auth}, capture_output=True, text=True)
+        assert done.stdout.strip() == expected, done.stderr
+    for name in ("python3", "git", "lspci", "sudo"):
+        (tmp_path / name).write_text('#!/bin/sh\ncase "$*" in *PyQt6*) exit 1;; esac\n')
+        (tmp_path / name).chmod(0o755)
+    checks = verification_shell(["runtime"], governor_binary="x", cpu_oc_script=Path("x"), core_unlock_script=Path("x"),
+                                cu_manager_script=Path("x"))[:2]
+    bash = "/bin/bash"
+    for auth, status in (("1", 0), ("0", 34)):
+        done = subprocess.run([bash, "-c", "; ".join(checks)], env={"PATH": str(tmp_path), "BC250_TERMINAL_AUTH": auth}, capture_output=True)
+        assert done.returncode == status, done.stdout

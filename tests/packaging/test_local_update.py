@@ -42,9 +42,9 @@ def test_local_installer_stages_and_rolls_back_application_code():
 def test_local_installer_matches_modern_debian_ubuntu_runtime_dependencies():
     installer = (ROOT / "scripts" / "install-local.sh").read_text(encoding="utf-8")
 
-    # The terminal profile installs the first list; the desktop adds the Qt packages.
-    assert 'apt-get install -y python3 python3-psutil git "$debian_polkit_package" jq)' in installer
-    assert 'missing_python_deps_command+=(python3-pyqt6 python3-pyqt6.qtsvg libqt6svg6 python3-pip python3-venv openssl ca-certificates)' in installer
+    # The terminal profile installs the first list; the desktop adds polkit and the Qt packages.
+    assert 'apt-get install -y python3 python3-psutil git jq)' in installer
+    assert 'missing_python_deps_command+=("$debian_polkit_package" python3-pyqt6 python3-pyqt6.qtsvg libqt6svg6 python3-pip python3-venv openssl ca-certificates)' in installer
     assert 'debian_polkit_package="pkexec"' in installer
     assert 'debian_polkit_package="policykit-1"' in installer
     assert "python-is-python3" not in installer

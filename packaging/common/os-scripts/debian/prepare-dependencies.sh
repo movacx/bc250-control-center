@@ -8,6 +8,7 @@ runtime_core_packages=(
   python3 python3-pyqt6 python3-pyqt6.qtsvg libqt6svg6 python3-psutil git pciutils
   libdrm2 libdrm-amdgpu1 curl ca-certificates dbus dbus-user-session kmod jq
 )
+bc250_fit_packages_to_interface runtime_core_packages
 runtime_optional_diagnostics=(mesa-utils vulkan-tools)
 # bsdtar unpacks the 7z BIOS images on the Firmware page. Optional: the rest of
 # the application works without it.
@@ -37,7 +38,7 @@ install_runtime() {
   as_root apt-get install -y "${runtime_optional_tools[@]}" || warn "Optional bsdtar (libarchive-tools) is unavailable; the Firmware page cannot unpack 7z BIOS images"
   # Current Debian/Ubuntu releases split PolicyKit into polkitd and pkexec.
   # Keep the legacy package as a fallback for older derivatives.
-  as_root apt-get install -y polkitd pkexec || as_root apt-get install -y policykit-1
+  bc250_terminal_only || as_root apt-get install -y polkitd pkexec || as_root apt-get install -y policykit-1
 }
 
 install_governor() (
@@ -132,7 +133,7 @@ install_umr() {
   verify_command umr
 }
 
-check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_command pkexec; verify_command jq; python3 -c 'from PyQt6.QtSvg import QSvgRenderer; from PyQt6.QtWidgets import QApplication; import psutil, pip, venv, ssl'; }
+check_runtime() { verify_command python3; verify_command openssl; verify_command git; verify_command lspci; verify_authorization; verify_command jq; verify_python_runtime; }
 check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }

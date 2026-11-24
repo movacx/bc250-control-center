@@ -2963,6 +2963,7 @@
   },
   "bc250cc/infrastructure/terminal_sudo.py": {
    "sudo_argv": "SYS-0354",
+   "missing_password": "SYS-0361",
    "_descends_from": "SYS-0355",
    "_answer": "SYS-0356",
    "front": "SYS-0357",

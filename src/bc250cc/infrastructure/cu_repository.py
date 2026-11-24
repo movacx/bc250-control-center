@@ -377,7 +377,7 @@ class CURepository:
             fecha = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(ruta.stat().st_mtime))
             return (
                 f'Last saved authorized reading: {fecha}\n'
-                'To update it, use "Refresh dashboard" and authorize the Polkit window if it appears.\n\n'
+                'To update it, use "Refresh dashboard" and authorize it when you are asked.\n\n'
                 f'{texto}'
             )
         except Exception:

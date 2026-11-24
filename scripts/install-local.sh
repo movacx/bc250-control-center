@@ -290,14 +290,15 @@ fi
 if command -v apt-get >/dev/null 2>&1 && {
   [[ "$python_gui_deps_missing" -eq 1 ]] ||
   ! command -v jq >/dev/null 2>&1 ||
-  ! command -v pkexec >/dev/null 2>&1
+  { [[ "$INSTALL_PROFILE" == "desktop" ]] && ! command -v pkexec >/dev/null 2>&1; }
 }; then
   debian_polkit_package="pkexec"
   if command -v apt-cache >/dev/null 2>&1 && ! apt-cache show pkexec >/dev/null 2>&1 && apt-cache show policykit-1 >/dev/null 2>&1; then
     debian_polkit_package="policykit-1"
   fi
-  missing_python_deps_command=(apt-get install -y python3 python3-psutil git "$debian_polkit_package" jq)
-  [[ "$INSTALL_PROFILE" == "tui" ]] || missing_python_deps_command+=(python3-pyqt6 python3-pyqt6.qtsvg libqt6svg6 python3-pip python3-venv openssl ca-certificates)
+  missing_python_deps_command=(apt-get install -y python3 python3-psutil git jq)
+  # The terminal interface authorizes with sudo: it needs neither polkit nor Qt.
+  [[ "$INSTALL_PROFILE" == "tui" ]] || missing_python_deps_command+=("$debian_polkit_package" python3-pyqt6 python3-pyqt6.qtsvg libqt6svg6 python3-pip python3-venv openssl ca-certificates)
   missing_python_deps=1
 elif [[ "$python_gui_deps_missing" -eq 1 ]]; then
   # The GUI packages; the terminal profile drops them below. curses ships with
@@ -322,8 +323,8 @@ elif [[ "$python_gui_deps_missing" -eq 1 ]]; then
   elif command -v apk >/dev/null 2>&1; then
     # The same packages the Alpine dependency preparation installs
     # (packaging/common/os-scripts/alpine/prepare-dependencies.sh).
-    missing_python_deps_command=(apk add --no-progress bash python3 py3-psutil git jq polkit)
-    gui_packages=(py3-qt6 qt6-qtbase qt6-qtsvg py3-pip openssl ca-certificates)
+    missing_python_deps_command=(apk add --no-progress bash python3 py3-psutil git jq)
+    gui_packages=(polkit py3-qt6 qt6-qtbase qt6-qtsvg py3-pip openssl ca-certificates)
   fi
   if [[ "$INSTALL_PROFILE" == "desktop" && ${#missing_python_deps_command[@]} -gt 0 ]]; then
     missing_python_deps_command+=("${gui_packages[@]}")

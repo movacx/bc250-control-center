@@ -569,3 +569,33 @@ on_error() {
   exit "$status"
 }
 trap on_error ERR
+
+# The terminal interface authorizes with sudo and draws no window: there a
+# system needs neither polkit nor Qt, and may have no desktop to use them.
+bc250_terminal_only() { [[ "${BC250_TERMINAL_AUTH:-0}" == "1" ]]; }
+
+verify_authorization() {
+  if bc250_terminal_only; then verify_command sudo; else verify_command pkexec; fi
+}
+
+verify_python_runtime() {
+  if bc250_terminal_only; then
+    python3 -c 'import curses, psutil'
+  else
+    python3 -c 'from PyQt6.QtSvg import QSvgRenderer; from PyQt6.QtWidgets import QApplication; import psutil, pip, venv, ssl'
+  fi
+}
+
+# Take the desktop-only packages out of the named array for the terminal interface.
+bc250_fit_packages_to_interface() {
+  bc250_terminal_only || return 0
+  local -n bc250_packages="$1"
+  local bc250_package bc250_kept=()
+  for bc250_package in "${bc250_packages[@]}"; do
+    case "$bc250_package" in
+      *pyqt6*|*qt6-svg*|*qt6-qtsvg*|*qt6-qtbase*|py3-qt6|libqt6svg6|dev-qt/*|polkit|sys-auth/polkit) ;;
+      *) bc250_kept+=("$bc250_package") ;;
+    esac
+  done
+  bc250_packages=("${bc250_kept[@]}")
+}

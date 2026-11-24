@@ -62,7 +62,7 @@ as_root() {
     "$@"
   elif have sudo; then
     sudo "$@"
-  elif have pkexec; then
+  elif [[ "${BC250_TERMINAL_AUTH:-0}" != "1" ]] && have pkexec; then
     pkexec "$@"
   else
     die "Administrator authentication is required for: $*"

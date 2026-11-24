@@ -24,7 +24,7 @@ from frontends.desktop.core.upscaling_rows import game_matrix_rows
 from ..content import Buttons, Choice, Field, Info, Note, Panel
 from ..i18n import tr, tr_format
 from . import compat, graphics
-from .base import Page, guarded, os_family, switch
+from .base import Page, guarded, has_display, os_family, switch
 from .compat import Action
 
 TAB_TITLES = (("compatibility", "Compatibility"), ("boot", "Kernel boot options"), ("upscaling", "Upscaling"), ("memory", "Memory & Swap"),
@@ -243,7 +243,7 @@ class AdditionalSettingsPage(Page):
                 "Installs OptiScaler and the BC250 FSR4 DLL into the games you choose, with a backup of every file it "
                 "replaces. Your driver and Proton stay as they are."), [
                     Action(tr("Open configuration"), lambda: service.gestionar_fsr4_bc250("launch"), confirm=False)]
-                if fsr4.get("current") else []),
+                if fsr4.get("current") and has_display() else []),
             self._upscaler(service.gestionar_helixsr, "HelixSR", helixsr, tr(
                 "DLSS and FSR 4 networks on this GPU, put into each game by HelixSR's own installer."), [
                     *([] if ready else [Action(tr("Build network files"), lambda: service.gestionar_helixsr("network"))]),

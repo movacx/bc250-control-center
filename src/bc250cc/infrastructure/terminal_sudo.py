@@ -39,6 +39,20 @@ def sudo_argv(arguments: list[str]) -> list[str]:
     return [sudo, "-p", PROMPT, *arguments]
 
 
+def missing_password() -> str:
+    """What to say when this account cannot answer sudo at all (SteamOS' deck, until its owner sets one)."""
+    try:
+        status = subprocess.run(["passwd", "-S"], capture_output=True, text=True, timeout=5, check=False).stdout.split()  # nosec B603 B607
+        if len(status) < 2 or status[1] not in {"NP", "L", "LK", "NL"}:
+            return ""
+        if subprocess.run(sudo_argv(["-n", "true"]), capture_output=True, timeout=5, check=False).returncode == 0:  # nosec B603
+            return ""  # sudo trusts it without one
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return (f"ERROR: The {status[0]} account has no password yet, so sudo cannot authorize this change.\n"
+            "Set one first: run passwd in a terminal, then try again.\n")
+
+
 def _descends_from(pid: int, ancestor: int) -> bool:
     """``pid`` was started, directly or not, by ``ancestor``."""
     for _step in range(64):
@@ -66,6 +80,10 @@ def _answer(connection: socket.socket, owner: int) -> None:
             argv = sudo_argv([str(item) for item in request["argv"]])
             if len(fds) != 3:
                 raise ValueError("three streams are needed")
+            if problem := missing_password():
+                os.write(fds[2], problem.encode())
+                connection.sendall(b"77")
+                return
             # A fresh interpreter rather than fork(): this process has threads.
             child = subprocess.Popen(  # nosec B603
                 [sys.executable, "-I", __file__, "--front", *argv], stdin=fds[0], stdout=fds[1], stderr=fds[2],

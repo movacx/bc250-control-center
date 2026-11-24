@@ -190,6 +190,7 @@ from bc250cc.infrastructure.opticlient_undo import (
     remove_opticlient_installation,
     restore_opticlient_backup,
 )
+from bc250cc.infrastructure.polkit_session import uses_sudo
 from bc250cc.infrastructure.preparation_workflow import (
     PreparationContext,
     build_preparation_command,
@@ -1281,7 +1282,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
         init_preflight = (
             openrc_preflight(
                 commands=[name for name, path in runtime_probe.items() if path],
-                has_polkit=bool(runtime_probe.get('pkexec')),
+                has_polkit=bool(runtime_probe.get('pkexec')) or (uses_sudo() and bool(shutil.which('sudo'))),
                 has_dbus=bool(runtime_probe.get('system_dbus')),
             )
             if init_manager.kind == 'openrc' else {}
@@ -1760,7 +1761,8 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'git': ('Community tool preparation', 'git is required to clone or update upstream BC-250 tools.'),
             'lspci': ('PCI device details', 'pciutils is required for detailed PCI hardware detection.'),
             'vulkaninfo': ('Vulkan details', 'vulkan-tools is required for Vulkan capability reporting.'),
-            'pkexec': ('Privileged actions', 'polkit/pkexec is required for authenticated system changes.'),
+            **({} if uses_sudo() else {
+                'pkexec': ('Privileged actions', 'polkit/pkexec is required for authenticated system changes.')}),
             'dkms': ('Fan driver preparation', 'dkms is required to keep the nct6687 fan driver across kernel updates.'),
             'make': ('Driver builds', 'make is required to compile the optional fan kernel module.'),
             'gcc': ('Driver builds', 'gcc is required to compile the optional fan kernel module.'),
