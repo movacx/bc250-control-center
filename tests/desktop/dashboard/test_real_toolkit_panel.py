@@ -1,7 +1,7 @@
 """Provider components are ordinary Compatibility rows, never executed by browsing."""
 import pytest
 
-from bc250cc.infrastructure.steamos_real_toolkit import ACTIONS
+from bc250cc.infrastructure.steamos_real_toolkit import ACTIONS, DIRECT_ACTIONS
 from frontends.desktop.components.real_toolkit import (
     ALTERNATIVE_SCOPE,
     LABELS,
@@ -54,9 +54,23 @@ def test_features_the_application_already_offers_are_not_exposed():
     assert 'acpi-install' in keys and 'keyring' in keys and 'aic8800' in keys
 
 
+#: The upstream menus the direct actions replaced, and the install refused on purpose.
+_ROW_ACTIONS = (({action.key for action in (*ACTIONS, *DIRECT_ACTIONS)} | {'put-back'})
+                - {'aic8800', 'be200', 'dualsense', 'xbox-adapter', 'recovery', 'cec', 'recovery-install'})
+
+
+def test_put_back_shows_only_after_an_update_lost_something():
+    rows = RealToolkitRows()
+    assert rows.buttons['put-back'].isHidden()
+    rows.set_provider_state({'lost_after_update': [{'component': 'acpi', 'action': 'acpi-install'}]})
+    assert not rows.buttons['put-back'].isHidden()
+    rows.set_provider_state({})
+    assert rows.buttons['put-back'].isHidden()
+
+
 def test_all_provider_actions_have_native_controls():
     rows = RealToolkitRows()
-    expected = {action.key for action in ACTIONS}
+    expected = _ROW_ACTIONS
     assert set(LABELS) == set(rows.buttons) == expected
     events = []
     rows.action_requested.connect(events.append)
@@ -69,7 +83,7 @@ def test_component_groups_preserve_every_action_exactly_once():
     from frontends.desktop.components.real_toolkit import ALTERNATIVE_TOOLS, TOOLS
 
     keys = [key for _category, _names, _description, actions in TOOLS for key in actions]
-    assert len(keys) == len(set(keys)) == len(ACTIONS)
+    assert len(keys) == len(set(keys)) == len(_ROW_ACTIONS)
     alternative = [key for _category, _names, _description, actions in ALTERNATIVE_TOOLS for key in actions]
     assert set(alternative) == set(ALTERNATIVE_ACTIONS)
     assert len(alternative) == len(set(alternative))
@@ -157,7 +171,7 @@ def test_native_ownership_is_visible_before_selecting_a_toolkit_operation():
     rows.set_provider_state({'native_ownership': {'acpi': ['/etc/native-acpi']}})
     assert not rows.buttons['acpi-install'].isEnabled()
     assert not rows.buttons['acpi-revert'].isEnabled()
-    assert rows.buttons['recovery'].isEnabled()
+    assert rows.buttons['recovery-status'].isEnabled()
     assert rows.cards['acpi-install'].status.text() == 'BC250 Control Center'
     rows.retranslate_dynamic_copy()
     assert not rows.buttons['acpi-install'].isEnabled()
@@ -517,7 +531,7 @@ def test_toolkit_rows_say_what_is_installed_instead_of_always_offering_install(p
 def test_rows_without_evidence_on_disk_claim_nothing():
     rows = RealToolkitRows()
     rows.set_provider_state({'components': {}})
-    for key in ('ac3-install', 'cec-setup', 'aic8800', 'keyring'):
+    for key in ('ac3-install', 'cec-setup', 'openlinkhub-install', 'keyring'):
         assert rows.cards[key].status.isHidden(), key
 
 
@@ -608,3 +622,23 @@ def test_the_other_route_is_offered_by_kernel_base_only():
     assert _alternative_kernel('7.2.7-valve2-1-neptune-72')
     assert not _alternative_kernel('7.20.1-valve1')
     assert not _alternative_kernel('7.3.5-2-cachyos')
+
+
+def test_steam_os_management_surfaces_ownership_and_update_losses(qtbot, tmp_path):
+    sidebar = _steamos_with(qtbot, tmp_path, gfx1013_compute={
+        'steamos_real_toolkit': {
+            'components': {'acpi': True},
+            'unsafe_recovery': ['/home/deck/.bc250-toolkit/bc250-recovery-ctl.sh'],
+            'lost_after_update': [{'component': 'amdgpu', 'action': 'combined-install'}],
+            'combined_build_blocked': True,
+        },
+        'steamos_alternative_graphics': {'radv': {'state': 'ready'}},
+    })
+    cards = sidebar.real_toolkit_rows.cards
+    assert 'Files from Real Toolkit were found for ACPI power management.' in cards['verify'].detail.text()
+    assert 'Files from keyboardspecialist were found for Mesa / RADV.' in cards['verify'].detail.text()
+    assert 'restart' in cards['verify'].detail.text()
+    assert 'Missing since the SteamOS update (AMDGPU module).' in cards['verify'].detail.text()
+    assert cards['recovery-remove'].status.text() == 'Unsafe recovery entry'
+    assert 'regenerate GRUB' in cards['recovery-remove'].detail.text()
+    assert 'glibc 2.44' in cards['combined-install'].detail.text()

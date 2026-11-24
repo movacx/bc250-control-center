@@ -3094,14 +3094,14 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
     def _manage_real_toolkit(self, action: str, *, dialog_parent=None) -> None:
         from bc250cc.infrastructure.steamos_real_toolkit import action_for
 
-        from ..components.real_toolkit import action_label
+        from ..components.real_toolkit import action_question
 
         action_for(action)
-        if action not in {'verify', 'kyty-status', 'cec-status'}:
+        if action != 'verify' and not action.endswith('-status'):
             confirmation = ConfirmDialog(
-                'SteamOS Real Toolkit', action_label(action),
+                'SteamOS Real Toolkit', action_question(action),
                 confirm_text='Continue',
-                tone='red' if 'revert' in action else 'orange',
+                tone='red' if 'revert' in action or action.endswith('-remove') else 'orange',
                 parent=dialog_parent or self,
             )
             if confirmation.exec() != QDialog.DialogCode.Accepted:

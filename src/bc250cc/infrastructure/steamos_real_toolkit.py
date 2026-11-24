@@ -21,12 +21,18 @@ import os
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import tarfile
 import tempfile
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from .steamos_graphics_ownership import (
+    graphics_prefix_present,
+    vulkan_driver_selections,
+)
 from .steamos_readonly import STEAMOS_PASSWORD_GUARD
 
 REPOSITORY = "https://github.com/rpf16rj/bc250-steamos-real-toolkit"
@@ -42,6 +48,7 @@ _REVISION_PATTERN = re.compile(r"[0-9a-f]{40}")
 # SteamOS /var can be only a few hundred MiB. Keep archive, verified source
 # and build caches on the large /home filesystem, outside every user's home.
 STATE_ROOT = Path('/home/.bc250-control-center/real-toolkit')
+SOURCE_SPACE_MIB = 768
 WORKSPACE = STATE_ROOT / 'workspace'
 INSTALLED_RUNTIME_ROOT = Path('/usr/libexec/bc250-control-center')
 PERSISTENT_RUNTIME_ROOT = STATE_ROOT / 'runtime'
@@ -81,7 +88,7 @@ GUARDED_FUNCTIONS = {
     'install_acpi_fix': 'acpi', 'run_revert_acpi_fix': 'acpi',
     'install_ac3_surround': 'audio', 'run_revert_ac3_surround': 'audio',
     'install_dual_audio': 'audio', 'run_revert_dual_audio': 'audio',
-    'run_cec_menu': 'cec',
+    'run_cec_menu': 'cec', 'install_cec_retrain': 'cec', 'revert_cec_retrain': 'cec',
     # Its revert removes only its own AUR package, so only the install is guarded.
     'install_openlinkhub': 'openlinkhub',
 }
@@ -122,20 +129,95 @@ _GROUPS = {
 ACTIONS = tuple(ToolkitAction(key, function, category)
                 for category, entries in _GROUPS.items() for key, function in entries.items())
 
+# The existing frontend keys keep their menu routes until the rows can replace them.
+DIRECT_ACTIONS = (
+    ToolkitAction('aic8800-install', 'install_aic8800_wifi', 'drivers'),
+    ToolkitAction('aic8800-legacy-install', 'install_aic8800_legacy_mcu1', 'drivers'),
+    ToolkitAction('aic8800-remove', 'run_revert_aic8800_wifi', 'drivers'),
+    ToolkitAction('aic8800-status', 'aic8800_installed', 'drivers'),
+    ToolkitAction('be200-install', 'install_be200_firmware', 'drivers'),
+    ToolkitAction('be200-remove', 'run_revert_be200_firmware', 'drivers'),
+    ToolkitAction('be200-status', 'be200_firmware_installed', 'drivers'),
+    ToolkitAction('dualsense-install', 'install_ds5_bridge_fix', 'drivers'),
+    ToolkitAction('dualsense-remove', 'run_revert_ds5_bridge_fix', 'drivers'),
+    ToolkitAction('dualsense-status', 'ds5_bridge_fix_installed', 'drivers'),
+    ToolkitAction('dualsense-chords-install', 'run_install_ds5_chord_vdf', 'drivers'),
+    ToolkitAction('dualsense-chords-remove', 'run_revert_ds5_chord_vdf', 'drivers'),
+    ToolkitAction('dualsense-chords-status', 'ds5_chord_vdf_patched', 'drivers'),
+    ToolkitAction('xbox-adapter-install', 'install_xbox_adapter', 'drivers'),
+    ToolkitAction('xbox-adapter-remove', 'run_revert_xbox_adapter', 'drivers'),
+    ToolkitAction('xbox-adapter-status', 'xbox_adapter_status_label', 'drivers'),
+    ToolkitAction('recovery-install', 'install_recovery_entries', 'system'),
+    ToolkitAction('recovery-remove', 'uninstall_recovery_entries', 'system'),
+    ToolkitAction('recovery-status', 'recovery_entries_installed', 'system'),
+    ToolkitAction('recovery-toggle', 'recovery_menu_toggle', 'system'),
+    ToolkitAction('recovery-timeout', 'recovery_menu_set_timeout', 'system'),
+    ToolkitAction('cec-install', 'install_cec_retrain', 'audio'),
+    ToolkitAction('cec-remove', 'revert_cec_retrain', 'audio'),
+    ToolkitAction('cec-retrain-status', 'cec_retrain_installed', 'audio'),
+)
+_STATUS_PREDICATES = frozenset(
+    action.key for action in DIRECT_ACTIONS if action.key.endswith('-status') and action.key != 'xbox-adapter-status'
+)
+
+COMBINED_OVERRIDE = 'combined-try-anyway'
+PUT_BACK = 'put-back'
+PUT_BACK_OVERRIDE = 'put-back-try-anyway'
+OVERRIDE_STATUS = 78
+COMBINED_GLIBC_REASON = "The Combined Fix's downloaded Python needs glibc 2.44 on this kernel."
+COMBINED_NATIVE_ROUTE = "Use keyboardspecialist's Kernel compatibility row, then its Mesa / RADV row."
+
+
+def kernel_series(release: str) -> tuple[int, int] | None:
+    match = re.match(r'(\d+)\.(\d+)(?:\.|-|$)', release)
+    return (int(match[1]), int(match[2])) if match else None
+
+
+def old_glibc() -> bool:
+    try:
+        parts = (os.confstr('CS_GNU_LIBC_VERSION') or '').split()[1].split('.')
+        return tuple(int(part) for part in parts[:2]) < (2, 44)
+    except (IndexError, OSError, ValueError):
+        return False
+
+
+def known_combined_failure(kernel: str) -> bool:
+    # Valve's 7.2 build on SteamOS 3.9.5 hit this in the source fallback.
+    return kernel_series(kernel) == (7, 2) and old_glibc()
+
 
 def launch_command(action: str) -> str:
     """Use installed code under sudo, never import the desktop user's checkout."""
     action_for(action)
     # The deck account has no password until its owner sets one, and sudo then
     # fails without saying why: say so first, as every other SteamOS workflow does.
-    return (STEAMOS_PASSWORD_GUARD + '\nbc250_require_password\n'
-            'sudo /usr/bin/python3 -I '
-            '/usr/libexec/bc250-control-center/bc250-steamos-toolkit '
-            + shlex.quote(action))
+    argument = shlex.quote(action)
+    archive = INSTALLED_RUNTIME_ROOT / 'lib/bc250_steamos_toolkit_runtime.zip'
+    code = ('import sys\n'
+            'sys.path.insert(0, sys.argv[1])\n'
+            'try:\n'
+            '    from bc250cc.infrastructure.steamos_real_toolkit_runtime import show_preflight\n'
+            'except ImportError:\n'
+            '    sys.exit("Toolkit preflight is unavailable. Reinstall Control Center helpers.")\n'
+            'sys.exit(show_preflight(sys.argv[2]))')
+    preflight = shlex.join(('/usr/bin/python3', '-I', '-c', code, str(archive), action))
+    helper = 'sudo /usr/bin/python3 -I /usr/libexec/bc250-control-center/bc250-steamos-toolkit '
+    command = f'bc250_preflight_status=0\n{preflight} || bc250_preflight_status=$?\n'
+    password = STEAMOS_PASSWORD_GUARD + '\nbc250_require_password\n'
+    if action in {'combined-install', PUT_BACK}:
+        override = COMBINED_OVERRIDE if action == 'combined-install' else PUT_BACK_OVERRIDE
+        return (command + 'case "$bc250_preflight_status" in\n'
+                f'  0) bc250_action={argument} ;;\n  {OVERRIDE_STATUS}) bc250_action={override} ;;\n'
+                '  *) exit "$bc250_preflight_status" ;;\nesac\n'
+                + password + helper + '"$bc250_action"')
+    return (command + '[[ "$bc250_preflight_status" == 0 ]] || exit "$bc250_preflight_status"\n'
+            + password + helper + argument)
 
 
 def action_for(key: str) -> ToolkitAction:
-    for action in ACTIONS:
+    if key == PUT_BACK:
+        return ToolkitAction(PUT_BACK, '', 'toolkit')
+    for action in ACTIONS + DIRECT_ACTIONS:
         if action.key == key:
             return action
     raise ValueError("Unknown SteamOS Real Toolkit action")
@@ -173,7 +255,12 @@ def _cec_dispatch():
 
 def dispatch_shell() -> str:
     """Dispatch a validated symbolic action, preserving the function's status."""
-    cases = "\n".join(f"    {shlex.quote(action.key)}) {action.function} ;;" for action in ACTIONS)
+    cases = []
+    for action in ACTIONS + DIRECT_ACTIONS:
+        call = action.function
+        if action.key in _STATUS_PREDICATES:
+            call = f'if {call}; then echo "Installed"; else echo "Not installed"; fi'
+        cases.append(f"    {shlex.quote(action.key)}) {call} ;;")
     return _cec_dispatch() + ('bc250cc_install_launch_coach() {\n'
             '  sudo -u "$REAL_USER" -H /usr/bin/bash "$SCRIPT_DIR/extras/bc250-launch-coach/install.sh"\n'
             '}\n'
@@ -184,7 +271,7 @@ def dispatch_shell() -> str:
             'if [[ "${1:-}" == "--bc250cc-action" ]]; then\n'
             '  [[ $# == 2 ]] || { echo "ERROR: expected exactly one toolkit action" >&2; exit 64; }\n'
             '  AUTO=0\n'
-            '  case "$2" in\n' + cases + '\n'
+            '  case "$2" in\n' + '\n'.join(cases) + '\n'
             '    *) echo "ERROR: unknown toolkit action" >&2; exit 64 ;;\n'
             '  esac\n  exit $?\nfi\n\n')
 
@@ -211,20 +298,23 @@ def prepare_entrypoint(source: bytes) -> bytes:
     text = text.replace(_STANDALONE_HANDOFF, _STANDALONE_REFUSAL, 1)
     if _FOREIGN_HANDOFF.search(text):
         raise ValueError('Real Toolkit standalone re-launch contract changed')
-    functions = set(re.findall(r"^([A-Za-z_][A-Za-z_0-9]*)\(\)\s*\{", text, re.MULTILINE))
-    absent = {action.function for action in ACTIONS} - functions - {'bc250cc_install_launch_coach', 'bc250cc_decky_plugin_only'} - {
-        'bc250cc_' + key.replace('-', '_') for key in CEC_ACTIONS}
-    if absent:
-        raise ValueError("Real Toolkit action functions are absent: " + ", ".join(sorted(absent)))
+    functions = Counter(re.findall(r"^([A-Za-z_][A-Za-z_0-9]*)\(\)\s*\{", text, re.MULTILINE))
+    generated = {'bc250cc_' + key.replace('-', '_') for key in CEC_ACTIONS}
+    required = {action.function for action in ACTIONS + DIRECT_ACTIONS} - generated
+    invalid = sorted(function for function in required if functions[function] != 1)
+    if invalid:
+        raise ValueError("Real Toolkit action function contract changed: " + ", ".join(invalid))
     from .steamos_real_toolkit_recovery import (
         adapt_recovery_ctl,
         adapt_recovery_flag,
         adapt_revert_all,
+        refuse_unsafe_install,
     )
     text = adapt_revert_all(text)
     text = adapt_recovery_flag(text)
     if 'recovery_write_ctl' in functions:
         text = adapt_recovery_ctl(text, CONFLICT_CHECK_COMMAND)
+    text = refuse_unsafe_install(text)
     for function in GUARDED_FUNCTIONS:
         pattern = rf'^{function}\(\)(\s*\{{)'
         text, count = re.subn(pattern, rf'bc250cc_original_{function}()\1', text, flags=re.MULTILINE)
@@ -309,3 +399,164 @@ def prepare_snapshot(archive: Path, destination: Path, revision: str) -> Path:
     except BaseException:
         shutil.rmtree(temporary)
         raise
+
+
+def read_toolkit_text(path: Path) -> str:
+    try:
+        if not path.is_file():
+            return ''
+        with path.open(encoding='utf-8') as stream:
+            return stream.read(131072)
+    except (OSError, UnicodeError):
+        return ''
+
+
+def _icd_valid(path: Path, prefix: Path, root: Path) -> bool:
+    try:
+        content = json.loads(read_toolkit_text(path))
+        library = Path(content['ICD']['library_path'])
+        library = (root / str(library).lstrip('/') if library.is_absolute() else path.parent / library).resolve()
+        if not library.is_relative_to(prefix.resolve()):
+            return False
+        with library.open('rb') as stream:
+            return stream.read(4) == b'\x7fELF'
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+
+
+def graphics_evidence(root: Path, kernel: str) -> dict:
+    prefix = root / 'opt/bc250-gfx1013'
+    descriptors = list(prefix.glob('*/share/vulkan/icd.d/radeon_icd.x86_64.json'))
+    valid = [path for path in descriptors if _icd_valid(path, prefix, root)]
+    selections = vulkan_driver_selections(read_toolkit_text(root / 'etc/environment'))
+    activation = (selections[-1].paths or ()) if selections else ()
+    activated = [path for path in valid if '/' + str(path.relative_to(root)) in activation]
+    try:
+        prefix_present = graphics_prefix_present(prefix)
+    except OSError:
+        prefix_present = None
+    selection_present = any('/opt/bc250-gfx1013/' in selection.raw for selection in selections)
+    graphics_state = ('configured' if activated else
+                      'incomplete' if descriptors or prefix_present or selection_present else
+                      'unknown' if prefix_present is None else 'not-installed')
+    module_root = root / 'usr/lib/modules' / kernel / 'updates'
+    modules = [str(p) for p in module_root.glob('amdgpu.ko*') if p.is_file()]
+    marker = module_root / '.bc250-audio-fix'
+    return {'state': graphics_state, 'icds': [str(p) for p in valid],
+            'activation_configured': bool(activated), 'active': None,
+            'kernel_toolkit_marker': bool(not marker.is_symlink()
+                                          and re.fullmatch('[0-9a-f]{64}', read_toolkit_text(marker).strip())),
+            'kernel_override_installed': bool(modules), 'kernel_modules': modules}
+
+
+def component_evidence(root: Path, home: Path, kernel: str) -> dict[str, bool]:
+    updates = root / 'usr/lib/modules' / kernel / 'updates'
+    return {
+        'cpu': (root / 'etc/bc250-smu-oc.conf').is_file(),
+        'gpu': (root / 'etc/cyan-skillfish-governor-smu/config.toml').is_file(),
+        'core-unlock': (root / 'etc/systemd/system/bc250-core-unlock.service').is_file(),
+        # Its removal keeps the archive as a cache; the service goes with it.
+        'acpi': ((root / 'var/lib/bc250-acpi-fix/acpi_override.cpio').is_file()
+                 and (root / 'etc/systemd/system/bc250-acpi-heal.service').is_file()),
+        'video': ((root / 'var/lib/bc250/dri/bc250_drv_video.so').is_file()
+                  and (root / 'etc/environment.d/99-bc250-vaapi.conf').is_file()),
+        'dual-audio': ((home / '.config/wireplumber/wireplumber.conf.d/50-bc250-audio.conf').is_file()
+                       and (home / '.config/pipewire/pipewire.conf.d/60-bc250-ac3-output.conf').is_file()
+                       # The two in the system go with a SteamOS update.
+                       and (root / 'etc/alsa/conf.d/61-bc250-a52.conf').is_file()
+                       and (root / 'usr/local/share/wireplumber/scripts/90-bc250-audio-mode.lua').is_file()),
+        'ac3': ((root / 'etc/udev/rules.d/91-ac3-audio.rules').is_file()
+                and (home / '.config/wireplumber/wireplumber.conf.d/ac3-profile.conf').is_file()),
+        'aic8800': (root / 'etc/modprobe.d/aic8800.conf').is_file(),
+        'be200': any((root / 'usr/lib/firmware' / ('iwlwifi-gl-c0-fm-c0-100.ucode' + suffix)).is_file()
+                     for suffix in ('', '.zst')),
+        'dualsense': ((updates / '.bc250-ds5-bridge-fix').is_file()
+                      and (updates / 'hid-playstation.ko.zst').is_file()),
+        'xbox-adapter': ((root / 'etc/modprobe.d/xone-blacklist.conf').is_file()
+                         and any((root / 'var/lib/pacman/local').glob('xone-dkms-*'))),
+        'cec': (home / '.config/cecd/config.d/50-bc250.toml').is_file(),
+        'cec-retrain': ((root / 'etc/systemd/system/bc250-cec.service').is_file()
+                        and (root / 'etc/udev/rules.d/71-bc250-cec-keys.rules').is_file()),
+        'recovery': (root / 'etc/grub.d/42_bc250-recovery').is_file(),
+    }
+
+
+RESTORE_ACTIONS = {
+    'amdgpu': 'combined-install',
+    'radv': 'combined-install',
+    'acpi': 'acpi-install',
+    'video': 'video-install',
+    'ac3': 'ac3-install',
+    'dual-audio': 'dual-install',
+    'aic8800': 'aic8800-install',
+    'be200': 'be200-install',
+    'dualsense': 'dualsense-install',
+    'xbox-adapter': 'xbox-adapter-install',
+    'cec-retrain': 'cec-install',
+}
+USER_COMPONENTS = frozenset({'ac3', 'dual-audio'})
+INSTALL_RECORD = 'installed-builds.json'
+
+
+def build_id(root: Path) -> str:
+    for relative in ('etc/os-release', 'usr/lib/os-release'):
+        path = root / relative
+        if not path.is_file():
+            continue
+        for line in read_toolkit_text(path).splitlines():
+            if line.startswith('BUILD_ID='):
+                try:
+                    value, = shlex.split(line[len('BUILD_ID='):])
+                except ValueError:
+                    return ''
+                return value
+        break
+    return ''
+
+
+def read_install_record(state_root: Path) -> dict:
+    path = state_root / INSTALL_RECORD
+    try:
+        info = path.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
+            return {}
+        data = json.loads(read_toolkit_text(path))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def tracked_evidence(components: dict, graphics: dict) -> dict[str, bool | None]:
+    return {**components, 'amdgpu': graphics.get('kernel_override_installed'),
+            'radv': None if graphics.get('state') == 'unknown' else graphics.get('state') == 'configured'}
+
+
+def record_scope(component: str, uid: int) -> str:
+    return f'{uid}/{component}' if component in USER_COMPONENTS else component
+
+
+def lost_after_update(record: dict, current: str, evidence: dict, uid: int) -> list[dict[str, str]]:
+    if not current:
+        return []
+    lost = []
+    for component, default_action in RESTORE_ACTIONS.items():
+        installed = record.get(record_scope(component, uid))
+        if not isinstance(installed, dict) or evidence.get(component) is not False:
+            continue
+        old = installed.get('build')
+        action = installed.get('action')
+        allowed = {default_action, 'aic8800-legacy-install'} if component == 'aic8800' else {default_action}
+        if isinstance(old, str) and old and old != current and isinstance(action, str) and action in allowed:
+            lost.append({'component': component, 'installed_build': old, 'action': action})
+    return lost
+
+
+def toolkit_restore_actions(losses: list[dict[str, str]]) -> tuple[str, ...]:
+    """Keep dependency order and use an existing install action once."""
+    candidates = {item.get("component"): item.get("action") for item in losses}
+    actions = []
+    for component, default in RESTORE_ACTIONS.items():
+        action = candidates.get(component)
+        if action == default or component == "aic8800" and action == "aic8800-legacy-install":
+            actions.append(action)
+    return tuple(dict.fromkeys(actions))

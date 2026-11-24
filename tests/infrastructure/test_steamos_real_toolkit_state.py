@@ -229,3 +229,43 @@ def test_fsr4_proton_readiness_is_the_toolkits_own_check(tmp_path, environment, 
     _write(tmp_path, 'etc/environment', environment)
     state = probe_real_toolkit(root=tmp_path, home=tmp_path / 'home', kernel='fixture')
     assert state['proton']['radv_ready'] is ready
+
+
+def test_build_change_reports_only_previously_installed_missing_components(tmp_path, monkeypatch):
+    from bc250cc.infrastructure import steamos_real_toolkit as provider
+
+    _write(tmp_path, 'etc/os-release', 'ID=steamos\nBUILD_ID="new-build"\n')
+    _write(tmp_path, 'var/lib/bc250-acpi-fix/acpi_override.cpio', 'fixture')
+    _write(tmp_path, 'etc/systemd/system/bc250-acpi-heal.service', 'fixture')
+    monkeypatch.setattr('bc250cc.infrastructure.steamos_real_toolkit_state.read_install_record', lambda _: {
+        'amdgpu': {'build': 'old-build', 'action': 'combined-install'},
+        'radv': {'build': 'new-build', 'action': 'combined-install'},
+        'acpi': {'build': 'old-build', 'action': 'acpi-install'},
+        provider.record_scope('dual-audio', 0): {'build': 'old-build', 'action': 'dual-install'},
+    })
+    monkeypatch.setattr(provider.os, 'getuid', lambda: 1000)
+    state = probe_real_toolkit(root=tmp_path, home=tmp_path / 'home/user', kernel='fixture')
+    assert state['build_id'] == 'new-build'
+    assert state['lost_after_update'] == [
+        {'component': 'amdgpu', 'installed_build': 'old-build', 'action': 'combined-install'},
+    ]
+
+
+def test_install_record_ignores_symlinks_and_captures_each_new_component(tmp_path, monkeypatch):
+    import json
+
+    from bc250cc.infrastructure import steamos_real_toolkit as provider
+    from bc250cc.infrastructure import steamos_real_toolkit_runtime as runtime
+
+    path = tmp_path / provider.INSTALL_RECORD
+    record = {'acpi': {'build': 'earlier', 'action': 'acpi-install'}}
+    (tmp_path / 'outside').write_text(json.dumps(record))
+    path.symlink_to('outside')
+    assert provider.read_install_record(tmp_path) == {}
+    monkeypatch.setattr(provider, 'read_install_record', lambda _: record)
+    runtime._update_install_record(tmp_path, 'combined-install', 'current', 1000,
+                                   {'amdgpu': False, 'radv': False}, {'amdgpu': True, 'radv': False})
+    assert not path.is_symlink()
+    assert json.loads(path.read_text()) == {
+        **record, 'amdgpu': {'build': 'current', 'action': 'combined-install'},
+    }

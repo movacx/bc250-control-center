@@ -94,3 +94,86 @@ def test_successful_bulk_revert_preserves_order_and_final_cleanup():
 def test_changed_bulk_revert_contract_cannot_skip_error_propagation():
     with pytest.raises(ValueError, match='bulk revert'):
         adapt_revert_all('run_revert_all() {\n    unknown_new_component\n}\n')
+
+
+def test_recovery_checks_target_file_and_all_parents(tmp_path):
+    import os
+
+    from bc250cc.infrastructure.steamos_real_toolkit_recovery import (
+        RECOVERY_UNIT,
+        unsafe_recovery,
+    )
+
+    target = tmp_path / 'home/deck/.bc250-toolkit/bc250-recovery-ctl.sh'
+    target.parent.mkdir(parents=True)
+    target.write_text('fixture')
+    unit = tmp_path / 'etc/systemd/system' / RECOVERY_UNIT
+    unit.parent.mkdir(parents=True)
+    unit.write_text('[Service]\nExecStart=/home/deck/.bc250-toolkit/bc250-recovery-ctl.sh revert\n')
+    assert unsafe_recovery(tmp_path, trusted_uid=os.getuid()) == ()
+    target.parent.chmod(0o775)
+    assert unsafe_recovery(tmp_path, trusted_uid=os.getuid()) == (str(target),)
+    target.parent.chmod(0o755)
+    target.chmod(0o666)
+    assert unsafe_recovery(tmp_path, trusted_uid=os.getuid()) == (str(target),)
+
+
+def test_recovery_refuses_before_the_upstream_install_body():
+    from bc250cc.infrastructure.steamos_real_toolkit_recovery import (
+        RECOVERY_REFUSAL,
+        refuse_unsafe_install,
+    )
+
+    source = 'install_recovery_entries() { echo WROTE_BOOT_ENTRY; }\ninstall_recovery_entries\n'
+    result = subprocess.run(['bash', '-s'], input=refuse_unsafe_install(source),
+                            capture_output=True, text=True, timeout=5)
+    assert result.returncode == 1
+    assert not result.stdout
+    assert RECOVERY_REFUSAL in result.stderr
+
+
+def test_recovery_catches_writable_intermediate_symlink_directory(tmp_path):
+    import os
+
+    from bc250cc.infrastructure import steamos_real_toolkit_recovery as recovery
+
+    real = tmp_path / 'protected'
+    real.mkdir()
+    (real / 'helper').write_text('fixture')
+    unsafe = tmp_path / 'writable'
+    unsafe.mkdir(mode=0o777)
+    unsafe.chmod(0o777)
+    (unsafe / 'proxy').symlink_to(real / 'helper')
+    grub = tmp_path / recovery.RECOVERY_GRUB
+    grub.parent.mkdir(parents=True)
+    grub.symlink_to(unsafe / 'proxy')
+    assert recovery.unsafe_recovery(tmp_path, trusted_uid=os.getuid()) == (str(grub),)
+
+
+def test_boot_path_can_be_created_only_under_trusted_directories(tmp_path):
+    import os
+
+    from bc250cc.infrastructure import steamos_real_toolkit_recovery as recovery
+
+    var = tmp_path / 'var'
+    data = tmp_path / 'data'
+    data.mkdir()
+    var.symlink_to(data)
+    paths = ('var/helper',)
+    assert not recovery.unsafe_boot_paths(tmp_path, paths, trusted_uid=os.getuid())
+    data.chmod(0o777)
+    assert recovery.unsafe_boot_paths(tmp_path, paths, trusted_uid=os.getuid())
+
+
+def test_existing_boot_service_cannot_switch_to_an_untrusted_target(tmp_path):
+    import os
+
+    from bc250cc.infrastructure import steamos_real_toolkit_recovery as recovery
+
+    unit = tmp_path / 'etc/systemd/system/fixture.service'
+    unit.parent.mkdir(parents=True)
+    unit.write_text('[Service]\nExecStart=/usr/bin/true\nExecStop=/home/player/handoff\n')
+    paths = ('etc/systemd/system/fixture.service', 'usr/bin/true')
+    assert recovery.unsafe_boot_paths(tmp_path, paths, trusted_uid=os.getuid())
+    unit.write_text('[Service]\nExecStart=/usr/bin/true\n')
+    assert not recovery.unsafe_boot_paths(tmp_path, paths, trusted_uid=os.getuid())

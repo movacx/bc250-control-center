@@ -17,11 +17,11 @@ REVISION = '0123456789abcdef0123456789abcdef01234567'
 
 def _fixture():
     functions = "\n".join(f'{a.function}() {{ printf "%s:%s\\n" {a.key} "$AUTO"; }}'
-                          for a in toolkit.ACTIONS)
+                          for a in toolkit.ACTIONS + toolkit.DIRECT_ACTIONS)
     # The recovery flag still runs upstream's bulk revert, which we do not expose as a row.
     functions += '\nrun_revert_all() {\n' + ''.join('    ' + step + '\n' for step in REVERT_ALL_STEPS) + '}\n'
     extra = '\n'.join(f'{name}() {{ :; }}' for name in toolkit.GUARDED_FUNCTIONS
-                      if name not in {a.function for a in toolkit.ACTIONS} | {'run_revert_all'})
+                      if name not in {a.function for a in toolkit.ACTIONS + toolkit.DIRECT_ACTIONS} | {'run_revert_all'})
     return ("#!/bin/bash\nset -euo pipefail\n" + functions + '\n' + extra +
             '\nensure_desktop_shortcut() { :; }\n' + toolkit._GUARD_BOUNDARY +
             'if [[ "${1:-}" == --revert-all ]]; then\n    AUTO=1\n' + REVERT_FLAG_BODY + 'fi\n' +
@@ -32,7 +32,7 @@ def _fixture():
 def test_each_action_dispatches_without_automatically_answering_prompts(action, tmp_path, monkeypatch):
     monkeypatch.setattr(toolkit, 'CONFLICT_CHECK_COMMAND', ('/usr/bin/true',))
     functions = "\n".join(f'{a.function}() {{ printf "%s:%s\\n" {a.key} "$AUTO"; }}'
-                          for a in toolkit.ACTIONS)
+                          for a in toolkit.ACTIONS + toolkit.DIRECT_ACTIONS)
     command = 'set -euo pipefail\n' + functions + '\n' + toolkit.dispatch_shell()
     if action.key == 'launch-coach-install':
         command = ('REAL_USER=fixture; SCRIPT_DIR=/fixture; '
@@ -242,3 +242,34 @@ def test_an_archive_without_the_vendored_tree_is_refused_before_anything_runs(tm
     with pytest.raises(ValueError, match='bc250_smu_oc'):
         toolkit.prepare_snapshot(archive, tmp_path / 'snapshot', REVISION)
     assert not (tmp_path / 'snapshot').exists()
+
+
+@pytest.mark.parametrize('key, function', [
+    ('aic8800-install', 'install_aic8800_wifi'),
+    ('be200-remove', 'run_revert_be200_firmware'),
+    ('dualsense-chords-install', 'run_install_ds5_chord_vdf'),
+    ('xbox-adapter-status', 'xbox_adapter_status_label'),
+    ('recovery-remove', 'uninstall_recovery_entries'),
+    ('cec-install', 'install_cec_retrain'),
+])
+def test_direct_actions_call_one_upstream_function_with_no_menu_choice(key, function):
+    script = f'{function}() {{ printf "%s:%s:%s\\n" {function} "$#" "$AUTO"; }}\n' + toolkit.dispatch_shell()
+    result = subprocess.run(['bash', '-c', script, 'adapter', '--bc250cc-action', key],
+                            capture_output=True, text=True, timeout=5)
+    assert result.returncode == 0
+    assert result.stdout.strip() == f'{function}:0:0'
+
+
+@pytest.mark.parametrize('function', ['be200_firmware_installed', 'recovery_entries_installed', 'revert_cec_retrain'])
+def test_new_direct_functions_cannot_disappear_from_the_archive(function):
+    source = _fixture().replace(f'{function}()'.encode(), b'different_name()')
+    with pytest.raises(ValueError, match=function):
+        toolkit.prepare_entrypoint(source)
+
+
+def test_status_predicate_reports_an_absent_component_as_a_successful_check():
+    result = subprocess.run(['bash', '-c', 'aic8800_installed() { return 1; }\n' + toolkit.dispatch_shell(),
+                             'adapter', '--bc250cc-action', 'aic8800-status'],
+                            capture_output=True, text=True, timeout=5)
+    assert result.returncode == 0
+    assert result.stdout == 'Not installed\n'

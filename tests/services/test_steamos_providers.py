@@ -25,3 +25,23 @@ def test_the_closed_action_sets_come_from_the_adapters():
     assert 'proton-install' in providers.real_toolkit_action_keys()
     assert 'graphics-install' in providers.alternative_action_keys()
     assert set(providers.alternative_action_keys()) == set(providers.ALTERNATIVE_ACTIONS)
+
+
+def test_restore_plan_queues_each_existing_install_once_in_dependency_order():
+    assert providers.toolkit_restore_actions([
+        {'component': 'ac3', 'action': 'ac3-install'},
+        {'component': 'radv', 'action': 'combined-install'},
+        {'component': 'amdgpu', 'action': 'combined-install'},
+        {'component': 'aic8800', 'action': 'aic8800-legacy-install'},
+        {'component': 'acpi', 'action': 'acpi-revert'},
+    ]) == ('combined-install', 'ac3-install', 'aic8800-legacy-install')
+
+
+def test_ownership_identifies_providers_from_their_distinct_evidence():
+    toolkit = {'graphics': {'state': 'configured', 'kernel_override_installed': True},
+               'components': {'acpi': True, 'cpu': True},
+               'native_ownership': {'cpu': ['/etc/native-cpu']}}
+    alternative = {'kernel': {'installed': True}}
+    assert providers.steamos_ownership(toolkit, alternative) == {
+        'real-toolkit': ('acpi', 'radv'), 'keyboardspecialist': ('amdgpu',), 'native': ('cpu',),
+    }

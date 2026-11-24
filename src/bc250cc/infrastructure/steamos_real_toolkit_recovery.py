@@ -3,6 +3,133 @@ from __future__ import annotations
 
 import re
 import shlex
+import stat
+from collections import deque
+from pathlib import Path
+
+RECOVERY_UNIT = 'bc250-recovery-revert.service'
+RECOVERY_GRUB = 'etc/grub.d/42_bc250-recovery'
+RECOVERY_REFUSAL = 'Toolkit recovery installs a boot script that the desktop user can change. Installation and repair are blocked.'
+RECOVERY_UNSAFE = 'An unsafe Toolkit recovery entry is installed.'
+RECOVERY_REMOVE = (
+    'Have an administrator disable bc250-recovery-revert.service, remove its unit and '
+    '/etc/grub.d/42_bc250-recovery, then regenerate GRUB.'
+)
+
+
+def _protected_path(path: Path, root: Path, trusted_uid: int, *, allow_missing: bool = False) -> bool:
+    """Follow links one at a time so a writable intermediate path is caught."""
+    try:
+        info = root.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != trusted_uid or info.st_mode & 0o022:
+            return False
+        remaining: deque[str | None] = deque(path.relative_to(root).parts)
+        current = root
+        links = 0
+        resolving_link = 0
+        while remaining:
+            part = remaining.popleft()
+            if part is None:
+                resolving_link -= 1
+                continue
+            if part == '..':
+                if current == root:
+                    return False
+                current = current.parent
+                continue
+            name = current / part
+            try:
+                info = name.lstat()
+            except FileNotFoundError:
+                return allow_missing and not resolving_link
+            if info.st_uid != trusted_uid:
+                return False
+            if stat.S_ISLNK(info.st_mode):
+                links += 1
+                if links > 40:
+                    return False
+                target = name.readlink()
+                if target.is_absolute():
+                    target = target.relative_to(root)
+                    current = root
+                remaining.appendleft(None)
+                remaining.extendleft(reversed(target.parts))
+                resolving_link += 1
+            elif info.st_mode & 0o022 or any(item is not None for item in remaining) and not stat.S_ISDIR(info.st_mode):
+                return False
+            else:
+                current = name
+        return stat.S_ISREG(current.lstat().st_mode)
+    except (OSError, ValueError):
+        return False
+
+
+def unsafe_grub_recovery(root: Path = Path('/'), *, trusted_uid: int = 0) -> bool:
+    path = root / RECOVERY_GRUB
+    return (path.exists() or path.is_symlink()) and not _protected_path(path, root, trusted_uid)
+
+
+def unsafe_boot_paths(root: Path, paths: tuple[str, ...], *, trusted_uid: int = 0) -> bool:
+    """An installer may create a missing target under protected directories."""
+    for relative in paths:
+        path = root / relative
+        if not _protected_path(path, root, trusted_uid, allow_missing=True):
+            return True
+        if not relative.endswith('.service') or not path.is_file():
+            continue
+        try:
+            with path.open(encoding='utf-8') as unit:
+                contents = unit.read(65537)
+            commands = re.findall(r'^\s*Exec[A-Za-z]+\s*=\s*([^\s]+)', contents, re.MULTILINE)
+            if len(contents) > 65536 or any(command.strip('"\'') not in {'/' + item for item in paths}
+                                             for command in commands):
+                return True
+            if any(path.with_name(path.name + '.d').glob('*.conf')):
+                return True
+        except (OSError, UnicodeError):
+            return True
+    return False
+
+
+def unsafe_recovery(root: Path = Path('/'), *, trusted_uid: int = 0) -> tuple[str, ...]:
+    """Find existing recovery paths that cannot be trusted to run as root."""
+    unsafe = [str(root / RECOVERY_GRUB)] if unsafe_grub_recovery(root, trusted_uid=trusted_uid) else []
+    for directory in ('etc/systemd/system', 'run/systemd/system', 'usr/lib/systemd/system'):
+        base = root / directory
+        dropins = base / (RECOVERY_UNIT + '.d')
+        for dropin in sorted(dropins.glob('*.conf')):
+            # A drop-in can substitute executable commands for the ones below.
+            unsafe.append(str(dropin))
+        for unit in (base / RECOVERY_UNIT, base / 'multi-user.target.wants' / RECOVERY_UNIT):
+            if not (unit.exists() or unit.is_symlink()):
+                continue
+            if not _protected_path(unit, root, trusted_uid):
+                unsafe.append(str(unit))
+                continue
+            try:
+                commands = [shlex.split(value) for key, _, value in
+                            (line.strip().partition('=') for line in unit.read_text().splitlines())
+                            if key.strip().startswith('Exec')]
+                if (len(commands) != 1 or len(commands[0]) != 2 or commands[0][1] != 'revert'
+                        or not commands[0][0].startswith('/') or '..' in Path(commands[0][0]).parts):
+                    unsafe.append(str(unit))
+                    continue
+                target = root / commands[0][0].lstrip('/')
+                if not _protected_path(target, root, trusted_uid):
+                    unsafe.append(str(target))
+            except (OSError, UnicodeError, ValueError):
+                unsafe.append(str(unit))
+    return tuple(dict.fromkeys(unsafe))
+
+
+def refuse_unsafe_install(text: str) -> str:
+    pattern = r'^install_recovery_entries\(\)(\s*\{)'
+    text, count = re.subn(pattern, lambda match: 'install_recovery_entries()' + match[1]
+                         + '\n    printf "%s\\n" ' + shlex.quote(RECOVERY_REFUSAL) + ' >&2\n'
+                         + '    return 1\n', text, flags=re.MULTILINE)
+    if count != 1:
+        raise ValueError('Real Toolkit recovery install contract changed')
+    return text
 
 REVERT_ALL_STEPS = (
     'run_revert_cpu_governor', 'run_revert_gpu_governor',

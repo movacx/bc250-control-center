@@ -37,7 +37,7 @@ def launch(tmp_path, monkeypatch):
         target = installed / relative
         target.write_bytes((ROOT / source).read_bytes())
         target.chmod(mode)
-    names = {action.function for action in provider.ACTIONS} | set(provider.GUARDED_FUNCTIONS)
+    names = {action.function for action in provider.ACTIONS + provider.DIRECT_ACTIONS} | set(provider.GUARDED_FUNCTIONS)
     functions = []
     for name in sorted(names):
         if name == 'run_revert_all':
@@ -402,3 +402,29 @@ def test_the_launcher_command_checks_for_a_sudo_password_first_and_is_valid_shel
     script = tmp_path / 'launch.sh'
     script.write_text('#!/bin/bash\n' + command + '\n')
     assert subprocess.run(['bash', '-n', str(script)], capture_output=True).returncode == 0
+
+
+@pytest.mark.parametrize('status, expected', [(0, 'combined-install'), (1, None), (78, 'combined-try-anyway')])
+def test_unprivileged_preflight_controls_whether_the_password_is_requested(tmp_path, monkeypatch, status, expected):
+    import zipfile
+
+    monkeypatch.setattr(provider, 'INSTALLED_RUNTIME_ROOT', tmp_path)
+    monkeypatch.setattr(provider, 'STEAMOS_PASSWORD_GUARD', 'bc250_require_password() { echo PASSWORD; }')
+    (tmp_path / 'lib').mkdir()
+    with zipfile.ZipFile(tmp_path / 'lib/bc250_steamos_toolkit_runtime.zip', 'w') as bundle:
+        bundle.writestr('bc250cc/__init__.py', '')
+        bundle.writestr('bc250cc/infrastructure/__init__.py', '')
+        bundle.writestr('bc250cc/infrastructure/steamos_real_toolkit_runtime.py',
+                        f'def show_preflight(action):\n    print("PREFLIGHT")\n    return {status}\n')
+    command = 'sudo() { printf "%s\\n" "${@: -1}"; }\n' + provider.launch_command('combined-install')
+    result = subprocess.run(['bash', '-c', command], capture_output=True, text=True, timeout=5)
+    assert result.stdout.splitlines() == (['PREFLIGHT', 'PASSWORD', expected] if expected else ['PREFLIGHT'])
+    assert result.returncode == (0 if expected else status)
+
+
+def test_root_refuses_a_known_bad_combined_build_before_preparing_sources(launch):
+    launch.monkeypatch.setattr(provider, 'known_combined_failure', lambda _: True)
+    with pytest.raises(RuntimeError, match='glibc 2.44'):
+        runtime.run_action('combined-install')
+    assert not launch.lookups
+    assert not launch.trace.exists()

@@ -15,11 +15,22 @@ import tempfile
 import time
 import urllib.request
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 from . import steamos_real_toolkit as provider
 from . import steamos_root_guard as guard
 from .hardware_identity import require_bc250_hardware
+from .steamos_graphics_ownership import graphics_conflicts
+from .steamos_real_toolkit_recovery import (
+    RECOVERY_REFUSAL,
+    RECOVERY_REMOVE,
+    RECOVERY_UNSAFE,
+    unsafe_boot_paths,
+    unsafe_grub_recovery,
+    unsafe_recovery,
+)
+from .steamos_toolkit_conflicts import native_conflicts
 
 STATE_ROOT = provider.STATE_ROOT
 READONLY_COMMAND = '/usr/bin/steamos-readonly'
@@ -243,7 +254,7 @@ def prepare_state_root(path: Path) -> None:
 
 
 def require_source_space(path: Path) -> None:
-    if shutil.disk_usage(path).free < 768 * 1024**2:
+    if shutil.disk_usage(path).free < provider.SOURCE_SPACE_MIB * 1024**2:
         raise RuntimeError('Real Toolkit source preparation needs at least 768 MiB free on /home. '
                            'Kernel and Mesa builds require additional space.')
 
@@ -549,10 +560,305 @@ def _require_prerequisites(action: str) -> None:
                            'Install them from Kernel and Mesa, restart, and try again.')
 
 
+_KERNEL_BUILDS = frozenset({
+    'combined-install', 'aic8800-install', 'aic8800-legacy-install',
+    'dualsense-install', 'xbox-adapter-install',
+})
+_FULL_KERNEL_FALLBACK = _KERNEL_BUILDS - {'xbox-adapter-install'}
+_DOWNLOAD_HOSTS = {
+    'combined-install': 'steamdeck-packages.steamos.cloud',
+    'acpi-install': 'raw.githubusercontent.com',
+    'be200-install': 'deb.debian.org',
+    'video-install': 'github.com', 'proton-install': 'github.com',
+    'aic8800-install': 'steamdeck-packages.steamos.cloud',
+    'aic8800-legacy-install': 'steamdeck-packages.steamos.cloud',
+    'dualsense-install': 'steamdeck-packages.steamos.cloud',
+    'xbox-adapter-install': 'steamdeck-packages.steamos.cloud',
+    'openlinkhub-install': 'aur.archlinux.org',
+}
+_OPTIONAL_DOWNLOADS = {
+    'ac3-install', 'dual-install', 'cec-setup', 'cec-install', 'keyring',
+    'aic8800', 'be200', 'dualsense', 'xbox-adapter', 'cec',
+}
+_MIB = 1024**2
+_GIB = 1024**3
+_BOOT_TARGETS = {
+    'acpi-install': ('etc/systemd/system/bc250-acpi-heal.service',
+                     'etc/systemd/system/bc250-cpufreq.service', 'bin/bash'),
+    'cec-install': ('etc/systemd/system/bc250-cec.service', 'usr/lib/bc250-cec/bc250-cec-daemon.sh'),
+}
+_CEC_BOOT_TARGETS = ('etc/systemd/system/bc250-cec-poweroff-standby.service',
+                     'var/lib/bc250-control/helper/bc250-cec-poweroff-standby', 'usr/bin/true')
+_BOOT_UNSAFE = 'A boot unit or helper could not be verified as root-controlled.'
+_BOOT_FIX = 'Have an administrator inspect the boot unit and its helper.'
+
+
+@dataclass(frozen=True)
+class PreflightLine:
+    label: str
+    result: str
+    fix: str = ''
+    blocks: bool = False
+    can_override: bool = False
+
+
+def _reachable(host: str) -> bool:
+    try:
+        request = urllib.request.Request('https://' + host, method='HEAD')
+        with urllib.request.urlopen(request, timeout=3):
+            return True
+    except urllib.error.HTTPError:
+        return True
+    except OSError:
+        return False
+
+
+def _preflight_space(actions: tuple[str, ...], root: Path) -> list[PreflightLine]:
+    combined = 'combined-install' in actions
+    lines = []
+    for mount, minimum, required in (
+        ('/', None, 'Required space unknown.'),
+        ('/var', 99 * _MIB + 1 if combined else guard.VAR_REFUSE_MB * _MIB,
+         'Upstream requires 100 MiB as reported by df.' if combined else
+         'The launcher requires 40 MiB. Additional space required is unknown.'),
+        ('/home', 4 * _GIB + 1 if combined else provider.SOURCE_SPACE_MIB * _MIB,
+         'Upstream requires 5 GiB as reported by df.' if combined else
+         'Source preparation requires 768 MiB. Additional space required is unknown.'),
+    ):
+        try:
+            stats = os.statvfs(root / mount.lstrip('/'))
+            free = stats.f_bavail * stats.f_frsize
+        except OSError:
+            lines.append(PreflightLine(mount, 'Free space unknown.', 'Check free space before continuing.'))
+            continue
+        # GNU df rounds available whole units up. Match the upstream gates.
+        blocks = minimum is not None and free < minimum
+        if mount == '/':
+            low = free < guard.ROOT_WARN_MB * _MIB
+            fix = 'Free system partition space before installing packages.'
+        elif mount == '/var':
+            low = free < guard.VAR_WARN_MB * _MIB
+            fix = 'Use Free /var space in Preparation.'
+        else:
+            low = False
+            fix = 'Free space on /home and try again.'
+            if _FULL_KERNEL_FALLBACK.intersection(actions):
+                required += ' The full kernel build fallback defaults to 40 GiB.'
+                low = free < 40 * _GIB
+                if not blocks:
+                    fix = 'Free more space if matching headers are unavailable.'
+        lines.append(PreflightLine(mount, f'{free // _MIB} MiB free. {required}', fix if blocks or low else '', blocks))
+    return lines
+
+
+def preflight(action: str, *, root: Path = Path('/'), home: Path | None = None,
+              kernel: str | None = None, uid: int | None = None) -> tuple[PreflightLine, ...]:
+    """Read prerequisites without changing the system or starting the toolkit."""
+    provider.action_for(action)
+    home = Path.home() if home is None else home
+    kernel = platform.release() if kernel is None else kernel
+    state_root = root / provider.STATE_ROOT.relative_to('/')
+    actions = (action,)
+    if action == provider.PUT_BACK:
+        losses = _pending_restore(state_root, root, home, kernel, os.getuid() if uid is None else uid)
+        actions = provider.toolkit_restore_actions(losses)
+        if not actions:
+            return (PreflightLine('SteamOS update', 'No recorded Toolkit components need to be restored.', blocks=True),)
+    lines = []
+    try:
+        cached = _cached_revision(state_root) is not None
+    except OSError:
+        cached = False
+    hosts = set()
+    if not cached:
+        hosts.update(('api.github.com', 'codeload.github.com'))
+    for item in actions:
+        if item in _DOWNLOAD_HOSTS:
+            hosts.add(_DOWNLOAD_HOSTS[item])
+        elif item in _OPTIONAL_DOWNLOADS:
+            hosts.add('steamdeck-packages.steamos.cloud')
+    if hosts:
+        unreachable = [host for host in sorted(hosts) if not _reachable(host)]
+        result = 'Cannot reach {hosts}.'.format(hosts=', '.join(unreachable)) if unreachable else 'Reachable.'
+        lines.append(PreflightLine('Network', result,
+                                  'Check your connection and try again if a download fails.' if unreachable else ''))
+    lines.extend(_preflight_space(actions, root))
+    if _KERNEL_BUILDS.intersection(actions):
+        series = provider.kernel_series(kernel)
+        unsupported = series is not None and series < (7, 2)
+        lines.append(PreflightLine('Kernel', kernel,
+                                  'Update SteamOS to a kernel supported by the toolkit (7.2 or newer).'
+                                  if unsupported else 'Check upstream kernel support.' if series != (7, 2) else '',
+                                  unsupported))
+    if _KERNEL_BUILDS.intersection(actions):
+        available = (root / 'usr/lib/modules' / kernel / 'build/Makefile').is_file()
+        lines.append(PreflightLine('Kernel headers', 'Installed.' if available else
+                                  'Not installed. Download availability is unknown.',
+                                  '' if available else 'Check that matching headers are available for this SteamOS build.'))
+    if 'combined-install' in actions and provider.known_combined_failure(kernel):
+        lines.append(PreflightLine('Build tools', provider.COMBINED_GLIBC_REASON,
+                                  provider.COMBINED_NATIVE_ROUTE, True, True))
+    if 'ac3-install' in actions and 'combined-install' not in actions and not combined_module_active(root, kernel):
+        lines.append(PreflightLine('Graphics module', 'The Combined Fix module is missing.',
+                                  'Install the Combined Fix and restart first.', True))
+    if 'proton-install' in actions:
+        try:
+            environment = (root / 'etc/environment').read_text(encoding='utf-8')
+        except FileNotFoundError:
+            environment = ''
+        except (OSError, UnicodeError):
+            environment = None
+        if environment is not None and not ('VK_DRIVER_FILES' in environment and 'bc250-gfx1013' in environment):
+            lines.append(PreflightLine('Mesa / RADV', 'The Toolkit RADV configuration is missing.',
+                                      'Install Kernel and Mesa · GFX1013 first.', True))
+    ownership_lines = [_preflight_ownership(item, root, home, kernel) for item in actions]
+    failures = [line for line in ownership_lines if line.fix]
+    lines.extend(dict.fromkeys(failures or ownership_lines[:1]))
+    for recovery in dict.fromkeys(filter(None, (_recovery_block(item, root) for item in actions))):
+        fix = {RECOVERY_UNSAFE: RECOVERY_REMOVE, _BOOT_UNSAFE: _BOOT_FIX}.get(
+            recovery, 'Use the built-in SteamOS recovery options.')
+        lines.append(PreflightLine('Boot recovery', recovery, fix, True))
+    running = guard.session_running(guard.read_session(state_root))
+    lines.append(PreflightLine('Toolkit session', 'Running.' if running else 'Idle.',
+                              'Wait for the current session to finish.' if running else ''))
+    reading = guard.read_root(attempts=1, timeout=3)
+    known = reading.state in guard.KNOWN
+    lines.append(PreflightLine('SteamOS read-only mode', {'enabled': 'Protected.', 'disabled': 'Writable.'}
+                               .get(reading.state, 'Unknown.'),
+                               '' if known else 'Check SteamOS read-only status and try again.',
+                               reading.state == guard.UNAVAILABLE))
+    return tuple(lines)
+
+
+def _preflight_ownership(action: str, root: Path, home: Path, kernel: str) -> PreflightLine:
+    component = provider.guarded_component(action)
+    try:
+        conflicts = (graphics_conflicts('real-toolkit', root=root, home=home, kernel=kernel,
+                                        all_kernels=action == 'combined-revert') if component == 'graphics'
+                     else native_conflicts(component, root, home=home) if component else ())
+    except (OSError, ValueError):
+        return PreflightLine('Ownership', 'Unknown.', 'Check who installed this component.')
+    else:
+        return PreflightLine('Ownership', ', '.join(conflicts) if conflicts else 'Clear.',
+                                  'Remove the component with its original provider and restart first.' if conflicts else '',
+                                  bool(conflicts))
+
+
+def show_preflight(action: str) -> int:
+    try:
+        lines = preflight(action)
+    except (OSError, ValueError):
+        print('Toolkit preflight could not read system status. Check file permissions and try again.', file=sys.stderr)
+        return 1
+    print('SteamOS Real Toolkit preflight', flush=True)
+    for line in lines:
+        level = 'Blocked' if line.blocks else 'Warning' if line.fix else 'OK'
+        print(f'{level} | {line.label} | {line.result}' + (f' {line.fix}' if line.fix else ''), flush=True)
+    if any(line.blocks and not line.can_override for line in lines):
+        return 1
+    if any(line.can_override for line in lines):
+        try:
+            answer = input('Type "try anyway" to continue: ')
+        except EOFError:
+            return 1
+        return provider.OVERRIDE_STATUS if answer.strip().lower() == 'try anyway' else 1
+    return 0
+
+
+def _recovery_block(action: str, root: Path = Path('/')) -> str:
+    if action == 'recovery-install':
+        return RECOVERY_REFUSAL
+    if action in {'recovery', 'recovery-toggle', 'recovery-timeout'} and unsafe_recovery(root):
+        return RECOVERY_UNSAFE
+    if action in {'recovery-remove', 'acpi-install', 'acpi-revert', 'combined-install', 'combined-revert'}:
+        if unsafe_grub_recovery(root):
+            return RECOVERY_UNSAFE
+    targets = _BOOT_TARGETS.get({'acpi-revert': 'acpi-install', 'cec': 'cec-install',
+                                 'cec-remove': 'cec-install'}.get(action, action), ())
+    if action in {'cec', 'cec-setup', 'cec-poweroff-install', 'cec-poweroff-remove'}:
+        targets += _CEC_BOOT_TARGETS
+    if targets and unsafe_boot_paths(root, targets):
+        return _BOOT_UNSAFE
+    return ''
+
+
+_REMOVED_COMPONENTS = {
+    'combined-revert': ('amdgpu', 'radv'),
+    'acpi-revert': ('acpi',), 'video-revert': ('video',),
+    'ac3-revert': ('ac3',), 'dual-revert': ('dual-audio', 'ac3'),
+    'aic8800-remove': ('aic8800',), 'be200-remove': ('be200',),
+    'dualsense-remove': ('dualsense',), 'xbox-adapter-remove': ('xbox-adapter',), 'cec-remove': ('cec-retrain',),
+}
+
+
+def _installation_evidence(root: Path, home: Path, kernel: str) -> dict:
+    return provider.tracked_evidence(provider.component_evidence(root, home, kernel),
+                                     provider.graphics_evidence(root, kernel))
+
+
+def _pending_restore(state_root: Path, root: Path, home: Path, kernel: str, uid: int) -> list[dict[str, str]]:
+    return provider.lost_after_update(provider.read_install_record(state_root), provider.build_id(root),
+                                      _installation_evidence(root, home, kernel), uid)
+
+
+def _put_back(user: pwd.struct_passwd, *, override: bool) -> int:
+    root, home, kernel = Path('/'), Path(user.pw_dir), platform.release()
+    losses = _pending_restore(STATE_ROOT, root, home, kernel, user.pw_uid)
+    for action in provider.toolkit_restore_actions(losses):
+        if not any(item['action'] == action
+                   for item in _pending_restore(STATE_ROOT, root, home, kernel, user.pw_uid)):
+            continue
+        code = run_action(provider.COMBINED_OVERRIDE if action == 'combined-install' and override else action)
+        if code:
+            return code
+        if any(item['action'] == action
+               for item in _pending_restore(STATE_ROOT, root, home, kernel, user.pw_uid)):
+            _say('A component is still missing. The remaining Toolkit installs were paused.', error=True)
+            return 1
+    return 0
+
+
+def _installed_components(action: str) -> tuple[str, ...]:
+    if action == 'aic8800-legacy-install':
+        return ('aic8800',)
+    return tuple(component for component, install in provider.RESTORE_ACTIONS.items() if install == action)
+
+
+def _update_install_record(state_root: Path, action: str, build: str, uid: int,
+                           before: dict, after: dict) -> None:
+    record = provider.read_install_record(state_root)
+    updated = record.copy()
+    for component in _installed_components(action):
+        if build and before.get(component) is False and after.get(component) is True:
+            updated[provider.record_scope(component, uid)] = {'build': build, 'action': action}
+    removed = _REMOVED_COMPONENTS.get(action, ())
+    if action == 'dual-install':
+        removed = ('ac3',)
+    for component in removed:
+        if after.get(component) is False:
+            updated.pop(provider.record_scope(component, uid), None)
+    if updated == record:
+        return
+    handle, name = tempfile.mkstemp(prefix='.installed-builds-', dir=state_root)
+    try:
+        with os.fdopen(handle, 'w', encoding='utf-8') as output:
+            json.dump(updated, output)
+        os.chmod(name, 0o644)
+        os.replace(name, state_root / provider.INSTALL_RECORD)
+    finally:
+        Path(name).unlink(missing_ok=True)
+
+
 def run_action(action: str) -> int:
     """Root entrypoint, invoked only after an explicit terminal action."""
+    if action in {provider.PUT_BACK, provider.PUT_BACK_OVERRIDE}:
+        return _put_back(_require_invoking_user(), override=action == provider.PUT_BACK_OVERRIDE)
+    override = action == provider.COMBINED_OVERRIDE
+    action = 'combined-install' if override else action
     provider.action_for(action)
     user = _require_invoking_user()
+    if action == 'combined-install' and not override and provider.known_combined_failure(platform.release()):
+        raise RuntimeError(provider.COMBINED_GLIBC_REASON + ' ' + provider.COMBINED_NATIVE_ROUTE)
     os.environ['SUDO_USER'] = user.pw_name
     os.environ['AUTO'] = '0'
     prepare_state_root(STATE_ROOT)
@@ -560,9 +866,17 @@ def run_action(action: str) -> int:
     lock_fd = os.open(lock_path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     with os.fdopen(lock_fd, 'r+') as lock:
         _wait_for_lock(lock)
+        if recovery := _recovery_block(action):
+            fix = {RECOVERY_UNSAFE: RECOVERY_REMOVE, _BOOT_UNSAFE: _BOOT_FIX}.get(recovery, '')
+            raise RuntimeError(' '.join(filter(None, (recovery, fix))))
         _require_prerequisites(action)
         _preflight_root(action)
         require_source_space(STATE_ROOT)
+        track = bool(_installed_components(action) or action in _REMOVED_COMPONENTS)
+        if track:
+            root, home, kernel = Path('/'), Path(user.pw_dir), platform.release()
+            build = provider.build_id(root)
+            before = _installation_evidence(root, home, kernel)
         cache_guard_runtime(provider.INSTALLED_RUNTIME_ROOT, STATE_ROOT / 'runtime')
         # The note is written before the download: from here on the interface
         # must know which action holds the toolkit, not only once it runs.
@@ -593,6 +907,12 @@ def run_action(action: str) -> int:
         code = run_preserving_root_mode(['/usr/bin/bash', str(workspace / 'start.sh'),
                                          '--bc250cc-action', action], initial,
                                         on_restored=lambda: guard.clear_session(STATE_ROOT))
+        if track and code != provider.CONFLICT_STATUS:
+            try:
+                _update_install_record(STATE_ROOT, action, build, user.pw_uid, before,
+                                       _installation_evidence(root, home, kernel))
+            except OSError:
+                _say('Could not save the SteamOS build for this installation.', error=True)
         if code == 0:
             if initial == guard.PROTECTED:
                 _say('SteamOS read-only protection is on again. A SteamOS system update replaces what was '

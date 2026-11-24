@@ -13,7 +13,16 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
 
+from bc250cc.application.preparation.steamos_providers import steamos_ownership
 from bc250cc.application.system.cachyos_kernel import DEPENDENCY_NOTE
+from bc250cc.infrastructure.steamos_real_toolkit import (
+    COMBINED_GLIBC_REASON,
+    COMBINED_NATIVE_ROUTE,
+)
+from bc250cc.infrastructure.steamos_real_toolkit_recovery import (
+    RECOVERY_REMOVE,
+    RECOVERY_UNSAFE,
+)
 
 from ..core.feature_visibility import (
     FSR4_UI_ENABLED,
@@ -43,6 +52,17 @@ def _directmesh_version(tag: object) -> tuple[int, ...]:
 
 #: Hexxeh's kernel drivers (bc250-vrm, bc250-memory) listed on Compatibility.
 SENSOR_DRIVERS = frozenset({"vram_sensor", "vrm_sensor", "apu_telemetry"})
+
+_STEAMOS_COMPONENT_NAMES = {
+    "amdgpu": "AMDGPU module", "radv": "Mesa / RADV", "acpi": "ACPI power management",
+    "audio": "Audio", "ac3": "Dolby Digital · AC-3", "dual-audio": "Dual audio output",
+    "video": "Hardware video · VA-API", "recovery": "Boot recovery · GRUB", "proton": "Proton · FSR4",
+    "alternative-proton": "BC-250 GE-Proton", "xbox-adapter": "Xbox wireless adapter",
+    "aic8800": "AIC8800 · Wi-Fi / Bluetooth", "dualsense": "DualSense",
+    "cec": "HDMI-CEC", "cec-retrain": "CEC link retrain", "be200": "Intel BE200",
+    "cpu": "CPU governor", "gpu": "GPU governor", "cu": "Compute units", "cores": "Core unlock",
+    "fans": "Fans", "openlinkhub": "OpenLinkHub",
+}
 
 
 #: Games taken off the Upscaling table with their trash button, by key.
@@ -1172,6 +1192,30 @@ class PreparationRenderMixin:
             if card is not None:
                 card.set_scope(NATIVE_SCOPE)
 
+    def _render_steamos_provider_details(self, toolkit, alternative) -> None:
+        cards = self.real_toolkit_rows.cards
+        ownership = steamos_ownership(toolkit, alternative)
+        management = cards["verify"]
+        summary = [
+            tr_format("Files from {provider} were found for {components}.", provider=tr(name),
+                      components=", ".join(tr(_STEAMOS_COMPONENT_NAMES[key]) for key in ownership[provider]))
+            for provider, name in (("real-toolkit", "Real Toolkit"), ("keyboardspecialist", "keyboardspecialist"),
+                                   ("native", "BC250 Control Center")) if ownership[provider]
+        ]
+        if summary:
+            summary.append(tr("To switch providers, remove the component with its current provider, restart, then install it with the other provider."))
+        if missing := toolkit.get("lost_after_update"):
+            components = ", ".join(tr(_STEAMOS_COMPONENT_NAMES[item["component"]]) for item in missing)
+            summary.append(tr_format("Missing since the SteamOS update ({components}).", components=components))
+        if summary:
+            management.detail.setText(" ".join((management.detail.text(), *summary)))
+        if toolkit.get("unsafe_recovery"):
+            recovery = cards["recovery-remove"]
+            recovery.set_status("Unsafe recovery entry", "red")
+            recovery.detail.setText(" ".join((tr(RECOVERY_UNSAFE), tr(RECOVERY_REMOVE))))
+        if toolkit.get("combined_build_blocked") and not toolkit.get("foreign_graphics"):
+            cards["combined-install"].detail.setText(" ".join((tr(COMBINED_GLIBC_REASON), tr(COMBINED_NATIVE_ROUTE))))
+
     def _apply_compatibility_filter(self) -> None:
         self._restore_compatibility_preview_actions()
         actual = self._distribution_group(str(self._tools.get("os_family") or ""))
@@ -1650,14 +1694,17 @@ class PreparationRenderMixin:
         self.real_toolkit_rows.set_provider_state(real_toolkit)
         # Someone who installed with an earlier version has keyboardspecialist's kernel
         # fix and Mesa/RADV: show that on its own rows so it stays manageable.
-        self.steamos_alternative_rows.set_provider_state({
+        alternative = {
             **_mapping(gfx_state.get("steamos_alternative_graphics")),
             "kernel": {
                 "installed": bool(gfx_state.get("steamos_kernel_installed")),
                 "ready": bool(gfx_state.get("steamos_kernel_ready")),
                 "reboot_pending": bool(gfx_state.get("steamos_kernel_reboot_pending")),
             },
-        })
+        }
+        self.steamos_alternative_rows.set_provider_state(alternative)
+        if real_toolkit:
+            self._render_steamos_provider_details(real_toolkit, alternative)
         if reason_key == "steamos-dedicated-backend":
             proton = _mapping(real_toolkit.get("proton"))
             graphics_label, graphics_tone = gfx.status, gfx.tone

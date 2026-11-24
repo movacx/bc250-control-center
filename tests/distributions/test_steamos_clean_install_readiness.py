@@ -178,7 +178,8 @@ def test_steamos_graphics_status_uses_real_toolkit_verification(tmp_path, monkey
 def test_steamos_graphics_install_uses_the_combined_upstream_transaction(tmp_path, monkeypatch):
     repository = _repository(tmp_path, monkeypatch)
     command = repository.gestionar_graficos_steamos('install')
-    assert 'bc250-steamos-toolkit combined-install' in command
+    assert 'bc250_action=combined-install' in command
+    assert 'bc250-steamos-toolkit "$bc250_action"' in command
     assert 'ResourceTools' not in command and 'keyboardspecialist' not in command
     assert subprocess.run(['bash', '-n', '-c', command]).returncode == 0
 
@@ -336,7 +337,8 @@ def test_real_toolkit_owns_its_kernel_profile_prerequisites(tmp_path, monkeypatc
 def test_compatibility_uses_the_real_toolkit_build_lifecycle(tmp_path, monkeypatch):
     repository = _repository(tmp_path, monkeypatch)
     command = repository.preparar_compatibilidad_steamos()
-    assert 'bc250-steamos-toolkit combined-install' in command
+    assert 'bc250_action=combined-install' in command
+    assert 'bc250-steamos-toolkit "$bc250_action"' in command
     assert 'build-bc250cc.sh' not in command
     assert 'telemetry-oc-overlay' not in command
     assert 'clean.sh --all' not in command

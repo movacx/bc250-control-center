@@ -10,18 +10,30 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from bc250cc.infrastructure.steamos_alternative import ALTERNATIVE_ACTIONS
-from bc250cc.infrastructure.steamos_real_toolkit import ACTIONS, guarded_component
-from bc250cc.infrastructure.steamos_toolkit_conflicts import BULK_COMPONENTS
+from bc250cc.infrastructure.steamos_real_toolkit import (
+    ACTIONS,
+    DIRECT_ACTIONS,
+    guarded_component,
+    toolkit_restore_actions,
+)
+from bc250cc.infrastructure.steamos_toolkit_conflicts import (
+    BULK_COMPONENTS,
+    NATIVE_COMPONENTS,
+)
 
 __all__ = (
     "ALTERNATIVE_ACTIONS", "alternative_action_keys", "protected_actions", "real_toolkit_action_keys",
-    "real_toolkit_running",
+    "real_toolkit_direct_action_keys", "real_toolkit_running", "steamos_ownership", "toolkit_restore_actions",
 )
 
 
 def real_toolkit_action_keys() -> tuple[str, ...]:
     """Every action the Real Toolkit adapter dispatches, in registry order."""
     return tuple(action.key for action in ACTIONS)
+
+
+def real_toolkit_direct_action_keys() -> tuple[str, ...]:
+    return tuple(action.key for action in DIRECT_ACTIONS)
 
 
 def real_toolkit_running() -> bool:
@@ -54,6 +66,36 @@ def protected_actions(ownership: Mapping[str, object] | None) -> frozenset[str]:
     """
     claims = dict(ownership or {})
     return frozenset(
-        action.key for action in ACTIONS
+        action.key for action in ACTIONS + DIRECT_ACTIONS
         if any(claims.get(component) for component in _components(guarded_component(action.key)))
     )
+
+
+def steamos_ownership(toolkit: Mapping, alternative: Mapping) -> dict[str, tuple[str, ...]]:
+    """Summarize provider claims from the read-only conflict and status probes."""
+    native = toolkit.get("native_ownership") or {}
+    components = toolkit.get("components") or {}
+    graphics = toolkit.get("graphics") or {}
+    radv = alternative.get("radv") or {}
+    kernel = alternative.get("kernel") or {}
+    foreign = toolkit.get("foreign_graphics")
+    claimed_native = tuple(key for key in NATIVE_COMPONENTS if native.get(key))
+    claimed_toolkit = [
+        key for key in ("acpi", "video", "ac3", "dual-audio", "dualsense", "aic8800",
+                        "xbox-adapter", "cec", "cec-retrain", "recovery") if components.get(key)
+    ]
+    claimed_alternative = []
+    if kernel.get("installed"):
+        claimed_alternative.append("amdgpu")
+    elif graphics.get("kernel_override_installed") and foreign == [] and graphics.get("kernel_toolkit_marker"):
+        claimed_toolkit.append("amdgpu")
+    if radv.get("state") == "ready" or alternative.get("orphaned"):
+        claimed_alternative.append("radv")
+    if graphics.get("state") in {"configured", "incomplete"}:
+        claimed_toolkit.append("radv")
+    if (toolkit.get("proton") or {}).get("state") == "installed":
+        claimed_toolkit.append("proton")
+    if toolkit.get("alternative_proton"):
+        claimed_alternative.append("alternative-proton")
+    return {"real-toolkit": tuple(claimed_toolkit), "keyboardspecialist": tuple(claimed_alternative),
+            "native": claimed_native}

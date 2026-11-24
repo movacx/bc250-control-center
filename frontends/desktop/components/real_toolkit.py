@@ -12,7 +12,6 @@ LABELS = {
     'verify': ('Verify the installed setup', 'Verificar la instalación'),
     'acpi-install': ('Install ACPI fix', 'Instalar corrección ACPI'),
     'acpi-revert': ('Remove ACPI fix', 'Quitar corrección ACPI'),
-    'recovery': ('GRUB recovery entries and boot menu', 'Entradas de recuperación y menú GRUB'),
     'keyring': ('Repair package signing keys', 'Reparar claves de paquetes'),
     'combined-install': ('Install combined display, audio and graphics fixes', 'Instalar correcciones de pantalla, audio y gráficos'),
     'combined-revert': ('Revert combined graphics fix', 'Revertir correcciones de gráficos'),
@@ -31,11 +30,30 @@ LABELS = {
     'cec-poweroff-install': ('Standby TV at console power-off', 'Apagar televisor al apagar la consola'),
     'cec-poweroff-remove': ('Remove TV power-off automation', 'Quitar apagado automático del televisor'),
     'cec-clear-overrides': ('Restore Steam HDMI-CEC toggles', 'Restaurar opciones HDMI-CEC de Steam'),
-    'cec': ('HDMI-CEC television control', 'Control del televisor por HDMI-CEC'),
-    'aic8800': ('AIC8800 Wi-Fi and Bluetooth drivers', 'Drivers Wi-Fi y Bluetooth AIC8800'),
-    'be200': ('Intel BE200 Wi-Fi firmware', 'Firmware Wi-Fi Intel BE200'),
-    'dualsense': ('DualSense bridge and button chords', 'DualSense: puente y combinaciones de botones'),
-    'xbox-adapter': ('Xbox wireless adapter driver', 'Driver del adaptador inalámbrico Xbox'),
+    'cec-install': ('Install link retrain', 'Instalar reentrenamiento del enlace'),
+    'cec-remove': ('Remove link retrain', 'Quitar reentrenamiento del enlace'),
+    'cec-retrain-status': ('Check link retrain', 'Comprobar reentrenamiento del enlace'),
+    'recovery-remove': ('Remove', 'Quitar'),
+    'recovery-status': ('Check status', 'Comprobar estado'),
+    'recovery-toggle': ('Show or hide the boot menu', 'Mostrar u ocultar el menú de arranque'),
+    'recovery-timeout': ('Boot menu wait time', 'Tiempo de espera del menú de arranque'),
+    'aic8800-install': ('Install', 'Instalar'),
+    'aic8800-legacy-install': ('Install for the older chip (MCU1)', 'Instalar para el chip antiguo (MCU1)'),
+    'aic8800-remove': ('Remove', 'Quitar'),
+    'aic8800-status': ('Check status', 'Comprobar estado'),
+    'be200-install': ('Install', 'Instalar'),
+    'be200-remove': ('Remove', 'Quitar'),
+    'be200-status': ('Check status', 'Comprobar estado'),
+    'dualsense-install': ('Install', 'Instalar'),
+    'dualsense-remove': ('Remove', 'Quitar'),
+    'dualsense-status': ('Check status', 'Comprobar estado'),
+    'dualsense-chords-install': ('Install button combinations', 'Instalar combinaciones de botones'),
+    'dualsense-chords-remove': ('Remove button combinations', 'Quitar combinaciones de botones'),
+    'dualsense-chords-status': ('Check button combinations', 'Comprobar combinaciones de botones'),
+    'xbox-adapter-install': ('Install', 'Instalar'),
+    'xbox-adapter-remove': ('Remove', 'Quitar'),
+    'xbox-adapter-status': ('Check status', 'Comprobar estado'),
+    'put-back': ('Put back what the update removed', 'Reponer lo que quitó la actualización'),
     'openlinkhub-install': ('Install OpenLinkHub', 'Instalar OpenLinkHub'),
     'openlinkhub-revert': ('Remove OpenLinkHub', 'Quitar OpenLinkHub'),
 }
@@ -43,20 +61,20 @@ LABELS = {
 # One component per row; secondary operations stay in the native More menu.
 # The closed action registry below is preserved in full by the coverage test.
 TOOLS = (
-    ('toolkit', ('Toolkit management', 'Administración del toolkit'), ('Check the installed toolkit setup.', 'Comprueba la instalación del toolkit.'), ('verify',)),
+    ('toolkit', ('Toolkit management', 'Administración del toolkit'), ('Check the installed toolkit setup.', 'Comprueba la instalación del toolkit.'), ('verify', 'put-back')),
     ('system', ('ACPI power management', 'Gestión de energía · ACPI'), ('Install or remove the toolkit ACPI correction.', 'Instala o retira la corrección ACPI del toolkit.'), ('acpi-install', 'acpi-revert')),
-    ('system', ('Boot recovery · GRUB', 'Recuperación de arranque · GRUB'), ('Manage recovery entries and the boot menu.', 'Gestiona las entradas de recuperación y el menú de arranque.'), ('recovery',)),
+    ('system', ('Boot recovery · GRUB', 'Recuperación de arranque · GRUB'), ('Remove recovery entries and adjust the boot menu. They are not installed from here: their boot script can be changed without administrator rights.', 'Retira las entradas de recuperación y ajusta el menú de arranque. No se instalan desde aquí: su script de arranque se puede cambiar sin permisos de administrador.'), ('recovery-remove', 'recovery-status', 'recovery-toggle', 'recovery-timeout')),
     ('system', ('Package signing keys', 'Claves de firma de paquetes'), ('Repair the SteamOS package keyring.', 'Repara el llavero de paquetes de SteamOS.'), ('keyring',)),
     ('graphics', ('Kernel and Mesa · GFX1013', 'Kernel y Mesa · GFX1013'), ('Select kernel patches, graphics, display and audio corrections.', 'Selecciona parches de kernel y correcciones de gráficos, pantalla y audio.'), ('combined-install', 'combined-revert')),
     ('graphics', ('Proton · FSR4', 'Proton · FSR4'), ('Manage the toolkit Proton variants for FSR4.', 'Gestiona las variantes de Proton del toolkit para FSR4.'), ('proton-install', 'proton-revert')),
     ('video', ('Hardware video · VA-API', 'Vídeo por hardware · VA-API'), ('Install or remove the toolkit video driver.', 'Instala o retira el controlador de vídeo del toolkit.'), ('video-install', 'video-revert')),
     ('audio', ('Dolby Digital · AC-3', 'Dolby Digital · AC-3'), ('Configure encoded surround audio over HDMI.', 'Configura audio envolvente codificado por HDMI.'), ('ac3-install', 'ac3-revert')),
     ('audio', ('Dual audio output', 'Salida de audio doble'), ('Install or remove the dual-output audio configuration.', 'Instala o retira la configuración de salida de audio doble.'), ('dual-install', 'dual-revert')),
-    ('audio', ('Television control · HDMI-CEC', 'Control del televisor · HDMI-CEC'), ('Configure television control, wake and standby automation.', 'Configura el control del televisor y las automatizaciones de encendido y apagado.'), ('cec-setup', 'cec-status', 'cec', 'cec-wake-install', 'cec-wake-remove', 'cec-poweroff-install', 'cec-poweroff-remove', 'cec-clear-overrides')),
-    ('drivers', ('AIC8800 · Wi-Fi / Bluetooth', 'AIC8800 · Wi-Fi / Bluetooth'), ('Select the driver for the connected AIC8800 adapter.', 'Selecciona el controlador del adaptador AIC8800 conectado.'), ('aic8800',)),
-    ('drivers', ('Intel BE200', 'Intel BE200'), ('Manage Wi-Fi firmware for Intel BE200.', 'Gestiona el firmware Wi-Fi de Intel BE200.'), ('be200',)),
-    ('drivers', ('DualSense', 'DualSense'), ('Configure the controller bridge and button combinations.', 'Configura el puente del mando y sus combinaciones de botones.'), ('dualsense',)),
-    ('drivers', ('Xbox wireless adapter', 'Adaptador inalámbrico Xbox'), ('Manage the wireless receiver driver.', 'Gestiona el controlador del receptor inalámbrico.'), ('xbox-adapter',)),
+    ('audio', ('Television control · HDMI-CEC', 'Control del televisor · HDMI-CEC'), ('Configure television control, wake and standby automation.', 'Configura el control del televisor y las automatizaciones de encendido y apagado.'), ('cec-setup', 'cec-status', 'cec-install', 'cec-remove', 'cec-retrain-status', 'cec-wake-install', 'cec-wake-remove', 'cec-poweroff-install', 'cec-poweroff-remove', 'cec-clear-overrides')),
+    ('drivers', ('AIC8800 · Wi-Fi / Bluetooth', 'AIC8800 · Wi-Fi / Bluetooth'), ('Select the driver for the connected AIC8800 adapter.', 'Selecciona el controlador del adaptador AIC8800 conectado.'), ('aic8800-install', 'aic8800-legacy-install', 'aic8800-remove', 'aic8800-status')),
+    ('drivers', ('Intel BE200', 'Intel BE200'), ('Manage Wi-Fi firmware for Intel BE200.', 'Gestiona el firmware Wi-Fi de Intel BE200.'), ('be200-install', 'be200-remove', 'be200-status')),
+    ('drivers', ('DualSense', 'DualSense'), ('Configure the controller bridge and button combinations.', 'Configura el puente del mando y sus combinaciones de botones.'), ('dualsense-install', 'dualsense-chords-install', 'dualsense-remove', 'dualsense-chords-remove', 'dualsense-status', 'dualsense-chords-status')),
+    ('drivers', ('Xbox wireless adapter', 'Adaptador inalámbrico Xbox'), ('Manage the wireless receiver driver.', 'Gestiona el controlador del receptor inalámbrico.'), ('xbox-adapter-install', 'xbox-adapter-remove', 'xbox-adapter-status')),
     ('drivers', ('OpenLinkHub', 'OpenLinkHub'), ('Install or remove support for compatible accessories.', 'Instala o retira el soporte para accesorios compatibles.'), ('openlinkhub-install', 'openlinkhub-revert')),
 )
 
@@ -87,11 +105,19 @@ def action_label(key):
     return _localized(LABELS[key])
 
 
+def action_question(key):
+    """What a confirmation names: the row and what is about to run on it."""
+    title = next(names for _category, names, _descriptions, keys in TOOLS if key in keys)
+    return f'{_localized(title)}: {action_label(key)}'
+
+
 def _primary_label(key):
     if key in {'proton-install', 'gpu-install', 'cpu-install', 'graphics-install', 'kernel-install'}:
         return tr('Install / update')
     if key.endswith('-install') or key == 'decky-plugin-only':
         return tr('Install')
+    if key == 'recovery-remove':
+        return tr('Remove')
     if key == 'keyring':
         return tr('Repair')
     return _localized(('Configure', 'Configurar'))
@@ -135,14 +161,14 @@ class ToolRows(QObject):
             for index, key in enumerate(keys):
                 label = _primary_label(key) if index == 0 else _localized(labels[key])
                 button = card.add_action(label, {'action': namespace + ':' + key, 'governor': ''},
-                                         danger=('revert' in key or 'uninstall' in key or key == 'kernel-rollback'))
+                                         danger=('revert' in key or '-remove' in key or 'uninstall' in key or key == 'kernel-rollback'))
                 button.setAutoDefault(False)
                 self.buttons[key] = button
             card.add_action('Open upstream project', {
                 'action': 'steamos_graphics_upstream' if namespace == 'real_toolkit' else 'steamos_alternative_upstream',
                 'governor': '',
             }).setAutoDefault(False)
-            if namespace == 'real_toolkit' and keys == ('verify',):
+            if namespace == 'real_toolkit' and keys[0] == 'verify':
                 card.add_action("What's new", {'action': 'steamos_toolkit_changelog',
                                               'governor': ''}).setAutoDefault(False)
             card.action_requested.connect(self.action_requested.emit)
@@ -181,6 +207,7 @@ class RealToolkitRows(ToolRows):
     def __init__(self, parent=None):
         super().__init__(TOOLS, LABELS, 'real_toolkit', REAL_TOOLKIT_SCOPE, parent)
         self._root_status = None
+        self.buttons['put-back'].hide()
         self._blocked = frozenset()
         self._running = ''
         # While an action runs, look for its end: the page's own refresh can be
@@ -246,6 +273,7 @@ class RealToolkitRows(ToolRows):
                    | ({'proton-install'} if needs_radv else frozenset())
                    | ({'ac3-install'} if needs_combined else frozenset()))
         self._blocked = frozenset(blocked)
+        self.buttons['put-back'].setVisible(bool(state.get('lost_after_update')))
         self.set_running(self._running)
         self._notes = {'combined-install': FOREIGN_GRAPHICS_NOTE} if foreign else {}
         if not foreign and state.get('old_glibc'):
@@ -259,7 +287,7 @@ class RealToolkitRows(ToolRows):
         for _category, _names, descriptions, keys in self._specifications:
             card = self.cards[keys[0]]
             card.detail.setText(_detail(self._notes.get(keys[0]), descriptions))
-            if keys == ('verify',):
+            if keys[0] == 'verify':
                 self._apply_root_status()  # this row reports the system's lock, not ownership
             elif any(key in protected for key in keys):
                 card.set_status('BC250 Control Center', 'blue')
@@ -297,7 +325,9 @@ TOOLKIT_RADV_NOTE = (
 )
 #: Rows whose installation the toolkit probe can prove from files on disk.
 _COMPONENT_EVIDENCE = {'acpi-install': 'acpi', 'video-install': 'video',
-                       'dual-install': 'dual-audio', 'recovery': 'recovery'}
+                       'dual-install': 'dual-audio', 'recovery-remove': 'recovery',
+                       'aic8800-install': 'aic8800', 'be200-install': 'be200',
+                       'dualsense-install': 'dualsense', 'xbox-adapter-install': 'xbox-adapter'}
 
 
 def _installed(key, state):
