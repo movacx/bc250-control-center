@@ -94,6 +94,7 @@ fun PaginaAccesoRemoto(aplicacion: Aplicacion) {
             BarraEstado(aplicacion, datos, web)
             PanelEmparejar(aplicacion, datos, web)
             PanelDispositivos(aplicacion, datos)
+            PanelPermisos(aplicacion, datos)
             PanelSsh(aplicacion, datos.objeto("ssh"))
         }
     }
@@ -552,6 +553,30 @@ private fun DialogoDispositivo(aplicacion: Aplicacion, dispositivo: JsonObject, 
         }
         Boton(t("Close"), alCerrar, Modifier.fillMaxWidth())
     }
+}
+
+// -- permisos -----------------------------------------------------------------------------------------------------
+
+@Composable
+private fun PanelPermisos(aplicacion: Aplicacion, datos: JsonObject) {
+    val permiso = datos.objeto("quick_auth")
+    if (permiso.isEmpty()) {
+        return
+    }
+    val paleta = ColoresActuales.current
+    PanelRemoto {
+        Texto(t("Permissions"), tamano = 12, peso = 500, color = paleta.apagado)
+        OpcionConexion(t("Actions without password"), permiso.logico("enabled"), libre(aplicacion)) { nuevo ->
+            cambiarAccionesSinClave(aplicacion, permiso, nuevo)
+        }
+        Texto(t("CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking."), 12, color = paleta.apagado)
+    }
+}
+
+internal fun cambiarAccionesSinClave(aplicacion: Aplicacion, permiso: JsonObject, activar: Boolean) {
+    val titulo = t("Actions without password")
+    val mensaje = if (activar) permiso.texto("warning") else titulo
+    aplicacion.preguntarYEjecutar("settings.quick_auth", titulo, mensaje, mapOf("enable" to JsonPrimitive(activar)), peligro = activar)
 }
 
 // -- SSH ----------------------------------------------------------------------------------------------------------

@@ -15,7 +15,7 @@ def main():
                                            "telemetry-fix", "telemetry-restore", "kernel-options-set",
                                            "vram-read", "vram-apply", "ttm-status", "ttm-apply",
                                            "smt-live", "mdns-repair", "web-firewall-status", "web-firewall-repair", "uninstall-check",
-                                           "quick-auth-enable", "quick-auth-disable"))
+                                           "quick-auth-enable", "quick-auth-disable", "quick-auth-default"))
     parser.add_argument("--policy", choices=("preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"), default="preserve")
     parser.add_argument("--ttm", type=int, choices=(-1, 0, 8, 10, 12), default=0)
     parser.add_argument("--uma-size", type=int, default=0)
@@ -121,6 +121,8 @@ def main():
                 result = firewall.repair(host, args.web_port)
             elif args.action == "quick-auth-enable":
                 result = quick_auth.enable(host)
+            elif args.action == "quick-auth-default":
+                result = quick_auth.enable_by_default(host)
             elif args.action == "quick-auth-disable":
                 result = quick_auth.disable(host)
             elif args.action == "mdns-repair":
@@ -169,6 +171,10 @@ def main():
             print("LAN firewall access verified. No reboot is required.")
         elif args.action == "quick-auth-enable":
             print("CPU, compute unit, GPU and fan actions no longer ask for the password. No reboot is required.")
+        elif args.action == "quick-auth-default":
+            if result.get("enabled"):
+                print(f"{result['user']} can use CPU, compute unit, GPU and fan actions without the password. "
+                      "Turn it off in Remote access > Permissions.")
         elif args.action == "quick-auth-disable":
             print("CPU, compute unit, GPU and fan actions ask for the password again.")
         elif args.action == "mdns-repair":

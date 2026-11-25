@@ -8,7 +8,13 @@ from __future__ import annotations
 import time
 from datetime import datetime
 
-from bc250cc.application.system import remote_access, web_access, web_pairing, web_setup
+from bc250cc.application.system import (
+    quick_auth,
+    remote_access,
+    web_access,
+    web_pairing,
+    web_setup,
+)
 from frontends.tui.i18n import tr
 from frontends.web.actions import Invalid, choice, flag
 
@@ -85,6 +91,7 @@ def leer(ctx, live):
     # Solo las lecturas autorizadas por server.py pueden entregar la clave y las fichas.
     return {"web": {k: v for k, v in estado.items() if k != "devices"}, "ssh": ssh(ctx).status(),
         "devices": [dispositivo(item) for item in estado.get("devices") or []],
+        "quick_auth": {"enabled": quick_auth.enabled(), "warning": tr(quick_auth.WARNING)},
         "prepare": bool(pasos), "prepare_message": pregunta,
         "name_message": tr(MENSAJES_NOMBRE.get(nombre.get("status"), MENSAJES_NOMBRE["unavailable"])),
         "firewall_message": tr(MENSAJES_FIREWALL.get(firewall.get("state"), MENSAJES_FIREWALL["unknown"])),

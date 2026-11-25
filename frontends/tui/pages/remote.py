@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from bc250cc.application.system import (
+    quick_auth,
     remote_access,
     web_access,
     web_pairing,
@@ -129,6 +130,7 @@ class RemoteAccessPage(Page):
             if value is not None and value != current and ui_.confirm(f"TCP: {value}"):
                 guarded(ui_, tr("Remote access"), lambda: web_access.configure(port=value))
 
+        quick = quick_auth.enabled()
         running, lan = bool(web.get("running")), bool(web.get("lan"))
         startup = web.get("autostart") or {}
         badge, badge_tone = tr("Active" if running else "Stopped"), "ok" if running else "dim"
@@ -140,6 +142,8 @@ class RemoteAccessPage(Page):
                     switch(tr("Reachable from the local network"), lan,
                            run("Reachable from the local network", lambda: web_access.configure(lan=not lan, tls=True)),
                            info=Info(tr("HTTPS is required for home-network access. No router ports or public tunnels are configured by this application."))),
+                    switch(tr(quick_auth.TITLE), quick, run(quick_auth.TITLE, lambda: ctx.service.gestionar_acciones_sin_clave(not quick),
+                                                             danger=not quick), info=Info(tr(quick_auth.DETAIL))),
                     switch(tr("Start with the session"), bool(startup.get("enabled")),
                            run("Start with the session", lambda: web_access.set_autostart(not startup.get("enabled"))),
                            enabled=bool(startup.get("supported")),

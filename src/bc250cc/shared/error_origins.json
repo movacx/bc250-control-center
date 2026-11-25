@@ -7037,6 +7037,8 @@
    "RemoteAccessPage._update_device_actions": "UI-0675",
    "RemoteAccessPage._approve_selected_device": "UI-0711",
    "RemoteAccessPage._disconnect_selected_device": "UI-0677",
+   "RemoteAccessPage._show_quick_auth": "UI-0883",
+   "RemoteAccessPage._quick_auth_toggled": "UI-0884",
    "RemoteAccessPage._run": "UI-0670",
    "RemoteAccessPage._revoke_all": "UI-0672",
    "RemoteAccessPage._prepare_connection": "UI-0882",

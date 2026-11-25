@@ -62,6 +62,12 @@ case "${1:-}" in
     if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
       systemctl daemon-reload >/dev/null 2>&1 || true
     fi
+    # The account installing this may use the hardware helpers without its
+    # password, unless it turned that off. Never a reason to fail an install.
+    if [[ -n "${SUDO_UID:-}${PKEXEC_UID:-}" ]]; then
+      /usr/libexec/bc250-control-center/bc250-system-setup-helper quick-auth-default 2>/dev/null \
+        | grep "without the password" || true
+    fi
     if command -v update-desktop-database >/dev/null 2>&1; then
       update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
     fi

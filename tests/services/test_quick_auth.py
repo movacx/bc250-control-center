@@ -83,6 +83,23 @@ class QuickAuthTests(unittest.TestCase):
             with self.assertRaises(SetupError):
                 qa.account({"SUDO_UID": "1000"})
 
+    def test_an_installation_turns_it_on_once_and_respects_who_turned_it_off(self):
+        with patch.object(qa, "account", lambda: "gamer"):
+            self.assertTrue(qa.enable_by_default(self.host)["enabled"])
+        with patch.object(qa, "account", lambda: "other"):
+            self.assertEqual(qa.enable_by_default(self.host)["user"], "gamer")
+            qa.disable(self.host)
+            self.assertFalse(qa.enable_by_default(self.host)["enabled"])
+        self.assertFalse(self.file(qa.SUDOERS).exists())
+
+    def test_a_failed_default_is_not_remembered_as_a_decision(self):
+        self.reject = True
+        with self.assertRaises(SetupError):
+            qa.enable(self.host, "gamer")
+        self.reject = False
+        with patch.object(qa, "account", lambda: "gamer"):
+            self.assertTrue(qa.enable_by_default(self.host)["enabled"])
+
     def test_openrc_names_its_own_commands(self):
         softlevel = self.root / "run/openrc/softlevel"
         softlevel.parent.mkdir(parents=True)

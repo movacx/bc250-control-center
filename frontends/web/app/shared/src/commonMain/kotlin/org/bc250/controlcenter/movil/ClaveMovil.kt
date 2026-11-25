@@ -172,7 +172,7 @@ private fun HojaDeClave(aplicacion: Aplicacion, peticion: PeticionDeClave) {
         }
         Box(Modifier.fillMaxWidth().height(40.dp).pulsable {
             movil.cerrarHoja()
-            aplicacion.abrirAjustes("general")
+            aplicacion.irA("remote")
         }, Alignment.Center) {
             Texto(t("Stop asking for it"), tamano = 14, peso = 500, color = paleta.acento, alineado = TextAlign.Center)
         }

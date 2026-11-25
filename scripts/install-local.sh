@@ -866,6 +866,10 @@ install_privileged_pwm_components() {
       exit 1
     fi
 
+    # On unless this account turned it off; never a reason to fail an install.
+    "${elevate[@]}" /usr/libexec/bc250-control-center/bc250-system-setup-helper quick-auth-default 2>/dev/null \
+      | grep "without the password" || true
+
     # Normalize only unambiguous legacy frequency-range layouts. This edit is
     # idempotent, preserves user values and every unrelated TOML byte, and is
     # deliberately performed while install/update already has root authority.

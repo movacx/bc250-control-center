@@ -1,6 +1,7 @@
 """Let one account run the CPU, CU, GPU and fan helpers without its password.
 
-Opt-in and off by default. Two managed files are written: a sudoers drop-in (web and terminal interface) and
+On by default for the account that installs Control Center with sudo, and switched off for good by whoever
+does not want it: a decision that was taken is never overwritten by an update. Two managed files are written: a sudoers drop-in (web and terminal interface) and
 a polkit rule (desktop). They name only root-owned helpers with closed, validated arguments and the exact
 service commands of the two GPU governors. The core unlock helper runs code from the user's folder and the
 setup, maintenance and GDDR6 helpers change the system, so none of them is here: they keep asking.
@@ -144,14 +145,29 @@ def enable(host, user: str | None = None) -> dict:
             host.managed(STEAMOS_KEEP, f"{SUDOERS}\n{POLKIT}\n")
         host.save("quick-auth", {"user": user})
     except (SetupError, OSError):
-        disable(host)
+        _withdraw(host)
         raise
     return status(host)
 
 
-def disable(host) -> dict:
+def enable_by_default(host) -> dict:
+    """What an installation does: only for its own account and only if nobody decided before."""
+    state = host.state("quick-auth")
+    if state.get("user"):
+        # An update can bring new helpers; the account stays the one that was chosen.
+        return enable(host, str(state["user"]))
+    if state.get("off"):
+        return status(host)
+    return enable(host)
+
+
+def _withdraw(host) -> None:
     _remove(host, SUDOERS, MARKER)
     _remove(host, POLKIT, POLKIT_MARKER)
     host.remove_managed(STEAMOS_KEEP)
-    host.save("quick-auth", {})
+
+
+def disable(host) -> dict:
+    _withdraw(host)
+    host.save("quick-auth", {"off": True})
     return status(host)

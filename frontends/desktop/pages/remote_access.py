@@ -12,6 +12,7 @@ from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QBoxLayout,
+    QDialog,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -26,12 +27,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from bc250cc.application.system import web_access, web_pairing, web_setup
+from bc250cc.application.system import quick_auth, web_access, web_pairing, web_setup
 
 from ..components.async_tools import BackgroundExecutor
 from ..components.buttons import WrappingButton as QPushButton
 from ..components.full_diagnosis_dialog import ResizeGrip
-from ..components.page_widgets import SectionCard
+from ..components.page_widgets import ConfirmDialog, SectionCard
 from ..components.responsive import configure_responsive_scroll_area
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
@@ -55,6 +56,7 @@ class RemoteAccessPage(QWidget):
         super().__init__(parent)
         self.setProperty("processPage", True)
         self._background = BackgroundExecutor(self)
+        self.hardware = None  # the system service, for the one permission that is not the web's own
         self._web_state = {}
         self._firewall_repair_pending = False
         self._name_health_display = None
@@ -250,6 +252,21 @@ class RemoteAccessPage(QWidget):
         device_box.addLayout(actions)
         body.addWidget(device_panel)
 
+        # -- Permissions --------------------------------------------------------------------------
+        permission_panel, permissions = self._panel(QVBoxLayout)
+        permissions.setSpacing(8)
+        permissions.addWidget(self._label("Permissions", strong=True))
+        self.quick_auth_switch = ToggleSwitch()
+        self.quick_auth_switch.setAccessibleName(tr(quick_auth.TITLE))
+        self.quick_auth_switch.toggled.connect(self._quick_auth_toggled)
+        line = QHBoxLayout()
+        line.setSpacing(10)
+        line.addWidget(self.quick_auth_switch, 0, Qt.AlignmentFlag.AlignVCenter)
+        line.addWidget(self._label(quick_auth.TITLE), 1)
+        permissions.addLayout(line)
+        permissions.addWidget(self._label(quick_auth.DETAIL))
+        body.addWidget(permission_panel)
+
         # The fingerprint is still kept for anyone who wants to compare it; it is just not shown.
         self.web_fingerprint_box = self._code("")
         self.web_fingerprint_box.hide()
@@ -384,6 +401,7 @@ class RemoteAccessPage(QWidget):
         return ""
 
     def _render_web(self):
+        self._show_quick_auth()
         state = self._web_state
         health = self._name_health_display if self._name_health_display is not None else state.get("name_health") or {}
         messages = {
@@ -603,6 +621,20 @@ class RemoteAccessPage(QWidget):
         device = self._selected_device()
         if device:
             self._run("revoke", lambda: web_access.revoke(device["id"]))
+
+    def _show_quick_auth(self):
+        self.quick_auth_switch.blockSignals(True)
+        self.quick_auth_switch.setChecked(quick_auth.enabled())
+        self.quick_auth_switch.blockSignals(False)
+
+    def _quick_auth_toggled(self, wanted):
+        if wanted:
+            dialog = ConfirmDialog(quick_auth.TITLE, quick_auth.WARNING, confirm_text="Enable", tone="red", parent=self)
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return self._show_quick_auth()
+        if self.hardware is not None:
+            self._run("quick-auth", lambda: self.hardware.gestionar_acciones_sin_clave(bool(wanted)))
+        return None
 
     def _run(self, name, work):
         self._background.start(name, work, on_success=lambda _r: self.refresh(),

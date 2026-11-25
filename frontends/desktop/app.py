@@ -245,6 +245,7 @@ class ControlCenterWindow(QMainWindow):
         self.performance_page = PerformancePage(controller)
         self.blackbox_page = BlackBoxPage(controller)
         self.remote_page = RemoteAccessPage()
+        self.remote_page.hardware = controller
         self.firmware_page = FirmwarePage(controller)
         self.settings_dialog: SettingsDialog | None = None
         self.current_page_key = "dashboard"

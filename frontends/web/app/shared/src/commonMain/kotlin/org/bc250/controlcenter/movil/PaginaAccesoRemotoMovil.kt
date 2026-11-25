@@ -85,6 +85,7 @@ fun PaginaAccesoRemotoMovil(aplicacion: Aplicacion) {
                 }
             }
         }
+        PermisosMovil(aplicacion)
         SshMovil(aplicacion)
     }
 }
@@ -249,6 +250,23 @@ private fun DispositivoMovil(aplicacion: Aplicacion, id: String) {
         desconectarDispositivoRemoto(aplicacion, id)
     }
     CerrarHoja()
+}
+
+@Composable
+private fun PermisosMovil(aplicacion: Aplicacion) {
+    val permiso = aplicacion.lectura("remote").objeto("quick_auth")
+    if (permiso.isEmpty()) return
+    val libre = aplicacion.puedeControlar && aplicacion.trabajo.terminado
+    SeccionMovil(t("Permissions")) {
+        GrupoMovil {
+            FilaInterruptor(
+                titulo = t("Actions without password"),
+                encendido = permiso.logico("enabled"),
+                detalle = t("CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking."),
+                activa = libre,
+            ) { cambiarAccionesSinClave(aplicacion, permiso, it) }
+        }
+    }
 }
 
 @Composable
