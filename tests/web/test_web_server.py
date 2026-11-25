@@ -287,7 +287,7 @@ def test_the_password_is_only_typed_on_this_computer_unless_the_owner_allowed_it
 def test_the_action_list_is_closed_and_runs_nothing_outside_the_service_layer():
     assert set(actions.ACTIONS) == {
         "gddr6.monitor", "gddr6.prepare", "gpu.profile", "gpu.compat", "gpu.service", "gpu.high_points", "gpu.voltage", "gpu.voltage_custom", "gpu.save_boot",
-        "gpu.status", "cpu.apply", "cpu.unlock", "cpu.unlock_persist", "cpu.unlock_persist_off", "cpu.persist", "cpu.persist_off", "cu.sync", "cu.apply", "cu.save",
+        "gpu.status", "cpu.apply", "cpu.unlock", "cpu.unlock_persist", "cpu.unlock_persist_off", "cpu.persist", "cpu.persist_off", "cpu.export_decky", "cpu.review", "cu.sync", "cu.apply", "cu.save",
         "cu.action", "fan.channel", "fan.label", "fan.profile", "fan.service"}
     source = Path(actions.__file__).read_text(encoding="utf-8")
     assert not re.search(r"\b(subprocess|os\.system|eval|exec|open)\(|import (subprocess|os)\b", source)
@@ -301,8 +301,24 @@ def test_every_string_the_page_asks_for_is_in_the_catalogue():
 
 
 def test_the_theme_is_the_desktops_palette(client):
-    css = client.call("GET", "/theme.css")[1].decode()
-    assert "--c-panel:#FFFFFF" in css and "--c-blue-soft:" in css and "prefers-color-scheme:dark" in css
+    data = client.call("GET", "/api/theme")[1]
+    assert data["palettes"]["light/green"]["panel"] == "#FFFFFF" and "blue_soft" in data["palettes"]["dark/violet"]
+
+
+def test_a_preference_needs_the_csrf_token_and_only_listed_ones_exist(client):
+    client.login()
+    assert client.post("/api/setting", {"action": "cpu.apply", "params": {}})[0].status == 400
+    assert client.post("/api/setting", {"action": "cpu.profile", "params": {"key": "other"}})[0].status == 400
+    csrf, client.csrf = client.csrf, "wrong"
+    assert client.post("/api/setting", {"action": "cpu.profile", "params": {}})[0].status == 403
+    client.csrf = csrf
+
+
+@pytest.mark.parametrize("mask", [0, 0xFF, -1, "0x77", True, 3.5])
+def test_the_core_unlock_takes_only_six_core_masks(client, mask):
+    client.login()
+    assert client.action("cpu.unlock", {"force_mask": False, "mask": mask}, confirm=True) == 400
+    assert client.httpd.service.calls == []
 
 
 def test_host_and_address_helpers():
@@ -381,7 +397,7 @@ def test_display_translation_never_changes_protocol_values(client):
     client.login()
     _, data = client.call("GET", "/api/i18n?lang=es", headers={"X-BC250-Language": "es"})
     assert data["language"] == "es"
-    assert data["strings"]["Connect SSH"] == "Conectar SSH"
+    assert data["strings"]["Boot persistence"] == "Persistencia de arranque"
     _, session = client.call("GET", "/api/session", headers={"X-BC250-Language": "es"})
     assert session["authenticated"] is True
     assert session["csrf"] == client.csrf
@@ -484,8 +500,8 @@ def test_build_identity_is_public_and_asset_urls_change_with_it(client):
     assert re.fullmatch(r"[a-f0-9]{16}", version)
     html = client.call("GET", "/")[1].decode()
     assert f'name="bc250-build" content="{version}"' in html
-    assert f'app.js?v={version}' in html and f'app.css?v={version}' in html
-    assert client.call("GET", f"/app.js?v={version}")[0].status == 200
+    assert f'webApp.js?v={version}' in html and f'styles.css?v={version}' in html
+    assert client.call("GET", f"/webApp.js?v={version}")[0].status == 200
 
 
 def test_build_updates_are_detected_without_restarting_the_server(client, tmp_path, monkeypatch):

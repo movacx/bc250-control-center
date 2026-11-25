@@ -86,6 +86,7 @@ expected_root_scripts=(
   install-decky-quick-access.sh
   install-local.sh
   install-tui.sh
+  install-web.sh
   uninstall-local.sh
 )
 # Plain Bash rather than GNU find -printf: BusyBox find (Alpine) has no

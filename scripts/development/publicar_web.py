@@ -39,7 +39,8 @@ def principal() -> None:
             suma.update(archivo.read_bytes())
     version = suma.hexdigest()[:16]
     pagina = DESTINO / "index.html"
-    pagina.write_text(re.sub(r'content="[a-f0-9]{16}"', f'content="{version}"', pagina.read_text(encoding="utf-8")), encoding="utf-8")
+    texto = pagina.read_text(encoding="utf-8").replace("0" * 16, version)
+    pagina.write_text(texto, encoding="utf-8")
     (DESTINO / "version.json").write_text(json.dumps({"version": version}), encoding="utf-8")
 
 

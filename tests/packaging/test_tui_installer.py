@@ -211,3 +211,11 @@ def test_tui_over_desktop_keeps_desktop_assets_and_handles_downgrade(tmp_path):
     assert result.returncode == 0, result.stderr
     assert desktop.read_text() == '[Desktop Entry]\nName=existing desktop\n'
     assert version.read_text() == (ROOT / 'VERSION').read_text()
+
+
+def test_the_web_installer_explains_itself_and_refuses_bad_arguments():
+    script = str(ROOT / "scripts/install-web.sh")
+    shown = subprocess.run(["bash", script, "--help"], capture_output=True, text=True, timeout=30)
+    assert shown.returncode == 0 and "web setup" in shown.stdout
+    assert subprocess.run(["bash", script, "--nope"], capture_output=True, timeout=30).returncode == 64
+    assert subprocess.run(["bash", script, "--no-start", "x"], capture_output=True, timeout=30).returncode == 64

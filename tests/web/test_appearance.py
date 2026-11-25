@@ -1,25 +1,20 @@
-"""The web must use every desktop Formal palette with legible button text."""
-import re
+"""The palettes the web draws with are the desktop's own."""
 
-import pytest
-
-from frontends.desktop.theme import ACCENTS, THEMES, _contrast, theme_palette
-from frontends.web.server import theme_css
+from frontends.desktop.theme import ACCENTS, THEMES, theme_palette
+from frontends.web.server import theme_data
 
 
-@pytest.mark.parametrize("theme", THEMES)
-@pytest.mark.parametrize("accent", ACCENTS)
-def test_every_web_combination_matches_formal_desktop_colours(theme, accent):
-    selector = ":root" if accent == "violet" else f":root[data-accent={accent}]"
-    selector += f"[data-theme={theme}]"
-    match = re.search(re.escape(selector) + r"\{([^}]+)\}", theme_css())
-    assert match, (theme, accent)
-    values = dict(item.split(":", 1) for item in match[1].split(";") if item)
-    formal = theme_palette(theme, accent, "formal")
-    for key, value in formal.items():
-        if isinstance(value, str) and key != "on_accent":
-            assert values[f"--c-{key.replace('_', '-')}"] == value
-    assert _contrast(values["--c-blue"], values["--c-on-accent"]) >= 4.5
-    for key in ACCENTS:
-        assert values[f"--c-accent-{key}"] == theme_palette(theme, key, "formal")["blue"]
-    assert values["color-scheme"] == ("light" if theme == "light" else "dark")
+def test_every_desktop_palette_is_offered():
+    data = theme_data({})
+    assert set(data["palettes"]) == {f"{theme}/{accent}" for theme in THEMES for accent in ACCENTS}
+    assert (data["theme"], data["accent"]) == ("dark", "green")
+    for key, colours in data["palettes"].items():
+        desktop = theme_palette(*key.split("/"), "formal")
+        assert {name: colours[name] for name in desktop if isinstance(desktop[name], str)} == {
+            name: value for name, value in desktop.items() if isinstance(value, str)}
+
+
+def test_the_saved_choice_is_used_and_a_bad_one_is_not():
+    assert theme_data({"web_theme": "light", "web_accent": "teal"})["theme"] == "light"
+    data = theme_data({"web_theme": "../x", "web_accent": 7})
+    assert (data["theme"], data["accent"]) == ("dark", "green")

@@ -74,7 +74,7 @@ SESSION_COOKIE_SECONDS = web_devices.MAX_SESSION_SECONDS
 PERMANENT_COOKIE_SECONDS = 400 * 24 * 3600
 MAX_FAILS, LOCK_SECONDS = 5, 300
 MAX_BODY = 64 * 1024
-CSP = ("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; "
+CSP = ("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; "
        "manifest-src 'self'; worker-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
 
