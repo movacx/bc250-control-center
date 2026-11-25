@@ -48,6 +48,7 @@ from .base import (
     temperature_meter,
 )
 from .dashboard import _safe
+from .sensor_list import CPU_FIRST, beside
 
 # Mirrors cpu_command_policy.validate_detection_target, which stays the authority.
 FREQUENCY_MHZ = (3100, 4200)
@@ -336,7 +337,7 @@ class CpuPage(Page):
             *([] if persistent_mode else [Choice(tr("Firmware persistence guide") + " ›", guide)]),
         ], danger=True)
 
-        sections = {"tuning": [profile_panel, persistence, live_panel],
+        sections = {"tuning": [profile_panel, persistence],
                     "monitor": [runtime, cores_panel, overview_panel],
                     "boot": [persistence], "cores": [cores_panel, danger]}
-        return sections.get(tab, sections["tuning"])
+        return beside(ctx, ui, sections.get(tab, sections["tuning"]), [live_panel], CPU_FIRST)

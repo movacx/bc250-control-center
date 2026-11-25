@@ -23,7 +23,9 @@ from ..content import (
 )
 from ..i18n import tr, tr_format
 from .base import Page, guarded
+from .sensor_list import GPU_FIRST, beside
 
+GRID_MIN = 66  # the columns the routing table needs
 WGPS = 5
 FULL_MASK = (1 << WGPS) - 1
 ROWS = 4
@@ -170,13 +172,13 @@ class ComputeUnitsPage(Page):
             badge=tr("Enabled" if data.get("service_enabled") else "Installed" if installed else "Not installed"),
             badge_tone="ok" if data.get("service_enabled") else "dim")
         if tab == "registers":
-            return [Panel(tr("Register diagnostics"), [
+            return beside(ctx, ui, [Panel(tr("Register diagnostics"), [
                 Grid(["SE/SH", "SPI", "CC", "driver", tr("Target")], [
                     [str(row.get("name")), str(row.get("spi") or "--"), str(row.get("cc") or "--"), f"0x{int(row.get('driver_mask', 0)):02x}",
                      f"0x{masks[index]:02x}"] for index, row in enumerate(rows)]),
                 Field(tr("Source"), str(data.get("source") or "--")),
-                Choice(tr("Raw status") + " ›", lambda ui_: ui_.show_text(tr("Raw status"), str(data.get("raw") or "--")))])]
-        return [grid, target, persistence]
+                Choice(tr("Raw status") + " ›", lambda ui_: ui_.show_text(tr("Raw status"), str(data.get("raw") or "--")))])], [], GPU_FIRST, GRID_MIN)
+        return beside(ctx, ui, [grid, target, persistence], [], GPU_FIRST, GRID_MIN)
 
     def _read_live(self, ctx, ui):
         ok, result = ui.run(tr("Unlock / Sync"), ctx.service.obtener_estado_cu)

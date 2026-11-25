@@ -109,6 +109,7 @@ class Screen(PaletteSupport, PointerSupport):
         self.tab: dict[str, str] = {}
         self.cursor: dict[tuple[str, str], int] = {}
         self.scroll: dict[tuple[str, str], int] = {}
+        self.side_scroll: dict[str, int] = {}  # the list at the right of a page, on its own
         self.toast: tuple[str, str, float] | None = None
         self._announced = ""  # the version whose notice was already shown
         self.unicode = self._unicode_ok()
@@ -553,14 +554,44 @@ class Screen(PaletteSupport, PointerSupport):
                 at = min(end - 5, end - (cell_width(own) - cell_width(own.rstrip())) + 2)
                 self.put(y, at, "◂  ▸" if self.unicode else "<  >", self.attrs["sel"])
                 self._arrows_at = (y, at, at + 4)
+        bar = width - 1
+        if layout.side is not None:
+            bar = x + layout.side.x - 3
+            self._draw_side(layout.side, x, top, view, width)
+            if len(layout.rows) <= view:
+                for line in range(view):
+                    self.put(top + line, bar, self.glyphs.v, self.attrs["edge"])
         if len(layout.rows) > view:  # a scrollbar: the thumb is where this view sits on the page
             size = max(1, view * view // len(layout.rows))
             start = round(offset * (view - size) / max(1, len(layout.rows) - view))
-            self._scroll_track = ("content", width - 1, top, view, size, len(layout.rows) - view, offset)
+            self._scroll_track = ("content", bar, top, view, size, len(layout.rows) - view, offset)
             for line in range(view):
                 thumb = start <= line < start + size
-                self.put(top + line, width - 1, "┃" if thumb else self.glyphs.v,
+                self.put(top + line, bar, "┃" if thumb else self.glyphs.v,
                          self.attrs["dim" if thumb else "edge"])
+
+    def _draw_side(self, side, x: int, top: int, view: int, width: int) -> None:
+        """The readings at the right of a page: their head, then the part of the list that fits."""
+        room = max(1, view - len(side.head))
+        limit = max(0, len(side.rows) - room)
+        offset = self.side_scroll[self.page_key] = max(0, min(limit, self.side_scroll.get(self.page_key, 0)))
+        for line, row in enumerate([*side.head, *side.rows[offset:offset + room]][:view]):
+            column = x + side.x
+            for text, tone in row.spans:
+                attr = self.attrs.get(tone.rstrip("!"), 0) | (curses.A_BOLD if row.bold or tone.endswith("!") else 0)
+                self.put(top + line, column, text, attr, limit=width - column - 1)
+                column += cell_width(text)
+        if limit:
+            start_row, size = top + len(side.head), max(1, room * room // len(side.rows))
+            start = round(offset * (room - size) / limit)
+            self._side_track = ("side", width - 1, start_row, room, size, limit, offset)
+            for line in range(room):
+                thumb = start <= line < start + size
+                self.put(start_row + line, width - 1, "┃" if thumb else self.glyphs.v,
+                         self.attrs["dim" if thumb else "edge"])
+
+    def _scroll_side(self, rows: int) -> None:
+        self.side_scroll[self.page_key] = max(0, self.side_scroll.get(self.page_key, 0) + rows)
     def _draw_help(self, height: int, width: int) -> None:
         """The selected row, in words: what it is, what it risks, why it is unavailable."""
         rows = self._help_rows()
@@ -614,6 +645,8 @@ class Screen(PaletteSupport, PointerSupport):
         if choice is not None and choice.info is not None:
             hints.append(("i", "Details"))
         layout = self.build()
+        if self._side_track is not None:
+            hints.append(("PgUp PgDn", "Sensors"))
         if any(item.enabled and item.id == "revert" for item in layout.choices):
             hints += [("s", "Apply"), ("u", "Revert")]
         return hints + [(":", "Commands"), ("a", "Activity"), ("Esc", "Back"), ("?", "Help")]
@@ -975,6 +1008,8 @@ class Screen(PaletteSupport, PointerSupport):
             current.adjust(self, 1 if key == "right" else -1)
         elif key in ("esc", "left"):
             self._focus("sidebar")
+        elif key in ("pgup", "pgdn") and self._side_track is not None:
+            self._scroll_side((view // 2 or 1) * (1 if key == "pgdn" else -1))
         elif key in ("up", "down", "pgup", "pgdn", "home", "end"):
             self._step(layout, slot, {"up": -1, "down": 1, "pgup": -view, "pgdn": view, "home": -10**6, "end": 10**6}[key])
         elif key in ("enter", "space") and current is not None:

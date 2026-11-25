@@ -24,6 +24,7 @@ from .content import (
     Panel,
     Raw,
     Readings,
+    Side,
     Slider,
     Spans,
     Split,
@@ -86,10 +87,20 @@ class Row:
 
 
 @dataclass(slots=True)
+class SideRows:
+    """The right part of a page, placed at ``x``: ``head`` stays, ``rows`` scroll under it."""
+
+    x: int
+    head: list[Row]
+    rows: list[Row]
+
+
+@dataclass(slots=True)
 class Layout:
     rows: list[Row] = field(default_factory=list)
     choices: list[Choice] = field(default_factory=list)
     choice_rows: list[int] = field(default_factory=list)  # row index of each choice
+    side: SideRows | None = None
 
 
 def choice_column(layout: Layout, index: int) -> int:
@@ -738,6 +749,19 @@ def page_groups(blocks: list[Block]) -> list[tuple[bool, list[Block]]]:
 WORK_MIN, WORK_MAX, SIDE_MIN = 58, 92, 40
 
 
+#: The sensors kept beside a page need this many columns to be worth having.
+SENSORS_MIN, SIDE_GAP = 46, 5
+
+
+def side_widths(width: int, least_left: int = 0) -> tuple[int, int] | None:
+    """(page, sensors) for a page that keeps its readings at the right; None when both do not fit."""
+    least = max(WORK_MIN, least_left)
+    if width < least + SIDE_GAP + SENSORS_MIN:
+        return None
+    left = max(least, min(WORK_MAX, (width - SIDE_GAP) // 2))
+    return left, width - left - SIDE_GAP
+
+
 def _interactive(blocks) -> bool:
     for block in blocks:
         if isinstance(block, (Choice, Buttons, Pad)) or getattr(block, "action", None) is not None:
@@ -756,6 +780,18 @@ def build_page(blocks: list[Block], width: int, glyphs: Glyphs) -> Layout:
     One column for the cursor means up and down are the only way to go; a page
     with nothing to operate (the dashboard) uses the width for its readings.
     """
+    side = next((block for block in blocks if isinstance(block, Side)), None)
+    if side is not None:
+        widths = side_widths(width, side.least_left) or (width, 0)
+        layout = Layout()
+        for _boxed, unit in page_groups([block for block in blocks if block is not side]):
+            _side_by_side(layout, [build_layout(unit, widths[0], glyphs)], [widths[0]])
+        if widths[1]:
+            head = build_layout(list(side.head), widths[1], glyphs).rows
+            while head and not any(text.strip() for text, _tone in head[-1].spans):
+                head.pop()
+            layout.side = SideRows(widths[0] + SIDE_GAP, head, build_layout(list(side.body), widths[1], glyphs).rows)
+        return _reading_order(layout)
     layout = Layout()
     width = max(20, width)
     units = [unit for _boxed, unit in page_groups(blocks)]

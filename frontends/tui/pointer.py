@@ -56,6 +56,7 @@ class PointerSupport:
         self._dialog_hits = []
         self._dialog_rect = None
         self._scroll_track = None
+        self._side_track = None
 
     def _event(self):
         if self._geometry_size != self.size():
@@ -66,6 +67,9 @@ class PointerSupport:
 
     def _track_pointer(self, event):
         track = self._scroll_track
+        side = self._side_track
+        if side is not None and (self._pointer_drag[0] == 'side' if self._pointer_drag else event.x == side[1]):
+            track = side
         if event.kind == 'release':
             self._pointer_drag = None
             return False
@@ -87,6 +91,8 @@ class PointerSupport:
         value = max(0, min(maximum, value))
         if kind == 'console':
             self.console_scroll = maximum - value
+        elif kind == 'side':
+            self.side_scroll[self.page_key] = value
         else:
             self.scroll[self._slot()] = value
             self.cursor[self._slot()] = self._first_shown(self.build(), self._slot(), 1)
@@ -107,6 +113,8 @@ class PointerSupport:
                 self._go(self.section + step)
             elif event.y == 1 and self._tabs():
                 self._switch_tab(step)
+            elif self._over_side(event.x):
+                self._scroll_side(3 * step)
             else:
                 self.focus = 'content'
                 self._step(self.build(), self._slot(), 3 * step)
@@ -147,6 +155,10 @@ class PointerSupport:
             self._layout_key = None
             return
         self._activate(choice)
+
+    def _over_side(self, x):
+        layout = self._rendered_layout
+        return layout is not None and layout.side is not None and x >= self._content_box()[0] + layout.side.x - 2
 
     def _modal_mouse(self):
         """Only current dialog targets are eligible; never dispatch to the page behind it."""

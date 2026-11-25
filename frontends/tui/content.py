@@ -330,6 +330,18 @@ class Split:
 
 
 @dataclass(slots=True)
+class Side:
+    """Readings kept at the right of a page: ``head`` stays put, ``body`` scrolls on its own.
+
+    ``least_left`` is the width the page itself cannot do without.
+    """
+
+    head: Sequence["Block"]
+    body: Sequence["Block"]
+    least_left: int = 0
+
+
+@dataclass(slots=True)
 class Slider:
     """The desktop's range rail: evenly spaced stops, the chosen span heavy, stops past ``danger`` red."""
 
@@ -347,7 +359,7 @@ class Legend:
 
 
 Block = Heading | Field | Meter | Trend | Note | Grid | Raw | Gap | Choice | Card | Columns | Track | Pad | Chart \
-    | Panel | Tiles | Buttons | Split | Slider | Legend | Spans | Gauges | Readings
+    | Panel | Tiles | Buttons | Split | Slider | Legend | Spans | Gauges | Readings | Side
 
 
 def percent(value: object, default: float | None = None) -> float | None:

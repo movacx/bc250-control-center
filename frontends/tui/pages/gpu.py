@@ -41,6 +41,7 @@ from .base import (
     temperature_meter,
     waiting,
 )
+from .sensor_list import GPU_FIRST, beside
 
 TABS = (("governor", "Hardware control"), ("voltage", "Voltage laboratory"), ("monitor", "Sensors"))
 #: Level -> label. 0 restores the governor's own curve; 1..5 add 10..50 mV above 2000 MHz.
@@ -87,7 +88,7 @@ class GpuPage(Page):
         if not state:
             return waiting(ctx, self.key) or []
         if tab == "voltage":
-            return terminal_form(self._voltage(ctx, state, ui))
+            return beside(ctx, ui, terminal_form(self._voltage(ctx, state, ui)), [], GPU_FIRST)
         return self._governor(ctx, state, ui, tab)
 
     # ------------------------------------------------------------------ governor
@@ -314,10 +315,10 @@ class GpuPage(Page):
             return terminal_form([service_panel, *[item for item in left if isinstance(item, Panel)
                                   and item.title == tr("Cyan kernel compatibility")]])
         if tab == "monitor":
-            return [live, advanced]
+            return beside(ctx, ui, [advanced], [live], GPU_FIRST)
         compatibility = [item for item in left if isinstance(item, Panel) and item.title == tr("Cyan kernel compatibility")]
         risk = [item for item in right if isinstance(item, Panel) and item.danger]
-        return [rail, service_panel, *compatibility, *risk, live]
+        return beside(ctx, ui, [rail, service_panel, *compatibility, *risk], [live], GPU_FIRST)
 
     # ------------------------------------------------------------ voltage laboratory
 
