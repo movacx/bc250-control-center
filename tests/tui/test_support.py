@@ -10,7 +10,6 @@ from frontends.tui.screen import Screen
 from .fakes import FakeUI, make_context
 from .test_pages import render
 
-
 ASKS_TO_REPORT = Screen._asks_to_report  # as written, before the fixtures answer it
 
 
