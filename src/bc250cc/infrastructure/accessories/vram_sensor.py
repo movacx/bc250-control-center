@@ -44,6 +44,9 @@ BOARD_NAME_PATH = Path("/sys/class/dmi/id/board_name")
 BIOS_VERSION_PATH = Path("/sys/class/dmi/id/bios_version")
 HWMON_ROOT = Path("/sys/class/hwmon")
 
+#: Written by "Stop loading at boot" (privileged/lib/system_setup_kernel_args.py).
+DENYLIST = "/etc/modprobe.d/bc250-control-center-memory.conf"
+
 KBUILD = "obj-m += bc250_memory.o\n"
 MAKEFILE = _dkms.MAKEFILE
 
@@ -108,14 +111,17 @@ def inventory(family: str) -> dict:
 
 
 def install_command(family: str) -> str:
-    return _dkms.install_command(
+    command = _dkms.install_command(
         DRIVER, family, board_name_path=BOARD_NAME_PATH, bios_version_path=BIOS_VERSION_PATH,
         hwmon_root=HWMON_ROOT,
     )
+    # Installing it is asking for it at boot again, after "Stop loading at boot".
+    return f"{command}\nsudo rm -f -- {DENYLIST}"
 
 
 def remove_command(family: str) -> str:
     return _dkms.remove_command(DRIVER, family, after=(
+        f"sudo rm -f -- {DENYLIST}",
         "echo 'OK: the VRAM temperature driver was removed. The SMU patch it applied lasts until the next full "
         "power-off; nothing reads it meanwhile.'",
     ))

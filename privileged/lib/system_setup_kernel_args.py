@@ -91,6 +91,11 @@ PARAMETER_DIRECTORY = "/sys/module/amdgpu/parameters/"
 #: offered off, and only where the running kernel ships the module.
 MEMORY_SENSOR = "modules-load=bc250_memory"
 MEMORY_MODULE = "bc250_memory"
+#: A copy built with DKMS names the board in its aliases, so udev loads it at
+#: every boot whatever the command line says. Only a denylist entry stops that;
+#: loading it by name (Monitor live) still works.
+MEMORY_DENYLIST = "/etc/modprobe.d/bc250-control-center-memory.conf"
+MODPROBE_DIRECTORIES = ("/etc/modprobe.d", "/run/modprobe.d", "/usr/local/lib/modprobe.d", "/usr/lib/modprobe.d", "/lib/modprobe.d")
 #: The options whose parameter only the BC-250 kernel has: without it the
 #: kernel ignores the argument, so it is neither offered nor written.
 KERNEL_PARAMETERS = {
@@ -454,6 +459,12 @@ def status(host: Host) -> dict:
             or (argument in configured and not mine),
             "external": external,
         }
+    if memory_loads_by_itself(host):
+        # What decides is the denylist, not the command line.
+        item = arguments[MEMORY_SENSOR]
+        loads = item["configured"] or not memory_denied_by(host)
+        item.update(configured=loads, managed=loads, external=False,
+                    active=host.path(f"/sys/module/{MEMORY_MODULE}").exists())
     value_items = {}
     for name in VALUE_ARGUMENTS:
         mine_token = f"{name}={values[name]}" if name in values else ""
@@ -513,6 +524,49 @@ def memory_module_present(host: Host) -> bool:
         if f"/{MEMORY_MODULE}.ko" in dependencies:
             return True
     return False
+
+
+def memory_denied_by(host: Host) -> str:
+    """The file that keeps bc250_memory from loading by itself, or an empty string."""
+    entry = re.compile(r"^\s*(?:blacklist\s+bc250[_-]memory\s*|install\s+bc250[_-]memory\s+\S*/(?:true|false)\b.*)$", re.M)
+    for directory in MODPROBE_DIRECTORIES:
+        folder = host.path(directory)
+        if not folder.is_dir():
+            continue
+        for item in sorted(folder.glob("*.conf")):
+            if entry.search(host.read(f"{directory}/{item.name}")):
+                return f"{directory}/{item.name}"
+    for word in host.read(CMDLINE).split():
+        name, _, value = word.partition("=")
+        if name in {"module_blacklist", "modprobe.blacklist"} and MEMORY_MODULE in value.replace("-", "_").split(","):
+            return CMDLINE
+    return ""
+
+
+def memory_loads_by_itself(host: Host) -> bool:
+    """Whether the running kernel's module matches this board by its aliases."""
+    release = os.uname().release
+    return any(
+        line.split()[-1:] == [MEMORY_MODULE] and "BC-250" in line
+        for root in ("/usr/lib/modules", "/lib/modules")
+        for line in host.read(f"{root}/{release}/modules.alias").splitlines()
+        if MEMORY_MODULE in line
+    )
+
+
+def _set_memory_autoload(host: Host, wanted: bool) -> None:
+    """Let the module load by itself at boot, or stop it: at boot, and now."""
+    if wanted:
+        host.remove_managed(MEMORY_DENYLIST)
+        blocked = memory_denied_by(host)
+        if blocked:
+            raise SetupError(f"bc250_memory is blocked by {blocked}, which Control Center did not write; it was left as it is")
+        return
+    if not memory_denied_by(host):
+        host.managed(MEMORY_DENYLIST, f"blacklist {MEMORY_MODULE}\n")
+    if host.path(f"/sys/module/{MEMORY_MODULE}").exists():
+        # In use or built in: it goes at the next boot instead.
+        host.run("modprobe", "-r", MEMORY_MODULE, check=False)
 
 
 def _regenerate_grub(host: Host) -> None:
@@ -848,6 +902,9 @@ def apply(host: Host, wanted: list[str] | tuple[str, ...]) -> dict:
             "This kernel has no bc250_memory driver, so loading it at boot would do nothing. "
             "It comes with the BC-250 kernel (linux-cachyos-bc250)."
         )
+    if memory_loads_by_itself(host):
+        _set_memory_autoload(host, MEMORY_SENSOR in wanted_set)
+        wanted_set.discard(MEMORY_SENSOR)  # its alias loads it: nothing to add to the command line
     wanted_list = [argument for argument in ARGUMENTS if argument in wanted_set]
     return _commit(host, backend, saved, wanted_list, _values(saved))
 
