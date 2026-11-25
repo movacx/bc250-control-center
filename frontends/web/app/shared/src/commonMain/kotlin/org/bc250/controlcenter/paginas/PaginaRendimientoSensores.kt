@@ -61,10 +61,14 @@ internal fun SensoresRendimiento(
                 }
             }
             if (distribucion == "split" && !movil) {
-                Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(10.dp)) {
-                    ListaSensores(datos, alMarcar, Modifier.weight(945f))
-                    TrazasSensores(datos, ventana, Modifier.weight(631f))
-                }
+                DosColumnas(
+                    parteInicial = 0.6f,
+                    alto = M.altoListaSensores,
+                    separacion = 10.dp,
+                    conPuntos = false,
+                    izquierda = { modificador -> ListaSensores(datos, alMarcar, modificador) },
+                    derecha = { modificador -> TrazasSensores(datos, ventana, modificador) },
+                )
             } else {
                 if (distribucion != "graphs") ListaSensores(datos, alMarcar, Modifier.fillMaxWidth())
                 if (distribucion != "list") TrazasSensores(datos, ventana, Modifier.fillMaxWidth())

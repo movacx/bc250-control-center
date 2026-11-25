@@ -97,15 +97,14 @@ private fun InstrumentoPanel(aplicacion: Aplicacion, tarjeta: JsonObject, datos:
     Column(modifier.marco(paleta.panel, paleta.bordeSuave, 8.dp).padding(start = 19.dp, top = 16.dp, end = 19.dp, bottom = 16.dp)) {
         Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
             Texto(tarjeta.texto("title").uppercase(), tamano = 13, peso = 800, modifier = Modifier.weight(1f))
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(end = 4.dp)) {
                 Texto(tarjeta.texto("value", "--"), tamano = 32, peso = 800)
                 Texto(tarjeta.texto("unit"), tamano = 12, peso = 700,
                     color = paleta.apagado, modifier = Modifier.padding(bottom = 4.dp))
             }
         }
         Spacer(Modifier.height(7.dp))
-        val colorLinea = if (clave == "fans") paleta.bordeSuave else paleta.acento
-        Box(Modifier.fillMaxWidth().height(2.dp).background(colorLinea))
+        Box(Modifier.fillMaxWidth().height(2.dp).background(paleta.acento))
         val grupos = tarjeta.objetos("groups")
         if (clave == "gpu") {
             BoxWithConstraints(Modifier.fillMaxWidth()) {

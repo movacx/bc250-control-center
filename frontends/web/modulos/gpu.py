@@ -19,6 +19,7 @@ from bc250cc.domain.gpu.voltage_profiles import (
     CUSTOM_VOLTAGE_MIN_MV,
     GOVERNOR_DEFAULT_VOLTAGES,
 )
+from frontends.desktop.core.temperature_unit import format_temperature
 from frontends.desktop.i18n import governor_fix_label, shipped_name
 from frontends.tui.i18n import tr, tr_format
 
@@ -89,7 +90,20 @@ def leer(ctx, live):
                                       ("Missing voltage", diagnosticos.missing), ("Duplicate frequencies", diagnosticos.duplicates),
                                       ("Power state", diagnosticos.power))]
         apertura = lab.applied_level if lab.applied_level in (1, 2, 3) else 1 if lab.applied_level == 0 else -1
-        return {**estado, "empty": not bool(estado), "opening_level": apertura, "profiles": tarjetas, "ceiling": techo, "voltage_lab": asdict(lab),
+        gpu = (getattr(ctx, "metrics", None) or {}).get("gpu") or {}
+        bajo, alto = int(estado.get("current_min") or 0), int(estado.get("current_max") or 0)
+        sin_respuesta = estado.get("dbus_responsive") is False
+        fichas = [
+            ("Core clock", f"{estado.get('sclk_actual') or 0} MHz", "Current SCLK state"),
+            ("GPU voltage", f"{estado.get('voltaje_actual') or 0} mV", "OD / SMU telemetry"),
+            ("Temperature", format_temperature(float(gpu.get("temperature_c") or 0)), "hwmon"),
+            ("GPU load", f"{round(float(gpu.get('usage_percent') or 0))} %", "amdgpu activity"),
+            ("Memory clock", f"{estado.get('mclk_actual') or 0} MHz", "Current MCLK state"),
+            ("Active range", f"{bajo}–{alto} MHz" if bajo > 0 and alto > 0 else "--",
+             "Cyan is not answering" if sin_respuesta else "Persisted on hardware"),
+        ]
+        lecturas = [{"label": tr(nombre), "value": valor, "detail": tr(nota)} for nombre, valor, nota in fichas]
+        return {**estado, "tiles": lecturas, "empty": not bool(estado), "opening_level": apertura, "profiles": tarjetas, "ceiling": techo, "voltage_lab": asdict(lab),
                 "fix_labels": {"metrics": governor_fix_label("metrics"), "frequency": governor_fix_label("frequency")},
                 "active_points": tr_format("{active} of {total} in config.toml", active=sum(f <= techo for f, _v in lab.points), total=len(lab.points)),
                 "service_plans": planes_servicio(estado), "diagnostics": filas, "rail": [{"frequency": f, "voltage": v} for f, v in GOVERNOR_DEFAULT_VOLTAGES.items()],

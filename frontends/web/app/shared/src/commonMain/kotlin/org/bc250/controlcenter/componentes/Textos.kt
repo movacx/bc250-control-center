@@ -15,6 +15,14 @@ import org.bc250.controlcenter.tema.LetrasActuales
 import org.bc250.controlcenter.tema.altoDeLinea
 import org.bc250.controlcenter.tema.grosor
 
+/**
+ * Una separación que no se ve, distinta cada vez que llega una letra: así el dibujante no reutiliza
+ * un texto que midió antes, cuando le faltaban esos signos.
+ */
+private fun marcaDeCarga(carga: Int): TextUnit {
+    return if (carga == 0) TextUnit.Unspecified else (carga * 0.0001f).sp
+}
+
 /** El estilo de letra del escritorio para un tamaño en píxeles y un grosor de Qt. */
 @Composable
 fun estiloTexto(
@@ -34,7 +42,7 @@ fun estiloTexto(
         lineHeight = altoDeLinea(tamano).sp,
         lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
         textAlign = alineado,
-        letterSpacing = espaciado,
+        letterSpacing = if (espaciado == TextUnit.Unspecified) marcaDeCarga(letras.carga) else espaciado,
     )
 }
 

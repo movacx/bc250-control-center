@@ -101,8 +101,9 @@ def principal() -> int:
         aplicacion.setFont(letra)
         preferences._migrate_legacy_qt_settings = lambda _destino: None
         ajustes = preferences.application_settings()
-        for clave, valor in {"settings/language": os.environ.get("BC250_REF_IDIOMA", "es"), "settings/appearance": "dark",
-                             "settings/accent": "green", "settings/density": "comfortable",
+        for clave, valor in {"settings/language": os.environ.get("BC250_REF_IDIOMA", "es"), "settings/appearance": os.environ.get("BC250_REF_TEMA", "dark"),
+                             "settings/accent": "green",
+                             "settings/gpu_interface": os.environ.get("BC250_REF_GPU", "modern"), "settings/density": "comfortable",
                              "settings/style": "formal"}.items():
             ajustes.setValue(clave, valor)
         mark_first_run_done(ajustes)
@@ -135,6 +136,15 @@ def principal() -> int:
             pieza.grab().save(str(destino / f"{nombre}.png"))
             (destino / f"{nombre}.json").write_text(json.dumps(medidas(pieza), ensure_ascii=False, indent=0))
             print(nombre, flush=True)
+
+        if pedidas == ["bienvenida"]:
+            ventana.open_welcome()
+            esperar(2)
+            for paso in range(ventana.welcome.STEP_COUNT):
+                ventana.welcome._reach(paso)
+                esperar(2)
+                guardar(f"bienvenida__{paso + 1}")
+            os._exit(0)
 
         from frontends.desktop.core.performance_model import RESOURCE_DEFINITIONS
 

@@ -4,7 +4,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -81,7 +86,11 @@ private fun coloresDe(clase: ClaseBoton, activo: Boolean, encima: Boolean): Colo
 fun Modifier.pulsable(activo: Boolean = true, fuente: MutableInteractionSource? = null, alPulsar: () -> Unit): Modifier {
     val interaccion = fuente ?: remember { MutableInteractionSource() }
     val cursor = if (activo) PointerIcon.Hand else PointerIcon.Default
+    val conFoco by interaccion.collectIsFocusedAsState()
+    val conTeclado = LocalInputModeManager.current.inputMode == InputMode.Keyboard
+    val anillo = if (conFoco && conTeclado) ColoresActuales.current.color("focus") else Color.Transparent
     return this
+        .border(2.dp, anillo, RoundedCornerShape(4.dp))
         .hoverable(interaccion, enabled = activo)
         .pointerHoverIcon(cursor)
         .clickable(

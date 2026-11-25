@@ -233,3 +233,13 @@ def test_las_automatizaciones_son_dos(ctx):
         tv.automatizar(ctx, {"key": "otra", "enable": True}, None)
     nivel, _trabajo = tv.automatizar(ctx, {"key": "wake", "enable": True}, None)
     assert nivel == 1
+
+
+# -- bienvenida -------------------------------------------------------------------------------------------
+
+def test_la_bienvenida_trae_todo_lo_que_enseña(ctx):
+    datos = configuracion.bienvenida(SimpleNamespace(ctx=ctx), {})
+    assert datos["temas"]["tipo"] == "temas" and datos["terminal"]["tipo"] == "terminales"
+    assert datos["idiomas"][0]["valor"] == "auto"
+    assert len(datos["idiomas"]) == 31
+    assert len(datos["paradas"]) >= 8

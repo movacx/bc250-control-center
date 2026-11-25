@@ -179,7 +179,7 @@ def leer(ctx, live):
                       {"key": "fans", "title": "Cooling", "primary": mostrar(ventilador.get("rpm"), "RPM", cero=True), "value": mostrar(ventilador.get("rpm"), cero=True), "unit": "RPM", "groups": refrigeracion}],
             "cores": nucleos, "topology": topologia, "telemetry": telemetria, "preparation": conflictos_preparacion(tools), "components": componentes, "quick_access": quick,
             "system": tools.get("os_label") or tools.get("os_name") or tools.get("os_family") or "Not detected",
-            "gddr6": {**gddr, "sample": muestra, "active": live.gddr6.get("active", False)},
+            "gddr6": {**gddr, "blocker": tr(gddr.get("blocker") or ""), "sample": muestra, "active": live.gddr6.get("active", False)},
             "rails": rails, "vrm_present": sensores.get("vrm_source") == "pmbus",
             "vrm_repair": regulador_atascado(metricas),
             "links": [{"key": title, "title": title, "url": url} for title, url in ENLACES],

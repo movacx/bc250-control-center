@@ -52,13 +52,13 @@ internal fun MemoriaPanel(aplicacion: Aplicacion, datos: JsonObject) {
             }
             if (estrecho) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Texto(t("GDDR6 memory temperature").uppercase(), tamano = 10, peso = 800)
+                    Texto(t("GDDR6 memory temperature").uppercase(), tamano = 10, peso = 800, color = ColoresActuales.current.apagado)
                     valor()
                     accion()
                 }
             } else {
                 Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(10.dp), Alignment.CenterVertically) {
-                    Texto(t("GDDR6 memory temperature").uppercase(), tamano = 10, peso = 800)
+                    Texto(t("GDDR6 memory temperature").uppercase(), tamano = 10, peso = 800, color = ColoresActuales.current.apagado)
                     valor()
                     Spacer(Modifier.weight(1f))
                     accion()
@@ -71,7 +71,7 @@ internal fun MemoriaPanel(aplicacion: Aplicacion, datos: JsonObject) {
         if (externo) {
             Leyenda(t(if (datos.logico("kernel_driver")) "Read by the kernel driver (bc250_memory)" else "Read by BC250-Telemetry"))
         }
-        if (datos.texto("blocker").isNotEmpty()) Leyenda(t(datos.texto("blocker")))
+        if (datos.texto("blocker").isNotEmpty()) Texto(datos.texto("blocker"), tamano = 11, color = ColoresActuales.current.apagado)
         if (muestra.texto("error").isNotEmpty()) Leyenda(muestra.texto("error"))
         if (chips.isNotEmpty()) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), Arrangement.spacedBy(8.dp)) {

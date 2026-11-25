@@ -2,6 +2,7 @@ package org.bc250.controlcenter.datos
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
@@ -38,8 +39,12 @@ data class Trabajo(
     val cancelado: Boolean = false,
     val esperaClave: Boolean = false,
     val esperaRespuesta: Boolean = false,
-)
+) {
+    /** Terminó mal sin que la persona lo detuviera. */
+    val fallo: Boolean get() = id > 0 && terminado && !correcto && !cancelado
+}
 
+private const val PESTANAS_CONSOLA = 5
 private const val MARCA_DE_PAREJA = "pair="
 private const val MARCA_DE_AJUSTES = "settings/"
 
@@ -77,7 +82,10 @@ class Aplicacion(private val tareas: CoroutineScope) {
     var aviso by mutableStateOf<Aviso?>(null)
         private set
     var trabajo by mutableStateOf(Trabajo())
-        private set
+
+    /** Las operaciones de esta visita, una por pestaña de la consola. */
+    val trabajos = mutableStateListOf<Trabajo>()
+    var trabajoElegido by mutableStateOf(0)
     var consolaVisible by mutableStateOf(false)
 
     /** La ventana de Configuración y la sección que muestra; vacía si está cerrada. */
@@ -85,6 +93,8 @@ class Aplicacion(private val tareas: CoroutineScope) {
         private set
     var textoAbierto by mutableStateOf<TextoAbierto?>(null)
     var actualizacionAbierta by mutableStateOf(false)
+    var idioma by mutableStateOf("en")
+        private set
     var recorridoAbierto by mutableStateOf(false)
 
     /** Cambia cada vez que se cargan textos en otro idioma. */
@@ -201,6 +211,7 @@ class Aplicacion(private val tareas: CoroutineScope) {
             return
         }
         conexion.idioma = respuesta.datos.texto("language", "en")
+        this.idioma = conexion.idioma
         val cadenas = respuesta.datos.objeto("strings")
         val traducciones = cadenas.keys.associateWith { clave -> cadenas.texto(clave, clave) }
         Textos.cambiar(traducciones)
@@ -462,6 +473,35 @@ class Aplicacion(private val tareas: CoroutineScope) {
             esperaClave = datos.logico("waiting"),
             esperaRespuesta = datos.logico("interactive"),
         )
+        anotarTrabajo(trabajo)
+    }
+
+    /** Anota cómo va la operación en su pestaña; las más viejas que salieron bien dejan sitio. */
+    private fun anotarTrabajo(nuevo: Trabajo) {
+        if (nuevo.id <= 0) {
+            return
+        }
+        val lugar = trabajos.indexOfFirst { abierto -> abierto.id == nuevo.id }
+        if (lugar >= 0) {
+            trabajos[lugar] = nuevo
+            return
+        }
+        while (trabajos.size >= PESTANAS_CONSOLA) {
+            trabajos.remove(trabajos.firstOrNull { abierto -> abierto.correcto } ?: trabajos.first())
+        }
+        trabajos.add(nuevo)
+        trabajoElegido = nuevo.id
+    }
+
+    fun trabajoEnPantalla(): Trabajo {
+        return trabajos.firstOrNull { abierto -> abierto.id == trabajoElegido } ?: trabajos.lastOrNull() ?: trabajo
+    }
+
+    fun cerrarTrabajo(id: Int) {
+        trabajos.removeAll { abierto -> abierto.id == id && abierto.terminado }
+        if (trabajos.isEmpty()) {
+            consolaVisible = false
+        }
     }
 
     fun responderTrabajo(texto: String) {
@@ -472,6 +512,17 @@ class Aplicacion(private val tareas: CoroutineScope) {
 
     fun interrumpirTrabajo() {
         tareas.launch { conexion.enviar("/api/job/interrupt") }
+    }
+
+    /** Cierra lo que esté encima, de lo más reciente a lo más viejo. */
+    fun volverAtras() {
+        when {
+            confirmacion != null -> confirmacion = null
+            textoAbierto != null -> textoAbierto = null
+            seccionAjustes.isNotEmpty() -> cerrarAjustes()
+            recorridoAbierto -> recorridoAbierto = false
+            consolaVisible -> consolaVisible = false
+        }
     }
 
     // -- avisos ------------------------------------------------------------------------------

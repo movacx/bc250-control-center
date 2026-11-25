@@ -9,7 +9,11 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
@@ -84,26 +88,27 @@ internal fun CarrilGpu(puntos: List<JsonObject>, minimo: Int, maximo: Int, techo
                         moverActual(cambio.position.x, size.width.toFloat())
                     }
                 }) {
-                val y = 27.dp.toPx()
+                val y = 20.dp.toPx()
                 val bajo = posicion(minimo, size.width)
                 val alto = posicion(maximo, size.width)
-                drawLine(paleta.rojoBorde, Offset(26f, y), Offset(size.width - 26f, y), 3f)
-                drawLine(paleta.bordeFuerte, Offset(26f, y), Offset(posicion(techo, size.width), y), 3f)
-                drawLine(paleta.acento, Offset(bajo, y), Offset(alto, y), 4f)
-                for (frecuencia in frecuencias) {
+                val fin = size.width - 26f
+                drawLine(paleta.bordeSuave, Offset(26f, y), Offset(fin, y), 3.dp.toPx())
+                drawLine(paleta.rojoBorde.copy(alpha = 0.55f), Offset(posicion(techo, size.width), y), Offset(fin, y), 4.dp.toPx())
+                drawLine(paleta.acento, Offset(bajo, y), Offset(alto, y), 4.dp.toPx())
+                for ((indice, frecuencia) in frecuencias.withIndex()) {
                     val x = posicion(frecuencia, size.width)
-                    drawLine(if (frecuencia > techo) paleta.rojoBorde else paleta.acento,
-                        Offset(x, y - 15f), Offset(x, y), 2f)
+                    val final = y - if (indice % 2 == 0) 2.dp.toPx() else 5.dp.toPx()
+                    val color = colorDeMarca(frecuencia, minimo, maximo, techo, paleta)
+                    drawLine(color, Offset(x, y - 17.dp.toPx()), Offset(x, final), 2.dp.toPx())
                 }
-                drawCircle(paleta.acento, 6.dp.toPx(), Offset(alto, y))
-                drawCircle(paleta.panel, 7.dp.toPx(), Offset(bajo, y))
-                drawCircle(paleta.acento, 7.dp.toPx(), Offset(bajo, y), style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+                dibujarTope(Offset(alto, y), paleta.acento, paleta.acento)
+                dibujarTope(Offset(bajo, y), paleta.ventana, paleta.acento)
             }
             for ((indice, frecuencia) in frecuencias.withIndex()) {
                 val x = 26.dp + (ancho - 52.dp) * indice / (frecuencias.size - 1).coerceAtLeast(1) - 24.dp
                 Texto(frecuencia.toString(), tamano = 9, color = colorDelPunto(frecuencia, minimo, maximo, techo, paleta),
                     alineado = TextAlign.Center,
-                    modifier = Modifier.offset(x = x, y = if (indice % 2 == 0) 45.dp else 60.dp).width(48.dp))
+                    modifier = Modifier.offset(x = x, y = if (indice % 2 == 0) 36.dp else 52.dp).width(48.dp))
             }
             }
             // Los campos conservan el ajuste fino también sin arrastrar en el teléfono.
@@ -118,7 +123,7 @@ internal fun CarrilGpu(puntos: List<JsonObject>, minimo: Int, maximo: Int, techo
 }
 
 @Composable
-internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre: Boolean) {
+internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre: Boolean, clasica: Boolean = false) {
     val actual = datos.objeto("cyan_telemetry")
     var metodo by remember { mutableStateOf("smu") }
     var uso by remember { mutableStateOf("busy-flag") }
@@ -146,15 +151,8 @@ internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre:
                 "temp_read" to JsonPrimitive(temperatura)), peligro = metodo == "kernel")
         editado = false
     }
-    SeccionGpuCu(t("Cyan kernel compatibility"), alto = 23.dp, derecha = {
-        val modo = when {
-            datos.texto("service_active") != "active" -> t("Governor stopped — press Start governor")
-            datos.objeto("high_frequency_points").logico("enabled") -> t("Extended range")
-            else -> t("Safe mode")
-        }
-        Texto(modo, tamano = 11, peso = 780, color = ColoresActuales.current.verde)
-    }) {
-    SubPanel(margen = PaddingValues(18.dp, 14.dp), espacio = 0.dp) {
+    @Composable
+    fun filas() {
         RejillaGpuCu(3, 3, separacion = 10.dp) { indice, modificador ->
             when (indice) {
                 0 -> FilaEleccion(t("Governor method"), opciones(listOf("smu", "kernel")), metodo,
@@ -169,7 +167,7 @@ internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre:
             Texto(t("The process reading goes through every open file of every program. With a game open, Cyan stops answering: the range, the +2000 MHz points and the voltage lab stop working until the game closes. busy-flag is the default."),
                 tamano = 12, color = ColoresActuales.current.naranja)
         }
-        SeparadorGpu()
+        Separador(clasica)
         FilaHerramientaGpuCu("", t("The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off."), tamanoDetalle = 10) {
             Boton(t("Use the BC-250 kernel settings"), {
                 metodo = "kernel"
@@ -180,7 +178,7 @@ internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre:
                 editado = true
             }, Modifier.width(235.dp), activo = libre, alto = MedidasGpuCu.altoAccion, tamano = 12)
         }
-        SeparadorGpu()
+        Separador(clasica)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             if (maxWidth < MedidasGpuCu.anchoMovil) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -198,6 +196,40 @@ internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre:
             }
         }
     }
+    @Composable
+    fun modo() {
+        Texto(modoGpu(datos), tamano = 11, peso = 780, color = ColoresActuales.current.verde)
+    }
+    if (clasica) {
+        SubPanel(margen = PaddingValues(14.dp, 12.dp), espacio = 9.dp) {
+            Row(Modifier.fillMaxWidth().height(23.dp), verticalAlignment = Alignment.CenterVertically) {
+                Texto(t("Cyan kernel compatibility"), 14, Modifier.weight(1f), peso = 780)
+                modo()
+            }
+            Leyenda(t("Only touch this if the readings above look wrong."))
+            Column { filas() }
+        }
+    } else {
+        SeccionGpuCu(t("Cyan kernel compatibility"), alto = 23.dp, derecha = { modo() }) {
+            SubPanel(margen = PaddingValues(18.dp, 14.dp), espacio = 0.dp) { filas() }
+        }
+    }
+}
+
+private fun modoGpu(datos: JsonObject): String {
+    return when {
+        datos.texto("service_active") != "active" -> t("Governor stopped — press Start governor")
+        datos.objeto("high_frequency_points").logico("enabled") -> t("Extended range")
+        else -> t("Safe mode")
+    }
+}
+
+@Composable
+private fun Separador(clasica: Boolean) {
+    if (clasica) {
+        Spacer(Modifier.height(9.dp))
+    } else {
+        SeparadorGpu()
     }
 }
 
@@ -242,10 +274,10 @@ internal fun HerramientasGpu(aplicacion: Aplicacion, datos: JsonObject, libre: B
 }
 
 @Composable
-private fun RejillaAccionesServicioGpu(aplicacion: Aplicacion, datos: JsonObject, funcionando: Boolean, libre: Boolean) {
+internal fun RejillaAccionesServicioGpu(aplicacion: Aplicacion, datos: JsonObject, funcionando: Boolean, libre: Boolean, alto: androidx.compose.ui.unit.Dp = MedidasGpuCu.altoAccion, tamano: Int = 12) {
     AccionesGpuCu(3, 613.dp) { indice, caja ->
         if (indice == 0) {
-            Boton(t("View status"), { aplicacion.ejecutar("gpu.status", t("View status")) }, caja, alto = MedidasGpuCu.altoAccion, tamano = 12)
+            Boton(t("View status"), { aplicacion.ejecutar("gpu.status", t("View status")) }, caja, alto = alto, tamano = tamano)
         } else {
             val accion = if (indice == 1) "reiniciar" else if (funcionando) "desactivar" else "activar"
             val titulo = t(if (indice == 1) "Restart" else if (funcionando) "Stop governor" else "Start governor")
@@ -254,7 +286,7 @@ private fun RejillaAccionesServicioGpu(aplicacion: Aplicacion, datos: JsonObject
                 aplicacion.preguntarYEjecutar("gpu.service", titulo, plan.texto("message", titulo),
                     mapOf("action" to JsonPrimitive(accion)), peligro = plan.logico("risk"))
             }, caja, clase = if (accion == "desactivar") ClaseBoton.PELIGRO else ClaseBoton.NORMAL,
-                activo = libre, alto = MedidasGpuCu.altoAccion, tamano = 12)
+                activo = libre, alto = alto, tamano = tamano)
         }
     }
 }
@@ -297,4 +329,21 @@ private fun colorDelPunto(frecuencia: Int, minimo: Int, maximo: Int, techo: Int,
         frecuencia in minimo..maximo -> paleta.texto
         else -> paleta.sutil
     }
+}
+
+private fun colorDeMarca(frecuencia: Int, minimo: Int, maximo: Int, techo: Int, paleta: Paleta): Color {
+    return when {
+        frecuencia > techo -> paleta.rojoBorde.copy(alpha = 0.55f)
+        frecuencia in minimo..maximo -> paleta.acento
+        else -> paleta.bordeFuerte
+    }
+}
+
+/** Cada extremo del rango: una pastilla de 14 por 20. */
+private fun DrawScope.dibujarTope(centro: Offset, fondo: Color, borde: Color) {
+    val medida = Size(14.dp.toPx(), 20.dp.toPx())
+    val esquina = Offset(centro.x - medida.width / 2, centro.y - medida.height / 2)
+    val radio = CornerRadius(6.dp.toPx())
+    drawRoundRect(fondo, esquina, medida, radio)
+    drawRoundRect(borde, esquina, medida, radio, style = Stroke(1.dp.toPx()))
 }

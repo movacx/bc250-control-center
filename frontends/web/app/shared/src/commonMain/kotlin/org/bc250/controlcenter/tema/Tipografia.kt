@@ -13,12 +13,13 @@ import org.bc250.controlcenter.recursos.notosans_medium
 import org.bc250.controlcenter.recursos.notosans_regular
 import org.jetbrains.compose.resources.Font
 
-class Letras(val normal: FontFamily, val consola: FontFamily)
+/** ``carga`` cuenta las letras de otros alfabetos que ya llegaron. */
+class Letras(val normal: FontFamily, val consola: FontFamily, val carga: Int = 0)
 
 val LetrasActuales = staticCompositionLocalOf { Letras(FontFamily.SansSerif, FontFamily.Monospace) }
 
 @Composable
-fun cargarLetras(): Letras {
+fun cargarLetras(carga: Int): Letras {
     val normal = FontFamily(
         Font(Res.font.notosans_regular, FontWeight.Normal),
         Font(Res.font.notosans_medium, FontWeight.Medium),
@@ -29,7 +30,7 @@ fun cargarLetras(): Letras {
         Font(Res.font.jetbrainsmono_regular, FontWeight.Normal),
         Font(Res.font.jetbrainsmono_bold, FontWeight.Bold),
     )
-    return Letras(normal, consola)
+    return Letras(normal, consola, carga)
 }
 
 /** El grosor de Qt (400 a 900) llevado al archivo de letra que Qt elige para él. */

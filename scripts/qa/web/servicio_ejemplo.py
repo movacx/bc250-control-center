@@ -173,7 +173,8 @@ class ServicioEjemplo:
 
 class ConfiguracionEjemplo:
     def __init__(self, idioma="es"):
-        self.valores = {"idioma": idioma, "language": idioma, "appearance": "dark"}
+        self.valores = {"idioma": idioma, "language": idioma, "appearance": "dark",
+                        "web_prefs": {"welcome_done": True}}
 
     def read_local_config(self):
         return dict(self.valores)

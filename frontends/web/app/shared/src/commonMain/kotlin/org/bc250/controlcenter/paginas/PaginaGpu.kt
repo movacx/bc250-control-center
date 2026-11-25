@@ -84,74 +84,88 @@ fun PaginaGpu(aplicacion: Aplicacion) {
                 tareas.launch { aplicacion.leerPagina("gpu") }
             }
             if (datos.logico("empty")) Texto(t("Not detected"), color = paleta.apagado, tamano = 13)
-            TarjetaPagina(Modifier.fillMaxWidth(), espacio = MedidasGpuCu.espacio) {
-                if (datos.logico("dbus_responsive", true).not()) {
-                    Texto(t(if (datos.objeto("cyan_telemetry").texto("method") == "process")
-                        "Cyan is running but not answering. Its usage reading is set to process, which reads every open file of every program; a Proton game keeps tens of thousands open. Choose busy-flag in Cyan kernel compatibility and apply."
-                        else "Cyan is running but not answering on D-Bus, so its range cannot be read or changed right now. Restart the governor if it does not recover."), color = paleta.naranja, tamano = 13)
-                }
-                SeccionGpuCu(t("Operating profile"), alto = 33.dp, derecha = {
-                        Boton(t("Export to Decky"), {
-                            aplicacion.preguntarYEjecutar("gpu.export_decky", t("Export to Decky"))
-                        }, activo = libre, alto = MedidasGpuCu.altoAccion, icono = Res.drawable.gamepad_menu, tamano = 12)
-                }) {
-                    Leyenda(t("One click sets the range. The pencil changes name and frequencies."), Modifier.height(16.dp))
-                    val perfiles = datos.objetos("profiles")
-                    RejillaGpuCu(perfiles.size, 3) { indice, modificador ->
-                        val perfil = perfiles[indice]
-                        TarjetaPerfilGpu(perfil, minimo == perfil.entero("min") && maximo == perfil.entero("max"),
-                            libre && (oberon || perfil.entero("max") <= techo), modificador,
-                            alElegir = { elegirRango(perfil.entero("min"), perfil.entero("max")) },
-                            alEditar = if (oberon || !aplicacion.puedeControlar) null else { { perfilEditado = perfil } })
+            val clasica = !oberon && aplicacion.preferencias.texto("gpu_interface") == "original"
+            if (clasica) {
+                GpuClasica(aplicacion, datos, libre, minimo, maximo, AccionesGpuClasica(
+                    elegirRango = ::elegirRango,
+                    editarPerfil = { perfil -> perfilEditado = perfil },
+                    guardarArranque = ::guardarArranque,
+                    aplicar = ::aplicar,
+                    abrirLaboratorio = { laboratorio = true },
+                    abrirConfiguracion = ::abrirConfiguracion,
+                ))
+            } else {
+                TarjetaPagina(Modifier.fillMaxWidth(), espacio = MedidasGpuCu.espacio) {
+                    if (datos.logico("dbus_responsive", true).not()) {
+                        Texto(t(if (datos.objeto("cyan_telemetry").texto("method") == "process")
+                            "Cyan is running but not answering. Its usage reading is set to process, which reads every open file of every program; a Proton game keeps tens of thousands open. Choose busy-flag in Cyan kernel compatibility and apply."
+                            else "Cyan is running but not answering on D-Bus, so its range cannot be read or changed right now. Restart the governor if it does not recover."), color = paleta.naranja, tamano = 13)
                     }
-                }
-                if (!oberon) {
-                    SeccionGpuCu(t("Frequency range"), derecha = {
-                        if (!datos.objeto("high_frequency_points").logico("enabled")) {
-                            Texto(t("{minimum}–{maximum} MHz COMMENTED IN THE TOML", "minimum" to "2050", "maximum" to "2400"),
-                                tamano = 11, peso = 800, color = paleta.rojo)
-                        }
+                    SeccionGpuCu(t("Operating profile"), alto = 33.dp, derecha = {
+                            Boton(t("Export to Decky"), {
+                                aplicacion.preguntarYEjecutar("gpu.export_decky", t("Export to Decky"))
+                            }, activo = libre, alto = MedidasGpuCu.altoAccion, icono = Res.drawable.gamepad_menu, tamano = 12)
                     }) {
-                    SubPanel(margen = PaddingValues(18.dp, 14.dp), espacio = 9.dp) {
-                        FilaHerramientaGpuCu("", t("Fine-tune over the TOML points · current ceiling {ceiling} MHz.", "ceiling" to techo.toString()), tamanoDetalle = 10) {
-                            AccionesGpuCu(2, 400.dp) { indice, caja ->
-                                if (indice == 0) Boton(t("Save for startup"), ::guardarArranque, caja, activo = libre, alto = MedidasGpuCu.altoAccion, tamano = 12)
-                                else Boton(t("Review and apply range"), ::aplicar, caja, clase = ClaseBoton.PRINCIPAL,
-                                    activo = libre && minimo <= maximo && maximo <= techo, alto = MedidasGpuCu.altoAccion, tamano = 12)
+                        Leyenda(t("One click sets the range. The pencil changes name and frequencies."), Modifier.height(16.dp))
+                        val perfiles = datos.objetos("profiles")
+                        RejillaGpuCu(perfiles.size, 3) { indice, modificador ->
+                            val perfil = perfiles[indice]
+                            TarjetaPerfilGpu(perfil, minimo == perfil.entero("min") && maximo == perfil.entero("max"),
+                                libre && (oberon || perfil.entero("max") <= techo), modificador,
+                                alElegir = { elegirRango(perfil.entero("min"), perfil.entero("max")) },
+                                alEditar = if (oberon || !aplicacion.puedeControlar) null else { { perfilEditado = perfil } })
+                        }
+                    }
+                    if (!oberon) {
+                        SeccionGpuCu(t("Frequency range"), derecha = {
+                            if (!datos.objeto("high_frequency_points").logico("enabled")) {
+                                Texto(t("{minimum}–{maximum} MHz COMMENTED IN THE TOML", "minimum" to "2050", "maximum" to "2400"),
+                                    tamano = 11, peso = 800, color = paleta.rojo)
+                            }
+                        }) {
+                        SubPanel(margen = PaddingValues(18.dp, 14.dp), espacio = 9.dp) {
+                            FilaHerramientaGpuCu("", t("Fine-tune over the TOML points · current ceiling {ceiling} MHz.", "ceiling" to techo.toString()), tamanoDetalle = 10) {
+                                AccionesGpuCu(2, 400.dp) { indice, caja ->
+                                    if (indice == 0) Boton(t("Save for startup"), ::guardarArranque, caja, activo = libre, alto = MedidasGpuCu.altoAccion, tamano = 12)
+                                    else Boton(t("Review and apply range"), ::aplicar, caja, clase = ClaseBoton.PRINCIPAL,
+                                        activo = libre && minimo <= maximo && maximo <= techo, alto = MedidasGpuCu.altoAccion, tamano = 12)
+                                }
+                            }
+                            val razon = datos.objeto("high_frequency_points").texto("ceiling_reason")
+                            if (razon.isNotEmpty()) Texto(razon, tamano = 11, color = paleta.naranja)
+                            CarrilGpu(datos.objetos("rail"), minimo, maximo, techo, libre, ::elegirRango)
+                        }
+                        }
+                        CompatibilidadGpu(aplicacion, datos, libre)
+                    } else {
+                        Boton(t("Review and apply Oberon profile"), ::aplicar, clase = ClaseBoton.PRINCIPAL, activo = libre)
+                    }
+                    HerramientasGpu(aplicacion, datos, libre, alLaboratorio = { laboratorio = true }, alConfiguracion = ::abrirConfiguracion)
+                    if (!oberon) {
+                        SeccionGpuCu(t("DANGER ZONE").lowercase().replaceFirstChar { letra -> letra.uppercase() }) {
+                        val habilitados = datos.objeto("high_frequency_points").logico("enabled")
+                        SubPanel(borde = paleta.bordeRiesgo, margen = PaddingValues(18.dp, 14.dp)) {
+                            FilaHerramientaGpuCu(t("TOML points above 2000 MHz"),
+                                t("Uncomment the {extra_low}–{extra_high} MHz safe-points in config.toml (up to {voltage} mV). It can hang the board or corrupt the SMU state.", "extra_low" to "2050", "extra_high" to "2400", "voltage" to "1150")) {
+                                val titulo = t(if (habilitados) "Re-comment the +2000 MHz points" else "Uncomment +2000 MHz points")
+                                Boton(titulo, {
+                                    aplicacion.preguntarYEjecutar("gpu.high_points", titulo, titulo,
+                                        mapOf("enable" to JsonPrimitive(!habilitados)), peligro = true)
+                                }, Modifier.width(236.dp), clase = ClaseBoton.PELIGRO, activo = libre, alto = MedidasGpuCu.altoAccion, tamano = 12)
                             }
                         }
-                        val razon = datos.objeto("high_frequency_points").texto("ceiling_reason")
-                        if (razon.isNotEmpty()) Texto(razon, tamano = 11, color = paleta.naranja)
-                        CarrilGpu(datos.objetos("rail"), minimo, maximo, techo, libre, ::elegirRango)
-                    }
-                    }
-                    CompatibilidadGpu(aplicacion, datos, libre)
-                } else {
-                    Boton(t("Review and apply Oberon profile"), ::aplicar, clase = ClaseBoton.PRINCIPAL, activo = libre)
-                }
-                HerramientasGpu(aplicacion, datos, libre, alLaboratorio = { laboratorio = true }, alConfiguracion = ::abrirConfiguracion)
-                if (!oberon) {
-                    SeccionGpuCu(t("DANGER ZONE").lowercase().replaceFirstChar { letra -> letra.uppercase() }) {
-                    val habilitados = datos.objeto("high_frequency_points").logico("enabled")
-                    SubPanel(borde = paleta.bordeRiesgo, margen = PaddingValues(18.dp, 14.dp)) {
-                        FilaHerramientaGpuCu(t("TOML points above 2000 MHz"),
-                            t("Uncomment the {extra_low}–{extra_high} MHz safe-points in config.toml (up to {voltage} mV). It can hang the board or corrupt the SMU state.", "extra_low" to "2050", "extra_high" to "2400", "voltage" to "1150")) {
-                            val titulo = t(if (habilitados) "Re-comment the +2000 MHz points" else "Uncomment +2000 MHz points")
-                            Boton(titulo, {
-                                aplicacion.preguntarYEjecutar("gpu.high_points", titulo, titulo,
-                                    mapOf("enable" to JsonPrimitive(!habilitados)), peligro = true)
-                            }, Modifier.width(236.dp), clase = ClaseBoton.PELIGRO, activo = libre, alto = MedidasGpuCu.altoAccion, tamano = 12)
                         }
-                    }
                     }
                 }
             }
             TarjetaPagina(Modifier.fillMaxWidth()) {
                 FilaHerramientaGpuCu(t("Advanced GPU diagnostics"), tamanoTitulo = 14, detalle = t("TOML safe-point controls, voltage validation and hardware details.")) {
-                    Boton(t(if (avanzados) "Hide" else "Show"), { avanzados = !avanzados })
+                    EnlaceMostrar(avanzados) { avanzados = !avanzados }
                 }
+                LineaDivisoria()
                 if (avanzados) DiagnosticosGpu(datos, minimo, maximo)
             }
+            SelectorInterfazGpu(aplicacion)
         }
         if (perfilEditado != null) {
             EditorPerfilGpu(aplicacion, perfilEditado!!, alCerrar = { perfilEditado = null })
@@ -170,7 +184,7 @@ fun PaginaGpu(aplicacion: Aplicacion) {
 }
 
 @Composable
-private fun TarjetaPerfilGpu(perfil: JsonObject, elegido: Boolean, activo: Boolean, modifier: Modifier,
+internal fun TarjetaPerfilGpu(perfil: JsonObject, elegido: Boolean, activo: Boolean, modifier: Modifier,
     alElegir: () -> Unit, alEditar: (() -> Unit)?) {
     val paleta = ColoresActuales.current
     Column(modifier.height(MedidasGpuCu.altoPerfil)
@@ -209,6 +223,33 @@ private fun EditorPerfilGpu(aplicacion: Aplicacion, perfil: JsonObject, alCerrar
                     "name" to JsonPrimitive(nombre), "min" to JsonPrimitive(minimo), "max" to JsonPrimitive(maximo)), "gpu")
                 alCerrar()
             }, clase = ClaseBoton.PRINCIPAL, activo = nombre.isNotBlank() && minimo <= maximo)
+        }
+    }
+}
+
+/** «Mostrar ›» y «Ocultar», como el enlace del escritorio. */
+@Composable
+private fun EnlaceMostrar(abierto: Boolean, alPulsar: () -> Unit) {
+    val paleta = ColoresActuales.current
+    Row(
+        Modifier.height(26.dp).pulsable(alPulsar = alPulsar).padding(horizontal = 20.dp),
+        Arrangement.spacedBy(4.dp),
+        androidx.compose.ui.Alignment.CenterVertically,
+    ) {
+        Texto(t(if (abierto) "Hide" else "Show"), tamano = 13, peso = 720, color = paleta.acento)
+        FlechaPlegar(abierto = abierto)
+    }
+}
+
+/** Los dos botones del pie: Moderno y Antiguo. */
+@Composable
+private fun SelectorInterfazGpu(aplicacion: Aplicacion) {
+    val actual = aplicacion.preferencias.texto("gpu_interface", "modern")
+    Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(6.dp, androidx.compose.ui.Alignment.End)) {
+        for ((valor, nombre) in listOf("modern" to "Modern design", "original" to "Classic design")) {
+            val clase = if (valor == actual) ClaseBoton.PRINCIPAL else ClaseBoton.NORMAL
+            Boton(t(nombre), { aplicacion.guardarPreferencia("gpu_interface", JsonPrimitive(valor)) {} },
+                clase = clase, activo = aplicacion.puedeControlar, alto = 31.dp, tamano = 12, peso = 650)
         }
     }
 }

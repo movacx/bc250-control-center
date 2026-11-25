@@ -11,6 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -28,6 +32,8 @@ import org.bc250.controlcenter.componentes.BarraLateral
 import org.bc250.controlcenter.componentes.DialogoConfirmacion
 import org.bc250.controlcenter.componentes.DialogoTexto
 import org.bc250.controlcenter.componentes.LocalPaletas
+import org.bc250.controlcenter.componentes.BalizaConsola
+import org.bc250.controlcenter.componentes.NavegacionMando
 import org.bc250.controlcenter.componentes.PanelConsola
 import org.bc250.controlcenter.componentes.Texto
 import org.bc250.controlcenter.componentes.marco
@@ -35,11 +41,13 @@ import org.bc250.controlcenter.datos.Aplicacion
 import org.bc250.controlcenter.datos.Aviso
 import org.bc250.controlcenter.datos.EstadoSesion
 import org.bc250.controlcenter.datos.entero
+import org.bc250.controlcenter.datos.logico
 import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.paginas.PaginaAccesoRemoto
 import org.bc250.controlcenter.paginas.PaginaAjustesAdicionales
 import org.bc250.controlcenter.paginas.PaginaCajaNegra
 import org.bc250.controlcenter.paginas.VentanaActualizacion
+import org.bc250.controlcenter.paginas.VentanaBienvenida
 import org.bc250.controlcenter.paginas.VentanaConfiguracion
 import org.bc250.controlcenter.paginas.VentanaRecorrido
 import org.bc250.controlcenter.paginas.PaginaCpu
@@ -54,6 +62,7 @@ import org.bc250.controlcenter.paginas.PaginaIngreso
 import org.bc250.controlcenter.tema.ColoresActuales
 import org.bc250.controlcenter.tema.LetrasActuales
 import org.bc250.controlcenter.tema.Medidas
+import org.bc250.controlcenter.tema.CargarLetrasDeIdioma
 import org.bc250.controlcenter.tema.cargarLetras
 
 @Composable
@@ -66,26 +75,35 @@ fun App() {
     aplicacion.sistemaOscuro = isSystemInDarkTheme()
     val escala = aplicacion.preferencias.entero("scale", 100) / 100f
     val densidad = LocalDensity.current
+    // Al llegar una letra nueva se dibuja todo otra vez: lo ya medido se quedaría con cuadritos.
+    var letrasCargadas by remember { mutableIntStateOf(0) }
     CompositionLocalProvider(
         ColoresActuales provides aplicacion.paleta,
-        LetrasActuales provides cargarLetras(),
+        LetrasActuales provides cargarLetras(letrasCargadas),
         LocalPaletas provides aplicacion.paletas,
         LocalDensity provides Density(densidad.density * escala, densidad.fontScale),
     ) {
+        CargarLetrasDeIdioma(aplicacion.idioma) { letrasCargadas += 1 }
         Box(
             Modifier
                 .fillMaxSize()
                 .background(aplicacion.paleta.ventana)
                 .onPreviewKeyEvent { evento -> atenderTecla(evento, aplicacion) },
         ) {
-            when (aplicacion.sesion) {
-                EstadoSesion.DENTRO -> Ventana(aplicacion)
-                else -> PaginaIngreso(aplicacion)
+            key(letrasCargadas) {
+                when (aplicacion.sesion) {
+                    EstadoSesion.DENTRO -> Ventana(aplicacion)
+                    else -> PaginaIngreso(aplicacion)
+                }
+                VentanasEncima(aplicacion)
             }
-            VentanasEncima(aplicacion)
+            NavegacionMando(aplicacion)
             val confirmacion = aplicacion.confirmacion
             if (confirmacion != null) {
                 DialogoConfirmacion(confirmacion, aplicacion)
+            }
+            if (!aplicacion.consolaVisible && !aplicacion.trabajo.terminado) {
+                BalizaConsola(aplicacion, Modifier.align(Alignment.CenterEnd))
             }
             val aviso = aplicacion.aviso
             if (aviso != null) {
@@ -106,6 +124,10 @@ private fun VentanasEncima(aplicacion: Aplicacion) {
     }
     if (aplicacion.actualizacionAbierta) {
         VentanaActualizacion(aplicacion)
+    }
+    val falta = aplicacion.preferencias.isNotEmpty() && !aplicacion.preferencias.logico("welcome_done")
+    if (falta && aplicacion.puedeControlar) {
+        VentanaBienvenida(aplicacion)
     }
     if (aplicacion.recorridoAbierto) {
         VentanaRecorrido(aplicacion)

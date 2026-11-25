@@ -72,6 +72,7 @@ PREFERENCIAS = {
     "gddr6_manual": ((True, False), False),
     "vrm_manual": ((True, False), False),
     "detailed_diagnostics": ((True, False), False),
+    "welcome_done": ((True, False), False),
 }
 
 VRM_REDUNDANTE = ("This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service "
@@ -677,6 +678,33 @@ def recorrido(web, parametros) -> dict:
     return {"stops": sorted(paradas, key=lambda parada: parada["orden"])}
 
 
+MODULOS_RECORRIDO = (("dashboard", "Dashboard"), ("cpu", "CPU"), ("gpu", "GPU"), ("cu", "Compute units"),
+                     ("extras", "Additional settings"), ("performance", "Performance"), ("fans", "Fans"),
+                     ("firmware", "Firmware (BIOS)"), ("settings", "Settings"))
+
+
+def bienvenida(web, parametros) -> dict:
+    """Lo que enseña la primera visita: idiomas, aspecto y las paradas del recorrido por módulo."""
+    p = preferencias(web.ctx.settings.read_local_config())
+    temas, estilo, acento = apariencia(web.ctx, p)[0]["bloques"]
+    densidad, escala = apariencia(web.ctx, p)[1]["bloques"]
+    paradas = [parada["page"] for parada in recorrido(web, {})["stops"]]
+    cuentas = {clave: paradas.count(clave) for clave, _nombre in MODULOS_RECORRIDO}
+    if cuentas["dashboard"] > 1 and not cuentas["settings"]:  # la última parada señala Configuración desde el panel
+        cuentas["dashboard"] -= 1
+        cuentas["settings"] = 1
+    fichas = []
+    for clave, nombre in MODULOS_RECORRIDO:
+        cantidad = cuentas[clave]
+        if cantidad:
+            frase = "{module} · 1 stop" if cantidad == 1 else "{module} · {count} stops"
+            fichas.append(tr_format(frase, module=tr(nombre), count=cantidad))
+    return {"idiomas": [{"valor": codigo, "nombre": tr("Automatic") if codigo == "auto" else nombre} for codigo, nombre in LANGUAGE_OPTIONS],
+            "idioma": p["language"], "unidad": p["temperature_unit"], "barra": p["sidebar_collapsed"],
+            "mando": p["gamepad_navigation"], "temas": temas, "estilo": estilo, "acento": acento,
+            "densidad": densidad, "escala": escala, "terminal": terminal(web.ctx, p)[2]["bloques"][0], "paradas": fichas}
+
+
 def lectura_preferencias(ctx, live) -> dict:
     valores = preferencias(ctx.settings.read_local_config())
     use_unit(valores["temperature_unit"])
@@ -686,7 +714,8 @@ def lectura_preferencias(ctx, live) -> dict:
 
 
 LECTURAS = {"preferences": (1, lectura_preferencias)}
-CONSULTAS = {"settings": consultar, "settings.update": novedades, "settings.tour": recorrido}
+CONSULTAS = {"settings": consultar, "settings.update": novedades, "settings.tour": recorrido,
+             "settings.welcome": bienvenida}
 ACCIONES = {"settings.governor": cambiar_gobernador, "settings.telemetry": servicio_telemetria, "settings.driver": controlador,
             "settings.memory_boot": memoria_al_arrancar, "settings.daemon": daemon, "settings.update": actualizar}
 AJUSTES = {"settings.preference": guardar_preferencia, "settings.reset": reiniciar_preferencias,

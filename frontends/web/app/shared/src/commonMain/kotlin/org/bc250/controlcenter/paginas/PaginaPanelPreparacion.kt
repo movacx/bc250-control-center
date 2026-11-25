@@ -29,8 +29,8 @@ internal fun PreparacionPanel(aplicacion: Aplicacion, datos: JsonObject, alDialo
     val componentes = datos.objetos("components")
     val seleccionados = seleccion ?: seleccionInicialPanel(componentes)
     val libre = aplicacion.trabajo.terminado && aplicacion.puedeControlar
-    Column(Modifier.fillMaxWidth().marco(paleta.panel, paleta.borde, 7.dp).padding(start = 17.dp, top = 14.dp, end = 17.dp, bottom = 11.dp), Arrangement.spacedBy(15.dp)) {
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
+    Column(Modifier.fillMaxWidth().marco(paleta.panel, paleta.borde, 7.dp).padding(start = 1.dp, top = 13.dp, end = 1.dp, bottom = 11.dp), Arrangement.spacedBy(0.dp)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
             if (maxWidth >= M.anchoMovil) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -47,10 +47,13 @@ internal fun PreparacionPanel(aplicacion: Aplicacion, datos: JsonObject, alDialo
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(2.dp)) {
+        LineaDivisoria()
+        Row(Modifier.fillMaxWidth().height(42.dp).padding(horizontal = 12.dp, vertical = 4.dp), Arrangement.spacedBy(6.dp)) {
             PestanaPanel(t("Components"), pestaña == "components", Modifier.weight(1f)) { pestaña = "components" }
             PestanaPanel("Decky", pestaña == "decky", Modifier.weight(1f)) { pestaña = "decky" }
         }
+        LineaDivisoria()
+        Column(Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp, end = 16.dp), Arrangement.spacedBy(10.dp)) {
         if (pestaña == "components") {
             fun marcar(clave: String) {
                 var nuevas = if (clave in seleccionados) seleccionados - clave else seleccionados + clave
@@ -108,6 +111,7 @@ internal fun PreparacionPanel(aplicacion: Aplicacion, datos: JsonObject, alDialo
             }
         }
     }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -130,21 +134,24 @@ private fun ComponentePanel(datos: JsonObject, elegido: Boolean, libre: Boolean,
 @Composable
 private fun EnlacesPanel(aplicacion: Aplicacion, datos: JsonObject, alDialogo: (String) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-        for (enlace in datos.objetos("links").sortedBy { it.texto("key") == "Ko-fi" }) {
+        for (enlace in datos.objetos("links").filter { enlace -> enlace.texto("key") != "Ko-fi" }) {
             val titulo = enlace.texto("key")
             val icono = when (titulo) {
                 "Official repositories" -> Res.drawable.github
                 "Discord" -> Res.drawable.discord
-                "Telegram" -> Res.drawable.telegram
-                else -> Res.drawable.panel_kofi_cup
+                else -> Res.drawable.telegram
             }
             BotonIcono(icono, {
                 if (titulo == t("Official repositories") || titulo == "Official repositories") alDialogo("repositories")
                 else aplicacion.abrirEnlace(enlace.texto("url"))
-            }, lado = 36.dp, tamano = 18.dp)
+            }, lado = 36.dp, tamano = 20.dp)
         }
-        BotonIcono(Res.drawable.support_headset, { aplicacion.irA("settings", "support") }, lado = 36.dp, tamano = 18.dp)
-        BotonIcono(Res.drawable.note_heart, { alDialogo("note") }, lado = 36.dp, tamano = 18.dp)
+        BotonIcono(Res.drawable.support_headset, { aplicacion.irA("settings", "support") }, lado = 36.dp, tamano = 20.dp)
+        BotonIcono(Res.drawable.note_heart, { alDialogo("note") }, lado = 36.dp, tamano = 20.dp)
+        val kofi = datos.objetos("links").firstOrNull { enlace -> enlace.texto("key") == "Ko-fi" }
+        if (kofi != null) {
+            BotonIcono(Res.drawable.panel_kofi_cup, { aplicacion.abrirEnlace(kofi.texto("url")) }, lado = 36.dp, tamano = 20.dp)
+        }
         if (datos.objeto("update").logico("available")) {
             Boton(t("New update available"), { alDialogo("update") }, alto = 30.dp, tamano = 11)
         }
