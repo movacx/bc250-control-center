@@ -27,6 +27,7 @@ import os
 import pathlib
 import pwd
 import shutil
+import signal
 import stat
 import struct
 import subprocess
@@ -673,6 +674,56 @@ def _wake_kernel_driver() -> None:
         print("bc250_memory still publishes no sensor; Control Center keeps reading the chips itself.")
 
 
+#: What bc250_memory writes to the kernel log once its patch is in place.
+DRIVER_PATCHED = "bc250_memory: SMU payload applied and verified successfully"
+TOOL_ENV = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C", "LC_ALL": "C"}
+
+
+def _driver_left_its_patch(run=subprocess.run) -> bool:
+    """Whether this boot's patch is the one bc250_memory left when it was unloaded.
+
+    Only the kernel and root can write to its log, so the line is proof; without
+    it the patch may be the BIOS's, which nothing here reads through.
+    """
+    for argv in (["dmesg"], ["journalctl", "-k", "-b", "-o", "cat", "--no-pager"]):
+        try:
+            result = run(argv, capture_output=True, text=True, check=False, timeout=20, env=TOOL_ENV)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if result.returncode == 0 and DRIVER_PATCHED in result.stdout:
+            return True
+    return False
+
+
+def _resume_kernel_driver(*, ignore_governor: bool = False) -> bool:
+    """Load bc250_memory again to read through its own patch. True if it publishes.
+
+    Naming it loads it even when it is set not to load at boot. Under the same
+    locks as a patch run, because its probe sends one message of its own.
+    """
+    with external_collector_lock(), smn_window_lock():
+        governor = "" if ignore_governor else governor_unsettled()
+        if governor:
+            raise RuntimeError(
+                f"GDDR6_GOVERNOR_UNSETTLED: the GPU governor is {governor} and uses "
+                "the SMU queue these readings go through while it does. Try again "
+                "once it is running."
+            )
+        subprocess.run(["modprobe", KERNEL_DRIVER_NAME], capture_output=True, text=True, check=False,
+                       timeout=30, env=TOOL_ENV)
+    if kernel_driver_loaded():
+        return True
+    _unload_kernel_driver()
+    return False
+
+
+def _unload_kernel_driver() -> None:
+    """Back to how it was: the owner keeps this driver off."""
+    with smn_window_lock():
+        subprocess.run(["modprobe", "-r", KERNEL_DRIVER_NAME], capture_output=True, text=True, check=False,
+                       timeout=30, env=TOOL_ENV)
+
+
 def _patch_arguments(status: dict) -> tuple[str, ...] | None:
     """patch_smu.py's arguments for what is installed, or None: nothing to do.
 
@@ -864,13 +915,26 @@ def _do_monitor(
     # reader relays its readings, and patching here would only race it.
     # A deferred status could not look (the GPU governor was starting); the
     # samples below find out, and patching now would only race the governor.
+    resumed = False
     if (
         not status.get("external_collector")
         and not status.get("deferred")
         and not status.get("patch_active")
     ):
-        _do_apply(repository, uid, gid, ignore_governor=ignore_governor, status=status)
+        if status.get("payload") == "legacy" and not kernel_driver_silent() and _driver_left_its_patch():
+            # Closing the window ends this with SIGTERM; the driver must still be unloaded.
+            signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
+            resumed = _resume_kernel_driver(ignore_governor=ignore_governor)
+        if not resumed:
+            _do_apply(repository, uid, gid, ignore_governor=ignore_governor, status=status)
+    try:
+        return _sample_until(reader, repository, uid, seconds, ignore_governor=ignore_governor)
+    finally:
+        if resumed:
+            _unload_kernel_driver()
 
+
+def _sample_until(reader: str, repository: pathlib.Path, uid: int, seconds: float, *, ignore_governor: bool) -> int:
     deadline = time.monotonic() + max(0.0, float(seconds))
     while True:
         sample = _read_once(
