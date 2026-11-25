@@ -151,6 +151,7 @@ from bc250cc.infrastructure.governor_install_shell import (
 )
 from bc250cc.infrastructure.gpu_driver_probe import gpu_driver_state
 from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
+from bc250cc.infrastructure.hardware_tools import HARDWARE_ONLY
 from bc250cc.infrastructure.helixsr import (
     add_helixsr_folder,
     add_optiscaler_folder,
@@ -1199,7 +1200,9 @@ class DependenciasRepository(SteamosDependenciesMixin):
 
     def estado_herramientas_bc250(self):
         ahora = time.monotonic()
-        if self.estado_herramientas_cache is not None and ahora - self.estado_herramientas_cache_time < 10:
+        partial = HARDWARE_ONLY.get()
+        usable = partial or not getattr(self, 'estado_herramientas_parcial', False)
+        if self.estado_herramientas_cache is not None and usable and ahora - self.estado_herramientas_cache_time < 10:
             return deepcopy(self.estado_herramientas_cache)
 
         os_repository = self._os_repository()
@@ -1219,7 +1222,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             is_steamos=is_steamos,
             expected_steamos_repo=expected_steamos_repo,
         )
-        external_integrations = self._probe_external_integration_inventory()
+        external_integrations = {} if partial else self._probe_external_integration_inventory()
         smu_path = repository_probe['smu_path']
         cyan_repo = self._tool_dir() / CYAN_GOVERNOR_DIRECTORY
         core_unlock_repo = self._tool_dir() / CORE_UNLOCK_DIRECTORY
@@ -1476,7 +1479,8 @@ class DependenciasRepository(SteamosDependenciesMixin):
             ],
         }
         self.estado_herramientas_cache = deepcopy(resultado)
-        self.estado_herramientas_cache_time = ahora
+        self.estado_herramientas_parcial = partial
+        self.estado_herramientas_cache_time = time.monotonic()
         return deepcopy(resultado)
 
     @staticmethod
@@ -1659,14 +1663,23 @@ class DependenciasRepository(SteamosDependenciesMixin):
             return False
         return int(getattr(result, 'returncode', 1)) == 0
 
-    def _probe_repository_inventory(self, os_repository):
-        """Inspect optional local source trees without coupling their failures."""
+    def _probe_cpu_oc_source(self):
+        """Locate detector evidence without probing unrelated tools."""
         safe = self._optional_inventory_probe
-        tools = self._tool_dir()
         smu_path = str(safe(
             lambda: self._buscar_directorio_con('bc250_detect.py', 'bc250_smu_oc'),
             '',
         ) or '')
+        return {
+            'smu_path': smu_path,
+            'smu_exists': bool(smu_path and safe(lambda: Path(smu_path).exists(), False)),
+        }
+
+    def _probe_repository_inventory(self, os_repository):
+        """Inspect optional local source trees without coupling their failures."""
+        safe = self._optional_inventory_probe
+        tools = self._tool_dir()
+        smu = self._probe_cpu_oc_source()
         cyan = tools / CYAN_GOVERNOR_DIRECTORY
         core = tools / CORE_UNLOCK_DIRECTORY
         core_script = core / CORE_UNLOCK_SCRIPT
@@ -1678,11 +1691,12 @@ class DependenciasRepository(SteamosDependenciesMixin):
             {'supported': False, 'state': 'probe-failed'},
         )
         fsr4 = safe(opticlient_state, {'installed': False, 'installer_available': False})
-        helixsr = safe(helixsr_state, {'installed': False, 'installer_available': False})
+        helixsr = {'installed': False, 'installer_available': False}
+        if not HARDWARE_ONLY.get():
+            helixsr = safe(helixsr_state, helixsr)
         directmesh = safe(lambda: directmesh_state(family=getattr(getattr(os_repository, 'info', None), 'family', ''), distro_id=getattr(getattr(os_repository, 'info', None), 'distro_id', ''), version_id=str(read_os_release().get('VERSION_ID', '')).strip()), {'supported': False})
         return {
-            'smu_path': smu_path,
-            'smu_exists': bool(smu_path and safe(lambda: Path(smu_path).exists(), False)),
+            **smu,
             'cyan_exists': bool(safe(lambda: (cyan / 'src/gpu_frequency_fix.rs').is_file(), False)),
             'core_unlock_script_exists': bool(safe(core_script.is_file, False)),
             'core_unlock_persistent_script_exists': bool(safe(core_persistent_script.is_file, False)),

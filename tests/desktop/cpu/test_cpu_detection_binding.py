@@ -33,6 +33,7 @@ def _repository(tmp_path):
         "smu_oc_exists": True,
         "smu_oc_path": str(tmp_path),
     }
+    repo._probe_cpu_oc_source = lambda: {"smu_exists": True, "smu_path": str(tmp_path)}
     return repo
 
 

@@ -72,6 +72,7 @@ from frontends.web.actions import cpu_profiles
 from frontends.web.gddr6 import Gddr6Page
 from frontends.web.modulos import LECTURAS
 
+STALE_SECONDS = 12  # how much older than its pace a reading may be answered while it is renewed
 IDLE_SECONDS = 20  # sampling stops this long after the last request
 PAGES = ("dashboard", "cpu", "gpu", "cu", "fans", "gddr6")
 
@@ -88,6 +89,7 @@ class Live:
         self._wanted = 0.0
         self._thread: threading.Thread | None = None
         self._cache: dict[str, tuple[float, object]] = {}
+        self._turn = 0
         self._locks = {key: threading.Lock() for key in PAGES}
         ctx.state("performance")["recorder"] = self.recorder
 
@@ -126,29 +128,54 @@ class Live:
     def live(self) -> dict:
         with self.ctx.lock:
             return {"metrics": self.ctx.metrics, "gddr6": self.gddr6, "error": self.ctx.metrics_error,
-                    "history": {name: list(values) for name, values in self.ctx.history.items()}}
+                    }
 
     def page(self, key: str) -> dict:
         """A page's state, read at the pace the terminal interface reads it."""
         page = self.pages[key]
-        with self._locks[key]:
-            stamp, value = self._cache.get(key, (0.0, None))
-            if value is None or time.monotonic() - stamp >= page.interval:
-                value = _derive(key, page.load(self.ctx), self.ctx)
-                self._cache[key] = (time.monotonic(), value)
-        return value
+        return self._kept(key, page.interval, lambda: _derive(key, page.load(self.ctx), self.ctx))
 
     def reading(self, name: str) -> dict:
         """A page module's own reading (``modulos``), kept for the seconds it asks."""
         seconds, read = LECTURAS[name]
-        with self._locks.setdefault(name, threading.Lock()):
-            stamp, value = self._cache.get(name, (0.0, None))
+        return self._kept(name, seconds, lambda: read(self.ctx, self))
+
+    def _kept(self, key: str, seconds: float, read):
+        """A reading no older than it asks. One slightly older is answered at once and renewed
+        behind it, so a visitor who keeps looking at a page never waits for its probes."""
+        stamp, value = self._cache.get(key, (0.0, None))
+        age = time.monotonic() - stamp
+        if value is not None and age < seconds:
+            return value
+        lock = self._locks.setdefault(key, threading.Lock())
+        if value is not None and age < seconds + STALE_SECONDS:
+            if lock.acquire(blocking=False):
+                threading.Thread(target=self._renew, args=(key, read, lock), name=f"bc250-web-{key}", daemon=True).start()
+            return value
+        with lock:
+            stamp, value = self._cache.get(key, (0.0, None))
             if value is None or time.monotonic() - stamp >= seconds:
-                value = read(self.ctx, self)
-                self._cache[name] = (time.monotonic(), value)
+                value = self._store(key, read)
         return value
 
+    def _store(self, key: str, read):
+        """What was read before an action must not be kept as if it were read after it."""
+        turn = self._turn
+        value = read()
+        if turn == self._turn:
+            self._cache[key] = (time.monotonic(), value)
+        return value
+
+    def _renew(self, key: str, read, lock) -> None:
+        try:
+            self._store(key, read)
+        except Exception:  # noqa: BLE001 - the next request reads it again and reports it
+            self._cache.pop(key, None)
+        finally:
+            lock.release()
+
     def forget(self) -> None:
+        self._turn += 1
         self._cache.clear()
 
 

@@ -75,6 +75,8 @@ SESSION_COOKIE_SECONDS = web_devices.MAX_SESSION_SECONDS
 PERMANENT_COOKIE_SECONDS = 400 * 24 * 3600
 MAX_FAILS, LOCK_SECONDS = 5, 300
 MAX_BODY = 160 * 1024
+SMALL_ANSWER = 900  # bytes; less than one packet gains nothing from compression
+HARDWARE_PAGES = frozenset({"cpu", "cu", "gpu", "fans"})
 CSP = ("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'sha256-+bHRyQ0Z1/Lb6dgSILtTESBRCIFl8jkBb/dPQA4Pdnw='; img-src 'self' data: blob:; connect-src 'self'; "
        "manifest-src 'self'; worker-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
@@ -125,6 +127,7 @@ class Web:
         self.live.monitor_job = lambda: self.job_backend.view() if self.job_backend is not None and hasattr(self.job_backend, "view") else {}
         self.completed_job = None
         self.job_lock = threading.Lock()
+        self.warming = threading.Lock()
         self.key = web_access.access_key()
         self.fails: dict[str, list[float]] = {}
         self.lock = threading.Lock()
@@ -136,6 +139,22 @@ class Web:
             self.language = wanted
             set_language(wanted)
             self.live.forget()
+
+    def texts(self, wanted: str | None) -> dict:
+        language = normalize_language(wanted or self.language)
+        language = language if language in SUPPORTED_LANGUAGES else "en"
+        return {"language": language, "languages": [{"key": key, "title": title} for key, title in LANGUAGE_OPTIONS if key != "auto"],
+                "strings": {s: tr(s, language) for s in self._strings()}}
+
+    def warm(self, handler) -> None:
+        """Keep a console ready for a device that may act: an action then starts at once."""
+        token = handler.token()
+        if not (handler.can_type_password() and handler.may_control()):
+            return
+        with self.warming:
+            terminal = self.local_sessions.get(token)
+            if terminal is None or terminal.closed:
+                self.local_sessions[token] = self.terminal_factory()
 
     @staticmethod
     def _strings() -> list[str]:
@@ -219,6 +238,9 @@ class Web:
         if terminal:
             terminal.close()
 
+    def busy(self) -> bool:
+        return self.job_backend is not None and not self.job_backend.request("job").get("done", True)
+
     def job(self) -> dict:
         result = self.job_backend.request("job") if self.job_backend is not None else {"id": 0}
         identity = (self.job_backend, result.get("id"))
@@ -289,7 +311,13 @@ class Handler:
             return tr(value, language) if isinstance(value, str) and key in display_fields else value
 
         payload = localize(payload)
-        self.reply(json.dumps(payload, ensure_ascii=False, default=str).encode(), "application/json", status, extra)
+        body = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=str).encode()
+        extra = dict(extra or {})
+        # Session answers carry the CSRF token beside nothing a page can choose, so compressing them leaks nothing.
+        if len(body) > SMALL_ANSWER and "gzip" in self.headers.get("Accept-Encoding", ""):
+            body = gzip.compress(body, 3)
+            extra.update({"Content-Encoding": "gzip", "Vary": "Accept-Encoding"})
+        self.reply(body, "application/json", status, extra)
 
     def fail(self, message: str, status: int = 400, **more) -> None:
         self.json({"ok": False, "error": redact_machine(message), **more}, status)
@@ -343,10 +371,7 @@ class Handler:
         if (method, path) == ("POST", "/api/login"):
             return self.login()
         if path == "/api/i18n":
-            lang = normalize_language(query.get("lang") or self.web.language)
-            lang = lang if lang in SUPPORTED_LANGUAGES else "en"
-            return self.json({"language": lang, "languages": [{"key": key, "title": title} for key, title in LANGUAGE_OPTIONS if key != "auto"],
-                              "strings": {s: tr(s, lang) for s in self.web._strings()}})
+            return self.json(self.web.texts(query.get("lang")))
         if method == "GET" and path == "/api/theme":
             return self.json(theme_data(self.web.ctx.settings.read_local_config()))
         if method == "GET" and path == "/api/version":
@@ -360,16 +385,36 @@ class Handler:
                 version = ""
             return self.json({"version": version})
         csrf = self.web.session(self.token())
+        if path == "/api/start":
+            return self.json(self.start(csrf))
         if path == "/api/session":
-            local_name = web_network.local_hostname() if csrf and web_access.options()["lan"] else ""
-            scheme = "https" if getattr(self.server, "secure", False) else "http"
-            return self.json({"authenticated": csrf is not None, "csrf": csrf,
-                              "password": self.can_type_password(), "encrypted": bool(getattr(self.server, "secure", False)),
-                              "control": bool(csrf and web_devices.session(self.token()).get("control")),
-                              "device_code": web_devices.identity(self.token())[:8] if csrf else None,
-                              "named_url": f"{scheme}://{local_name}:{self.server.server_address[1]}" if local_name else None})
+            return self.json(self.session_data(csrf))
         if csrf is None:
             return self.fail("Authentication required", 401, authenticated=False)
+        self.guarded(method, path, query, csrf)
+
+    def session_data(self, csrf: str | None) -> dict:
+        local_name = web_network.local_hostname() if csrf and web_access.options()["lan"] else ""
+        scheme = "https" if getattr(self.server, "secure", False) else "http"
+        return {"authenticated": csrf is not None, "csrf": csrf,
+                          "password": self.can_type_password(), "encrypted": bool(getattr(self.server, "secure", False)),
+                          "control": bool(csrf and web_devices.session(self.token()).get("control")),
+                          "device_code": web_devices.identity(self.token())[:8] if csrf else None,
+                          "named_url": f"{scheme}://{local_name}:{self.server.server_address[1]}" if local_name else None}
+
+    def start(self, csrf: str | None) -> dict:
+        """Everything the interface needs to draw its first page, in one round trip."""
+        answer = {"session": self.session_data(csrf), "theme": theme_data(self.web.ctx.settings.read_local_config())}
+        wanted = ""
+        if csrf is not None:
+            answer["preferences"] = self.web.live.reading("preferences")
+            wanted = answer["preferences"]["valores"].get("language") or ""
+            self.web.live.touch()
+            self.web.warm(self)
+        answer["texts"] = self.web.texts("" if wanted == "auto" else wanted)
+        return answer
+
+    def guarded(self, method: str, path: str, query: dict, csrf: str) -> None:
         if method == "POST" and not hmac.compare_digest(self.headers.get("X-CSRF-Token", ""), csrf):
             return self.fail("Invalid CSRF token", 403)
         if method == "POST" and path not in {"/api/logout", "/api/performance/reset", "/api/job/interrupt"}:
@@ -435,6 +480,8 @@ class Handler:
         if name not in PAGES and name not in LECTURAS:
             return self.fail("Not found", 404)
         self.web.live.touch()
+        if name in HARDWARE_PAGES and not self.web.busy():
+            self.web.warm(self)
         if name == "remote" and not self.may_control():
             # It carries the access key: a device that may only watch must not read it.
             return self.fail("This device has monitoring access. Enable hardware control in Remote access on the desktop.", 403)
@@ -509,13 +556,14 @@ class Handler:
                     current = self.web.job()
             if current.get("id") and not current.get("done", True):
                 return self.fail("Another hardware action is still running.", 409)
-            terminal = self.web.local_sessions.get(self.token())
-            if terminal is None or terminal.closed:
-                terminal = self.web.terminal_factory()
-                self.web.local_sessions[self.token()] = terminal
-                deadline = time.monotonic() + 5
-                while not terminal.ready and not terminal.closed and time.monotonic() < deadline:
-                    time.sleep(.02)
+            with self.web.warming:
+                terminal = self.web.local_sessions.get(self.token())
+                if terminal is None or terminal.closed:
+                    terminal = self.web.terminal_factory()
+                    self.web.local_sessions[self.token()] = terminal
+            deadline = time.monotonic() + 5
+            while not terminal.ready and not terminal.closed and time.monotonic() < deadline:
+                time.sleep(.02)
             if not terminal.ready:
                 return self.fail("The control terminal is unavailable. Retry the action.", 409)
             result = terminal.request("action", action=body["action"], params=body.get("params") or {},
@@ -569,11 +617,16 @@ class Handler:
                 return self.fail("Not found", 404)
             target = DIST / "index.html"
         kind = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+        stamp = target.stat()
+        tag = f'"{stamp.st_mtime_ns:x}-{stamp.st_size:x}"'
+        headers = {**self.file_headers(target), "ETag": tag}
+        if self.headers.get("If-None-Match") == tag:
+            return self.reply(b"", kind, 304, headers)
         self.reply(self.packed(target), kind + ("; charset=utf-8" if kind.startswith("text") or "javascript" in kind
-                                                else ""), extra=self.file_headers(target))
+                                                else ""), extra=headers)
 
     def packs(self, target: Path) -> bool:
-        return target.suffix in {".wasm", ".js", ".mjs", ".json", ".css", ".ttf"} and "gzip" in self.headers.get("Accept-Encoding", "")
+        return target.suffix in {".wasm", ".js", ".mjs", ".json", ".css", ".ttf", ".otf", ".xml", ".svg"} and "gzip" in self.headers.get("Accept-Encoding", "")
 
     def packed(self, target: Path) -> bytes:
         return gzipped(target, target.stat().st_mtime_ns) if self.packs(target) else target.read_bytes()
@@ -587,9 +640,16 @@ class Handler:
         return headers
 
 
-@lru_cache(maxsize=32)
+@lru_cache(maxsize=96)
 def gzipped(target: Path, _stamp: int) -> bytes:
     return gzip.compress(target.read_bytes(), 6)
+
+
+def pack_assets() -> None:
+    """Compress the program before the first phone asks for it: 15 MB take the board about a second."""
+    for target in sorted(DIST.rglob("*")):
+        if target.suffix in {".wasm", ".js", ".ttf"}:
+            gzipped(target.resolve(), target.stat().st_mtime_ns)
 
 
 @lru_cache(maxsize=1)
@@ -768,6 +828,7 @@ def main(argv: list[str] | None = None) -> int:
                 signal.signal(name, lambda *_: threading.Thread(target=server.shutdown, daemon=True).start())
             watch = UpdateWatch(server)
             watch.start()
+            threading.Thread(target=pack_assets, name="bc250-web-pack", daemon=True).start()
             server.serve_forever()
             watch.finished.set()
     finally:

@@ -29,7 +29,7 @@ def cpu(tmp_path):
     settings = Settings()
     repo = CPURepository()
     repo.configuracion = settings
-    repo.estado_herramientas_bc250 = lambda: {"smu_oc_exists": True, "smu_oc_path": str(tmp_path)}
+    repo._probe_cpu_oc_source = lambda: {"smu_exists": True, "smu_path": str(tmp_path)}
     calls = []
 
     def command(*args, **kwargs):

@@ -71,7 +71,7 @@ class InheritedTerminal:
         return ""
 
 
-def main() -> int:
+def run(raw: str) -> int:
     if os.geteuid() == 0:
         print("The web action worker must run as the ordinary Linux user.", flush=True)
         return 1
@@ -81,7 +81,7 @@ def main() -> int:
     terminal = InheritedTerminal()
     set_embedded_terminal_launcher(terminal)
     try:
-        request = json.loads(sys.argv[1])
+        request = json.loads(raw)
         set_language(request.get("language") or "en")
         set_translator(tr)
         container = ApplicationContainer.production()
@@ -110,6 +110,10 @@ def main() -> int:
     except Exception as error:
         print(describe_error(error), flush=True)
         return 1
+
+
+def main() -> int:
+    return run(sys.argv[1])
 
 
 if __name__ == "__main__":

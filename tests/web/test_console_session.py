@@ -1,12 +1,17 @@
 """The tty an action runs in: opened for it, private, and closed when it ends."""
 from __future__ import annotations
 
+import os
 import sys
 import time
 
 import pytest
 
 from frontends.web.console_session import ConsoleSession
+
+
+#: The real protocol and pty, with a harmless program where the hardware action would run.
+STANDIN = "import subprocess; from frontends.web import console_worker; console_worker.preload=lambda: None; "
 
 
 def wait_for(predicate, seconds=12):
@@ -32,8 +37,7 @@ raise SystemExit(0 if value == "dummy-secret" else 1)
 ''')
     standin.chmod(0o700)
     spawn = Console._spawn
-    script = ("import sys; from frontends.web import console_worker; "
-              f"sys.executable={str(standin)!r}; console_worker.main()")
+    script = (f"{STANDIN}console_worker.run_action=lambda _a: subprocess.call([{str(standin)!r}]); console_worker.main()")
     monkeypatch.setattr(Console, "_spawn", lambda self, _argv: spawn(self, [sys.executable, "-u", "-c", script]))
     session = ConsoleSession()
     try:
@@ -85,7 +89,7 @@ def test_memory_helper_streams_samples_and_only_clean_interrupts_count_as_a_norm
     child.write_text(f"#!{sys.executable}\nimport json,time\n" + handler + "print(json.dumps({'chips':[{'chip':0,'temperature_c':52.5}],'average_c':52.5}),flush=True)\ntime.sleep(30)\n")
     child.chmod(0o700)
     spawn = Console._spawn
-    script = f"import sys;from frontends.web import console_worker;sys.executable={str(child)!r};console_worker.main()"
+    script = f"{STANDIN}console_worker.run_action=lambda _a: subprocess.call([{str(child)!r}]); console_worker.main()"
     monkeypatch.setattr(Console, "_spawn", lambda self, _argv: spawn(self, [sys.executable, "-u", "-c", script]))
     session = ConsoleSession()
     try:
@@ -98,3 +102,21 @@ def test_memory_helper_streams_samples_and_only_clean_interrupts_count_as_a_norm
         assert session.view()["ok"] is (stop_exit is None)
     finally:
         session.close()
+
+
+def test_an_action_runs_in_a_child_of_its_own_and_its_result_comes_back(capfd):
+    """The worker keeps its imports warm: each action is a fork, so nothing it changes reaches the next one."""
+    from frontends.web import action_worker, console_worker
+
+    def fake(raw):
+        os.environ["BC250_TEST_LEAK"] = "1"
+        print(raw, flush=True)
+        return 7
+
+    original, action_worker.run = action_worker.run, fake
+    try:
+        assert console_worker.run_action({"action": "gpu.status"}) == 7
+    finally:
+        action_worker.run = original
+    assert "gpu.status" in capfd.readouterr().out
+    assert "BC250_TEST_LEAK" not in os.environ

@@ -53,6 +53,7 @@ from bc250cc.infrastructure.hardware_identity import (
     amdgpu_blocked_message,
     require_bc250_hardware,
 )
+from bc250cc.infrastructure.hardware_tools import hardware_tools
 from bc250cc.infrastructure.polkit_session import pkexec_argv
 from bc250cc.infrastructure.telemetry_policy import (
     daemon_governor_probe_budget,
@@ -120,7 +121,7 @@ class GPURepository:
         """
         if selected != CYAN_GOVERNOR or detect_init_manager().kind != "openrc":
             return
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         preflight = tools.get("openrc_preflight")
         if not isinstance(preflight, dict):
             raise TypeError(
@@ -1546,8 +1547,8 @@ class GPURepository:
             "error": str(error),
         }
 
-    def _safe_points_config(self):
-        path = self._cyan_runtime_config_path()
+    def _safe_points_config(self, path=None):
+        path = self._cyan_runtime_config_path() if path is None else path
         try:
             diagnostics = GovernorTomlEditor(path).safe_point_diagnostics()
             diagnostics["error"] = ""
@@ -1630,7 +1631,13 @@ class GPURepository:
 
     def _cyan_configuration_state(self):
         """Read all Cyan files defensively while keeping telemetry usable."""
-        safe_info = self._safe_points_config()
+        identity = self._cyan_runtime_identity()
+        path = (
+            Path(str(identity.get("config_path") or self._GOVERNOR_CONFIG))
+            if callable(getattr(self, "_ejecutar", None))
+            else Path(self._GOVERNOR_CONFIG)
+        )
+        safe_info = self._safe_points_config(path)
         editor = GovernorTomlEditor(safe_info["config_path"])
         try:
             telemetry = editor.gpu_telemetry_state()
@@ -1644,7 +1651,6 @@ class GPURepository:
             }
         runtime = detect_cyan_frequency_fix_runtime(self)
         runtime.update(detect_cyan_metrics_fix_runtime(self))
-        identity = self._cyan_runtime_identity()
         telemetry.update(
             {
                 "runtime_config_path": str(identity.get("config_path") or ""),
@@ -1890,7 +1896,7 @@ class GPURepository:
         oberon_state, safe_info, frequency_range, high_points, cyan_telemetry = (
             config_state
         )
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         runtime = self._governor_runtime_state(
             selected_governor, selected_spec, oberon_state
         )

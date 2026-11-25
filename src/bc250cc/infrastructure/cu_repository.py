@@ -14,6 +14,7 @@ from bc250cc.infrastructure.cu_kernel_unlock import kernel_cu_unlock_active
 from bc250cc.infrastructure.cu_operations import (
     plan_cu_mask_operations,
 )
+from bc250cc.infrastructure.hardware_tools import hardware_tools
 from bc250cc.infrastructure.polkit_session import pkexec_argv
 from bc250cc.platform.init.services import (
     detect_init_manager,
@@ -72,7 +73,7 @@ class CURepository:
         return script
 
     def obtener_mapa_cu(self):
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         script = tools.get('cu_map_script') or ''
         if not script:
             raise RuntimeError('cu_map.sh was not found. This legacy fallback is not required by the live 40CU manager.')
@@ -93,7 +94,7 @@ class CURepository:
 
 
     def obtener_dashboard_cu(self):
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         self._cu_manager_script_or_raise(tools)
         if not tools.get('cu_privileged_backend_ready'):
             raise RuntimeError(str(tools.get('cu_privileged_backend_reason') or self._cu_backend_untrusted_message()))
@@ -452,7 +453,7 @@ class CURepository:
 
 
     def ejecutar_cu_manager(self, accion):
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         self._cu_manager_script_or_raise(tools)
         if accion == 'status':
             return self.obtener_dashboard_cu()
@@ -475,7 +476,7 @@ class CURepository:
                 self._cu_helper_action_name(operation)
         else:
             self._cu_helper_action_name(args)
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         remove_service = tuple(str(item) for item in args) == ('--yes', 'uninstall-service')
         if not tools.get('cu_privileged_backend_ready') and not remove_service:
             raise RuntimeError(str(tools.get('cu_privileged_backend_reason') or self._cu_backend_untrusted_message()))
@@ -514,7 +515,7 @@ class CURepository:
         """Install/remove only the native OpenRC wrapper around a staged backend."""
         if action not in {'install', 'remove'}:
             raise ValueError('Invalid OpenRC CU service action.')
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         if action == 'install' and not tools.get('cu_privileged_backend_ready'):
             raise RuntimeError(str(tools.get('cu_privileged_backend_reason') or self._cu_backend_untrusted_message()))
         helper = Path('/usr/libexec/bc250-control-center/bc250-openrc-service-helper')
@@ -731,12 +732,12 @@ class CURepository:
             estado = local_state
         else:
             state = self._estado_cu_base()
-            tools = self.estado_herramientas_bc250()
+            tools = hardware_tools(self)
             state['privileged_backend_ready'] = bool(tools.get('cu_privileged_backend_ready'))
             state['privileged_backend_reason'] = str(tools.get('cu_privileged_backend_reason') or '')
             return self._reconcile_cached_service_state(state)
 
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         estado['privileged_backend_ready'] = bool(tools.get('cu_privileged_backend_ready'))
         estado['privileged_backend_reason'] = str(tools.get('cu_privileged_backend_reason') or '')
         return self._reconcile_cached_service_state(estado)
@@ -766,7 +767,7 @@ class CURepository:
             # said only "four rows could not be parsed", not what came instead.
             raw = '\n'.join(str(texto or '').strip().splitlines()[-40:])
             raise RuntimeError(f'{reason}\n--- live-manager output ---\n{raw or "(empty)"}')
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         estado['privileged_backend_ready'] = bool(tools.get('cu_privileged_backend_ready'))
         estado['privileged_backend_reason'] = str(tools.get('cu_privileged_backend_reason') or '')
         return self._reconcile_cached_service_state(estado)
@@ -903,7 +904,7 @@ class CURepository:
         # trust result for the staged backend in action responses as well;
         # otherwise Install service/Save replace a writable page state with a
         # state that appears untrusted and every other button becomes disabled.
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         estado['privileged_backend_ready'] = bool(tools.get('cu_privileged_backend_ready'))
         estado['privileged_backend_reason'] = str(tools.get('cu_privileged_backend_reason') or '')
         return estado

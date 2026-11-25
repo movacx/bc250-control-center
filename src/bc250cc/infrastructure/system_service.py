@@ -15,6 +15,7 @@ from bc250cc.application.system.process_termination_policy import (
 from bc250cc.domain.common.proceso import Proceso
 from bc250cc.domain.common.rendimiento import Rendimiento
 from bc250cc.infrastructure.hardware_identity import require_bc250_hardware
+from bc250cc.infrastructure.hardware_tools import hardware_tools
 from bc250cc.infrastructure.polkit_session import normalize_polkit_error, pkexec_argv
 from bc250cc.shared.failure_text import describe_failure
 
@@ -863,7 +864,7 @@ class SistemaService:
 
     def _require_cu_runtime(self):
         require_bc250_hardware()
-        tools = self.repo.estado_herramientas_bc250()
+        tools = hardware_tools(self.repo)
         if tools.get('umr'):
             return
         pending = tools.get('bazzite_reboot_pending') or {}

@@ -47,6 +47,7 @@ from bc250cc.infrastructure.hardware_identity import (
     cpu_threads_present,
     is_bc250_platform,
 )
+from bc250cc.infrastructure.hardware_tools import hardware_tools
 from bc250cc.infrastructure.polkit_session import pkexec_argv, pkexec_prefix
 from bc250cc.platform.init.services import (
     detect_init_manager,
@@ -300,10 +301,10 @@ class CPURepository:
         merely a remembered numeric scale, so the next boot-persistence action
         can prove which completed run it is installing.
         """
-        tools = self.estado_herramientas_bc250()
-        if not tools.get('smu_oc_exists'):
+        source = self._probe_cpu_oc_source()
+        if not source.get('smu_exists'):
             raise RuntimeError('The local bc250_smu_oc repository was not found. Use Prepare dependencies first.')
-        config = Path(tools['smu_oc_path']) / 'overclock.conf'
+        config = Path(source['smu_path']) / 'overclock.conf'
         parsed = self._read_cpu_oc_config(config)
         if not parsed.get('valid'):
             raise RuntimeError(parsed.get('error') or 'overclock.conf is invalid after bc250-detect')
@@ -357,10 +358,10 @@ class CPURepository:
 
     def estado_resultado_deteccion_cpu(self):
         """Return the last recorded detection run and whether it still matches disk."""
-        tools = self.estado_herramientas_bc250()
+        source = self._probe_cpu_oc_source()
         config = (
-            Path(tools['smu_oc_path']) / 'overclock.conf'
-            if tools.get('smu_oc_exists')
+            Path(source['smu_path']) / 'overclock.conf'
+            if source.get('smu_exists')
             else None
         )
         parsed = self._read_cpu_oc_config(config) if config is not None else {
@@ -412,7 +413,7 @@ class CPURepository:
         return self._remembered_scale_reference(parsed), 'external-current-config', state
 
     def evaluar_override_escala_cpu(self, scale_override, frequency_override=None):
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         if not tools.get('smu_oc_exists'):
             raise RuntimeError('The local bc250_smu_oc repository was not found. Use Prepare dependencies first.')
         config = Path(tools['smu_oc_path']) / 'overclock.conf'
@@ -514,7 +515,7 @@ class CPURepository:
         still asks the user to complete their real workload/stress validation
         before enabling boot persistence.
         """
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         if not tools.get('smu_oc_exists'):
             raise RuntimeError('The local bc250_smu_oc repository was not found. Use Prepare dependencies first.')
         config = Path(tools['smu_oc_path']) / 'overclock.conf'
@@ -948,7 +949,7 @@ class CPURepository:
         """
         target = validate_detection_target(frecuencia, vid, temp)
         frecuencia, vid, temp = target.frequency, target.vid, target.temperature
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         if not tools.get('smu_oc_exists'):
             raise RuntimeError(
                 'The local bc250_smu_oc repository was not found. Use Prepare dependencies first so '
@@ -992,7 +993,7 @@ class CPURepository:
         if not self._command_path('pkexec'):
             raise RuntimeError('polkit/pkexec was not found. Install polkit to use the embedded console with graphical authentication.')
 
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         if not tools.get('stress'):
             _refuse_stress_waiting_for_reboot()
             raise ActionNeeded('stress is missing. Press Prepare dependencies or install the stress package before using CPU OC.')
@@ -1031,7 +1032,7 @@ class CPURepository:
         helper = self._cpu_smu_helper_path()
         if not helper:
             raise RuntimeError(self._missing_cpu_smu_helper_message())
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         if not tools.get('smu_oc_exists'):
             raise RuntimeError('The local bc250_smu_oc repository was not found. Use Prepare dependencies first.')
 
@@ -1126,7 +1127,7 @@ class CPURepository:
             raise RuntimeError(
                 'polkit/pkexec was not found. Install polkit to authenticate manual CPU tuning.'
             )
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         if not tools.get('stress'):
             _refuse_stress_waiting_for_reboot()
             raise ActionNeeded(
@@ -1233,7 +1234,7 @@ class CPURepository:
         helper = self._cpu_smu_helper_path()
         if not helper:
             raise RuntimeError(self._missing_cpu_smu_helper_message())
-        tools = self.estado_herramientas_bc250()
+        tools = hardware_tools(self)
         if not tools.get('smu_oc_exists'):
             raise RuntimeError('The local bc250_smu_oc repository was not found. Use Prepare dependencies first.')
 

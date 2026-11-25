@@ -1221,6 +1221,7 @@
    "DependenciasRepository._probe_runtime_inventory": "PREP-0060",
    "DependenciasRepository._has_unresolved_libraries": "PREP-0061",
    "DependenciasRepository._system_dbus_ready": "PREP-0062",
+   "DependenciasRepository._probe_cpu_oc_source": "PREP-0154",
    "DependenciasRepository._probe_repository_inventory": "PREP-0063",
    "DependenciasRepository._probe_platform_inventory": "PREP-0064",
    "DependenciasRepository._probe_external_integration_inventory": "PREP-0065",
@@ -1757,6 +1758,10 @@
    "cpu_threads_present": "SYS-0332",
    "amdgpu_blocked_by_cmdline": "SYS-0341",
    "amdgpu_blocked_message": "SYS-0342"
+  },
+  "bc250cc/infrastructure/hardware_tools.py": {
+   "hardware_only": "CORE-0378",
+   "hardware_tools": "CORE-0379"
   },
   "bc250cc/infrastructure/helixsr.py": {
    "_data_home": "UPS-0076",
