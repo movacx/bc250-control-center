@@ -30,27 +30,28 @@ mano. Si el error es nuevo, se agrega a esta lista en cuanto se entiende.
 
 ## Números
 
-**240 reportes** recibidos entre 2026-10-27 y 2026-11-21 (230 problemas y 10 ideas). 217 ya tienen su ficha; 13 todavía se están investigando. Actualizado el 2026-11-21.
+**273 reportes** recibidos entre 2026-10-27 y 2026-11-25 (262 problemas y 11 ideas). 225 ya tienen su ficha; 37 todavía se están investigando. Actualizado el 2026-11-25.
 
 ### Por distribución
 
 | Distribución | Problemas |
 |---|---|
-| Bazzite | 78 |
-| CachyOS | 70 |
-| SteamOS | 33 |
+| Bazzite | 88 |
+| CachyOS | 87 |
+| SteamOS | 37 |
 | Linux Mint | 27 |
 | Fedora Linux | 9 |
 | Arch Linux | 6 |
+| (oculta por privacidad) | 4 |
 | Ubuntu | 3 |
-| (oculta por privacidad) | 3 |
 | Winux | 1 |
 
 ### Por versión de la app
 
 | Versión | Problemas |
 |---|---|
-| 1.22.9 | 46 |
+| 1.22.10 | 24 |
+| 1.22.9 | 54 |
 | 1.22.8 | 9 |
 | 1.22.6 | 2 |
 | 1.22.5 | 10 |
@@ -65,19 +66,19 @@ mano. Si el error es nuevo, se agrega a esta lista en cuanto se entiende.
 
 | Ficha | Qué pasa | Reportes | Último |
 |---|---|---|---|
-| [PKG-01](#pkg-01) | El gestor de paquetes está bloqueado (pacman o apt) | 13 | 2026-11-21 |
+| [PKG-01](#pkg-01) | El gestor de paquetes está bloqueado (pacman o apt) | 14 | 2026-11-23 |
 | [UPS-01](#ups-01) | El archivo de HelixSR publicado no es el que la app revisó | 11 | 2026-11-21 |
+| [AUTH-01](#auth-01) | La autorización de administrador no se completó | 10 | 2026-11-24 |
 | [GOV-01](#gov-01) | La configuración de Cyan tiene una clave repetida (Cannot declare … twice) | 10 | 2026-11-08 |
-| [AUTH-01](#auth-01) | La autorización de administrador no se completó | 9 | 2026-11-20 |
 | [PKG-03](#pkg-03) | No se pueden sincronizar las bases de paquetes (red, espejo o repositorio de MastaG) | 8 | 2026-11-20 |
+| [STEAM-01](#steam-01) | La versión del kernel de SteamOS no está soportada por el backend revisado | 8 | 2026-11-25 |
 | [GOV-07](#gov-07) | La GPU BC-250 no aparece donde Cyan la busca (o no se detecta) | 7 | 2026-11-12 |
 | [INST-09](#inst-09) | Falta un ayudante protegido o no pasa su comprobación de seguridad | 7 | 2026-11-18 |
-| [STEAM-01](#steam-01) | La versión del kernel de SteamOS no está soportada por el backend revisado | 7 | 2026-11-17 |
 | [UPS-03](#ups-03) | El compilador de shaders (DXC por Wine/Proton) falla | 7 | 2026-11-20 |
+| [CU-01](#cu-01) | UMR no está instalado | 6 | 2026-11-24 |
 | [INST-08](#inst-08) | La interfaz y el ayudante protegido son de versiones distintas | 6 | 2026-11-16 |
 | [INST-10](#inst-10) | Linux negó el acceso a un archivo o dispositivo necesario | 6 | 2026-11-10 |
 | [PKG-06](#pkg-06) | La instalación del kernel + Mesa de MastaG se corta en la confirmación de pacman | 6 | 2026-11-07 |
-| [CU-01](#cu-01) | UMR no está instalado | 5 | 2026-11-15 |
 | [GOV-10](#gov-10) | Cambiar el rango o la curva de GPU se rechaza (telemetría no disponible / Cyan apagado) | 5 | 2026-11-12 |
 | [INST-02](#inst-02) | Un paquete propio del usuario rompe la transacción de rpm-ostree (logitech-trueforce) | 5 | 2026-11-21 |
 
@@ -87,42 +88,47 @@ Cada error que muestra la app lleva un código `BC250-ÁREA-NNN`. El código dic
 
 | Código | Significado | Fichas | Reportes |
 |---|---|---|---|
-| `BC250-AUTH-002` | La autorización del administrador no se completó. | [AUTH-01](#auth-01) | 2 |
+| `BC250-AUTH-002` | La autorización del administrador no se completó. | [AUTH-01](#auth-01) | 4 |
 | `BC250-BUILD-001` | Las herramientas de compilación de SteamOS son incompatibles con las bibliotecas del sistema instaladas. | [STEAM-03](#steam-03) |  |
 | `BC250-BUILD-002` | No se pudo compilar el módulo SteamOS AMDGPU. | [STEAM-03](#steam-03) |  |
-| `BC250-BUILD-003` | Un paso de compilación falló. | [AUTH-01](#auth-01) | 2 |
-| `BC250-BUSY-001` | Otra operación todavía utiliza este componente. | [INST-04](#inst-04) [AUTH-01](#auth-01) | 4 |
-| `BC250-CMD-001` | Falta un programa requerido o un comando generado. | [INST-06](#inst-06) [CU-01](#cu-01) [CPU-01](#cpu-01) [MESH-01](#mesh-01) | 5 |
+| `BC250-BUILD-003` | Un paso de compilación falló. | [AUTH-01](#auth-01) | 5 |
+| `BC250-BUILD-004` | El compilador de este sistema no puede enlazar programas. | — |  |
+| `BC250-BUSY-001` | Otra operación todavía utiliza este componente. | [INST-04](#inst-04) [AUTH-01](#auth-01) | 5 |
+| `BC250-CMD-001` | Falta un programa requerido o un comando generado. | [INST-06](#inst-06) [CU-01](#cu-01) [CPU-01](#cpu-01) [MESH-01](#mesh-01) | 6 |
 | `BC250-CONFIG-001` | Un archivo de configuración no es válido o está incompleto. | [INST-09](#inst-09) [GOV-02](#gov-02) [GOV-03](#gov-03) [CPU-01](#cpu-01) | 5 |
 | `BC250-CONTAINER-001` | Podman sin root no tiene ID de usuario subordinados para este usuario. | [VID-02](#vid-02) |  |
 | `BC250-CPU-001` | El resultado del ajuste de CPU no se pudo aplicar ni verificar. | — |  |
 | `BC250-CPUTOOL-001` | La carga de CPU auditada rechazó el valor solicitado. | — |  |
 | `BC250-CU-001` | No se pudo verificar la operación de Compute Units. | [GOV-06](#gov-06) [CU-01](#cu-01) [CU-03](#cu-03) | 7 |
 | `BC250-DATA-001` | El flujo de trabajo rechazó una configuración existente o incoherente. | [AUTH-01](#auth-01) | 1 |
-| `BC250-DBUS-001` | El governor GPU no expuso sus controles D-Bus. | [GOV-01](#gov-01) [GOV-09](#gov-09) [GFX-03](#gfx-03) | 3 |
+| `BC250-DBUS-001` | El gobernador GPU no expuso sus controles D-Bus. | [GOV-01](#gov-01) [GOV-09](#gov-09) [GFX-03](#gfx-03) | 4 |
 | `BC250-FAN-001` | La ruta de control del ventilador no está disponible o se rechazó la escritura. | [INST-10](#inst-10) [FAN-01](#fan-01) | 2 |
 | `BC250-FAN-002` | El abanico se entrega a otro programa. | — |  |
-| `BC250-GENERAL-001` | La operación no se pudo completar. | [INST-01](#inst-01) [INST-02](#inst-02) [INST-03](#inst-03) [INST-05](#inst-05) [INST-09](#inst-09) [AUTH-01](#auth-01) [PKG-02](#pkg-02) [PKG-03](#pkg-03) [PKG-04](#pkg-04) [PKG-06](#pkg-06) [PKG-10](#pkg-10) [PKG-11](#pkg-11) [GOV-01](#gov-01) [GOV-05](#gov-05) [GOV-06](#gov-06) [GOV-07](#gov-07) [CU-02](#cu-02) [STEAM-02](#steam-02) [STEAM-05](#steam-05) [UPS-02](#ups-02) [UPS-03](#ups-03) [UPS-05](#ups-05) [UPS-06](#ups-06) [VID-01](#vid-01) [VID-02](#vid-02) [MESH-02](#mesh-02) [GFX-04](#gfx-04) [FAN-01](#fan-01) [NET-01](#net-01) [UPS-08](#ups-08) [STOR-02](#stor-02) | 67 |
+| `BC250-FAN-003` | Ningún chip de ventiladores NCT668x respondió. | — |  |
+| `BC250-GENERAL-001` | La operación no se pudo completar. | [INST-01](#inst-01) [INST-02](#inst-02) [INST-03](#inst-03) [INST-05](#inst-05) [INST-09](#inst-09) [AUTH-01](#auth-01) [PKG-02](#pkg-02) [PKG-03](#pkg-03) [PKG-04](#pkg-04) [PKG-06](#pkg-06) [PKG-10](#pkg-10) [PKG-11](#pkg-11) [GOV-01](#gov-01) [GOV-05](#gov-05) [GOV-06](#gov-06) [GOV-07](#gov-07) [CU-02](#cu-02) [STEAM-02](#steam-02) [STEAM-05](#steam-05) [UPS-02](#ups-02) [UPS-03](#ups-03) [UPS-05](#ups-05) [UPS-06](#ups-06) [VID-01](#vid-01) [VID-02](#vid-02) [MESH-02](#mesh-02) [GFX-04](#gfx-04) [FAN-01](#fan-01) [NET-01](#net-01) [UPS-08](#ups-08) [STOR-02](#stor-02) | 72 |
 | `BC250-GFX-001` | Ya hay una versión del fix GFX1013 instalada. | — |  |
 | `BC250-GPU-001` | La fuente de telemetría GPU seleccionada no está disponible. | [GOV-01](#gov-01) | 1 |
-| `BC250-GPU-005` | El governor no pudo colocar sus archivos de sensor parcheados. | — |  |
+| `BC250-GPU-005` | El gobernador no pudo colocar sus archivos de sensor parcheados. | — |  |
 | `BC250-GPU-007` | — | [GOV-06](#gov-06) |  |
 | `BC250-GPU-008` | Cyan no está en marcha, así que la curva de voltaje no se cambió. | — |  |
-| `BC250-GPU-900` | No se pudo completar la operación GPU. | [AUTH-01](#auth-01) [GOV-03](#gov-03) [GOV-06](#gov-06) [GOV-09](#gov-09) [GOV-10](#gov-10) [CU-03](#cu-03) [UPS-07](#ups-07) | 10 |
+| `BC250-GPU-009` | Cyan no encontró la GPU de la BC-250. | — |  |
+| `BC250-GPU-900` | No se pudo completar la operación GPU. | [AUTH-01](#auth-01) [GOV-03](#gov-03) [GOV-06](#gov-06) [GOV-09](#gov-09) [GOV-10](#gov-10) [CU-03](#cu-03) [UPS-07](#ups-07) | 12 |
 | `BC250-HELPER-001` | Falta un helper protegido de BC250 o no pasó la verificación de seguridad. | [INST-09](#inst-09) | 2 |
 | `BC250-HW-001` | No se detectó hardware BC-250 compatible. | [GOV-07](#gov-07) [FAN-04](#fan-04) | 2 |
 | `BC250-IMMUTABLE-001` | La implementación del sistema inmutable no está lista para este cambio. | [PKG-04](#pkg-04) | 1 |
 | `BC250-IMMUTABLE-002` | La raíz de SteamOS seguía siendo de solo lectura al escribir los paquetes. | — |  |
 | `BC250-KERNEL-001` | El kernel en ejecución y su controlador o encabezados no coinciden. | [FAN-02](#fan-02) | 1 |
 | `BC250-NET-001` | No se pudo alcanzar ni verificar una descarga requerida. | [GFX-03](#gfx-03) | 1 |
-| `BC250-PERM-001` | Linux rechazó el acceso a un archivo o dispositivo requerido. | [INST-08](#inst-08) [INST-10](#inst-10) [GOV-06](#gov-06) | 2 |
+| `BC250-PERM-001` | Linux rechazó el acceso a un archivo o dispositivo requerido. | [INST-08](#inst-08) [INST-10](#inst-10) [GOV-06](#gov-06) | 3 |
 | `BC250-PERM-002` | Linux rechazó el acceso a un archivo o dispositivo requerido. | [INST-10](#inst-10) |  |
-| `BC250-PKG-001` | El gestor de paquetes está ocupado. | [PKG-01](#pkg-01) [TV-01](#tv-01) | 10 |
+| `BC250-PKG-001` | El gestor de paquetes está ocupado. | [PKG-01](#pkg-01) [TV-01](#tv-01) | 14 |
 | `BC250-PKG-002` | No se pudo verificar la firma del paquete o la clave del repositorio. | [INST-03](#inst-03) [PKG-05](#pkg-05) | 1 |
-| `BC250-PKG-004` | Un paquete necesario no está disponible en los repositorios habilitados. | [INST-01](#inst-01) [PKG-09](#pkg-09) | 1 |
+| `BC250-PKG-004` | Un paquete necesario no está disponible en los repositorios habilitados. | [INST-01](#inst-01) [PKG-09](#pkg-09) | 2 |
 | `BC250-PKG-005` | La lista de paquetes de este sistema está desactualizada. | [PKG-03](#pkg-03) |  |
 | `BC250-PKG-006` | Un paquete descargado llegó dañado. | [PKG-05](#pkg-05) |  |
 | `BC250-PKG-007` | El mismo repositorio de paquetes está configurado dos veces. | [PKG-11](#pkg-11) |  |
+| `BC250-PKG-008` | apt no pudo actualizar uno de los repositorios de este sistema. | — |  |
+| `BC250-PKG-009` | pacman se detuvo sin cambiar nada. | — |  |
 | `BC250-PROTOCOL-001` | La interfaz y el helper protegido son versiones diferentes. | [INST-07](#inst-07) [INST-08](#inst-08) [AUTH-01](#auth-01) [GOV-07](#gov-07) [GOV-11](#gov-11) [STEAM-03](#steam-03) | 13 |
 | `BC250-PROTON-001` | La operación de GE-Proton de SteamOS no se completó. | [STEAM-06](#steam-06) | 1 |
 | `BC250-RANGE-001` | El valor solicitado está fuera del rango admitido. | [STEAM-04](#steam-04) | 1 |
@@ -134,13 +140,15 @@ Cada error que muestra la app lleva un código `BC250-ÁREA-NNN`. El código dic
 | `BC250-TERMINAL-001` | No se pudo iniciar el flujo de trabajo del terminal requerido. | — |  |
 | `BC250-TIMEOUT-001` | La operación no terminó dentro de su límite de seguridad. | [INST-05](#inst-05) [VID-01](#vid-01) | 2 |
 | `BC250-TTM-001` | No se pudo cambiar el límite de memoria de la GPU. | [MEM-02](#mem-02) |  |
-| `BC250-UMR-001` | UMR no está funcionando. | [CU-01](#cu-01) [CU-02](#cu-02) | 2 |
+| `BC250-UMR-001` | UMR no está funcionando. | [CU-01](#cu-01) [CU-02](#cu-02) | 4 |
+| `BC250-UPSCALE-001` | No se cambiaron los archivos del reescalador del juego. | — | 1 |
 | `BC250-UPSCALE-002` | HelixSR rechazó este juego por su anti-cheat. | — |  |
+| `BC250-UPSCALE-003` | La instalación de HelixSR no pudo crear sus archivos de red. | — |  |
 | `BC250-UPSTREAM-404` | El repositorio de paquetes externo no está disponible temporalmente en su dirección. | [AUTH-01](#auth-01) [PKG-01](#pkg-01) [PKG-03](#pkg-03) | 9 |
 | `BC250-VRAM-001` | No se pudo cambiar el tamaño de la VRAM. | — |  |
 | `BC250-WINE-001` | Wine no pudo iniciarse. | [UPS-03](#ups-03) |  |
 | `BC250-WINE-002` | Wine o Proton no pueden ejecutarse en este entorno. | [UPS-03](#ups-03) |  |
-| `BC250-WORKFLOW-001` | El flujo de trabajo informó el error en sí. | [INST-02](#inst-02) [INST-09](#inst-09) [PKG-01](#pkg-01) [PKG-03](#pkg-03) [PKG-07](#pkg-07) [PKG-08](#pkg-08) [PKG-10](#pkg-10) [STOR-01](#stor-01) [GOV-03](#gov-03) [GOV-04](#gov-04) [GOV-06](#gov-06) [GOV-07](#gov-07) [GOV-08](#gov-08) [GOV-11](#gov-11) [GOV-13](#gov-13) [CU-02](#cu-02) [CU-03](#cu-03) [MEM-01](#mem-01) [MEM-02](#mem-02) [MEM-03](#mem-03) [MEM-04](#mem-04) [STEAM-01](#steam-01) [UPS-01](#ups-01) [UPS-03](#ups-03) [UPS-04](#ups-04) [VID-03](#vid-03) [GFX-01](#gfx-01) [GFX-02](#gfx-02) [AUD-01](#aud-01) [AUD-02](#aud-02) [TV-01](#tv-01) [STEAM-07](#steam-07) | 56 |
+| `BC250-WORKFLOW-001` | El flujo de trabajo informó el error en sí. | [INST-02](#inst-02) [INST-09](#inst-09) [PKG-01](#pkg-01) [PKG-03](#pkg-03) [PKG-07](#pkg-07) [PKG-08](#pkg-08) [PKG-10](#pkg-10) [STOR-01](#stor-01) [GOV-03](#gov-03) [GOV-04](#gov-04) [GOV-06](#gov-06) [GOV-07](#gov-07) [GOV-08](#gov-08) [GOV-11](#gov-11) [GOV-13](#gov-13) [CU-02](#cu-02) [CU-03](#cu-03) [MEM-01](#mem-01) [MEM-02](#mem-02) [MEM-03](#mem-03) [MEM-04](#mem-04) [STEAM-01](#steam-01) [UPS-01](#ups-01) [UPS-03](#ups-03) [UPS-04](#ups-04) [VID-03](#vid-03) [GFX-01](#gfx-01) [GFX-02](#gfx-02) [AUD-01](#aud-01) [AUD-02](#aud-02) [TV-01](#tv-01) [STEAM-07](#steam-07) | 63 |
 
 ## Fichas
 
@@ -221,7 +229,7 @@ En Bazzite, reinicia después de completar el nuevo despliegue y vuelve a prepar
 <a id="inst-03"></a>
 #### INST-03 · Un repositorio de terceros no pasa la verificación de firma (GPG)
 
-`BC250-GENERAL-001`, `BC250-PKG-002` · estado: corregido en desarrollo (falta publicar) · visto en: Bazzite · 4 reportes, último el 2026-11-15
+`BC250-GENERAL-001`, `BC250-PKG-002` · estado: corregido en desarrollo (falta publicar) · visto en: Bazzite · 5 reportes, último el 2026-11-25
 
 **Qué se ve.** rpm-ostree aborta importando un RPM (cyan-skillfish-governor-smu…rpm could not be verified, foomatic-db-ppds…rpm could not be verified).
 
@@ -548,7 +556,7 @@ Repite la misma acción. Si se vuelve a denegar, guarda la ruta y la salida reci
 <a id="auth-01"></a>
 #### AUTH-01 · La autorización de administrador no se completó
 
-`BC250-AUTH-002`, `BC250-UPSTREAM-404`, `BC250-DATA-001`, `BC250-BUSY-001`, `BC250-GPU-900`, `BC250-BUILD-003`, `BC250-PROTOCOL-001`, `BC250-GENERAL-001` · estado: lo resuelve el usuario · visto en: CachyOS, Bazzite, SteamOS · 9 reportes, último el 2026-11-20
+`BC250-AUTH-002`, `BC250-UPSTREAM-404`, `BC250-DATA-001`, `BC250-BUSY-001`, `BC250-GPU-900`, `BC250-BUILD-003`, `BC250-PROTOCOL-001`, `BC250-GENERAL-001` · estado: lo resuelve el usuario · visto en: CachyOS, Bazzite, SteamOS · 10 reportes, último el 2026-11-24
 
 **Qué se ve.** La acción termina sin hacer nada tras Error executing command as another user: Not authorized o sudo: a password is required.
 
@@ -574,7 +582,7 @@ La acción debe continuar tras autenticarte. Si nunca aparece el diálogo, indic
 <a id="pkg-01"></a>
 #### PKG-01 · El gestor de paquetes está bloqueado (pacman o apt)
 
-`BC250-PKG-001`, `BC250-UPSTREAM-404`, `BC250-WORKFLOW-001` · estado: corregido · desde la 1.22.7 · visto en: CachyOS, SteamOS · 13 reportes, último el 2026-11-21
+`BC250-PKG-001`, `BC250-UPSTREAM-404`, `BC250-WORKFLOW-001` · estado: corregido · desde la 1.22.7 · visto en: CachyOS, SteamOS · 14 reportes, último el 2026-11-23
 
 **Qué se ve.** La instalación falla con «could not lock database» o «failed to synchronize all databases (unable to lock database)» en pacman, o con «Could not get lock /var/lib/dpkg/lock-frontend» en apt.
 
@@ -1488,7 +1496,7 @@ lspci -nnk -d 1002:13fe
 <a id="gov-09"></a>
 #### GOV-09 · No se puede leer el rango de Cyan por D-Bus / Cyan no arranca en Bazzite
 
-`BC250-GPU-900`, `BC250-DBUS-001` · estado: pendiente · visto en: Linux Mint, Bazzite · 2 reportes, último el 2026-11-11
+`BC250-GPU-900`, `BC250-DBUS-001` · estado: pendiente · visto en: Linux Mint, Bazzite · 3 reportes, último el 2026-11-24
 
 **Qué se ve.** La curva de voltaje no se aplica; en Bazzite, instalar Cyan termina con el servicio en fallo.
 
@@ -1615,7 +1623,7 @@ Con la versión corregida, pulsa otra vez Preparar dependencias en el Panel.
 <a id="cu-01"></a>
 #### CU-01 · UMR no está instalado
 
-`BC250-CMD-001`, `BC250-CU-001`, `BC250-UMR-001` · estado: corregido en desarrollo (falta publicar) · visto en: Bazzite, Arch Linux · 5 reportes, último el 2026-11-15
+`BC250-CMD-001`, `BC250-CU-001`, `BC250-UMR-001` · estado: corregido en desarrollo (falta publicar) · visto en: Bazzite, Arch Linux · 6 reportes, último el 2026-11-24
 
 **Qué se ve.** Unidades de cómputo dice que no encuentra UMR y no cambia nada.
 
@@ -2048,7 +2056,7 @@ Inicia una sola preparación y espera a que finalice; la segunda acción debe de
 <a id="steam-01"></a>
 #### STEAM-01 · La versión del kernel de SteamOS no está soportada por el backend revisado
 
-`BC250-WORKFLOW-001` · estado: pendiente · visto en: SteamOS · 7 reportes, último el 2026-11-17
+`BC250-WORKFLOW-001` · estado: pendiente · visto en: SteamOS · 8 reportes, último el 2026-11-25
 
 **Qué se ve.** Preparar la compatibilidad de SteamOS se detiene al principio con «the reviewed SteamOS kernel backend supports kernel bases …; running: …».
 
@@ -2358,7 +2366,7 @@ Con la descarga aceptada, espera a que la red termine. Una descarga rechazada de
 <a id="ups-07"></a>
 #### UPS-07 · Juegos borrados del disco se quedan en la lista de HelixSR (sugerencia)
 
-`BC250-GPU-900` · estado: corregido en desarrollo (falta publicar) · visto en: — · 1 reporte, último el 2026-11-17
+`BC250-GPU-900` · estado: corregido en desarrollo (falta publicar) · visto en: — · 2 reportes, último el 2026-11-24
 
 **Qué se ve.** Un juego que ya desinstalaste sigue en la lista de HelixSR, y al intentar quitarlo aparece «no game (.exe) found».
 
@@ -2598,7 +2606,7 @@ Meson debe leer DirectX-Headers.wrap y continuar. Si el archivo vuelve a quedar 
 <a id="gfx-01"></a>
 #### GFX-01 · El cómputo asíncrono GFX1013 solo soporta Bazzite 44
 
-`BC250-WORKFLOW-001` · estado: corregido · visto en: Bazzite · 3 reportes, último el 2026-11-11
+`BC250-WORKFLOW-001` · estado: corregido · visto en: Bazzite · 4 reportes, último el 2026-11-25
 
 **Qué se ve.** La acción se niega en Bazzite 45.
 
@@ -3208,14 +3216,29 @@ Errores reportados que todavía no tienen ficha. Si te pasa uno de estos, manda 
 | Código | Parte de la app | Reportes |
 |---|---|---|
 | `BC250-WORKFLOW-001` | Kernel, Mesa and distribution support | 3 |
+| `BC250-WORKFLOW-001` | — | 3 |
+| `BC250-BUILD-003` | App install or update | 3 |
 | `BC250-GENERAL-001` | GPU governor (Cyan) | 2 |
+| `BC250-PKG-004` | Drivers, accessories and TV control | 2 |
+| `BC250-GENERAL-001` | App install or update | 2 |
+| `BC250-WORKFLOW-001` | App install or update | 2 |
+| `BC250-PKG-001` | App install or update | 2 |
+| `BC250-GENERAL-001` | Upscaling (FSR4, HelixSR, OptiScaler) | 2 |
 | `BC250-WORKFLOW-001` | Dashboard / Prepare dependencies | 1 |
-| `BC250-PKG-004` | Drivers, accessories and TV control | 1 |
 | `BC250-GENERAL-001` | Dashboard / Prepare dependencies | 1 |
-| `BC250-GENERAL-001` | App install or update | 1 |
 | `BC250-WORKFLOW-001` | GPU governor (Cyan) | 1 |
 | `BC250-CU-001` | Compute Units (40CU) | 1 |
 | `BC250-CONFIG-001` | GPU governor (Cyan) | 1 |
-| `BC250-WORKFLOW-001` | App install or update | 1 |
+| `BC250-WORKFLOW-001` | Upscaling (FSR4, HelixSR, OptiScaler) | 1 |
+| `BC250-GPU-900` | GPU governor (Cyan) | 1 |
+| `BC250-UPSCALE-001` | Upscaling (FSR4, HelixSR, OptiScaler) | 1 |
+| `BC250-AUTH-002` | Dashboard / Prepare dependencies | 1 |
+| `BC250-PKG-001` | Dashboard / Prepare dependencies | 1 |
+| `BC250-UMR-001` | Dashboard / Prepare dependencies | 1 |
+| sin código | — | 1 |
+| `BC250-CMD-001` | CPU (frequencies, profiles, core unlock) | 1 |
+| `BC250-PERM-001` | GPU governor (Cyan) | 1 |
+| `BC250-BUSY-001` | Dashboard / Prepare dependencies | 1 |
+| `BC250-GENERAL-001` | Decky plugin (Game Mode) | 1 |
 
 <!-- fin de lo generado -->
