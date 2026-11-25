@@ -18,7 +18,7 @@ required=(
   docs/THIRD_PARTY_NOTICES.md
   frontends/desktop/main.py
   frontends/web/dist/index.html
-  frontends/web/dist/app.js
+  frontends/web/dist/webApp.js
   src/bc250cc/__init__.py
   frontends/desktop/features/gpu/presenter.py
   frontends/desktop/console/__init__.py

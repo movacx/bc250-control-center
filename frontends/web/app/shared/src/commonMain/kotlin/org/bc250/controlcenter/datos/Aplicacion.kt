@@ -37,6 +37,16 @@ data class Trabajo(
     val esperaRespuesta: Boolean = false,
 )
 
+private const val MARCA_DE_PAREJA = "pair="
+
+private fun primeraPagina(): String {
+    val marca = paginaDeLaDireccion()
+    if (marca.isEmpty() || marca.contains("=")) {
+        return "dashboard"
+    }
+    return marca
+}
+
 /**
  * El estado de toda la aplicación: la sesión, las lecturas y la operación en curso.
  * Las páginas solo leen de aquí y llaman a sus funciones.
@@ -50,7 +60,7 @@ class Aplicacion(private val tareas: CoroutineScope) {
         private set
     var mensajeIngreso by mutableStateOf("")
         private set
-    var pagina by mutableStateOf(paginaDeLaDireccion().ifEmpty { "dashboard" })
+    var pagina by mutableStateOf(primeraPagina())
         private set
     var barraPlegada by mutableStateOf(false)
     var metricas by mutableStateOf(ObjetoVacio)
@@ -73,7 +83,14 @@ class Aplicacion(private val tareas: CoroutineScope) {
     // -- inicio y sesión ---------------------------------------------------------------------
 
     fun iniciar() {
-        tareas.launch { revisarSesion() }
+        val marca = paginaDeLaDireccion()
+        if (marca.startsWith(MARCA_DE_PAREJA)) {
+            // El código QR trae una ficha de un solo uso: se borra de la dirección y se entra con ella.
+            anotarPagina(pagina)
+            ingresar(marca.removePrefix(MARCA_DE_PAREJA))
+        } else {
+            tareas.launch { revisarSesion() }
+        }
     }
 
     suspend fun revisarSesion() {
@@ -102,6 +119,7 @@ class Aplicacion(private val tareas: CoroutineScope) {
                 revisarSesion()
             } else {
                 mensajeIngreso = respuesta.error.ifEmpty { t("No connection") }
+                revisarSesion()
             }
         }
     }

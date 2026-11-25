@@ -516,8 +516,8 @@ fi
 for component in src frontends privileged packaging assets; do
   cp -a "$ROOT_DIR/$component" "$APP_STAGE/"
 done
-# The web interface ships built (frontends/web/dist); its Node sources are development only.
-rm -rf -- "$APP_STAGE/frontends/web/app/node_modules"
+# The web interface ships built (frontends/web/dist); its Kotlin sources are development only.
+rm -rf -- "$APP_STAGE/frontends/web/app"
 # Version 1.18 installed its complete Python application in mvc/. Keep it in
 # the same rollback transaction, then discard it only after 1.19 is fully
 # installed. This prevents a failed privileged-helper update from leaving a

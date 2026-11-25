@@ -51,7 +51,7 @@ cp -a -- "$ROOT_DIR/integrations/decky/bc250-quick-access" \
 chmod -R a+rX "$DESTDIR/usr/share/bc250-control-center"
 find "$DESTDIR/usr/share/bc250-control-center" -type d -exec chmod 0755 {} +
 find "$DESTDIR/usr/share/bc250-control-center" -type f -exec chmod go-w {} +
-rm -rf -- "$DESTDIR/usr/share/bc250-control-center/frontends/web/app/node_modules"
+rm -rf -- "$DESTDIR/usr/share/bc250-control-center/frontends/web/app"
 rm -rf -- "$DESTDIR/usr/share/bc250-control-center/integrations/decky/bc250-quick-access/node_modules"
 find "$DESTDIR/usr/share/bc250-control-center/integrations/decky/bc250-quick-access" \
   -type d -name __pycache__ -prune -exec rm -rf -- {} +
