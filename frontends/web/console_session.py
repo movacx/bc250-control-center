@@ -1,39 +1,39 @@
-"""Persistent user tty per browser, optionally reached through pinned OpenSSH.
+"""A user tty opened for one validated action and closed as soon as it ends.
 
-RPC carries validated action data; input is sent directly to the active tty.
-No shell endpoint, root worker, saved password or sudoers changes.
+RPC carries validated action data; input reaches the tty only while that action
+asks for it. There is no shell, no SSH, no root worker and no saved password:
+closing the tty also ends whatever sudo remembered for it.
 """
 from __future__ import annotations
 
 import errno
+import itertools
 import json
 import os
 import queue
 import re
 import select
-import shlex
-import shutil
 import sys
-import tempfile
-import termios
 import threading
 import time
-from pathlib import Path
 from subprocess import TimeoutExpired
 
-from bc250cc.application.system import web_access
 from bc250cc.application.system.privacy import redact_machine
 from bc250cc.shared.operation_contract import OperationExit
 from frontends.tui.console import Console
 from frontends.web.actions import all_actions
-from frontends.web.ssh_worker import PREFIX
+from frontends.web.console_worker import PREFIX
 
 IDLE_SECONDS = 15 * 60
 
 
-class SSHSession:
-    def __init__(self, *, local: bool = False) -> None:
-        self.console = Console("Local" if local else "SSH")
+#: Job numbers are unique across sessions: each action has a tty of its own.
+_NUMBERS = itertools.count(1)
+
+
+class ConsoleSession:
+    def __init__(self) -> None:
+        self.console = Console("Web")
         self.job_console: Console | None = None
         self.ready = False
         self.closed = False
@@ -50,29 +50,8 @@ class SSHSession:
         self._sample_at = 0.0
         self._sample_buffer = b""
         self._monitor_stopped = False
-        self._directory = tempfile.TemporaryDirectory(prefix="bc250-web-tty-")
-        if local:
-            argv = [sys.executable, "-u", "-m", "frontends.web.ssh_worker"]
-        else:
-            target = web_access.ssh_target()
-            known = Path(self._directory.name) / "known_hosts"
-            known.write_text(target["known_hosts"], encoding="utf-8")
-            known.chmod(0o600)
-            command = (f"stty -echo; cd {shlex.quote(target['root'])} && exec env "
-                       f"PYTHONPATH={shlex.quote(target['pythonpath'])} "
-                       f"{shlex.quote(target['python'])} -u -m frontends.web.ssh_worker")
-            argv = [shutil.which("ssh") or "ssh", "-F", "/dev/null", "-tt", "-e", "none",
-                    "-o", "StrictHostKeyChecking=yes", "-o", f"UserKnownHostsFile={known}",
-                    "-o", "GlobalKnownHostsFile=/dev/null", "-o", "ConnectTimeout=10",
-                    "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=2",
-                    "-o", "NumberOfPasswordPrompts=3", "-o", "ForwardAgent=no",
-                    "-o", "ClearAllForwardings=yes", "-p", str(target["port"]),
-                    "-l", target["user"], "127.0.0.1", command]
-        try:
-            self.console.process, self.console.master = self.console._spawn(argv)
-        except BaseException:
-            self._directory.cleanup()
-            raise
+        argv = [sys.executable, "-u", "-m", "frontends.web.console_worker"]
+        self.console.process, self.console.master = self.console._spawn(argv)
         threading.Thread(target=self._read, name="bc250-web-tty", daemon=True).start()
 
     def _feed(self, data: bytes) -> None:
@@ -149,7 +128,6 @@ class SSHSession:
             except TimeoutExpired:
                 process.kill()
                 process.wait()
-            self._directory.cleanup()
             self._responses.put({"id": None, "result": {"ok": False, "error": "Terminal disconnected"}})
 
     def _execute(self, values: dict) -> None:
@@ -173,6 +151,7 @@ class SSHSession:
                         self.job_console.exit_status = status
                         self.job_console.finish(bool(result.get("ok")) or (self._monitor_stopped and status in (-2, OperationExit.CANCELLED)), result.get("error", ""))
                         self._active = False
+                        self.ready, self.closed = False, True  # the tty is only open while it is needed
                     break
 
     def request(self, op: str, **values) -> dict:
@@ -197,7 +176,7 @@ class SSHSession:
         with self._state_lock:
             if not self.ready or self.closed or self._active:
                 return {"ok": False, "error": "Terminal unavailable or busy"}
-            self._job_id += 1
+            self._job_id = next(_NUMBERS)
             self._kind = values["action"]
             self._sample, self._sample_at, self._sample_buffer = {}, 0.0, b""
             self._monitor_stopped = False
@@ -223,23 +202,6 @@ class SSHSession:
                 "cancelled": console.done.is_set() and not console.succeeded and console.exit_status == OperationExit.CANCELLED,
                 "action_needed": action_needed,
                 "text": redact_machine(text), "waiting": waiting, "interactive": interactive}
-
-    def login_input(self, text: str) -> bool:
-        self.last_used = time.monotonic()
-        return (not self.ready and not self.closed and self.password_prompt()
-                and self.console.send(text.encode() + b"\n"))
-
-    def password_prompt(self) -> bool:
-        try:
-            return self.console.master is not None and not bool(termios.tcgetattr(self.console.master)[3] & termios.ECHO)
-        except (OSError, termios.error):
-            return False
-
-    def status(self) -> dict:
-        lines = self.console.view(20)[0]
-        return {"ready": self.ready, "closed": self.closed,
-                "prompt": not self.ready and self.password_prompt(),
-                "text": redact_machine("\n".join("".join(run[0] for run in line).rstrip() for line in lines))}
 
     def close(self) -> None:
         if self.closed:

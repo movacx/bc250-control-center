@@ -13,7 +13,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import pwd
 import secrets
 import shlex
 import signal
@@ -27,7 +26,7 @@ from pathlib import Path
 from bc250cc.infrastructure.blackbox_control import systemd_available
 from bc250cc.infrastructure.persistence.config_paths import app_config_dir, app_data_dir
 from bc250cc.infrastructure.remote_access import addresses
-from bc250cc.shared.errors import ActionNeeded, BoundaryError, ErrorDetail
+from bc250cc.shared.errors import ActionNeeded
 
 UNIT_FILE_NAME = "bc250-web.service"
 UNIT_MARKER = "# Managed by BC250 Control Center"
@@ -82,30 +81,6 @@ def options() -> dict:
     data = read_settings()
     return {"port": int(data.get("port") or DEFAULT_PORT), "lan": bool(data.get("lan", False)),
             "lan_password": bool(data.get("lan_password", False)), "tls": bool(data.get("tls", True))}
-
-
-def ssh_target() -> dict:
-    """Pin loopback SSH to host keys read from the local, root-owned SSH configuration."""
-    from bc250cc.infrastructure.remote_access import _port
-
-    port = _port()
-    keys = []
-    for path in Path("/etc/ssh").glob("ssh_host_*_key.pub"):
-        try:
-            if path.stat().st_uid != 0 or path.stat().st_mode & 0o022:
-                continue
-            fields = path.read_text(encoding="ascii").split()
-            if len(fields) >= 2:
-                keys.append(f"[127.0.0.1]:{port} {fields[0]} {fields[1]}\n")
-                if port == 22:
-                    keys.append(f"127.0.0.1 {fields[0]} {fields[1]}\n")
-        except (OSError, UnicodeError):
-            continue
-    if not keys:
-        raise BoundaryError(ErrorDetail("BC250-CMD-001",
-                                        "No SSH server is installed. Install the openssh-server package first."))
-    return {"port": port, "user": pwd.getpwuid(os.getuid()).pw_name, "known_hosts": "".join(keys),
-            "root": str(APP_ROOT), "pythonpath": f"{APP_ROOT / 'src'}:{APP_ROOT}", "python": sys.executable}
 
 
 def tls_certificate() -> tuple[Path, Path]:

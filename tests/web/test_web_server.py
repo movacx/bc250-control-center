@@ -346,8 +346,6 @@ def test_plain_http_lan_never_accepts_passwords_even_with_the_old_option(client,
     client.login()
     monkeypatch.setattr(server, "is_loopback", lambda _address: False)
     web_access.save_settings(lan_password=True)
-    assert client.post("/api/ssh/start", {})[0].status == 403
-    assert client.post("/api/ssh/input", {"text": "secret"})[0].status == 403
     assert client.post("/api/job/input", {"text": "secret"})[0].status == 403
     client.httpd.secure = True
     assert client.call("GET", "/api/session")[1]["password"] is True
@@ -369,11 +367,17 @@ def test_another_browser_cannot_read_or_interrupt_a_job(client):
     assert other.post("/api/job/interrupt", {})[0].status == 403
 
 
-def test_ssh_endpoints_require_login_and_csrf(client):
-    for path in ("ssh/start", "ssh/input", "ssh/close"):
-        assert client.call("POST", "/api/" + path, {})[0].status == 401
+def test_no_endpoint_opens_a_terminal(client):
     client.login()
-    assert client.call("POST", "/api/ssh/start", {})[0].status == 403
+    for path in ("ssh", "ssh/start", "ssh/input", "ssh/close", "shell", "terminal"):
+        assert client.post("/api/" + path, {"text": "id"})[0].status == 404
+        assert client.call("GET", "/api/" + path)[0].status == 404
+    assert not any(name.startswith(("ssh", "shell")) for name in actions.all_actions())
+
+
+def test_input_reaches_nothing_when_no_action_asks_for_it(client):
+    client.login()
+    assert client.post("/api/job/input", {"text": "id"})[1] == {"ok": False}
 
 
 def test_failed_inherited_workflow_never_falls_back_to_another_terminal(monkeypatch):
@@ -439,8 +443,8 @@ def test_a_custom_port_does_not_overwrite_the_installed_server_pid(tmp_path, mon
 
 def test_job_panel_masks_native_sudo_password_and_rejects_control_input():
     from frontends.tui.console import Console
-    from frontends.web.ssh import SSHSession
-    session = SSHSession.__new__(SSHSession)
+    from frontends.web.console_session import ConsoleSession
+    session = ConsoleSession.__new__(ConsoleSession)
     session.job_console = Console("authorization")
     session._job_id, session._active = 1, True
     session._state_lock = threading.Lock()
@@ -550,8 +554,8 @@ def test_new_device_can_monitor_but_cannot_self_grant_hardware_control(client):
     assert client.call("GET", "/api/live")[0].status == 200
     assert client.call("GET", "/api/session")[1]["control"] is False
     for route, body in (("/api/action", {"action": "gpu.status"}),
-                        ("/api/action", {"action": "fan.service", "params": {"operation": "enable"}}), ("/api/ssh/start", {}),
-                        ("/api/job/input", {"text": "password"}), ("/api/ssh/input", {"text": "password"})):
+                        ("/api/action", {"action": "fan.service", "params": {"operation": "enable"}}),
+                        ("/api/job/input", {"text": "password"})):
         assert client.post(route, {**body, "control": True, "confirm": True})[0].status == 403
     assert not client.httpd.web.local_sessions
     device = web_devices.devices()[0]

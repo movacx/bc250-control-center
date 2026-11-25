@@ -98,7 +98,7 @@ def test_tls_leaf_and_lan_access_follow_dhcp_on_a_running_server(tmp_path, monke
     certificate = web_tls.certificate()
     authority = web_tls.trust_certificate()
     fingerprint = web_tls.fingerprint(authority)
-    endpoint = server.Server(("127.0.0.1", 0), SimpleNamespace(language="en", ssh_sessions={}, local_sessions={}), certificate=certificate)
+    endpoint = server.Server(("127.0.0.1", 0), SimpleNamespace(language="en", local_sessions={}), certificate=certificate)
     monitor = network.LanMonitor(endpoint, enabled=True)
     thread = threading.Thread(target=endpoint.serve_forever, daemon=True)
     thread.start()

@@ -80,7 +80,7 @@ def test_certificate_is_trusted_by_its_local_ca_and_serves_verified_https(tmp_pa
     original = cert.read_bytes()
     assert original == web_tls.certificate()[0].read_bytes()
     context = ssl.create_default_context(cafile=str(authority))
-    httpd = server.Server(("127.0.0.1", 0), SimpleNamespace(language="en", ssh_sessions={}, local_sessions={}), certificate=(cert, key))
+    httpd = server.Server(("127.0.0.1", 0), SimpleNamespace(language="en", local_sessions={}), certificate=(cert, key))
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     try:

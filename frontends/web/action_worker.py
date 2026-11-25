@@ -28,6 +28,13 @@ from frontends.desktop.i18n import set_language, tr
 from frontends.tui.runtime import Context, describe_error, describe_result
 from frontends.web.actions import Invalid, all_actions
 
+#: Pagers and editors can start a shell of their own: nothing an action runs may open one here.
+SIN_PROGRAMAS_INTERACTIVOS = {
+    "PAGER": "cat", "MANPAGER": "cat", "GIT_PAGER": "cat", "SYSTEMD_PAGER": "cat", "SYSTEMD_PAGERSECURE": "1",
+    "LESSSECURE": "1", "EDITOR": "/bin/false", "VISUAL": "/bin/false", "SUDO_EDITOR": "/bin/false",
+    "SYSTEMD_EDITOR": "/bin/false", "GIT_EDITOR": "/bin/false", "GIT_TERMINAL_PROMPT": "0",
+}
+
 
 class InheritedTerminal:
     """Synchronous workflows: no nested pty, GUI agent or external terminal."""
@@ -70,6 +77,7 @@ def main() -> int:
         return 1
     os.environ[TERMINAL_AUTH_ENV] = "1"
     os.environ[WEB_SUDO_AUTH_ENV] = "1"
+    os.environ.update(SIN_PROGRAMAS_INTERACTIVOS)
     terminal = InheritedTerminal()
     set_embedded_terminal_launcher(terminal)
     try:

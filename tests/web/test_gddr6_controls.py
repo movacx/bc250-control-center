@@ -9,8 +9,8 @@ from types import SimpleNamespace
 import pytest
 
 from frontends.web.actions import Invalid, gddr6_monitor
+from frontends.web.console_session import ConsoleSession
 from frontends.web.gddr6 import readiness
-from frontends.web.ssh import SSHSession
 
 
 def status(**changes):
@@ -58,7 +58,7 @@ def test_browser_cannot_supply_a_manual_override_or_extend_the_session():
 
 def test_streaming_parser_keeps_partial_samples_and_never_parses_other_actions():
     received = []
-    session = SSHSession.__new__(SSHSession)
+    session = ConsoleSession.__new__(ConsoleSession)
     session._active, session._kind = True, "gddr6.monitor"
     session.job_console = SimpleNamespace(_feed=received.append)
     session._sample_buffer, session._sample, session._sample_at = b"", {}, 0

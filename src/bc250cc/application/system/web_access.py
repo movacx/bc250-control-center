@@ -12,7 +12,6 @@ from bc250cc.infrastructure.web_control import (
     repair_local_name,
     save_settings,
     set_autostart,
-    ssh_target,
     start,
     status,
     stop,
@@ -36,4 +35,4 @@ from bc250cc.infrastructure.web_runtime import require_supported_version
 from bc250cc.infrastructure.web_tls import trust_certificate
 
 __all__ = ["repair_firewall", "repair_local_name", "launch_command", "require_supported_version", "DEFAULT_PORT", "access_key", "options", "read_settings", "save_settings", "set_autostart", "start", "status",
-           "stop", "write_pid", "pairing_matrix", "pairing_svg", "ssh_target", "tls_certificate", "configure", "devices", "revoke", "revoke_all", "set_control", "set_lifetime", "deadline", "trust_certificate", "approve", "is_permanent"]
+           "stop", "write_pid", "pairing_matrix", "pairing_svg", "tls_certificate", "configure", "devices", "revoke", "revoke_all", "set_control", "set_lifetime", "deadline", "trust_certificate", "approve", "is_permanent"]

@@ -1,4 +1,4 @@
-"""Private tty protocol, shared by local and SSH user sessions.
+"""Private tty protocol between the web server and the user's own session.
 
 The worker stops reading requests while an action owns the terminal. Native
 sudo can therefore read /dev/tty without competing with a JSON reader.

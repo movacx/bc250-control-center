@@ -57,10 +57,10 @@ from frontends.tui.runtime import Context, describe_error
 from frontends.web.actions import SETTINGS, Invalid, all_actions
 from frontends.web.arguments import argument_parser
 from frontends.web.blackbox import BlackBox
+from frontends.web.console_session import ConsoleSession
 from frontends.web.data import PAGES, Live, performance
 from frontends.web.modulos import AJUSTES, CONSULTAS, LECTURAS
 from frontends.web.network import LanMonitor
-from frontends.web.ssh import SSHSession
 
 web_access.require_supported_version()
 
@@ -109,7 +109,7 @@ def host_allowed(header: str) -> bool:
 class Web:
     """Server state: the services, sessions and the failed-login ledger."""
 
-    def __init__(self, container=None, *, terminal_factory=SSHSession) -> None:
+    def __init__(self, container=None, *, terminal_factory=ConsoleSession) -> None:
         container = container or ApplicationContainer.production()
         self.ctx = Context(service=container.system_service, settings=container.settings_service,
                            activity=container.activity_service, platform=container.platform,
@@ -117,10 +117,9 @@ class Web:
         self.live = Live(self.ctx)
         self.blackbox = BlackBox(container.system_service)
         self.terminal_factory = terminal_factory
-        self.local_sessions: dict[str, SSHSession] = {}
+        self.local_sessions: dict[str, ConsoleSession] = {}
         self.language = normalize_language(self.ctx.config.get("idioma", "auto"))
         self.sessions: dict[str, tuple[str, float]] = {}
-        self.ssh_sessions: dict[str, SSHSession] = {}
         self.job_owner = ""
         self.job_backend = None
         self.live.monitor_job = lambda: self.job_backend.view() if self.job_backend is not None and hasattr(self.job_backend, "view") else {}
@@ -189,10 +188,9 @@ class Web:
         if not same_key(self.key, current):
             self.sessions.clear()
             web_devices.revoke_all()
-            for collection in (self.ssh_sessions, self.local_sessions):
-                for terminal in collection.values():
-                    terminal.close()
-                collection.clear()
+            for terminal in self.local_sessions.values():
+                terminal.close()
+            self.local_sessions.clear()
             self.key = current
 
     def session(self, token: str) -> str | None:
@@ -217,10 +215,9 @@ class Web:
 
     def _drop_session(self, token):
         self.sessions.pop(token, None)
-        for collection in (self.ssh_sessions, self.local_sessions):
-            terminal = collection.pop(token, None)
-            if terminal:
-                terminal.close()
+        terminal = self.local_sessions.pop(token, None)
+        if terminal:
+            terminal.close()
 
     def job(self) -> dict:
         result = self.job_backend.request("job") if self.job_backend is not None else {"id": 0}
@@ -375,7 +372,7 @@ class Handler:
             return self.fail("Authentication required", 401, authenticated=False)
         if method == "POST" and not hmac.compare_digest(self.headers.get("X-CSRF-Token", ""), csrf):
             return self.fail("Invalid CSRF token", 403)
-        if method == "POST" and path not in {"/api/logout", "/api/performance/reset", "/api/job/interrupt", "/api/ssh/close"}:
+        if method == "POST" and path not in {"/api/logout", "/api/performance/reset", "/api/job/interrupt"}:
             if not web_devices.session(self.token()).get("control"):
                 return self.fail("This device has monitoring access. Enable hardware control in Remote access on the desktop.", 403)
         if method == "GET" and path in {"/api/page", "/api/query", "/api/performance"}:
@@ -394,13 +391,12 @@ class Handler:
     @property
     def GET(self) -> dict:
         return {"/api/live": self.live, "/api/page": self.page, "/api/query": self.query, "/api/performance": self.performance,
-                "/api/job": self.job, "/api/ssh": self.ssh_status, "/api/blackbox": self.blackbox_read}
+                "/api/job": self.job, "/api/blackbox": self.blackbox_read}
 
     @property
     def POST(self) -> dict:
         return {"/api/blackbox/control": self.blackbox_control, "/api/logout": self.logout, "/api/performance/reset": self.reset_statistics, "/api/action": self.action, "/api/setting": self.setting, "/api/job/input": self.job_input,
-                "/api/job/interrupt": self.job_interrupt, "/api/ssh/start": self.ssh_start,
-                "/api/ssh/input": self.ssh_input, "/api/ssh/close": self.ssh_close}
+                "/api/job/interrupt": self.job_interrupt}
 
     # -- endpoints ------------------------------------------------------------------------------
 
@@ -424,10 +420,9 @@ class Handler:
         with self.web.lock:
             self.web.sessions.pop(self.token(), None)
             web_devices.revoke(web_devices.identity(self.token()))
-            for collection in (self.web.ssh_sessions, self.web.local_sessions):
-                terminal = collection.pop(self.token(), None)
-                if terminal:
-                    terminal.close()
+            terminal = self.web.local_sessions.pop(self.token(), None)
+            if terminal:
+                terminal.close()
         self.json({"ok": True}, extra={"Set-Cookie": f"{COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0"})
 
     def live(self, _query: dict) -> None:
@@ -514,17 +509,15 @@ class Handler:
                     current = self.web.job()
             if current.get("id") and not current.get("done", True):
                 return self.fail("Another hardware action is still running.", 409)
-            terminal = self.web.ssh_sessions.get(self.token())
-            if terminal is None:
-                terminal = self.web.local_sessions.get(self.token())
-                if terminal is None or terminal.closed:
-                    terminal = self.web.terminal_factory(local=True)
-                    self.web.local_sessions[self.token()] = terminal
-                    deadline = time.monotonic() + 5
-                    while not terminal.ready and not terminal.closed and time.monotonic() < deadline:
-                        time.sleep(.02)
+            terminal = self.web.local_sessions.get(self.token())
+            if terminal is None or terminal.closed:
+                terminal = self.web.terminal_factory()
+                self.web.local_sessions[self.token()] = terminal
+                deadline = time.monotonic() + 5
+                while not terminal.ready and not terminal.closed and time.monotonic() < deadline:
+                    time.sleep(.02)
             if not terminal.ready:
-                return self.fail("The control terminal is unavailable. Reconnect SSH or retry the action.", 409)
+                return self.fail("The control terminal is unavailable. Retry the action.", 409)
             result = terminal.request("action", action=body["action"], params=body.get("params") or {},
                                       title=str(body.get("title") or body["action"])[:80], confirmed=bool(body.get("confirm")),
                                       language=normalize_language(self.headers.get("X-BC250-Language") or self.web.language))
@@ -568,39 +561,6 @@ class Handler:
         if self.web.job_backend is not None:
             return self.json(self.web.job_backend.request("interrupt"))
         self.json({"ok": False})
-
-    def ssh_status(self, _query: dict) -> None:
-        ssh = self.web.ssh_sessions.get(self.token())
-        self.json(ssh.status() if ssh else {"ready": False, "closed": True, "text": ""})
-
-    def ssh_start(self, _body: dict) -> None:
-        if not self.can_type_password():
-            return self.fail("Use HTTPS before entering your Linux password.", 403)
-        with self.web.lock:
-            ssh = self.web.ssh_sessions.get(self.token())
-            if ssh is not None and not ssh.closed:
-                return self.json(ssh.status())
-            ledger = "ssh:" + self.token()
-            if self.web.locked(ledger):
-                return self.fail("Too many attempts. Try again in a few minutes.", 429)
-            self.web.fails[ledger].append(time.monotonic())
-            self.web.ssh_sessions[self.token()] = ssh = self.web.terminal_factory()
-        self.json(ssh.status())
-
-    def ssh_input(self, body: dict) -> None:
-        if not self.can_type_password():
-            return self.fail("Use HTTPS before entering your Linux password.", 403)
-        ssh = self.web.ssh_sessions.get(self.token())
-        text = str(body.get("text", ""))
-        if len(text) > 256 or any(ord(c) < 32 or ord(c) == 127 for c in text):
-            return self.fail("Invalid parameter: password", 400)
-        self.json({"ok": bool(ssh and ssh.login_input(text))})
-
-    def ssh_close(self, _body: dict) -> None:
-        ssh = self.web.ssh_sessions.pop(self.token(), None)
-        if ssh:
-            ssh.close()
-        self.json({"ok": True})
 
     def static(self, path: str) -> None:
         target = (DIST / path.lstrip("/")).resolve()
@@ -708,9 +668,8 @@ class Server(WsgiServer):
         self.stop()
 
     def server_close(self):
-        for collection in (self.web.ssh_sessions, self.web.local_sessions):
-            for terminal in collection.values():
-                terminal.close()
+        for terminal in self.web.local_sessions.values():
+            terminal.close()
         self.stop()
 
 

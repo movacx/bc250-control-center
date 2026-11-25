@@ -3077,7 +3077,6 @@
    "new_pin": "CORE-0141",
    "access_key": "CORE-0142",
    "options": "CORE-0143",
-   "ssh_target": "CORE-0202",
    "tls_certificate": "CORE-0203",
    "pairing_svg": "CORE-0204",
    "pairing_matrix": "CORE-0370",
@@ -7288,6 +7287,7 @@
  },
  "retired": [
   "CORE-0086",
+  "CORE-0202",
   "CORE-0315",
   "CPU-0314",
   "CPU-0315",
