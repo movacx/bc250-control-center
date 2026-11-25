@@ -11,7 +11,13 @@ import threading
 import time
 from dataclasses import asdict
 
-from bc250cc.application.cpu.core_unlock import core_unlock_controls
+from bc250cc.application.cpu.core_unlock import (
+    CORE_MASK_BOOT_RISK,
+    CORE_MASK_SEEN,
+    CORE_MASK_STOCK,
+    core_unlock_controls,
+    reported_core_mask,
+)
 from bc250cc.application.fan import board_view
 from bc250cc.application.fan.system_control import build_system_fan_policy
 from bc250cc.application.gpu.voltage_lab_state import build_voltage_lab_state
@@ -23,6 +29,12 @@ from bc250cc.domain.gpu.voltage_profiles import (
     CUSTOM_VOLTAGE_MIN_MV,
     SUPPORTED_VOLTAGE_LEVELS,
     voltage_profile,
+)
+from bc250cc.shared.contract import (
+    CPU_FREQUENCY_RANGE,
+    CPU_SCALE_RANGE,
+    CPU_TEMPERATURE_RANGE,
+    CPU_VID_RANGE,
 )
 from frontends.desktop.components.chart_axes import (
     range_axis,
@@ -53,9 +65,12 @@ from frontends.desktop.core.sensor_log import format_sensor_value
 from frontends.desktop.i18n import governor_fix_label
 from frontends.tui.i18n import tr, tr_format
 from frontends.tui.pages import build_pages
-from frontends.tui.pages.cpu import said
+from frontends.tui.pages.cpu import GUIDE_URL, mask_text, said
+from frontends.tui.pages.cpu import PROFILES as CPU_PROFILES
 from frontends.tui.runtime import Context, record_metrics
+from frontends.web.actions import cpu_profiles
 from frontends.web.gddr6 import Gddr6Page
+from frontends.web.modulos import LECTURAS
 
 IDLE_SECONDS = 20  # sampling stops this long after the last request
 PAGES = ("dashboard", "cpu", "gpu", "cu", "fans", "gddr6")
@@ -123,6 +138,16 @@ class Live:
                 self._cache[key] = (time.monotonic(), value)
         return value
 
+    def reading(self, name: str) -> dict:
+        """A page module's own reading (``modulos``), kept for the seconds it asks."""
+        seconds, read = LECTURAS[name]
+        with self._locks.setdefault(name, threading.Lock()):
+            stamp, value = self._cache.get(name, (0.0, None))
+            if value is None or time.monotonic() - stamp >= seconds:
+                value = read(self.ctx, self)
+                self._cache[name] = (time.monotonic(), value)
+        return value
+
     def forget(self) -> None:
         self._cache.clear()
 
@@ -145,7 +170,15 @@ def _cpu(raw: dict, ctx: Context) -> dict:
     unlock_controls = core_unlock_controls(raw.get("unlock") or {})
     for key in ("status", "action", "note", "hint"):
         unlock_controls[key] = tr(unlock_controls[key]) if unlock_controls[key] else ""
-    return {**raw, "unlock_controls": unlock_controls,
+    board_mask = reported_core_mask(((raw.get("unlock") or {}).get("persistence") or {}).get("boot_service_note"))
+    masks = list(dict.fromkeys((CORE_MASK_STOCK, *([board_mask] if board_mask else []), *CORE_MASK_SEEN)))
+    limits = {"frequency": CPU_FREQUENCY_RANGE, "vid": CPU_VID_RANGE, "temperature": CPU_TEMPERATURE_RANGE, "scale": CPU_SCALE_RANGE}
+    return {**raw, "config": {"cpu_oc_last_applied_frequency": config.get("cpu_oc_last_applied_frequency")},
+            "profiles": cpu_profiles(config), "default_profiles": [dict(item) for item in CPU_PROFILES],
+            "limits": {name: {"min": low, "max": high} for name, (low, high) in limits.items()},
+            "masks": [{"value": str(mask), "short": f"0x{mask:02X}", "text": mask_text(mask, board_mask)} for mask in masks],
+            "board_mask": board_mask or CORE_MASK_STOCK, "unlock_warning": tr(CORE_MASK_BOOT_RISK), "firmware_guide": GUIDE_URL,
+            "unlock_controls": unlock_controls,
             "persistence": {"enabled": stored.enabled, "value": said(stored.status_value),
                                    "detail": said(stored.status_detail)},
             "tuning": {name: said(getattr(tuning, name)) for name in (

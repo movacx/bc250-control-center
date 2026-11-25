@@ -26,7 +26,7 @@ from bc250cc.shared.operation_contract import (
 )
 from frontends.desktop.i18n import set_language, tr
 from frontends.tui.runtime import Context, describe_error, describe_result
-from frontends.web.actions import ACTIONS, Invalid
+from frontends.web.actions import Invalid, all_actions
 
 
 class InheritedTerminal:
@@ -80,7 +80,7 @@ def main() -> int:
         ctx = Context(service=container.system_service, settings=container.settings_service,
                       activity=container.activity_service, platform=container.platform,
                       config=container.settings_service.read_local_config())
-        build = ACTIONS.get(request.get("action"))
+        build = all_actions().get(request.get("action"))
         if build is None or not isinstance(request.get("params", {}), dict):
             raise Invalid("action")
         level, work = build(ctx, request.get("params") or {}, terminal.shell)

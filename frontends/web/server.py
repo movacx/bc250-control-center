@@ -8,6 +8,7 @@ session's CSRF token, and only names from ``actions.ACTIONS`` ever run.
 
 from __future__ import annotations
 
+import gzip
 import hmac
 import http.cookies
 import io
@@ -50,17 +51,19 @@ from frontends.desktop.i18n import (
     set_language,
     tr,
 )
-from frontends.desktop.theme import ACCENTS, THEMES, theme_palette
+from frontends.desktop.theme import ACCENTS, THEMES, _blend, theme_palette
 from frontends.tui.runtime import Context, describe_error
-from frontends.web.actions import ACTIONS, Invalid
+from frontends.web.actions import SETTINGS, Invalid, all_actions
 from frontends.web.arguments import argument_parser
 from frontends.web.blackbox import BlackBox
 from frontends.web.data import PAGES, Live, performance
+from frontends.web.modulos import AJUSTES, CONSULTAS, LECTURAS
 from frontends.web.network import LanMonitor
 from frontends.web.ssh import SSHSession
 
 web_access.require_supported_version()
 
+mimetypes.add_type("application/wasm", ".wasm")
 logger = logging.getLogger(__name__)
 DIST = Path(__file__).resolve().parent / "dist"
 VERSION_FILE = Path(__file__).resolve().parents[2] / "VERSION"
@@ -71,7 +74,7 @@ SESSION_COOKIE_SECONDS = web_devices.MAX_SESSION_SECONDS
 PERMANENT_COOKIE_SECONDS = 400 * 24 * 3600
 MAX_FAILS, LOCK_SECONDS = 5, 300
 MAX_BODY = 64 * 1024
-CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; "
+CSP = ("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; "
        "manifest-src 'self'; worker-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
 
@@ -324,10 +327,8 @@ class Handler:
             return self.fail("Bad host", 400)
         url = urllib.parse.urlsplit(self.path)
         path, query = url.path, {k: v[-1] for k, v in urllib.parse.parse_qs(url.query).items()}
-        if not path.startswith("/api/") and path != "/theme.css":
+        if not path.startswith("/api/"):
             return self.static(path) if method == "GET" else self.fail("Method not allowed", 405)
-        if path == "/theme.css":
-            return self.reply(theme_css().encode(), "text/css; charset=utf-8", extra={"Cache-Control": "no-cache"})
         if method == "POST" and not self.origin_ok():
             return self.fail("Origin not allowed", 403)
         if (method, path) == ("POST", "/api/login"):
@@ -337,6 +338,8 @@ class Handler:
             lang = lang if lang in SUPPORTED_LANGUAGES else "en"
             return self.json({"language": lang, "languages": [{"key": key, "title": title} for key, title in LANGUAGE_OPTIONS if key != "auto"],
                               "strings": {s: tr(s, lang) for s in self.web._strings()}})
+        if method == "GET" and path == "/api/theme":
+            return self.json(theme_data(self.web.ctx.settings.read_local_config()))
         if method == "GET" and path == "/api/version":
             # index.html is the document actually served on navigation. A stale
             # sidecar during an upgrade must not trigger an endless update offer.
@@ -376,12 +379,12 @@ class Handler:
 
     @property
     def GET(self) -> dict:
-        return {"/api/live": self.live, "/api/page": self.page, "/api/performance": self.performance,
+        return {"/api/live": self.live, "/api/page": self.page, "/api/query": self.query, "/api/performance": self.performance,
                 "/api/job": self.job, "/api/ssh": self.ssh_status, "/api/blackbox": self.blackbox_read}
 
     @property
     def POST(self) -> dict:
-        return {"/api/blackbox/control": self.blackbox_control, "/api/logout": self.logout, "/api/performance/reset": self.reset_statistics, "/api/action": self.action, "/api/job/input": self.job_input,
+        return {"/api/blackbox/control": self.blackbox_control, "/api/logout": self.logout, "/api/performance/reset": self.reset_statistics, "/api/action": self.action, "/api/setting": self.setting, "/api/job/input": self.job_input,
                 "/api/job/interrupt": self.job_interrupt, "/api/ssh/start": self.ssh_start,
                 "/api/ssh/input": self.ssh_input, "/api/ssh/close": self.ssh_close}
 
@@ -420,10 +423,19 @@ class Handler:
 
     def page(self, query: dict) -> None:
         name = query.get("name", "")
-        if name not in PAGES:
+        if name not in PAGES and name not in LECTURAS:
             return self.fail("Not found", 404)
         self.web.live.touch()
+        if name in LECTURAS:
+            return self.json({"ok": True, "data": self.web.live.reading(name)})
         self.json({"ok": True, "data": self.web.live.page(name)})
+
+    def query(self, query: dict) -> None:
+        ask = CONSULTAS.get(query.get("name", ""))
+        if ask is None:
+            return self.fail("Not found", 404)
+        self.web.live.touch()
+        self.json({"ok": True, "data": ask(self.web, query)})
 
     def performance(self, query: dict) -> None:
         self.web.live.touch()
@@ -452,7 +464,7 @@ class Handler:
     def action(self, body: dict) -> None:
         if not self.can_type_password():
             return self.fail("HTTPS required", 403)
-        build = ACTIONS.get(str(body.get("action")))
+        build = all_actions().get(str(body.get("action")))
         if build is None:
             return self.fail("Unknown action", 400)
         if not isinstance(body.get("params", {}), dict):
@@ -498,6 +510,18 @@ class Handler:
             job = result["job"]
         self.web.live.forget()
         self.json({"ok": True, "job": job})
+
+    def setting(self, body: dict) -> None:
+        """Save a preference: it touches no hardware, so it needs no console."""
+        save = {**SETTINGS, **AJUSTES}.get(str(body.get("action")))
+        if save is None or not isinstance(body.get("params", {}), dict):
+            return self.fail("Unknown action", 400)
+        try:
+            save(self.web.ctx, body.get("params") or {})
+        except Invalid as error:
+            return self.fail(f"Invalid parameter: {error}", 400)
+        self.web.live.forget()
+        self.json({"ok": True})
 
     def job_input(self, body: dict) -> None:
         if not self.can_type_password():
@@ -561,38 +585,49 @@ class Handler:
                 return self.fail("Not found", 404)
             target = DIST / "index.html"
         kind = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
-        self.reply(target.read_bytes(), kind + ("; charset=utf-8" if kind.startswith("text") or "javascript" in kind
-                                                else ""), extra={"Cache-Control": "no-store" if target.name in {"index.html", "sw.js"} else "no-cache"})
+        self.reply(self.packed(target), kind + ("; charset=utf-8" if kind.startswith("text") or "javascript" in kind
+                                                else ""), extra=self.file_headers(target))
+
+    def packs(self, target: Path) -> bool:
+        return target.suffix in {".wasm", ".js", ".mjs", ".json", ".css", ".ttf"} and "gzip" in self.headers.get("Accept-Encoding", "")
+
+    def packed(self, target: Path) -> bytes:
+        return gzipped(target, target.stat().st_mtime_ns) if self.packs(target) else target.read_bytes()
+
+    def file_headers(self, target: Path) -> dict:
+        headers = {"Cache-Control": "no-store" if target.name in {"index.html", "sw.js"} else "no-cache"}
+        if target.suffix == ".wasm":  # its name carries its own hash
+            headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        if self.packs(target):
+            headers["Content-Encoding"] = "gzip"
+        return headers
+
+
+@lru_cache(maxsize=32)
+def gzipped(target: Path, _stamp: int) -> bytes:
+    return gzip.compress(target.read_bytes(), 6)
 
 
 @lru_cache(maxsize=1)
-def theme_css() -> str:
-    """All desktop Formal palettes, chosen locally by theme and accent."""
-    palettes = {(theme, accent): theme_palette(theme, accent, "formal")
-                for theme in THEMES for accent in ACCENTS}
+def _palettes() -> dict:
+    """Every desktop palette in the formal style, by "theme/accent"."""
+    palettes = {}
+    for theme in THEMES:
+        for accent in ACCENTS:
+            palette = {name: value for name, value in theme_palette(theme, accent, "formal").items() if isinstance(value, str)}
+            fill, line = palette["panel_raised"], palette["border"]
+            # The core-unlock panel: a muted brick, as the desktop draws it.
+            palette["risk_fill"] = _blend(fill, palette["red"], 0.10)
+            palette["risk_line"] = _blend(line, palette["red"], 0.11)
+            palettes[f"{theme}/{accent}"] = palette
+    return palettes
 
-    def block(theme: str, accent: str) -> str:
-        palette = palettes[theme, accent]
-        ink = "#FFFFFF" if theme == "light" else palette["window"]
-        variables = {f"--c-{name.replace('_', '-')}": value for name, value in palette.items()
-                     if isinstance(value, str)}
-        variables["--c-on-accent"] = ink
-        variables.update({f"--c-accent-{key}": palettes[theme, key]["blue"] for key in ACCENTS})
-        variables.update({f"--c-preview-{key}-{surface}": palettes[key, accent][surface]
-                          for key in THEMES for surface in ("window", "panel")})
-        return "".join(f"{key}:{value};" for key, value in variables.items())
 
-    rules = []
-    # Keep violet for browsers without a saved choice, preserving their look.
-    for accent in ("violet", *(key for key in ACCENTS if key != "violet")):
-        selector = ":root" if accent == "violet" else f":root[data-accent={accent}]"
-        rules.append(f"{selector}{{color-scheme:light;{block('light', accent)}}}")
-        rules.append(f"@media (prefers-color-scheme:dark){{{selector}:not([data-theme])"
-                     f"{{color-scheme:dark;{block('dark', accent)}}}}}")
-        for theme in THEMES:
-            scheme = "light" if theme == "light" else "dark"
-            rules.append(f"{selector}[data-theme={theme}]{{color-scheme:{scheme};{block(theme, accent)}}}")
-    return "".join(rules)
+def theme_data(config: dict) -> dict:
+    """The palettes and the pair chosen for the web, or the desktop's default."""
+    theme = config.get("web_theme") if config.get("web_theme") in THEMES else "dark"
+    accent = config.get("web_accent") if config.get("web_accent") in ACCENTS else "green"
+    return {"theme": theme, "accent": accent, "themes": list(THEMES), "accents": list(ACCENTS), "palettes": _palettes()}
 
 
 class Server(WsgiServer):

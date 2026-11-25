@@ -25,7 +25,7 @@ from bc250cc.application.system import web_access
 from bc250cc.application.system.privacy import redact_machine
 from bc250cc.shared.operation_contract import OperationExit
 from frontends.tui.console import Console
-from frontends.web.actions import ACTIONS
+from frontends.web.actions import all_actions
 from frontends.web.ssh_worker import PREFIX
 
 IDLE_SECONDS = 15 * 60
@@ -192,7 +192,7 @@ class SSHSession:
                     self.job_console.interrupted = True
                     self.console.interrupt()
             return {"ok": True}
-        if op != "action" or values.get("action") not in ACTIONS:
+        if op != "action" or values.get("action") not in all_actions():
             return {"ok": False, "error": "Invalid operation"}
         with self._state_lock:
             if not self.ready or self.closed or self._active:

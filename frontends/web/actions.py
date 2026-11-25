@@ -10,6 +10,11 @@ from __future__ import annotations
 
 import json
 
+from bc250cc.application.cpu.core_unlock import (
+    CORE_MASK_STOCK,
+    accepted_mask,
+    is_six_core_mask,
+)
 from bc250cc.application.fan import board_view
 from bc250cc.application.fan.board_actions import (
     FanBoardActions,
@@ -32,6 +37,8 @@ from bc250cc.shared.contract import (
     CPU_VID_RANGE,
 )
 from frontends.tui.i18n import tr, tr_format
+from frontends.tui.pages.cpu import PROFILES as CPU_PROFILES
+from frontends.tui.pages.cpu import valid_profile
 
 SAFE_CEILING = 2000  # past the factory TOML's last point the rail turns red
 LOW_DUTY = board_view.LOW_DUTY_CONFIRM_PERCENT
@@ -177,14 +184,55 @@ def cpu_apply(ctx, p, shell):
     return 1, apply
 
 
+def _mask(p: dict) -> int:
+    value = p.get("mask", CORE_MASK_STOCK)
+    if isinstance(value, bool) or not isinstance(value, int) or (value != CORE_MASK_STOCK and not is_six_core_mask(value)):
+        raise Invalid("mask")
+    return value
+
+
 def cpu_unlock(ctx, p, shell):
-    force = flag(p, "force_mask")
-    return 2, lambda: shell(ctx.service.comando_desbloquear_nucleos_cpu(ignore_core_mask=force))
+    force, mask = flag(p, "force_mask"), _mask(p)
+    return 2, lambda: shell(ctx.service.comando_desbloquear_nucleos_cpu(
+        ignore_core_mask=force, accept_mask=accepted_mask(mask, force)))
 
 
 def cpu_unlock_persist(ctx, p, shell):
-    force = flag(p, "force_mask")
-    return 2, lambda: shell(ctx.service.comando_persistir_desbloqueo_nucleos_cpu(ignore_core_mask=force))
+    force, mask = flag(p, "force_mask"), _mask(p)
+    return 2, lambda: shell(ctx.service.comando_persistir_desbloqueo_nucleos_cpu(
+        ignore_core_mask=force, accept_mask=accepted_mask(mask, force)))
+
+
+def cpu_profiles(config: dict) -> list[dict]:
+    """The three cards: what the owner saved, or what ships."""
+    saved = {item.get("key"): item for item in config.get("tui_cpu_profiles") or () if isinstance(item, dict)}
+    return [valid_profile(saved.get(item["key"]), item) for item in CPU_PROFILES]
+
+
+def save_cpu_profile(ctx, p):
+    key = choice(p, "key", tuple(item["key"] for item in CPU_PROFILES))
+    name = _text(p, "name", 28)
+    values = {field: number(p, field) for field in ("frequency", "vid", "temperature")}
+    shipped = next(item for item in CPU_PROFILES if item["key"] == key)
+    if name == tr(shipped["name"]):
+        name = shipped["name"]  # not retyped: it stays translatable
+    profiles = cpu_profiles(ctx.settings.read_local_config())
+    changed = [{"key": key, "name": name, **values} if item["key"] == key else item for item in profiles]
+    ctx.settings.save_local_config({"tui_cpu_profiles": changed})
+
+
+def cpu_export(ctx, p, shell):
+    def export():
+        fields = ("key", "name", "frequency", "vid", "temperature")
+        cards = [{field: item[field] for field in fields} for item in cpu_profiles(ctx.settings.read_local_config())]
+        return ctx.service.exportar_perfiles_cpu_decky(cards)
+    return 1, export
+
+
+def cpu_review(ctx, p, shell):
+    def review():
+        return "\n".join(f"{key}: {value}" for key, value in ctx.service.estado_cpu_oc_persistente().items())
+    return 0, review
 
 
 # -- Compute units --------------------------------------------------------------------------------
@@ -332,6 +380,7 @@ ACTIONS = {
     "gpu.high_points": gpu_high_points, "gpu.voltage": gpu_voltage, "gpu.voltage_custom": gpu_voltage_custom,
     "gpu.save_boot": lambda ctx, p, shell: (1, ctx.service.guardar_rango_gpu_arranque),
     "gpu.status": lambda ctx, p, shell: (0, ctx.service.status_governor),
+    "cpu.export_decky": cpu_export, "cpu.review": cpu_review,
     "cpu.apply": cpu_apply, "cpu.unlock": cpu_unlock,
     "cpu.unlock_persist": cpu_unlock_persist,
     "cpu.unlock_persist_off": lambda ctx, p, shell: (
@@ -343,3 +392,13 @@ ACTIONS = {
     "cu.apply": cu_apply, "cu.save": cu_save, "cu.action": cu_action,
     "fan.channel": fan_channel, "fan.label": fan_label, "fan.profile": fan_profile, "fan.service": fan_service,
 }
+
+def all_actions() -> dict:
+    """This list and the ones of the page modules, which import from here."""
+    from frontends.web.modulos import ACCIONES
+
+    return {**ACTIONS, **ACCIONES}
+
+
+#: Preferences: (ctx, params) -> None. They never touch the hardware.
+SETTINGS = {"cpu.profile": save_cpu_profile}
