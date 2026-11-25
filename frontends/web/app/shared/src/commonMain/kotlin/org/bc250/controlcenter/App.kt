@@ -11,10 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -62,7 +58,7 @@ import org.bc250.controlcenter.paginas.PaginaIngreso
 import org.bc250.controlcenter.tema.ColoresActuales
 import org.bc250.controlcenter.tema.LetrasActuales
 import org.bc250.controlcenter.tema.Medidas
-import org.bc250.controlcenter.tema.CargarLetrasDeIdioma
+import org.bc250.controlcenter.tema.letrasListas
 import org.bc250.controlcenter.tema.cargarLetras
 
 @Composable
@@ -75,22 +71,20 @@ fun App() {
     aplicacion.sistemaOscuro = isSystemInDarkTheme()
     val escala = aplicacion.preferencias.entero("scale", 100) / 100f
     val densidad = LocalDensity.current
-    // Al llegar una letra nueva se dibuja todo otra vez: lo ya medido se quedaría con cuadritos.
-    var letrasCargadas by remember { mutableIntStateOf(0) }
     CompositionLocalProvider(
         ColoresActuales provides aplicacion.paleta,
-        LetrasActuales provides cargarLetras(letrasCargadas),
+        LetrasActuales provides cargarLetras(),
         LocalPaletas provides aplicacion.paletas,
         LocalDensity provides Density(densidad.density * escala, densidad.fontScale),
     ) {
-        CargarLetrasDeIdioma(aplicacion.idioma) { letrasCargadas += 1 }
+        val sePuedeDibujar = letrasListas(aplicacion.idioma)
         Box(
             Modifier
                 .fillMaxSize()
                 .background(aplicacion.paleta.ventana)
                 .onPreviewKeyEvent { evento -> atenderTecla(evento, aplicacion) },
         ) {
-            key(letrasCargadas) {
+            if (sePuedeDibujar) {
                 when (aplicacion.sesion) {
                     EstadoSesion.DENTRO -> Ventana(aplicacion)
                     else -> PaginaIngreso(aplicacion)
