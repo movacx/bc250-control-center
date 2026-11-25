@@ -6697,6 +6697,12 @@
   "Web access": "Acceso web",
   "now": "ahora",
   "of {total}": "de {total}",
-  "{count} changed": "{count} cambiados",
-  "{slow} % at {cold} °C · {fast} % at {hot} °C": "{slow} % a {cold} °C · {fast} % a {hot} °C"
+  "{slow} % at {cold} °C · {fast} % at {hot} °C": "{slow} % a {cold} °C · {fast} % a {hot} °C",
+  "Changed: {count}": "Cambiados: {count}",
+  "Change address": "Cambiar dirección",
+  "Connect": "Conectar",
+  "It is my board": "Es mi placa",
+  "Enter the address shown in Remote access, or paste the link of its QR code.": "Escribe la dirección que aparece en Acceso remoto, o pega el enlace de su código QR.",
+  "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "Este teléfono no ha usado antes esta placa. Continúa solo si escribiste tú la dirección y estás en tu propia red.",
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "La placa presenta un certificado distinto al de antes. Continúa solo si la reinstalaste."
 }

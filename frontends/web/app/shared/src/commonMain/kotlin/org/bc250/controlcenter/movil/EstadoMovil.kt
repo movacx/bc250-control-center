@@ -21,6 +21,9 @@ typealias ContenidoHoja = @Composable ColumnScope.() -> Unit
 class EstadoMovil {
     var menuAbierto by mutableStateOf(false)
 
+    /** Si la página tiene un botón fijo abajo; los avisos se colocan encima. */
+    var conPie by mutableStateOf(false)
+
     /** El título de la pantalla de detalle; vacío cuando se ve la página. */
     var detalle by mutableStateOf("")
         private set

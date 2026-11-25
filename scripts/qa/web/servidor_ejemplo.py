@@ -63,11 +63,24 @@ def principal() -> int:
     problem_report.submit = nunca_se_envia
     contenedor = SimpleNamespace(system_service=ServicioEjemplo(), settings_service=ConfiguracionEjemplo(),
                                  activity_service=ActividadEjemplo(), platform=None)
-    web_server.web_devices.session = lambda _ficha: {"control": True, "id": "ejemplo"}
-    web = WebEjemplo(contenedor, terminal_factory=TerminalEjemplo)
+    con_clave = "--clave" in sys.argv  # para probar el emparejamiento de verdad
+    if not con_clave:
+        web_server.web_devices.session = lambda _ficha: {"control": True, "id": "ejemplo"}
+    clase = web_server.Web if con_clave else WebEjemplo
+    web = clase(contenedor, terminal_factory=TerminalEjemplo)
     web_server.set_language(web.language)
-    servidor = web_server.Server(("127.0.0.1", puerto), web)
-    print(f"http://127.0.0.1:{puerto}", flush=True)
+    certificado = None
+    if "--https" in sys.argv:  # para probar la aplicación del teléfono
+        from bc250cc.infrastructure import web_tls
+
+        certificado = web_tls.certificate()
+        print(web_tls.fingerprint(web_tls.trust_certificate()), flush=True)
+    servidor = web_server.Server(("127.0.0.1", puerto), web, certificate=certificado)
+    print(f"{'https' if certificado else 'http'}://127.0.0.1:{puerto}", flush=True)
+    if con_clave:
+        from bc250cc.application.system import web_access, web_pairing
+
+        print(web_access.pairing_link(f"https://10.0.2.2:{puerto}", web_pairing.issue()), flush=True)
     servidor.serve_forever()
     return 0
 

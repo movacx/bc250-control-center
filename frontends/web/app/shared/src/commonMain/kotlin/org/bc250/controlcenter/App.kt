@@ -36,6 +36,7 @@ import org.bc250.controlcenter.componentes.Texto
 import org.bc250.controlcenter.componentes.marco
 import org.bc250.controlcenter.datos.Aplicacion
 import org.bc250.controlcenter.datos.Aviso
+import org.bc250.controlcenter.datos.BarraDelSistema
 import org.bc250.controlcenter.datos.EstadoSesion
 import org.bc250.controlcenter.datos.entero
 import org.bc250.controlcenter.datos.logico
@@ -85,6 +86,9 @@ fun App() {
         aplicacion.iniciar()
     }
     aplicacion.sistemaOscuro = isSystemInDarkTheme()
+    LaunchedEffect(aplicacion.paleta.esClaro) {
+        BarraDelSistema.alCambiarTema(aplicacion.paleta.esClaro)
+    }
     val escala = aplicacion.preferencias.entero("scale", 100) / 100f
     val densidad = LocalDensity.current
     CompositionLocalProvider(

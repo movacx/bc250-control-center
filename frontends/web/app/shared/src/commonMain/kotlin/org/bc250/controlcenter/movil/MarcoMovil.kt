@@ -27,7 +27,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +55,7 @@ import org.bc250.controlcenter.componentes.marco
 import org.bc250.controlcenter.componentes.nombreCorto
 import org.bc250.controlcenter.componentes.pulsable
 import org.bc250.controlcenter.datos.Aplicacion
+import org.bc250.controlcenter.datos.BotonAtras
 import org.bc250.controlcenter.datos.Trabajo
 import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.recursos.Res
@@ -77,6 +80,10 @@ fun VentanaMovil(aplicacion: Aplicacion, pagina: @Composable () -> Unit) {
     LaunchedEffect(aplicacion.pagina, aplicacion.seccionAjustes) {
         movil.alCambiarDePagina()
     }
+    DisposableEffect(aplicacion, movil) {
+        BotonAtras.atender = { volverAtras(aplicacion, movil) }
+        onDispose { BotonAtras.atender = { false } }
+    }
     CompositionLocalProvider(LocalMovil provides movil) {
         Box(Modifier.fillMaxSize().background(paleta.panel).windowInsetsPadding(WindowInsets.safeDrawing)) {
             Column(Modifier.fillMaxSize().background(paleta.ventana)) {
@@ -94,6 +101,18 @@ fun VentanaMovil(aplicacion: Aplicacion, pagina: @Composable () -> Unit) {
             HojaInferior()
         }
     }
+}
+
+/** Cierra lo último que se abrió; desde otra página vuelve al Panel. Dice si hizo algo. */
+private fun volverAtras(aplicacion: Aplicacion, movil: EstadoMovil): Boolean {
+    when {
+        aplicacion.confirmacion != null || aplicacion.textoAbierto != null || aplicacion.recorridoAbierto -> aplicacion.volverAtras()
+        movil.volver() -> return true
+        aplicacion.seccionAjustes.isNotEmpty() -> aplicacion.cerrarAjustes()
+        aplicacion.pagina != "dashboard" -> aplicacion.irA("dashboard")
+        else -> return false
+    }
+    return true
 }
 
 // -- cabecera ------------------------------------------------------------------------------------------
@@ -141,6 +160,7 @@ fun PaginaMovil(
 ) {
     val movil = movil()
     val enDetalle = movil.detalle.isNotEmpty()
+    SideEffect { movil.conPie = pie != null }
     Column(Modifier.fillMaxSize()) {
         if (pestanas.isNotEmpty() && !enDetalle) {
             PestanasMovil(clave, pestanas)
@@ -472,7 +492,7 @@ private fun AvisoDeTrabajo(aplicacion: Aplicacion, modifier: Modifier) {
     }
     Row(
         modifier = modifier
-            .padding(16.dp)
+            .padding(start = 16.dp, end = 16.dp, bottom = if (movil.conPie) 83.dp else 16.dp)
             .fillMaxWidth()
             .marco(paleta.panelElevado, if (trabajo.fallo) paleta.rojoBorde else paleta.acentoBorde, 8.dp)
             .padding(start = 14.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),

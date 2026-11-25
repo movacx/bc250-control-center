@@ -63,7 +63,7 @@ kotlin {
             implementation(libs.ktor.client.cio)
         }
         androidMain.dependencies {
-            implementation(libs.ktor.client.cio)
+            implementation(libs.ktor.client.okhttp)
         }
         jvmMain.dependencies {
             implementation(libs.ktor.client.cio)

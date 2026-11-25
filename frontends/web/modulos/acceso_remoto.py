@@ -103,7 +103,7 @@ def matriz(web, p):
     if edad is None or edad > web_pairing.RENEW_SECONDS:
         ficha = web_pairing.issue()
         memoria["pair"] = ficha
-    return {"matrix": web_access.pairing_matrix(f"{direccion}#pair={ficha}")}
+    return {"matrix": web_access.pairing_matrix(web_access.pairing_link(direccion, ficha))}
 
 
 def sin_parametros(p):

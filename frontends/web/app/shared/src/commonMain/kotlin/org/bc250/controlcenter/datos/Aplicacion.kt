@@ -21,7 +21,7 @@ import org.bc250.controlcenter.tema.PaletaInicial
 import org.bc250.controlcenter.tema.Paletas
 
 /** En qué punto está la conexión con el equipo. */
-enum class EstadoSesion { CARGANDO, SIN_CONEXION, PIDE_CLAVE, DENTRO }
+enum class EstadoSesion { CARGANDO, PIDE_DIRECCION, PIDE_CONFIANZA, SIN_CONEXION, PIDE_CLAVE, DENTRO }
 
 /** Una pregunta antes de una operación. */
 class Confirmacion(val titulo: String, val mensaje: String, val peligro: Boolean, val aceptar: () -> Unit)
@@ -47,6 +47,7 @@ data class Trabajo(
 private const val PESTANAS_CONSOLA = 5
 private const val MARCA_DE_PAREJA = "pair="
 private const val MARCA_DE_AJUSTES = "settings/"
+private const val PUERTO_NORMAL = 8250
 
 private fun primeraPagina(): String {
     val marca = paginaDeLaDireccion()
@@ -113,6 +114,9 @@ class Aplicacion(private val tareas: CoroutineScope) {
     private val lecturas = mutableStateMapOf<String, JsonObject>()
     private var temas = ObjetoVacio
     private var idiomaPedido = ""
+
+    /** La ficha de un solo uso del código QR, hasta que se pueda entrar con ella. */
+    private var claveDePareja = ""
     private var lector: Job? = null
     private var seguimiento: Job? = null
 
@@ -123,7 +127,9 @@ class Aplicacion(private val tareas: CoroutineScope) {
         if (marca.startsWith(MARCA_DE_PAREJA)) {
             // El código QR trae una ficha de un solo uso: se borra de la dirección y se entra con ella.
             anotarPagina(pagina)
-            ingresar(marca.removePrefix(MARCA_DE_PAREJA))
+            ingresar(marca.removePrefix(MARCA_DE_PAREJA).substringBefore("&"))
+        } else if (pideDireccion && conexion.direccion.isEmpty()) {
+            sesion = EstadoSesion.PIDE_DIRECCION
         } else {
             tareas.launch { revisarSesion() }
         }
@@ -132,7 +138,7 @@ class Aplicacion(private val tareas: CoroutineScope) {
     suspend fun revisarSesion() {
         val respuesta = conexion.pedir("/api/session")
         if (respuesta.codigo == 0) {
-            sesion = EstadoSesion.SIN_CONEXION
+            sesion = if (CertificadoDelEquipo.pendiente.isEmpty()) EstadoSesion.SIN_CONEXION else EstadoSesion.PIDE_CONFIANZA
             return
         }
         conexion.sello = respuesta.datos.texto("csrf")
@@ -143,6 +149,46 @@ class Aplicacion(private val tareas: CoroutineScope) {
         } else {
             cargarTemas()
             sesion = EstadoSesion.PIDE_CLAVE
+        }
+    }
+
+    /** Conecta con la dirección que se escribió o con el enlace completo del código QR. */
+    fun conectar(escrita: String) {
+        val enlace = escrita.trim()
+        val completa = if (enlace.contains("://")) enlace else "https://$enlace"
+        var direccion = completa.substringBefore("#").trimEnd('/')
+        if (!direccion.substringAfter("://").contains(":")) {
+            direccion += ":$PUERTO_NORMAL"
+        }
+        val ficha = completa.substringAfter("#$MARCA_DE_PAREJA", "")
+        claveDePareja = ficha.substringBefore("&")
+        if (direccion != conexion.direccion) {
+            CertificadoDelEquipo.olvidar()
+        }
+        CertificadoDelEquipo.confiarEn(ficha.substringAfter("&ca=", ""))
+        conexion.direccion = direccion
+        guardarDato(GUARDADO_DIRECCION, direccion)
+        seguirConectando()
+    }
+
+    /** La persona comparó la huella y es la del equipo. */
+    fun confiar() {
+        CertificadoDelEquipo.confirmar()
+        seguirConectando()
+    }
+
+    fun cambiarDireccion() {
+        sesion = EstadoSesion.PIDE_DIRECCION
+    }
+
+    private fun seguirConectando() {
+        sesion = EstadoSesion.CARGANDO
+        tareas.launch {
+            revisarSesion()
+            if (sesion == EstadoSesion.PIDE_CLAVE && claveDePareja.isNotEmpty()) {
+                ingresar(claveDePareja)
+                claveDePareja = ""
+            }
         }
     }
 

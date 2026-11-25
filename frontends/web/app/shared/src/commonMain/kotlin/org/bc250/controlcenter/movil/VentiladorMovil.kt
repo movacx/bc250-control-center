@@ -382,7 +382,10 @@ private fun GraficaCurva(
             val x = escala.x(temperatura.coerceIn(escala.menor.toDouble(), escala.mayor.toDouble()))
             drawLine(paleta.bordeFuerte, Offset(x, escala.y(100)), Offset(x, escala.y(0)), 1.dp.toPx())
             val texto = ahoraTexto + " ${temperatura.roundToInt()} °C" + if (salida == null) "" else " · ${salida.roundToInt()} %"
-            dibujarTexto(medidor, texto, ahora, Offset(x + 6.dp.toPx(), escala.y(100) + 6.dp.toPx()), Lado.DESPUES)
+            // A la izquierda de la línea, donde la curva todavía va baja; si no cabe, a la derecha.
+            val cabe = x > size.width / 2
+            val margen = if (cabe) -6.dp.toPx() else 6.dp.toPx()
+            dibujarTexto(medidor, texto, ahora, Offset(x + margen, escala.y(100) + 8.dp.toPx()), if (cabe) Lado.ANTES else Lado.DESPUES)
         }
         if (puntos.isNotEmpty()) {
             val linea = listOf(Offset(escala.x(escala.menor), escala.y(puntos.first().second))) + puntos.map { punto -> escala.lugar(punto) } +

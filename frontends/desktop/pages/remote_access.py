@@ -492,7 +492,7 @@ class RemoteAccessPage(QWidget):
             self.web_qr_image.clear()
             self.web_qr_image.setText(tr("Start web access and enable the local network to display your QR here."))
             return
-        renderer = QSvgRenderer(QByteArray(web_access.pairing_svg(address + "#pair=" + token)))
+        renderer = QSvgRenderer(QByteArray(web_access.pairing_svg(web_access.pairing_link(address, token))))
         pixmap = QPixmap(self.web_qr_image.size())
         pixmap.fill(Qt.GlobalColor.white)
         painter = QPainter(pixmap)

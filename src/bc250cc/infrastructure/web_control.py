@@ -10,6 +10,7 @@ Nothing here needs root.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
@@ -96,6 +97,15 @@ def pairing_svg(url: str) -> bytes:
     squares = "".join(f"M{x+4},{y+4}h1v1h-1z" for y in range(size) for x in range(size) if qr.get_module(x, y))
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {size+8} {size+8}">'
             f'<rect width="100%" height="100%" fill="white"/><path d="{squares}" fill="black"/></svg>').encode()
+
+
+def pairing_link(address: str, token: str) -> str:
+    """The QR's link. It carries the local authority's fingerprint so the phone app can trust this board at once."""
+    from bc250cc.infrastructure import web_tls
+
+    digest = bytes.fromhex(web_tls.fingerprint(web_tls.folder() / "authority.crt").replace(":", ""))
+    mark = f"&ca={base64.urlsafe_b64encode(digest).rstrip(b'=').decode()}" if digest else ""
+    return f"{address}#pair={token}{mark}"
 
 
 def pairing_matrix(url: str) -> list[list[bool]]:

@@ -51,7 +51,7 @@ def mostrar_acceso(estado: dict) -> None:
     print(f"  {tr('Access key')}: {estado.get('key', '')}")
     if estado.get("urls") and sys.stdout.isatty():
         ficha = web_pairing.issue()
-        enlace = f"{direcciones[0]}#pair={ficha}"
+        enlace = web_access.pairing_link(direcciones[0], ficha)
         print()
         print(dibujar_qr(web_access.pairing_matrix(enlace)))
         print(tr("Scan to pair. The code works once and renews by itself."))

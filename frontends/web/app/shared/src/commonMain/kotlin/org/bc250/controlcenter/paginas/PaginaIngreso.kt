@@ -20,8 +20,11 @@ import org.bc250.controlcenter.componentes.CampoTexto
 import org.bc250.controlcenter.componentes.ClaseBoton
 import org.bc250.controlcenter.componentes.Logotipo
 import org.bc250.controlcenter.componentes.Texto
+import org.bc250.controlcenter.componentes.TextoMono
 import org.bc250.controlcenter.componentes.marco
 import org.bc250.controlcenter.datos.Aplicacion
+import org.bc250.controlcenter.datos.CertificadoDelEquipo
+import org.bc250.controlcenter.datos.pideDireccion
 import org.bc250.controlcenter.datos.EstadoSesion
 import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.tema.ColoresActuales
@@ -44,6 +47,8 @@ fun PaginaIngreso(aplicacion: Aplicacion) {
             Logotipo(48.dp)
             Texto("BC250 Control Center", tamano = 19, peso = 830)
             when (aplicacion.sesion) {
+                EstadoSesion.PIDE_DIRECCION -> FormularioDireccion(aplicacion)
+                EstadoSesion.PIDE_CONFIANZA -> ConfirmarEquipo(aplicacion)
                 EstadoSesion.PIDE_CLAVE -> FormularioClave(aplicacion)
                 EstadoSesion.SIN_CONEXION -> SinConexion(aplicacion)
                 else -> Texto(t("Connecting…"), tamano = 13, color = paleta.apagado)
@@ -79,10 +84,70 @@ private fun FormularioClave(aplicacion: Aplicacion) {
         alto = 44.dp,
         modifier = Modifier.fillMaxWidth(),
     )
+    CambiarEquipo(aplicacion)
 }
 
 @Composable
 private fun SinConexion(aplicacion: Aplicacion) {
     Texto(t("Not connected"), tamano = 13, color = ColoresActuales.current.naranja)
-    Boton(t("Retry"), aplicacion::iniciar, clase = ClaseBoton.PRINCIPAL, modifier = Modifier.fillMaxWidth())
+    Boton(t("Retry"), aplicacion::iniciar, clase = ClaseBoton.PRINCIPAL, alto = 46.dp, modifier = Modifier.fillMaxWidth())
+    CambiarEquipo(aplicacion)
+}
+
+/** En la aplicación del teléfono se puede apuntar a otro equipo. */
+@Composable
+private fun CambiarEquipo(aplicacion: Aplicacion) {
+    if (pideDireccion) {
+        Boton(t("Change address"), aplicacion::cambiarDireccion, alto = 46.dp, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun FormularioDireccion(aplicacion: Aplicacion) {
+    var direccion by remember { mutableStateOf(aplicacion.conexion.direccion) }
+    fun conectar() {
+        aplicacion.conectar(direccion)
+    }
+    Texto(
+        t("Enter the address shown in Remote access, or paste the link of its QR code."),
+        tamano = 13,
+        color = ColoresActuales.current.apagado,
+    )
+    CampoTexto(
+        valor = direccion,
+        alCambiar = { nueva -> direccion = nueva },
+        ayuda = "https://192.168.0.10:8250",
+        alAceptar = ::conectar,
+        alto = 46.dp,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Boton(
+        texto = t("Connect"),
+        alPulsar = ::conectar,
+        clase = ClaseBoton.PRINCIPAL,
+        activo = direccion.isNotBlank(),
+        alto = 46.dp,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/** La primera vez se compara la huella del certificado con la que enseña el equipo. */
+@Composable
+private fun ConfirmarEquipo(aplicacion: Aplicacion) {
+    val cambio = CertificadoDelEquipo.confirmada.isNotEmpty()
+    val aviso = if (cambio) {
+        "The board shows a different certificate than before. Continue only if you reinstalled it."
+    } else {
+        "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network."
+    }
+    Texto(t(aviso), tamano = 13, color = if (cambio) ColoresActuales.current.naranja else ColoresActuales.current.apagado)
+    TextoMono(CertificadoDelEquipo.pendiente, tamano = 13, color = ColoresActuales.current.texto, lineas = 5)
+    Boton(
+        texto = t("It is my board"),
+        alPulsar = aplicacion::confiar,
+        clase = if (cambio) ClaseBoton.PELIGRO else ClaseBoton.PRINCIPAL,
+        alto = 46.dp,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    CambiarEquipo(aplicacion)
 }

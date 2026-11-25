@@ -6697,6 +6697,12 @@
   "Web access": "Web access",
   "now": "now",
   "of {total}": "of {total}",
-  "{count} changed": "{count} changed",
-  "{slow} % at {cold} °C · {fast} % at {hot} °C": "{slow} % at {cold} °C · {fast} % at {hot} °C"
+  "{slow} % at {cold} °C · {fast} % at {hot} °C": "{slow} % at {cold} °C · {fast} % at {hot} °C",
+  "Changed: {count}": "Changed: {count}",
+  "Change address": "Change address",
+  "Connect": "Connect",
+  "It is my board": "It is my board",
+  "Enter the address shown in Remote access, or paste the link of its QR code.": "Enter the address shown in Remote access, or paste the link of its QR code.",
+  "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.",
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "The board shows a different certificate than before. Continue only if you reinstalled it."
 }

@@ -318,7 +318,7 @@ private fun OpcionesVoltaje(aplicacion: Aplicacion, datos: JsonObject, eleccion:
     GrupoMovil {
         val nombre = aumentos().first { (nivel) -> nivel == eleccion.nivel }.second
         FilaAbrir(t("Curve boost"), valor = nombre, activa = libre) { movil.abrirHoja { HojaAumento(eleccion) } }
-        val resumen = if (cambios > 0) t("{count} changed", "count" to cambios.toString()) else puntos.size.toString()
+        val resumen = if (cambios > 0) t("Changed: {count}", "count" to cambios.toString()) else puntos.size.toString()
         FilaAbrir(t("All points"), valor = resumen, colorValor = if (cambios > 0) paleta.naranja else null) {
             movil.abrirHoja { HojaPuntos(datos, eleccion, libre) }
         }

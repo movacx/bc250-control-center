@@ -641,6 +641,11 @@ class Server(WsgiServer):
         cert, key = certificate
         adapter = BuiltinSSLAdapter(str(cert), str(key))
         adapter.context.minimum_version = ssl.TLSVersion.TLSv1_2
+        # The leaf is renewed often; sending the authority with it lets the phone
+        # app remember the authority, whose fingerprint Remote access shows.
+        authority = Path(cert).with_name("authority.crt")
+        if authority.is_file():
+            adapter.context.load_verify_locations(str(authority))
         # Swap a fully initialized adapter. Existing TLS connections keep their
         # own context; new connections receive the renewed certificate.
         self.ssl_adapter = adapter
