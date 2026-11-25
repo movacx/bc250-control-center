@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,12 +21,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import org.bc250.controlcenter.tema.ColoresActuales
 import org.bc250.controlcenter.tema.Medidas
 
 /** Una página que se desplaza, con el margen del escritorio y su barra fina a la derecha. */
 @Composable
-fun PaginaDesplazable(contenido: @Composable ColumnScope.() -> Unit) {
+fun PaginaDesplazable(
+    margen: PaddingValues = PaddingValues(start = 16.dp, top = 12.dp, end = 24.dp, bottom = 20.dp),
+    espacio: Dp = Medidas.espacio,
+    contenido: @Composable ColumnScope.() -> Unit,
+) {
     val paleta = ColoresActuales.current
     val desplazador = rememberScrollState()
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -34,8 +40,8 @@ fun PaginaDesplazable(contenido: @Composable ColumnScope.() -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(desplazador)
-                .padding(start = 16.dp, top = 12.dp, end = 24.dp, bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(Medidas.espacio),
+                .padding(margen),
+            verticalArrangement = Arrangement.spacedBy(espacio),
             content = contenido,
         )
         if (desplazador.maxValue > 0) {

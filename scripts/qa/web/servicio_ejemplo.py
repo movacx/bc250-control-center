@@ -36,6 +36,10 @@ DESBLOQUEO = {
 }
 GPU = {
     **GPU_STATE,
+    "config_path": "/etc/cyan-skillfish-governor-smu/config.toml",
+    "dbus_connected": True,
+    "cyan_telemetry": {"set_method": "smu", "method": "busy-flag", "temp_read": "drm",
+                       "fix_metrics": True, "fix_frequency": False, "temp_read_supported": True},
     "safe_points": [{"frequency": f, "voltage": v} for f, v in (
         (500, 700), (1000, 800), (1175, 850), (1500, 900), (1700, 950), (1850, 975), (2000, 1000))],
     "high_frequency_points": {"available": True, "frequencies": [2050, 2400], "enabled_frequencies": []},
@@ -59,8 +63,13 @@ class ServicioEjemplo:
 
     repo = None
 
-    def __init__(self):
+    def __init__(self, *, gpu=None, cu=None, metricas=None):
+        self.datos_gpu = gpu
+        self.datos_cu = cu
+        self.datos_metricas = metricas
         self.llamadas: list[tuple] = []
+        self.grabando = False
+        self.inicio_caja = False
 
     def __getattr__(self, nombre):
         if nombre.startswith("__"):
@@ -77,16 +86,27 @@ class ServicioEjemplo:
         return operacion
 
     def metricas_tiempo_real(self):
-        return deepcopy(METRICAS)
+        return deepcopy(self.datos_metricas if self.datos_metricas is not None else METRICAS)
 
     def rendimiento(self):
-        return deepcopy(METRICAS)
+        return deepcopy(self.datos_metricas if self.datos_metricas is not None else METRICAS)
 
     def estado_bc250(self):
-        return deepcopy(GPU)
+        return deepcopy(self.datos_gpu if self.datos_gpu is not None else GPU)
 
     def estado_bc250_daemon(self):
         return {"service_active": "active", "current_min": 1000, "current_max": 1850}
+
+    def estado_herramientas_bc250(self):
+        from frontends.web.modulos.panel import CLAVES
+        return {"os_family": "bazzite", "os_label": "Bazzite", "bios_version": "P3.00",
+                "prepare_components": {key: {"available": True, "installed": key in ("runtime", "governor"),
+                                             "selected": True} for key in CLAVES},
+                "quick_access": {"supported": True, "decky_detected": True, "decky_frontend_compatible": True,
+                                 "decky_plugin_root_safe": True, "ready": False}}
+
+    def estado_gddr6_memory_temp(self):
+        return {"hardware_supported": True, "repository_ready": False, "helper_ready": False}
 
     def estado_fans_bc250(self):
         return deepcopy(FANS)
@@ -95,7 +115,7 @@ class ServicioEjemplo:
         return {"state": "off", "enabled": False, "available": True}
 
     def obtener_estado_cu(self):
-        return deepcopy(CU)
+        return deepcopy(self.datos_cu if self.datos_cu is not None else CU)
 
     obtener_estado_cu_cache = obtener_estado_cu
 
@@ -112,6 +132,30 @@ class ServicioEjemplo:
         return deepcopy(PROCESOS)
 
     procesos_usuario = procesos
+
+    def blackbox_estado(self, filas=None):
+        registros = [{"time": f"12:30:{59 - i:02d}.000", "clock": "1850MHz", "busy": "65", "t_gpu": "61.0",
+                      "t_cpu": "52.0", "volts": "975", "watts": "82.5", "rpm": "fan2=1700",
+                      "cpu": "3640", "mem": "8240"} for i in range(80)]
+        return {"supported": True, "running": self.grabando, "state": "recording" if self.grabando else "stopped",
+                "rows": registros if filas is None else registros[:filas],
+                "autostart": {"supported": True, "enabled": self.inicio_caja, "foreign": False}}
+
+    def blackbox_iniciar(self):
+        self.llamadas.append(("blackbox_iniciar", (), {}))
+        self.grabando = True
+
+    def blackbox_detener(self):
+        self.llamadas.append(("blackbox_detener", (), {}))
+        self.grabando = False
+
+    def blackbox_con_la_sesion(self, activar):
+        self.llamadas.append(("blackbox_con_la_sesion", (activar,), {}))
+        self.inicio_caja = activar
+
+    def diagnostico_completo(self):
+        return [("GPU", "AMD BC-250 · 1850 MHz"), ("System", "Linux · example"),
+                ("Journal", "Example log"), ("Black box", "80 samples")]
 
 
 class ConfiguracionEjemplo:
@@ -135,3 +179,26 @@ class ActividadEjemplo:
 
     def __getattr__(self, nombre):
         return lambda *a, **k: None
+
+
+class InventarioSensoresEjemplo:
+    """Nunca examina /sys: devuelve canales estables y uno sin uso para probar el filtro."""
+
+    def read(self, _sample):
+        from bc250cc.application.system.sensors import SensorReading, GROUP_CPU, GROUP_GPU, GROUP_GDDR6, GROUP_MEMORY, TEMPERATURE, USAGE, CLOCK, DATA
+        lecturas = [
+            SensorReading("cpu/usage", GROUP_CPU, "CPU", "CPU usage", USAGE, "%", 16.0),
+            SensorReading("hwmon/k10temp/temp1", GROUP_CPU, "CPU", "Core temperature", TEMPERATURE, "°C", 52.0),
+            SensorReading("gpu/usage", GROUP_GPU, "GPU", "GPU load", USAGE, "%", 42.0),
+            SensorReading("gpu/mclk", GROUP_GPU, "GPU", "MCLK", CLOCK, "MHz", 875.0),
+            SensorReading("gpu/unused", GROUP_GPU, "GPU", "Unused", USAGE, "%", 0.0),
+            SensorReading("memory/used", GROUP_MEMORY, "RAM", "Used", DATA, "B", 4 * 2**30),
+        ]
+        for indice in range(6):
+            lecturas.append(SensorReading(f"cpu/core{indice}/usage", GROUP_CPU, "CPU", f"Core {indice}", USAGE, "%", 10.0 + indice))
+            lecturas.append(SensorReading(f"cpu/core{indice}/clock", GROUP_CPU, "CPU", f"Core {indice}", CLOCK, "MHz", 1500.0 + indice * 100))
+            for hilo in range(2):
+                lecturas.append(SensorReading(f"cpu/core{indice}/t{hilo}/usage", GROUP_CPU, "CPU", f"C{indice}·T{hilo}", USAGE, "%", 10.0 + hilo))
+        for indice in range(8):
+            lecturas.append(SensorReading(f"gddr6/chip{indice}", GROUP_GDDR6, "GDDR6", f"Chip {indice}", TEMPERATURE, "°C", 60.0 + indice, fields=(("chip", indice),)))
+        return lecturas

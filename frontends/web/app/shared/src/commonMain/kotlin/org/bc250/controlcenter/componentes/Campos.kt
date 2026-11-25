@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import org.bc250.controlcenter.recursos.Res
@@ -176,6 +177,7 @@ fun CampoTexto(
     ayuda: String = "",
     secreto: Boolean = false,
     activo: Boolean = true,
+    alto: Dp = 40.dp,
     alAceptar: () -> Unit = {},
 ) {
     val paleta = ColoresActuales.current
@@ -184,7 +186,7 @@ fun CampoTexto(
     val borde = if (enfocado) paleta.color("focus") else paleta.borde
     val vista = if (secreto) PasswordVisualTransformation() else VisualTransformation.None
     Box(
-        modifier = modifier.height(40.dp).marco(paleta.control, borde, Medidas.radioPanel).padding(horizontal = 12.dp),
+        modifier = modifier.height(alto).marco(paleta.control, borde, Medidas.radioPanel).padding(horizontal = 12.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
         if (valor.isEmpty()) {

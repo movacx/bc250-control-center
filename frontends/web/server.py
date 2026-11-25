@@ -435,7 +435,12 @@ class Handler:
         if ask is None:
             return self.fail("Not found", 404)
         self.web.live.touch()
-        self.json({"ok": True, "data": ask(self.web, query)})
+        data = ask(self.web, query)
+        if query.get("name") == "supervision.download":
+            # Nombre cerrado elegido por el módulo, sin rutas ni nombres del cliente.
+            return self.reply(data["text"].encode("utf-8"), "text/plain; charset=utf-8",
+                              extra={"Content-Disposition": f'attachment; filename="{data["filename"]}"'})
+        self.json({"ok": True, "data": data})
 
     def performance(self, query: dict) -> None:
         self.web.live.touch()
