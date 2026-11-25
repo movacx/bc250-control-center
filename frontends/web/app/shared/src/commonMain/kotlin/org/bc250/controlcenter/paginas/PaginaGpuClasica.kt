@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,14 +101,15 @@ private fun TarjetaControles(
         PanelRango(datos, libre, minimo, maximo, acciones)
         CompatibilidadGpu(aplicacion, datos, libre, clasica = true)
         Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(10.dp)) {
-            Boton(t("Save for startup"), acciones.guardarArranque, Modifier.weight(1f), activo = libre)
+            Boton(t("Save for startup"), acciones.guardarArranque, Modifier.weight(1f),
+                activo = libre && datos.objeto("availability").logico("save_boot"))
             val techo = datos.entero("ceiling", 2000)
             Boton(
                 texto = t("Review and apply range"),
                 alPulsar = acciones.aplicar,
                 modifier = Modifier.weight(2f),
                 clase = ClaseBoton.PRINCIPAL,
-                activo = libre && minimo <= maximo && maximo <= techo,
+                activo = libre && datos.objeto("availability").logico("range") && minimo <= maximo && maximo <= techo,
                 peso = 780,
             )
         }
@@ -130,7 +133,8 @@ private fun PanelPerfiles(
     SubPanel(margen = MargenClasico, espacio = 9.dp) {
         Row(Modifier.fillMaxWidth().height(35.dp), verticalAlignment = Alignment.CenterVertically) {
             Texto(t("Operating profile"), 14, Modifier.weight(1f), peso = 780)
-            Boton(t("Export to Decky"), ::exportar, activo = libre, alto = 35.dp, tamano = 12, peso = 700, icono = Res.drawable.gamepad_menu)
+            Boton(t("Export to Decky"), ::exportar, activo = libre, alto = 35.dp, tamano = 12, peso = 700,
+                icono = Res.drawable.gamepad_menu)
         }
         Leyenda(t("One click sets the range. The pencil changes name and frequencies."))
         RejillaGpuCu(perfiles.size, 3, separacion = 8.dp) { indice, modificador ->
@@ -143,7 +147,7 @@ private fun PanelPerfiles(
                 activo = libre && alto <= techo,
                 modifier = modificador,
                 alElegir = { acciones.elegirRango(bajo, alto) },
-                alEditar = { acciones.editarPerfil(perfil) },
+                alEditar = if (aplicacion.puedeControlar) { { acciones.editarPerfil(perfil) } } else null,
             )
         }
     }
@@ -156,7 +160,8 @@ private fun PanelRango(datos: JsonObject, libre: Boolean, minimo: Int, maximo: I
     SubPanel(margen = MargenClasico, espacio = 9.dp) {
         Texto(t("Frequency range"), tamano = 14, peso = 780)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Leyenda(t("Fine-tune over the TOML points · current ceiling {ceiling} MHz.", "ceiling" to techo.toString()), Modifier.weight(1f))
+            Leyenda(t("Fine-tune over the TOML points · current ceiling {ceiling} MHz.", "ceiling" to techo.toString()),
+                Modifier.weight(1f))
             if (!datos.objeto("high_frequency_points").logico("enabled")) {
                 val aviso = t("{minimum}–{maximum} MHz COMMENTED IN THE TOML", "minimum" to "2050", "maximum" to "2400")
                 Texto(aviso, tamano = 11, peso = 800, color = paleta.rojo)
@@ -165,7 +170,8 @@ private fun PanelRango(datos: JsonObject, libre: Boolean, minimo: Int, maximo: I
         CarrilGpu(datos.objetos("rail"), minimo, maximo, techo, libre, acciones.elegirRango)
         RejillaGpuCu(2, 2, separacion = 12.dp) { indice, modificador ->
             if (indice == 0) {
-                CampoRango(t("Minimum frequency"), t("Governor floor applied through the validated D-Bus interface."), minimo, false, modificador)
+                CampoRango(t("Minimum frequency"), t("Governor floor applied through the validated D-Bus interface."),
+                    minimo, false, modificador)
             } else {
                 val nota = t("Current ceiling {ceiling} MHz per config.toml.", "ceiling" to techo.toString())
                 CampoRango(t("Maximum frequency"), nota, maximo, true, modificador)
@@ -231,7 +237,8 @@ private fun FichaLectura(lectura: JsonObject, modifier: Modifier) {
 private fun PanelServicio(aplicacion: Aplicacion, datos: JsonObject, libre: Boolean) {
     SubPanel(margen = MargenClasico, espacio = 9.dp) {
         Texto(t("Governor service"), tamano = 14, peso = 780)
-        Leyenda(t("Start governor runs it now and saves it for startup (enables the service). Stop governor stops it and removes it from startup (disables the service)."))
+        Leyenda(t("Start governor runs it now and saves it for startup (enables the service). Stop governor stops " +
+            "it and removes it from startup (disables the service)."))
         val funcionando = datos.texto("service_active") == "active"
         RejillaAccionesServicioGpu(aplicacion, datos, funcionando, libre, alto = 38.dp, tamano = 13)
     }
@@ -264,7 +271,8 @@ private fun PanelRiesgo(aplicacion: Aplicacion, datos: JsonObject, libre: Boolea
     val titulo = t(if (habilitados) "Re-comment the +2000 MHz points" else "Uncomment +2000 MHz points")
     fun cambiar() {
         val parametros = mapOf("enable" to JsonPrimitive(!habilitados))
-        aplicacion.preguntarYEjecutar("gpu.high_points", titulo, titulo, parametros, peligro = true)
+        aplicacion.preguntarYEjecutar("gpu.high_points", titulo,
+            avisoPuntosAltos(!datos.objeto("high_frequency_points").logico("enabled")), parametros, peligro = true)
     }
     SubPanel(Modifier.padding(top = 10.dp), borde = paleta.bordeRiesgo, margen = MargenClasico, espacio = 9.dp) {
         Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(7.dp), Alignment.CenterVertically) {
@@ -275,10 +283,12 @@ private fun PanelRiesgo(aplicacion: Aplicacion, datos: JsonObject, libre: Boolea
         Texto(t("TOML points above 2000 MHz"), tamano = 15, peso = 800)
         Leyenda(
             t(
-                "Uncomment the {extra_low}–{extra_high} MHz safe-points in config.toml (up to {voltage} mV). It can hang the board or corrupt the SMU state.",
+                ("Uncomment the {extra_low}–{extra_high} MHz safe-points in config.toml (up to {voltage} mV). It " +
+                    "can hang the board or corrupt the SMU state."),
                 "extra_low" to "2050", "extra_high" to "2400", "voltage" to "1150",
             ),
         )
-        Boton(titulo, ::cambiar, Modifier.fillMaxWidth(), clase = ClaseBoton.PELIGRO, activo = libre, alto = 36.dp, peso = 760)
+        Boton(titulo, ::cambiar, Modifier.fillMaxWidth(), clase = ClaseBoton.PELIGRO,
+            activo = libre && datos.objeto("availability").logico("high_points"), alto = 36.dp, peso = 760)
     }
 }

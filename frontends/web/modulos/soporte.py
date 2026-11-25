@@ -23,11 +23,10 @@ from frontends.desktop.core.diagnostic_history import (
 from frontends.desktop.i18n import (
     count_label,
     current_language,
-    tr,
-    tr_format,
     translate_history_event,
 )
 from frontends.tui import report_form
+from frontends.tui.i18n import tr, tr_format
 from frontends.web.actions import Invalid, choice, flag
 from frontends.web.modulos import temporales
 from frontends.web.modulos.configuracion import (
@@ -159,7 +158,8 @@ def informes(ctx, p, parametros) -> list:
          "botones": [boton("Clear history", ajuste("support.clear_diagnostics", "Clear history", "Clear history"), activo=bool(entradas))]},
     ]
     if errores:
-        diagnostico.append({"tipo": "tabla", "columnas": [tr(nombre) for nombre in ("Date and time", "Code", "Where", "What happened", "Likely cause")],
+        columnas = ("Date and time", "Code", "Where", "What happened", "Likely cause")
+        diagnostico.append({"tipo": "tabla", "columnas": [tr(nombre) for nombre in columnas],
                             "pesos": [0, 0, 0, 1, 1], "filas": errores, "con_detalle": True,
                             "pista": tr("Select a row to see how to fix it and the technical detail.")})
     else:
@@ -246,7 +246,8 @@ def error_detalle(ctx, p, parametros):
     if arreglo is None:
         solucion.append(parrafo("Not applicable", "aviso"))
     else:
-        solucion.append(parrafo(tr_format("Steps for {distribution}", distribution=tr(DISTRIBUCIONES[familia])), "guia_dato", traducir=False))
+        pasos = tr_format("Steps for {distribution}", distribution=tr(DISTRIBUCIONES[familia]))
+        solucion.append(parrafo(pasos, "guia_dato", traducir=False))
         if arreglo["scope"] == "equivalent":
             solucion.append(parrafo("Equivalent issue", "aviso"))
         for paso in arreglo["article"]:
@@ -282,13 +283,18 @@ ESTADOS_CONTROLADOR = {
         "unsupported": "Builds on Arch-based systems (Arch, CachyOS, Manjaro) on a BC-250.",
         "managed-elsewhere": "Your kernel already includes this driver (MastaG's BC-250 kernels do), so there is nothing to build.",
         "installed": "Installed, but the regulator does not answer through the fan chip. Run sudo dmesg | grep bc250_vrm to see why.",
-        "update-available": "This copy was built by an earlier version of Control Center. Press Update to build it again with the current fixes.",
+        "update-available": ("This copy was built by an earlier version of Control Center. "
+                             "Press Update to build it again with the current fixes."),
     },
     "vram": {
-        "unsupported": "Needs an Arch-based system (Arch, CachyOS, Manjaro) on a BC-250 with BIOS P3.00: the driver patches the SMU at addresses reviewed for that BIOS only.",
+        "unsupported": ("Needs an Arch-based system (Arch, CachyOS, Manjaro) on a BC-250 with BIOS P3.00: "
+                        "the driver patches the SMU at addresses reviewed for that BIOS only."),
         "managed-elsewhere": "Your kernel already includes this driver (MastaG's BC-250 kernels do), so there is nothing to build.",
-        "installed": "Installed, but this BIOS keeps the SMU locked, so the driver waits. Press Monitor live on the dashboard once after each power-on: Control Center patches the SMU and the driver reads from then on.",
-        "update-available": "This copy was built by an earlier version of Control Center. Press Update to build it again with the current fixes.",
+        "installed": ("Installed, but this BIOS keeps the SMU locked, so the driver waits. "
+                      "Press Monitor live on the dashboard once after each power-on: "
+                      "Control Center patches the SMU and the driver reads from then on."),
+        "update-available": ("This copy was built by an earlier version of Control Center. "
+                             "Press Update to build it again with the current fixes."),
     },
 }
 
@@ -342,7 +348,8 @@ def _guia_i2c() -> list:
         {"tipo": "tabla", "columnas": ["I2C_HEADER1", "TPMS1", tr("Signal")], "pesos": [0, 0, 1],
          "filas": [{"celdas": [tr(origen), tr(pin), senal]} for origen, pin, senal in CABLES]},
         {"tipo": "fotos", "fotos": [foto("tpms1-connected.jpg", "TPMS1 with the connector on pins 4 and 6.", 275),
-                                    foto("i2c-header1-connected.jpg", "I2C_HEADER1 with the wires routed through the heatsink.", 275)]}, REGLA,
+                                    foto("i2c-header1-connected.jpg",
+                                         "I2C_HEADER1 with the wires routed through the heatsink.", 275)]}, REGLA,
         titulo("Install the service", 4),
         parrafo("Power the board on. Control Center builds BC250-Telemetry from its reviewed source and installs only the service that "
                 "reads the regulator; it asks for your password once.", "guia"),
@@ -442,7 +449,7 @@ def formulario_reporte(ctx, p, parametros) -> list:
 def _borrador(p: dict) -> report_form.Draft:
     """El reporte que llega del navegador, con cada campo acotado."""
     permitidos = {"kind", "values", "seen", "other_tools", "attach"}
-    if set(p) - permitidos or not isinstance(p.get("values"), dict):
+    if not isinstance(p, dict) or set(p) - permitidos or not isinstance(p.get("values"), dict):
         raise Invalid("params")
     borrador = report_form.new_draft()
     borrador.kind = choice(p, "kind", (formulario.KIND_PROBLEM, formulario.KIND_IDEA))
@@ -451,9 +458,11 @@ def _borrador(p: dict) -> report_form.Draft:
         if clave not in LARGOS or not isinstance(valor, str) or len(valor) > LARGOS[clave]:
             raise Invalid(str(clave))
         borrador.values[clave] = valor.strip()
-    for nombre, admitidos, destino in (("seen", formulario.SEEN, borrador.seen), ("other_tools", formulario.OTHER_TOOLS, borrador.other_tools)):
+    selecciones = (("seen", formulario.SEEN, borrador.seen), ("other_tools", formulario.OTHER_TOOLS, borrador.other_tools))
+    for nombre, admitidos, destino in selecciones:
         marcados = p.get(nombre, [])
-        if not isinstance(marcados, list) or any(uno not in admitidos for uno in marcados):
+        if (not isinstance(marcados, list) or len(marcados) > len(admitidos)
+                or any(not isinstance(uno, str) or uno not in admitidos for uno in marcados)):
             raise Invalid(nombre)
         destino.update(marcados)
     falta = report_form.report_of(borrador).missing()

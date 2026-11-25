@@ -85,6 +85,7 @@ private class EleccionFirmware {
     var unidad by mutableStateOf("")
     var logo by mutableStateOf<ImagenLogo?>(null)
     var tamano by mutableIntStateOf(TAMANO_MAYOR)
+    var guardandoLogo by mutableStateOf(false)
 }
 
 /** Firmware: elegir la BIOS y preparar la memoria USB que la lleva. Nunca graba la BIOS. */
@@ -259,9 +260,11 @@ private fun TarjetaPreparacion(aplicacion: Aplicacion, datos: JsonObject, elecci
 
 @Composable
 private fun SeccionLogo(aplicacion: Aplicacion, familia: JsonObject?, eleccion: EleccionFirmware) {
-    val admite = familia != null && familia.logico("logo_replaceable")
+    val errorCodec = aplicacion.lectura("firmware").texto("logo_codec")
+    val admite = familia != null && familia.logico("logo_replaceable") && errorCodec.isEmpty()
     Rotulo(t("Custom boot logo"))
-    Leyenda(t("Put your own picture on the screen the board shows while it starts. It goes into the chosen firmware when the USB is prepared, and nothing else in that firmware changes."))
+    Leyenda(t("Put your own picture on the screen the board shows while it starts. " +
+        "It goes into the chosen firmware when the USB is prepared, and nothing else in that firmware changes."))
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         if (maxWidth >= 560.dp) {
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), Arrangement.spacedBy(20.dp)) {
@@ -275,7 +278,10 @@ private fun SeccionLogo(aplicacion: Aplicacion, familia: JsonObject?, eleccion: 
             }
         }
     }
-    Leyenda(t("Before the USB is written, the new firmware is read back and compared with the published one: only the logo may differ. Custom logos have been tested on real boards with P2.00, P3.00, P5.00 and MeiMeiDXE v3. As with any BIOS change, an SPI programmer at hand is the way back."))
+    if (errorCodec.isNotEmpty()) Leyenda(errorCodec)
+    Leyenda(t("Before the USB is written, the new firmware is read back and compared with the published one: " +
+        "only the logo may differ. Custom logos have been tested on real boards with P2.00, P3.00, P5.00 and MeiMeiDXE v3. " +
+        "As with any BIOS change, an SPI programmer at hand is the way back."))
 }
 
 @OptIn(ExperimentalEncodingApi::class)
@@ -298,12 +304,16 @@ private fun DatosLogo(aplicacion: Aplicacion, admite: Boolean, eleccion: Eleccio
     val logo = eleccion.logo
 
     fun guardar(imagen: ImagenLogo?) {
+        if (!aplicacion.puedeControlar || !aplicacion.trabajo.terminado || eleccion.guardandoLogo) return
+        eleccion.guardandoLogo = true
         eleccion.logo = imagen
         val datos = imagen?.jpegBase64 ?: ""
         tareas.launch {
-            val guardado = aplicacion.guardarAhora("firmware.logo", JsonObject(mapOf("logo" to JsonPrimitive(datos))))
-            if (!guardado) {
-                eleccion.logo = null
+            try {
+                val guardado = aplicacion.guardarAhora("firmware.logo", JsonObject(mapOf("logo" to JsonPrimitive(datos))))
+                if (!guardado) eleccion.logo = null
+            } finally {
+                eleccion.guardandoLogo = false
             }
         }
     }
@@ -328,13 +338,15 @@ private fun DatosLogo(aplicacion: Aplicacion, admite: Boolean, eleccion: Eleccio
         HechoFila(t("In the firmware"), if (logo == null) "--" else "672 × 378 px · JPEG · $kilobytes KB")
         Row(Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
             Texto(t("Size"), tamano = 11, peso = 760)
-            Deslizador(eleccion.tamano, logo != null, Modifier.weight(1f), ::cambiarTamano)
+            val libre = aplicacion.puedeControlar && aplicacion.trabajo.terminado && !eleccion.guardandoLogo
+            Deslizador(eleccion.tamano, logo != null && admite && libre, Modifier.weight(1f), ::cambiarTamano)
             Texto("${eleccion.tamano} %", 10, Modifier.width(44.dp), color = ColoresActuales.current.sutil, alineado = TextAlign.End)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val puede = admite && puedeElegirImagen && aplicacion.puedeControlar
+            val libre = aplicacion.puedeControlar && aplicacion.trabajo.terminado && !eleccion.guardandoLogo
+            val puede = admite && puedeElegirImagen && libre
             Boton(t("Choose picture…"), ::elegir, activo = puede, icono = Res.drawable.fw_logo)
-            Boton(t("Remove"), { guardar(null) }, activo = logo != null)
+            Boton(t("Remove"), { guardar(null) }, activo = logo != null && libre)
         }
     }
 }
@@ -430,7 +442,8 @@ private fun SeccionUnidades(datos: JsonObject, eleccion: EleccionFirmware) {
                 Texto(unidad.texto("name") + " · " + unidad.texto("size_text"), tamano = 13, peso = 700)
                 val nota = unidad.texto("blocker").ifEmpty { unidad.texto("warning") }
                 val contenido = unidad.textos("labels").joinToString(", ").ifEmpty { t("No volumes") }
-                Texto(nota.ifEmpty { unidad.texto("path") + " · " + contenido }, 11, color = if (nota.isEmpty()) paleta.apagado else paleta.naranja)
+                Texto(nota.ifEmpty { unidad.texto("path") + " · " + contenido }, 11,
+                    color = if (nota.isEmpty()) paleta.apagado else paleta.naranja)
             }
         }
     }
@@ -442,7 +455,7 @@ private fun SeccionResumen(aplicacion: Aplicacion, datos: JsonObject, familia: J
     val clave = eleccion.imagen.ifEmpty { familia?.texto("default_image") ?: "" }
     val imagen = imagenes.firstOrNull { item -> item.texto("key") == clave }
     val unidad = datos.objetos("drives").firstOrNull { item -> item.texto("id") == eleccion.unidad }
-    val libre = aplicacion.puedeControlar && aplicacion.trabajo.terminado
+    val libre = aplicacion.puedeControlar && aplicacion.trabajo.terminado && !eleccion.guardandoLogo
     Rotulo(t("Preparation"))
     Column {
         HechoFila(t("Firmware"), familia?.texto("title") ?: "--")
@@ -456,7 +469,7 @@ private fun SeccionResumen(aplicacion: Aplicacion, datos: JsonObject, familia: J
         LineaDivisoria()
         HechoFila(t("Download"), textoDescarga(imagen))
     }
-    val lista = familia != null && imagen != null && unidad != null && imagen.logico("available")
+    val lista = familia != null && imagen != null && unidad != null && unidad.logico("eligible") && imagen.logico("available")
     Boton(
         texto = t("Prepare USB"),
         alPulsar = { prepararUsb(aplicacion, datos, familia, clave, unidad, eleccion) },
@@ -486,7 +499,7 @@ private fun prepararUsb(
     if (familia == null || unidad == null) {
         return
     }
-    val conLogo = eleccion.logo != null && familia.logico("logo_replaceable")
+    val conLogo = eleccion.logo != null && familia.logico("logo_replaceable") && datos.texto("logo_codec").isEmpty()
     val parametros = mapOf<String, JsonElement>(
         "family" to JsonPrimitive(familia.texto("key")),
         "image" to JsonPrimitive(imagen),

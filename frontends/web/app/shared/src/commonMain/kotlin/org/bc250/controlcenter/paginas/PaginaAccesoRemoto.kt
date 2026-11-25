@@ -190,7 +190,8 @@ private fun BotonesAcceso(aplicacion: Aplicacion, datos: JsonObject, web: JsonOb
     val activo = web.logico("running")
     val falta = datos.logico("prepare")
     if (falta) {
-        BotonRemoto(t("Prepare the connection"), { prepararConexion(aplicacion, datos) }, activo = libre(aplicacion), clase = ClaseBoton.PRINCIPAL)
+        BotonRemoto(t("Prepare the connection"), { prepararConexion(aplicacion, datos) },
+            activo = libre(aplicacion), clase = ClaseBoton.PRINCIPAL)
     }
     BotonRemoto(t("Open in browser"), { abrirDireccion(web.texto("local_url")) }, activo = activo)
     BotonRemoto(t(if (activo) "Stop web access" else "Start web access"), { cambiarAcceso(aplicacion, activo) }, activo = libre(aplicacion))
@@ -207,7 +208,8 @@ private fun BotonRemoto(
 }
 
 private fun renovarClave(aplicacion: Aplicacion) {
-    aplicacion.preguntarYEjecutar("remote.key", t("New access key"), t("A paired device keeps hardware control until you disconnect it or create a new access key."), peligro = true)
+    aplicacion.preguntarYEjecutar("remote.key", t("New access key"),
+        t("A paired device keeps hardware control until you disconnect it or create a new access key."), peligro = true)
 }
 
 private fun prepararConexion(aplicacion: Aplicacion, datos: JsonObject) {
@@ -309,7 +311,8 @@ private fun ColumnaConexion(
 ) {
     val portapapeles = LocalClipboardManager.current
     Column(modifier, Arrangement.spacedBy(6.dp)) {
-        val explicacion = "Connect your phone to the same Wi-Fi and scan the code. It pairs right away with full hardware control, with no key to type."
+        val explicacion = "Connect your phone to the same Wi-Fi and scan the code. " +
+            "It pairs right away with full hardware control, with no key to type."
         Texto(t(explicacion), tamano = 12, color = ColoresActuales.current.apagado)
         Desplegable(direcciones.map { valor -> Eleccion(valor, valor) }, direccion, alElegir, Modifier.fillMaxWidth())
         Boton(t("Copy address"), { portapapeles.setText(AnnotatedString(direccion)) }, Modifier.fillMaxWidth(),
@@ -319,7 +322,8 @@ private fun ColumnaConexion(
         LineaDivisoria(Modifier.padding(vertical = 8.dp))
         OpcionesConexion(aplicacion, web)
         Boton(t("Download certificate"), { abrirDireccion(aplicacion.conexion.direccion + "/api/query?name=remote.certificate") },
-            Modifier.fillMaxWidth(), activo = web.texto("trust_fingerprint").isNotEmpty(), clase = ClaseBoton.CONTORNO, alto = 33.dp, tamano = 12, peso = 650)
+            Modifier.fillMaxWidth(), activo = web.texto("trust_fingerprint").isNotEmpty(),
+            clase = ClaseBoton.CONTORNO, alto = 33.dp, tamano = 12, peso = 650)
         PuertoConexion(aplicacion, web)
     }
 }
@@ -421,7 +425,8 @@ private fun PuertoConexion(aplicacion: Aplicacion, web: JsonObject) {
     Row(Modifier.padding(top = 6.dp), Arrangement.spacedBy(10.dp), Alignment.CenterVertically) {
         Texto("TCP", tamano = 12, color = ColoresActuales.current.apagado)
         CampoNumero(puerto, { valor -> puerto = valor }, 1024, 65535, Modifier.width(120.dp))
-        Boton(t("Apply"), ::aplicar, activo = libre(aplicacion) && puerto != actual, clase = ClaseBoton.CONTORNO, alto = 33.dp, tamano = 12, peso = 650)
+        Boton(t("Apply"), ::aplicar, activo = libre(aplicacion) && puerto != actual,
+            clase = ClaseBoton.CONTORNO, alto = 33.dp, tamano = 12, peso = 650)
     }
 }
 
@@ -447,7 +452,10 @@ private fun PanelDispositivos(aplicacion: Aplicacion, datos: JsonObject) {
         }
         FlowRow(Modifier.fillMaxWidth(), Arrangement.spacedBy(8.dp), Arrangement.spacedBy(8.dp)) {
             val puede = libre(aplicacion) && dispositivo != null
-            BotonDispositivo(t("Approve device"), puede) { operar(aplicacion, elegido, "approve", t("Approve device")) }
+            val aprobado = dispositivo?.logico("approved") == true
+            BotonDispositivo(t(if (aprobado) "Approved" else "Approve device"), puede && !aprobado) {
+                operar(aplicacion, elegido, "approve", t("Approve device"))
+            }
             BotonDispositivo(t("Session"), puede) { editando = true }
             BotonDispositivo(t("Disconnect"), puede) { operar(aplicacion, elegido, "revoke", t("Disconnect"), peligro = true) }
             Spacer(Modifier.weight(1f))

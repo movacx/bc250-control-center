@@ -6,24 +6,70 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.key.*
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextAlign
-import kotlinx.serialization.json.*
-import org.bc250.controlcenter.componentes.*
-import org.bc250.controlcenter.datos.*
-import org.bc250.controlcenter.tema.*
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import org.bc250.controlcenter.componentes.AccionesGpuCu
+import org.bc250.controlcenter.componentes.Boton
+import org.bc250.controlcenter.componentes.CampoNumero
+import org.bc250.controlcenter.componentes.CasillaChica
+import org.bc250.controlcenter.componentes.ClaseBoton
+import org.bc250.controlcenter.componentes.Eleccion
+import org.bc250.controlcenter.componentes.FilaEleccion
+import org.bc250.controlcenter.componentes.FilaHerramientaGpuCu
+import org.bc250.controlcenter.componentes.Leyenda
+import org.bc250.controlcenter.componentes.LineaDivisoria
+import org.bc250.controlcenter.componentes.RejillaGpuCu
+import org.bc250.controlcenter.componentes.SeccionGpuCu
+import org.bc250.controlcenter.componentes.SubPanel
+import org.bc250.controlcenter.componentes.Texto
+import org.bc250.controlcenter.componentes.TituloGpuCu
+import org.bc250.controlcenter.componentes.pulsable
+import org.bc250.controlcenter.datos.Aplicacion
+import org.bc250.controlcenter.datos.entero
+import org.bc250.controlcenter.datos.logico
+import org.bc250.controlcenter.datos.objeto
+import org.bc250.controlcenter.datos.objetos
+import org.bc250.controlcenter.datos.t
+import org.bc250.controlcenter.datos.texto
+import org.bc250.controlcenter.tema.ColoresActuales
+import org.bc250.controlcenter.tema.MedidasGpuCu
+import org.bc250.controlcenter.tema.Paleta
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -77,12 +123,14 @@ internal fun CarrilGpu(puntos: List<JsonObject>, minimo: Int, maximo: Int, techo
                 }.focusable(activo)
                 .pointerInput(activo, minimo, maximo, techo, frecuencias) {
                     detectTapGestures { punto ->
-                        extremo = if (abs(punto.x - posicion(minimoActual, size.width.toFloat())) < abs(punto.x - posicion(maximoActual, size.width.toFloat()))) "min" else "max"
+                        extremo = if (abs(punto.x - posicion(minimoActual,
+                            size.width.toFloat())) < abs(punto.x - posicion(maximoActual, size.width.toFloat()))) "min" else "max"
                         moverActual(punto.x, size.width.toFloat())
                     }
                 }.pointerInput(activo, techo, frecuencias) {
                     detectDragGestures(onDragStart = { punto ->
-                        extremo = if (abs(punto.x - posicion(minimoActual, size.width.toFloat())) < abs(punto.x - posicion(maximoActual, size.width.toFloat()))) "min" else "max"
+                        extremo = if (abs(punto.x - posicion(minimoActual,
+                            size.width.toFloat())) < abs(punto.x - posicion(maximoActual, size.width.toFloat()))) "min" else "max"
                     }) { cambio, _ ->
                         cambio.consume()
                         moverActual(cambio.position.x, size.width.toFloat())
@@ -145,7 +193,10 @@ internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre:
     }
     fun aplicar() {
         aplicacion.preguntarYEjecutar("gpu.compat", t("Apply Cyan compatibility settings"),
-            "$metodo · $uso · $temperatura\n" + t("Apply compatibility settings"),
+            "$metodo · $uso · $temperatura\n" + t(
+                "This validates and updates only gpu.set-method, gpu-usage.fix-metrics and gpu-usage.fix-freq. " +
+                    "If Cyan is active, its current D-Bus range is read first, the service restarts, and that range is restored.",
+            ).replace("gpu.set-method", "gpu.set-method, gpu-usage.method"),
             mapOf("set_method" to JsonPrimitive(metodo), "usage_method" to JsonPrimitive(uso),
                 "metrics" to JsonPrimitive(metricas), "frequencies" to JsonPrimitive(frecuencias),
                 "temp_read" to JsonPrimitive(temperatura)), peligro = metodo == "kernel")
@@ -156,19 +207,31 @@ internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre:
         RejillaGpuCu(3, 3, separacion = 10.dp) { indice, modificador ->
             when (indice) {
                 0 -> FilaEleccion(t("Governor method"), opciones(listOf("smu", "kernel")), metodo,
-                    { metodo = it; editado = true }, modificador, libre)
+                    { valor ->
+                        metodo = valor
+                        editado = true
+                    }, modificador, libre)
                 1 -> FilaEleccion(t("Usage reading"), opciones(listOf("busy-flag", "process", "kernel")), uso,
-                    { uso = it; editado = true }, modificador, libre)
+                    { valor ->
+                        uso = valor
+                        editado = true
+                    }, modificador, libre)
                 else -> FilaEleccion(t("Temperature reading"), opciones(listOf("drm", "sysfs")), temperatura,
-                    { temperatura = it; editado = true }, modificador, libre && actual.logico("temp_read_supported", true))
+                    { valor ->
+                        temperatura = valor
+                        editado = true
+                    }, modificador, libre && actual.logico("temp_read_supported", true))
             }
         }
         if (uso == "process") {
-            Texto(t("The process reading goes through every open file of every program. With a game open, Cyan stops answering: the range, the +2000 MHz points and the voltage lab stop working until the game closes. busy-flag is the default."),
+            Texto(t("The process reading goes through every open file of every program. With a game open, Cyan " +
+                "stops answering: the range, the +2000 MHz points and the voltage lab stop working until the " +
+                "game closes. busy-flag is the default."),
                 tamano = 12, color = ColoresActuales.current.naranja)
         }
         Separador(clasica)
-        FilaHerramientaGpuCu("", t("The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off."), tamanoDetalle = 10) {
+        FilaHerramientaGpuCu("", t("The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, " +
+            "kernel usage reading, sysfs temperature, both fixes off."), tamanoDetalle = 10) {
             Boton(t("Use the BC-250 kernel settings"), {
                 metodo = "kernel"
                 uso = "kernel"
@@ -182,14 +245,26 @@ internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre:
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             if (maxWidth < MedidasGpuCu.anchoMovil) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    MarcaGpu(datos.objeto("fix_labels").texto("metrics"), metricas, libre) { metricas = !metricas; editado = true }
-                    MarcaGpu(datos.objeto("fix_labels").texto("frequency"), frecuencias, libre) { frecuencias = !frecuencias; editado = true }
+                    MarcaGpu(datos.objeto("fix_labels").texto("metrics"), metricas, libre) {
+                        metricas = !metricas
+                        editado = true
+                    }
+                    MarcaGpu(datos.objeto("fix_labels").texto("frequency"), frecuencias, libre) {
+                        frecuencias = !frecuencias
+                        editado = true
+                    }
                     BotonCompatibilidad(libre, Modifier.fillMaxWidth(), ::aplicar)
                 }
             } else {
                 Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(16.dp), Alignment.CenterVertically) {
-                    MarcaGpu(datos.objeto("fix_labels").texto("metrics"), metricas, libre) { metricas = !metricas; editado = true }
-                    MarcaGpu(datos.objeto("fix_labels").texto("frequency"), frecuencias, libre) { frecuencias = !frecuencias; editado = true }
+                    MarcaGpu(datos.objeto("fix_labels").texto("metrics"), metricas, libre) {
+                        metricas = !metricas
+                        editado = true
+                    }
+                    MarcaGpu(datos.objeto("fix_labels").texto("frequency"), frecuencias, libre) {
+                        frecuencias = !frecuencias
+                        editado = true
+                    }
                     Spacer(Modifier.weight(1f))
                     BotonCompatibilidad(libre, Modifier.width(195.dp), ::aplicar)
                 }
@@ -259,7 +334,9 @@ internal fun HerramientasGpu(aplicacion: Aplicacion, datos: JsonObject, libre: B
     val funcionando = datos.texto("service_active") == "active"
     val oberon = datos.texto("governor_backend") == "oberon-governor"
     SubPanel(margen = PaddingValues(18.dp, 14.dp), espacio = 0.dp) {
-        FilaHerramientaGpuCu(t("Governor service"), t("Start governor runs it now and saves it for startup (enables the service). Stop governor stops it and removes it from startup (disables the service).")) {
+        FilaHerramientaGpuCu(t("Governor service"),
+            t("Start governor runs it now and saves it for startup (enables the service). Stop governor stops " +
+            "it and removes it from startup (disables the service).")) {
             RejillaAccionesServicioGpu(aplicacion, datos, funcionando, libre)
         }
         SeparadorGpu()
@@ -267,14 +344,16 @@ internal fun HerramientasGpu(aplicacion: Aplicacion, datos: JsonObject, libre: B
             t("Point-by-point conservative validation of the selected range.")) {
             AccionesGpuCu(2, 404.dp) { indice, caja ->
                 if (indice == 0) Boton(t("Open laboratory"), alLaboratorio, caja, alto = MedidasGpuCu.altoAccion, tamano = 12)
-                else Boton(t(if (oberon) "Open oberon-config.yaml" else "Open config.toml"), alConfiguracion, caja, alto = MedidasGpuCu.altoAccion, tamano = 12)
+                else Boton(t(if (oberon) "Open oberon-config.yaml" else "Open config.toml"), alConfiguracion, caja,
+                    alto = MedidasGpuCu.altoAccion, tamano = 12)
             }
         }
     }
 }
 
 @Composable
-internal fun RejillaAccionesServicioGpu(aplicacion: Aplicacion, datos: JsonObject, funcionando: Boolean, libre: Boolean, alto: androidx.compose.ui.unit.Dp = MedidasGpuCu.altoAccion, tamano: Int = 12) {
+internal fun RejillaAccionesServicioGpu(aplicacion: Aplicacion, datos: JsonObject, funcionando: Boolean, libre: Boolean,
+    alto: androidx.compose.ui.unit.Dp = MedidasGpuCu.altoAccion, tamano: Int = 12) {
     AccionesGpuCu(3, 613.dp) { indice, caja ->
         if (indice == 0) {
             Boton(t("View status"), { aplicacion.ejecutar("gpu.status", t("View status")) }, caja, alto = alto, tamano = tamano)
@@ -286,7 +365,9 @@ internal fun RejillaAccionesServicioGpu(aplicacion: Aplicacion, datos: JsonObjec
                 aplicacion.preguntarYEjecutar("gpu.service", titulo, plan.texto("message", titulo),
                     mapOf("action" to JsonPrimitive(accion)), peligro = plan.logico("risk"))
             }, caja, clase = if (accion == "desactivar") ClaseBoton.PELIGRO else ClaseBoton.NORMAL,
-                activo = libre, alto = alto, tamano = tamano)
+                activo = libre && datos.objeto("availability").logico(
+                    if (accion == "reiniciar") "restart" else if (accion == "activar") "start" else "stop",
+                ), alto = alto, tamano = tamano)
         }
     }
 }
@@ -346,4 +427,22 @@ private fun DrawScope.dibujarTope(centro: Offset, fondo: Color, borde: Color) {
     val radio = CornerRadius(6.dp.toPx())
     drawRoundRect(fondo, esquina, medida, radio)
     drawRoundRect(borde, esquina, medida, radio, style = Stroke(1.dp.toPx()))
+}
+
+/** El mismo aviso del escritorio: editar el TOML no cambia el rango activo. */
+internal fun avisoPuntosAltos(habilitar: Boolean): String {
+    return if (habilitar) {
+        t(
+            "This edits only the TOML safe-point blocks above 2000 MHz and validates the complete " +
+                "file. These frequencies are experimental, are not guaranteed stable, and can crash " +
+                "the display or system. This does not reload Cyan or change the live GPU range; " +
+                "use Apply active range explicitly after selecting a point.",
+        )
+    } else {
+        t(
+            "This comments the TOML safe-point blocks above 2000 MHz and validates the complete " +
+                "file. Active 3D workloads must be stopped first. This does not reload Cyan or " +
+                "change the live GPU range.",
+        )
+    }
 }

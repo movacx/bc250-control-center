@@ -48,6 +48,8 @@ def consultar(web, parametros):
     # Importación diferida: data incorpora las tablas de módulos al arrancar.
     from frontends.web.data import _chart, performance
 
+    if any(not isinstance(valor, str) for valor in parametros.values()):
+        raise Invalid("params")
     tab = parametros.get("tab", "sensors")
     if tab != "sensors" and tab not in RESOURCE_BY_KEY:
         raise Invalid("tab")
@@ -82,7 +84,8 @@ def consultar(web, parametros):
         anterior = recorder.window
         try:
             recorder.window = ventana
-            resultado = performance(web.live, dict(parametros, tab=tab, view=vista, scale=escala, kind="0" if "kinds" in parametros else str(tipo)))
+            resultado = performance(web.live, dict(parametros, tab=tab, view=vista, scale=escala,
+                kind="0" if "kinds" in parametros else str(tipo)))
         finally:
             recorder.window = anterior
         # Las trazas de sensores también respetan la ventana, como los recursos.
@@ -114,19 +117,23 @@ def consultar(web, parametros):
                             añadido = True
                         filas.append(fila)
                 resultado["rows"] = filas
-                resultado["count"] = tr_format("{shown} of {count} sensors", shown=sum("key" in fila for fila in filas), count=len(recorder.log.order))
+                resultado["count"] = tr_format("{shown} of {count} sensors", shown=sum("key" in fila for fila in filas),
+                    count=len(recorder.log.order))
             # Como el escritorio, una gráfica marcada se oculta con su fila filtrada.
             visibles = {fila["key"] for fila in resultado.get("rows", []) if "key" in fila}
             resultado["traces"] = [traza for traza in resultado.get("traces", []) if traza["key"] in visibles]
             resultado["missing_traces"] = [traza for traza in resultado.get("missing_traces", []) if traza["key"] in visibles]
             inicio = datetime.now() - timedelta(seconds=max(0, recorder.log._clock() - recorder.log.started_at))
-            resultado["footer"] = tr_format("Minimum, average and maximum since {time} · 1 s cadence · double-click a row to draw it", time=inicio.strftime("%H:%M:%S"))
+            resultado["footer"] = tr_format(
+                "Minimum, average and maximum since {time} · 1 s cadence · double-click a row to draw it",
+                time=inicio.strftime("%H:%M:%S"),
+            )
         for opcion in resultado.get("views", []):
             definicion = VIEW_BY_KEY.get(opcion["key"])
             if not opcion["available"] and definicion and definicion.unavailable_hint:
                 opcion["hint"] = tr(definicion.unavailable_hint)
         resultado["window"] = ventana
-        resultado["error"] = web.ctx.metrics_error
+        resultado["error"] = tr("Read error") if web.ctx.metrics_error else ""
         return resultado
 
 
@@ -141,7 +148,6 @@ def reiniciar(ctx, parametros):
 
 CONSULTAS = {"performance": consultar}
 AJUSTES = {"performance.reset": reiniciar}
-LECTURAS = {"performance": (1, lambda ctx, live: {"error": ctx.metrics_error, "sampled": live.recorder.sampled_at})}
 
 
 def ampliar_historial(recorder):
@@ -160,7 +166,7 @@ def ampliar_historial(recorder):
 
 def leer_preferencias(ctx, live):
     config = ctx.settings.read_local_config() if ctx.settings else {}
-    return {"preferences": config.get("web_performance") or {}, "error": ctx.metrics_error,
+    return {"preferences": config.get("web_performance") or {}, "error": tr("Read error") if ctx.metrics_error else "",
             "sampled": live.recorder.sampled_at}
 
 
@@ -183,5 +189,5 @@ def guardar_preferencias(ctx, parametros):
                                                        "kinds": kinds, "ticked": ticked}})
 
 
-LECTURAS["performance"] = (0, leer_preferencias)
+LECTURAS = {"performance": (0, leer_preferencias)}
 AJUSTES["performance.preferences"] = guardar_preferencias

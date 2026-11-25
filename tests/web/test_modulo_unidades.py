@@ -4,6 +4,7 @@ import unittest
 from copy import deepcopy
 from types import SimpleNamespace
 
+from frontends.tui.i18n import tr
 from frontends.web.actions import Invalid, all_actions
 from frontends.web.modulos import unidades
 from scripts.qa.web.servicio_ejemplo import CU, ConfiguracionEjemplo, ServicioEjemplo
@@ -107,4 +108,4 @@ class PruebasUnidades(unittest.TestCase):
         def falla():
             raise RuntimeError("Ejemplo de lectura fallida")
         self.ctx.service.obtener_estado_cu_cache = falla
-        assert unidades.leer(self.ctx, None)["error"] == "Ejemplo de lectura fallida"
+        assert unidades.leer(self.ctx, None)["error"] == tr("Could not read the CU map.")

@@ -14,7 +14,7 @@ from bc250cc.domain.fan.profile_exchange import (
     imported_profile_updates,
     parse_channel_profiles_document,
 )
-from frontends.tui.i18n import tr
+from frontends.tui.i18n import tr, tr_format
 from frontends.tui.pages.fans import live_temperatures
 from frontends.web.actions import Invalid, choice, flag, number
 
@@ -86,6 +86,8 @@ def exportar_decky(ctx):
 
 
 def importar(ctx, p):
+    if set(p) != {"text", "replace"}:
+        raise Invalid("params")
     texto = p.get("text")
     reemplazar = flag(p, "replace")
     if not isinstance(texto, str) or len(texto.encode("utf-8")) > MAX_DOCUMENT_BYTES:
@@ -103,8 +105,28 @@ def importar(ctx, p):
             raise Invalid("Replace fan profile?")
         cambios["web_fan_profiles"] = paquete["profiles"]
         ctx.settings.save_local_config(cambios)
+    except Invalid as error:
+        raise Invalid(tr(str(error))) from error
     except (ValueError, TypeError, KeyError) as error:
-        raise Invalid(str(error)) from error
+        raise Invalid(tr("Could not import fan profiles")) from error
+
+
+def motivo_calibracion(mensaje):
+    """Traduce las causas previstas y oculta detalles internos de las escrituras."""
+    cabeza, separador, cola = mensaje.partition("; final write of 100 percent failed: ")
+    if separador:
+        final = motivo_calibracion("final write of 100 percent failed: " + cola)
+        return f"{motivo_calibracion(cabeza)}; {final}"
+    for prefijo, plantilla in (
+        ("calibration failed: ", "calibration failed: {error}"),
+        ("final write of 100 percent failed: ", "final write of 100 percent failed: {error}"),
+    ):
+        if mensaje.startswith(prefijo):
+            return tr_format(plantilla, error=tr("Unavailable"))
+    prefijo = "overheating: temperature at or above "
+    if mensaje.startswith(prefijo) and mensaje.endswith(" C"):
+        return tr_format("overheating: temperature at or above {temperature} C", temperature=mensaje[len(prefijo):-2])
+    return tr(mensaje)
 
 
 def calibrar(ctx, p, shell):
@@ -145,10 +167,10 @@ def calibrar(ctx, p, shell):
             return max(apu + [valor for valor in otras if valor is not None])
 
         resultado = calibrate(write=escribir, read_rpm=rpm, hottest_c=temperatura, sleep=time.sleep)
-        datos = {"pwm": pwm, **asdict(resultado)}
+        datos = {"pwm": pwm, **asdict(resultado), "aborted": motivo_calibracion(resultado.aborted)}
         ctx.settings.save_local_config({"web_fan_calibration": datos})
         if resultado.aborted:
-            raise Invalid(resultado.aborted)
+            raise Invalid(datos["aborted"])
         return tr("Calibration finished")
     return 2, ejecutar
 
@@ -162,6 +184,8 @@ AJUSTES = {"fans.import": importar}
 def aplicar(ctx, p, shell):
     from bc250cc.domain.fan.channels import LABEL_MAX_LENGTH
     from frontends.web.actions import _entry, _said, _text
+    if set(p) - {"pwm", "entry", "label", "force"} or not {"pwm", "entry", "label"} <= set(p):
+        raise Invalid("params")
     pwm = number(p, "pwm")
     entrada = _entry(p)
     nombre = _text(p, "label", LABEL_MAX_LENGTH, empty=True)
@@ -194,10 +218,12 @@ def validar(web, p):
     try:
         entrada = _entry({"entry": json.loads(texto)})
         from bc250cc.domain.fan import engine
-        normalizada = engine.validate_policy({"schema": 2, "channels": {"1": entrada}})["channels"]["1"] if entrada else {"mode": "firmware"}
+        normalizada = {"mode": "firmware"}
+        if entrada:
+            normalizada = engine.validate_policy({"schema": 2, "channels": {"1": entrada}})["channels"]["1"]
         return {"valid": True, "error": "", "entry": normalizada}
-    except (ValueError, TypeError) as error:
-        return {"valid": False, "error": str(error).removeprefix("entry: ")}
+    except (ValueError, TypeError):
+        return {"valid": False, "error": tr("Could not save fan curve")}
 
 
 CONSULTAS["fans.validate"] = validar
@@ -231,7 +257,8 @@ def rutas_pwm(estado):
         ("modprobe.d", "nct6683"), ("modprobe.d", "nct6687"), ("modprobe.d", "sensors"),
         ("modules-load.d", "nct6683"), ("modules-load.d", "nct6687"), ("modules-load.d", "99-sensors"))))
     detectado = informe((
-        ("Live Linux detection", tr("Values below are evidence from the latest NCT scan. Missing data is shown as missing; no path is guessed.")),
+        ("Live Linux detection", tr("Values below are evidence from the latest NCT scan. "
+                                    "Missing data is shown as missing; no path is guessed.")),
         ("Chip", sensores.get("chip") or tr("Not detected")),
         ("Hwmon route", sensores.get("path") or tr("No NCT hwmon route was reported by the latest scan.")),
         ("Loaded modules", f"nct6683={bool(modulos.get('nct6683'))} · nct6687={bool(modulos.get('nct6687'))}"),
@@ -247,18 +274,23 @@ def rutas_pwm(estado):
         persistencia = informe((
             ("Active manager", inicio.display_name),
             ("Detected service files" if openrc else "Detected unit files", existentes(candidatos) or tr(
-                "No BC250 NCT6687 OpenRC service file is currently detected." if openrc else "No BC250 NCT6687 systemd unit file is currently detected.")),
+                "No BC250 NCT6687 OpenRC service file is currently detected." if openrc else
+                "No BC250 NCT6687 systemd unit file is currently detected.")),
             ("Status command", "rc-service nct6687-load status" if openrc else "systemctl status nct6687-load.service --no-pager"),
-            ("Runlevel command" if openrc else "Journal command", "rc-update show default" if openrc else "journalctl -b -u nct6687-load.service --no-pager"),
+            ("Runlevel command" if openrc else "Journal command",
+             "rc-update show default" if openrc else "journalctl -b -u nct6687-load.service --no-pager"),
         ))
     else:
-        persistencia = informe((("Persistence unavailable", tr("No supported active init manager was detected. This window will not suggest a service command.")),
+        persistencia = informe((("Persistence unavailable", tr("No supported active init manager was detected. "
+                                                              "This window will not suggest a service command.")),
                                ("Detection", inicio.detail), ("Current capability", tr("Live sensor inspection remains read-only."))))
     verificacion = informe((
-        ("Read-only verification", tr("Copy a command only when you need more diagnostics. None of these commands changes fan mode, duty, modules, or services.")),
+        ("Read-only verification", tr("Copy a command only when you need more diagnostics. "
+                                     "None of these commands changes fan mode, duty, modules, or services.")),
         ("Modules", 'lsmod | grep -E "nct6683|nct6687"'), ("Driver metadata", "modinfo nct6687"),
         ("Sensors", 'sensors | sed -n "/nct668/,+45p"'),
         ("Hwmon files", "find /sys/class/hwmon -maxdepth 2 -name 'pwm*_enable' -o -name 'fan*_input'"),
     ))
     return [{"key": clave, "label": etiqueta, "text": texto} for clave, etiqueta, texto in (
-        ("detected", "Detected", detectado), ("persistence", "Persistence", persistencia), ("verification", "Verification", verificacion))]
+        ("detected", tr("Detected"), detectado), ("persistence", tr("Persistence"), persistencia),
+        ("verification", tr("Verification"), verificacion))]

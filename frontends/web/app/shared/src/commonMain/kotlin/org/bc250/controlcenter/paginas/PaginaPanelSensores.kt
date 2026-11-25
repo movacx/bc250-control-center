@@ -1,15 +1,33 @@
 package org.bc250.controlcenter.paginas
 
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.serialization.json.JsonObject
-import org.bc250.controlcenter.componentes.*
-import org.bc250.controlcenter.datos.*
+import org.bc250.controlcenter.componentes.BarraUso
+import org.bc250.controlcenter.componentes.Boton
+import org.bc250.controlcenter.componentes.Leyenda
+import org.bc250.controlcenter.componentes.Texto
+import org.bc250.controlcenter.componentes.marco
+import org.bc250.controlcenter.datos.Aplicacion
+import org.bc250.controlcenter.datos.entero
+import org.bc250.controlcenter.datos.logico
+import org.bc250.controlcenter.datos.numero
+import org.bc250.controlcenter.datos.objeto
+import org.bc250.controlcenter.datos.objetos
+import org.bc250.controlcenter.datos.t
+import org.bc250.controlcenter.datos.texto
 import org.bc250.controlcenter.tema.ColoresActuales
 import org.bc250.controlcenter.tema.Medidas
 import org.bc250.controlcenter.tema.MedidasPanelRendimiento as M
@@ -41,7 +59,8 @@ internal fun MemoriaPanel(aplicacion: Aplicacion, datos: JsonObject) {
                         }, activo = libre, alto = 34.dp, tamano = 12)
                     } else if (activo) {
                         Boton(t("Stop"), { aplicacion.interrumpirTrabajo() }, alto = 34.dp, tamano = 12,
-                            activo = aplicacion.puedeControlar && !aplicacion.trabajo.terminado && aplicacion.trabajo.titulo == t("GDDR6 memory temperature"))
+                            activo = aplicacion.puedeControlar && !aplicacion.trabajo.terminado &&
+                                aplicacion.trabajo.titulo == t("GDDR6 memory temperature"))
                     } else {
                         Boton(t("Monitor live"), {
                             aplicacion.preguntarYEjecutar("gddr6.monitor", t("GDDR6 memory temperature"),
@@ -105,7 +124,7 @@ internal fun AlimentacionPanel(aplicacion: Aplicacion, datos: JsonObject, alAyud
                 }
             }
         }
-        if (presente) {
+        if (presente || aplicacion.preferencias.logico("vrm_manual")) {
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val columnas = if (maxWidth >= M.anchoColumnas) 4 else if (maxWidth >= M.anchoMovil) 2 else 1
                 val filas = datos.objetos("rails")

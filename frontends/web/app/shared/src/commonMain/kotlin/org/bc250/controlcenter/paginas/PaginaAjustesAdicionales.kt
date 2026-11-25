@@ -82,7 +82,9 @@ internal class EstadoExtras(val aplicacion: Aplicacion, private val tareas: Coro
         tareas.launch {
             val respuesta = aplicacion.consultar("extras.dialog", mapOf("request" to enviada.toString()))
             if (solicitud == enviada && dialogo != null) {
-                dialogo = respuesta
+                dialogo = if (respuesta.isEmpty()) {
+                    JsonObject(mapOf("kind" to JsonPrimitive("error"), "error" to JsonPrimitive(t("Not connected"))))
+                } else respuesta
             }
         }
     }
@@ -101,6 +103,7 @@ internal class EstadoExtras(val aplicacion: Aplicacion, private val tareas: Coro
 
     /** El diálogo ya preguntó: la operación sale directo a la consola. */
     fun ejecutarConfirmado() {
+        if (!aplicacion.puedeControlar || !aplicacion.trabajo.terminado) return
         val pregunta = dialogo ?: return
         val titulo = t(pregunta.texto("title", t("Additional settings")))
         aplicacion.ejecutar("extras.run", titulo, solicitud, confirmada = true)
@@ -169,7 +172,8 @@ private fun PestanasExtras(elegida: String, alElegir: (String) -> Unit) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val estrecha = maxWidth < 700.dp
         val desplazable = if (estrecha) Modifier.horizontalScroll(rememberScrollState()) else Modifier
-        Row(Modifier.fillMaxWidth().height(42.dp).then(desplazable).padding(horizontal = 12.dp, vertical = 4.dp), Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth().height(42.dp).then(desplazable).padding(horizontal = 12.dp, vertical = 4.dp),
+            Arrangement.spacedBy(6.dp)) {
             nombres.forEach { (clave, titulo) ->
                 val ancho = if (estrecha) Modifier.width(160.dp) else Modifier.weight(1f)
                 PestanaPanel(t(titulo), elegida == clave, ancho) { alElegir(clave) }

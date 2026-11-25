@@ -10,8 +10,8 @@ import hashlib
 import json
 from dataclasses import asdict
 
-from frontends.desktop.i18n import tr
 from frontends.tui.content import Buttons, Choice, Field, Note
+from frontends.tui.i18n import tr
 from frontends.tui.pages.base import os_family
 from frontends.tui.runtime import Context
 from frontends.web.actions import Invalid, choice
@@ -131,7 +131,7 @@ def describir_panel(panel):
         acciones = []
         for operacion in operaciones(fila):
             acciones.append({"id": clave_operacion(operacion), "label": operacion.label,
-                             "danger": operacion.danger, "enabled": getattr(operacion, "enabled", True),
+                             "danger": operacion.danger, "enabled": fila.enabled and getattr(operacion, "enabled", True),
                              "removal": operacion.label in retiradas,
                              "window": "tv" if operacion.label == tr("Open TV control") else ""})
         elementos.append({"id": clave_fila(panel, fila), "title": fila.label,
@@ -290,9 +290,11 @@ def consultar(web, p):
         recibidos = json.loads(p.get("request", "{}"))
         if not isinstance(recibidos, dict):
             raise Invalid("request")
-        return resolver(web.live.ctx, recibidos)
-    except (ValueError, TypeError, KeyError) as error:
-        return {"kind": "error", "error": str(error)}
+        return resolver(web.ctx, recibidos)
+    except Invalid:
+        return {"kind": "error", "error": tr("Not available here")}
+    except Exception:
+        return {"kind": "error", "error": tr("Unavailable")}
 
 
 def actuar(ctx, p, shell):

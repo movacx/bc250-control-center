@@ -20,19 +20,39 @@ AVISO_KERNEL = (
 )
 
 
-GUIA_VALIDACION = '1. Save open work, then press Unlock / Sync to read the live WGP table.\n\n2. Start from the factory layout and enable only one additional WGP pair (2 CUs) at a time. Apply it live; do not save it for boot yet.\n\n3. Run FurMark or another heavy 3D workload for an initial 15-minute pass. Watch for artifacts, freezes, black screens, application crashes, or an amdgpu reset.\n\n4. If the test fails, disable the most recently added WGP pair and repeat. The faulty pair can differ from one BC-250 to another.\n\n5. FurMark FPS does not prove that GFX1013 async compute works. FurMark is useful here to expose unstable CUs; async compute must be checked with a game or workload that actually uses graphics and compute queues concurrently.\n\n6. After the initial pass, test real games and workloads for longer. Only then use Save selection and Install service.'
+GUIA_VALIDACION = ('1. Save open work, then press Unlock / Sync to read the live WGP '
+    'table.\n\n2. Start from the factory layout and enable only one additional '
+    'WGP pair (2 CUs) at a time. Apply it live; do not save it for boot '
+    'yet.\n\n3. Run FurMark or another heavy 3D workload for an initial 15-minute '
+    'pass. Watch for artifacts, freezes, black screens, application crashes, or '
+    'an amdgpu reset.\n\n4. If the test fails, disable the most recently added '
+    'WGP pair and repeat. The faulty pair can differ from one BC-250 to '
+    'another.\n\n5. FurMark FPS does not prove that GFX1013 async compute works. '
+    'FurMark is useful here to expose unstable CUs; async compute must be '
+    'checked with a game or workload that actually uses graphics and compute '
+    'queues concurrently.\n\n6. After the initial pass, test real games and '
+    'workloads for longer. Only then use Save selection and Install service.')
 
 
 def confirmaciones():
     fuentes = {
-        "apply": ("Apply WGP routing table", "The selected WGP pairs will be written through the official live manager. The application will verify the resulting SPI table before reporting success."),
-        "save": ("Save selected boot table", "The selected WGP table will be applied now, verified, and saved to /etc/bc250-cu-live-manager.conf. The boot service is installed separately."),
-        "install_service": ("Install boot restore service", "The official systemd service will be installed and enabled. Save the intended live table first so the correct layout is restored after reboot."),
-        "remove_service": ("Remove boot restore service", "The service and its saved configuration will be removed. The current live WGP routing remains active until reboot or another live action changes it."),
-        "factory_repair": ("Restore factory 24 CU routing", "The live SPI table will be rebuilt from the amdgpu boot CU topology. Any saved Compute Units boot service and its configuration will be removed first, so an obsolete /usr/local/bin service cannot restore a broken layout after reboot."),
-        "apply_saved": ("Apply saved boot layout now", "The WGP masks stored in /etc/bc250-cu-live-manager.conf will replace the current live routing table."),
+        "apply": ("Apply WGP routing table", ('The selected WGP pairs will be written through the official live manager. '
+            'The application will verify the resulting SPI table before reporting '
+            'success.')),
+        "save": ("Save selected boot table", ('The selected WGP table will be applied now, verified, and saved to '
+            '/etc/bc250-cu-live-manager.conf. The boot service is installed separately.')),
+        "install_service": ("Install boot restore service", ('The official systemd service will be installed and enabled. Save the '
+            'intended live table first so the correct layout is restored after reboot.')),
+        "remove_service": ("Remove boot restore service", ('The service and its saved configuration will be removed. The current live '
+            'WGP routing remains active until reboot or another live action changes it.')),
+        "factory_repair": ("Restore factory 24 CU routing", ('The live SPI table will be rebuilt from the amdgpu boot CU topology. Any '
+            'saved Compute Units boot service and its configuration will be removed '
+            'first, so an obsolete /usr/local/bin service cannot restore a broken '
+            'layout after reboot.')),
+        "apply_saved": ("Apply saved boot layout now",
+            "The WGP masks stored in /etc/bc250-cu-live-manager.conf will replace the current live routing table."),
     }
-    return {clave: {"title": titulo, "message": mensaje} for clave, (titulo, mensaje) in fuentes.items()}
+    return {clave: {"title": tr(titulo), "message": tr(mensaje)} for clave, (titulo, mensaje) in fuentes.items()}
 
 
 def seleccion(estado, valores):
@@ -56,7 +76,8 @@ def seleccion(estado, valores):
                       "live": f"0x{vivos[i]:02x}", "target": f"0x{mascara:02x}", "driver": f"0x{drivers[i]:02x}",
                       "cc": str(origen.get("cc") or "--")})
     return {"rows": filas, "target": balance.total, "pending": pendientes, "balance_detail": detalle,
-            "summary": tr_format("Target: {count} / 40 CUs", count=balance.total) + "\n" + detalle + "\n" + tr("Masks") + ": " + ", ".join(f"0x{v:02x}" for v in valores),
+            "summary": tr_format("Target: {count} / 40 CUs",
+                count=balance.total) + "\n" + detalle + "\n" + tr("Masks") + ": " + ", ".join(f"0x{v:02x}" for v in valores),
             "balanced": balance.balanced, "balanced_masks": balanced_masks(valores, estado.get("driver_masks") or [0]*4),
             "availability": asdict(plan_cu_action_availability(estado, pending_wgps=pendientes, busy=False))}
 
@@ -71,12 +92,14 @@ def telemetria(ctx, presentacion):
         valor = perf.get(clave)
         return f"{float(valor):.{decimales}f} {unidad}" if isinstance(valor, (int, float)) and valor > 0 else tr("Not detected")
     pmbus = perf.get("vrm_source") == "pmbus"
-    potencia = lectura("vrm_gpu_power_w", "W", 1) if pmbus and perf.get("vrm_gpu_power_w") else lectura("gpu_power" if perf.get("gpu_power") else "power_w", "W", 1)
+    potencia = lectura("vrm_gpu_power_w", "W",
+        1) if pmbus and perf.get("vrm_gpu_power_w") else lectura("gpu_power" if perf.get("gpu_power") else "power_w", "W", 1)
     vrm = lectura("vrm_temp_gpu", "°C") if pmbus and perf.get("vrm_temp_gpu") else lectura("vrm_mos_temp", "°C")
     sclk = gpu.get("sclk_actual")
     config = ctx.settings.read_local_config()
     unidad = config.get("temperature_unit") or config.get("settings/temperature_unit")
-    return [{"label": nombre, "value": localize_temperature_text(valor, unidad), "detail": detalle} for nombre, valor, detalle in (
+    return [{"label": tr(nombre), "value": localize_temperature_text(tr(valor), unidad),
+        "detail": tr(detalle)} for nombre, valor, detalle in (
         ("Service", presentacion.service, "optional boot restore"),
         ("Persistence", presentacion.persistence_status, presentacion.persistence_detail),
         ("GPU frequency", f"{int(sclk)} MHz" if sclk else tr("Not detected"), "Current SCLK state"),
@@ -95,10 +118,14 @@ def leer(ctx, live):
         temprano = cus_found_at_driver_start(estado)
         aviso = tr(AVISO_KERNEL) if estado.get("kernel_managed") else tr_format(
             "The driver already found {count} compute units when it started, more than the usual 24. "
-            "The BIOS or another boot program may have turned them on: change them there, or both will keep setting them.", count=temprano) if temprano else ""
-        return {"guide": {"title": "CU stability validation", "message": GUIA_VALIDACION, "detail": "Opening this guide does not change the live WGP table."}, "confirmations": confirmaciones(), "cu": estado, "presentation": asdict(presentacion), "selection": seleccion(estado, valores), "notice": aviso, "telemetry": telemetria(ctx, presentacion)}
-    except Exception as error:
-        return {"error": str(error)}
+            ('The BIOS or another boot program may have turned them on: change them '
+                'there, or both will keep setting them.'), count=temprano) if temprano else ""
+        return {"guide": {"title": tr("CU stability validation"), "message": tr(GUIA_VALIDACION),
+                          "detail": tr("Opening this guide does not change the live WGP table.")},
+                              "confirmations": confirmaciones(), "cu": estado, "presentation": asdict(presentacion),
+                                  "selection": seleccion(estado, valores), "notice": aviso, "telemetry": telemetria(ctx, presentacion)}
+    except Exception:
+        return {"error": tr("Could not read the CU map.")}
 
 
 def consultar(web, p):
@@ -116,7 +143,7 @@ def _permitir(ctx, nombre, valores=None):
     valores = valores if valores is not None else estado.get("masks") or [0]*4
     plan = seleccion(estado, valores)["availability"]
     if not plan.get(nombre):
-        raise Invalid(estado.get("privileged_backend_reason") or "CU write actions are locked until a verified root-owned backend is installed.")
+        raise Invalid(tr("CU write actions are locked until a verified root-owned backend is installed."))
 
 
 def aplicar(ctx, p, shell):
@@ -147,15 +174,36 @@ def accion(ctx, p, shell):
 
 
 def preparar(ctx, p, shell):
-    return 1, lambda: ctx.service.instalar_dependencias_bc250(components={"cu_manager"})
+    validar_sin_parametros(p)
+
+    def ejecutar():
+        _permitir(ctx, "install_umr")
+        return ctx.service.instalar_dependencias_bc250(components={"cu_manager"})
+    return 1, ejecutar
+
+
+def validar_sin_parametros(parametros):
+    from frontends.web.actions import Invalid
+    if parametros:
+        raise Invalid("params")
+
+
+def sincronizar(ctx, p, shell):
+    validar_sin_parametros(p)
+    return 1, ctx.service.obtener_estado_cu
 
 
 def estado_crudo(ctx, p, shell):
-    return 0, lambda: str((ctx.service.obtener_estado_cu_cache() or {}).get("raw") or tr("No authorized raw CU status is available yet."))
+    validar_sin_parametros(p)
+
+    def leer_estado():
+        estado = ctx.service.obtener_estado_cu_cache() or {}
+        return str(estado.get("raw") or tr("Not verified"))
+    return 0, leer_estado
 
 
 LECTURAS = {"cu": (3, leer)}
 CONSULTAS = {"cu.selection": consultar}
 ACCIONES = {"cu.apply": aplicar, "cu.save": guardar, "cu.action": accion,
             "cu.prepare": preparar, "cu.raw": estado_crudo,
-            "cu.sync": lambda ctx, p, shell: (1, ctx.service.obtener_estado_cu)}
+            "cu.sync": sincronizar}

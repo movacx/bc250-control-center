@@ -6,6 +6,7 @@ import unittest
 from types import SimpleNamespace
 
 from bc250cc.domain.gpu.oberon import OBERON_DESKTOP_PROFILES
+from frontends.tui.i18n import tr
 from frontends.web.actions import Invalid, all_actions
 from frontends.web.modulos import gpu
 from scripts.qa.web.servicio_ejemplo import ConfiguracionEjemplo, ServicioEjemplo
@@ -135,4 +136,4 @@ class PruebasGpu(unittest.TestCase):
         def falla():
             raise RuntimeError("Ejemplo de lectura fallida")
         self.ctx.service.estado_bc250 = falla
-        assert gpu.leer(self.ctx, None)["error"] == "Ejemplo de lectura fallida"
+        assert gpu.leer(self.ctx, None)["error"] == tr("Read error")

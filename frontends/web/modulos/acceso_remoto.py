@@ -12,12 +12,20 @@ from bc250cc.application.system import remote_access, web_access, web_pairing, w
 from frontends.tui.i18n import tr
 from frontends.web.actions import Invalid, choice, flag
 
-AVISO_FIREWALL = "Allow this web port only from the connected private networks? Existing firewall rules are preserved. Administrator authorization is required."
-AVISO_NOMBRE = "Repair local name discovery and lookup? This may install Avahi and its resolver module, enable the Avahi service and update the system resolver configuration. A configuration backup is saved and failed resolver changes are reverted. Administrator authorization is required."
+AVISO_FIREWALL = (
+    "Allow this web port only from the connected private networks? Existing firewall rules are preserved. "
+    "Administrator authorization is required."
+)
+AVISO_NOMBRE = (
+    "Repair local name discovery and lookup? This may install Avahi and its resolver module, enable the Avahi service "
+    "and update the system resolver configuration. A configuration backup is saved and failed resolver changes are reverted. "
+    "Administrator authorization is required."
+)
 AVISO_SESION = "A paired device keeps hardware control until you disconnect it or create a new access key."
 MENSAJES_NOMBRE = {
     "ready": "The local address works on this computer. Other devices must support local network name resolution.",
-    "resolver_failed": "The local address is advertised, but this computer cannot resolve it. Use the numeric address or repair name resolution.",
+    "resolver_failed": ("The local address is advertised, but this computer cannot resolve it. "
+                        "Use the numeric address or repair name resolution."),
     "publication_failed": "The local address is not advertised yet. Use the numeric address or repair local name discovery.",
     "conflict": "The local address points to another device. Use the numeric address.",
     "unavailable": "Local name resolution could not be checked. Use the numeric address.",
@@ -59,6 +67,7 @@ def dispositivo(item):
     permanente = web_access.is_permanent(item) and not item.get("duration_seconds")
     return {"id": item["id"], "name": " · ".join(filter(None, (plataforma, navegador))),
         "address": item.get("address") or "—", "control": bool(item.get("control")),
+        "approved": bool(item.get("control") and web_access.is_permanent(item)),
         "permanent": permanente, "seen_text": fecha(item.get("seen")), "created_text": fecha(item.get("created")),
         "expiry_text": tr("Permanent") if permanente else fecha(web_access.deadline(item)),
         "label": "Active" if item.get("seen") and time.time() - float(item["seen"]) <= 15 else "Idle"}
@@ -125,6 +134,9 @@ def configurar(ctx, p, shell):
     def ejecutar():
         api = servicio(ctx)
         if campo == "autostart":
+            inicio = api.status().get("autostart") or {}
+            if not inicio.get("supported") or inicio.get("foreign"):
+                raise Invalid(tr("Not available here"))
             api.set_autostart(valor)
         elif campo == "lan":
             api.configure(lan=valor, tls=True)
@@ -201,6 +213,8 @@ def configurar_ssh(ctx, p, shell):
 LECTURAS = {"remote": (3, leer)}
 def certificado(web, p):
     """El certificado público de la autoridad local; la clave privada nunca sale de la placa."""
+    if p and p != {"name": "remote.certificate"}:
+        raise Invalid("params")
     ruta = servicio(web.ctx).trust_certificate()
     return {"text": ruta.read_text(encoding="ascii"), "filename": "BC250-local-authority.crt"}
 

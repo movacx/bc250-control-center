@@ -85,7 +85,8 @@ private fun PasoOperacion(estado: EstadoExtras, paso: JsonObject) {
             Boton(t("Cancel"), ::cerrar)
             if (paso.texto("kind") == "confirm") {
                 val clase = if (paso.logico("danger")) ClaseBoton.PELIGRO else ClaseBoton.PRINCIPAL
-                Boton(t("Continue"), estado::ejecutarConfirmado, clase = clase)
+                Boton(t("Continue"), estado::ejecutarConfirmado, clase = clase,
+                    activo = estado.aplicacion.puedeControlar && estado.aplicacion.trabajo.terminado)
             }
         }
     }

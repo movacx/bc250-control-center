@@ -6,13 +6,13 @@ from dataclasses import asdict
 from pathlib import Path
 
 from bc250cc.application.gpu.diagnostics import present_gpu_diagnostics
+from bc250cc.application.gpu.range_policy import RangeEvidence, validate_gpu_range
 from bc250cc.application.gpu.service_action import plan_gpu_service_action
 from bc250cc.application.gpu.voltage_apply import plan_voltage_apply
 from bc250cc.application.gpu.voltage_lab_state import build_voltage_lab_state
 from bc250cc.application.gpu.voltage_table import build_voltage_table_plan
 from bc250cc.domain.gpu.oberon import (
     OBERON_DESKTOP_PROFILES,
-    require_oberon_safe_profile,
 )
 from bc250cc.domain.gpu.voltage_profiles import (
     CUSTOM_VOLTAGE_MAX_MV,
@@ -84,7 +84,7 @@ def leer(ctx, live):
         diagnosticos = present_gpu_diagnostics(estado, detailed=True)
         def dicho(texto):
             return texto.template if texto.literal else tr_format(texto.template, **dict(texto.values))
-        filas = [{"label": clave, "value": dicho(linea.value), "detail": dicho(linea.detail)}
+        filas = [{"label": tr(clave), "value": dicho(linea.value), "detail": dicho(linea.detail)}
                  for clave, linea in (("Device", diagnosticos.device), ("Driver", diagnosticos.driver),
                                       ("Configuration", diagnosticos.config), ("Voltage curve", diagnosticos.curve),
                                       ("Missing voltage", diagnosticos.missing), ("Duplicate frequencies", diagnosticos.duplicates),
@@ -103,13 +103,20 @@ def leer(ctx, live):
              "Cyan is not answering" if sin_respuesta else "Persisted on hardware"),
         ]
         lecturas = [{"label": tr(nombre), "value": valor, "detail": tr(nota)} for nombre, valor, nota in fichas]
-        return {**estado, "tiles": lecturas, "empty": not bool(estado), "opening_level": apertura, "profiles": tarjetas, "ceiling": techo, "voltage_lab": asdict(lab),
-                "fix_labels": {"metrics": governor_fix_label("metrics"), "frequency": governor_fix_label("frequency")},
-                "active_points": tr_format("{active} of {total} in config.toml", active=sum(f <= techo for f, _v in lab.points), total=len(lab.points)),
-                "service_plans": planes_servicio(estado), "diagnostics": filas, "rail": [{"frequency": f, "voltage": v} for f, v in GOVERNOR_DEFAULT_VOLTAGES.items()],
-                "minimum_mv": CUSTOM_VOLTAGE_MIN_MV, "maximum_mv": CUSTOM_VOLTAGE_MAX_MV}
-    except Exception as error:
-        return {"error": str(error)}
+        return {
+            **estado, "tiles": lecturas, "empty": not bool(estado), "opening_level": apertura,
+            "profiles": tarjetas, "ceiling": techo, "voltage_lab": asdict(lab),
+            "fix_labels": {"metrics": governor_fix_label("metrics"), "frequency": governor_fix_label("frequency")},
+            "active_points": tr_format(
+                "{active} of {total} in config.toml",
+                active=sum(f <= techo for f, _v in lab.points), total=len(lab.points),
+            ),
+            "availability": disponibilidad(estado), "service_plans": planes_servicio(estado), "diagnostics": filas,
+            "rail": [{"frequency": f, "voltage": v} for f, v in GOVERNOR_DEFAULT_VOLTAGES.items()],
+            "minimum_mv": CUSTOM_VOLTAGE_MIN_MV, "maximum_mv": CUSTOM_VOLTAGE_MAX_MV,
+        }
+    except Exception:
+        return {"error": tr("Read error")}
 
 
 def planes_servicio(estado):
@@ -130,7 +137,8 @@ def laboratorio(web, p):
         raise Invalid("level")
     if nivel not in range(-1, 7):
         raise Invalid("level")
-    lab = build_voltage_lab_state(web.ctx.service.estado_bc250())
+    estado = web.ctx.service.estado_bc250() or {}
+    lab = build_voltage_lab_state(estado)
     personalizados = dict(lab.custom_defaults)
     if p.get("values"):
         from frontends.web.actions import gpu_voltage_custom
@@ -156,23 +164,39 @@ def laboratorio(web, p):
         profile_frequencies=lab.profile_frequencies, current_voltages=dict(lab.current_voltages),
         custom_values=personalizados, is_oberon=lab.is_oberon)
     modificados = sum(v.proposed != v.current for v in tabla.rows)
-    return {"rows": [asdict(v) for v in tabla.rows], "available": plan.available and not lab.is_oberon and not plan.violation,
-            "changed": modificados, "peak": plan.maximum_voltage, **confirmacion_voltaje(nivel),
-            "error": tr("The voltage curve decreases while frequency rises. No profile will be applied until the TOML is corrected and the governor is restarted.") if plan.violation else "",
-            "detail": tr_format(tabla.detail_template, **dict(tabla.detail_values))}
+    error = ""
+    if plan.violation:
+        error = tr(
+            "The voltage curve decreases while frequency rises. No profile will be applied until the TOML "
+            "is corrected and the governor is restarted."
+        )
+    elif not lab.is_oberon and not disponibilidad(estado)["voltage"]:
+        error = tr("The Cyan governor must be active before changing its voltage curve.")
+    return {
+        "rows": [asdict(v) for v in tabla.rows],
+        "available": plan.available and disponibilidad(estado)["voltage"] and not plan.violation,
+        "changed": modificados, "peak": plan.maximum_voltage, **confirmacion_voltaje(nivel),
+        "error": error, "detail": tr_format(tabla.detail_template, **dict(tabla.detail_values)),
+    }
 
 
 def confirmacion_voltaje(nivel):
     if nivel == -1:
-        titulo = tr("Apply custom GPU voltage curve")
-        mensaje = tr("Only the editable frequencies shown in the table will be changed. A timestamped TOML backup is created, the governor restarts, and the previous D-Bus range is restored.")
+        titulo = tr("Custom voltage laboratory")
+        mensaje = tr("Only mV voltages in existing TOML safe-points are modified.") + " " + tr(
+            "A timestamped backup is created, the governor restarts, and the previous D-Bus range is restored only after confirmation."
+        )
     elif nivel == 0:
         titulo = tr_format("Apply GPU voltage Level {level}", level=0)
-        mensaje = tr("This restores every packaged original voltage and disables the +2000 MHz TOML points. If the current range exceeds 2000 MHz, it is safely limited after the governor restarts. A backup is created first.")
+        mensaje = tr(('This restores every packaged original voltage and disables the +2000 MHz TOML points. If the '
+            'current range exceeds 2000 MHz, it is safely limited after the governor restarts. A backup is '
+            'created first.'))
     else:
         titulo = tr_format("Apply GPU voltage Level {level}", level=nivel)
-        mensaje = tr_format("This restores the complete packaged governor curve, then adds +{added} mV to every safe-point from {start} MHz. A backup is created before the governor restarts.", added=nivel*10, start=2050)
-    return {"confirmation": {"title": titulo, "message": mensaje + " " + tr("Stop every game, benchmark, and 3D workload before continuing.")}}
+        mensaje = tr_format(('This restores the complete packaged governor curve, then adds +{added} mV to every safe-point '
+            'from {start} MHz. A backup is created before the governor restarts.'), added=nivel*10, start=2050)
+    return {"confirmation": {"title": titulo,
+        "message": mensaje + " " + tr("Stop every game, benchmark, and 3D workload before continuing.")}}
 
 
 def configuracion(web, p):
@@ -193,6 +217,68 @@ def configuracion(web, p):
             "{path} does not exist. Install or repair the selected governor before opening its configuration.", path=str(ruta))}
 
 
+def disponibilidad(estado):
+    conflictos = bool((estado.get("tools") or {}).get("incompatible_gpu_governors"))
+    funcionando = estado.get("service_active") == "active"
+    arranque = str(estado.get("service_enabled") or "").lower() in ("enabled", "enabled-runtime", "static")
+    return {
+        "range": bool(estado.get("range_control_ok", estado.get("dbus_ok", estado.get("dbus_connected")))) and not conflictos,
+        "high_points": bool((estado.get("high_frequency_points") or {}).get("available")) and not conflictos,
+        "voltage": funcionando and estado.get("governor_backend") != "oberon-governor",
+        "restart": funcionando,
+        "start": not (funcionando and arranque),
+        "stop": funcionando or arranque,
+        "save_boot": (
+            estado.get("governor_backend") != "oberon-governor"
+            and 0 < int(estado.get("current_min") or 0) <= int(estado.get("current_max") or 0)
+        ),
+    }
+
+
+def evidencia_rango(estado):
+    lab = build_voltage_lab_state(estado)
+    oberon = lab.is_oberon
+    permitido = int(estado.get("allowed_max") or estado.get("config_max_frequency") or estado.get("current_max") or 2000)
+    if (estado.get("high_frequency_points") or {}).get("enabled"):
+        permitido = max(permitido, max((f for f, _ in lab.points), default=0))
+    return RangeEvidence(
+        backend=estado.get("governor_backend") or "",
+        allowed_min=1000 if oberon else int(estado.get("allowed_min", 300)),
+        allowed_max=2000 if oberon else permitido,
+        safe_frequencies=tuple(f for f, _ in lab.points),
+        safe_voltages=dict(lab.current_voltages),
+        packaged_voltages=GOVERNOR_DEFAULT_VOLTAGES,
+        lab_frequencies=tuple(GOVERNOR_DEFAULT_VOLTAGES),
+        voltage_errors=tuple(estado.get("safe_points_voltage_errors") or ()),
+        duplicate_frequencies=tuple(estado.get("safe_points_duplicate_frequencies") or ()),
+        missing_voltage=tuple(item["frequency"] for item in estado.get("safe_points_missing_voltage") or ()),
+        config_error=str(estado.get("safe_points_error") or ""),
+        current_max=int(estado.get("current_max") or 0),
+        actual_clock=int(estado.get("sclk_actual") or 0),
+        gpu_busy=estado.get("gpu_busy"),
+        set_method=(estado.get("cyan_telemetry") or {}).get("set_method") or "smu",
+    )
+
+
+def techo_de(estado):
+    altos = estado.get("high_frequency_points") or {}
+    return min(2400 if altos.get("enabled") else 2000, altos.get("ceiling_mhz") or 2400)
+
+
+def validar_rango(estado, bajo, alto):
+    from frontends.web.actions import Invalid
+    if not disponibilidad(estado)["range"]:
+        raise Invalid(tr("Not connected"))
+    # El tope de la página: 2000 MHz mientras los puntos altos sigan comentados, y lo que admita el kernel.
+    if estado.get("governor_backend") != "oberon-governor" and alto > techo_de(estado):
+        raise Invalid(tr_format("Current ceiling {ceiling} MHz per config.toml.", ceiling=techo_de(estado)))
+    decision = validate_gpu_range(bajo, alto, evidencia_rango(estado))
+    if not decision.valid:
+        aviso = decision.notice
+        raise Invalid(tr_format(aviso.message, **dict(aviso.values)))
+    return decision
+
+
 def revisar_rango(web, p):
     from frontends.web.actions import Invalid, number
     try:
@@ -201,25 +287,110 @@ def revisar_rango(web, p):
         raise Invalid("range")
     bajo, alto = number(parametros, "min", "gpu"), number(parametros, "max", "gpu")
     estado = web.ctx.service.estado_bc250() or {}
-    if bajo > alto:
-        raise Invalid("max")
+    decision = validar_rango(estado, bajo, alto)
     oberon = estado.get("governor_backend") == "oberon-governor"
     if oberon:
-        require_oberon_safe_profile(bajo, alto)
-        mensaje = tr("Oberon reloads two YAML endpoints and restarts its service. Control Center uses the upstream 1000 mV baseline for both endpoints; board stability still varies.")
+        mensaje = tr(
+            "This updates Oberon's two YAML endpoints to the upstream 1000 mV baseline and restarts the service if it is active."
+        )
     else:
-        high = estado.get("high_frequency_points") or {}
-        techo = min(2400 if high.get("enabled") else 2000, high.get("ceiling_mhz") or 2400)
-        if bajo < 500 or alto > techo:
-            raise Invalid("range")
-        mensaje = tr("The governor rewrites the range over D-Bus and saves persistence. If the board hangs, it reverts to the last valid range on reboot.")
-        if alto > 2000:
-            mensaje += "\n" + tr_format("You are above the safe ceiling ({ceiling} MHz). The board may hang and need a cold reboot.", ceiling=2000)
-            if (estado.get("cyan_telemetry") or {}).get("set_method") == "kernel":
-                mensaje += "\n" + tr("The Kernel method cannot go past 2000 MHz on a stock BC-250 driver. Switch the governor method to SMU, or use a patched kernel.")
+        mensaje = tr("This updates only the active Cyan range through D-Bus. Persistent TOML limits are left unchanged; "
+                     "advanced safe-points are loaded only when explicitly enabled.")
+    if not oberon and alto > int(estado.get("allowed_max") or 2000):
+        mensaje += "\n\n" + tr(
+            "Cyan will restart once to load the enabled high safe-points, then the requested D-Bus range will be verified."
+        )
+    if alto >= 2000:
+        mensaje += "\n\n" + tr(
+            "High-frequency confirmation: this 2000 MHz range changes live GPU hardware state. "
+            "Verify cooling and stability before applying it."
+        )
+    for aviso in decision.warnings:
+        mensaje += "\n\n" + tr_format(aviso.message, **dict(aviso.values))
+        if aviso.details:
+            mensaje += "\n" + aviso.details
     return {"title": tr_format("Apply {minimum} – {maximum} MHz", minimum=bajo, maximum=alto),
-            "message": mensaje + "\n" + tr("Stop every game, benchmark, and 3D workload before continuing."),
-            "risk": alto > 2000, "min": bajo, "max": alto}
+            "message": mensaje, "risk": alto >= 1850 or bajo >= 2000, "min": bajo, "max": alto}
+
+
+def aplicar_rango(ctx, p, shell):
+    from frontends.web.actions import number
+    bajo, alto = number(p, "min", "gpu"), number(p, "max", "gpu")
+
+    def ejecutar():
+        validar_rango(ctx.service.estado_bc250() or {}, bajo, alto)
+        return ctx.service.aplicar_perfil_gpu(bajo, alto)
+    return 2 if alto >= 1850 or bajo >= 2000 else 1, ejecutar
+
+
+def aplicar_voltaje(ctx, p, shell):
+    from frontends.web.actions import Invalid, number
+    nivel = number(p, "level")
+
+    def ejecutar():
+        estado = ctx.service.estado_bc250() or {}
+        validar_voltaje_disponible(estado)
+        lab = build_voltage_lab_state(estado)
+        plan = plan_voltage_apply(
+            level=nivel, editable_frequencies=lab.editable_frequencies, profile_frequencies=lab.profile_frequencies,
+            current_voltages=dict(lab.current_voltages), is_oberon=lab.is_oberon,
+        )
+        if lab.is_oberon or not plan.available or plan.violation:
+            raise Invalid(tr("No editable voltage points"))
+        return ctx.service.aplicar_laboratorio_voltaje_gpu(nivel)
+    return 2, ejecutar
+
+
+def validar_voltaje_disponible(estado):
+    from frontends.web.actions import Invalid
+    if not disponibilidad(estado)["voltage"]:
+        raise Invalid(tr("The Cyan governor must be active before changing its voltage curve."))
+
+
+def aplicar_voltaje_personalizado(ctx, p, shell):
+    from frontends.web.actions import gpu_voltage_custom
+    nivel, trabajo = gpu_voltage_custom(ctx, p, shell)
+
+    def ejecutar():
+        validar_voltaje_disponible(ctx.service.estado_bc250() or {})
+        return trabajo()
+    return nivel, ejecutar
+
+
+def compatibilidad(ctx, p, shell):
+    from frontends.web.actions import Invalid, gpu_compat
+    nivel, trabajo = gpu_compat(ctx, p, shell)
+
+    def ejecutar():
+        estado = ctx.service.estado_bc250() or {}
+        if estado.get("governor_backend") == "oberon-governor":
+            raise Invalid(tr("Not available"))
+        return trabajo()
+    return nivel, ejecutar
+
+
+def puntos_altos(ctx, p, shell):
+    from frontends.web.actions import Invalid, flag
+    habilitar = flag(p, "enable")
+
+    def ejecutar():
+        estado = ctx.service.estado_bc250() or {}
+        if estado.get("governor_backend") == "oberon-governor" or not disponibilidad(estado)["high_points"]:
+            raise Invalid(tr("Not available"))
+        return ctx.service.alternar_puntos_gpu_altos(habilitar)
+    return 2, ejecutar
+
+
+def guardar_arranque(ctx, p, shell):
+    from frontends.web.actions import Invalid
+    if p:
+        raise Invalid("params")
+
+    def ejecutar():
+        if not disponibilidad(ctx.service.estado_bc250() or {})["save_boot"]:
+            raise Invalid(tr("Active range unavailable"))
+        return ctx.service.guardar_rango_gpu_arranque()
+    return 1, ejecutar
 
 
 def exportar(ctx, p, shell):
@@ -229,7 +400,11 @@ def exportar(ctx, p, shell):
     )
     def trabajo():
         valores = perfiles(ctx, ctx.service.estado_bc250())
-        presente = export_and_check_plugin(ctx.service, lambda: ctx.service.exportar_perfiles_gpu_decky(valores))
+
+        def exportar_perfiles():
+            return ctx.service.exportar_perfiles_gpu_decky(valores)
+
+        presente = export_and_check_plugin(ctx.service, exportar_perfiles)
         return export_message(presente)
     return 1, trabajo
 
@@ -241,6 +416,10 @@ def servicio(ctx, p, shell):
         estado = ctx.service.estado_bc250() or {}
         plan = plan_gpu_service_action(accion, backend=estado.get("governor_backend"),
             incompatible_governors=(estado.get("tools") or {}).get("incompatible_gpu_governors") or ())
+        permitida = {"reiniciar": "restart", "activar": "start", "desactivar": "stop"}[accion]
+        if not disponibilidad(estado)[permitida]:
+            from frontends.web.actions import Invalid
+            raise Invalid(tr("Not available"))
         return ctx.service.controlar_governor(plan.action, plan.has_conflicts, plan.has_conflicts)
     return 2 if accion == "desactivar" else 1, trabajo
 
@@ -248,4 +427,8 @@ def servicio(ctx, p, shell):
 LECTURAS = {"gpu": (3, leer)}
 CONSULTAS = {"gpu.laboratorio": laboratorio, "gpu.config": configuracion, "gpu.range": revisar_rango}
 AJUSTES = {"gpu.profile": guardar_perfil}
-ACCIONES = {"gpu.export_decky": exportar, "gpu.service": servicio}
+ACCIONES = {
+    "gpu.export_decky": exportar, "gpu.service": servicio, "gpu.profile": aplicar_rango,
+    "gpu.voltage": aplicar_voltaje, "gpu.voltage_custom": aplicar_voltaje_personalizado,
+    "gpu.compat": compatibilidad, "gpu.high_points": puntos_altos, "gpu.save_boot": guardar_arranque,
+}

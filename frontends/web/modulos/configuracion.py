@@ -34,8 +34,6 @@ from frontends.desktop.i18n import (
     SUPPORTED_LANGUAGES,
     daemon_details,
     project_overview,
-    tr,
-    tr_format,
 )
 from frontends.desktop.theme import (
     ACCENTS,
@@ -44,6 +42,7 @@ from frontends.desktop.theme import (
     TERMINAL_THEMES,
     THEMES,
 )
+from frontends.tui.i18n import tr, tr_format
 from frontends.web.actions import Invalid, choice, flag
 
 SERVICIO_DAEMON = "bc250-control-centerd.service"
@@ -103,10 +102,11 @@ def preferencias(config: dict) -> dict:
 
 
 def guardar_preferencia(ctx, p) -> None:
+    validar_campos(p, {"key", "value"})
     clave = choice(p, "key", tuple(PREFERENCIAS))
     admitidos, inicial = PREFERENCIAS[clave]
     valor = p.get("value")
-    if not isinstance(valor, type(inicial)) or valor not in admitidos:
+    if type(valor) is not type(inicial) or valor not in admitidos:
         raise Invalid("value")
     config = ctx.settings.read_local_config()
     nuevas = {**preferencias(config), clave: valor}
@@ -396,8 +396,8 @@ def _opcion_memoria(ctx) -> tuple[str, str, bool, bool]:
 
 def _systemctl(*argumentos: str, espera: int = 5):
     if detect_init_manager().kind != "systemd":
-        raise RuntimeError("The optional daemon requires an active systemd user manager; live hardware monitoring in the "
-                           "open application remains available.")
+        raise RuntimeError(tr("The optional daemon requires an active systemd user manager; "
+                              "live hardware monitoring in the open application remains available."))
     return SystemdUserService().command(*argumentos, timeout=espera)
 
 
@@ -465,7 +465,8 @@ def telemetria(ctx, p) -> list:
                     "ajuste": "settings.daemon_interval"}),
               fila("Service", "Turn the daemon on or off for this user.", botones(
                   boton("Enable", accion("settings.daemon", "Enable optional daemon", AVISO_DAEMON[True], enable=True), activo=hay_systemd),
-                  boton("Disable", accion("settings.daemon", "Disable optional daemon", AVISO_DAEMON[False], enable=False), activo=hay_systemd),
+                  boton("Disable", accion("settings.daemon", "Disable optional daemon", AVISO_DAEMON[False], enable=False),
+                        activo=hay_systemd),
                   boton("Details", texto("Optional daemon", daemon_details()))))),
     ]
 
@@ -480,7 +481,8 @@ def _carpetas(ctx) -> list[tuple[str, str, str]]:
     return [
         ("Configuration folder", "Shared application configuration used by the GUI and optional daemon.", carpeta),
         ("Data folder", "Tools, helper scripts and releases the application manages for you.", str(datos / "bc250-control-center")),
-        ("State and logs", "Application log, workflow logs, saved reports and the list of sent reports.", str(estado / "bc250-control-center")),
+        ("State and logs", "Application log, workflow logs, saved reports and the list of sent reports.",
+         str(estado / "bc250-control-center")),
         ("System data", "Data the application keeps for the whole system.", "/var/lib/bc250-control-center"),
     ]
 
@@ -494,8 +496,8 @@ def _contenido(carpeta: str) -> str:
         elementos = sorted(ruta.iterdir(), key=lambda elemento: (not elemento.is_dir(), elemento.name))[:200]
         lineas = [f"{elemento.name}/" if elemento.is_dir() else f"{elemento.name}   {elemento.stat().st_size // 1024} KiB"
                   for elemento in elementos]
-    except OSError as error:
-        return str(error.strerror or error)
+    except OSError:
+        return tr("Unavailable")
     return "\n".join([carpeta, "", *lineas])
 
 
@@ -528,7 +530,8 @@ def repositorios(ctx, p) -> list:
     from frontends.desktop.core.official_repositories import OFFICIAL_REPOSITORIES
 
     archivados = {"duggasco/bc250-40cu-unlock"}
-    filas = [{"numero": f"{numero:02d}", "titulo": tr(nombre), "detalle": direccion, "marca": tr("Archived") if direccion in archivados else "",
+    filas = [{"numero": f"{numero:02d}", "titulo": tr(nombre), "detalle": direccion,
+              "marca": tr("Archived") if direccion in archivados else "",
               "boton": boton("Open", enlace(url))} for numero, (nombre, direccion, url) in enumerate(OFFICIAL_REPOSITORIES, 1)]
     return [parrafo("BC250 Control Center does not own these tools. They are installed, cloned, or used as credited reference "
                     "implementations according to each integration.", "descripcion"),
@@ -574,6 +577,7 @@ def consultar(web, parametros) -> dict:
 # -- acciones ---------------------------------------------------------------------------------------
 
 def cambiar_gobernador(ctx, p, shell):
+    validar_campos(p, {"value"})
     elegido = choice(p, "value", GOBERNADORES)
 
     def cambiar():
@@ -584,20 +588,46 @@ def cambiar_gobernador(ctx, p, shell):
     return (2 if elegido != "auto" else 1), cambiar
 
 
+def validar_campos(parametros, campos):
+    if set(parametros) != campos:
+        raise Invalid("params")
+
+
 def servicio_telemetria(ctx, p, shell):
+    validar_campos(p, {"action"})
     operacion = choice(p, "action", ("install", "uninstall"))
-    return 1, lambda: ctx.service.gestionar_apu_telemetry(operacion)
+
+    def ejecutar():
+        estado = _telemetria_apu()
+        retirar = estado.get("managed") and estado.get("state") != "external"
+        instalar = estado.get("supported") and not estado.get("managed") and estado.get("state") != "external"
+        if not (retirar if operacion == "uninstall" else instalar):
+            raise Invalid(tr("Not available here"))
+        return ctx.service.gestionar_apu_telemetry(operacion)
+    return 1, ejecutar
 
 
 def controlador(ctx, p, shell):
+    validar_campos(p, {"key", "action"})
     clave, operacion = choice(p, "key", ("vrm_sensor", "vram_sensor")), choice(p, "action", ("install", "remove"))
-    return 1, lambda: ctx.service.manage_accessory(clave, operacion)
+
+    def ejecutar():
+        _, disponible = describir_controlador(clave, _controladores().get(clave) or {})
+        esperada = "install" if disponible == "update" else disponible
+        if operacion != esperada:
+            raise Invalid(tr("Not available here"))
+        return ctx.service.manage_accessory(clave, operacion)
+    return 1, ejecutar
 
 
 def memoria_al_arrancar(ctx, p, shell):
+    validar_campos(p, {"enable"})
     activar = flag(p, "enable")
 
     def cambiar():
+        estado, _, disponible, _ = _opcion_memoria(ctx)
+        if not disponible:
+            raise Invalid(tr(estado))
         preparacion = (ctx.service.estado_herramientas_bc250() or {}).get("system_setup") or {}
         argumentos = (preparacion.get("kernel_options") or {}).get("arguments") or {}
         administradas = {clave for clave, valor in argumentos.items() if (valor or {}).get("managed")}
@@ -610,17 +640,19 @@ def memoria_al_arrancar(ctx, p, shell):
 
 
 def daemon(ctx, p, shell):
+    validar_campos(p, {"enable"})
     activar = flag(p, "enable")
 
     def cambiar():
         resultado = _systemctl("enable" if activar else "disable", "--now", SERVICIO_DAEMON, espera=25)
         if resultado.returncode != 0:
-            raise RuntimeError((resultado.stderr or resultado.stdout or "").strip())
+            raise RuntimeError(tr("Failed"))
         return tr("The optional daemon is enabled." if activar else "The optional daemon is disabled.")
     return 1, cambiar
 
 
 def intervalo_daemon(ctx, p) -> None:
+    validar_campos(p, {"value"})
     valor = p.get("value")
     if valor not in ("1", "2", "5", "10"):
         raise Invalid("value")
@@ -651,8 +683,8 @@ def novedades(web, parametros) -> dict:
     try:
         publicada = fetch_latest_release()
         plan = plan_update(publicada, detect_install_source(), os_family=os_family(web.ctx)[0])
-    except Exception as error:  # noqa: BLE001 - sin red se dice y ya
-        return {"installed": __version__, "error": tr(str(error))}
+    except Exception:  # noqa: BLE001 - sin red se dice y ya
+        return {"installed": __version__, "error": tr("Unavailable")}
     return {"installed": __version__, "version": str(publicada.version), "notes": str(getattr(publicada, "notes", "") or ""),
             "page": str(publicada.page_url), "kind": str(plan.kind), "reason": tr(str(getattr(plan, "reason", "") or "")),
             "newer": str(publicada.version) != __version__}
@@ -698,7 +730,8 @@ def bienvenida(web, parametros) -> dict:
         if cantidad:
             frase = "{module} · 1 stop" if cantidad == 1 else "{module} · {count} stops"
             fichas.append(tr_format(frase, module=tr(nombre), count=cantidad))
-    return {"idiomas": [{"valor": codigo, "nombre": tr("Automatic") if codigo == "auto" else nombre} for codigo, nombre in LANGUAGE_OPTIONS],
+    return {"idiomas": [{"valor": codigo, "nombre": tr("Automatic") if codigo == "auto" else nombre}
+                        for codigo, nombre in LANGUAGE_OPTIONS],
             "idioma": p["language"], "unidad": p["temperature_unit"], "barra": p["sidebar_collapsed"],
             "mando": p["gamepad_navigation"], "temas": temas, "estilo": estilo, "acento": acento,
             "densidad": densidad, "escala": escala, "terminal": terminal(web.ctx, p)[2]["bloques"][0], "paradas": fichas}

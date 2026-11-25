@@ -107,6 +107,12 @@ fun PaginaCpu(aplicacion: Aplicacion) {
     }
     val datos = aplicacion.lectura("cpu")
     PaginaDesplazable {
+        if (datos.isEmpty()) {
+            Leyenda(t("Waiting for data…"))
+        }
+        if (datos.texto("error").isNotEmpty()) {
+            Leyenda(t("Read error"))
+        }
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             if (maxWidth >= 900.dp) {
                 DosColumnas(aplicacion, datos)
@@ -160,7 +166,7 @@ private fun TarjetaConfiguracion(aplicacion: Aplicacion, datos: JsonObject) {
             texto = t(nombre),
             alPulsar = ::aplicar,
             clase = ClaseBoton.PRINCIPAL,
-            activo = perfil != null && aplicacion.trabajo.terminado,
+            activo = perfil != null && aplicacion.puedeControlar && aplicacion.trabajo.terminado,
             alto = 44.dp,
             tamano = 13,
             peso = 780,
@@ -175,7 +181,7 @@ private fun pedirAplicacion(aplicacion: Aplicacion, perfil: PerfilCpu, escalaMan
         "temperature" to JsonPrimitive(perfil.temperatura),
         "manual" to JsonPrimitive(escalaManual),
     )
-    val detalle: String
+    var detalle: String
     if (escalaManual) {
         parametros["scale"] = JsonPrimitive(escala)
         detalle = "${perfil.frecuencia} MHz · ${perfil.temperatura} °C · $escala"
@@ -183,6 +189,21 @@ private fun pedirAplicacion(aplicacion: Aplicacion, perfil: PerfilCpu, escalaMan
         parametros["vid"] = JsonPrimitive(perfil.voltaje)
         detalle = "${perfil.frecuencia} MHz · ${perfil.voltaje} mV · ${perfil.temperatura} °C"
     }
+    val aviso = if (escalaManual) {
+        t(
+            "This stress-tests the exact scale below the way automatic detection does: " +
+                "from 3500 MHz up to the frequency shown, 100 MHz at a time, ten seconds of " +
+                "full load each, stopping at the first step that throttles. The highest step " +
+                "that held stays applied. An unstable value can still freeze or reset the " +
+                "board. Save open work before continuing.",
+        )
+    } else {
+        t(
+            "This operation may freeze or reset the board when the frequency and VID do not match your silicon. " +
+                "Save open work and stop immediately if visual artifacts appear.",
+        )
+    }
+    detalle = aviso + "\n\n" + detalle
     val titulo = if (escalaManual) "Apply temporary OC + manual scale" else "Apply configuration + automatic scale"
     aplicacion.preguntarYEjecutar("cpu.apply", t(titulo), detalle, parametros, peligro = true)
 }
@@ -564,22 +585,34 @@ private fun gigahercios(megahercios: Double?): String {
 @Composable
 private fun PanelArranque(aplicacion: Aplicacion, datos: JsonObject) {
     val habilitada = datos.objeto("persistence").logico("enabled")
-    val libre = aplicacion.trabajo.terminado
+    val persistente = datos.objeto("persistent")
+    val disponible = persistente.isNotEmpty() && persistente.logico("persistence_supported", true)
+    val libre = aplicacion.puedeControlar && aplicacion.trabajo.terminado
 
     fun guardar() {
-        val detalle = datos.objeto("tuning").texto("applied_value")
-        aplicacion.preguntarYEjecutar("cpu.persist", t("Save for boot"), detalle)
+        val detalle = t(
+            "This enables the exact CPU configuration shown below at boot. " +
+                "The detector result remains unchanged; a manual scale is installed only when that exact value was previously " +
+                "applied live against the same detection run. " +
+                "A successful live apply does not prove long-term stability, so continue only after testing this exact " +
+                "configuration with your real workload.",
+        ) + "\n" + datos.objeto("tuning").texto("detection_value")
+        aplicacion.preguntarYEjecutar("cpu.persist", t("Save for boot"), detalle, peligro = true)
     }
 
     fun quitar() {
-        aplicacion.preguntarYEjecutar("cpu.persist_off", t("Remove from boot"), peligro = true)
+        aplicacion.preguntarYEjecutar("cpu.persist_off", t("Remove from boot"),
+            t("This stops and disables bc250-smu-oc.service. The existing configuration file is preserved for inspection."),
+            peligro = true,
+        )
     }
 
     SubPanel {
         TituloPanel(t("Boot persistence"))
         Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(8.dp), Alignment.CenterVertically) {
-            Boton(t("Save for boot"), ::guardar, Modifier.weight(194f), ClaseBoton.PRINCIPAL, libre, peso = 740)
-            Boton(t("Review persistence"), { aplicacion.ejecutar("cpu.review", t("Review persistence")) }, Modifier.weight(181f), activo = libre)
+            Boton(t("Save for boot"), ::guardar, Modifier.weight(194f), ClaseBoton.PRINCIPAL, libre && disponible, peso = 740)
+            Boton(t("Review persistence"), { aplicacion.ejecutar("cpu.review", t("Review persistence")) },
+                Modifier.weight(181f), activo = libre)
             Boton(t("Remove from boot"), ::quitar, Modifier.weight(180f), ClaseBoton.PELIGRO, libre && habilitada, 36.dp, peso = 760)
         }
     }
@@ -589,11 +622,12 @@ private fun PanelArranque(aplicacion: Aplicacion, datos: JsonObject) {
 private fun PanelDesbloqueo(aplicacion: Aplicacion, datos: JsonObject) {
     val paleta = ColoresActuales.current
     val controles = datos.objeto("unlock_controls")
-    val libre = aplicacion.trabajo.terminado
+    val libre = aplicacion.puedeControlar && aplicacion.trabajo.terminado
     val instalado = controles.logico("installed")
     var modo by remember { mutableStateOf("") }
     val persistente = if (modo.isEmpty()) instalado else modo == "persistent"
-    var mascara by remember { mutableIntStateOf(MASCARA_NORMAL) }
+    val mascaraDetectada = datos.entero("board_mask", MASCARA_NORMAL)
+    var mascara by remember(mascaraDetectada) { mutableIntStateOf(mascaraDetectada) }
     var forzar by remember { mutableStateOf(false) }
     val ofrecido = controles.logico("offered")
     val permitido = libre && controles.logico(if (persistente) "persist_allowed" else "temporary_allowed")
@@ -605,7 +639,30 @@ private fun PanelDesbloqueo(aplicacion: Aplicacion, datos: JsonObject) {
             "force_mask" to JsonPrimitive(forzar),
             "mask" to JsonPrimitive(mascara),
         )
-        aplicacion.preguntarYEjecutar(nombre, accion, datos.texto("unlock_warning"), parametros, peligro = true)
+        var aviso = t(
+            "CPU core unlocking is experimental. Continue with caution and save your work before " +
+                "proceeding, because a restart is required to apply the changes. For compatibility, " +
+                "the selected GPU frequency governor will be stopped and disabled before that restart.",
+        )
+        if (persistente) {
+            aviso = t(
+                "This installs a small boot service that unlocks the two extra cores again " +
+                    "early on every cold boot, without flashing the BIOS. Each cold boot then " +
+                    "restarts once by itself, about 30 seconds. If the board cannot keep the " +
+                    "unlock, the service stops itself after two restarts. To skip it for one " +
+                    "boot, add bc250.core_unlock=0 to the kernel command line.",
+            )
+        }
+        if (forzar) {
+            aviso += "\n\n" + t(
+                "The core mask check is skipped (-f). If this board's mask is not 0x77, the " +
+                    "factory probably disabled cores that were defective, and they are enabled " +
+                    "anyway. Stress test for a few hours and check dmesg for MCE errors before " +
+                    "relying on them.",
+            )
+        }
+        aviso += "\n\n" + datos.texto("unlock_warning")
+        aplicacion.preguntarYEjecutar(nombre, accion, aviso, parametros, peligro = true)
     }
 
     fun quitarPersistencia() {

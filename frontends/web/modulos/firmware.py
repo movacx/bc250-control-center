@@ -10,6 +10,7 @@ import base64
 import hashlib
 import json
 import signal
+import struct
 import threading
 from dataclasses import asdict
 from datetime import datetime
@@ -37,7 +38,11 @@ from frontends.tui.i18n import tr, tr_format
 from frontends.web.actions import Invalid, choice, flag
 from frontends.web.modulos import temporales
 
-AVISO_CMOS = "After flashing, the board can show no picture until the CMOS is cleared: unplug it and take the coin battery out for a minute."
+AVISO_CMOS = (
+    "After flashing, the board can show no picture until the CMOS is cleared: "
+    "unplug it and take the coin battery out for a minute."
+)
+AVISO_CODEC = "Adding a logo needs liblzma 5.4 or newer, from the xz package, and this system does not have it."
 PASOS = {
     "download": "Download and verify the firmware", "logo": "Add your boot logo", "check": "Check the USB drive",
     "erase": "Erase the USB drive", "format": "Format it FAT32", "copy": "Copy the update kit", "verify": "Read back and verify every file",
@@ -83,7 +88,8 @@ def catalogo(store):
             if not disponible:
                 detalle = tr("Needs 7-Zip or bsdtar to unpack.")
             imagenes.append({"key": imagen.key, "label": imagen.label, "detail": detalle,
-                "missing": cantidad, "size": f"{cantidad / 1000 ** 2:.1f} MB" if cantidad else "", "available": disponible, "sha256": imagen.rom.sha256, "file": imagen.rom.name})
+                "missing": cantidad, "size": f"{cantidad / 1000 ** 2:.1f} MB" if cantidad else "",
+                "available": disponible, "sha256": imagen.rom.sha256, "file": imagen.rom.name})
         familias.append({"key": familia.key, "title": familia.title, "version": familia.version,
             "origin": familia.origin, "summary": tr(familia.summary), "caution": tr(familia.caution),
             "recommended": familia.recommended, "default_image": familia.image().key,
@@ -106,11 +112,11 @@ def leer(ctx, live):
                 "eligible": unidad.eligible, "blocker": tr(unidad.blocker()), "warning": tr(unidad.warning())})
         return {"board": {**asdict(estado.board), "is_bc250": estado.board.is_bc250},
             "installed": asdict(estado.installed), "drives": unidades, "families": catalogo(almacen(ctx)),
-            "default_family": DEFAULT_FAMILY.key, "steps": [{"key": k, "title": v} for k, v in PASOS.items()],
+            "default_family": DEFAULT_FAMILY.key, "steps": [{"key": clave, "title": tr(titulo)} for clave, titulo in PASOS.items()],
             "udisks": servicio(ctx, "udisks_firmware_web", udisks.available), "cmos_warning": tr(AVISO_CMOS),
-            "logo_codec": lzma1.available()}
-    except Exception as error:
-        return {"error": str(error)}
+            "logo_codec": tr(AVISO_CODEC) if lzma1.available() else ""}
+    except Exception:
+        return {"error": tr("Unavailable")}
 
 
 def seleccion(p):
@@ -131,8 +137,8 @@ def guardar_logo(ctx, p):
     try:
         datos = base64.b64decode(valor, validate=True)
         check_logo_jpeg(datos)
-    except ValueError as error:
-        raise Invalid(f"logo: {error}") from error
+    except (ValueError, IndexError, struct.error) as error:
+        raise Invalid(tr("The file is not a picture this system can read.")) from error
     temporales.guardar("logo", datos)
 
 
@@ -140,11 +146,13 @@ def logo(p, familia):
     if not flag(p, "logo"):
         return None
     if not familia.logo_replaceable:
-        raise Invalid("This firmware cannot take a custom logo. The USB gets it as published.")
+        raise Invalid(tr("This firmware cannot take a custom logo. The USB gets it as published."))
+    if lzma1.available():
+        raise Invalid(tr(AVISO_CODEC))
     try:
         datos = temporales.leer("logo")
         check_logo_jpeg(datos)
-    except (OSError, ValueError) as error:
+    except (OSError, ValueError, IndexError, struct.error) as error:
         raise Invalid("logo") from error
     return datos
 
@@ -173,7 +181,7 @@ def preparar(ctx, p, shell):
         estado = snapshot(ctx)
         unidad = next((u for u in estado.drives if identidad(u) == identificador), None)
         if unidad is None or not unidad.eligible:
-            raise Invalid(unidad.blocker() if unidad else "The selected USB drive is no longer connected.")
+            raise Invalid(tr(unidad.blocker() if unidad else "Choose a USB drive"))
         plan = plan_kit(familia, imagen, prepared=f"{datetime.now():%Y-%m-%d %H:%M}, BC250 Control Center", logo=dibujo)
         cancelado = threading.Event()
         paso_actual = [""]
@@ -183,7 +191,8 @@ def preparar(ctx, p, shell):
             if paso_actual[0] not in DESTRUCTIVOS:
                 cancelado.set()
             else:
-                print(tr("A USB drive is being written. Closing now would leave it unusable. Wait until it is ready; it takes about a minute."), flush=True)
+                print(tr("A USB drive is being written. Closing now would leave it unusable. "
+                         "Wait until it is ready; it takes about a minute."), flush=True)
         def progreso(paso, fraccion, detalle):
             paso_actual[0] = paso
             anteriores = pasos[:pasos.index(paso)]
@@ -195,7 +204,8 @@ def preparar(ctx, p, shell):
             if metodo:
                 informe = metodo(ctx.service, plan, unidad, progreso, cancelado.is_set)
             else:
-                informe = UsbPreparation(almacen(ctx), udisks.UDisksClient()).run(plan, unidad, progress=progreso, cancelled=cancelado.is_set)
+                preparacion = UsbPreparation(almacen(ctx), udisks.UDisksClient())
+                informe = preparacion.run(plan, unidad, progress=progreso, cancelled=cancelado.is_set)
                 record_prepared_kit(familia.key, familia.version, estado.board.version)
         except PreparationCancelled as error:
             raise OperationCancelled() from error

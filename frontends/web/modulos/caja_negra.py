@@ -28,10 +28,10 @@ def leer(ctx, live):
     estado = ctx.service.blackbox_estado() or {}
     # Solo sensores. No devolver directorios de la cuenta ni otros metadatos.
     return {"supported": bool(estado.get("supported")), "running": bool(estado.get("running")),
-            "state": estado.get("state", "none"), "message": ESTADOS.get(estado.get("state"), ESTADOS["none"]),
+            "state": estado.get("state", "none"), "message": tr(ESTADOS.get(estado.get("state"), ESTADOS["none"])),
             "autostart": {clave: bool((estado.get("autostart") or {}).get(clave))
                           for clave in ("supported", "enabled", "foreign")},
-            "columns": [{"key": clave, "label": titulo, "left": clave in IZQUIERDA} for titulo, clave in COLUMNS],
+            "columns": [{"key": clave, "label": tr(titulo), "left": clave in IZQUIERDA} for titulo, clave in COLUMNS],
             "rows": [{clave: str(fila.get(clave, "–")) for _, clave in COLUMNS}
                      for fila in estado.get("rows", [])]}
 
@@ -65,7 +65,7 @@ def diagnostico(web, p):
         if "loading" not in estado or refrescar and not estado["loading"]:
             estado.update(loading=True, ready=False, error="")
             threading.Thread(target=_recoger, args=(web.ctx,), daemon=True).start()
-        return {**estado, "tabs": [{"key": clave, "label": titulo} for clave, titulo in TABS]}
+        return {**estado, "tabs": [{"key": clave, "label": tr(titulo)} for clave, titulo in TABS]}
 
 
 def _recoger(ctx):
@@ -100,7 +100,7 @@ def descargar(web, p):
                 raise Invalid("Not checked yet")
             return {"filename": "bc250-diagnosis.txt", "text": estado["text"]}
     datos = leer(web.ctx, web.live)
-    encabezado = "\t".join(titulo for titulo, _ in COLUMNS)
+    encabezado = "\t".join(tr(titulo) for titulo, _ in COLUMNS)
     filas = ["\t".join(fila[clave] for _, clave in COLUMNS) for fila in datos["rows"]]
     return {"filename": "bc250-black-box.tsv", "text": "\n".join([encabezado, *filas])}
 

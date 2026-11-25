@@ -95,7 +95,8 @@ def leer(ctx, live):
     activos = cu.get("active_cus")
     if activos is None and cu.get("rows"):
         activos = sum(int(row.get("mask", 0)).bit_count() * 2 for row in cu["rows"])
-    topologia = tr_format("{cores} cores / {threads} threads", cores=cpu.get("physical_cores", "--"), threads=cpu.get("logical_cores", "--"))
+    topologia = tr_format("{cores} cores / {threads} threads", cores=cpu.get("physical_cores", "--"),
+        threads=cpu.get("logical_cores", "--"))
     cpu_grupos = [grupo("Thermal", [fila("Core temperature", mostrar(cpu.get("temperature_c"), "°C", 1)),
                                   fila("VRM CPU", mostrar(sensores.get("vrm_cpu_temperature_c"), "°C"))]),
                   grupo("Activity", [fila("CPU usage", mostrar(cpu.get("usage_percent"), "%", cero=True)),
@@ -140,7 +141,8 @@ def leer(ctx, live):
         online = indice < max(len(cargas), len(frecuencias))
         frecuencia = frecuencias[indice] if indice < len(frecuencias) else None
         carga = cargas[indice] if indice < len(cargas) else None
-        nucleos.append({"label": f"N{indice + 1}", "value": mostrar(frecuencia / 1000 if frecuencia else None, "GHz", 2) if online else tr("Hidden"),
+        nucleos.append({"label": f"N{indice + 1}", "value": mostrar(frecuencia / 1000 if frecuencia else None, "GHz",
+            2) if online else tr("Hidden"),
                         "usage": carga, "detail": mostrar(carga, "%", cero=True) if online else ""})
     capacidades = tools.get("prepare_components") or {}
     componentes = []
@@ -148,17 +150,27 @@ def leer(ctx, live):
         estado = capacidades.get(key) or {}
         componentes.append({"key": key, "title": title, "detail": estado.get("detail") or detail,
                             "available": bool(estado.get("available", True)), "installed": bool(estado.get("installed")),
-                            "selected": bool(estado.get("selected", tools.get("os_family") not in ("debian", "ubuntu") or key in ("runtime", "governor")))})
+                            "selected": bool(estado.get("selected", tools.get("os_family") not in ("debian",
+                                "ubuntu") or key in ("runtime", "governor")))})
     quick = tools.get("quick_access") or {}
     plugin = bool(quick.get("decky_detected") and quick.get("decky_frontend_compatible", True))
     quick = {**quick, "title": "Game Mode Quick Access (Beta)",
              "label": "Install / repair BC250 Quick Access" if plugin else "Install Decky + Quick Access (Beta)",
-             "detail": "Quick Access is ready. Restart Game Mode or reload Decky if the panel is not visible yet." if quick.get("ready") else
-             "Decky must be updated because this Steam client uses the renamed initialization API." if quick.get("decky_detected") and not plugin else
+             "detail": (
+                 "Quick Access is ready. Restart Game Mode or reload Decky if the panel is not visible yet."
+                 if quick.get("ready") else
+                 "Decky must be updated because this Steam client uses the renamed initialization API."
+                 if quick.get("decky_detected") and not plugin else
              "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair." if plugin else
-             "Decky is optional. It is never installed by generic dependency preparation.",
-             "message": "This installs or repairs only the local BC250 Quick Access plugin and its protected helper inside an existing Decky installation. It does not reinstall Decky or apply a hardware setting. Continue?" if plugin else
-             "Bazzite installs Decky through its native ujust setup-decky install workflow. BC250 then installs only its local Quick Access panel. Continue?" if tools.get("os_family") == "bazzite" else DECKY_BOOTSTRAP, "install_decky": not plugin}
+                 "Decky is optional. It is never installed by generic dependency preparation."
+             ),
+             "message": ('This installs or repairs only the local BC250 Quick Access plugin and its protected helper '
+                 'inside an existing Decky installation. It does not reinstall Decky or apply a hardware '
+                 'setting. Continue?') if plugin else
+             ('Bazzite installs Decky through its native ujust setup-decky install workflow. BC250 then '
+                 'installs only its local Quick Access panel. Continue?')
+                 if tools.get("os_family") == "bazzite" else DECKY_BOOTSTRAP,
+             "install_decky": not plugin}
     rails = [fila(label, mostrar(sensores.get(key), unit, decimals)) for label, key, unit, decimals in (
         ("12V in", "vrm_input_voltage_v", "V", 2), ("VRM power", "vrm_total_power_w", "W", 1),
         ("CPU rail voltage", "vrm_cpu_voltage_v", "V", 3), ("GPU rail voltage", "vrm_gpu_voltage_v", "V", 3),
@@ -173,11 +185,17 @@ def leer(ctx, live):
     from frontends.web.gddr6 import readiness
     gddr = readiness(ctx.service)
     muestra = live.gddr6.get("sample") or datos.get("sample") or gddr.get("external") or (gddr if gddr.get("kernel_driver") else {})
-    return {"title": "AMD BC-250", "specification": f"BC250 · {topologia} · {activos or '--'} / 40 {tr('Compute Units')} · {mostrar((gpu.get('vram_total') or 0) / 2**30, 'GB', 1)} VRAM",
-            "cards": [{"key": "cpu", "title": "Processor", "primary": mostrar((cpu.get("frequency_mhz") or 0) / 1000, "GHz", 2), "value": mostrar((cpu.get("frequency_mhz") or 0) / 1000, decimales=2), "unit": "GHz", "groups": cpu_grupos},
-                      {"key": "gpu", "title": "Graphics", "primary": mostrar(gpu.get("frequency_mhz"), "MHz"), "value": mostrar(gpu.get("frequency_mhz")), "unit": "MHz", "groups": gpu_grupos},
-                      {"key": "fans", "title": "Cooling", "primary": mostrar(ventilador.get("rpm"), "RPM", cero=True), "value": mostrar(ventilador.get("rpm"), cero=True), "unit": "RPM", "groups": refrigeracion}],
-            "cores": nucleos, "topology": topologia, "telemetry": telemetria, "preparation": conflictos_preparacion(tools), "components": componentes, "quick_access": quick,
+    capacidad_vram = mostrar((gpu.get("vram_total") or 0) / 2**30, "GB", 1)
+    resultado = {"title": "AMD BC-250",
+        "specification": f"BC250 · {topologia} · {activos or '--'} / 40 {tr('Compute Units')} · {capacidad_vram} VRAM",
+            "cards": [{"key": "cpu", "title": "Processor", "primary": mostrar((cpu.get("frequency_mhz") or 0) / 1000,
+                "GHz", 2), "value": mostrar((cpu.get("frequency_mhz") or 0) / 1000, decimales=2), "unit": "GHz", "groups": cpu_grupos},
+                      {"key": "gpu", "title": "Graphics", "primary": mostrar(gpu.get("frequency_mhz"), "MHz"),
+                          "value": mostrar(gpu.get("frequency_mhz")), "unit": "MHz", "groups": gpu_grupos},
+                      {"key": "fans", "title": "Cooling", "primary": mostrar(ventilador.get("rpm"), "RPM", cero=True),
+                          "value": mostrar(ventilador.get("rpm"), cero=True), "unit": "RPM", "groups": refrigeracion}],
+            "cores": nucleos, "topology": topologia, "telemetry": telemetria,
+                "preparation": conflictos_preparacion(tools), "components": componentes, "quick_access": quick,
             "system": tools.get("os_label") or tools.get("os_name") or tools.get("os_family") or "Not detected",
             "gddr6": {**gddr, "blocker": tr(gddr.get("blocker") or ""), "sample": muestra, "active": live.gddr6.get("active", False)},
             "rails": rails, "vrm_present": sensores.get("vrm_source") == "pmbus",
@@ -186,7 +204,24 @@ def leer(ctx, live):
             "repositories": repositorios(),
             "note": {"title": TITLE, "paragraphs": list(PARAGRAPHS), "when": WHEN, "thanks": THANKS, "signature": SIGNATURE,
                      "handle": DISCORD_HANDLE, "profile": DISCORD_PROFILE_URL, "kofi": KOFI_URL},
-            "error": ctx.metrics_error, "waiting": not bool(metricas)}
+            "error": tr("Read error") if ctx.metrics_error else "", "waiting": not bool(metricas)}
+    return traducir_presentacion(resultado)
+
+
+def traducir_presentacion(datos):
+    """Traducir solo textos de presentación; las claves de acciones conservan su valor."""
+    campos = {"title", "label", "detail", "message", "value", "when", "thanks", "signature", "paragraphs"}
+    resultado = {}
+    for clave, valor in datos.items():
+        if isinstance(valor, dict):
+            valor = traducir_presentacion(valor)
+        elif isinstance(valor, list):
+            valor = [traducir_presentacion(item) if isinstance(item, dict) else tr(item)
+                     if isinstance(item, str) and clave in campos else item for item in valor]
+        elif isinstance(valor, str) and clave in campos:
+            valor = tr(valor)
+        resultado[clave] = valor
+    return resultado
 
 
 def preparar(ctx, p, shell):
@@ -213,7 +248,8 @@ def preparar(ctx, p, shell):
             if not desactivar:
                 raise Invalid("GPU governor conflict requires confirmation")
             opciones = {"confirmar_conflictos": True, "desactivar_conflictos": True}
-        resultado = ctx.service.instalar_dependencias_bc250(governor_preference=governor, include_pwm="fan_pwm" in seleccion, components=seleccion, **opciones)
+        resultado = ctx.service.instalar_dependencias_bc250(governor_preference=governor,
+            include_pwm="fan_pwm" in seleccion, components=seleccion, **opciones)
         ctx.settings.save_local_config({"gpu_governor": governor})
         return resultado
     return (2 if desactivar else 1), ejecutar
@@ -250,7 +286,9 @@ def repositorios():
 def preparar_memoria(ctx, p, shell):
     if p:
         raise Invalid("params")
-    return 1, lambda: shell(ctx.service.comando_preparar_gddr6_memory_temp())
+    def ejecutar():
+        return shell(ctx.service.comando_preparar_gddr6_memory_temp())
+    return 1, ejecutar
 
 
 def reparar_telemetria(ctx, p, shell):
@@ -291,16 +329,21 @@ def presentar_telemetria(gpu, tools):
     disponible = bool(reparacion.get("available", True) and compatible)
     desajuste = bool(apu.get("layout_mismatch_suspected"))
     recomendacion = apu.get("recommendation")
-    pasos = tr(TELEMETRY_GUIDE_PATCH_OFF) if recomendacion == "disable_smu_reporting_patch" else tr_format(TELEMETRY_GUIDE_PATCH_ON, page=tr("Firmware (BIOS)"))
+    if recomendacion == "disable_smu_reporting_patch":
+        pasos = tr(TELEMETRY_GUIDE_PATCH_OFF)
+    else:
+        pasos = tr_format(TELEMETRY_GUIDE_PATCH_ON, page=tr("Firmware (BIOS)"))
     if recomendacion not in ("disable_smu_reporting_patch", "enable_smu_reporting_patch"):
         pasos += "\n\n" + tr(TELEMETRY_GUIDE_BAZZITE_NOTE)
     return {"visible": desajuste or pendiente, "pending": pendiente, "available": disponible,
-            "label": "Restart to finish telemetry repair" if pendiente else "Repair BC250 telemetry" if disponible else "How to fix BC250 telemetry",
+            "label": ("Restart to finish telemetry repair" if pendiente else
+                      "Repair BC250 telemetry" if disponible else "How to fix BC250 telemetry"),
             "title": TELEMETRY_GUIDE_TITLE, "detail": tr(TELEMETRY_GUIDE_BODY) + "\n\n" + pasos}
 
 
 def conflictos_preparacion(tools):
     plan = build_gpu_dependency_plan(tools, current_governor=None, action="prepare", preference="auto")
-    mensaje = tr_format("{governors} is active or enabled. Running two GPU frequency governors can crash the GPU or cause a green screen at boot. Stop and disable it before preparing {selected_governor}?",
+    mensaje = tr_format(('{governors} is active or enabled. Running two GPU frequency governors can crash the GPU or '
+        'cause a green screen at boot. Stop and disable it before preparing {selected_governor}?'),
                         governors=", ".join(plan.conflicts), selected_governor=plan.resolved_governor) if plan.has_conflicts else ""
     return {"conflicts": list(plan.conflicts), "message": mensaje}

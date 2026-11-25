@@ -4,8 +4,8 @@ from math import isfinite
 from types import SimpleNamespace
 
 from frontends.desktop.core.process_entries import build_entries, formato_bytes
-from frontends.desktop.i18n import count_label, tr_format
-from frontends.tui.i18n import tr
+from frontends.desktop.i18n import count_label
+from frontends.tui.i18n import tr, tr_format
 from frontends.web.actions import Invalid, choice
 
 VISTAS = ("apps", "background", "system", "all")
@@ -40,6 +40,10 @@ def _fila(entrada):
 
 
 def consultar(web, p):
+    if set(p) - {"name", "view", "sort", "grouped", "descending", "search", "selected"}:
+        raise Invalid("params")
+    if "name" in p:
+        choice(p, "name", ("processes.rows",))
     vista = _opcion(p, "view", VISTAS, "apps")
     orden = _opcion(p, "sort", ORDENES, "memory")
     grupo = _opcion(p, "grouped", ("0", "1"), "1") == "1"
@@ -50,7 +54,10 @@ def consultar(web, p):
     inventario = web.ctx.service.inventario_procesos() or {}
     procesos = inventario.get("processes") or []
     entradas = build_entries(procesos, grouped=grupo, view=vista, query=buscar)
-    entradas.sort(key=lambda entrada: entrada.sort_value(orden), reverse=descendente)
+    def valor_orden(entrada):
+        return entrada.sort_value(orden)
+
+    entradas.sort(key=valor_orden, reverse=descendente)
     escogidas = p.get("selected", "[]")
     if not isinstance(escogidas, str) or len(escogidas) > 32768:
         raise Invalid("selected")
@@ -97,7 +104,7 @@ def actuar(ctx, p, shell):
         seleccion = [proceso for proceso in inventario.get("processes", [])
                      if (proceso.pid, proceso.create_time) in identidades and not proceso.protegido]
         if not seleccion:
-            raise Invalid("No applications selected")
+            raise Invalid(tr("No applications selected"))
         if operacion == "end":
             return ctx.service.cerrar_procesos(seleccion)
         return ctx.service.pausar_procesos(seleccion, pausar=operacion == "pause")
@@ -110,6 +117,10 @@ def cache(ctx, p, shell):
     return 1, ctx.service.limpiar_cache
 
 
-LECTURAS = {"processes": (2, lambda ctx, live: consultar(SimpleNamespace(ctx=ctx), {}))}
+def leer(ctx, live):
+    return consultar(SimpleNamespace(ctx=ctx), {})
+
+
+LECTURAS = {"processes": (2, leer)}
 CONSULTAS = {"processes.rows": consultar}
 ACCIONES = {"processes.tasks": actuar, "processes.cache": cache}
