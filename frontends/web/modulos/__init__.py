@@ -16,7 +16,7 @@ from __future__ import annotations
 from importlib import import_module
 
 MODULOS = ("panel", "rendimiento", "gpu", "unidades", "ventiladores", "procesos", "caja_negra", "ajustes_adicionales",
-           "acceso_remoto", "firmware", "configuracion", "soporte")
+           "acceso_remoto", "firmware", "configuracion", "soporte", "tv")
 
 
 def _juntar(tabla: str) -> dict:

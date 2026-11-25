@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
@@ -54,7 +55,7 @@ internal fun colorExtras(tono: String): Color {
 internal fun PanelExtras(estado: EstadoExtras, pestana: String, panel: JsonObject) {
     val paleta = ColoresActuales.current
     Column(Modifier.fillMaxWidth(), Arrangement.spacedBy(6.dp)) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 36.dp).padding(start = 6.dp, end = 2.dp, top = 14.dp, bottom = 2.dp)) {
             Texto(panel.texto("title"), tamano = 14, peso = 750, modifier = Modifier.weight(1f))
             Texto(panel.texto("value"), tamano = 12, color = paleta.sutil)
         }
@@ -64,7 +65,7 @@ internal fun PanelExtras(estado: EstadoExtras, pestana: String, panel: JsonObjec
         val filas = panel.objetos("rows")
         val lecturas = panel.objetos("readings")
         if (filas.isNotEmpty() || lecturas.isNotEmpty()) {
-            Column(Modifier.fillMaxWidth().marco(paleta.panelAlterno, paleta.borde, Medidas.radioPanel).padding(vertical = 3.dp)) {
+            Column(Modifier.fillMaxWidth().marco(paleta.panelElevado, paleta.borde, Medidas.radioPanel).padding(horizontal = 1.dp, vertical = 3.dp)) {
                 lecturas.forEach { lectura ->
                     Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp), Arrangement.spacedBy(12.dp)) {
                         Texto(lectura.texto("label"), tamano = 12, modifier = Modifier.weight(1f), color = paleta.apagado)
@@ -109,7 +110,7 @@ internal fun FilaExtras(estado: EstadoExtras, pestana: String, fila: JsonObject)
             Row(Modifier.fillMaxWidth().heightIn(min = 62.dp).padding(horizontal = 18.dp, vertical = 12.dp),
                 Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) { descripcion() }
-                Texto(fila.texto("value"), tamano = 12, peso = 600, modifier = Modifier.width(130.dp), color = colorExtras(fila.texto("tone")))
+                Texto(fila.texto("value"), tamano = 12, peso = 600, modifier = Modifier.width(130.dp), alineado = TextAlign.End, color = colorExtras(fila.texto("tone")))
                 AccionesFilaExtras(estado, pestana, fila)
             }
         }
@@ -125,21 +126,22 @@ private fun AccionesFilaExtras(estado: EstadoExtras, pestana: String, fila: Json
         val principal = acciones.firstOrNull()
         Box(Modifier.width(190.dp)) {
             if (principal != null) {
-                Boton(principal.texto("label"), { estado.abrir(pestana, fila, principal) }, Modifier.fillMaxWidth(),
-                    clase = ClaseBoton.PRINCIPAL,
-                    activo = estado.aplicacion.puedeControlar && estado.aplicacion.trabajo.terminado && principal.logico("enabled", true),
+                val puede = estado.aplicacion.puedeControlar && estado.aplicacion.trabajo.terminado && principal.logico("enabled", true)
+                Boton(principal.texto("label"), { estado.pulsar(pestana, fila, principal) }, Modifier.fillMaxWidth(),
+                    clase = claseDeFila(fila, principal, puede),
+                    activo = puede,
                     alto = 31.dp, tamano = 12, peso = 650)
             }
         }
-        Box {
-            Boton(t("More"), { menu = true }, Modifier.width(72.dp), alto = 32.dp, tamano = 12, peso = 650, icono = Res.drawable.chevron_down_gray, iconoDetras = true)
+        Box(Modifier.width(78.dp)) {
+            Boton(t("More"), { menu = true }, Modifier.width(72.dp), clase = ClaseBoton.CONTORNO, alto = 32.dp, tamano = 12, peso = 650, icono = Res.drawable.chevron_down_gray, iconoDetras = true)
             if (menu) {
                 Popup(onDismissRequest = { menu = false }, properties = PopupProperties(focusable = true)) {
                     Column(Modifier.width(340.dp).heightIn(max = 500.dp).marco(paleta.panel, paleta.borde, Medidas.radioPanel)
                         .verticalScroll(rememberScrollState()).padding(8.dp), Arrangement.spacedBy(5.dp)) {
                         Boton(t("Details"), { menu = false; estado.detalle = fila }, Modifier.fillMaxWidth())
                         acciones.drop(1).forEach { operacion ->
-                            Boton(operacion.texto("label"), { menu = false; estado.abrir(pestana, fila, operacion) }, Modifier.fillMaxWidth(),
+                            Boton(operacion.texto("label"), { menu = false; estado.pulsar(pestana, fila, operacion) }, Modifier.fillMaxWidth(),
                                 activo = estado.aplicacion.puedeControlar && estado.aplicacion.trabajo.terminado && operacion.logico("enabled", true))
                         }
                         fila.objetos("links").forEach { enlace ->
@@ -150,4 +152,14 @@ private fun AccionesFilaExtras(estado: EstadoExtras, pestana: String, fila: Json
             }
         }
     }
+}
+
+/** Verde cuando es el paso siguiente: nunca para lo que ya funciona ni para quitar algo. */
+private fun claseDeFila(fila: JsonObject, principal: JsonObject, puede: Boolean): ClaseBoton {
+    val yaFunciona = fila.texto("tone") == "ok"
+    val esRetirar = principal.logico("removal")
+    if (puede && !yaFunciona && !esRetirar) {
+        return ClaseBoton.PRINCIPAL
+    }
+    return ClaseBoton.CONTORNO
 }

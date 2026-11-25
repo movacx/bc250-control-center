@@ -34,13 +34,16 @@ import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.painterResource
 
 /** Las clases de botón que existen en el escritorio. */
-enum class ClaseBoton { PRINCIPAL, NORMAL, PELIGRO, EXITO, COMPACTO, ACENTO }
+enum class ClaseBoton { PRINCIPAL, NORMAL, PELIGRO, EXITO, COMPACTO, ACENTO, CONTORNO, PELIGRO_SUAVE }
 
 private class ColoresBoton(val fondo: Color, val borde: Color, val texto: Color)
 
 @Composable
 private fun coloresDe(clase: ClaseBoton, activo: Boolean, encima: Boolean): ColoresBoton {
     val paleta = ColoresActuales.current
+    if (!activo && clase == ClaseBoton.CONTORNO) {
+        return ColoresBoton(Color.Transparent, paleta.bordeSuave, paleta.textoInactivo)
+    }
     if (!activo) {
         return ColoresBoton(paleta.fondoInactivo, paleta.fondoInactivo, paleta.textoInactivo)
     }
@@ -56,6 +59,12 @@ private fun coloresDe(clase: ClaseBoton, activo: Boolean, encima: Boolean): Colo
             val borde = if (encima) paleta.bordeFuerte else paleta.borde
             ColoresBoton(fondo, borde, paleta.texto)
         }
+        ClaseBoton.CONTORNO -> {
+            val fondo = if (encima) paleta.controlEncima else Color.Transparent
+            val borde = if (encima) paleta.bordeFuerte else paleta.borde
+            ColoresBoton(fondo, borde, paleta.texto)
+        }
+        ClaseBoton.PELIGRO_SUAVE -> ColoresBoton(paleta.color("red_soft"), paleta.rojoBorde, paleta.rojo)
         ClaseBoton.ACENTO -> {
             val fondo = if (encima) paleta.controlEncima else paleta.panelAlterno
             ColoresBoton(fondo, paleta.acentoBorde, paleta.acento)
@@ -106,7 +115,7 @@ fun Boton(
             .height(alto)
             .marco(colores.fondo, colores.borde, radio)
             .pulsable(activo, interaccion, alPulsar)
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = if (clase == ClaseBoton.CONTORNO) 17.dp else 14.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {

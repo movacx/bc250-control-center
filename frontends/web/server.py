@@ -541,11 +541,11 @@ class Handler:
         if save is None or not isinstance(body.get("params", {}), dict):
             return self.fail("Unknown action", 400)
         try:
-            save(self.web.ctx, body.get("params") or {})
+            answer = save(self.web.ctx, body.get("params") or {})
         except Invalid as error:
             return self.fail(f"Invalid parameter: {error}", 400)
         self.web.live.forget()
-        self.json({"ok": True})
+        self.json({"ok": True, **({"data": answer} if isinstance(answer, dict) else {})})
 
     def job_input(self, body: dict) -> None:
         if not self.can_type_password():

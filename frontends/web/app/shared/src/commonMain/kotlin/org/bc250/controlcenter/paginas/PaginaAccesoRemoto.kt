@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -83,7 +84,7 @@ fun PaginaAccesoRemoto(aplicacion: Aplicacion) {
     }
     val datos = aplicacion.lectura("remote")
     val web = datos.objeto("web")
-    PaginaDesplazable {
+    PaginaDesplazable(PaddingValues(start = 16.dp, top = 8.dp, end = 18.dp, bottom = 20.dp)) {
         TarjetaPagina(Modifier.fillMaxWidth().padding(start = 2.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 TituloPanel(t("Remote access"))
@@ -131,56 +132,78 @@ private fun avisoDeEstado(web: JsonObject): String {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BarraEstado(aplicacion: Aplicacion, datos: JsonObject, web: JsonObject) {
-    val paleta = ColoresActuales.current
-    val portapapeles = LocalClipboardManager.current
-    val activo = web.logico("running")
-    val clave = web.texto("key")
-    val aviso = avisoDeEstado(web)
     PanelRemoto {
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            itemVerticalAlignment = Alignment.CenterVertically,
-        ) {
-            val fondo = if (activo) paleta.color("green_soft") else paleta.color("neutral_soft")
-            val color = if (activo) paleta.verde else paleta.apagado
-            Box(Modifier.background(fondo, RoundedCornerShape(6.dp)).padding(horizontal = 18.dp, vertical = 5.dp)) {
-                Texto(t(if (activo) "Web access is active" else "Web access is stopped"), 13, peso = 700, color = color)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            if (maxWidth >= 1300.dp) {
+                Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
+                    SituacionAcceso(web)
+                    ClaveAcceso(aplicacion, web)
+                    Spacer(Modifier.weight(1f))
+                    BotonesAcceso(aplicacion, datos, web)
+                }
+            } else {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SituacionAcceso(web)
+                    ClaveAcceso(aplicacion, web)
+                    BotonesAcceso(aplicacion, datos, web)
+                }
             }
-            if (aviso.isNotEmpty()) {
-                Texto(t(aviso), tamano = 12, color = paleta.apagado)
-            }
-            if (activo && clave.isNotEmpty()) {
-                Texto(t("Remote access key"), tamano = 12, color = paleta.apagado)
-                TextoMono(clave, tamano = 13, color = paleta.texto)
-                Boton(t("Copy"), { portapapeles.setText(AnnotatedString(clave)) }, alto = 33.dp, tamano = 12, peso = 650)
-                Boton(t("New access key"), { renovarClave(aplicacion) }, activo = libre(aplicacion), alto = 33.dp, tamano = 12, peso = 650)
-            }
-            Spacer(Modifier.weight(1f))
-            if (datos.logico("prepare")) {
-                Boton(
-                    texto = t("Prepare the connection"),
-                    alPulsar = { prepararConexion(aplicacion, datos) },
-                    clase = ClaseBoton.PRINCIPAL,
-                    activo = libre(aplicacion),
-                    alto = 33.dp,
-                    tamano = 12,
-                    peso = 650,
-                )
-            }
-            Boton(t("Open in browser"), { abrirDireccion(web.texto("local_url")) }, activo = activo, alto = 33.dp, tamano = 12, peso = 650)
-            Boton(
-                texto = t(if (activo) "Stop web access" else "Start web access"),
-                alPulsar = { cambiarAcceso(aplicacion, activo) },
-                clase = if (activo) ClaseBoton.NORMAL else ClaseBoton.PRINCIPAL,
-                activo = libre(aplicacion),
-                alto = 33.dp,
-                tamano = 12,
-                peso = 650,
-            )
         }
     }
+}
+
+@Composable
+private fun SituacionAcceso(web: JsonObject) {
+    val paleta = ColoresActuales.current
+    val activo = web.logico("running")
+    val fondo = if (activo) paleta.color("green_soft") else paleta.color("neutral_soft")
+    val color = if (activo) paleta.verde else paleta.apagado
+    Box(Modifier.background(fondo, RoundedCornerShape(6.dp)).padding(horizontal = 18.dp, vertical = 5.dp)) {
+        Texto(t(if (activo) "Web access is active" else "Web access is stopped"), 13, peso = 700, color = color)
+    }
+    val aviso = avisoDeEstado(web)
+    if (aviso.isNotEmpty()) {
+        Texto(t(aviso), tamano = 12, color = paleta.apagado)
+    }
+}
+
+@Composable
+private fun ClaveAcceso(aplicacion: Aplicacion, web: JsonObject) {
+    val paleta = ColoresActuales.current
+    val portapapeles = LocalClipboardManager.current
+    val clave = web.texto("key")
+    if (!web.logico("running") || clave.isEmpty()) {
+        return
+    }
+    Texto(t("Remote access key"), tamano = 12, color = paleta.apagado)
+    TextoMono(clave, tamano = 13, color = paleta.texto)
+    BotonRemoto(t("Copy"), { portapapeles.setText(AnnotatedString(clave)) })
+    BotonRemoto(t("New access key"), { renovarClave(aplicacion) }, activo = libre(aplicacion))
+}
+
+@Composable
+private fun BotonesAcceso(aplicacion: Aplicacion, datos: JsonObject, web: JsonObject) {
+    val activo = web.logico("running")
+    val falta = datos.logico("prepare")
+    if (falta) {
+        BotonRemoto(t("Prepare the connection"), { prepararConexion(aplicacion, datos) }, activo = libre(aplicacion), clase = ClaseBoton.PRINCIPAL)
+    }
+    BotonRemoto(t("Open in browser"), { abrirDireccion(web.texto("local_url")) }, activo = activo)
+    BotonRemoto(t(if (activo) "Stop web access" else "Start web access"), { cambiarAcceso(aplicacion, activo) }, activo = libre(aplicacion))
+}
+
+@Composable
+private fun BotonRemoto(
+    texto: String,
+    alPulsar: () -> Unit,
+    activo: Boolean = true,
+    clase: ClaseBoton = ClaseBoton.CONTORNO,
+) {
+    Boton(texto, alPulsar, clase = clase, activo = activo, alto = 33.dp, tamano = 12, peso = 650)
 }
 
 private fun renovarClave(aplicacion: Aplicacion) {
@@ -290,13 +313,13 @@ private fun ColumnaConexion(
         Texto(t(explicacion), tamano = 12, color = ColoresActuales.current.apagado)
         Desplegable(direcciones.map { valor -> Eleccion(valor, valor) }, direccion, alElegir, Modifier.fillMaxWidth())
         Boton(t("Copy address"), { portapapeles.setText(AnnotatedString(direccion)) }, Modifier.fillMaxWidth(),
-            activo = direccion.isNotEmpty(), alto = 33.dp, tamano = 12, peso = 650)
+            activo = direccion.isNotEmpty(), clase = ClaseBoton.CONTORNO, alto = 33.dp, tamano = 12, peso = 650)
         ReparacionNombre(aplicacion, datos, web)
         ReparacionFirewall(aplicacion, datos, web)
         LineaDivisoria(Modifier.padding(vertical = 8.dp))
         OpcionesConexion(aplicacion, web)
         Boton(t("Download certificate"), { abrirDireccion(aplicacion.conexion.direccion + "/api/query?name=remote.certificate") },
-            Modifier.fillMaxWidth(), activo = web.texto("trust_fingerprint").isNotEmpty(), alto = 33.dp, tamano = 12, peso = 650)
+            Modifier.fillMaxWidth(), activo = web.texto("trust_fingerprint").isNotEmpty(), clase = ClaseBoton.CONTORNO, alto = 33.dp, tamano = 12, peso = 650)
         PuertoConexion(aplicacion, web)
     }
 }
@@ -314,7 +337,7 @@ private fun ReparacionNombre(aplicacion: Aplicacion, datos: JsonObject, web: Jso
     if (estado.logico("repairable") || (web.logico("running") && estado.texto("status") == "ready")) {
         Boton(t("Repair local address"), {
             aplicacion.preguntarYEjecutar("remote.name", t("Repair local address"), datos.texto("name_warning"))
-        }, Modifier.fillMaxWidth(), activo = libre(aplicacion), alto = 33.dp, tamano = 12, peso = 650)
+        }, Modifier.fillMaxWidth(), activo = libre(aplicacion), clase = ClaseBoton.CONTORNO, alto = 33.dp, tamano = 12, peso = 650)
     }
 }
 
@@ -329,23 +352,42 @@ private fun ReparacionFirewall(aplicacion: Aplicacion, datos: JsonObject, web: J
     if (firewall.logico("repairable")) {
         Boton(t("Configure LAN firewall"), {
             aplicacion.preguntarYEjecutar("remote.firewall", t("Configure LAN firewall"), datos.texto("firewall_warning"))
-        }, Modifier.fillMaxWidth(), activo = libre(aplicacion), alto = 33.dp, tamano = 12, peso = 650)
+        }, Modifier.fillMaxWidth(), activo = libre(aplicacion), clase = ClaseBoton.CONTORNO, alto = 33.dp, tamano = 12, peso = 650)
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun OpcionesConexion(aplicacion: Aplicacion, web: JsonObject) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        if (maxWidth >= 560.dp) {
+            Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(28.dp)) {
+                OpcionRedLocal(aplicacion, web, Modifier.weight(1f))
+                OpcionArranque(aplicacion, web, Modifier.weight(1f))
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OpcionRedLocal(aplicacion, web, Modifier.fillMaxWidth())
+                OpcionArranque(aplicacion, web, Modifier.fillMaxWidth())
+            }
+        }
+    }
+}
+
+@Composable
+private fun OpcionRedLocal(aplicacion: Aplicacion, web: JsonObject, modifier: Modifier) {
+    val texto = t("Reachable from the local network")
+    OpcionConexion(texto, web.logico("lan"), libre(aplicacion), modifier) { nuevo ->
+        cambiarOpcion(aplicacion, "lan", JsonPrimitive(nuevo), texto)
+    }
+}
+
+@Composable
+private fun OpcionArranque(aplicacion: Aplicacion, web: JsonObject, modifier: Modifier) {
+    val texto = t("Start with the session")
     val arranque = web.objeto("autostart")
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OpcionConexion(t("Reachable from the local network"), web.logico("lan"), libre(aplicacion)) { nuevo ->
-            val aviso = t("Reachable from the local network")
-            cambiarOpcion(aplicacion, "lan", JsonPrimitive(nuevo), aviso)
-        }
-        val puede = libre(aplicacion) && arranque.logico("supported") && !arranque.logico("foreign")
-        OpcionConexion(t("Start with the session"), arranque.logico("enabled"), puede) { nuevo ->
-            cambiarOpcion(aplicacion, "autostart", JsonPrimitive(nuevo), t("Start with the session"))
-        }
+    val puede = libre(aplicacion) && arranque.logico("supported") && !arranque.logico("foreign")
+    OpcionConexion(texto, arranque.logico("enabled"), puede, modifier) { nuevo ->
+        cambiarOpcion(aplicacion, "autostart", JsonPrimitive(nuevo), texto)
     }
 }
 
@@ -355,8 +397,14 @@ private fun cambiarOpcion(aplicacion: Aplicacion, campo: String, valor: JsonElem
 }
 
 @Composable
-private fun OpcionConexion(texto: String, activa: Boolean, libre: Boolean, alCambiar: (Boolean) -> Unit) {
-    Row(Modifier.heightIn(min = 26.dp), Arrangement.spacedBy(10.dp), Alignment.CenterVertically) {
+private fun OpcionConexion(
+    texto: String,
+    activa: Boolean,
+    libre: Boolean,
+    modifier: Modifier = Modifier,
+    alCambiar: (Boolean) -> Unit,
+) {
+    Row(modifier.heightIn(min = 26.dp), Arrangement.spacedBy(10.dp), Alignment.CenterVertically) {
         Interruptor(activa, alCambiar, activo = libre)
         Texto(texto, tamano = 12, color = ColoresActuales.current.apagado)
     }
@@ -373,7 +421,7 @@ private fun PuertoConexion(aplicacion: Aplicacion, web: JsonObject) {
     Row(Modifier.padding(top = 6.dp), Arrangement.spacedBy(10.dp), Alignment.CenterVertically) {
         Texto("TCP", tamano = 12, color = ColoresActuales.current.apagado)
         CampoNumero(puerto, { valor -> puerto = valor }, 1024, 65535, Modifier.width(120.dp))
-        Boton(t("Apply"), ::aplicar, activo = libre(aplicacion) && puerto != actual, alto = 33.dp, tamano = 12, peso = 650)
+        Boton(t("Apply"), ::aplicar, activo = libre(aplicacion) && puerto != actual, clase = ClaseBoton.CONTORNO, alto = 33.dp, tamano = 12, peso = 650)
     }
 }
 
@@ -415,7 +463,7 @@ private fun PanelDispositivos(aplicacion: Aplicacion, datos: JsonObject) {
 
 @Composable
 private fun BotonDispositivo(texto: String, activo: Boolean, alPulsar: () -> Unit) {
-    Boton(texto, alPulsar, activo = activo, alto = 33.dp, tamano = 12, peso = 650)
+    Boton(texto, alPulsar, activo = activo, clase = ClaseBoton.CONTORNO, alto = 33.dp, tamano = 12, peso = 650)
 }
 
 private fun operar(
@@ -458,7 +506,7 @@ private fun celdasDe(dispositivo: JsonObject): List<String> {
     )
 }
 
-private val AnchosDispositivo = listOf(0, 120, 150, 140, 80, 140, 110)
+private val AnchosDispositivo = listOf(0, 110, 150, 130, 80, 140, 100)
 
 @Composable
 private fun FilaDispositivo(celdas: List<String>, fondo: Color, peso: Int, alPulsar: () -> Unit) {

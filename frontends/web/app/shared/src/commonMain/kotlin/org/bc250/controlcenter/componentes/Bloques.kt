@@ -28,6 +28,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -526,13 +528,46 @@ private fun dibujoDeFoto(archivo: String): DrawableResource? {
 @Composable
 private fun Foto(bloque: JsonObject) {
     val dibujo = dibujoDeFoto(bloque.texto("archivo"))
+    var ampliada by remember { mutableStateOf(false) }
     if (dibujo != null) {
         Image(
             painter = painterResource(dibujo),
             contentDescription = bloque.texto("texto"),
             contentScale = ContentScale.FillWidth,
-            modifier = Modifier.padding(vertical = 8.dp).widthIn(max = bloque.entero("ancho", 560).dp).fillMaxWidth(),
+            modifier = Modifier
+                .padding(vertical = 8.dp)
+                .widthIn(max = bloque.entero("ancho", 560).dp)
+                .fillMaxWidth()
+                .pulsable { ampliada = true },
         )
+    }
+    if (ampliada && dibujo != null) {
+        Popup(alignment = Alignment.Center, onDismissRequest = { ampliada = false }, properties = PopupProperties(focusable = true)) {
+            FotoAmpliada(dibujo, bloque.texto("texto")) { ampliada = false }
+        }
+    }
+}
+
+/** La foto en grande, con su botón de cerrar. */
+@Composable
+private fun FotoAmpliada(dibujo: DrawableResource, descripcion: String, alCerrar: () -> Unit) {
+    val paleta = ColoresActuales.current
+    Column(
+        modifier = Modifier
+            .padding(40.dp)
+            .widthIn(max = 1180.dp)
+            .marco(paleta.panel, paleta.borde, Medidas.radioTarjeta)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalAlignment = Alignment.End,
+    ) {
+        Image(
+            painter = painterResource(dibujo),
+            contentDescription = descripcion,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.heightIn(max = 800.dp).fillMaxWidth(),
+        )
+        Boton(t("Close"), alCerrar, clase = ClaseBoton.PRINCIPAL)
     }
 }
 

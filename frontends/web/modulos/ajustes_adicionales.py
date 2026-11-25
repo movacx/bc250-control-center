@@ -18,6 +18,7 @@ from frontends.web.actions import Invalid, choice
 
 from .ajustes_adicionales_compat import Action, Fila
 from .ajustes_adicionales_presentacion import (
+    GOVERNORS,
     MEMORY_POLICIES,
     SWAP_POLICIES,
     AdditionalSettingsPage,
@@ -114,17 +115,28 @@ def clave_operacion(operacion):
     return identidad(operacion.label)
 
 
+def sin_alcance(titulo, detalle):
+    """La TUI repite al final del detalle dónde se puede usar; aquí ya hay una línea para eso."""
+    for _clave, nombre, donde, _texto in GOVERNORS:
+        if titulo == tr(nombre):
+            return detalle.removesuffix(tr(donde)).strip()
+    return detalle
+
+
 def describir_panel(panel):
+    retiradas = {tr(nombre) for nombre in ("Remove", "Uninstall")}
     elementos = []
     for fila in filas(panel):
         info = asdict(fila.info) if fila.info else {}
         acciones = []
         for operacion in operaciones(fila):
             acciones.append({"id": clave_operacion(operacion), "label": operacion.label,
-                             "danger": operacion.danger, "enabled": getattr(operacion, "enabled", True)})
+                             "danger": operacion.danger, "enabled": getattr(operacion, "enabled", True),
+                             "removal": operacion.label in retiradas,
+                             "window": "tv" if operacion.label == tr("Open TV control") else ""})
         elementos.append({"id": clave_fila(panel, fila), "title": fila.label,
                           "value": fila.badge or fila.detail, "tone": fila.badge_tone,
-                          "detail": info.get("summary", ""), "risk": info.get("risk", ""),
+                          "detail": sin_alcance(fila.label, info.get("summary", "")), "risk": info.get("risk", ""),
                           "undo": info.get("undo", ""), "blocked": info.get("blocked", ""),
                           "enabled": fila.enabled, "on": getattr(fila, "encendida", None),
                           "actions": acciones, "links": enlaces(fila.label), "scope": alcance(fila.label)})

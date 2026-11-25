@@ -103,18 +103,20 @@ fun PaginaUnidades(aplicacion: Aplicacion) {
             RejillaGpuCu(2, 2, umbral = 1080.dp) { indice, modificador ->
                 if (indice == 0) {
                     TarjetaPagina(modificador, espacio = 12.dp) {
-                        SubPanel(margen = PaddingValues(13.dp, 10.dp), espacio = 8.dp) {
+                        SubPanel(margen = PaddingValues(13.dp, 10.dp), espacio = 8.dp, fondo = paleta.panelAlterno, borde = paleta.bordeSuave) {
                             val verificado = datos.objeto("presentation").logico("verified")
-                            Texto(if (verificado) t("Target: {count} / 40 CUs", "count" to seleccion.entero("target").toString()) else t("Target: Not verified"),
-                                tamano = 13, peso = 830)
-                            val detalle = when {
-                                !verificado -> t("Authorize a live refresh before applying WGP changes.")
-                                !estado.logico("privileged_backend_ready") -> t("CU write actions are locked until a verified root-owned backend is installed.")
-                                seleccion.entero("pending") > 0 -> t("{pairs} differ from the last authorized live table.", "pairs" to seleccion.entero("pending").toString())
-                                else -> t("No pending WGP changes.")
+                            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                Texto(if (verificado) t("Target: {count} / 40 CUs", "count" to seleccion.entero("target").toString()) else t("Target: Not verified"),
+                                    tamano = 13, peso = 830)
+                                val detalle = when {
+                                    !verificado -> t("Authorize a live refresh before applying WGP changes.")
+                                    !estado.logico("privileged_backend_ready") -> t("CU write actions are locked until a verified root-owned backend is installed.")
+                                    seleccion.entero("pending") > 0 -> t("{pairs} differ from the last authorized live table.", "pairs" to seleccion.entero("pending").toString())
+                                    else -> t("No pending WGP changes.")
+                                }
+                                Texto(detalle, tamano = 10, color = paleta.apagado)
+                                Texto(seleccion.texto("balance_detail"), tamano = 10, color = paleta.apagado)
                             }
-                            Texto(detalle, tamano = 11, color = paleta.apagado)
-                            Texto(seleccion.texto("balance_detail"), tamano = 11, color = paleta.apagado)
                             if (!seleccion.logico("balanced", true)) {
                                 Boton(t("Balance shader engines"), {
                                     elegir(mascarasCu(seleccion, "balanced_masks"))
@@ -132,17 +134,17 @@ fun PaginaUnidades(aplicacion: Aplicacion) {
                                 }
                             }
                         }
-                        SubPanel(margen = PaddingValues(12.dp, 10.dp), espacio = 8.dp) {
-                            Texto(t("Boot persistence"), tamano = 12, peso = 700)
+                        SubPanel(margen = PaddingValues(12.dp, 10.dp), espacio = 8.dp, fondo = paleta.panelAlterno, borde = paleta.bordeSuave) {
+                            Texto(t("Boot persistence"), tamano = 11, peso = 700, color = paleta.apagado)
                             Texto(t("Select the WGP pairs above, then use the buttons below in order — Apply now, Save selection, Install service — to make the change survive a reboot."),
-                                tamano = 11, color = paleta.apagado)
+                                tamano = 10, color = paleta.sutil)
                             RejillaGpuCu(6, 3, umbral = 550.dp) { boton, caja ->
                                 when (boton) {
                                     0 -> Boton(t("Save selection"), { operarTabla(true) }, caja,
                                         activo = libre && disponibilidad.logico("save_boot") && !consultando)
                                     1 -> Boton(t("Install service"), { accionServicio("install_service", "Install service") }, caja,
                                         activo = libre && disponibilidad.logico("install_service") && !consultando)
-                                    2 -> Boton(t("Remove service"), { accionServicio("remove_service", "Remove service", true) }, caja,
+                                    2 -> Boton(t("Remove service"), { accionServicio("remove_service", "Remove service", true) }, caja, ClaseBoton.PELIGRO_SUAVE,
                                         activo = libre && disponibilidad.logico("remove_service") && !consultando)
                                     3 -> Boton(t("Restore factory"), { accionServicio("factory_repair", "Restore factory", true) }, caja,
                                         activo = libre && disponibilidad.logico("restore_factory") && !consultando)
@@ -152,7 +154,7 @@ fun PaginaUnidades(aplicacion: Aplicacion) {
                             }
                         }
                         Texto(t("Live routing is temporary until the current table is saved and the boot service is installed. One WGP always represents two CUs; individual CUs cannot be toggled separately."),
-                            tamano = 11, color = paleta.sutil)
+                            tamano = 10, color = paleta.sutil)
                         if (!estado.logico("privileged_backend_ready") && !kernel) {
                             Texto(estado.texto("privileged_backend_reason"), tamano = 12, color = paleta.naranja)
                             Boton(t("Prepare Compute Units tools"), {
@@ -163,7 +165,7 @@ fun PaginaUnidades(aplicacion: Aplicacion) {
                     }
                 } else {
                     TarjetaPagina(modificador, margen = PaddingValues(20.dp, 18.dp)) {
-                        SubPanel(margen = PaddingValues(8.dp), espacio = 8.dp) {
+                        SubPanel(margen = PaddingValues(8.dp), espacio = 8.dp, fondo = paleta.panel) {
                             val lecturas = datos.objetos("telemetry")
                             RejillaGpuCu(lecturas.size, 2, umbral = 450.dp) { numero, caja ->
                                 val lectura = lecturas[numero]

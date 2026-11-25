@@ -9,6 +9,9 @@ from bc250cc.application.preparation.gpu_dependency_plan import (
 from frontends.desktop.core.compatibility_dialogs import DECKY_BOOTSTRAP
 from frontends.desktop.core.dashboard_presenter import FAN_OWNER_LABELS
 from frontends.desktop.core.developer_note_text import (
+    DISCORD_HANDLE,
+    DISCORD_PROFILE_URL,
+    KOFI_URL,
     PARAGRAPHS,
     SIGNATURE,
     THANKS,
@@ -181,7 +184,8 @@ def leer(ctx, live):
             "vrm_repair": regulador_atascado(metricas),
             "links": [{"key": title, "title": title, "url": url} for title, url in ENLACES],
             "repositories": repositorios(),
-            "note": {"title": TITLE, "paragraphs": list(PARAGRAPHS), "when": WHEN, "thanks": THANKS, "signature": SIGNATURE},
+            "note": {"title": TITLE, "paragraphs": list(PARAGRAPHS), "when": WHEN, "thanks": THANKS, "signature": SIGNATURE,
+                     "handle": DISCORD_HANDLE, "profile": DISCORD_PROFILE_URL, "kofi": KOFI_URL},
             "error": ctx.metrics_error, "waiting": not bool(metricas)}
 
 

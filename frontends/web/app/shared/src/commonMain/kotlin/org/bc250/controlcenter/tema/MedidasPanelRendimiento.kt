@@ -25,7 +25,7 @@ object MedidasPanelRendimiento {
     val anchoTabla = 760.dp
     val altoListaSensores = 766.dp
     val anchoEtiquetaSensor = 360.dp
-    val anchoValorSensor = 100.dp
+    val anchoValorSensor = 96.dp
     val anchoEje = 68.dp
     val anchoUnidad = 30.dp
     val espacioEje = 22.dp

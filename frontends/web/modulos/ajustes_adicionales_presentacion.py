@@ -135,12 +135,12 @@ class AdditionalSettingsPage(Page):
         accessories, group = tools.get("accessories") or {}, distribution_group(family)
         out = [Panel(tr("System"), [choice for choice in (
             self._acpi(service, setup.get("acpi") or {}) if acpi_offered(group, str((setup.get("acpi") or {}).get("status") or "")) else None,
-            compat.real_sleep(service, accessories.get("real_sleep") or {}),
-            compat.kernel_headers(service, data.get("headers") or {}),
             compat.pacman_lock(service, data.get("lock") or {}),
+            compat.kernel_headers(service, data.get("headers") or {}),
+            compat.real_sleep(service, accessories.get("real_sleep") or {}),
             compat.read_only_mode(service, tools.get("steamos_readonly") or {}),
         ) if choice is not None])]
-        out.append(Panel(tr("GPU Governor"), [self._governor(ctx, tools, *entry) for entry in GOVERNORS]))
+        out.append(Panel(tr("GPU governor"), [self._governor(ctx, tools, *entry) for entry in GOVERNORS]))
 
         mesh = compat.directmesh(service, tools.get("directmesh") or {}) if group != "steamos" else None
         rows = [graphics.gfx1013(service, tools, family), graphics.mesa(service, tools), mesh, *graphics.mastag(service, tools, family)]
@@ -152,7 +152,7 @@ class AdditionalSettingsPage(Page):
         sensors = [row for row in (compat.accessory(service, key, title, detail, accessories.get(key) or {})
                                    for key, title, detail in compat.SENSORS) if row is not None]
         if sensors:
-            out.append(Panel(tr("Sensors"), sensors))
+            out.append(Panel(tr("Board sensors"), sensors))
         if group == "steamos":
             out[0].blocks.append(compat.component(tr("BC250 SteamOS diagnostics"), "", "dim", "", [
                 Action(tr("BC250 SteamOS diagnostics"), service.diagnostico_steamos, confirm=False)]))

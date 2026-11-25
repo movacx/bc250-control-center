@@ -169,13 +169,7 @@ internal fun DialogosPanel(aplicacion: Aplicacion, datos: JsonObject, dialogo: S
             }
             dialogo == "note" -> {
                 val nota = datos.objeto("note")
-                Texto(t(nota.texto("title")), tamano = 17, peso = 800)
-                for (parrafo in nota.textos("paragraphs")) Texto(t(parrafo), tamano = 13)
-                Leyenda(t(nota.texto("when")))
-                Texto(t(nota.texto("thanks")), tamano = 13)
-                Leyenda(nota.texto("signature"))
-                Boton("Discord", { aplicacion.abrirEnlace("https://discord.com/users/719291715369959445") })
-                Boton("Ko-fi", { aplicacion.abrirEnlace("https://ko-fi.com/movacx") })
+                NotaDelAutor(aplicacion, nota, alCerrar)
             }
             dialogo == "update" -> {
                 val actualizacion = datos.objeto("update")

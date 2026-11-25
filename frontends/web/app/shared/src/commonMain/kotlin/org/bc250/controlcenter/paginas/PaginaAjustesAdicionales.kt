@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
@@ -31,6 +32,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.bc250.controlcenter.componentes.Boton
 import org.bc250.controlcenter.componentes.LineaDivisoria
+import org.bc250.controlcenter.componentes.PaginaDesplazable
 import org.bc250.controlcenter.componentes.Texto
 import org.bc250.controlcenter.componentes.marco
 import org.bc250.controlcenter.datos.Aplicacion
@@ -47,6 +49,16 @@ internal class EstadoExtras(val aplicacion: Aplicacion, private val tareas: Coro
     var dialogo by mutableStateOf<JsonObject?>(null)
     var solicitud by mutableStateOf(ObjetoVacio)
     var detalle by mutableStateOf<JsonObject?>(null)
+    var mandoTv by mutableStateOf(false)
+
+    /** Algunas operaciones tienen ventana propia. */
+    fun pulsar(pestana: String, fila: JsonObject, operacion: JsonObject) {
+        if (operacion.texto("window") == "tv") {
+            mandoTv = true
+        } else {
+            abrir(pestana, fila, operacion)
+        }
+    }
 
     fun abrir(pestana: String, fila: JsonObject, operacion: JsonObject) {
         solicitud = JsonObject(mapOf(
@@ -116,19 +128,17 @@ fun PaginaAjustesAdicionales(aplicacion: Aplicacion) {
     val datos = aplicacion.lectura("extras")
     val paleta = ColoresActuales.current
     Box(Modifier.fillMaxSize()) {
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                .padding(start = 18.dp, top = 8.dp, end = 18.dp, bottom = 24.dp),
-        ) {
+        PaginaDesplazable(PaddingValues(start = 18.dp, top = 8.dp, end = 26.dp, bottom = 20.dp)) {
             Column(Modifier.fillMaxWidth().marco(paleta.panel, paleta.borde, Medidas.radioTarjeta).padding(1.dp)) {
-                Column(Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 16.dp, vertical = 10.dp), Arrangement.spacedBy(3.dp)) {
+                Column(Modifier.fillMaxWidth().height(60.dp).padding(start = 16.dp, end = 16.dp, top = 12.dp), Arrangement.spacedBy(3.dp)) {
                     Texto(t("Additional settings"), tamano = 14, peso = 750)
                     Texto(t("Detected system: {distribution}", "distribution" to datos.texto("system", t("Not detected"))),
                         tamano = 11, color = paleta.apagado)
                 }
+                LineaDivisoria()
                 PestanasExtras(pestana) { elegida -> pestana = elegida }
                 LineaDivisoria()
-                Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp), Arrangement.spacedBy(6.dp)) {
                     if (datos.isEmpty()) {
                         Texto(t("Waiting for data…"), tamano = 13, color = paleta.apagado)
                         Boton(t("Retry"), { tareas.launch { aplicacion.leerPagina("extras") } })
@@ -144,6 +154,9 @@ fun PaginaAjustesAdicionales(aplicacion: Aplicacion) {
             }
         }
         DialogosExtras(estado)
+        if (estado.mandoTv) {
+            VentanaMandoTv(aplicacion) { estado.mandoTv = false }
+        }
     }
 }
 
@@ -156,7 +169,7 @@ private fun PestanasExtras(elegida: String, alElegir: (String) -> Unit) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val estrecha = maxWidth < 700.dp
         val desplazable = if (estrecha) Modifier.horizontalScroll(rememberScrollState()) else Modifier
-        Row(Modifier.fillMaxWidth().height(44.dp).then(desplazable).padding(horizontal = 12.dp, vertical = 5.dp), Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth().height(42.dp).then(desplazable).padding(horizontal = 12.dp, vertical = 4.dp), Arrangement.spacedBy(6.dp)) {
             nombres.forEach { (clave, titulo) ->
                 val ancho = if (estrecha) Modifier.width(160.dp) else Modifier.weight(1f)
                 PestanaPanel(t(titulo), elegida == clave, ancho) { alElegir(clave) }

@@ -92,8 +92,8 @@ def _accesorios(ctx, tools, paneles):
     titulos = {key: title for key, title, _ in (*SENSORS, *ACCESSORIES)}
     # Mientras llega una sonda, cada fila sigue existiendo como «Comprobando».
     for key, title, detail in (*SENSORS, *ACCESSORIES):
-        destino = "Sensors" if key in {s[0] for s in SENSORS} else "Audio and TV" if key.startswith("hdmi_") else "Case accessories"
-        if (destino == "Sensors") != any(p.title == tr("GPU Governor") for p in paneles):
+        destino = "Board sensors" if key in {s[0] for s in SENSORS} else "Audio and TV" if key.startswith("hdmi_") else "Case accessories"
+        if (destino == "Board sensors") != any(p.title == tr("GPU governor") for p in paneles):
             continue
         panel = next((p for p in paneles if p.title == tr(destino)), None)
         if panel is None:

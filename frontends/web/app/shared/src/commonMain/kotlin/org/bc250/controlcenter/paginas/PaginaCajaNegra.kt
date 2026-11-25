@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -41,11 +43,11 @@ fun PaginaCajaNegra(aplicacion: Aplicacion) {
         Box(Modifier.fillMaxWidth().heightIn(min = 35.dp), contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
           FranjaSupervision(izquierda = {
             val grabando = datos.logico("running")
-            AccionSupervision(t(if (grabando) "Stop recording" else "Start recording"), disponible && datos.logico("supported")) {
+            BotonRegistro(t(if (grabando) "Stop recording" else "Start recording"), disponible && datos.logico("supported")) {
                 controlarCajaNegra(aplicacion, if (grabando) "stop" else "start")
             }
-            AccionSupervision(t("Open folder")) { carpeta = true }
-            AccionSupervision(t(if (diagnostico) "Back to the recording" else "View full diagnosis")) { diagnostico = !diagnostico }
+            BotonRegistro(t("Open folder")) { carpeta = true }
+            BotonRegistro(t(if (diagnostico) "Back to the recording" else "View full diagnosis")) { diagnostico = !diagnostico }
         }, derecha = {
             if (inicio.logico("supported")) {
                 CasillaSupervision(t("Start with the session"), inicio.logico("enabled"), disponible && !inicio.logico("foreign"), interruptor = true) {
@@ -96,22 +98,38 @@ private fun TablaCajaNegra(datos: JsonObject, alto: androidx.compose.ui.unit.Dp)
         Column(Modifier.horizontalScroll(rememberScrollState()).width(ancho)) {
             Row(Modifier.height(MedidasSupervision.cabeceraTabla)) {
                 for (columna in columnas) {
-                    Texto(columna.texto("label").uppercase(), 10, modifier = Modifier.weight(1f).padding(6.dp),
-                        peso = 800, color = ColoresActuales.current.apagado)
+                    Texto(columna.texto("label").uppercase(), 10, Modifier.weight(1f).align(Alignment.CenterVertically),
+                        peso = 800, color = ColoresActuales.current.apagado, alineado = TextAlign.Center)
                 }
             }
+            LineaDivisoria(color = ColoresActuales.current.borde)
             LazyColumn(Modifier.height(alto).fillMaxWidth(), state = desplazamiento) {
                 items(filas) { fila ->
-                    Row(Modifier.height(MedidasSupervision.filaRegistro).fillMaxWidth()) {
-                        for (columna in columnas) {
-                            Texto(fila.texto(columna.texto("key"), "–"), 12, modifier = Modifier.weight(1f).padding(6.dp))
-                        }
-                    }
+                    FilaRegistro(fila, columnas)
                 }
             }
         }
-    }
+      }
     if (!siguiendo) Texto(t("Paused while you read. Go back to the top to follow the recording."), 12, color = ColoresActuales.current.apagado)
       Texto(t("{count} rows shown · {path}", "count" to filas.size.toString(), "path" to t("Black box")), 11, color = ColoresActuales.current.apagado)
     }
+}
+
+@Composable
+private fun FilaRegistro(fila: JsonObject, columnas: List<JsonObject>) {
+    Column(Modifier.height(MedidasSupervision.filaRegistro).fillMaxWidth()) {
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            for (columna in columnas) {
+                val aLaDerecha = !columna.logico("left")
+                val alineado = if (aLaDerecha) TextAlign.End else TextAlign.Start
+                Texto(fila.texto(columna.texto("key"), "–"), 12, Modifier.weight(1f).padding(horizontal = 9.dp), alineado = alineado)
+            }
+        }
+        LineaDivisoria()
+    }
+}
+
+@Composable
+private fun BotonRegistro(texto: String, activo: Boolean = true, alPulsar: () -> Unit) {
+    Boton(texto, alPulsar, clase = ClaseBoton.CONTORNO, activo = activo, alto = 33.dp, tamano = 12, peso = 650)
 }

@@ -74,7 +74,7 @@ fun PaginaRendimiento(aplicacion: Aplicacion) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())
         .padding(start = M.margenHorizontal, top = M.margenSuperior, end = M.margenHorizontal, bottom = 24.dp)) {
         val paleta = ColoresActuales.current
-        Column(Modifier.fillMaxWidth().marco(paleta.panel, paleta.borde, M.radio).padding(1.dp).padding(18.dp, 14.dp),
+        Column(Modifier.fillMaxWidth().marco(paleta.panel, paleta.borde, Medidas.radioTarjeta).padding(1.dp).padding(18.dp, 14.dp),
             Arrangement.spacedBy(10.dp)) {
             PestañasRendimiento(datos, pestaña, vista, distribucion, ventana,
                 { nueva -> pestaña = nueva }, { vistas[pestaña] = it },

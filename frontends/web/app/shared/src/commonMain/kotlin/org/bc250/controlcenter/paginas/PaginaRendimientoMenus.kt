@@ -1,5 +1,6 @@
 package org.bc250.controlcenter.paginas
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -36,11 +37,11 @@ internal fun PestañasRendimiento(datos: JsonObject, elegida: String, vista: Str
                 }.height(M.altoPestana).width(IntrinsicSize.Max), Arrangement.SpaceBetween) {
                     Texto(pestaña.texto("title"), tamano = 13, peso = if (clave == elegida) 780 else 700,
                         modifier = Modifier.padding(horizontal = 2.dp, vertical = 5.dp))
-                    LineaDivisoria(Modifier.fillMaxWidth(), if (clave == elegida) paleta.acento else paleta.panel)
+                    Box(Modifier.fillMaxWidth().height(2.dp).background(if (clave == elegida) paleta.acento else paleta.panel))
                 }
             }
-            Boton(t("Views"), { menu = !menu }, alto = 28.dp, tamano = 11)
         }
+        LineaDivisoria(Modifier.align(Alignment.BottomStart).fillMaxWidth())
         if (menu) {
             Popup(alignment = Alignment.TopStart, onDismissRequest = { menu = false },
                 properties = PopupProperties(focusable = true)) {

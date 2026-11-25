@@ -4,12 +4,44 @@ from __future__ import annotations
 from collections import deque
 from datetime import datetime, timedelta
 
+from bc250cc.infrastructure.sensor_inventory import (
+    CLOCK,
+    CURRENT,
+    DATA,
+    FAN,
+    POWER,
+    RATE,
+    TEMPERATURE,
+    USAGE,
+    VOLTAGE,
+)
 from frontends.desktop.core.performance_model import KIND_FILTERS, RESOURCE_BY_KEY
 from frontends.desktop.core.performance_views import VIEW_BY_KEY, views_for
 from frontends.tui.i18n import tr, tr_format
 from frontends.web.actions import Invalid
 
 VENTANAS = (60, 120, 300, 600, 1800)
+
+#: El color de cada clase de sensor, el mismo que usa el escritorio.
+TONOS = {TEMPERATURE: "series_2", CLOCK: "series_1", USAGE: "series_7", POWER: "series_8", VOLTAGE: "series_3",
+         CURRENT: "series_4", FAN: "series_6", DATA: "series_5", RATE: "series_5"}
+
+
+def agrupar(filas):
+    """Cada grupo una sola vez, con todas sus lecturas debajo."""
+    grupos = {}
+    actual = ""
+    for fila in filas:
+        if "group" in fila:
+            actual = fila["group"]
+            grupos.setdefault(actual, [])
+        else:
+            grupos[actual].append(fila)
+    juntas = []
+    for nombre, lecturas in grupos.items():
+        juntas.append({"group": nombre})
+        juntas.extend(lecturas)
+    return juntas
 
 
 def consultar(web, parametros):
@@ -60,6 +92,16 @@ def consultar(web, parametros):
             series = [(item["name"], [item["values"][i] for i in indices]) for item in grafica["series"]]
             traza["chart"] = _chart(series, [grafica["ages"][i] for i in indices], grafica["unit"], False, grafica["rate"])
         if tab == "sensors":
+            resultado["rows"] = agrupar(resultado.get("rows", []))
+            for fila in resultado["rows"]:
+                if "key" in fila:
+                    fila["tone"] = TONOS.get(recorder.log.entries[fila["key"]].reading.kind, "subtle")
+            for traza in resultado.get("traces", []):
+                lectura = recorder.log.entries[traza["key"]].reading
+                traza.update(tone=TONOS.get(lectura.kind, "subtle"), device=lectura.device)
+            for opcion in resultado.get("kinds", []):
+                clases_opcion = KIND_FILTERS[opcion["index"]][1]
+                opcion["tone"] = TONOS.get(clases_opcion[0], "subtle") if clases_opcion else ""
             if "kinds" in parametros and elegidos and 0 not in elegidos:
                 clases = {kind for indice in elegidos for kind in KIND_FILTERS[indice][1]}
                 filas, grupo, añadido = [], None, False

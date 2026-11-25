@@ -83,7 +83,7 @@ def catalogo(store):
             if not disponible:
                 detalle = tr("Needs 7-Zip or bsdtar to unpack.")
             imagenes.append({"key": imagen.key, "label": imagen.label, "detail": detalle,
-                "missing": cantidad, "available": disponible, "sha256": imagen.rom.sha256, "file": imagen.rom.name})
+                "missing": cantidad, "size": f"{cantidad / 1000 ** 2:.1f} MB" if cantidad else "", "available": disponible, "sha256": imagen.rom.sha256, "file": imagen.rom.name})
         familias.append({"key": familia.key, "title": familia.title, "version": familia.version,
             "origin": familia.origin, "summary": tr(familia.summary), "caution": tr(familia.caution),
             "recommended": familia.recommended, "default_image": familia.image().key,

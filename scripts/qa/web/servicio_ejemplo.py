@@ -85,6 +85,16 @@ class ServicioEjemplo:
             return f"{nombre}: ejemplo"
         return operacion
 
+    def tv_control_status(self):
+        return {"adapter": "/dev/cec0", "daemon": True, "tv": "on", "receiver": "standby", "address": "1.0.0.0"}
+
+    def tv_control_automation(self):
+        return {"wake": "installed", "poweroff": "absent"}
+
+    def tv_control_action(self, boton):
+        self.llamadas.append(("tv_control_action", (boton,), {}))
+        return {"ok": True, "code": "sent", "detail": ""}
+
     def metricas_tiempo_real(self):
         return deepcopy(self.datos_metricas if self.datos_metricas is not None else METRICAS)
 

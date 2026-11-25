@@ -17,6 +17,7 @@ from frontends.web.modulos import (
     firmware,
     soporte,
     temporales,
+    tv,
 )
 from scripts.qa.web.servicio_ejemplo import ConfiguracionEjemplo, ServicioEjemplo
 from tests.web.test_web_server import Client, web  # noqa: F401 - el servidor de las demás pruebas
@@ -212,3 +213,23 @@ def test_quien_solo_mira_no_lee_la_clave(web):  # noqa: F811
         respuesta, datos = cliente.call("GET", ruta)
         assert respuesta.status == 403
         assert "pin" not in datos
+
+
+# -- mando de la TV ---------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("p", [{"button": "reboot"}, {}, {"button": "mute", "extra": 1}, {"button": ["mute"]}])
+def test_el_mando_solo_tiene_sus_botones(ctx, p):
+    with pytest.raises(Invalid):
+        tv.pulsar(ctx, p)
+
+
+def test_el_mando_cuenta_lo_que_paso():
+    servicio = SimpleNamespace(tv_control_action=lambda _boton: {"ok": True, "code": "sent"})
+    assert tv.pulsar(SimpleNamespace(service=servicio), {"button": "mute"})["sent"] is True
+
+
+def test_las_automatizaciones_son_dos(ctx):
+    with pytest.raises(Invalid):
+        tv.automatizar(ctx, {"key": "otra", "enable": True}, None)
+    nivel, _trabajo = tv.automatizar(ctx, {"key": "wake", "enable": True}, None)
+    assert nivel == 1

@@ -20,6 +20,9 @@ ESTADOS = {
     "cut-off": "Cut off by a restart or a freeze. The top rows are the board's last seconds.",
 }
 
+#: Las columnas que el escritorio alinea a la izquierda; los números van a la derecha.
+IZQUIERDA = ("time", "clock", "rpm")
+
 
 def leer(ctx, live):
     estado = ctx.service.blackbox_estado() or {}
@@ -28,7 +31,7 @@ def leer(ctx, live):
             "state": estado.get("state", "none"), "message": ESTADOS.get(estado.get("state"), ESTADOS["none"]),
             "autostart": {clave: bool((estado.get("autostart") or {}).get(clave))
                           for clave in ("supported", "enabled", "foreign")},
-            "columns": [{"key": clave, "label": titulo} for titulo, clave in COLUMNS],
+            "columns": [{"key": clave, "label": titulo, "left": clave in IZQUIERDA} for titulo, clave in COLUMNS],
             "rows": [{clave: str(fila.get(clave, "–")) for _, clave in COLUMNS}
                      for fila in estado.get("rows", [])]}
 

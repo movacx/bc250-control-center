@@ -307,6 +307,19 @@ class Aplicacion(private val tareas: CoroutineScope) {
     }
 
     /** Guarda algo y dice si se pudo. */
+    /** Un botón que contesta en el momento, sin consola: el mando de la TV. */
+    suspend fun pulsarAhora(accion: String, parametros: JsonObject): JsonObject {
+        val pedido = buildJsonObject {
+            put("action", JsonPrimitive(accion))
+            put("params", parametros)
+        }
+        val respuesta = conexion.enviar("/api/setting", pedido)
+        if (!respuesta.correcta) {
+            return JsonObject(mapOf("text" to JsonPrimitive(respuesta.error.ifEmpty { t("Not connected") })))
+        }
+        return respuesta.datos.objeto("data")
+    }
+
     suspend fun guardarAhora(accion: String, parametros: JsonObject): Boolean {
         val pedido = buildJsonObject {
             put("action", JsonPrimitive(accion))

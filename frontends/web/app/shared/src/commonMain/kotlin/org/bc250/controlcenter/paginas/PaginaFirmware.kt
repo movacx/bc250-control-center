@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -45,6 +46,7 @@ import org.bc250.controlcenter.componentes.ClaseBoton
 import org.bc250.controlcenter.componentes.Desplegable
 import org.bc250.controlcenter.componentes.Eleccion
 import org.bc250.controlcenter.componentes.Leyenda
+import org.bc250.controlcenter.componentes.Esperando
 import org.bc250.controlcenter.componentes.LineaDivisoria
 import org.bc250.controlcenter.componentes.Opcion
 import org.bc250.controlcenter.componentes.PaginaDesplazable
@@ -65,7 +67,7 @@ import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.datos.texto
 import org.bc250.controlcenter.datos.textos
 import org.bc250.controlcenter.recursos.Res
-import org.bc250.controlcenter.recursos.gpu_blue
+import org.bc250.controlcenter.recursos.fw_logo
 import org.bc250.controlcenter.tema.ColoresActuales
 import org.bc250.controlcenter.tema.Medidas
 import org.jetbrains.compose.resources.decodeToImageBitmap
@@ -102,7 +104,7 @@ fun PaginaFirmware(aplicacion: Aplicacion) {
             eleccion.familia = porDefecto
         }
     }
-    PaginaDesplazable {
+    PaginaDesplazable(PaddingValues(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 20.dp)) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             if (maxWidth >= 1000.dp) {
                 Row(Modifier.fillMaxWidth().height(832.dp), Arrangement.spacedBy(12.dp)) {
@@ -142,7 +144,7 @@ private fun TarjetaCatalogo(
             Texto(error, tamano = 12, color = ColoresActuales.current.naranja)
         }
         val lista = if (conDesplazador) Modifier.weight(1f).verticalScroll(rememberScrollState()) else Modifier
-        Column(lista.fillMaxWidth().padding(end = 18.dp), Arrangement.spacedBy(8.dp)) {
+        Column(lista.fillMaxWidth().padding(end = 18.dp, top = 2.dp), Arrangement.spacedBy(8.dp)) {
             val familias = datos.objetos("families")
             val modificadas = familias.filter { familia -> familia.texto("origin") != "stock" }
             val originales = familias.filter { familia -> familia.texto("origin") == "stock" }
@@ -164,7 +166,7 @@ private fun GrupoFirmware(titulo: String, familias: List<JsonObject>, eleccion: 
             eleccion.imagen = ""
         }
     }
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(4.dp))
 }
 
 @Composable
@@ -246,11 +248,11 @@ private fun TarjetaPreparacion(aplicacion: Aplicacion, datos: JsonObject, elecci
     val familia = datos.objetos("families").firstOrNull { item -> item.texto("key") == eleccion.familia }
     TarjetaPagina(modifier, espacio = 8.dp) {
         SeccionLogo(aplicacion, familia, eleccion)
-        LineaDivisoria(Modifier.padding(vertical = 20.dp))
+        LineaDivisoria(Modifier.padding(top = 34.dp, bottom = 34.dp))
         SeccionInstalada(datos)
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(30.dp))
         SeccionUnidades(datos, eleccion)
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(30.dp))
         SeccionResumen(aplicacion, datos, familia, eleccion)
     }
 }
@@ -262,7 +264,7 @@ private fun SeccionLogo(aplicacion: Aplicacion, familia: JsonObject?, eleccion: 
     Leyenda(t("Put your own picture on the screen the board shows while it starts. It goes into the chosen firmware when the USB is prepared, and nothing else in that firmware changes."))
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         if (maxWidth >= 560.dp) {
-            Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(20.dp)) {
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), Arrangement.spacedBy(20.dp)) {
                 VistaLogo(eleccion.logo, Modifier.width(365.dp))
                 DatosLogo(aplicacion, admite, eleccion, Modifier.weight(1f))
             }
@@ -324,14 +326,14 @@ private fun DatosLogo(aplicacion: Aplicacion, admite: Boolean, eleccion: Eleccio
         LineaDivisoria()
         val kilobytes = (logo?.jpegBase64?.length ?: 0) * 3 / 4 / 1024
         HechoFila(t("In the firmware"), if (logo == null) "--" else "672 × 378 px · JPEG · $kilobytes KB")
-        Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
             Texto(t("Size"), tamano = 11, peso = 760)
             Deslizador(eleccion.tamano, logo != null, Modifier.weight(1f), ::cambiarTamano)
             Texto("${eleccion.tamano} %", 10, Modifier.width(44.dp), color = ColoresActuales.current.sutil, alineado = TextAlign.End)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val puede = admite && puedeElegirImagen && aplicacion.puedeControlar
-            Boton(t("Choose picture…"), ::elegir, activo = puede, icono = Res.drawable.gpu_blue)
+            Boton(t("Choose picture…"), ::elegir, activo = puede, icono = Res.drawable.fw_logo)
             Boton(t("Remove"), { guardar(null) }, activo = logo != null)
         }
     }
@@ -402,7 +404,10 @@ private fun SeccionUnidades(datos: JsonObject, eleccion: EleccionFirmware) {
     val unidades = datos.objetos("drives")
     Rotulo(t("USB drive"))
     if (unidades.isEmpty()) {
-        Leyenda(t("Waiting for a USB drive…"))
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
+            Esperando()
+            Leyenda(t("Waiting for a USB drive…"))
+        }
         Leyenda(t("Plug in a USB drive of at least 1 GB and it shows up here by itself. Everything on it will be erased."))
     }
     for (unidad in unidades) {
@@ -439,26 +444,35 @@ private fun SeccionResumen(aplicacion: Aplicacion, datos: JsonObject, familia: J
     val unidad = datos.objetos("drives").firstOrNull { item -> item.texto("id") == eleccion.unidad }
     val libre = aplicacion.puedeControlar && aplicacion.trabajo.terminado
     Rotulo(t("Preparation"))
-    HechoFila(t("Firmware"), familia?.texto("title") ?: "--")
-    LineaDivisoria()
-    if (imagenes.size > 1) {
-        val opciones = imagenes.map { item -> Eleccion(item.texto("key"), item.texto("label")) }
-        Desplegable(opciones, clave, { valor -> eleccion.imagen = valor }, Modifier.fillMaxWidth())
+    Column {
+        HechoFila(t("Firmware"), familia?.texto("title") ?: "--")
         LineaDivisoria()
+        if (imagenes.size > 1) {
+            val opciones = imagenes.map { item -> Eleccion(item.texto("key"), item.texto("label")) }
+            Desplegable(opciones, clave, { valor -> eleccion.imagen = valor }, Modifier.fillMaxWidth())
+            LineaDivisoria()
+        }
+        HechoFila(t("USB drive"), unidad?.texto("name") ?: t("Choose a USB drive"))
+        LineaDivisoria()
+        HechoFila(t("Download"), textoDescarga(imagen))
     }
-    HechoFila(t("USB drive"), unidad?.texto("name") ?: t("Choose a USB drive"))
-    LineaDivisoria()
-    HechoFila(t("Download"), imagen?.texto("detail") ?: "--")
     val lista = familia != null && imagen != null && unidad != null && imagen.logico("available")
     Boton(
         texto = t("Prepare USB"),
         alPulsar = { prepararUsb(aplicacion, datos, familia, clave, unidad, eleccion) },
-        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
         clase = ClaseBoton.PRINCIPAL,
         activo = libre && lista && datos.logico("udisks"),
         alto = 44.dp,
         peso = 780,
     )
+}
+
+private fun textoDescarga(imagen: JsonObject?): String {
+    if (imagen == null) {
+        return "--"
+    }
+    return imagen.texto("size").ifEmpty { imagen.texto("detail") }
 }
 
 private fun prepararUsb(
