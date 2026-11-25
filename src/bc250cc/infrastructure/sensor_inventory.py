@@ -253,6 +253,13 @@ class _CpuTimes:
         return usage
 
 
+#: Drivers whose every read goes out over a channel other programs share, and
+#: the least seconds between two of them. bc250_memory asks the SMU eight times
+#: outside the lock the governor and amdgpu use: read every second next to them,
+#: the SMU stopped answering and the GPU reset (2026-11-24).
+SLOW_DRIVERS = {"bc250_memory": 15.0, "bc250_vrm": 3.0}
+
+
 class SensorInventory:
     """Reads the whole list; one instance per sampler, used from one thread."""
 
@@ -276,6 +283,7 @@ class SensorInventory:
         self._scanned_at: float | None = None
         self._cpu_times = _CpuTimes(stat_path)
         self._cpu_name = ""
+        self._slow: dict[str, tuple[float, float | None]] = {}  # channel -> when it was read, its value
 
     # --------------------------------------------------------------- discovery
 
@@ -329,7 +337,7 @@ class SensorInventory:
         for channel in self._channels:
             if channel.group != group:
                 continue
-            raw = _read_number(channel.path)
+            raw = self._raw(channel)
             yield SensorReading(
                 key=channel.key,
                 group=channel.group,
@@ -339,6 +347,18 @@ class SensorInventory:
                 unit=channel.unit,
                 value=None if raw is None else raw / channel.scale,
             )
+
+    def _raw(self, channel: _Channel) -> float | None:
+        driver = channel.key.split("/")[1]
+        pause = next((seconds for name, seconds in SLOW_DRIVERS.items() if driver.startswith(name)), 0.0)
+        if not pause:
+            return _read_number(channel.path)
+        now = self._clock()
+        at, value = self._slow.get(channel.key, (None, None))
+        if at is None or now - at >= pause:
+            value = _read_number(channel.path)
+            self._slow[channel.key] = (now, value)
+        return value
 
     def _thread_clocks(self, numbers: Iterable[int]) -> dict[int, float]:
         """MHz per logical CPU: cpufreq when a driver is loaded, else cpuinfo.

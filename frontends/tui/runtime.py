@@ -24,6 +24,7 @@ from .i18n import tr, tr_format
 logger = logging.getLogger(__name__)
 
 HISTORY_SAMPLES = 300
+SLOW_READ, BACK_OFF = 2.0, 15.0  # seconds: a read this long, and the pause after it
 
 
 def operation_tone(error: BaseException) -> str:
@@ -175,7 +176,9 @@ class Poller:
                 with self.ctx.lock:
                     self.ctx.metrics_error = describe_error(error)
             self.dirty.set()
-            self._stop.wait(max(0.1, self.metrics_interval - (time.monotonic() - started)))
+            took = time.monotonic() - started
+            # A read that hangs means the SMU is not answering: asking again at once keeps it that way.
+            self._stop.wait(BACK_OFF if took > SLOW_READ else max(0.1, self.metrics_interval - took))
 
     def _page_loop(self) -> None:
         while not self._stop.is_set():

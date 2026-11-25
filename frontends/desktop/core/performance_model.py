@@ -350,6 +350,7 @@ class PerformanceRecorder:
         from .performance_views import VIEW_BY_KEY
 
         self._present, self._views, self._translate = present_performance_sample, VIEW_BY_KEY, translate
+        self.sensors = True  # whether the sensor list is read too, or only the resources
         self.depth, self.window = depth, float(MetricHistory.WINDOW_SECONDS)
         self.inventory = inventory if inventory is not None else SensorInventory()
         self.histories = {definition.key: MetricHistory(definition, depth) for definition in RESOURCE_DEFINITIONS}
@@ -364,6 +365,8 @@ class PerformanceRecorder:
 
     def read(self, sample: dict) -> list:
         """The sensor list for ``sample``: the slow part, kept apart so it can run outside a lock."""
+        if not self.sensors:
+            return []
         try:
             return self.inventory.read(sample)
         except Exception:  # noqa: BLE001 - the list is extra; the resources still chart

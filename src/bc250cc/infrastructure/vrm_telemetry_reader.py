@@ -56,6 +56,9 @@ _KERNEL_CACHE_SECONDS = 1.0
 #: ``bc250-cpu-smu-helper``). Reading the VRM driver means PMBus traffic on the
 #: bus the SMU also uses, so nothing is read while a run holds it.
 SMU_RUN_LOCK = Path("/run/bc250-smu-run.lock")
+#: Least seconds between two reads of the GDDR6 chips through the kernel.
+KERNEL_MEMORY_SECONDS = 15.0
+_memory_cache: dict[str, tuple[float, list[dict[str, Any]] | None]] = {}
 _kernel_cache: dict[str, tuple[float, dict[str, Any] | None]] = {}
 
 #: Status bits the PMIC raises on its own. A warning is the rail asking for
@@ -384,9 +387,22 @@ def _probe_daemon(
 def _kernel_memory_chips(root: Path) -> list[dict[str, Any]]:
     """The chips ``bc250_memory`` publishes, or nothing when it is not loaded.
 
-    The kernel does the SMU work and caches it for a second, so this is a plain
-    sysfs read; one missing or implausible chip invalidates the sample.
+    A read costs eight SMU messages outside the lock the governor and amdgpu
+    share, so the sample is kept for a while and nothing is read during a CPU
+    tuning run. One missing or implausible chip invalidates the sample.
     """
+    at, kept = _memory_cache.get(str(root), (0.0, None))
+    now = time.monotonic()
+    if kept is not None and now - at < KERNEL_MEMORY_SECONDS:
+        return [dict(chip) for chip in kept]
+    if _smu_run_in_progress(SMU_RUN_LOCK):
+        return []
+    chips = _read_kernel_memory_chips(root)
+    _memory_cache[str(root)] = (now, chips)
+    return [dict(chip) for chip in chips]
+
+
+def _read_kernel_memory_chips(root: Path) -> list[dict[str, Any]]:
     device = _named_hwmon(root, KERNEL_MEMORY_HWMON_NAME)
     if device is None:
         return []

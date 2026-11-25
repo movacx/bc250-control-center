@@ -164,6 +164,7 @@ class PerformancePage(Page):
 
     def build(self, ctx, data, tab, ui):
         recorder = self.recorder(ctx)
+        recorder.sensors = True
         if not recorder.plans:
             return [Note(tr("Waiting for first sample"), "dim")]
         return self._sensors(ctx, recorder, ui) if (tab or "sensors") == "sensors" \

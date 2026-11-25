@@ -122,7 +122,9 @@ def main(argv: list[str] | None = None) -> int:
         if first in screen.order:
             screen.focus = "content" if args.page or screen.collapsed else "sidebar"
             screen._go(screen.order.index(first))
-        pages["performance"].recorder(ctx)  # its charts have a past from the first visit
+        # Its charts have a past from the first visit. The sensor list, whose reads go
+        # over buses other programs share, waits until that page is opened.
+        pages["performance"].recorder(ctx).sensors = False
         poller.start()
         if crashed:
             screen.open_report("BC250 Control Center · " + tr("Operation failed"), error=crashed[0])
