@@ -7,7 +7,7 @@ object MedidasGpuCu {
     val espacio = 14.dp
     val margenGrupo = 18.dp
     val altoPerfil = 93.dp
-    val altoCarril = 80.dp
+    val altoCarril = 72.dp
     val altoFilaWgp = 72.dp
     val altoCabeceraWgp = 54.dp
     val anchoTablaMinimo = 720.dp

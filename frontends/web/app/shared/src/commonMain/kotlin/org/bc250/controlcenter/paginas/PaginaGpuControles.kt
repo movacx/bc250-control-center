@@ -1,5 +1,7 @@
 package org.bc250.controlcenter.paginas
 
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -82,25 +84,26 @@ internal fun CarrilGpu(puntos: List<JsonObject>, minimo: Int, maximo: Int, techo
                         moverActual(cambio.position.x, size.width.toFloat())
                     }
                 }) {
-                val y = 24.dp.toPx()
+                val y = 27.dp.toPx()
                 val bajo = posicion(minimo, size.width)
                 val alto = posicion(maximo, size.width)
-                drawLine(paleta.bordeFuerte, Offset(26f, y), Offset(size.width - 26f, y), 3f)
+                drawLine(paleta.rojoBorde, Offset(26f, y), Offset(size.width - 26f, y), 3f)
+                drawLine(paleta.bordeFuerte, Offset(26f, y), Offset(posicion(techo, size.width), y), 3f)
                 drawLine(paleta.acento, Offset(bajo, y), Offset(alto, y), 4f)
                 for (frecuencia in frecuencias) {
                     val x = posicion(frecuencia, size.width)
                     drawLine(if (frecuencia > techo) paleta.rojoBorde else paleta.acento,
-                        Offset(x, y - 16f), Offset(x, y), 2f)
+                        Offset(x, y - 15f), Offset(x, y), 2f)
                 }
-                drawCircle(paleta.acento, 7.dp.toPx(), Offset(alto, y))
+                drawCircle(paleta.acento, 6.dp.toPx(), Offset(alto, y))
                 drawCircle(paleta.panel, 7.dp.toPx(), Offset(bajo, y))
                 drawCircle(paleta.acento, 7.dp.toPx(), Offset(bajo, y), style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
             }
             for ((indice, frecuencia) in frecuencias.withIndex()) {
                 val x = 26.dp + (ancho - 52.dp) * indice / (frecuencias.size - 1).coerceAtLeast(1) - 24.dp
-                Texto(frecuencia.toString(), tamano = 9, color = if (frecuencia > techo) paleta.rojo else paleta.sutil,
+                Texto(frecuencia.toString(), tamano = 9, color = colorDelPunto(frecuencia, minimo, maximo, techo, paleta),
                     alineado = TextAlign.Center,
-                    modifier = Modifier.offset(x = x, y = if (indice % 2 == 0) 42.dp else 58.dp).width(48.dp))
+                    modifier = Modifier.offset(x = x, y = if (indice % 2 == 0) 45.dp else 60.dp).width(48.dp))
             }
             }
             // Los campos conservan el ajuste fino también sin arrastrar en el teléfono.
@@ -135,16 +138,24 @@ internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre:
     fun opciones(valores: List<String>): List<Eleccion> {
         return valores.map { Eleccion(it, if (it == "smu") "SMU" else if (it == "drm") "DRM" else it) }
     }
-    FilaHerramientaGpuCu(t("Cyan kernel compatibility"), "", tamanoTitulo = 15) {
+    fun aplicar() {
+        aplicacion.preguntarYEjecutar("gpu.compat", t("Apply Cyan compatibility settings"),
+            "$metodo · $uso · $temperatura\n" + t("Apply compatibility settings"),
+            mapOf("set_method" to JsonPrimitive(metodo), "usage_method" to JsonPrimitive(uso),
+                "metrics" to JsonPrimitive(metricas), "frequencies" to JsonPrimitive(frecuencias),
+                "temp_read" to JsonPrimitive(temperatura)), peligro = metodo == "kernel")
+        editado = false
+    }
+    SeccionGpuCu(t("Cyan kernel compatibility"), alto = 23.dp, derecha = {
         val modo = when {
             datos.texto("service_active") != "active" -> t("Governor stopped — press Start governor")
             datos.objeto("high_frequency_points").logico("enabled") -> t("Extended range")
             else -> t("Safe mode")
         }
-        Texto(modo, tamano = 11, peso = 700, color = ColoresActuales.current.acento)
-    }
-    SubPanel(margen = PaddingValues(18.dp, 14.dp), espacio = 12.dp) {
-        RejillaGpuCu(3, 3) { indice, modificador ->
+        Texto(modo, tamano = 11, peso = 780, color = ColoresActuales.current.verde)
+    }) {
+    SubPanel(margen = PaddingValues(18.dp, 14.dp), espacio = 0.dp) {
+        RejillaGpuCu(3, 3, separacion = 10.dp) { indice, modificador ->
             when (indice) {
                 0 -> FilaEleccion(t("Governor method"), opciones(listOf("smu", "kernel")), metodo,
                     { metodo = it; editado = true }, modificador, libre)
@@ -158,8 +169,8 @@ internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre:
             Texto(t("The process reading goes through every open file of every program. With a game open, Cyan stops answering: the range, the +2000 MHz points and the voltage lab stop working until the game closes. busy-flag is the default."),
                 tamano = 12, color = ColoresActuales.current.naranja)
         }
-        LineaDivisoria()
-        FilaHerramientaGpuCu("", t("The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off.")) {
+        SeparadorGpu()
+        FilaHerramientaGpuCu("", t("The BC-250 kernel already fixes this telemetry. Its recommended settings: kernel method, kernel usage reading, sysfs temperature, both fixes off."), tamanoDetalle = 10) {
             Boton(t("Use the BC-250 kernel settings"), {
                 metodo = "kernel"
                 uso = "kernel"
@@ -167,30 +178,47 @@ internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre:
                 metricas = false
                 frecuencias = false
                 editado = true
-            }, activo = libre, alto = MedidasGpuCu.altoAccion)
+            }, Modifier.width(235.dp), activo = libre, alto = MedidasGpuCu.altoAccion, tamano = 12)
         }
-        LineaDivisoria()
-        RejillaGpuCu(3, 3) { indice, modificador ->
-            when (indice) {
-                0 -> Row(modificador, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Casilla(metricas, { metricas = it; editado = true }, activa = libre)
-                    Texto(datos.objeto("fix_labels").texto("metrics"), tamano = 13)
+        SeparadorGpu()
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            if (maxWidth < MedidasGpuCu.anchoMovil) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    MarcaGpu(datos.objeto("fix_labels").texto("metrics"), metricas, libre) { metricas = !metricas; editado = true }
+                    MarcaGpu(datos.objeto("fix_labels").texto("frequency"), frecuencias, libre) { frecuencias = !frecuencias; editado = true }
+                    BotonCompatibilidad(libre, Modifier.fillMaxWidth(), ::aplicar)
                 }
-                1 -> Row(modificador, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Casilla(frecuencias, { frecuencias = it; editado = true }, activa = libre)
-                    Texto(datos.objeto("fix_labels").texto("frequency"), tamano = 13)
+            } else {
+                Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(16.dp), Alignment.CenterVertically) {
+                    MarcaGpu(datos.objeto("fix_labels").texto("metrics"), metricas, libre) { metricas = !metricas; editado = true }
+                    MarcaGpu(datos.objeto("fix_labels").texto("frequency"), frecuencias, libre) { frecuencias = !frecuencias; editado = true }
+                    Spacer(Modifier.weight(1f))
+                    BotonCompatibilidad(libre, Modifier.width(195.dp), ::aplicar)
                 }
-                else -> Boton(t("Apply compatibility"), {
-                    aplicacion.preguntarYEjecutar("gpu.compat", t("Apply Cyan compatibility settings"),
-                        "$metodo · $uso · $temperatura\n" + t("Apply compatibility settings"),
-                        mapOf("set_method" to JsonPrimitive(metodo), "usage_method" to JsonPrimitive(uso),
-                            "metrics" to JsonPrimitive(metricas), "frequencies" to JsonPrimitive(frecuencias),
-                            "temp_read" to JsonPrimitive(temperatura)), peligro = metodo == "kernel")
-                    editado = false
-                }, modificador, activo = libre, alto = MedidasGpuCu.altoAccion)
             }
         }
     }
+    }
+}
+
+/** El hueco y la línea entre dos filas de un panel. */
+@Composable
+private fun SeparadorGpu() {
+    LineaDivisoria(Modifier.padding(vertical = 11.dp))
+}
+
+/** Una corrección del kernel: su casilla y su nombre. */
+@Composable
+private fun MarcaGpu(nombre: String, marcada: Boolean, activa: Boolean, alCambiar: () -> Unit) {
+    Row(Modifier.height(24.dp).pulsable(activa, alPulsar = alCambiar), Arrangement.spacedBy(9.dp), Alignment.CenterVertically) {
+        CasillaChica(marcada, activa, alCambiar)
+        Texto(nombre, tamano = 13)
+    }
+}
+
+@Composable
+private fun BotonCompatibilidad(activo: Boolean, modifier: Modifier, alPulsar: () -> Unit) {
+    Boton(t("Apply compatibility"), alPulsar, modifier, activo = activo, alto = MedidasGpuCu.altoAccion, tamano = 12)
 }
 
 @Composable
@@ -198,16 +226,16 @@ internal fun HerramientasGpu(aplicacion: Aplicacion, datos: JsonObject, libre: B
     alLaboratorio: () -> Unit, alConfiguracion: () -> Unit) {
     val funcionando = datos.texto("service_active") == "active"
     val oberon = datos.texto("governor_backend") == "oberon-governor"
-    SubPanel(margen = PaddingValues(18.dp, 14.dp), espacio = 14.dp) {
+    SubPanel(margen = PaddingValues(18.dp, 14.dp), espacio = 0.dp) {
         FilaHerramientaGpuCu(t("Governor service"), t("Start governor runs it now and saves it for startup (enables the service). Stop governor stops it and removes it from startup (disables the service).")) {
             RejillaAccionesServicioGpu(aplicacion, datos, funcionando, libre)
         }
-        LineaDivisoria()
+        SeparadorGpu()
         FilaHerramientaGpuCu(t(if (oberon) "YAML endpoint laboratory" else "Voltage laboratory"),
             t("Point-by-point conservative validation of the selected range.")) {
             AccionesGpuCu(2, 404.dp) { indice, caja ->
-                if (indice == 0) Boton(t("Open laboratory"), alLaboratorio, caja, alto = MedidasGpuCu.altoAccion)
-                else Boton(t(if (oberon) "Open oberon-config.yaml" else "Open config.toml"), alConfiguracion, caja, alto = MedidasGpuCu.altoAccion)
+                if (indice == 0) Boton(t("Open laboratory"), alLaboratorio, caja, alto = MedidasGpuCu.altoAccion, tamano = 12)
+                else Boton(t(if (oberon) "Open oberon-config.yaml" else "Open config.toml"), alConfiguracion, caja, alto = MedidasGpuCu.altoAccion, tamano = 12)
             }
         }
     }
@@ -215,9 +243,9 @@ internal fun HerramientasGpu(aplicacion: Aplicacion, datos: JsonObject, libre: B
 
 @Composable
 private fun RejillaAccionesServicioGpu(aplicacion: Aplicacion, datos: JsonObject, funcionando: Boolean, libre: Boolean) {
-    AccionesGpuCu(3, 612.dp) { indice, caja ->
+    AccionesGpuCu(3, 613.dp) { indice, caja ->
         if (indice == 0) {
-            Boton(t("View status"), { aplicacion.ejecutar("gpu.status", t("View status")) }, caja, alto = MedidasGpuCu.altoAccion)
+            Boton(t("View status"), { aplicacion.ejecutar("gpu.status", t("View status")) }, caja, alto = MedidasGpuCu.altoAccion, tamano = 12)
         } else {
             val accion = if (indice == 1) "reiniciar" else if (funcionando) "desactivar" else "activar"
             val titulo = t(if (indice == 1) "Restart" else if (funcionando) "Stop governor" else "Start governor")
@@ -226,7 +254,7 @@ private fun RejillaAccionesServicioGpu(aplicacion: Aplicacion, datos: JsonObject
                 aplicacion.preguntarYEjecutar("gpu.service", titulo, plan.texto("message", titulo),
                     mapOf("action" to JsonPrimitive(accion)), peligro = plan.logico("risk"))
             }, caja, clase = if (accion == "desactivar") ClaseBoton.PELIGRO else ClaseBoton.NORMAL,
-                activo = libre, alto = MedidasGpuCu.altoAccion)
+                activo = libre, alto = MedidasGpuCu.altoAccion, tamano = 12)
         }
     }
 }
@@ -260,4 +288,13 @@ internal fun DiagnosticosGpu(datos: JsonObject, minimo: Int, maximo: Int) {
         t("Configuration") to datos.texto("config_path"),
     )
     for ((nombre, valor) in contrato) FilaHerramientaGpuCu(nombre, valor) { }
+}
+
+/** Un punto elegido se lee entero; uno fuera del rango, apagado; uno bloqueado, en rojo apagado. */
+private fun colorDelPunto(frecuencia: Int, minimo: Int, maximo: Int, techo: Int, paleta: Paleta): Color {
+    return when {
+        frecuencia > techo -> paleta.rojoBorde
+        frecuencia in minimo..maximo -> paleta.texto
+        else -> paleta.sutil
+    }
 }

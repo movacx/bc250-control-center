@@ -17,6 +17,7 @@ fun RejillaGpuCu(
     cantidad: Int,
     columnas: Int = 2,
     umbral: Dp = MedidasGpuCu.anchoMovil,
+    separacion: Dp = 8.dp,
     contenido: @Composable (Int, Modifier) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -25,7 +26,7 @@ fun RejillaGpuCu(
             var inicio = 0
             while (inicio < cantidad) {
                 val primero = inicio
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(separacion)) {
                     for (columna in 0 until columnasVisibles) {
                         val indice = primero + columna
                         if (indice < cantidad) contenido(indice, Modifier.weight(1f))
@@ -45,7 +46,7 @@ fun TituloGpuCu(texto: String) {
 
 /** Una operación o una descripción y sus acciones, con espacio para el móvil. */
 @Composable
-fun FilaHerramientaGpuCu(titulo: String, detalle: String, tamanoTitulo: Int = 13, acciones: @Composable () -> Unit) {
+fun FilaHerramientaGpuCu(titulo: String, detalle: String, tamanoTitulo: Int = 13, tamanoDetalle: Int = 12, acciones: @Composable () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         if (maxWidth < MedidasGpuCu.anchoMovil) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -58,7 +59,10 @@ fun FilaHerramientaGpuCu(titulo: String, detalle: String, tamanoTitulo: Int = 13
                 horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     if (titulo.isNotEmpty()) Texto(titulo, tamano = tamanoTitulo, peso = 700)
-                    if (detalle.isNotEmpty()) Texto(detalle, tamano = 12, color = ColoresActuales.current.apagado)
+                    if (detalle.isNotEmpty()) {
+                        val color = if (tamanoDetalle < 12) ColoresActuales.current.sutil else ColoresActuales.current.apagado
+                        Texto(detalle, tamano = tamanoDetalle, color = color)
+                    }
                 }
                 acciones()
             }
@@ -83,6 +87,18 @@ fun EstadoLecturaGpuCu(aplicacion: Aplicacion, error: String, cargando: Boolean,
 @Composable
 fun AccionesGpuCu(cantidad: Int, ancho: Dp, contenido: @Composable (Int, Modifier) -> Unit) {
     Box(Modifier.widthIn(max = ancho).fillMaxWidth()) {
-        RejillaGpuCu(cantidad, cantidad, umbral = 400.dp, contenido = contenido)
+        RejillaGpuCu(cantidad, cantidad, umbral = 400.dp, separacion = 10.dp, contenido = contenido)
+    }
+}
+
+/** Una sección: su título (con lo que diga a la derecha) pegado a su panel. */
+@Composable
+fun SeccionGpuCu(titulo: String, alto: Dp = 20.dp, derecha: @Composable () -> Unit = {}, contenido: @Composable () -> Unit) {
+    Column(Modifier.fillMaxWidth(), Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = alto).padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Texto(titulo, 14, Modifier.weight(1f), peso = 750)
+            derecha()
+        }
+        contenido()
     }
 }
