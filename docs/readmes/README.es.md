@@ -1,11 +1,9 @@
 # BC250 Control Center
 
-Configure, ajuste y supervise el AMD BC-250 en Linux desde el escritorio, un terminal o un navegador web.
-
-Cubre el regulador de GPU, el ajuste de CPU, las unidades de cómputo, los ventiladores, la memoria, los medios de actualización del BIOS, la ampliación y la preparación del sistema para las distribuciones compatibles. Las interfaces comparten servicios de aplicaciones, límites de hardware y ayudantes privilegiados. Un complemento opcional Decky trae los controles cotidianos al modo de juego de Steam.
+Configura, ajusta y supervisa la AMD BC-250 en Linux desde el escritorio, la terminal, el navegador o el teléfono.
 
 <p align="center">
-  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/demo.gif" alt="BC250 Control Center dashboard" width="100%"></a>
+  <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="../../assets/screenshots/demo.gif" alt="Panel de BC250 Control Center" width="100%"></a>
 </p>
 
 <p align="center">
@@ -25,90 +23,183 @@ Cubre el regulador de GPU, el ajuste de CPU, las unidades de cómputo, los venti
   <a href="https://ko-fi.com/movacx"><img src="https://img.shields.io/badge/Ko--fi-Donate-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white" alt="Donate on Ko-fi"></a>
 </p>
 
-Hay más capturas de pantalla en la [galería](https://movacx.github.io/bc250-control-center/gallery/).
+Reúne en un solo programa lo que la placa necesita: gobernador de la GPU, ajuste de la CPU, unidades de cómputo, ventiladores, memoria, BIOS, escalado en juegos y preparación del sistema según tu distribución. Todas las interfaces usan los mismos límites y los mismos controles; ninguna puede hacer algo que las demás consideren inseguro.
+
+Hay más capturas en la [galería](https://movacx.github.io/bc250-control-center/gallery/).
+
+## Contenido
+
+- [Elige tu interfaz](#elige-tu-interfaz)
+- [Requisitos y distribuciones](#requisitos-y-distribuciones)
+- [Instalación](#instalación)
+  - [Paquetes](#paquetes) · [Escritorio](#escritorio) · [Terminal](#terminal) · [Web](#web) · [Aplicación para Android](#aplicación-para-android) · [SteamOS](#steamos)
+- [Primeros pasos](#primeros-pasos)
+- [Qué puedes hacer](#qué-puedes-hacer)
+- [Usar cada interfaz](#usar-cada-interfaz)
+- [Contraseña y permisos](#contraseña-y-permisos)
+- [Actualizar y desinstalar](#actualizar-y-desinstalar)
+- [Solución de problemas](#solución-de-problemas)
+- [Seguridad del hardware](#seguridad-del-hardware)
+- [Para desarrolladores](#para-desarrolladores)
+- [Créditos](#créditos)
 
 ## Elige tu interfaz
 
-| Interfaz | Más adecuado para | Cómo abrirla |
+| Interfaz | Para qué sirve mejor | Qué necesita la placa |
 | --- | --- | --- |
-| **Escritorio · PyQt6** | Configuración completa, ajuste, diagnóstico y administración local. | `bc250-control-center` |
-| **Terminal · curses** | Un TTY local, un emulador de terminal o una sesión SSH | `bc250-control-center-tui` |
-| **Web · React** | Monitoreo y controles de hardware desde un teléfono, tableta u otra computadora en la red doméstica | Inicie **Acceso remoto** en la aplicación de escritorio, luego abra su dirección o escanee el QR. |
+| **Escritorio** | Instalación, ajuste y diagnóstico completos | Un entorno gráfico |
+| **Terminal (TUI)** | Una consola local o una sesión SSH, con teclado o ratón | Solo una terminal |
+| **Web** | Controlar la placa desde otro equipo o un teléfono de tu red | Nada más; no hace falta pantalla |
+| **Aplicación para Android** | Lo mismo que la web, instalado en el teléfono | El acceso web encendido |
+| **Decky** (opcional) | Los controles de cada día en el Modo Juego de Steam | Decky Loader |
 
-La instalación normal incluye la interfaz del terminal y los recursos web compilados. Un [instalador solo para terminal](#terminal-mode) está disponible para máquinas sin escritorio. La interfaz del navegador necesita que el servidor web de la placa esté en funcionamiento; no necesita SSH ni Node.js para un uso normal.
+La instalación de escritorio ya incluye la terminal y la web. Si solo quieres una de ellas, cada una tiene su propio instalador y no instala lo que no necesita.
 
-## Funciones
+## Requisitos y distribuciones
 
-- Panel con CPU, GPU, refrigeración, carga por núcleo, temperatura de la GDDR6 por chip, BIOS instalada y rieles de alimentación (los rieles necesitan la modificación de hardware I2C; la aplicación incluye una guía con fotos)
-- Gráficas de rendimiento de CPU, GPU, VRAM, RAM, disco y red, con vista de sensores y exportación a CSV
-- Gestión del gobernador de la GPU (Cyan, con Oberon como alternativa), rangos de frecuencia seguros y un laboratorio de voltaje
-- Ajuste de la CPU mediante la SMU, prueba de estabilidad y desbloqueo opcional de núcleos
-- Unidades de cómputo: diagnóstico de enrutamiento y registro, con estados en vivo y de arranque informados por separado; Las unidades disponibles dependen del tablero.
-- Control de ventiladores: PWM manual, curvas por temperatura, perfiles persistentes, o cesión a CoolerControl, fancontrol o fan2go
-- Memoria: tamaño de la VRAM, ZRAM, ZSWAP y swap
-- Creación de USB para actualizar la BIOS (P3.00 Chipset Menu, MeiMeiDXE v3, P5.00, P3.00, P2.00) con cada archivo verificado
-- Escalado por juego: FSR4 INT8 mediante OptiScaler Client y HelixSR, con copia de seguridad y restauración de los archivos del juego
-- Preparación del sistema según la distribución, ejecutada en una terminal integrada
-- Correcciones de compatibilidad para GFX1013, async compute, ACPI y Mesa; Dolby Digital 5.1 por HDMI; control de la TV por HDMI-CEC
-- Informes de problemas dentro de la aplicación, con códigos de error, códigos de origen y el error sin procesar adjunto
-- 30 idiomas, temas claro y oscuro, escalado de la interfaz, temperaturas en °C o °F y navegación con mando
-- Interfaz de terminal con navegación por teclado, compatibilidad con mouse, telemetría en vivo y una consola de operación integrada
-- Interfaz web HTTPS de red local con diseños móviles, emparejamiento de QR y permisos de hardware por dispositivo
+- Una placa AMD BC-250.
+- Python 3.11 o posterior.
+- Una cuenta con permiso de administrador (`sudo`).
 
-## Distribuciones compatibles
+| Distribución | Cómo se instala |
+| --- | --- |
+| Arch Linux, CachyOS, Manjaro | AUR o paquete `.pkg.tar.zst` |
+| Fedora, Nobara | Paquete `.rpm` |
+| Bazzite y otras Fedora Atomic | Paquete `.rpm` con `rpm-ostree` |
+| Ubuntu, Linux Mint, Debian 13 | Paquete `.deb` |
+| SteamOS (beta) | Paquete `.pkg.tar.zst` o AUR |
 
-- Arch Linux, CachyOS, Manjaro
-- Fedora, Nobara
-- Bazzite y otras variantes atómicas de Fedora
-- SteamOS (beta)
-- Ubuntu, Linux Mint, Debian 13
-
-Se necesita Python 3.11 o posterior. Otras distribuciones, incluidos los sistemas con OpenRC, se detectan y se tratan en lo posible, pero no se prueban en cada versión.
+Otras distribuciones, también las que usan OpenRC, se detectan y se atienden en lo posible, pero no se prueban en cada versión.
 
 ## Instalación
 
-### AUR
+Hay dos caminos. Los **paquetes** son los recomendados: se actualizan con el sistema. Los **instaladores desde el repositorio** sirven si prefieres clonar el proyecto o instalar una sola interfaz.
 
-Para Arch Linux, CachyOS y SteamOS:
+### Paquetes
+
+Descarga el de tu distribución desde la [última versión](https://github.com/movacx/bc250-control-center/releases/latest).
+
+**Arch Linux, CachyOS y Manjaro**
 
 ```bash
 yay -S bc250-control-center-git
 ```
 
-### Paquetes de cada versión
-
-Descarga el paquete de tu distribución desde la [última versión](https://github.com/movacx/bc250-control-center/releases/latest).
-
-Arch Linux, CachyOS, Manjaro:
+o, con el paquete descargado:
 
 ```bash
 sudo pacman -U ./bc250-control-center-*-any.pkg.tar.zst
 ```
 
-Fedora, Nobara:
+**Fedora y Nobara**
 
 ```bash
 sudo dnf install ./bc250-control-center-*.rpm
 ```
 
-Bazzite y Fedora Atomic (hace falta reiniciar):
+**Bazzite y Fedora Atomic** (hay que reiniciar)
 
 ```bash
 sudo rpm-ostree install ./bc250-control-center-*.rpm
 systemctl reboot
 ```
 
-Ubuntu, Linux Mint, Debian:
+**Ubuntu, Linux Mint y Debian**
 
 ```bash
 sudo apt install ./bc250-control-center_*.deb
 ```
 
-Usa `apt install` en lugar de `dpkg -i` para que se instalen las dependencias. Si un paquete quedó a medias por `dpkg -i`, ejecuta `sudo apt --fix-broken install`.
+Usa `apt install` y no `dpkg -i`, para que también se instalen las dependencias. Si una instalación quedó a medias, ejecuta `sudo apt --fix-broken install`.
+
+### Desde el repositorio
+
+Clona el proyecto una sola vez, con tu usuario de siempre y sin `sudo`:
+
+```bash
+git clone https://github.com/movacx/bc250-control-center.git
+cd bc250-control-center
+```
+
+Desde esa carpeta instala la interfaz que quieras. Los tres instaladores colocan el programa en `~/.local`, comprueban lo que falta, te piden permiso de administrador solo para instalar dependencias y los controles protegidos del hardware, y se pueden ejecutar otra vez para actualizar.
+
+| Quiero… | Comando | Se abre con |
+| --- | --- | --- |
+| Todo: escritorio, terminal y web | `bash scripts/install-local.sh` | `bc250-control-center` |
+| Solo la terminal | `bash scripts/install-tui.sh` | `bc250-control-center-tui` |
+| Solo la web | `bash scripts/install-web.sh` | El navegador o la aplicación de Android |
+
+Si la terminal no encuentra el comando, `~/.local/bin` no está en tu `PATH`; ábrelo con la ruta completa, por ejemplo `~/.local/bin/bc250-control-center-tui`.
+
+> En Bazzite y Fedora Atomic los controles protegidos no se pueden instalar así. Instala el paquete `.rpm` con `rpm-ostree` y reinicia.
+
+### Escritorio
+
+```bash
+bash scripts/install-local.sh
+```
+
+Instala la aplicación gráfica con su acceso en el menú, y con ella la terminal y la web. Para abrirla:
+
+```bash
+bc250-control-center
+```
+
+### Terminal
+
+```bash
+bash scripts/install-tui.sh
+```
+
+No instala PyQt6, polkit ni nada gráfico. Para ver qué falta sin cambiar nada:
+
+```bash
+bash scripts/install-tui.sh --check
+```
+
+Para abrirla, aquí o por SSH:
+
+```bash
+bc250-control-center-tui
+```
+
+```bash
+ssh -t usuario@ip-de-la-placa bc250-control-center-tui
+```
+
+### Web
+
+```bash
+bash scripts/install-web.sh
+```
+
+Instala la interfaz web, la enciende para tu red de casa y muestra la dirección, la clave y un código QR. La placa no necesita pantalla. Con `--no-start` la instala sin encenderla.
+
+| Comando | Qué hace |
+| --- | --- |
+| `bc250-control-center web setup` | Enciende el acceso y muestra dirección, clave y QR |
+| `bc250-control-center web status` | Los vuelve a mostrar |
+| `bc250-control-center web stop` | Apaga el acceso |
+
+No hace falta Node.js ni ningún otro servidor. Con el escritorio instalado puedes hacer lo mismo desde **Acceso remoto**.
+
+### Aplicación para Android
+
+1. Descarga el archivo `.apk` desde la [última versión](https://github.com/movacx/bc250-control-center/releases/latest) e instálalo. Android te pedirá permiso para instalar aplicaciones fuera de la tienda.
+2. En la placa, abre **Acceso remoto**, enciende el acceso web y activa **Accesible desde la red local** (o ejecuta `bc250-control-center web setup`).
+3. Con el teléfono en la misma red Wi-Fi, abre la aplicación y escribe la dirección que muestra la placa, o pega el enlace de su código QR.
+
+Necesita Android 7.0 o posterior. La aplicación recuerda la sesión y comprueba que siempre se conecta a tu placa. Solo funciona en tu red de casa: no usa ningún servidor de internet.
+
+<p align="center">
+  <img src="../../assets/screenshots/mobile-interface.png" alt="La interfaz en un teléfono: panel, CPU, unidades de cómputo, GPU y voltaje" width="100%">
+</p>
+
+¿iPhone? Abre la dirección de la web en el navegador; tiene la misma interfaz y se puede añadir a la pantalla de inicio.
 
 ### SteamOS
 
-SteamOS mantiene su partición del sistema en solo lectura, así que el paquete solo se puede instalar mientras esa protección está desactivada. Abre Konsole en el Modo Escritorio y ejecuta:
+SteamOS protege su partición de sistema contra escritura, así que el paquete solo se puede instalar mientras esa protección está apagada. En el Modo Escritorio, abre Konsole:
 
 ```bash
 sudo steamos-readonly disable
@@ -119,136 +210,171 @@ sudo pacman -U ./bc250-control-center-*-any.pkg.tar.zst
 sudo steamos-readonly enable
 ```
 
-Las líneas de `pacman-key` y `pacman -Syy` actualizan el llavero y las bases de datos de paquetes, que una actualización de SteamOS reinicia. Si todavía no has puesto contraseña al usuario `deck`, ejecuta `passwd` antes. Tras una actualización de SteamOS, **Reinstall BC250 Control Center** en el menú del Modo Escritorio hace estos pasos por ti.
-
-
-## Actualizaciones
-
-La aplicación busca nuevas versiones, muestra el registro de cambios, verifica la suma de comprobación del paquete e instala la actualización con el gestor de paquetes del sistema.
-
-**SteamOS:** una actualización del sistema de SteamOS elimina los paquetes instalados en el sistema, incluido este. Después de una actualización del sistema, ejecuta **Reinstall BC250 Control Center** desde el menú del Modo Escritorio y luego vuelve a ejecutar Prepare BC250 system. SteamOS pide la contraseña del usuario `deck`; si no la tienes, créala con `passwd`.
-
-**Desde la 1.19:** el actualizador de la 1.19 no puede instalar paquetes. Instala una vez la versión actual a mano; las siguientes se actualizan solas.
-
-```bash
-# Bazzite / Fedora Atomic: replace a layered 1.19 package
-sudo rpm-ostree uninstall bc250-control-center --install ./bc250-control-center-*.noarch.rpm
-systemctl reboot
-
-# A copy installed with install-local.sh: remove it, then install the package
-bash scripts/uninstall-local.sh
-```
+Si el usuario `deck` no tiene contraseña, créala antes con `passwd`. Después de una actualización de SteamOS, usa **Reinstall BC250 Control Center** en el menú del Modo Escritorio y vuelve a preparar el sistema.
 
 ## Primeros pasos
 
-1. Abre BC250 Control Center. La pantalla de primer inicio elige el idioma, la unidad de temperatura (°C o °F) y la apariencia, y ofrece instalar los componentes necesarios.
-2. Opcionalmente, haz el recorrido guiado, que explica qué cambia cada módulo en la placa.
-3. En el Panel, ejecuta **Prepare BC250 system**. Muestra lo que se instalará para tu distribución y lo ejecuta en la terminal integrada.
-4. Lee la línea de estado de un módulo antes de aplicar cambios; indica qué está listo y qué falta.
+1. Abre BC250 Control Center. La bienvenida te pide idioma, unidad de temperatura y apariencia.
+2. En el **Panel**, usa **Preparar el sistema BC250**. Te enseña lo que va a instalar en tu distribución antes de hacerlo.
+3. Reinicia si te lo pide.
+4. Antes de cambiar algo, lee la línea de estado de esa página: dice qué está listo y qué falta.
+5. Cambia una cosa a la vez y comprueba temperaturas y estabilidad antes de guardarla para el arranque.
 
-<a id="terminal-mode"></a>
+El recorrido guiado explica qué cambia cada página en la placa. Puedes repetirlo en **Configuración › General**.
 
-## Modo terminal
+## Qué puedes hacer
 
-TUI funciona en un emulador de terminal, una TTY de Linux o una sesión SSH. Comparte los controles de hardware y los servicios de monitorización del escritorio. Requiere Python 3.11 o posterior, `curses` y `psutil`; no necesita PyQt6.
-
-### Con la aplicación de escritorio instalada
-
-El paquete normal incluye TUI. Para abrirla:
-
-```bash
-bc250-control-center-tui
-```
-
-### Instalar únicamente TUI
-
-Clona el repositorio y ejecuta el instalador como tu usuario normal:
-
-```bash
-git clone https://github.com/movacx/bc250-control-center.git
-cd bc250-control-center
-bash scripts/install-tui.sh
-```
-
-El instalador guarda la aplicación en `~/.local` y comprueba sus dependencias de Python. Solicita autorización de administrador para instalar los paquetes que falten y los helpers protegidos. No instala PyQt6 ni un lanzador de escritorio. En Bazzite/Fedora Atomic, el script omite instalar los helpers del sistema: se necesitan los del RPM instalado mediante `rpm-ostree` y reiniciar después.
-
-Abre la interfaz:
-
-```bash
-~/.local/bin/bc250-control-center-tui
-```
-
-Si `~/.local/bin` ya está en tu `PATH`, usa `bc250-control-center-tui`. Para actualizar una instalación desde el código fuente, ejecuta `git pull --ff-only` en el mismo repositorio y vuelve a ejecutar el instalador. Para desinstalar:
-
-```bash
-bash scripts/install-tui.sh --uninstall
-```
-
-### Navegación
-
-| Entrada | Acción |
+| Página | Para qué sirve |
 | --- | --- |
-| `↑` / `↓` o `j` / `k` | Seleccionar un elemento |
-| `Enter` | Abrir una sección o ejecutar una acción |
-| `Esc` o `Tab` | Volver a la barra lateral |
-| `[` / `]` | Cambiar pestañas de sección |
+| **Panel** | CPU, gráficos, refrigeración, carga por núcleo, temperatura de la GDDR6 por chip, BIOS instalada y alimentación. Desde aquí se prepara el sistema. |
+| **CPU / SMU** | Perfiles de frecuencia, voltaje y límite de temperatura, prueba de estabilidad, aplicarlos al encender y desbloqueo de núcleos ocultos, temporal o permanente. |
+| **Unidades de cómputo** | Activar y desactivar pares de unidades en vivo, ver los registros, guardar la selección y recuperarla al arrancar. Las disponibles dependen de cada placa. |
+| **Gobernador de GPU** | Perfiles de frecuencia, control del gobernador (Cyan u Oberon), compatibilidad con cada kernel y laboratorio de voltaje. |
+| **Ventiladores** | Velocidad fija, curvas por temperatura, mezcla de varias fuentes, perfiles, calibración y control desde el arranque. |
+| **Rendimiento** | Gráficas de CPU, GPU, VRAM, RAM, disco y red, todos los sensores y exportación a CSV. |
+| **Procesos** | Qué usa la memoria y la GPU; pausar o cerrar, y gestionar la memoria mientras juegas. |
+| **Ajustes adicionales** | Compatibilidad (kernel, Mesa, async compute, ACPI), escalado por juego (FSR4 con OptiScaler y HelixSR), VRAM, ZRAM, ZSWAP y swap, Dolby Digital 5.1 y control de la TV por HDMI-CEC. |
+| **Firmware (BIOS)** | Prepara un USB con P3.00 Chipset Menu, MeiMeiDXE v3, P5.00, P3.00 o P2.00, y logotipo de arranque propio. Cada archivo se verifica; la aplicación nunca escribe la BIOS por sí misma. |
+| **Caja negra** | Graba lo que hace la placa para que un reporte enseñe los segundos previos a un cuelgue. |
+| **Acceso remoto** | Enciende la web, muestra el QR y administra los dispositivos y los permisos. |
+
+Además: 30 idiomas, temas claro y oscuro, tamaño de la interfaz, °C o °F y manejo con mando.
+
+> Las lecturas de los rieles de alimentación necesitan la modificación I2C de la placa; la aplicación incluye una guía con fotos.
+
+## Usar cada interfaz
+
+### Terminal
+
+| Tecla | Acción |
+| --- | --- |
+| `↑` `↓` o `j` `k` | Elegir |
+| `Enter` | Abrir una sección o ejecutar |
+| `Esc` o `Tab` | Volver al menú |
+| `[` `]` | Cambiar de pestaña |
 | `/` | Buscar |
-| `PgUp` / `PgDn` | Desplazarse por la página o resultado de la operación |
-| Ratón | Seleccionar secciones y controles; desplazarse con la rueda |
-| `?` | Mostrar ayuda |
+| `RePág` `AvPág` | Desplazar |
+| Ratón | Elegir y desplazar |
+| `?` | Ayuda |
 | `q` | Salir |
 
-Las operaciones muestran su salida en la consola integrada. Las contraseñas de administrador se ingresan allí cuando se solicitan; `Ctrl+C` interrumpe el comando en ejecución. La consola conserva el resultado y la ubicación del registro una vez finalizado.
-
-Para abrir una página específica o utilizar salida monocromática:
+Las operaciones se ven en la consola integrada. Ahí se escribe la contraseña si hace falta, y `Ctrl+C` detiene lo que esté en marcha. Para abrir una página concreta o sin color:
 
 ```bash
 bc250-control-center-tui --page gpu --theme mono
 ```
 
-Para SSH, la placa debe tener un servidor SSH habilitado y accesible:
+### Web y teléfono
+
+- **Emparejar un teléfono:** escanea el QR de **Acceso remoto**. Sirve una vez y se renueva solo.
+- **Entrar desde un ordenador:** abre la dirección y escribe la **clave de acceso remoto**.
+- **Un dispositivo emparejado puede controlar el hardware.** En **Dispositivos emparejados** puedes dejarlo solo para mirar, ponerle una duración o desconectarlo.
+- **Nueva clave de acceso** desconecta a todos. Úsala si alguien más conoce la clave.
+- **Aviso del navegador:** la conexión va cifrada con un certificado creado en tu placa. El navegador avisará hasta que confíes en él; puedes descargarlo en **Acceso remoto** y comparar su huella.
+
+La web solo acepta conexiones de tu red de casa. El programa no abre puertos en el router ni crea túneles. Con **Accesible desde la red local** apagado, solo se puede usar desde la propia placa.
+
+### Decky
+
+BC250 Quick Access añade un panel al menú rápido del Modo Juego: GPU, unidades de cómputo, CPU, ventiladores y VRAM, con perfiles por juego. Se instala desde la sección **Decky** del Panel. Más detalles en el [README del complemento](../../integrations/decky/bc250-quick-access/README.md).
+
+### Línea de comandos
 
 ```bash
-ssh -t user@board-ip bc250-control-center-tui
+bc250-control-center-cli --help
 ```
 
-Reemplace `user` y `board-ip` con la cuenta y dirección Linux de la placa.
+Incluye consultas del sistema y los sensores, la caja negra, perfiles, copias de recuperación y el diagnóstico completo (`diagnose --full`).
 
-## interfaz web
+## Contraseña y permisos
 
-Abra **Acceso remoto** en la aplicación de escritorio o TUI, inicie el acceso web y habilite **Accesible desde la red local** para conectarse desde otro dispositivo. Elige la dirección que allí se muestra o escanea su QR visible. Mantenga disponibles tanto el nombre local como la IP numérica: la resolución del nombre depende del cliente y la red.
+El programa nunca se ejecuta como administrador. Los cambios en el hardware los hacen controles protegidos, cada uno con una lista cerrada de operaciones y límites.
 
-Inicia sesión con la clave de acceso que se muestra en el tablero. Las nuevas sesiones del navegador solo pueden monitorear. En **Dispositivos conectados**, verifique el código del dispositivo del navegador antes de otorgar el control del hardware. Ese permiso es independiente de la contraseña de administrador de Linux requerida por las operaciones privilegiadas. El propietario puede revocar el acceso y elegir una caducidad para cada sesión.
+**Acciones sin contraseña.** En CPU, unidades de cómputo, GPU y ventiladores no se pide la contraseña de Linux a cada cambio.
 
-La web proporciona Panel de control, CPU, Unidades de cómputo, GPU, Laboratorio de voltaje, Ventiladores, Rendimiento, Caja negra y Configuración. El rendimiento incluye CPU, GPU, memoria, disco, red e historiales de sensores individuales. Los temas y el idioma se guardan por navegador.
+- Viene **activado** para la cuenta que instala el programa con `sudo`. Si tu instalación no pudo hacerlo, actívalo una vez en **Acceso remoto › Permisos**.
+- Se apaga ahí mismo, y una actualización no lo vuelve a encender.
+- **Sigue pidiendo contraseña** todo lo demás: desbloqueo de núcleos, temperatura de la GDDR6, instalar componentes, memoria, kernel y BIOS.
+- **Ten en cuenta:** mientras está activo, quien use tu sesión o un dispositivo emparejado con control puede hacer esos cambios. Apágalo si compartes el equipo.
 
-El acceso LAN utiliza HTTPS. Cada instalación crea una autoridad certificadora local; Los navegadores pueden avisar hasta que su certificado público sea confiable en ese dispositivo. Compare la huella digital mostrada antes de confiar en ella. Con el acceso a LAN deshabilitado, solo la propia placa puede conectarse a través de loopback. La aplicación no abre puertos del enrutador ni configura un túnel público.
+Las confirmaciones de las acciones con riesgo aparecen siempre, esté activado o no.
 
-Los usuarios no necesitan Node.js: los paquetes envían los recursos web creados.
+## Actualizar y desinstalar
 
-## Plugin de Decky
+**Paquetes.** La aplicación avisa de las versiones nuevas, muestra los cambios, verifica el paquete y lo instala. También puedes usar tu gestor de paquetes.
 
-BC250 Quick Access es un panel opcional para el menú de acceso rápido del Modo Juego de Steam. Ofrece controles de GPU, Unidades de Cómputo, CPU, ventiladores y VRAM, perfiles de GPU y ventiladores por juego, y lecturas en vivo de async compute. La configuración avanzada se queda en la aplicación de escritorio.
+**Repositorio.** Desde la misma carpeta, y repitiendo el instalador que usaste:
 
-Instálalo desde la sección **Decky** del Panel. También se instala Decky Loader si falta; nada más de la aplicación instala Decky. Consulta el [README del plugin](../../integrations/decky/bc250-quick-access/README.md) para más detalles.
+```bash
+git pull --ff-only
+bash scripts/install-local.sh
+```
 
-## Informar de problemas
+**Aplicación para Android.** Instala el `.apk` nuevo encima; conserva la sesión.
 
-Las ventanas de error muestran un código de diagnóstico (por ejemplo, `BC250-UPSCALE-001`), un código de origen que identifica la función donde ocurrió el error (por ejemplo, `GPU-0142`) y el error sin procesar con su traza.
+**Desinstalar lo instalado desde el repositorio:**
 
-Usa **Reportar este problema** en la ventana de error, o **Ajustes › Diagnóstico › Enviar un informe**. El formulario se abre dentro de la aplicación con los códigos, el error sin procesar, las especificaciones del sistema y los errores recientes ya rellenados. Puedes revisarlo todo antes de enviarlo; las rutas de tu carpeta personal se sustituyen por `~`. Si el formulario no se puede enviar, se abre en el navegador con tus respuestas. El formulario también está [en la web](https://docs.google.com/forms/d/e/1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA/viewform).
+```bash
+bash scripts/uninstall-local.sh
+```
 
-El informe adjunta además un diagnóstico del hardware, recopilado sin root en todas las distribuciones: kernel y cabeceras, módulos de sensores cargados y sus mensajes del kernel (NCT6687, amdgpu), lecturas de hwmon y `sensors`, líneas de GPU y de fallos del registro del kernel, cómo terminó el arranque anterior (apagado limpio o reinicio brusco), servicios, paquetes y el final del último registro de flujo de trabajo. Si el registro del kernel no es legible para tu usuario, el escritorio pide la contraseña una vez mediante polkit. Los informes demasiado grandes para el formulario se recortan automáticamente, empezando por las partes menos importantes; **Abrir en el navegador** sigue copiando el texto completo.
+Con `--dry-run` enseña lo que quitaría y con `--purge-user-data` borra también tu configuración. `install-tui.sh` e `install-web.sh` aceptan `--uninstall`.
 
-Para leer todo lo que adjunta un informe antes de enviarlo, abra **Configuración › Diagnóstico › Ver diagnóstico completo**: cada sección (kernel, arranque anterior, caja negra, sensores, GPU, servicios, configuración, paquetes, registros) se puede expandir, ordenar en pestañas, buscar y se puede copiar o guardar como un archivo. El terminal imprime lo mismo con `bc250-control-center-cli diagnose --full`.
+**Desinstalar un paquete:** `sudo pacman -R`, `sudo dnf remove`, `sudo rpm-ostree uninstall` o `sudo apt remove`, seguido de `bc250-control-center`. Si quedan ajustes que necesitan deshacerse antes (memoria, arranque, ACPI), la desinstalación se detiene y te dice cuáles.
 
-**Ajustes › Acerca de › Soporte › Errores frecuentes** abre un catálogo sin conexión con guías buscables y selector de módulo. Cada artículo utiliza la distribución detectada. Presenta la solución como texto y comandos copiables, con las notas de desarrollo en otra pestaña. Las ventanas de error con una coincidencia enlazan a su artículo. El catálogo nunca ejecuta comandos automáticamente.
+## Solución de problemas
 
-Los problemas en GitHub también son bienvenidos. Incluye tu distribución, la versión del kernel y la salida de la terminal.
+| Qué pasa | Qué hacer |
+| --- | --- |
+| El teléfono no encuentra la placa | Comprueba que están en la misma red y que **Accesible desde la red local** está activado. Prueba con la dirección numérica en vez del nombre. |
+| La web dice que el firewall bloquea | **Acceso remoto › Configurar firewall de la red local**. |
+| El navegador avisa del certificado | Es normal la primera vez. Compara la huella con la de **Acceso remoto**. |
+| Sigue pidiendo contraseña | **Acceso remoto › Permisos**. Si estaba activado, apágalo y enciéndelo para renovarlo. |
+| Ventiladores en solo lectura | **Ventiladores › Preparar controlador PWM**. |
+| El gobernador no arranca | Abre **Ver estado** en la página de GPU; dice la causa y cómo arreglarla. |
 
-## Seguridad
+**Configuración › Soporte** incluye un manual sin conexión con los errores conocidos, adaptado a tu distribución.
 
-El overclocking, desbloquear Unidades de Cómputo, cambiar el control de ventiladores o grabar una BIOS pueden dejar el sistema inestable, causar pérdida de datos o dañar la placa. Cambia una cosa cada vez y ten forma de revertirla. Las comprobaciones de la aplicación detectan errores comunes, pero no son una garantía.
+### Enviar un reporte
+
+Los errores muestran un código, por ejemplo `BC250-GPU-001`. Pulsa **Reportar este problema** y se abre un formulario con el código, el error y los datos del sistema ya puestos. **Puedes leer todo antes de enviarlo**, y las rutas de tu carpeta personal se sustituyen por `~`. También puedes abrir un [issue en GitHub](https://github.com/movacx/bc250-control-center/issues) con tu distribución, la versión del kernel y la salida de la terminal.
+
+## Seguridad del hardware
+
+Subir frecuencias, desbloquear unidades o núcleos, cambiar los ventiladores y grabar una BIOS puede volver inestable el sistema, hacer perder datos o dañar la placa. Cambia una cosa a la vez y ten siempre cómo volver atrás. Las comprobaciones del programa evitan los errores comunes, pero no son una garantía.
+
+## Para desarrolladores
+
+```text
+src/bc250cc/        El núcleo, sin interfaz: reglas, operaciones y acceso al sistema
+frontends/desktop/  Aplicación de escritorio (PyQt6)
+frontends/tui/      Interfaz de terminal (curses)
+frontends/web/      Servidor web y sus operaciones
+frontends/web/app/  Web y aplicación de Android (Kotlin Multiplatform, Compose)
+integrations/       Complemento de Decky y recepción de reportes
+privileged/         Lo que se ejecuta como administrador, aislado y revisado
+packaging/          Paquetes .pkg.tar.zst, .rpm, .deb y AUR
+scripts/            Instaladores, herramientas de desarrollo y pruebas
+tests/              Pruebas
+```
+
+Ejecutar el escritorio sin instalar:
+
+```bash
+./run.sh
+```
+
+Compilar la web y la aplicación de Android (hace falta un JDK y, para Android, su SDK):
+
+```bash
+scripts/development/build-web.sh
+```
+
+```bash
+cd frontends/web/app && ./gradlew :androidApp:assembleDebug
+```
+
+Los límites entre capas están en [Arquitectura](../ARQUITECTURA_MVC.md), y los puntos de entrada en [Frontends](../../frontends/README.md). Los avisos de seguridad se envían como explica [SECURITY.md](../../SECURITY.md).
 
 ## Créditos
 
@@ -288,46 +414,3 @@ Este proyecto se apoya en el trabajo de la comunidad de la BC-250. Los proyectos
 - [bc250-vrm-dkms](https://github.com/Hexxeh/bc250-vrm-dkms) y [bc250-memory-dkms](https://github.com/Hexxeh/bc250-memory-dkms) (GPL-2.0): temperaturas del VRM y de la memoria como módulos del kernel
 - [bc250-bazzite-suite](https://github.com/RobertoTorino/bc250-bazzite-suite) (GPL-3.0): suite de configuración para Bazzite
 - [bc250-vcn-research](https://github.com/Shalasere/bc250-vcn-research) y [amdgpu-wddm](https://github.com/D-Ogi/amdgpu-wddm): investigación de la codificación de vídeo VCN y un driver abierto para Windows (sin licencia declarada; solo enlazados)
-
-## Estructura del proyecto
-
-```text
-bc250-control-center/
-├── src/bc250cc/              El núcleo, sin interfaz gráfica
-│   ├── domain/               Reglas y límites de cada módulo (GPU, CPU, CU, ventiladores, firmware…)
-│   ├── application/          Casos de uso que combinan esas reglas
-│   ├── infrastructure/       Acceso al sistema: sensores, servicios, paquetes, GitHub
-│   ├── platform/             Diferencias entre distribuciones y sistemas de arranque
-│   └── shared/               Versión, rutas y contratos compartidos por todos los procesos
-├── frontends/
-│   ├── desktop/              Aplicación de escritorio en Qt
-│   │   ├── pages/            Un archivo por módulo (panel, GPU, CPU, ventiladores, firmware…)
-│   │   ├── components/       Piezas reutilizables de la interfaz
-│   │   ├── onboarding/       Pantalla de bienvenida y tour guiado
-│   │   ├── console/          Terminal integrada
-│   │   ├── theme/            Temas, estilos, colores e iconos
-│   │   └── i18n/             Traducciones a 30 idiomas
-│   ├── tui/                  Interfaz de terminal: pantalla de curses, páginas y consola de operación
-│   ├── web/                  Backend HTTPS, trabajadores de acción validados e interfaz de navegador
-│   │   ├── app/              React source y herramientas de compilación (Node.js solo para desarrollo)
-│   │   └── dist/             Activos compilados servidos por Python y enviados en paquetes
-│   └── cli.py                Command-line mode
-├── integrations/
-│   ├── decky/                Plugin Decky Quick Access para el modo Juego
-│   └── report-endpoint/      Punto final de Cloudflare para informes enviados por usuarios
-├── privileged/               Lo que se ejecuta como root, aislado y revisado
-│   ├── helpers/              Un ayudante por tarea privilegiada
-│   ├── lib/                  Código compartido por esos ayudantes
-│   └── policies/             Permisos de Polkit
-├── packaging/                Paquetes .pkg.tar.zst, .rpm y .deb, y el PKGBUILD del AUR
-├── scripts/
-│   ├── entrypoints/          Lanzadores de escritorio, CLI, demonio y TUI
-│   ├── development/          Utilidades de creación y desarrollo web
-│   ├── system/               Flujos de trabajo de distribución y preparación del sistema.
-│   └── qa/                   Controles de embalaje, integración y distribución.
-├── assets/                   Iconos, capturas y galería web
-├── docs/                     Documentación, avisos de terceros y traducciones de este README
-└── tests/                    Verificaciones unitarias, de servicio, de escritorio, TUI, web y de embalaje.
-```
-
-Consulte [Arquitectura](../ARQUITECTURA_MVC.md) para conocer los límites de las capas y [Frontends](../../frontends/README.md) para conocer los puntos de entrada de la interfaz y los comandos de desarrollo.
