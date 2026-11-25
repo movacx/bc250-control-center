@@ -11,6 +11,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -57,7 +58,7 @@ private val AltoMayor = 500.dp
 private const val SALTO = 12f
 private const val DURACION_SALTO = 750
 
-/** El texto de una consola, con la letra y los colores del escritorio. */
+/** El texto de una consola; se desplaza solo si su alto está fijado, si no crece con la ventana. */
 @Composable
 fun TextoConsola(texto: String, modifier: Modifier = Modifier, color: Color? = null) {
     val paleta = ColoresActuales.current
@@ -65,16 +66,17 @@ fun TextoConsola(texto: String, modifier: Modifier = Modifier, color: Color? = n
     LaunchedEffect(texto) {
         desplazador.scrollTo(desplazador.maxValue)
     }
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .marco(paleta.color("console_bg"), paleta.color("console_border"), Medidas.radioPanel)
             .padding(horizontal = 15.dp, vertical = 14.dp),
     ) {
+        val desplazable = if (constraints.hasBoundedHeight) Modifier.verticalScroll(desplazador) else Modifier
         SelectionContainer {
             BasicText(
                 text = texto,
                 style = estiloTexto(11, 400, color ?: paleta.color("console_text"), deConsola = true),
-                modifier = Modifier.verticalScroll(desplazador),
+                modifier = desplazable,
             )
         }
     }
