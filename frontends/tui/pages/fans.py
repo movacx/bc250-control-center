@@ -97,7 +97,7 @@ def plot(points, current_temp, *, unicode: bool = True, chosen: int = -1, size: 
     if not points:
         return []
     points = sorted([int(t), int(s)] for t, s in points)
-    low, high = min(20, points[0][0] - 5) // 10 * 10, -(-max(90, points[-1][0] + 5) // 10) * 10
+    low, high = min(20, points[0][0] - 5) // 10 * 10, -(-max(90, points[-1][0] + 5, min(120, int(current_temp or 0) + 1)) // 10) * 10
     dots_x, dots_y = (2, 4) if unicode else (1, 1)
     width, height = size or (PLOT_COLS[0], PLOT_ROWS[0])
     masks = [[0] * width for _ in range(height)]

@@ -185,8 +185,9 @@ class DashboardPage(Page):
         gpu_card = Card(tr("Graphics"), [
             *heat(tr("Temperature"), gpu.get("temperature_c")),
             load_meter(tr("GPU load"), busy),
-            Field("MCLK · SOC · FCLK", " · ".join(number(gpu.get(key)) for key in (
-                "memory_frequency_mhz", "soc_frequency_mhz", "fabric_frequency_mhz")) + " MHz"),
+            *[Field(" · ".join(name for name, _v in clocks), " · ".join(number(v) for _n, v in clocks) + " MHz")
+              for clocks in [[(name, gpu[key]) for name, key in (("MCLK", "memory_frequency_mhz"), ("SOC", "soc_frequency_mhz"),
+                                                                 ("FCLK", "fabric_frequency_mhz")) if gpu.get(key)]] if clocks],
             Heading(tr("Memory")),
             memory_meter("VRAM", gpu.get("vram_used"), gpu.get("vram_total")),
             memory_meter("GTT", gpu.get("gtt_used"), gpu.get("gtt_total")),

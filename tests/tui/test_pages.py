@@ -445,3 +445,11 @@ def test_pages_with_hardware_data_show_a_wait_note_before_the_first_load(key):
     page = build_pages()[key]
     blocks = page.build(ctx, None, "recorder" if key == "black_box" else "", ui)
     assert blocks  # never an empty screen
+
+
+def test_the_fan_curve_reaches_the_temperature_it_is_at():
+    from frontends.tui.pages.fans import plot
+
+    rows = plot([[40, 30], [82, 100]], 97.0, duty_now=60)
+    text = "\n".join("".join(part for part, _tone in row) for row in rows)
+    assert "┊" in text and "◆" in text and "97.0 °C" in text
