@@ -123,7 +123,9 @@ private fun ListaSensores(datos: JsonObject, alMarcar: (String) -> Unit, modifie
                             Row(Modifier.fillMaxWidth().height(M.altoFilaSensor).background(paleta.panelAlterno)
                                 .pulsable { plegados[nombre] = !plegado }.padding(start = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically) {
-                                Texto((if (plegado) "▸ " else "▾ ") + nombre, tamano = 11, peso = 780)
+                                FlechaPlegar(abierto = !plegado)
+                                Spacer(Modifier.width(6.dp))
+                                Texto(nombre, tamano = 11, peso = 780)
                             }
                         } else if (plegados[grupo] != true) {
                             val fondo = if (alternar) paleta.panelAlterno else paleta.panel

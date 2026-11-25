@@ -13,6 +13,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.*
@@ -158,14 +160,24 @@ private fun TablaProcesos(filas: List<JsonObject>, seleccion: Set<String>, alto:
         val ancho = maxWidth.coerceAtLeast(980.dp)
         Column(Modifier.horizontalScroll(rememberScrollState()).width(ancho)) {
             Row(Modifier.fillMaxWidth().height(32.dp), verticalAlignment = Alignment.CenterVertically) {
-                Spacer(Modifier.width(40.dp))
+                Spacer(Modifier.width(46.dp))
                 val columnas = listOf("name" to "Application", "cpu" to "CPU", "gpu" to "GPU", "memory" to "Memory", "vram" to "GPU memory")
                 for ((clave, titulo) in columnas) {
-                    val modificador = if (clave == "name") Modifier.weight(1f) else Modifier.width(if (clave == "memory") 104.dp else 96.dp)
-                    Texto(t(titulo).uppercase() + if (clave == orden) { if (descendente) " ↓" else " ↑" } else "", 10,
-                        modifier = modificador.pulsable { alOrdenar(clave) }.padding(horizontal = 6.dp), peso = 800, color = paleta.apagado)
+                    val modificador = if (clave == "name") Modifier.weight(1f) else Modifier.width(anchoColumna(clave))
+                    val lado = if (clave == "cpu" || clave == "gpu") Arrangement.End else Arrangement.Start
+                    Row(
+                        modifier = modificador.pulsable { alOrdenar(clave) }.padding(start = 12.dp, end = 14.dp),
+                        horizontalArrangement = lado,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Texto(t(titulo), 11, peso = 760, color = paleta.apagado, lineas = 1)
+                        if (clave == orden) {
+                            Spacer(Modifier.width(4.dp))
+                            FlechaOrden(descendente)
+                        }
+                    }
                 }
-                Texto(t("Status").uppercase(), 10, modifier = Modifier.width(130.dp), peso = 800, color = paleta.apagado)
+                Texto(t("Status"), 11, Modifier.width(anchoColumna("status")), peso = 760, color = paleta.apagado, alineado = TextAlign.Center)
             }
             LazyColumn(Modifier.fillMaxWidth().height(alto)) {
                 items(filas, key = { it.texto("key") }) { fila ->
@@ -174,10 +186,10 @@ private fun TablaProcesos(filas: List<JsonObject>, seleccion: Set<String>, alto:
                     Row(Modifier.fillMaxWidth().height(MedidasSupervision.filaProceso)
                         .background(if (clave in seleccion) paleta.elegido else paleta.panel)
                         .pulsable(!protegida) { alElegir(clave) }, verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.width(40.dp), contentAlignment = Alignment.Center) {
+                        Box(Modifier.width(46.dp).padding(start = 7.dp)) {
                             Casilla(clave in seleccion, { alElegir(clave) }, activa = !protegida)
                         }
-                        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(Modifier.weight(1f).padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Icono(Res.drawable.processes_gray, 26.dp)
                             Column {
                                 Texto(fila.texto("name"), 13, peso = 700)
@@ -190,17 +202,30 @@ private fun TablaProcesos(filas: List<JsonObject>, seleccion: Set<String>, alto:
                                 "vram" -> fila.texto("vram_hint")
                                 else -> ""
                             }
-                            AyudaSupervision(ayuda, Modifier.width(if (campo == "memory") 104.dp else 96.dp).padding(horizontal = 6.dp)) {
-                                Texto(fila.texto(if (campo in listOf("cpu", "gpu")) campo + "_text" else campo, "—"), 12, peso = 700)
+                            val esPorcentaje = campo == "cpu" || campo == "gpu"
+                            val valor = fila.texto(if (esPorcentaje) campo + "_text" else campo, "—")
+                            AyudaSupervision(ayuda, Modifier.width(anchoColumna(campo)).padding(start = 12.dp, end = 16.dp)) {
+                                val alineado = if (esPorcentaje) TextAlign.End else TextAlign.Start
+                                Texto(valor, 12, Modifier.fillMaxWidth(), peso = if (esPorcentaje) 400 else 700, alineado = alineado)
                             }
                         }
-                        AyudaSupervision(fila.texto("detail"), Modifier.width(130.dp)) {
-                            Texto(fila.texto("status"), 12, color = if (fila.texto("tone") == "gray") paleta.sutil else paleta.color(fila.texto("tone", "green")))
+                        AyudaSupervision(fila.texto("detail"), Modifier.width(anchoColumna("status")).padding(start = 12.dp)) {
+                            Texto(fila.texto("status"), 12, peso = 560, color = if (fila.texto("tone") == "gray") paleta.sutil else paleta.color(fila.texto("tone", "green")))
                         }
                     }
                     LineaDivisoria(color = paleta.bordeSuave)
                 }
             }
         }
+    }
+}
+
+/** El ancho de cada columna de números de la tabla. */
+private fun anchoColumna(clave: String): Dp {
+    return when (clave) {
+        "cpu" -> 62.dp
+        "gpu" -> 72.dp
+        "memory", "vram" -> 108.dp
+        else -> 124.dp
     }
 }

@@ -39,8 +39,19 @@ def mostrar(valor, unidad="", decimales=0, cero=False):
 def memoria(usado, total):
     if not isinstance(total, (int, float)) or total <= 0:
         return tr("Not detected")
-    escala, unidad = (2**30, "GB") if total >= 2**30 else (2**20, "MB")
-    return f"{(usado or 0) / escala:.1f} / {total / escala:.1f} {unidad}"
+    return f"{tamano(usado or 0)} / {tamano(total)}"
+
+
+def tamano(octetos):
+    if octetos >= 2**30:
+        return f"{octetos / 2**30:.1f} GB"
+    return f"{octetos / 2**20:.0f} MB"
+
+
+def fila_memoria(nombre, usado, total):
+    """El uso en grande y la capacidad debajo, como en el escritorio."""
+    usado_texto, separador, total_texto = memoria(usado, total).partition(" / ")
+    return fila(nombre, usado_texto, f"/ {total_texto}" if separador else "")
 
 
 def fila(nombre, valor, detalle=""):
@@ -85,7 +96,7 @@ def leer(ctx, live):
     cpu_grupos = [grupo("Thermal", [fila("Core temperature", mostrar(cpu.get("temperature_c"), "°C", 1)),
                                   fila("VRM CPU", mostrar(sensores.get("vrm_cpu_temperature_c"), "°C"))]),
                   grupo("Activity", [fila("CPU usage", mostrar(cpu.get("usage_percent"), "%", cero=True)),
-                                     fila("Core voltage", mostrar(cpu.get("voltage_mv"), "mV")),
+                                     fila("Core voltage", mostrar((cpu.get("voltage_mv") or 0) / 1000, "V", 3)),
                                      fila("Registered OC", mostrar(registrado.get("frequency"), "MHz") if oc else "None",
                                           tr_format("Scale {scale}", scale=registrado.get("scale")) if oc else "")])]
     gpu_grupos = [
@@ -93,27 +104,28 @@ def leer(ctx, live):
                           fila("VRM MOS", mostrar(sensores.get("vrm_mos_temperature_c"), "°C")),
                           fila("VRM GPU", mostrar(sensores.get("vrm_gpu_temperature_c"), "°C"))]),
         grupo("Power", [fila("GPU power", mostrar((metricas.get("power") or {}).get("gpu_w", gpu.get("power_w")), "W")),
-                        fila("GPU voltage", mostrar(gpu.get("voltage_mv"), "mV"))]),
+                        fila("GPU voltage", mostrar((gpu.get("voltage_mv") or 0) / 1000, "V", 3))]),
         grupo("Clocks", [fila(label, mostrar(gpu.get(key), "MHz")) for label, key in
                          (("MCLK", "memory_frequency_mhz"), ("SOCCLK", "soc_frequency_mhz"), ("FCLK", "fabric_frequency_mhz"))]),
-        grupo("Memory", [fila(label, memoria(obj.get(used), obj.get(total))) for label, obj, used, total in
+        grupo("Memory", [fila_memoria(label, obj.get(used), obj.get(total)) for label, obj, used, total in
                          (("VRAM", gpu, "vram_used", "vram_total"), ("GTT", gpu, "gtt_used", "gtt_total"),
                           ("System memory", ram, "used", "total"))], 1),
         grupo("Status", [fila("GPU load", mostrar(gpu.get("usage_percent"), "%", cero=True)),
                          fila("Compute Units", f"{activos} / 40" if activos is not None else "Not detected"),
                          fila("Governor", daemon.get("governor_backend") or "Not detected"),
-                         fila("Requested range", f"{daemon.get('current_min', '--')} – {daemon.get('current_max', '--')} MHz"),
+                         fila("Requested range", f"{daemon.get('current_min', '--')} – {daemon.get('current_max', '--')} MHz",
+                              tr_format("Accepted {maximum} MHz", maximum=daemon["current_max"]) if daemon.get("current_max") else ""),
                          fila("PCIe link", gpu.get("pcie_link") or "Not detected"),
                          fila("VBIOS", gpu.get("vbios_version") or "Not detected")], 1),
     ]
     pwm = ventilador.get("pwm")
     refrigeracion = [grupo("Fan", [fila("PWM duty", mostrar(pwm * 100 / 255 if isinstance(pwm, (int, float)) else None, "%", cero=True)),
                                     fila("PWM mode", FAN_OWNER_LABELS.get(ventilador.get("owner"), "Not detected")),
-                                    fila("Board temperature", mostrar(sensores.get("board_temperature_c"), "°C"))]),
-                     grupo("M.2 drive", [fila("Temperature", mostrar(sensores.get("nvme_temperature_c"), "°C")),
+                                    fila("Board temperature", mostrar(sensores.get("board_temperature_c"), "°C", 1))]),
+                     grupo("M.2 drive", [fila("Temperature", mostrar(sensores.get("nvme_temperature_c"), "°C", 1)),
                                           fila("Hotspot", mostrar(sensores.get("nvme_hotspot_temperature_c"), "°C")),
-                                          fila("Used", memoria(disco.get("used"), disco.get("total"))),
-                                          fila("Swap", memoria(ram.get("swap_used"), ram.get("swap_total")))])]
+                                          fila_memoria("Used", disco.get("used"), disco.get("total")),
+                                          fila_memoria("Swap", ram.get("swap_used"), ram.get("swap_total"))])]
     extras = [fila({"system": "System", "home": "Home"}.get(item.get("kind"), item.get("label") or item.get("mountpoint", "")),
                    memoria(item.get("used"), item.get("total"))) for item in (disco.get("volumes") or [])[1:]]
     if extras:

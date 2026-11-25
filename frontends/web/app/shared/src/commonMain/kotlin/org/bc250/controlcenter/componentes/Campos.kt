@@ -298,3 +298,34 @@ private fun FilaMenu(nombre: String, elegida: Boolean, alPulsar: () -> Unit) {
         Texto(nombre, tamano = 13, peso = if (elegida) 700 else 400)
     }
 }
+
+/** La casilla chica de las listas de componentes. */
+@Composable
+fun CasillaChica(marcada: Boolean, activa: Boolean, alCambiar: () -> Unit) {
+    val paleta = ColoresActuales.current
+    val forma = RoundedCornerShape(4.dp)
+    val fondo = when {
+        !activa -> paleta.fondoInactivo
+        marcada -> paleta.acento
+        else -> paleta.control
+    }
+    val borde = when {
+        !activa -> paleta.bordeSuave
+        marcada -> paleta.acento
+        else -> paleta.bordeFuerte
+    }
+    Box(
+        modifier = Modifier
+            .size(16.dp)
+            .padding(0.5.dp)
+            .background(fondo, forma)
+            .border(1.4.dp, borde, forma)
+            .pulsable(activa, alPulsar = alCambiar),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (marcada) {
+            val color = if (activa) null else paleta.textoInactivo
+            Icono(Res.drawable.check_white, tamano = 11.dp, color = color)
+        }
+    }
+}

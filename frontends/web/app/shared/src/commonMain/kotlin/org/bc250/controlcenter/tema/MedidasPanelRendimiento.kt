@@ -11,6 +11,7 @@ object MedidasPanelRendimiento {
     val altoInstrumento = 501.dp
     val margenInstrumento = 18.dp
     val altoLectura = 28.dp
+    val altoLecturaDoble = 42.dp
     val altoGrupo = 27.dp
     val altoNucleo = 30.dp
     val altoBanda = 64.dp

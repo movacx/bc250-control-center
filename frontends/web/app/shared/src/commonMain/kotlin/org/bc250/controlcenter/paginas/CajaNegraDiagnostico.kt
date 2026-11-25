@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -64,10 +65,16 @@ internal fun DiagnosticoCajaNegra(aplicacion: Aplicacion, alto: Dp) {
             val titulo = seccion.texto("title")
             val abierta = titulo in abiertas
             Column {
-                Texto((if (abierta) "▼ " else "▶ ") + titulo + " (${seccion.entero("size")} KB)", 12,
+                Row(
                     modifier = Modifier.fillMaxWidth().pulsable {
                         abiertas = if (titulo in abiertas) abiertas - titulo else abiertas + titulo
-                    }.padding(vertical = 9.dp), peso = 700)
+                    }.padding(vertical = 9.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FlechaPlegar(abierto = abierta)
+                    Texto("$titulo (${seccion.entero("size")} KB)", 12, peso = 700)
+                }
                 if (abierta) SeccionDiagnostico(seccion.texto("text"))
                 LineaDivisoria()
             }
@@ -95,7 +102,7 @@ private fun SeccionDiagnostico(texto: String) {
         }
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        Texto("↕", 14, modifier = Modifier.pointerInput(Unit) {
+        TresPuntos(Modifier.pointerInput(Unit) {
             detectDragGestures { cambio, arrastre ->
                 cambio.consume()
                 altura = (altura + arrastre.y / density).coerceIn(90f, 3000f)
@@ -103,6 +110,6 @@ private fun SeccionDiagnostico(texto: String) {
         }.pulsable {
             ajustar = !ajustar
             altura = if (ajustar) (texto.lines().size * 16f + 32f).coerceIn(90f, 3000f) else 220f
-        }.padding(horizontal = 14.dp), color = paleta.apagado)
+        }.padding(14.dp))
     }
 }

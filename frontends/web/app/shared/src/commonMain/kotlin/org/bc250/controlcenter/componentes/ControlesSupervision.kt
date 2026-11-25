@@ -169,7 +169,7 @@ fun SelectorSupervision(opciones: List<Eleccion>, elegida: String, activo: Boole
             .pulsable(activo) { abierto = true }.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Texto(actual?.nombre.orEmpty(), 12, Modifier.weight(1f), peso = 710,
                 color = if (activo) paleta.texto else paleta.textoInactivo)
-            Texto("▾", 10, color = paleta.apagado)
+            FlechaPlegar(abierto = true)
         }
         if (abierto) MenuOpciones(opciones, elegida, { abierto = false }) {
             abierto = false

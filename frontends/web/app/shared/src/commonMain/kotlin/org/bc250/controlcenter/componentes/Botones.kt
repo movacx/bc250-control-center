@@ -34,7 +34,7 @@ import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.painterResource
 
 /** Las clases de botón que existen en el escritorio. */
-enum class ClaseBoton { PRINCIPAL, NORMAL, PELIGRO, EXITO, COMPACTO }
+enum class ClaseBoton { PRINCIPAL, NORMAL, PELIGRO, EXITO, COMPACTO, ACENTO }
 
 private class ColoresBoton(val fondo: Color, val borde: Color, val texto: Color)
 
@@ -55,6 +55,10 @@ private fun coloresDe(clase: ClaseBoton, activo: Boolean, encima: Boolean): Colo
             val fondo = if (encima) paleta.controlEncima else paleta.panelAlterno
             val borde = if (encima) paleta.bordeFuerte else paleta.borde
             ColoresBoton(fondo, borde, paleta.texto)
+        }
+        ClaseBoton.ACENTO -> {
+            val fondo = if (encima) paleta.controlEncima else paleta.panelAlterno
+            ColoresBoton(fondo, paleta.acentoBorde, paleta.acento)
         }
         ClaseBoton.COMPACTO -> {
             val fondo = if (encima) paleta.controlEncima else paleta.panelElevado

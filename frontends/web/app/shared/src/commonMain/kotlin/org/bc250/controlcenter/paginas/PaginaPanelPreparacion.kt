@@ -1,7 +1,9 @@
 package org.bc250.controlcenter.paginas
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -27,7 +29,7 @@ internal fun PreparacionPanel(aplicacion: Aplicacion, datos: JsonObject, alDialo
     val componentes = datos.objetos("components")
     val seleccionados = seleccion ?: seleccionInicialPanel(componentes)
     val libre = aplicacion.trabajo.terminado && aplicacion.puedeControlar
-    Column(Modifier.fillMaxWidth().marco(paleta.panel, paleta.borde, 7.dp).padding(16.dp), Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxWidth().marco(paleta.panel, paleta.borde, 7.dp).padding(start = 17.dp, top = 14.dp, end = 17.dp, bottom = 11.dp), Arrangement.spacedBy(15.dp)) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             if (maxWidth >= M.anchoMovil) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -45,11 +47,9 @@ internal fun PreparacionPanel(aplicacion: Aplicacion, datos: JsonObject, alDialo
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(6.dp)) {
-            Boton(t("Components"), { pestaña = "components" }, Modifier.weight(1f),
-                clase = if (pestaña == "components") ClaseBoton.PRINCIPAL else ClaseBoton.COMPACTO, alto = 34.dp)
-            Boton("Decky", { pestaña = "decky" }, Modifier.weight(1f),
-                clase = if (pestaña == "decky") ClaseBoton.PRINCIPAL else ClaseBoton.COMPACTO, alto = 34.dp)
+        Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(2.dp)) {
+            PestanaPanel(t("Components"), pestaña == "components", Modifier.weight(1f)) { pestaña = "components" }
+            PestanaPanel("Decky", pestaña == "decky", Modifier.weight(1f)) { pestaña = "decky" }
         }
         if (pestaña == "components") {
             fun marcar(clave: String) {
@@ -118,19 +118,19 @@ private fun ComponentePanel(datos: JsonObject, elegido: Boolean, libre: Boolean,
     val disponible = datos.logico("available")
     Row(modifier.heightIn(min = 34.dp).combinedClickable(
         enabled = disponible && libre && datos.texto("key") != "runtime",
-        onClick = alMarcar, onLongClick = alDetalle).marco(paleta.panelAlterno, paleta.bordeSuave, 6.dp).padding(horizontal = 10.dp),
+        onClick = alMarcar, onLongClick = alDetalle).marco(paleta.panelAlterno, paleta.bordeSuave, 6.dp).padding(horizontal = 11.dp),
         Arrangement.spacedBy(8.dp), Alignment.CenterVertically) {
         Texto(datos.texto("title"), tamano = 13, peso = 650,
             color = if (disponible) paleta.texto else paleta.textoInactivo,
             modifier = Modifier.weight(1f))
-        Casilla(elegido, { alMarcar() }, activa = disponible && libre && datos.texto("key") != "runtime")
+        CasillaChica(elegido, disponible && libre && datos.texto("key") != "runtime", alMarcar)
     }
 }
 
 @Composable
 private fun EnlacesPanel(aplicacion: Aplicacion, datos: JsonObject, alDialogo: (String) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-        for (enlace in datos.objetos("links")) {
+        for (enlace in datos.objetos("links").sortedBy { it.texto("key") == "Ko-fi" }) {
             val titulo = enlace.texto("key")
             val icono = when (titulo) {
                 "Official repositories" -> Res.drawable.github
@@ -141,10 +141,10 @@ private fun EnlacesPanel(aplicacion: Aplicacion, datos: JsonObject, alDialogo: (
             BotonIcono(icono, {
                 if (titulo == t("Official repositories") || titulo == "Official repositories") alDialogo("repositories")
                 else aplicacion.abrirEnlace(enlace.texto("url"))
-            })
+            }, lado = 36.dp, tamano = 18.dp)
         }
-        BotonIcono(Res.drawable.support_headset, { aplicacion.irA("settings") })
-        BotonIcono(Res.drawable.note_heart, { alDialogo("note") })
+        BotonIcono(Res.drawable.support_headset, { aplicacion.irA("settings", "support") }, lado = 36.dp, tamano = 18.dp)
+        BotonIcono(Res.drawable.note_heart, { alDialogo("note") }, lado = 36.dp, tamano = 18.dp)
         if (datos.objeto("update").logico("available")) {
             Boton(t("New update available"), { alDialogo("update") }, alto = 30.dp, tamano = 11)
         }
@@ -225,4 +225,21 @@ private fun seleccionInicialPanel(componentes: List<JsonObject>): Set<String> {
         }
     }
     return elegidos
+}
+
+/** Una pestaña de la preparación: la abierta lleva el fondo suave del acento. */
+@Composable
+private fun PestanaPanel(texto: String, abierta: Boolean, modifier: Modifier, alPulsar: () -> Unit) {
+    val paleta = ColoresActuales.current
+    val fondo = if (abierta) paleta.acentoSuave else paleta.panel
+    val color = if (abierta) paleta.acento else paleta.apagado
+    Box(
+        modifier = modifier
+            .height(34.dp)
+            .background(fondo, RoundedCornerShape(4.dp))
+            .pulsable(alPulsar = alPulsar),
+        contentAlignment = Alignment.Center,
+    ) {
+        Texto(texto, tamano = 13, peso = 700, color = color)
+    }
 }
