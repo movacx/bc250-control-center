@@ -181,7 +181,7 @@ Instala la interfaz web, la enciende para tu red de casa y muestra la dirección
 | `bc250-control-center web status` | Los vuelve a mostrar |
 | `bc250-control-center web stop` | Apaga el acceso |
 
-No hace falta Node.js ni ningún otro servidor. Con el escritorio instalado puedes hacer lo mismo desde **Acceso remoto**.
+El instalador descarga la web ya compilada de la página de versiones y comprueba su huella antes de usarla, así que hace falta internet la primera vez. No necesitas Node.js ni otro servidor. Con el escritorio instalado puedes hacer lo mismo desde **Acceso remoto**.
 
 ### Aplicación para Android
 
@@ -309,6 +309,8 @@ Las confirmaciones de las acciones con riesgo aparecen siempre, esté activado o
 git pull --ff-only
 bash scripts/install-local.sh
 ```
+
+Si la web cambió, el instalador baja la versión que corresponde.
 
 **Aplicación para Android.** Instala el `.apk` nuevo encima; conserva la sesión.
 
