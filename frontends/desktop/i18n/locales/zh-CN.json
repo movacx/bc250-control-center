@@ -6708,5 +6708,8 @@
   "Actions without password": "免密码操作",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU、计算单元、GPU 和风扇不再询问 Linux 密码。其他操作仍会询问。",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "使用您会话的任何人，或拥有硬件控制权限的已配对设备，都可以执行这些操作。您可以随时关闭。",
-  "Update or reinstall Control Center to use this.": "请更新或重新安装 Control Center 以使用此功能。"
+  "Update or reinstall Control Center to use this.": "请更新或重新安装 Control Center 以使用此功能。",
+  "Enter your Linux password": "输入您的 Linux 密码",
+  "That password is not right. Try again.": "密码不正确，请重试。",
+  "Stop asking for it": "不再询问"
 }

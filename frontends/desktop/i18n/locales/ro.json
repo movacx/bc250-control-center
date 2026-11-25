@@ -6708,5 +6708,8 @@
   "Actions without password": "Acțiuni fără parolă",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, unitățile de calcul, GPU și ventilatoarele nu mai cer parola Linux. Tot restul o cere în continuare.",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Oricine folosește sesiunea ta sau un dispozitiv asociat cu control hardware va putea rula aceste acțiuni. Poți dezactiva oricând.",
-  "Update or reinstall Control Center to use this.": "Actualizează sau reinstalează Control Center pentru a folosi această funcție."
+  "Update or reinstall Control Center to use this.": "Actualizează sau reinstalează Control Center pentru a folosi această funcție.",
+  "Enter your Linux password": "Introdu parola Linux",
+  "That password is not right. Try again.": "Parola nu este corectă. Încearcă din nou.",
+  "Stop asking for it": "Nu o mai cere"
 }

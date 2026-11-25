@@ -70,7 +70,7 @@ fun PaginaCpuMovil(aplicacion: Aplicacion) {
     LaunchedEffect(Unit) {
         while (true) {
             aplicacion.leerPagina("cpu")
-            delay(3000)
+            aplicacion.pausar(3000)
         }
     }
     val movil = movil()

@@ -1,5 +1,7 @@
 package org.bc250.controlcenter.movil
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +21,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonArray
@@ -40,7 +45,9 @@ import org.bc250.controlcenter.datos.objeto
 import org.bc250.controlcenter.datos.objetos
 import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.datos.texto
+import org.bc250.controlcenter.paginas.EleccionUnidades
 import org.bc250.controlcenter.paginas.mascarasCu
+import org.bc250.controlcenter.paginas.recordarEleccionUnidades
 import org.bc250.controlcenter.tema.ColoresActuales
 
 private const val WGP_POR_FILA = 5
@@ -48,93 +55,11 @@ private const val CU_POR_FILA = 10
 private const val CU_POR_MOTOR = 20
 private const val UNIDADES = 0
 
-/** La tabla que se está eligiendo y lo que el servidor opina de ella. */
-private class EleccionUnidades(private val aplicacion: Aplicacion) {
-    var mascaras by mutableStateOf(listOf(0, 0, 0, 0))
-    var seleccion by mutableStateOf(ObjetoVacio)
-    var editada by mutableStateOf(false)
-    var consultando by mutableStateOf(false)
-
-    val datos: JsonObject get() = aplicacion.lectura("cu")
-    val estado: JsonObject get() = datos.objeto("cu")
-    val vivas: List<Int> get() = mascarasCu(estado, "masks")
-    val delKernel: Boolean get() = estado.logico("kernel_managed")
-    val libre: Boolean
-        get() = aplicacion.puedeControlar && aplicacion.trabajo.terminado && datos.isNotEmpty() && datos.texto("error").isEmpty()
-
-    fun permite(accion: String): Boolean {
-        return libre && !consultando && seleccion.objeto("availability").logico(accion)
-    }
-
-    fun elegir(nuevas: List<Int>) {
-        mascaras = nuevas
-        editada = true
-        consultando = true
-    }
-
-    fun alternar(fila: Int, wgp: Int) {
-        elegir(mascaras.mapIndexed { indice, mascara -> if (indice == fila) mascara xor (1 shl wgp) else mascara })
-    }
-
-    fun restablecer() {
-        editada = false
-        mascaras = vivas
-        seleccion = datos.objeto("selection")
-    }
-
-    fun enJson(): JsonArray {
-        return JsonArray(mascaras.map { mascara -> JsonPrimitive(mascara) })
-    }
-
-    /** Pregunta con el texto del escritorio y, si se acepta, ejecuta. */
-    fun operar(accion: String, clave: String, titulo: String, parametros: Map<String, JsonElement>, peligro: Boolean) {
-        val texto = datos.objeto("confirmations").objeto(clave)
-        val mensaje = texto.texto("message") + "\n" + seleccion.texto("summary")
-        aplicacion.preguntarYEjecutar(accion, texto.texto("title", t(titulo)), mensaje, parametros, peligro)
-    }
-
-    fun operarTabla(guardar: Boolean) {
-        val parametros = mapOf("masks" to enJson())
-        if (guardar) {
-            operar("cu.save", "save", "Save selection", parametros, peligro = true)
-        } else {
-            operar("cu.apply", "apply", "Apply now", parametros, peligro = true)
-        }
-    }
-
-    fun operarServicio(nombre: String, titulo: String, peligro: Boolean = false) {
-        operar("cu.action", nombre, titulo, mapOf("name" to JsonPrimitive(nombre)), peligro)
-    }
-}
+private val CambioDeCelda = tween<Color>(140)
 
 @Composable
 fun PaginaUnidadesMovil(aplicacion: Aplicacion) {
-    val eleccion = remember { EleccionUnidades(aplicacion) }
-    var trabajoAnterior by remember { mutableStateOf(aplicacion.trabajo.id) }
-    LaunchedEffect(aplicacion) {
-        while (true) {
-            aplicacion.leerPagina("cu")
-            delay(3000)
-        }
-    }
-    LaunchedEffect(eleccion.estado, aplicacion.trabajo.id, aplicacion.trabajo.terminado) {
-        if (aplicacion.trabajo.id != trabajoAnterior && aplicacion.trabajo.terminado) {
-            eleccion.editada = false
-            trabajoAnterior = aplicacion.trabajo.id
-        }
-        if (!eleccion.editada || eleccion.delKernel) {
-            eleccion.restablecer()
-        }
-    }
-    LaunchedEffect(eleccion.mascaras, eleccion.estado) {
-        eleccion.consultando = true
-        delay(100)
-        val resultado = aplicacion.consultar("cu.selection", mapOf("masks" to eleccion.enJson().toString()))
-        if (resultado.isNotEmpty()) {
-            eleccion.seleccion = resultado
-        }
-        eleccion.consultando = false
-    }
+    val eleccion = recordarEleccionUnidades(aplicacion)
     val movil = movil()
     PaginaMovil("cu", listOf(t("Units"), t("Persistence"))) {
         EstadoLecturaMovil(eleccion.datos)
@@ -142,7 +67,9 @@ fun PaginaUnidadesMovil(aplicacion: Aplicacion) {
             NotaMovil(eleccion.datos.texto("notice"), ColoresActuales.current.naranja, tamano = 13)
         }
         if (movil.pestana("cu") == UNIDADES) {
-            TablaMovil(aplicacion, eleccion)
+            if (eleccion.datos.isNotEmpty()) {
+                TablaMovil(aplicacion, eleccion)
+            }
             LeyendaMovil(eleccion)
             LecturasMovil(eleccion.datos)
         } else {
@@ -214,18 +141,25 @@ private fun CasillaWgp(eleccion: EleccionUnidades, fila: Int, wgp: Int, modifier
     val celda = eleccion.seleccion.objetos("rows").getOrNull(fila)?.objetos("cells")?.getOrNull(wgp) ?: ObjetoVacio
     val token = celda.texto("token", "--")
     val porAplicar = (eleccion.mascaras[fila] xor eleccion.vivas[fila]) and (1 shl wgp) != 0
-    val colores = coloresWgp(token, porAplicar)
+    val destino = coloresWgp(token, porAplicar)
+    val fondo by animateColorAsState(destino.fondo, CambioDeCelda)
+    val borde by animateColorAsState(destino.borde, CambioDeCelda)
+    val letra by animateColorAsState(destino.texto, CambioDeCelda)
     Column(
         modifier = modifier
             .height(78.dp)
-            .marco(colores.fondo, colores.borde, 7.dp)
-            .pulsable(eleccion.libre && !eleccion.delKernel) { eleccion.alternar(fila, wgp) },
+            .drawBehind {
+                val radio = CornerRadius(9.dp.toPx())
+                drawRoundRect(fondo, cornerRadius = radio)
+                drawRoundRect(borde, cornerRadius = radio, style = Stroke(1.dp.toPx()))
+            }
+            .pulsable(eleccion.editable) { eleccion.alternar(fila, wgp) },
         verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Texto("WGP $wgp", tamano = 11, peso = 500, color = ColoresActuales.current.apagado, lineas = 1)
-        TextoTitulo(token, 22, color = colores.texto)
-        Texto("${wgp * 2}–${wgp * 2 + 1}", tamano = 11, color = colores.texto)
+        TextoTitulo(token, 22, color = letra)
+        Texto("${wgp * 2}–${wgp * 2 + 1}", tamano = 11, color = letra)
     }
 }
 

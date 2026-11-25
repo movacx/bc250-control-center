@@ -6708,5 +6708,8 @@
   "Actions without password": "Akce bez hesla",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, výpočetní jednotky, GPU a ventilátory se přestanou ptát na heslo Linuxu. Vše ostatní se ptá dál.",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Kdokoli, kdo používá vaši relaci nebo spárované zařízení s ovládáním hardwaru, bude moci tyto akce spouštět. Kdykoli to můžete vypnout.",
-  "Update or reinstall Control Center to use this.": "Pro použití aktualizujte nebo přeinstalujte Control Center."
+  "Update or reinstall Control Center to use this.": "Pro použití aktualizujte nebo přeinstalujte Control Center.",
+  "Enter your Linux password": "Zadejte heslo Linuxu",
+  "That password is not right. Try again.": "Toto heslo není správné. Zkuste to znovu.",
+  "Stop asking for it": "Přestat se ptát"
 }

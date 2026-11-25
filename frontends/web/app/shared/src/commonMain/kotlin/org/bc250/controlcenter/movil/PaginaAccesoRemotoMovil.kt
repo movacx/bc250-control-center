@@ -25,7 +25,7 @@ fun PaginaAccesoRemotoMovil(aplicacion: Aplicacion) {
     LaunchedEffect(aplicacion) {
         while (true) {
             aplicacion.leerPagina("remote")
-            delay(4000)
+            aplicacion.pausar(4000)
         }
     }
     val datos = aplicacion.lectura("remote")

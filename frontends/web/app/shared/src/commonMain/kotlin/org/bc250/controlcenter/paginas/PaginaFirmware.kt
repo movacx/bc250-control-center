@@ -95,7 +95,7 @@ fun PaginaFirmware(aplicacion: Aplicacion) {
     LaunchedEffect(Unit) {
         while (true) {
             aplicacion.leerPagina("firmware")
-            delay(3000)
+            aplicacion.pausar(3000)
         }
     }
     val datos = aplicacion.lectura("firmware")

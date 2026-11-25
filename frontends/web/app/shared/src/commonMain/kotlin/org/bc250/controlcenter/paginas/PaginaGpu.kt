@@ -91,7 +91,7 @@ fun PaginaGpu(aplicacion: Aplicacion) {
     LaunchedEffect(aplicacion) {
         while (true) {
             aplicacion.leerPagina("gpu")
-            delay(3000)
+            aplicacion.pausar(3000)
         }
     }
     LaunchedEffect(datos.entero("current_min"), datos.entero("current_max"), editado) {

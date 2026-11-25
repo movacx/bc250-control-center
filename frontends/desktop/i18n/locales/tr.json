@@ -6708,5 +6708,8 @@
   "Actions without password": "Parolasız işlemler",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, işlem birimleri, GPU ve fanlar artık Linux parolasını sormaz. Diğer her şey sormaya devam eder.",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Oturumunuzu veya donanım denetimi olan eşleşmiş bir cihazı kullanan herkes bu işlemleri yapabilir. İstediğiniz zaman kapatabilirsiniz.",
-  "Update or reinstall Control Center to use this.": "Bunu kullanmak için Control Center'ı güncelleyin veya yeniden yükleyin."
+  "Update or reinstall Control Center to use this.": "Bunu kullanmak için Control Center'ı güncelleyin veya yeniden yükleyin.",
+  "Enter your Linux password": "Linux parolanızı girin",
+  "That password is not right. Try again.": "Bu parola doğru değil. Yeniden deneyin.",
+  "Stop asking for it": "Artık sorma"
 }

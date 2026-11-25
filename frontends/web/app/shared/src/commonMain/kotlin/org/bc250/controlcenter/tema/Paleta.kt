@@ -1,5 +1,6 @@
 package org.bc250.controlcenter.tema
 
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -9,7 +10,10 @@ import androidx.compose.ui.graphics.toArgb
  * Los colores de un tema. Son los mismos nombres y valores que usa el escritorio:
  * el servidor los envía y aquí solo se leen.
  */
+@Immutable
 class Paleta(private val colores: Map<String, String>, val esClaro: Boolean) {
+
+    private val leidos = colores.mapValues { (_, texto) -> leerColor(texto) }
 
     /** La misma paleta con otros colores de consola. */
     fun conTerminal(consola: Map<String, String>): Paleta {
@@ -18,11 +22,7 @@ class Paleta(private val colores: Map<String, String>, val esClaro: Boolean) {
 
     /** El color con ese nombre; si falta, uno muy visible para notarlo. */
     fun color(nombre: String): Color {
-        val texto = colores[nombre]
-        if (texto == null) {
-            return Color.Magenta
-        }
-        return leerColor(texto)
+        return leidos[nombre] ?: Color.Magenta
     }
 
     val ventana: Color get() = color("window")

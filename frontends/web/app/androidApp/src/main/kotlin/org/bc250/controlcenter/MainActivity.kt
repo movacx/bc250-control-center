@@ -17,6 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import org.bc250.controlcenter.datos.BarraDelSistema
 import org.bc250.controlcenter.datos.BotonAtras
+import org.bc250.controlcenter.datos.PrimerPlano
 import org.bc250.controlcenter.datos.abridorDeDirecciones
 import org.bc250.controlcenter.datos.abridorDeGaleria
 import org.bc250.controlcenter.datos.prepararAlmacen
@@ -50,6 +51,16 @@ class MainActivity : ComponentActivity() {
         } else {
             dibujar()
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        PrimerPlano.visible.value = true
+    }
+
+    override fun onStop() {
+        super.onStop()
+        PrimerPlano.visible.value = false
     }
 
     private fun dibujar() {

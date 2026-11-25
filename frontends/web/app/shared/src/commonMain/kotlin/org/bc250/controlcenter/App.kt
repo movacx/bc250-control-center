@@ -42,6 +42,7 @@ import org.bc250.controlcenter.datos.EstadoSesion
 import org.bc250.controlcenter.datos.entero
 import org.bc250.controlcenter.datos.logico
 import org.bc250.controlcenter.datos.t
+import org.bc250.controlcenter.datos.vigilarPrimerPlano
 import org.bc250.controlcenter.movil.AnchoMovil
 import org.bc250.controlcenter.movil.LocalTelefono
 import org.bc250.controlcenter.movil.PaginaAccesoRemotoMovil
@@ -84,6 +85,7 @@ fun App() {
     val tareas = rememberCoroutineScope()
     val aplicacion = remember { Aplicacion(tareas) }
     LaunchedEffect(Unit) {
+        vigilarPrimerPlano()
         aplicacion.iniciar()
     }
     aplicacion.sistemaOscuro = isSystemInDarkTheme()

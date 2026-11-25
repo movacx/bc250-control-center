@@ -6708,5 +6708,8 @@
   "Actions without password": "Thao tác không cần mật khẩu",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, đơn vị tính toán, GPU và quạt không còn hỏi mật khẩu Linux. Mọi thứ khác vẫn hỏi.",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Bất kỳ ai dùng phiên của bạn, hoặc thiết bị đã ghép đôi có quyền điều khiển phần cứng, đều có thể chạy các thao tác này. Bạn có thể tắt bất cứ lúc nào.",
-  "Update or reinstall Control Center to use this.": "Hãy cập nhật hoặc cài lại Control Center để dùng tính năng này."
+  "Update or reinstall Control Center to use this.": "Hãy cập nhật hoặc cài lại Control Center để dùng tính năng này.",
+  "Enter your Linux password": "Nhập mật khẩu Linux của bạn",
+  "That password is not right. Try again.": "Mật khẩu không đúng. Hãy thử lại.",
+  "Stop asking for it": "Đừng hỏi lại"
 }

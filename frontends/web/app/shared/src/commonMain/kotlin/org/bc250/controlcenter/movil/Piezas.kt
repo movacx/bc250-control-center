@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -375,7 +376,7 @@ fun InterruptorMovil(
     val paleta = ColoresActuales.current
     val vivo = if (deRiesgo) paleta.peligroSolido else paleta.acento
     val fondo by animateColorAsState(if (encendido) vivo else paleta.bordeFuerte)
-    val lugar by animateDpAsState(if (encendido) 23.dp else 3.dp)
+    val lugar = animateDpAsState(if (encendido) 23.dp else 3.dp)
     Box(
         modifier = modifier
             .alpha(if (activo) 1f else 0.4f)
@@ -384,7 +385,7 @@ fun InterruptorMovil(
             .pulsable(activo) { alCambiar(!encendido) },
         contentAlignment = Alignment.CenterStart,
     ) {
-        Box(Modifier.offset(x = lugar).size(22.dp).background(Color.White, CircleShape))
+        Box(Modifier.graphicsLayer { translationX = lugar.value.toPx() }.size(22.dp).background(Color.White, CircleShape))
     }
 }
 

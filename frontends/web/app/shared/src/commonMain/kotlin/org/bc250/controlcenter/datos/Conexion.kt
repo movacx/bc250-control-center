@@ -10,6 +10,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.encodeURLParameter
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonObject
 
 /** Lo que contestó el servidor: el código y el contenido ya leído. */
@@ -47,6 +48,8 @@ class Conexion(var direccion: String = direccionInicial()) {
                 header("X-BC250-Language", idioma)
             }
             convertir(respuesta)
+        } catch (cancelada: CancellationException) {
+            throw cancelada
         } catch (error: Exception) {
             sinConexion()
         }
@@ -61,6 +64,8 @@ class Conexion(var direccion: String = direccionInicial()) {
                 setBody(datos.toString())
             }
             convertir(respuesta)
+        } catch (cancelada: CancellationException) {
+            throw cancelada
         } catch (error: Exception) {
             sinConexion()
         }

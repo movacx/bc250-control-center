@@ -6708,5 +6708,8 @@
   "Actions without password": "비밀번호 없이 작업",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, 컴퓨트 유닛, GPU, 팬 작업은 더 이상 Linux 비밀번호를 묻지 않습니다. 나머지는 계속 묻습니다.",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "내 세션을 사용하는 사람이나 하드웨어 제어 권한이 있는 페어링된 기기는 이 작업을 실행할 수 있습니다. 언제든지 끌 수 있습니다.",
-  "Update or reinstall Control Center to use this.": "이 기능을 사용하려면 Control Center를 업데이트하거나 다시 설치하세요."
+  "Update or reinstall Control Center to use this.": "이 기능을 사용하려면 Control Center를 업데이트하거나 다시 설치하세요.",
+  "Enter your Linux password": "Linux 비밀번호 입력",
+  "That password is not right. Try again.": "비밀번호가 올바르지 않습니다. 다시 시도하세요.",
+  "Stop asking for it": "더 이상 묻지 않기"
 }

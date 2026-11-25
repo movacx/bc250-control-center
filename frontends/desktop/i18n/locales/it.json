@@ -6708,5 +6708,8 @@
   "Actions without password": "Azioni senza password",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, unità di calcolo, GPU e ventole non chiedono più la password di Linux. Tutto il resto continua a chiederla.",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Chiunque usi la tua sessione, o un dispositivo associato con controllo dell'hardware, potrà eseguire queste azioni. Puoi disattivarlo in qualsiasi momento.",
-  "Update or reinstall Control Center to use this.": "Aggiorna o reinstalla Control Center per usare questa funzione."
+  "Update or reinstall Control Center to use this.": "Aggiorna o reinstalla Control Center per usare questa funzione.",
+  "Enter your Linux password": "Inserisci la password di Linux",
+  "That password is not right. Try again.": "La password non è corretta. Riprova.",
+  "Stop asking for it": "Non chiederla più"
 }

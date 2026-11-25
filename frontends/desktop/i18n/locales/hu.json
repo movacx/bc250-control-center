@@ -6708,5 +6708,8 @@
   "Actions without password": "Műveletek jelszó nélkül",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "A CPU, a számítási egységek, a GPU és a ventilátorok nem kérik többé a Linux-jelszót. Minden más továbbra is kéri.",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Bárki, aki az Ön munkamenetét vagy egy hardvervezérlésre jogosult párosított eszközt használ, végrehajthatja ezeket a műveleteket. Bármikor kikapcsolhatja.",
-  "Update or reinstall Control Center to use this.": "A használathoz frissítse vagy telepítse újra a Control Centert."
+  "Update or reinstall Control Center to use this.": "A használathoz frissítse vagy telepítse újra a Control Centert.",
+  "Enter your Linux password": "Adja meg a Linux-jelszavát",
+  "That password is not right. Try again.": "Ez a jelszó nem helyes. Próbálja újra.",
+  "Stop asking for it": "Ne kérje többet"
 }

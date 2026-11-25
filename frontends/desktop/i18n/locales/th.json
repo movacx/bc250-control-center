@@ -6708,5 +6708,8 @@
   "Actions without password": "การทำงานโดยไม่ใช้รหัสผ่าน",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU หน่วยประมวลผล GPU และพัดลมจะไม่ถามรหัสผ่าน Linux อีก ส่วนอื่นทั้งหมดยังคงถามอยู่",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "ผู้ที่ใช้เซสชันของคุณ หรืออุปกรณ์ที่จับคู่ซึ่งควบคุมฮาร์ดแวร์ได้ จะสั่งการทำงานเหล่านี้ได้ คุณปิดได้ทุกเมื่อ",
-  "Update or reinstall Control Center to use this.": "อัปเดตหรือติดตั้ง Control Center ใหม่เพื่อใช้งานสิ่งนี้"
+  "Update or reinstall Control Center to use this.": "อัปเดตหรือติดตั้ง Control Center ใหม่เพื่อใช้งานสิ่งนี้",
+  "Enter your Linux password": "ป้อนรหัสผ่าน Linux ของคุณ",
+  "That password is not right. Try again.": "รหัสผ่านไม่ถูกต้อง ลองอีกครั้ง",
+  "Stop asking for it": "ไม่ต้องถามอีก"
 }

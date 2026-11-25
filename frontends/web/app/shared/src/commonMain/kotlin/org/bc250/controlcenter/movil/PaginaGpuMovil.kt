@@ -72,7 +72,7 @@ fun PaginaGpuMovil(aplicacion: Aplicacion) {
     LaunchedEffect(aplicacion) {
         while (true) {
             aplicacion.leerPagina("gpu")
-            delay(3000)
+            aplicacion.pausar(3000)
         }
     }
     LaunchedEffect(aplicacion.trabajo.id, aplicacion.trabajo.terminado) {

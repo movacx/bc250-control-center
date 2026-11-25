@@ -6708,5 +6708,8 @@
   "Actions without password": "Toiminnot ilman salasanaa",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, laskentayksiköt, GPU ja tuulettimet eivät enää kysy Linux-salasanaa. Kaikki muu kysyy edelleen.",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Kuka tahansa, joka käyttää istuntoasi tai paritettua laitetta, jolla on laitteiston hallinta, voi suorittaa nämä toiminnot. Voit poistaa tämän käytöstä milloin tahansa.",
-  "Update or reinstall Control Center to use this.": "Päivitä tai asenna Control Center uudelleen käyttääksesi tätä."
+  "Update or reinstall Control Center to use this.": "Päivitä tai asenna Control Center uudelleen käyttääksesi tätä.",
+  "Enter your Linux password": "Anna Linux-salasanasi",
+  "That password is not right. Try again.": "Salasana on väärin. Yritä uudelleen.",
+  "Stop asking for it": "Älä kysy enää"
 }

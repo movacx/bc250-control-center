@@ -6708,5 +6708,8 @@
   "Actions without password": "パスワードなしの操作",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU、コンピュートユニット、GPU、ファンの操作では Linux のパスワードを求めなくなります。その他は引き続き求めます。",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "あなたのセッションを使う人や、ハードウェア制御が許可されたペアリング済みデバイスは、これらの操作を実行できるようになります。いつでもオフにできます。",
-  "Update or reinstall Control Center to use this.": "これを使うには Control Center を更新または再インストールしてください。"
+  "Update or reinstall Control Center to use this.": "これを使うには Control Center を更新または再インストールしてください。",
+  "Enter your Linux password": "Linux のパスワードを入力",
+  "That password is not right. Try again.": "パスワードが正しくありません。もう一度お試しください。",
+  "Stop asking for it": "今後は求めない"
 }

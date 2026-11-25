@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+import time
 from types import SimpleNamespace
 
 CARPETA = tempfile.mkdtemp(prefix="bc250-web-ejemplo-")
@@ -47,6 +48,37 @@ class TerminalEjemplo:
         self.closed = True
 
 
+class TerminalConClave(TerminalEjemplo):
+    """Pide una contraseña como sudo: «mala» no vale y cualquier otra sí. Nada se ejecuta."""
+
+    AVISO = "BC250 Linux password: "
+
+    def request(self, operacion, **valores):
+        ahora = time.monotonic()
+        if operacion == "action":
+            super().request(operacion, **valores)
+            self.trabajo.update(done=False, ok=None, text=self.AVISO, waiting=True, interactive=True)
+            self.desde, self.valida = None, False
+            return {"ok": True, "job": self.trabajo["id"]}
+        if operacion == "input":
+            self.desde, self.valida = ahora, valores["text"] != "mala"
+            self.trabajo.update(waiting=False, interactive=False, text=self.AVISO + "\n")
+            return {"ok": True}
+        if operacion == "interrupt":
+            self.trabajo.update(done=True, ok=False, cancelled=True, waiting=False, interactive=False)
+            return {"ok": True}
+        desde = getattr(self, "desde", None)
+        if desde and not self.trabajo.get("done") and ahora - desde > (0.4 if self.valida else 1.5):
+            if not self.valida:
+                self.trabajo.update(waiting=True, interactive=True, text=f"{self.AVISO}\nSorry, try again.\n{self.AVISO}")
+                self.desde = None
+            else:
+                self.trabajo["text"] = self.AVISO + "\nAplicando…"
+                if ahora - desde > 2:
+                    self.trabajo.update(done=True, ok=True, text=self.AVISO + "\nListo.")
+        return self.trabajo
+
+
 class WebEjemplo(web_server.Web):
     def session(self, _token):
         return "sello-de-ejemplo"
@@ -67,7 +99,7 @@ def principal() -> int:
     if not con_clave:
         web_server.web_devices.session = lambda _ficha: {"control": True, "id": "ejemplo"}
     clase = web_server.Web if con_clave else WebEjemplo
-    web = clase(contenedor, terminal_factory=TerminalEjemplo)
+    web = clase(contenedor, terminal_factory=TerminalConClave if "--pide" in sys.argv else TerminalEjemplo)
     web_server.set_language(web.language)
     certificado = None
     if "--https" in sys.argv:  # para probar la aplicación del teléfono

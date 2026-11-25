@@ -125,7 +125,7 @@ fun PaginaAjustesAdicionales(aplicacion: Aplicacion) {
     LaunchedEffect(aplicacion) {
         while (true) {
             aplicacion.leerPagina("extras")
-            delay(6000)
+            aplicacion.pausar(6000)
         }
     }
     val datos = aplicacion.lectura("extras")

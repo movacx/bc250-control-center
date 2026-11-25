@@ -6708,5 +6708,8 @@
   "Actions without password": "Handlinger uden adgangskode",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, beregningsenheder, GPU og blæsere holder op med at bede om Linux-adgangskoden. Alt andet bliver ved med at bede om den.",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Enhver, der bruger din session eller en parret enhed med hardwarekontrol, kan køre disse handlinger. Du kan slå det fra når som helst.",
-  "Update or reinstall Control Center to use this.": "Opdater eller geninstaller Control Center for at bruge dette."
+  "Update or reinstall Control Center to use this.": "Opdater eller geninstaller Control Center for at bruge dette.",
+  "Enter your Linux password": "Indtast din Linux-adgangskode",
+  "That password is not right. Try again.": "Adgangskoden er forkert. Prøv igen.",
+  "Stop asking for it": "Spørg ikke igen"
 }

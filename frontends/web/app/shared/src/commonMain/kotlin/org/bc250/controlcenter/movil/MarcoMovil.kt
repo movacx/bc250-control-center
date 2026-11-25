@@ -99,7 +99,7 @@ fun VentanaMovil(aplicacion: Aplicacion, pagina: @Composable () -> Unit) {
                     key(aplicacion.pagina) {
                         pagina()
                     }
-                    AvisoDeTrabajo(aplicacion, Modifier.align(Alignment.BottomCenter))
+                    AvisoDeTrabajo(aplicacion, VigilanteDeClave(aplicacion), Modifier.align(Alignment.BottomCenter))
                 }
                 BarraInferior(aplicacion)
             }
@@ -467,7 +467,7 @@ private fun RespuestaMovil(aplicacion: Aplicacion, trabajo: Trabajo) {
 
 /** El aviso de que hay una operación; si pide la clave, la consola se abre sola. */
 @Composable
-private fun AvisoDeTrabajo(aplicacion: Aplicacion, modifier: Modifier) {
+private fun AvisoDeTrabajo(aplicacion: Aplicacion, peticion: PeticionDeClave, modifier: Modifier) {
     val paleta = ColoresActuales.current
     val movil = movil()
     val trabajo = aplicacion.trabajo
@@ -482,8 +482,8 @@ private fun AvisoDeTrabajo(aplicacion: Aplicacion, modifier: Modifier) {
             visible = true
         }
     }
-    LaunchedEffect(trabajo.id, trabajo.esperaClave, trabajo.esperaRespuesta) {
-        if (trabajo.esperaClave || trabajo.esperaRespuesta) {
+    LaunchedEffect(trabajo.id, trabajo.esperaRespuesta) {
+        if (trabajo.esperaRespuesta && !trabajo.esperaClave) {
             movil.abrirConsola(aplicacion)
         }
     }
@@ -504,9 +504,13 @@ private fun AvisoDeTrabajo(aplicacion: Aplicacion, modifier: Modifier) {
         }
         val texto = if (trabajo.terminado) "${trabajo.titulo}: ${estadoDe(trabajo)}" else "${trabajo.titulo}…"
         Texto(texto, tamano = 14, peso = 700, lineas = 2, modifier = Modifier.weight(1f))
-        BotonMovil(t("View console")) {
+        BotonMovil(t(if (trabajo.esperaClave) "Password" else "View console")) {
             visible = !trabajo.terminado
-            movil.abrirConsola(aplicacion)
+            if (trabajo.esperaClave) {
+                movil.abrirClave(aplicacion, peticion)
+            } else {
+                movil.abrirConsola(aplicacion)
+            }
         }
     }
 }

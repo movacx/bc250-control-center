@@ -6708,5 +6708,8 @@
   "Actions without password": "Tindakan tanpa kata sandi",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, unit komputasi, GPU, dan kipas tidak lagi meminta kata sandi Linux. Yang lainnya tetap meminta.",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Siapa pun yang memakai sesi Anda, atau perangkat terpasang dengan kontrol perangkat keras, dapat menjalankan tindakan ini. Anda dapat mematikannya kapan saja.",
-  "Update or reinstall Control Center to use this.": "Perbarui atau pasang ulang Control Center untuk memakai ini."
+  "Update or reinstall Control Center to use this.": "Perbarui atau pasang ulang Control Center untuk memakai ini.",
+  "Enter your Linux password": "Masukkan kata sandi Linux Anda",
+  "That password is not right. Try again.": "Kata sandi salah. Coba lagi.",
+  "Stop asking for it": "Berhenti meminta"
 }

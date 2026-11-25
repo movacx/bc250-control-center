@@ -6708,5 +6708,8 @@
   "Actions without password": "Действия без парола",
   "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, изчислителните блокове, GPU и вентилаторите спират да искат паролата на Linux. Всичко останало продължава да я иска.",
   "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Всеки, който използва вашата сесия или сдвоено устройство с управление на хардуера, ще може да изпълнява тези действия. Можете да го изключите по всяко време.",
-  "Update or reinstall Control Center to use this.": "Обновете или преинсталирайте Control Center, за да използвате това."
+  "Update or reinstall Control Center to use this.": "Обновете или преинсталирайте Control Center, за да използвате това.",
+  "Enter your Linux password": "Въведете паролата си за Linux",
+  "That password is not right. Try again.": "Паролата не е вярна. Опитайте отново.",
+  "Stop asking for it": "Да не се иска повече"
 }

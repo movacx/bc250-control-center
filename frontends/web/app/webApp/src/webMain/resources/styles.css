@@ -7,6 +7,39 @@ html, body {
 }
 
 #composeTarget {
+    position: relative;
     width: 100%;
     height: 100%;
+}
+
+/* Lo que se ve mientras llega el programa; él mismo lo quita al dibujar. */
+#inicio {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+}
+
+#inicio img {
+    border-radius: 18px;
+}
+
+#inicio i {
+    width: 132px;
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #262626 0 40%, #69B486 40% 60%, #262626 60%) 0 0 / 300% 100%;
+    animation: cargando 1.1s linear infinite;
+}
+
+@keyframes cargando {
+    from { background-position: 100% 0; }
+    to { background-position: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #inicio i { animation: none; }
 }

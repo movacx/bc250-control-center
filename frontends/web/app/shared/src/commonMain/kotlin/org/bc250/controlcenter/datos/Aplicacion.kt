@@ -1,8 +1,8 @@
 package org.bc250.controlcenter.datos
 
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
@@ -10,13 +10,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import org.bc250.controlcenter.tema.Paleta
 import org.bc250.controlcenter.componentes.TextoAbierto
 import org.bc250.controlcenter.tema.Medidas
+import org.bc250.controlcenter.tema.Paleta
 import org.bc250.controlcenter.tema.PaletaInicial
 import org.bc250.controlcenter.tema.Paletas
 
@@ -45,6 +46,13 @@ data class Trabajo(
 }
 
 private const val PESTANAS_CONSOLA = 5
+
+/** Al principio una operación se mira seguido, para que las cortas se noten al instante. */
+private const val VUELTAS_RAPIDAS = 25
+private const val PULSO_RAPIDO = 120L
+private const val PULSO_LENTO = 350L
+private const val ESPERA_FINAL = 2500L
+private const val ANTES_DE_ADELANTAR = 900L
 private const val MARCA_DE_PAREJA = "pair="
 private const val MARCA_DE_AJUSTES = "settings/"
 private const val PUERTO_NORMAL = 8250
@@ -114,6 +122,11 @@ class Aplicacion(private val tareas: CoroutineScope) {
     private val lecturas = mutableStateMapOf<String, JsonObject>()
     private var temas = ObjetoVacio
     private var idiomaPedido = ""
+    private var temaUsado: List<Any> = emptyList()
+
+    /** El orden en que se pidió cada lectura: la que llega tarde no pisa a otra más nueva. */
+    private val pedidos = mutableMapOf<String, Int>()
+    private val publicados = mutableMapOf<String, Int>()
 
     /** La ficha de un solo uso del código QR, hasta que se pueda entrar con ella. */
     private var claveDePareja = ""
@@ -135,7 +148,38 @@ class Aplicacion(private val tareas: CoroutineScope) {
         }
     }
 
+    /**
+     * Todo lo necesario para dibujar llega en una sola respuesta. Un equipo con una versión anterior
+     * no la conoce, y entonces se piden las partes una por una.
+     */
     suspend fun revisarSesion() {
+        val respuesta = conexion.pedir("/api/start")
+        if (respuesta.codigo == 0) {
+            sesion = if (CertificadoDelEquipo.pendiente.isEmpty()) EstadoSesion.SIN_CONEXION else EstadoSesion.PIDE_CONFIANZA
+            return
+        }
+        val datos = respuesta.datos
+        if (!respuesta.correcta || datos.objeto("session").isEmpty()) {
+            revisarPorPartes()
+            return
+        }
+        conexion.sello = datos.objeto("session").texto("csrf")
+        puedeControlar = datos.objeto("session").logico("control")
+        usarTextos(datos.objeto("texts"))
+        temas = datos.objeto("theme").objeto("palettes")
+        if (datos.objeto("session").logico("authenticated")) {
+            lecturas["preferences"] = datos.objeto("preferences")
+            idiomaPedido = datos.objeto("preferences").objeto("valores").texto("language")
+            aplicarPreferencias()
+            abrirDentro()
+        } else {
+            val tema = datos.objeto("theme")
+            usarTema(tema.texto("style", "formal"), tema.texto("theme", "dark"), tema.texto("accent", "green"))
+            sesion = EstadoSesion.PIDE_CLAVE
+        }
+    }
+
+    private suspend fun revisarPorPartes() {
         val respuesta = conexion.pedir("/api/session")
         if (respuesta.codigo == 0) {
             sesion = if (CertificadoDelEquipo.pendiente.isEmpty()) EstadoSesion.SIN_CONEXION else EstadoSesion.PIDE_CONFIANZA
@@ -164,6 +208,7 @@ class Aplicacion(private val tareas: CoroutineScope) {
         claveDePareja = ficha.substringBefore("&")
         if (direccion != conexion.direccion) {
             CertificadoDelEquipo.olvidar()
+            lecturas.clear()
         }
         CertificadoDelEquipo.confiarEn(ficha.substringAfter("&ca=", ""))
         conexion.direccion = direccion
@@ -217,10 +262,27 @@ class Aplicacion(private val tareas: CoroutineScope) {
     private suspend fun entrar() {
         cargarTemas()
         leerPreferencias()
+        abrirDentro()
+    }
+
+    private fun abrirDentro() {
         abrirPaginaInicial()
         sesion = EstadoSesion.DENTRO
         lector?.cancel()
-        lector = tareas.launch { leerSinParar() }
+        lector = tareas.launch {
+            launch { adelantarPaginas() }
+            leerSinParar()
+        }
+    }
+
+    /** Las páginas que más se abren quedan leídas de antemano, una a una y sin estorbar a la que se ve. */
+    private suspend fun adelantarPaginas() {
+        delay(ANTES_DE_ADELANTAR)
+        for (nombre in listOf("cu", "cpu", "gpu", "fans")) {
+            if (nombre != pagina && lecturas[nombre] == null) {
+                leerPagina(nombre)
+            }
+        }
     }
 
     /** Abre una página y, si se pide, una parte de ella («Escalado», «Soporte»…). */
@@ -259,9 +321,13 @@ class Aplicacion(private val tareas: CoroutineScope) {
         if (!respuesta.correcta) {
             return
         }
-        conexion.idioma = respuesta.datos.texto("language", "en")
-        this.idioma = conexion.idioma
-        val cadenas = respuesta.datos.objeto("strings")
+        usarTextos(respuesta.datos)
+    }
+
+    private fun usarTextos(datos: JsonObject) {
+        conexion.idioma = datos.texto("language", "en")
+        idioma = conexion.idioma
+        val cadenas = datos.objeto("strings")
         val traducciones = cadenas.keys.associateWith { clave -> cadenas.texto(clave, clave) }
         Textos.cambiar(traducciones)
         revisionDeTextos += 1
@@ -279,6 +345,11 @@ class Aplicacion(private val tareas: CoroutineScope) {
     fun usarTema(estilo: String, tema: String, acento: String) {
         val delSistema = if (sistemaOscuro) "dark" else "light"
         val elegido = if (tema == "system") delSistema else tema
+        val marca = listOf(estilo, elegido, acento, preferencias.texto("console_theme"), temas.size)
+        if (marca == temaUsado) {
+            return
+        }
+        temaUsado = marca
         paletas = Paletas(temas, estilo, elegido)
         val nueva = paletas.paleta(estilo, elegido, acento)
         if (nueva != null) {
@@ -303,17 +374,21 @@ class Aplicacion(private val tareas: CoroutineScope) {
 
     suspend fun leerPreferencias() {
         leerPagina("preferences")
+        aplicarPreferencias()
+        val idioma = preferencias.texto("language")
+        if (preferencias.isNotEmpty() && idioma != idiomaPedido) {
+            idiomaPedido = idioma
+            cargarTextos(if (idioma == "auto") "" else idioma)
+        }
+    }
+
+    private fun aplicarPreferencias() {
         preferencias = lectura("preferences").objeto("valores")
         if (preferencias.isEmpty()) {
             return
         }
         Medidas.compacta = preferencias.texto("density") == "compact"
         usarTema(preferencias.texto("style"), preferencias.texto("theme"), preferencias.texto("accent"))
-        val idioma = preferencias.texto("language")
-        if (idioma != idiomaPedido) {
-            idiomaPedido = idioma
-            cargarTextos(if (idioma == "auto") "" else idioma)
-        }
     }
 
     private fun abrirPaginaInicial() {
@@ -405,6 +480,7 @@ class Aplicacion(private val tareas: CoroutineScope) {
 
     private suspend fun leerSinParar() {
         while (tareas.isActive) {
+            PrimerPlano.esperar()
             val respuesta = conexion.pedir("/api/live")
             if (respuesta.codigo == 401) {
                 sesion = EstadoSesion.PIDE_CLAVE
@@ -418,10 +494,23 @@ class Aplicacion(private val tareas: CoroutineScope) {
     }
 
     suspend fun leerPagina(nombre: String) {
+        val turno = (pedidos[nombre] ?: 0) + 1
+        pedidos[nombre] = turno
         val respuesta = conexion.pedir("/api/page", mapOf("name" to nombre))
-        if (respuesta.correcta) {
-            lecturas[nombre] = respuesta.datos.objeto("data")
+        if (!respuesta.correcta || turno < (publicados[nombre] ?: 0)) {
+            return
         }
+        publicados[nombre] = turno
+        val nueva = respuesta.datos.objeto("data")
+        if (lecturas[nombre] != nueva) {
+            lecturas[nombre] = nueva
+        }
+    }
+
+    /** Espera para volver a leer; con la aplicación escondida espera hasta que se vea otra vez. */
+    suspend fun pausar(milisegundos: Long) {
+        delay(milisegundos)
+        PrimerPlano.esperar()
     }
 
     /** Una lectura con parámetros; devuelve vacío si falla. */
@@ -460,6 +549,9 @@ class Aplicacion(private val tareas: CoroutineScope) {
             }
             val respuesta = conexion.enviar("/api/action", datos)
             if (respuesta.correcta) {
+                // La operación se ve desde el toque, sin esperar a la primera lectura.
+                trabajo = Trabajo(id = respuesta.datos.entero("job"), titulo = titulo, terminado = false)
+                anotarTrabajo(trabajo)
                 consolaVisible = !enTelefono
                 seguirTrabajo()
             } else {
@@ -493,16 +585,17 @@ class Aplicacion(private val tareas: CoroutineScope) {
     private fun seguirTrabajo() {
         seguimiento?.cancel()
         seguimiento = tareas.launch {
+            var vueltas = 0
             do {
-                delay(350)
+                delay(if (vueltas < VUELTAS_RAPIDAS) PULSO_RAPIDO else PULSO_LENTO)
+                vueltas += 1
                 leerTrabajo()
             } while (!trabajo.terminado)
             if (trabajo.correcto && preferencias.logico("console_auto_hide")) {
                 consolaVisible = false
             }
-            lecturas.clear()
+            // Las demás páginas se leen al abrirse; hasta entonces se ve lo último que se supo.
             leerPreferencias()
-            leerPagina(pagina)
         }
     }
 
@@ -512,7 +605,7 @@ class Aplicacion(private val tareas: CoroutineScope) {
             return
         }
         val datos = respuesta.datos
-        trabajo = Trabajo(
+        val nuevo = Trabajo(
             id = datos.entero("id"),
             titulo = datos.texto("label"),
             texto = datos.texto("text"),
@@ -522,7 +615,12 @@ class Aplicacion(private val tareas: CoroutineScope) {
             esperaClave = datos.logico("waiting"),
             esperaRespuesta = datos.logico("interactive"),
         )
-        anotarTrabajo(trabajo)
+        if (nuevo.terminado && !trabajo.terminado) {
+            // El final y lo que cambió se ven a la vez: nunca el final con los datos de antes.
+            withTimeoutOrNull(ESPERA_FINAL) { leerPagina(pagina) }
+        }
+        trabajo = nuevo
+        anotarTrabajo(nuevo)
     }
 
     /** Anota cómo va la operación en su pestaña; las más viejas que salieron bien dejan sitio. */

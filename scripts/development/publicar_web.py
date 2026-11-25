@@ -42,6 +42,10 @@ def principal() -> None:
     version = suma.hexdigest()[:16]
     pagina = DESTINO / "index.html"
     texto = pagina.read_text(encoding="utf-8").replace("0" * 16, version)
+    # El navegador los pide ya, sin esperar a que el programa diga que los necesita.
+    previos = "".join(f'<link rel="preload" href="{archivo.name}" as="fetch" type="application/wasm" crossorigin="anonymous">\n    '
+                      for archivo in sorted(DESTINO.glob("*.wasm")))
+    texto = texto.replace("<!-- programa -->", previos.rstrip())
     pagina.write_text(texto, encoding="utf-8")
     (DESTINO / "version.json").write_text(json.dumps({"version": version}), encoding="utf-8")
 

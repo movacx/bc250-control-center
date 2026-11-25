@@ -1,6 +1,7 @@
 package org.bc250.controlcenter.tema
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -36,7 +37,7 @@ fun cargarLetras(): Letras {
         Font(Res.font.cifras_medium, FontWeight.Medium),
         Font(Res.font.cifras_bold, FontWeight.Bold),
     )
-    return Letras(normal, consola, cifras)
+    return remember(normal, consola, cifras) { Letras(normal, consola, cifras) }
 }
 
 /** El grosor de Qt (400 a 900) llevado al archivo de letra que Qt elige para él. */

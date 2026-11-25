@@ -35,7 +35,7 @@ fun PaginaPanel(aplicacion: Aplicacion) {
     LaunchedEffect(Unit) {
         while (true) {
             aplicacion.leerPagina("dashboard")
-            delay(3000)
+            aplicacion.pausar(3000)
         }
     }
     val datos = JsonObject(aplicacion.lectura("dashboard") + ("update" to novedades))

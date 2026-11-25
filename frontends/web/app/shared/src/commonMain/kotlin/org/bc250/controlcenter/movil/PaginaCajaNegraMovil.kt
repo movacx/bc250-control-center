@@ -29,7 +29,7 @@ fun PaginaCajaNegraMovil(aplicacion: Aplicacion) {
     LaunchedEffect(aplicacion) {
         while (true) {
             aplicacion.leerPagina("black_box")
-            delay(1000)
+            aplicacion.pausar(1000)
         }
     }
     val estado = movil()

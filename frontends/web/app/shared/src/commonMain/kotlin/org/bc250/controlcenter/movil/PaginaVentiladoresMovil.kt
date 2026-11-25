@@ -58,7 +58,7 @@ fun PaginaVentiladoresMovil(aplicacion: Aplicacion) {
     LaunchedEffect(Unit) {
         while (true) {
             aplicacion.leerPagina("fans")
-            delay(2000)
+            aplicacion.pausar(2000)
         }
     }
     val datos = aplicacion.lectura("fans")
