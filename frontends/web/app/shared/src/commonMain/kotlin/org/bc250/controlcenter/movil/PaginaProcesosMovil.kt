@@ -66,7 +66,6 @@ fun PaginaProcesosMovil(aplicacion: Aplicacion) {
                 movil.abrirHoja { OpcionesProcesos(estado) }
             }
         }
-        NotaMovil(estado.datos.texto("summary"))
         BotonMovil(t("Release page cache"), Modifier.fillMaxWidth(), activo = libre) { liberarCacheProcesos(aplicacion) }
         if (estado.fallo) NotaMovil(t("Not connected"), ColoresActuales.current.rojo)
     }

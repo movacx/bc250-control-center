@@ -72,7 +72,7 @@ def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb
     if action not in {
         "memory-apply", "acpi-install", "acpi-update", "acpi-uninstall", "acpi-check",
         "telemetry-fix", "telemetry-restore", "vram-read", "vram-apply",
-        "kernel-options-set", "ttm-apply", "smt-live",
+        "kernel-options-set", "ttm-apply", "smt-live", "quick-auth-enable", "quick-auth-disable",
     }:
         raise ValueError("Unsupported system setup action")
     kernel_options = tuple(kernel_options or ())

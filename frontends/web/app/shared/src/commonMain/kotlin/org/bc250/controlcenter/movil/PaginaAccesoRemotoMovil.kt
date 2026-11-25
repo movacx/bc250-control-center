@@ -114,7 +114,6 @@ private fun EmparejarMovil(aplicacion: Aplicacion) {
                 } else {
                     QrMovil(matriz)
                 }
-                NotaMovil(t("Scan to pair. The code works once and renews by itself."))
             }
             FilaInterruptor(t("Reachable from the local network"), web.logico("lan"), activa = libre) {
                 cambiarOpcion(aplicacion, "lan", JsonPrimitive(it), t("Reachable from the local network"))

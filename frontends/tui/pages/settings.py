@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from bc250cc.application.system import daemon_service
+from bc250cc.application.system import daemon_service, quick_auth
 from frontends.desktop.core.temperature_unit import UNITS, unit_symbol, use_unit
 from frontends.desktop.i18n import LANGUAGE_OPTIONS
 
@@ -113,6 +113,13 @@ class SettingsPage(Page):
             if ui_.confirm(tr("Reset preferences"), danger=True):
                 self._save(ctx, ui_, dict(preferences.DEFAULTS))
 
+        quick = quick_auth.enabled()
+
+        def flip_quick(ui_):
+            text = tr(quick_auth.TITLE) if quick else tr(quick_auth.TITLE) + ": " + tr(quick_auth.WARNING)
+            if ui_.confirm(text, danger=not quick):
+                guarded(ui_, tr(quick_auth.TITLE), lambda: ctx.service.gestionar_acciones_sin_clave(not quick))
+
         return [
             Panel(tr("Language"), [
                 self._pick(ctx, "Language", "tui_language", LANGUAGE_OPTIONS, language, after=speak, detail=(
@@ -127,6 +134,7 @@ class SettingsPage(Page):
                              detail="Restore the last visited module when the application starts."),
                 self._switch(ctx, "Collapsed sidebar at launch", "tui_sidebar_collapsed", mine["tui_sidebar_collapsed"],
                              detail="Open the main navigation in compact mode.")]),
+            Panel(tr("Permissions"), [switch(tr(quick_auth.TITLE), quick, flip_quick, info=Info(tr(quick_auth.DETAIL)))]),
             Panel("", [Choice(tr("Reset preferences"), reset, tone="bad")])]
 
     def _appearance(self, ctx, data, config, mine, ui):

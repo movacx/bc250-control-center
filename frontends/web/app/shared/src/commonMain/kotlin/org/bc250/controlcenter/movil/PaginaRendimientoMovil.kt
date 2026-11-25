@@ -110,7 +110,7 @@ private fun PestanasRendimiento(estado: EstadoRendimiento) {
 private fun FilaVistas(estado: EstadoRendimiento) {
     val movil = movil()
     GrupoMovil {
-        FilaAbrir(t("Views"), t("Layout, history window and scale"), "${estado.ventana / 60} min") {
+        FilaAbrir(t("Views"), valor = "${estado.ventana / 60} min") {
             movil.abrirHoja { OpcionesRendimiento(estado) }
         }
     }
@@ -130,8 +130,6 @@ private fun SensoresMovil(aplicacion: Aplicacion, estado: EstadoRendimiento) {
                 GraficaTraza(traza.objeto("chart"), estado.ventana,
                     ColoresActuales.current.color(traza.texto("tone")),
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp).height(76.dp))
-                val nota = if (traza.logico("fresh")) traza.texto("device") else t("Waiting for sample")
-                Box(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 10.dp)) { NotaMovil(nota) }
             }
         }
         for (traza in estado.datos.objetos("missing_traces")) {
@@ -162,8 +160,6 @@ private fun SensoresMovil(aplicacion: Aplicacion, estado: EstadoRendimiento) {
         GrupoMovil { FilaInterruptor(t("Hide unused channels"), estado.ocultar) { estado.ocultar = it } }
     }
     FilaVistas(estado)
-    NotaMovil(estado.datos.texto("count"))
-    NotaMovil(estado.datos.texto("footer"))
     BotonMovil(t("Reset min/max"), Modifier.fillMaxWidth(), activo = aplicacion.puedeControlar) {
         reiniciarRendimiento(aplicacion)
     }
@@ -222,11 +218,7 @@ private fun RecursoMovil(estado: EstadoRendimiento) {
         }
     }
     FilaVistas(estado)
-    NotaMovil(datos.texto("hint"))
-    NotaMovil(datos.texto("context"))
-    NotaMovil(t(if (datos.texto("error").isEmpty()) "Sampling" else "Read error"))
-    if (estado.ventana == 120) NotaMovil(t("120 samples · 1 s cadence · 2 minute window"))
-    NotaMovil(t("Last sample {time}", "time" to datos.texto("sampled", "--:--:--")))
+    if (datos.texto("error").isNotEmpty()) NotaMovil(t("Read error"), ColoresActuales.current.naranja)
 }
 
 @Composable

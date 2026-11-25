@@ -138,11 +138,11 @@ private fun Frecuencias(aplicacion: Aplicacion, datos: JsonObject, perfiles: Lis
     Arranque(aplicacion, datos)
     GrupoMovil {
         val escala = if (eleccion.escalaManual) t("Manual") + " · " + eleccion.escala else t("Automatic")
-        FilaAbrir(t("Scale"), t("How the tuning is tested"), escala) {
+        FilaAbrir(t("Scale"), valor = escala) {
             movil.abrirHoja { HojaEscala(eleccion) }
         }
         val aplicado = datos.objeto("tuning").texto("applied_value", "--")
-        FilaAbrir(t("Tuning status"), t("Last operation and reference"), aplicado) {
+        FilaAbrir(t("Tuning status"), valor = aplicado) {
             movil.abrirHoja { HojaEstado(aplicacion, datos) }
         }
     }
@@ -213,8 +213,7 @@ private fun Arranque(aplicacion: Aplicacion, datos: JsonObject) {
     SeccionMovil(t("Startup")) {
         GrupoMovil {
             FilaLibre(altoMinimo = 66.dp) {
-                PuntoEstado(encendido)
-                val detalle = if (encendido) "Enabled · the service applies it at every start" else "Disabled · lost on restart"
+                val detalle = if (encendido) "Enabled" else "Disabled"
                 TextosFila(t("Apply at startup"), t(detalle))
                 InterruptorMovil(encendido, activo = libre && (encendido || disponible)) { pedido ->
                     if (pedido) guardarArranqueCpu(aplicacion, datos) else quitarArranqueCpu(aplicacion)
@@ -231,10 +230,6 @@ private fun Arranque(aplicacion: Aplicacion, datos: JsonObject) {
             )
         }
     }
-    val detalle = datos.objeto("persistence").texto("detail")
-    if (encendido && detalle.isNotEmpty()) {
-        NotaMovil(detalle, paleta.sutil)
-    }
 }
 
 @Composable
@@ -248,12 +243,6 @@ private fun HojaEscala(eleccion: EleccionCpu) {
         GrupoMovil {
             FilaPaso(t("Scale"), eleccion.escala, "", ESCALA_MENOR, 0) { valor -> eleccion.escala = valor }
         }
-        NotaMovil(
-            t(
-                "Enter the exact scale you want. It is stress-tested in 100 MHz steps before it stays applied, " +
-                    "the way automatic detection tests its own.",
-            ),
-        )
     }
     CerrarHoja(t("Done"), ClaseBoton.PRINCIPAL)
 }
@@ -298,10 +287,10 @@ private fun Nucleos(aplicacion: Aplicacion, datos: JsonObject) {
     }
     GrupoMovil {
         val titulo = t("Unlock cores")
-        FilaAbrir(t("Unlock hidden CPU cores"), t("Temporary or at every start"), estadoDesbloqueo(datos, nucleos.size)) {
+        FilaAbrir(t("Unlock hidden CPU cores"), valor = estadoDesbloqueo(datos, nucleos.size)) {
             movil.abrirDetalle(titulo)
         }
-        FilaAbrir(t("Processor"), t("Architecture, cache and instructions")) {
+        FilaAbrir(t("Processor")) {
             movil.abrirHoja { HojaProcesador(datos) }
         }
     }
@@ -417,7 +406,7 @@ private fun Desbloqueo(aplicacion: Aplicacion, datos: JsonObject, eleccion: Elec
     }
     Comprobacion(aplicacion, datos, eleccion, nombreMascara, mascara?.texto("text") ?: "")
     GrupoMovil {
-        FilaAbrir(t("Firmware persistence guide"), t("To keep it in the BIOS")) { aplicacion.abrirEnlace(datos.texto("firmware_guide")) }
+        FilaAbrir(t("Firmware persistence guide")) { aplicacion.abrirEnlace(datos.texto("firmware_guide")) }
         if (instalado) {
             val puedeQuitar = aplicacion.puedeControlar && aplicacion.trabajo.terminado && controles.logico("remove_allowed")
             FilaAbrir(

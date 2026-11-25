@@ -19,7 +19,9 @@ CADENA = r'"((?:[^"\\]|\\.)*)"'
 def textos() -> list[str]:
     """Lo que se pide con t("…"), también partido en varias líneas, y los nombres de las secciones."""
     encontrados = set()
-    for archivo in sorted((APP / "shared/src").rglob("*.kt")):
+    # Lo que el servidor manda en inglés y la web traduce.
+    servidor = [RAIZ / "frontends/web/data.py", RAIZ / "src/bc250cc/application/fan/board_view.py"]
+    for archivo in [*sorted((APP / "shared/src").rglob("*.kt")), *servidor]:
         codigo = archivo.read_text(encoding="utf-8")
         for inicio in re.finditer(rf"{CADENA}(?:\s*\+\s*{CADENA})*", codigo):
             partes = re.findall(CADENA, inicio.group(0))

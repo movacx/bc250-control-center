@@ -6704,5 +6704,9 @@
   "It is my board": "Det är mitt kort",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "Ange adressen som visas i Fjärråtkomst, eller klistra in QR-kodens länk.",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "Den här telefonen har inte använt detta kort förut. Fortsätt bara om du själv skrev adressen och är på ditt eget nätverk.",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Kortet visar ett annat certifikat än tidigare. Fortsätt bara om du har installerat om det."
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Kortet visar ett annat certifikat än tidigare. Fortsätt bara om du har installerat om det.",
+  "Actions without password": "Åtgärder utan lösenord",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, beräkningsenheter, GPU och fläktar slutar fråga efter Linux-lösenordet. Allt annat fortsätter att fråga.",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Alla som använder din session, eller en parkopplad enhet med hårdvarukontroll, kan köra dessa åtgärder. Du kan stänga av det när som helst.",
+  "Update or reinstall Control Center to use this.": "Uppdatera eller installera om Control Center för att använda detta."
 }

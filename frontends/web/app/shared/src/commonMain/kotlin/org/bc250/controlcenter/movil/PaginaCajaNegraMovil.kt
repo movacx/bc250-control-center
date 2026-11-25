@@ -49,8 +49,6 @@ fun PaginaCajaNegraMovil(aplicacion: Aplicacion) {
                 siguiendo = y >= origen - 1f
             }) {
                 Column(Modifier.padding(14.dp), Arrangement.spacedBy(10.dp)) {
-                    TextoHoja(t("Records the GPU clock, load, temperatures, voltage, power, fans, CPU clock and free memory " +
-                        "four times a second, so the next problem report shows the seconds before a freeze."))
                     BotonMovil(
                         t(if (grabando) "Stop recording" else "Start recording"), Modifier.fillMaxWidth(),
                         if (grabando) ClaseBoton.PELIGRO else ClaseBoton.PRINCIPAL,
@@ -116,7 +114,6 @@ private fun RegistroMovil(datos: JsonObject, siguiendo: Boolean) {
         }
     }
     if (!siguiendo) NotaMovil(t("Paused while you read. Go back to the top to follow the recording."))
-    NotaMovil(t("{count} rows shown · {path}", "count" to filas.size.toString(), "path" to t("Black box")))
 }
 
 /** La hora sin milésimas y los relojes sin unidad, que ya está en el título. */

@@ -60,7 +60,6 @@ fun PaginaAjustesAdicionalesMovil(aplicacion: Aplicacion) {
             } else {
                 for (panel in paneles) PanelAdicionalMovil(estado, pestana, panel)
             }
-            NotaMovil(t("Detected system: {distribution}", "distribution" to datos.texto("system", t("Not detected"))))
         }
     }
 }
@@ -69,14 +68,13 @@ fun PaginaAjustesAdicionalesMovil(aplicacion: Aplicacion) {
 private fun PanelAdicionalMovil(estado: EstadoExtras, pestana: String, panel: JsonObject) {
     val telefono = movil()
     SeccionMovil(panel.texto("title")) {
-        if (panel.texto("detail").isNotEmpty()) NotaMovil(panel.texto("detail"))
         if (panel.texto("value").isNotEmpty()) NotaMovil(panel.texto("value"))
         GrupoMovil {
             for (lectura in panel.objetos("readings")) {
                 FilaDato(lectura.texto("label"), lectura.texto("value"), color = colorExtras(lectura.texto("tone")))
             }
             for (fila in panel.objetos("rows")) {
-                FilaAbrir(fila.texto("title"), fila.texto("scope").ifEmpty { fila.texto("detail") }, fila.texto("value"),
+                FilaAbrir(fila.texto("title"), valor = fila.texto("value"),
                     colorValor = colorExtras(fila.texto("tone"))) {
                     telefono.abrirHoja { DetalleAdicionalMovil(estado, pestana, fila.texto("id")) }
                 }

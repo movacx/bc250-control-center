@@ -6704,5 +6704,9 @@
   "It is my board": "Het is mijn bord",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "Voer het adres in dat bij Externe toegang staat, of plak de link van de QR-code.",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "Deze telefoon heeft dit bord nog nooit gebruikt. Ga alleen verder als je het adres zelf hebt getypt en op je eigen netwerk zit.",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Het bord toont een ander certificaat dan eerder. Ga alleen verder als je het opnieuw hebt geïnstalleerd."
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Het bord toont een ander certificaat dan eerder. Ga alleen verder als je het opnieuw hebt geïnstalleerd.",
+  "Actions without password": "Acties zonder wachtwoord",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, rekeneenheden, GPU en ventilatoren vragen niet meer om het Linux-wachtwoord. Al het andere blijft erom vragen.",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Iedereen die uw sessie gebruikt, of een gekoppeld apparaat met hardwarebeheer, kan deze acties uitvoeren. U kunt dit altijd uitschakelen.",
+  "Update or reinstall Control Center to use this.": "Werk Control Center bij of installeer het opnieuw om dit te gebruiken."
 }

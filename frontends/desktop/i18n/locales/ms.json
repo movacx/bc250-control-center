@@ -6704,5 +6704,9 @@
   "It is my board": "Ini papan saya",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "Masukkan alamat dalam Akses jauh, atau tampal pautan kod QR.",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "Telefon ini belum pernah menggunakan papan ini. Teruskan hanya jika anda menaip alamatnya sendiri dan berada pada rangkaian sendiri.",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Papan menunjukkan sijil yang berbeza. Teruskan hanya jika anda memasangnya semula."
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Papan menunjukkan sijil yang berbeza. Teruskan hanya jika anda memasangnya semula.",
+  "Actions without password": "Tindakan tanpa kata laluan",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, unit pengiraan, GPU dan kipas tidak lagi meminta kata laluan Linux. Yang lain tetap meminta.",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Sesiapa yang menggunakan sesi anda, atau peranti berpasangan dengan kawalan perkakasan, boleh menjalankan tindakan ini. Anda boleh mematikannya pada bila-bila masa.",
+  "Update or reinstall Control Center to use this.": "Kemas kini atau pasang semula Control Center untuk menggunakan ini."
 }

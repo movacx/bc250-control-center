@@ -38,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -85,7 +87,12 @@ fun VentanaMovil(aplicacion: Aplicacion, pagina: @Composable () -> Unit) {
         onDispose { BotonAtras.atender = { false } }
     }
     CompositionLocalProvider(LocalMovil provides movil) {
-        Box(Modifier.fillMaxSize().background(paleta.panel).windowInsetsPadding(WindowInsets.safeDrawing)) {
+        val arriba = paleta.ventana
+        Box(
+            Modifier.fillMaxSize().background(paleta.panel)
+                .drawBehind { drawRect(arriba, size = Size(size.width, size.height / 2)) }
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+        ) {
             Column(Modifier.fillMaxSize().background(paleta.ventana)) {
                 CabeceraMovil(aplicacion)
                 Box(Modifier.fillMaxWidth().weight(1f)) {
@@ -126,23 +133,20 @@ private fun CabeceraMovil(aplicacion: Aplicacion) {
     val seccion = TodasLasSecciones.firstOrNull { opcion -> opcion.clave == clave }
     val titulo = movil.detalle.ifEmpty { t(seccion?.nombre ?: "") }
     Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp).background(paleta.panel).padding(start = 16.dp, end = 8.dp),
+        modifier = Modifier.fillMaxWidth().height(62.dp).background(paleta.ventana).padding(start = 18.dp, end = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (movil.detalle.isNotEmpty()) {
             Box(Modifier.offset(x = (-12).dp).width(32.dp).height(44.dp).pulsable { movil.cerrarDetalle() }, Alignment.CenterEnd) {
-                Icono(Res.drawable.movil_atras, 22.dp, paleta.apagado)
+                Icono(Res.drawable.movil_atras, 24.dp, paleta.texto)
             }
         }
-        Texto(titulo, tamano = 18, peso = 700, lineas = 1, modifier = Modifier.weight(1f))
-        Box(Modifier.size(7.dp).background(paleta.acento, CircleShape))
-        Texto("BC-250", tamano = 12, color = paleta.apagado, modifier = Modifier.padding(start = 2.dp, end = 4.dp))
+        TextoTitulo(titulo, if (movil.detalle.isEmpty()) 27 else 22, Modifier.weight(1f), lineas = 1)
         Box(Modifier.size(44.dp).pulsable { movil.abrirConsola(aplicacion) }, Alignment.Center) {
-            Icono(Res.drawable.movil_consola, 22.dp, paleta.apagado)
+            Icono(Res.drawable.movil_consola, 24.dp, paleta.texto)
         }
     }
-    LineaDivisoria(color = paleta.borde)
 }
 
 // -- página --------------------------------------------------------------------------------------------
@@ -178,9 +182,9 @@ fun PaginaMovil(
         }
         if (pie != null) {
             val paleta = ColoresActuales.current
-            LineaDivisoria(color = paleta.borde)
+            LineaDivisoria(color = paleta.bordeSuave)
             Row(
-                modifier = Modifier.fillMaxWidth().background(paleta.panel).padding(horizontal = 16.dp, vertical = 10.dp),
+                modifier = Modifier.fillMaxWidth().background(paleta.ventana).padding(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 content = pie,
             )
@@ -193,15 +197,15 @@ private fun PestanasMovil(clave: String, nombres: List<String>) {
     val paleta = ColoresActuales.current
     val movil = movil()
     val elegida = movil.pestana(clave)
-    Box(Modifier.fillMaxWidth().background(paleta.panel)) {
+    Box(Modifier.fillMaxWidth().background(paleta.ventana)) {
         LineaDivisoria(Modifier.align(Alignment.BottomCenter), color = paleta.borde)
         Row(Modifier.fillMaxWidth()) {
             for ((indice, nombre) in nombres.withIndex()) {
                 val esta = indice == elegida
                 Box(Modifier.weight(1f).height(48.dp).pulsable { movil.elegirPestana(clave, indice) }, Alignment.Center) {
-                    Texto(nombre, tamano = 14, peso = 700, color = if (esta) paleta.acento else paleta.apagado, lineas = 1)
+                    Texto(nombre, tamano = 15, peso = if (esta) 700 else 500, color = if (esta) paleta.texto else paleta.sutil, lineas = 1)
                     if (esta) {
-                        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(2.dp).background(paleta.acento))
+                        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 20.dp).height(3.dp).background(paleta.acento))
                     }
                 }
             }
@@ -234,13 +238,13 @@ private fun BarraInferior(aplicacion: Aplicacion) {
 @Composable
 private fun RowScope.BotonInferior(seccion: Seccion?, nombre: String, elegido: Boolean, alPulsar: () -> Unit) {
     val paleta = ColoresActuales.current
-    val color = if (elegido) paleta.acento else paleta.apagado
+    val color = if (elegido) paleta.texto else paleta.sutil
     Box(Modifier.weight(1f).fillMaxHeight().pulsable(alPulsar = alPulsar), Alignment.Center) {
         if (elegido) {
-            Box(Modifier.align(Alignment.TopCenter).size(40.dp, 2.dp).background(paleta.acento))
+            Box(Modifier.align(Alignment.TopCenter).size(44.dp, 3.dp).background(paleta.acento))
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Icono(seccion?.icono ?: Res.drawable.movil_mas, 22.dp, color)
+            Icono(seccion?.icono ?: Res.drawable.movil_mas, 23.dp, if (elegido) paleta.acento else color)
             Texto(nombre, tamano = 12, peso = if (elegido) 700 else 500, color = color, lineas = 1)
         }
     }
@@ -308,7 +312,7 @@ private fun MarcaDelMenu(movil: EstadoMovil) {
             Logotipo(40.dp)
         }
         Column(Modifier.weight(1f)) {
-            Texto("BC250", tamano = 18, peso = 800)
+            TextoTitulo("BC250", 24)
             Texto(nombreCorto(), tamano = 12, peso = 700, color = paleta.apagado)
         }
         Box(Modifier.size(44.dp).pulsable { movil.menuAbierto = false }, Alignment.Center) {
@@ -320,7 +324,7 @@ private fun MarcaDelMenu(movil: EstadoMovil) {
 @Composable
 private fun TituloDelMenu(titulo: String) {
     val color = ColoresActuales.current.sutil
-    Texto(titulo.uppercase(), 12, Modifier.padding(start = 10.dp, top = 16.dp, bottom = 4.dp), peso = 700, color = color)
+    Texto(titulo, 13, Modifier.padding(start = 12.dp, top = 18.dp, bottom = 6.dp), peso = 500, color = color)
 }
 
 @Composable
@@ -329,12 +333,12 @@ private fun EntradaDelMenu(aplicacion: Aplicacion, seccion: Seccion) {
     val movil = movil()
     val enAjustes = aplicacion.seccionAjustes.isNotEmpty()
     val elegida = if (enAjustes) seccion.clave == "settings" else seccion.clave == aplicacion.pagina
-    val fondo = if (elegida) paleta.acentoSuave else paleta.panel
+    val fondo = if (elegida) paleta.panelElevado else paleta.panel
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)
-            .background(fondo, RoundedCornerShape(5.dp))
+            .background(fondo, RoundedCornerShape(10.dp))
             .pulsable {
                 movil.alCambiarDePagina()
                 if (seccion.clave != "settings") {
@@ -344,12 +348,9 @@ private fun EntradaDelMenu(aplicacion: Aplicacion, seccion: Seccion) {
             },
         contentAlignment = Alignment.CenterStart,
     ) {
-        if (elegida) {
-            Box(Modifier.size(3.dp, 32.dp).background(paleta.acento, RoundedCornerShape(2.dp)))
-        }
         Row(Modifier.padding(horizontal = 12.dp), Arrangement.spacedBy(14.dp), Alignment.CenterVertically) {
             Icono(seccion.icono, 22.dp, if (elegida) paleta.acento else paleta.apagado)
-            Texto(t(seccion.nombre), tamano = 14, peso = 700, color = if (elegida) paleta.texto else paleta.apagado, lineas = 1)
+            Texto(t(seccion.nombre), tamano = 15, peso = if (elegida) 700 else 500, color = if (elegida) paleta.texto else paleta.apagado, lineas = 1)
         }
     }
 }
@@ -377,7 +378,7 @@ private fun HojaInferior() {
 @Composable
 fun CajaDeHoja(modifier: Modifier = Modifier, contenido: ContenidoHoja) {
     val paleta = ColoresActuales.current
-    val forma = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+    val forma = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
     BoxWithConstraints(modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -388,7 +389,6 @@ fun CajaDeHoja(modifier: Modifier = Modifier, contenido: ContenidoHoja) {
                 .background(paleta.panel)
                 .pulsable { },
         ) {
-            LineaDivisoria(color = paleta.bordeFuerte)
             Box(
                 Modifier.padding(top = 10.dp, bottom = 2.dp).size(40.dp, 4.dp)
                     .background(paleta.bordeFuerte, RoundedCornerShape(2.dp)).align(Alignment.CenterHorizontally),
@@ -494,7 +494,7 @@ private fun AvisoDeTrabajo(aplicacion: Aplicacion, modifier: Modifier) {
         modifier = modifier
             .padding(start = 16.dp, end = 16.dp, bottom = if (movil.conPie) 83.dp else 16.dp)
             .fillMaxWidth()
-            .marco(paleta.panelElevado, if (trabajo.fallo) paleta.rojoBorde else paleta.acentoBorde, 8.dp)
+            .marco(paleta.panelElevado, if (trabajo.fallo) paleta.rojoBorde else paleta.bordeFuerte, 12.dp)
             .padding(start = 14.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,

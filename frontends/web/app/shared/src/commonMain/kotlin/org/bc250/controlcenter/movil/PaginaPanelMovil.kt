@@ -3,6 +3,7 @@ package org.bc250.controlcenter.movil
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,11 +69,12 @@ fun PaginaPanelMovil(aplicacion: Aplicacion) {
 @Composable
 private fun CabeceraPanelMovil(datos: JsonObject) {
     val paleta = ColoresActuales.current
-    GrupoMovil {
-        FilaLibre {
-            val dibujo = if (paleta.esClaro) Res.drawable.bc250_board_light else Res.drawable.bc250_board_dark
-            Image(painterResource(dibujo), "AMD BC-250", Modifier.size(64.dp, 44.dp))
-            TextosFila(datos.texto("title", "AMD BC-250"), datos.texto("specification"))
+    Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), Arrangement.spacedBy(16.dp), Alignment.CenterVertically) {
+        val dibujo = if (paleta.esClaro) Res.drawable.bc250_board_light else Res.drawable.bc250_board_dark
+        Image(painterResource(dibujo), "AMD BC-250", Modifier.size(108.dp, 74.dp))
+        Column(Modifier.weight(1f)) {
+            TextoTitulo(datos.texto("title", "AMD BC-250"), 22)
+            Texto(datos.texto("specification"), tamano = 13, color = paleta.apagado)
         }
     }
 }
@@ -87,8 +89,7 @@ private fun InstrumentoMovil(aplicacion: Aplicacion, datos: JsonObject, tarjeta:
         TituloLectura(tarjeta.texto("title"), tarjeta.texto("value", "--"), tarjeta.texto("unit"))
         LecturasInstrumento(clave, grupos)
         if (clave == "cpu") {
-            Texto(t("Live core monitor").uppercase(), tamano = 11, peso = 700, color = paleta.sutil,
-                modifier = Modifier.padding(start = 14.dp, top = 12.dp, bottom = 2.dp))
+            SubtituloMovil(t("Live core monitor"))
             for (nucleo in datos.objetos("cores")) {
                 FilaNucleoPanel(nucleo)
             }
@@ -105,17 +106,13 @@ private fun InstrumentoMovil(aplicacion: Aplicacion, datos: JsonObject, tarjeta:
                 movil.abrirHoja { TodasLasLecturas(aplicacion, clave) }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(14.dp), Arrangement.spacedBy(8.dp)) {
-            val acciones = when (clave) {
-                "cpu" -> listOf("Configure CPU" to "cpu")
-                "gpu" -> listOf("Configure Governor" to "gpu", "Configure CUs" to "cu")
-                else -> listOf("Fan Control" to "fans", "Automatic curve" to "fans")
-            }
-            for ((indice, accion) in acciones.withIndex()) {
-                BotonMovil(t(accion.first), Modifier.weight(1f), if (indice == 0) ClaseBoton.ACENTO else ClaseBoton.NORMAL) {
-                    aplicacion.irA(accion.second)
-                }
-            }
+        val paginas = when (clave) {
+            "cpu" -> listOf("Configure CPU" to "cpu")
+            "gpu" -> listOf("Configure Governor" to "gpu", "Configure CUs" to "cu")
+            else -> listOf("Fan Control" to "fans")
+        }
+        for ((nombre, destino) in paginas) {
+            FilaAbrir(t(nombre), colorTitulo = paleta.acento) { aplicacion.irA(destino) }
         }
     }
 }
@@ -133,7 +130,7 @@ private fun FilaNucleoPanel(nucleo: JsonObject) {
             color = if (oculto) paleta.apagado else paleta.texto,
             alineado = TextAlign.End,
             lineas = 1,
-            modifier = Modifier.width(76.dp),
+            modifier = Modifier.width(84.dp),
         )
         BarraUso(nucleo.numero("usage"), Modifier.weight(1f), alto = 5.dp)
         Texto(nucleo.texto("detail"), tamano = 13, color = paleta.apagado, alineado = TextAlign.End, modifier = Modifier.width(44.dp))
@@ -164,8 +161,7 @@ private fun GrupoInstrumento(grupo: JsonObject) {
             }
         }
     } else {
-        Texto(t(grupo.texto("title")).uppercase(), tamano = 11, peso = 700, color = ColoresActuales.current.sutil,
-            modifier = Modifier.padding(start = 14.dp, top = 12.dp, bottom = 2.dp))
+        SubtituloMovil(t(grupo.texto("title")))
         for (fila in grupo.objetos("rows")) LecturaPanelMovil(fila)
     }
 }
@@ -205,7 +201,7 @@ private fun PreparacionMovil(aplicacion: Aplicacion, datos: JsonObject, alDialog
                 FlechaDetalle { alDialogo("component:$clave") }
             }
         }
-        Box(Modifier.padding(14.dp)) {
+        Box(Modifier.padding(16.dp)) {
             BotonMovil(t("Prepare selected ({count})", "count" to elegidos.size.toString()),
                 Modifier.fillMaxWidth(), ClaseBoton.PRINCIPAL, libre && "runtime" in elegidos) {
                 prepararPanel(aplicacion, datos, elegidos)

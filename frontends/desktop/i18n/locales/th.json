@@ -6704,5 +6704,9 @@
   "It is my board": "นี่คือบอร์ดของฉัน",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "ป้อนที่อยู่ที่แสดงในการเข้าถึงระยะไกล หรือวางลิงก์ของคิวอาร์โค้ด",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "โทรศัพท์นี้ยังไม่เคยใช้บอร์ดนี้ ทำต่อเฉพาะเมื่อคุณพิมพ์ที่อยู่เองและอยู่ในเครือข่ายของคุณ",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "บอร์ดแสดงใบรับรองต่างจากเดิม ทำต่อเฉพาะเมื่อคุณติดตั้งใหม่"
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "บอร์ดแสดงใบรับรองต่างจากเดิม ทำต่อเฉพาะเมื่อคุณติดตั้งใหม่",
+  "Actions without password": "การทำงานโดยไม่ใช้รหัสผ่าน",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU หน่วยประมวลผล GPU และพัดลมจะไม่ถามรหัสผ่าน Linux อีก ส่วนอื่นทั้งหมดยังคงถามอยู่",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "ผู้ที่ใช้เซสชันของคุณ หรืออุปกรณ์ที่จับคู่ซึ่งควบคุมฮาร์ดแวร์ได้ จะสั่งการทำงานเหล่านี้ได้ คุณปิดได้ทุกเมื่อ",
+  "Update or reinstall Control Center to use this.": "อัปเดตหรือติดตั้ง Control Center ใหม่เพื่อใช้งานสิ่งนี้"
 }

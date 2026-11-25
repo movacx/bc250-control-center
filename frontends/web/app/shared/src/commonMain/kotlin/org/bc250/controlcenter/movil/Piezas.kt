@@ -35,8 +35,10 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -54,24 +56,38 @@ import org.bc250.controlcenter.recursos.check_white
 import org.bc250.controlcenter.recursos.chevron_right_gray
 import org.bc250.controlcenter.recursos.edit_gray
 import org.bc250.controlcenter.tema.ColoresActuales
+import org.bc250.controlcenter.tema.LetrasActuales
 import org.bc250.controlcenter.tema.grosor
 
 val AnchoCompleto = Modifier.fillMaxWidth()
+
+/** Los títulos y las cifras: una letra más estrecha y más firme que la del texto. */
+@Composable
+fun TextoTitulo(
+    texto: String,
+    tamano: Int,
+    modifier: Modifier = Modifier,
+    color: Color = ColoresActuales.current.texto,
+    lineas: Int = Int.MAX_VALUE,
+    peso: Int = 700,
+) {
+    val estilo = estiloTexto(tamano, peso, color).copy(fontFamily = LetrasActuales.current.cifras, lineHeight = (tamano * 1.22f).sp)
+    BasicText(texto, modifier, style = estilo, maxLines = lineas, overflow = TextOverflow.Ellipsis)
+}
+
+/** Un nombre de grupo dentro de una tarjeta. */
+@Composable
+fun SubtituloMovil(texto: String) {
+    Texto(texto, 13, Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp), peso = 700, color = ColoresActuales.current.apagado)
+}
 
 // -- grupos ------------------------------------------------------------------------------------------
 
 /** El título pequeño de una sección y lo que lleva debajo. */
 @Composable
-fun SeccionMovil(titulo: String, color: Color = ColoresActuales.current.sutil, contenido: @Composable ColumnScope.() -> Unit) {
+fun SeccionMovil(titulo: String, color: Color = ColoresActuales.current.texto, contenido: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxWidth()) {
-        Texto(
-            texto = titulo.uppercase(),
-            tamano = 12,
-            peso = 700,
-            color = color,
-            espaciado = 0.5.sp,
-            modifier = Modifier.padding(start = 2.dp, top = 8.dp, bottom = 8.dp),
-        )
+        TextoTitulo(titulo, 18, Modifier.padding(start = 2.dp, top = 10.dp, bottom = 10.dp), color)
         Column(Modifier.fillMaxWidth(), Arrangement.spacedBy(12.dp), content = contenido)
     }
 }
@@ -80,13 +96,13 @@ fun SeccionMovil(titulo: String, color: Color = ColoresActuales.current.sutil, c
 @Composable
 fun GrupoMovil(modifier: Modifier = Modifier, contenido: @Composable ColumnScope.() -> Unit) {
     val paleta = ColoresActuales.current
-    val forma = RoundedCornerShape(8.dp)
+    val forma = RoundedCornerShape(12.dp)
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(forma)
             .background(paleta.panel)
-            .border(1.dp, paleta.borde, forma),
+            .border(1.dp, paleta.bordeSuave, forma),
         content = contenido,
     )
 }
@@ -104,7 +120,7 @@ fun Modifier.lineaArriba(color: Color = ColoresActuales.current.bordeSuave): Mod
 @Composable
 fun FilaLibre(
     modifier: Modifier = Modifier,
-    altoMinimo: Dp = 48.dp,
+    altoMinimo: Dp = 52.dp,
     alPulsar: (() -> Unit)? = null,
     activa: Boolean = true,
     contenido: @Composable RowScope.() -> Unit,
@@ -116,7 +132,7 @@ fun FilaLibre(
             .lineaArriba()
             .then(conToque)
             .heightIn(min = altoMinimo)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 9.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = contenido,
@@ -130,9 +146,9 @@ fun FilaLibre(
 fun RowScope.TextosFila(titulo: String, detalle: String = "", color: Color? = null, colorDetalle: Color? = null) {
     val paleta = ColoresActuales.current
     Column(Modifier.weight(1f)) {
-        Texto(titulo, tamano = 14, peso = 700, color = color ?: paleta.texto)
+        Texto(titulo, tamano = 15, peso = 500, color = color ?: paleta.texto)
         if (detalle.isNotEmpty()) {
-            Texto(detalle, tamano = 12, color = colorDetalle ?: paleta.sutil)
+            Texto(detalle, tamano = 13, color = colorDetalle ?: paleta.sutil)
         }
     }
 }
@@ -145,16 +161,19 @@ fun FilaDato(nombre: String, valor: String, unidad: String = "", color: Color? =
         modifier = Modifier
             .fillMaxWidth()
             .lineaArriba()
-            .heightIn(min = 40.dp)
-            .padding(horizontal = 14.dp, vertical = 5.dp),
+            .heightIn(min = 46.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Texto(nombre, tamano = 13, color = paleta.apagado)
+            Texto(nombre.ifEmpty { valor }, tamano = 14, color = paleta.apagado)
             if (detalle.isNotEmpty()) {
                 Texto(detalle, tamano = 12, color = paleta.sutil)
             }
+        }
+        if (nombre.isEmpty()) {
+            return@Row
         }
         ValorConUnidad(valor, unidad, color = color, modifier = Modifier.widthIn(max = 230.dp))
     }
@@ -172,10 +191,10 @@ fun FilaAbrir(
     activa: Boolean = true,
     alPulsar: () -> Unit,
 ) {
-    FilaLibre(Modifier.alpha(if (activa) 1f else 0.6f), altoMinimo = 56.dp, alPulsar = alPulsar, activa = activa) {
+    FilaLibre(Modifier.alpha(if (activa) 1f else 0.6f), altoMinimo = 62.dp, alPulsar = alPulsar, activa = activa) {
         TextosFila(titulo, detalle, colorTitulo)
         if (valor.isNotEmpty()) {
-            ValorConUnidad(valor, unidad, color = colorValor, modifier = Modifier.widthIn(max = 190.dp))
+            ValorConUnidad(valor, unidad, tamano = 15, color = colorValor, modifier = Modifier.widthIn(max = 190.dp))
         }
         Icono(Res.drawable.chevron_right_gray, 14.dp)
     }
@@ -206,7 +225,7 @@ fun FilaRadio(
     activa: Boolean = true,
     alElegir: () -> Unit,
 ) {
-    val alto = if (detalle.isEmpty()) 48.dp else 62.dp
+    val alto = if (detalle.isEmpty()) 52.dp else 66.dp
     FilaLibre(Modifier.alpha(if (activa) 1f else 0.5f), altoMinimo = alto, alPulsar = alElegir, activa = activa) {
         RadioMovil(elegida)
         TextosFila(titulo, detalle)
@@ -234,13 +253,13 @@ fun FilaPaso(
     val paleta = ColoresActuales.current
     FilaLibre(altoMinimo = 60.dp) {
         Column(Modifier.weight(1f)) {
-            Texto(nombre, tamano = 14, peso = if (fuerte) 700 else 400)
+            Texto(nombre, tamano = 15, peso = if (fuerte) 700 else 500)
             if (detalle.isNotEmpty()) {
                 Texto(detalle, tamano = 12, color = paleta.sutil)
             }
         }
         Row(
-            modifier = Modifier.height(44.dp).marco(paleta.panelAlterno, paleta.borde, 6.dp),
+            modifier = Modifier.height(44.dp).marco(paleta.panelAlterno, Color.Transparent, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BotonPaso("−", activa && valor > minimo) { alCambiar((valor - paso).coerceAtLeast(minimo)) }
@@ -272,15 +291,28 @@ fun ValorConUnidad(
     alineado: TextAlign = if (centrado) TextAlign.Center else TextAlign.End,
 ) {
     val paleta = ColoresActuales.current
+    val normal = LetrasActuales.current.normal
     val texto = buildAnnotatedString {
         append(valor)
         if (unidad.isNotEmpty()) {
-            withStyle(SpanStyle(fontSize = 12.sp, fontWeight = grosor(500), color = paleta.apagado)) {
+            withStyle(SpanStyle(fontSize = (if (tamano > 20) 14 else 12).sp, fontWeight = grosor(500), fontFamily = normal, color = paleta.apagado)) {
                 append(" $unidad")
             }
         }
     }
-    BasicText(text = texto, modifier = modifier, style = estiloTexto(tamano, 700, color ?: paleta.texto, alineado))
+    BasicText(text = texto, modifier = modifier, style = estiloValor(valor, tamano, color, alineado))
+}
+
+/** Las cifras van en su letra y más grandes; una palabra es un texto más y lo que no se pudo leer, se apaga. */
+@Composable
+private fun estiloValor(valor: String, tamano: Int, color: Color?, alineado: TextAlign): TextStyle {
+    val paleta = ColoresActuales.current
+    if (valor.any { letra -> letra.isDigit() }) {
+        val estilo = estiloTexto(tamano + 2, if (tamano < 20) 600 else 700, color ?: paleta.texto, alineado)
+        return estilo.copy(fontFamily = LetrasActuales.current.cifras, lineHeight = ((tamano + 2) * 1.22f).sp)
+    }
+    val sinDato = valor == "—" || valor == "--" || valor == t("Not detected")
+    return estiloTexto(tamano, if (sinDato) 400 else 500, color ?: if (sinDato) paleta.sutil else paleta.texto, alineado)
 }
 
 /** Una lectura de la franja de arriba. */
@@ -296,9 +328,9 @@ fun FranjaLecturas(vararg lecturas: LecturaFranja) {
                 if (indice > 0) {
                     Box(Modifier.width(1.dp).fillMaxHeight().background(paleta.bordeSuave))
                 }
-                Column(Modifier.weight(1f).heightIn(min = 72.dp).padding(horizontal = 14.dp, vertical = 12.dp)) {
-                    Texto(lectura.nombre, tamano = 12, color = paleta.apagado, lineas = 1)
-                    val tamano = if (lectura.larga) 17 else 22
+                Column(Modifier.weight(1f).heightIn(min = 82.dp).padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Texto(lectura.nombre, tamano = 13, color = paleta.apagado, lineas = 1)
+                    val tamano = if (lectura.larga) 17 else 26
                     ValorConUnidad(lectura.valor, lectura.unidad, tamano = tamano, color = lectura.color, alineado = TextAlign.Start)
                 }
             }
@@ -317,16 +349,9 @@ fun Pildora(texto: String, viva: Boolean = true) {
     }
 }
 
-/** El punto que dice si algo está en marcha. */
-@Composable
-fun PuntoEstado(vivo: Boolean) {
-    val paleta = ColoresActuales.current
-    Box(Modifier.size(9.dp).background(if (vivo) paleta.acento else paleta.textoInactivo, CircleShape))
-}
-
 /** Una explicación suelta debajo de un grupo. */
 @Composable
-fun NotaMovil(texto: String, color: Color = ColoresActuales.current.sutil, tamano: Int = 12) {
+fun NotaMovil(texto: String, color: Color = ColoresActuales.current.sutil, tamano: Int = 13) {
     Texto(texto, tamano = tamano, color = color, modifier = Modifier.padding(horizontal = 2.dp))
 }
 
@@ -367,20 +392,20 @@ fun InterruptorMovil(
 @Composable
 fun SegmentadoMovil(opciones: List<Pair<String, String>>, elegida: String, activo: Boolean = true, alElegir: (String) -> Unit) {
     val paleta = ColoresActuales.current
-    val forma = RoundedCornerShape(6.dp)
-    Row(Modifier.fillMaxWidth().clip(forma).background(paleta.panelAlterno).border(1.dp, paleta.borde, forma)) {
+    val forma = RoundedCornerShape(9.dp)
+    Row(Modifier.fillMaxWidth().clip(forma).background(paleta.panelAlterno).padding(3.dp)) {
         for ((valor, nombre) in opciones) {
             val esta = valor == elegida
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(44.dp)
-                    .background(if (esta) paleta.acento else Color.Transparent)
+                    .height(42.dp)
+                    .background(if (esta) paleta.texto else Color.Transparent, RoundedCornerShape(7.dp))
                     .pulsable(activo) { alElegir(valor) },
                 contentAlignment = Alignment.Center,
             ) {
-                val color = if (esta) paleta.sobreAcento else paleta.apagado
-                Texto(nombre, tamano = 13, peso = 700, color = color, lineas = 1)
+                val color = if (esta) paleta.ventana else paleta.apagado
+                Texto(nombre, tamano = 14, peso = 700, color = color, lineas = 1)
             }
         }
     }
@@ -394,21 +419,21 @@ fun BotonMovil(
     activo: Boolean = true,
     alPulsar: () -> Unit,
 ) {
-    Boton(texto, alPulsar, modifier, clase, activo, alto = 46.dp, tamano = 14, peso = 700)
+    Boton(texto, alPulsar, modifier, clase, activo, alto = 50.dp, tamano = 15, peso = 700, radio = 10.dp)
 }
 
 /** Dos o tres acciones en una sola tira dividida. */
 @Composable
 fun TiraAcciones(vararg acciones: AccionTira) {
     val paleta = ColoresActuales.current
-    Row(Modifier.fillMaxWidth().lineaArriba().height(48.dp)) {
+    Row(Modifier.fillMaxWidth().lineaArriba().height(50.dp)) {
         for ((indice, accion) in acciones.withIndex()) {
             if (indice > 0) {
                 Box(Modifier.width(1.dp).fillMaxHeight().background(paleta.bordeSuave))
             }
             Box(Modifier.weight(1f).fillMaxHeight().pulsable(accion.activa, alPulsar = accion.alPulsar), Alignment.Center) {
                 val color = if (accion.activa) paleta.texto else paleta.textoInactivo
-                Texto(accion.nombre, tamano = 13, peso = 700, color = color, lineas = 1)
+                Texto(accion.nombre, tamano = 14, peso = 500, color = color, lineas = 1)
             }
         }
     }
@@ -421,7 +446,7 @@ class AccionTira(val nombre: String, val activa: Boolean = true, val alPulsar: (
 fun EnlaceMovil(texto: String, activo: Boolean = true, alPulsar: () -> Unit) {
     val paleta = ColoresActuales.current
     Box(Modifier.height(44.dp).pulsable(activo, alPulsar = alPulsar).padding(horizontal = 6.dp), Alignment.Center) {
-        Texto(texto, tamano = 13, peso = 700, color = if (activo) paleta.acento else paleta.textoInactivo)
+        Texto(texto, tamano = 14, peso = 700, color = if (activo) paleta.acento else paleta.textoInactivo)
     }
 }
 
@@ -432,13 +457,12 @@ fun FilaOpciones(opciones: List<Pair<String, String>>, elegidas: Set<String>, al
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), Arrangement.spacedBy(6.dp)) {
         for ((valor, nombre) in opciones) {
             val esta = valor in elegidas
-            val fondo = if (esta) paleta.acentoSuave else paleta.panel
-            val borde = if (esta) paleta.acento else paleta.borde
+            val fondo = if (esta) paleta.texto else paleta.panelAlterno
             Box(
-                modifier = Modifier.height(40.dp).marco(fondo, borde, 6.dp).pulsable { alElegir(valor) }.padding(horizontal = 13.dp),
+                modifier = Modifier.height(40.dp).marco(fondo, fondo, 8.dp).pulsable { alElegir(valor) }.padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Texto(nombre, tamano = 13, peso = 700, color = if (esta) paleta.acento else paleta.apagado, lineas = 1)
+                Texto(nombre, tamano = 14, peso = if (esta) 700 else 500, color = if (esta) paleta.ventana else paleta.apagado, lineas = 1)
             }
         }
     }
@@ -452,7 +476,7 @@ fun CasillaMovil(marcada: Boolean, activa: Boolean = true) {
     val borde = if (marcada) paleta.acento else paleta.bordeFuerte
     Box(Modifier.alpha(if (activa) 1f else 0.5f).size(22.dp).marco(fondo, borde, 4.dp), Alignment.Center) {
         if (marcada) {
-            Icono(Res.drawable.check_white, 14.dp)
+            Icono(Res.drawable.check_white, 14.dp, paleta.sobreAcento)
         }
     }
 }
@@ -469,10 +493,10 @@ fun FlechaDetalle(alPulsar: () -> Unit) {
 @Composable
 fun TituloLectura(titulo: String, valor: String, unidad: String) {
     val paleta = ColoresActuales.current
-    Row(Modifier.fillMaxWidth().padding(start = 14.dp, top = 14.dp, end = 14.dp, bottom = 10.dp), Arrangement.spacedBy(6.dp)) {
-        Texto(titulo.uppercase(), 13, Modifier.weight(1f).alignByBaseline(), peso = 700)
-        Texto(valor, 32, Modifier.alignByBaseline(), peso = 800)
-        Texto(unidad, 12, Modifier.alignByBaseline(), peso = 500, color = paleta.apagado)
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 10.dp), Arrangement.spacedBy(6.dp)) {
+        TextoTitulo(titulo, 20, Modifier.weight(1f).alignByBaseline())
+        TextoTitulo(valor, 46, Modifier.alignByBaseline())
+        Texto(unidad, 14, Modifier.alignByBaseline(), peso = 500, color = paleta.apagado)
     }
     Box(Modifier.fillMaxWidth().height(2.dp).background(paleta.acento))
 }
@@ -492,29 +516,30 @@ fun TarjetaPerfilMovil(
     alElegir: () -> Unit,
 ) {
     val paleta = ColoresActuales.current
-    val fondo = if (elegido) paleta.elegido else paleta.panelAlterno
-    val borde = if (elegido) paleta.acento else paleta.borde
+    val forma = RoundedCornerShape(12.dp)
+    val borde = if (elegido) paleta.acento else paleta.bordeSuave
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(if (activo) 1f else 0.5f)
-            .heightIn(min = 66.dp)
-            .marco(fondo, borde, 6.dp)
+            .heightIn(min = 76.dp)
+            .clip(forma)
+            .background(if (elegido) paleta.panelElevado else paleta.panel)
+            .border(if (elegido) 2.dp else 1.dp, borde, forma)
             .pulsable(activo, alPulsar = alElegir)
-            .padding(start = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(start = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioMovil(elegido)
-        Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
-            Texto(nombre, tamano = 14, peso = 700)
+        Column(Modifier.weight(1f).padding(vertical = 11.dp)) {
+            Texto(nombre, tamano = 14, peso = 500, color = if (elegido) paleta.texto else paleta.apagado)
             Row {
                 if (valor.isNotEmpty()) {
-                    Texto(valor, tamano = 16, peso = 800, modifier = Modifier.alignByBaseline(), lineas = 1)
-                    Texto(" · ", tamano = 12, color = paleta.sutil, modifier = Modifier.alignByBaseline())
+                    TextoTitulo(valor, 21, Modifier.alignByBaseline().padding(end = 10.dp), lineas = 1)
                 }
                 if (detalle.isNotEmpty()) {
-                    Texto(detalle, tamano = 12, color = paleta.sutil, modifier = Modifier.alignByBaseline())
+                    Texto(detalle, tamano = 13, color = paleta.sutil, modifier = Modifier.alignByBaseline())
                 }
             }
         }
@@ -523,7 +548,7 @@ fun TarjetaPerfilMovil(
             Box(Modifier.width(0.dp))
         } else {
             Box(Modifier.size(44.dp).pulsable(activo, alPulsar = alEditar), Alignment.Center) {
-                Icono(Res.drawable.edit_gray, 14.dp, paleta.apagado)
+                Icono(Res.drawable.edit_gray, 16.dp, paleta.apagado)
             }
         }
     }
@@ -534,7 +559,7 @@ fun TarjetaPerfilMovil(
 @Composable
 fun TituloHoja(texto: String, enlace: String = "", alPulsar: () -> Unit = {}) {
     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-        Texto(texto, tamano = 18, peso = 700, modifier = Modifier.weight(1f))
+        TextoTitulo(texto, 22, Modifier.weight(1f))
         if (enlace.isNotEmpty()) {
             EnlaceMovil(enlace, alPulsar = alPulsar)
         }
@@ -543,7 +568,7 @@ fun TituloHoja(texto: String, enlace: String = "", alPulsar: () -> Unit = {}) {
 
 @Composable
 fun TextoHoja(texto: String) {
-    Texto(texto, tamano = 13, color = ColoresActuales.current.apagado)
+    Texto(texto, tamano = 14, color = ColoresActuales.current.apagado)
 }
 
 /** El botón que cierra una ventana inferior. */

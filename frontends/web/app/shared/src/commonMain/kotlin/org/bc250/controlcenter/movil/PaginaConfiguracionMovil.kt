@@ -85,8 +85,8 @@ fun PaginaConfiguracionMovil(aplicacion: Aplicacion) {
             for ((titulo, secciones) in GruposConfiguracion) {
                 SeccionMovil(t(titulo)) {
                     GrupoMovil {
-                        for ((clave, nombre, detalle) in secciones) {
-                            FilaAbrir(t(nombre), t(detalle)) { ir(clave, emptyMap()) }
+                        for ((clave, nombre) in secciones) {
+                            FilaAbrir(t(nombre)) { ir(clave, emptyMap()) }
                         }
                     }
                 }
@@ -120,12 +120,8 @@ private fun AparienciaMovil(bloques: List<JsonObject>, ordenes: Ordenes, aplicac
             } else fila
         } else {
             val titulo = if (fila.texto("tipo") == "temas") t("Theme") else fila.texto("titulo")
-            val detalle = fila.texto("detalle")
             SeccionMovil(titulo) {
                 BloquesMovil(listOf(fila), ordenes, aplicacion)
-                if (detalle.isNotEmpty()) {
-                    NotaMovil(detalle)
-                }
             }
         }
     }

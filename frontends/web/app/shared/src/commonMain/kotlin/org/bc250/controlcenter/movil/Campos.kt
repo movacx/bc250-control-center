@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -34,13 +35,13 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import org.bc250.controlcenter.componentes.Texto
 import org.bc250.controlcenter.componentes.TextoConsola
 import org.bc250.controlcenter.componentes.estiloTexto
 import org.bc250.controlcenter.componentes.marco
 import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.tema.ColoresActuales
-import kotlin.math.roundToInt
 
 /** Un campo de texto alto, cómodo para el dedo. */
 @Composable
@@ -58,18 +59,18 @@ fun CampoMovil(
     val enfocado by interaccion.collectIsFocusedAsState()
     val borde = if (enfocado) paleta.color("focus") else paleta.borde
     Box(
-        modifier = modifier.height(46.dp).marco(paleta.control, borde, 6.dp).padding(horizontal = 12.dp),
+        modifier = modifier.height(50.dp).marco(paleta.control, borde, 10.dp).padding(horizontal = 14.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
         if (valor.isEmpty()) {
-            Texto(ayuda, tamano = 14, color = paleta.sutil, lineas = 1)
+            Texto(ayuda, tamano = 15, color = paleta.sutil, lineas = 1)
         }
         BasicTextField(
             value = valor,
             onValueChange = alCambiar,
             enabled = activo,
             singleLine = true,
-            textStyle = estiloTexto(14),
+            textStyle = estiloTexto(15),
             cursorBrush = SolidColor(paleta.texto),
             interactionSource = interaccion,
             visualTransformation = if (secreto) PasswordVisualTransformation() else VisualTransformation.None,
@@ -85,12 +86,12 @@ fun AreaDeTexto(valor: String, alto: Dp = 220.dp, ayuda: String = "", alCambiar:
     val paleta = ColoresActuales.current
     Box(Modifier.fillMaxWidth().height(alto).marco(paleta.control, paleta.borde, 6.dp).padding(12.dp)) {
         if (valor.isEmpty()) {
-            Texto(ayuda, tamano = 14, color = paleta.sutil)
+            Texto(ayuda, tamano = 15, color = paleta.sutil)
         }
         BasicTextField(
             value = valor,
             onValueChange = alCambiar,
-            textStyle = estiloTexto(14),
+            textStyle = estiloTexto(15),
             cursorBrush = SolidColor(paleta.texto),
             modifier = Modifier.fillMaxSize(),
         )
@@ -161,6 +162,7 @@ private fun PistaDeslizador(valor: Int, minimo: Int, maximo: Int, activo: Boolea
             val radio = CornerRadius(alto / 2)
             drawRoundRect(paleta.bordeFuerte, Offset(margen, arriba), Size(ancho, alto), radio)
             drawRoundRect(lleno, Offset(margen, arriba), Size(lugar - margen, alto), radio)
+            drawCircle(Color.White, 11.dp.toPx(), Offset(lugar, size.height / 2))
             drawCircle(lleno, 8.dp.toPx(), Offset(lugar, size.height / 2))
         },
     )

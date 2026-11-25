@@ -6704,5 +6704,9 @@
   "It is my board": "这是我的主板",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "输入“远程访问”中显示的地址，或粘贴二维码的链接。",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "这部手机从未使用过此主板。只有地址由你亲自输入并且处于自己的网络时才继续。",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "主板的证书与之前不同。只有在你重新安装过时才继续。"
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "主板的证书与之前不同。只有在你重新安装过时才继续。",
+  "Actions without password": "免密码操作",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU、计算单元、GPU 和风扇不再询问 Linux 密码。其他操作仍会询问。",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "使用您会话的任何人，或拥有硬件控制权限的已配对设备，都可以执行这些操作。您可以随时关闭。",
+  "Update or reinstall Control Center to use this.": "请更新或重新安装 Control Center 以使用此功能。"
 }

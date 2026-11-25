@@ -49,6 +49,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as _PlainButton
 
+from bc250cc.application.system import quick_auth
 from bc250cc.application.system.feedback import reports as sent_reports_store
 from bc250cc.infrastructure import SystemdUserService
 from bc250cc.infrastructure.apu_telemetry_service import apu_telemetry_state
@@ -2124,6 +2125,11 @@ class SettingsPage(QWidget):
         ))
         layout.addWidget(startup)
 
+        permissions = SettingsGroup("Permissions")
+        self.quick_auth_button = self._button("Disable" if quick_auth.enabled() else "Enable", self._quick_auth_clicked)
+        permissions.add_row(SettingRow(quick_auth.TITLE, quick_auth.DETAIL, self.quick_auth_button))
+        layout.addWidget(permissions)
+
         help_group = SettingsGroup("Help")
         help_group.add_row(SettingRow(
             "Guided tour",
@@ -2947,6 +2953,22 @@ class SettingsPage(QWidget):
             self.app_settings.setValue("settings/gddr6_manual_override", "false")
             return
         self.gddr6_manual_changed.emit(bool(enabled))
+
+    def _quick_auth_clicked(self) -> None:
+        enable = not quick_auth.enabled()
+        if enable:
+            dialog = ConfirmDialog(quick_auth.TITLE, quick_auth.WARNING, confirm_text="Enable", tone="red", parent=self)
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+
+        def success(_result: object) -> None:
+            self.quick_auth_button.setText(tr("Disable" if quick_auth.enabled() else "Enable"))
+
+        def failure(message: str) -> None:
+            InfoDialog(quick_auth.TITLE, message, icon_name="warning_orange", parent=self, tone="red").exec()
+
+        self._start_task(lambda: self.controller.gestionar_acciones_sin_clave(enable), success, failure,
+                         controls=(self.quick_auth_button,))
 
     def _confirm_gddr6_manual(self) -> bool:
         dialog = ConfirmDialog(

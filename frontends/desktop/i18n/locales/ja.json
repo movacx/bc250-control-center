@@ -6704,5 +6704,9 @@
   "It is my board": "自分の基板です",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "リモートアクセスに表示されるアドレスを入力するか、QRコードのリンクを貼り付けてください。",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "このスマートフォンはこの基板を使ったことがありません。自分でアドレスを入力し、自分のネットワークにいる場合だけ続けてください。",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "基板の証明書が以前と異なります。再インストールした場合だけ続けてください。"
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "基板の証明書が以前と異なります。再インストールした場合だけ続けてください。",
+  "Actions without password": "パスワードなしの操作",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU、コンピュートユニット、GPU、ファンの操作では Linux のパスワードを求めなくなります。その他は引き続き求めます。",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "あなたのセッションを使う人や、ハードウェア制御が許可されたペアリング済みデバイスは、これらの操作を実行できるようになります。いつでもオフにできます。",
+  "Update or reinstall Control Center to use this.": "これを使うには Control Center を更新または再インストールしてください。"
 }

@@ -1,39 +1,43 @@
 package org.bc250.controlcenter.componentes
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.input.InputMode
-import androidx.compose.ui.platform.LocalInputModeManager
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.input.InputMode
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import org.bc250.controlcenter.tema.ColoresActuales
-import org.bc250.controlcenter.tema.Medidas
+import org.bc250.controlcenter.movil.LocalTelefono
 import org.bc250.controlcenter.recursos.Res
 import org.bc250.controlcenter.recursos.logo
+import org.bc250.controlcenter.tema.ColoresActuales
+import org.bc250.controlcenter.tema.Medidas
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.painterResource
@@ -88,9 +92,18 @@ fun Modifier.pulsable(activo: Boolean = true, fuente: MutableInteractionSource? 
     val cursor = if (activo) PointerIcon.Hand else PointerIcon.Default
     val conFoco by interaccion.collectIsFocusedAsState()
     val conTeclado = LocalInputModeManager.current.inputMode == InputMode.Keyboard
+    val pulsado by interaccion.collectIsPressedAsState()
+    val enTelefono = LocalTelefono.current
+    val sombra = ColoresActuales.current.texto
     val anillo = if (conFoco && conTeclado) ColoresActuales.current.color("focus") else Color.Transparent
     return this
         .border(2.dp, anillo, RoundedCornerShape(4.dp))
+        .drawWithContent {
+            drawContent()
+            if (pulsado && enTelefono) {
+                drawRoundRect(sombra, alpha = 0.09f, cornerRadius = CornerRadius(8.dp.toPx()))
+            }
+        }
         .hoverable(interaccion, enabled = activo)
         .pointerHoverIcon(cursor)
         .clickable(
@@ -114,15 +127,16 @@ fun Boton(
     peso: Int = 720,
     icono: DrawableResource? = null,
     iconoDetras: Boolean = false,
+    radio: Dp? = null,
 ) {
     val interaccion = remember { MutableInteractionSource() }
     val encima by interaccion.collectIsHoveredAsState()
     val colores = coloresDe(clase, activo, encima)
-    val radio = if (clase == ClaseBoton.PRINCIPAL) Medidas.radioPanel else Medidas.radioBoton
+    val esquina = radio ?: if (clase == ClaseBoton.PRINCIPAL) Medidas.radioPanel else Medidas.radioBoton
     Row(
         modifier = modifier
             .height(alto)
-            .marco(colores.fondo, colores.borde, radio)
+            .marco(colores.fondo, colores.borde, esquina)
             .pulsable(activo, interaccion, alPulsar)
             .padding(horizontal = if (clase == ClaseBoton.CONTORNO) 17.dp else 14.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),

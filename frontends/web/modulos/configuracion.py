@@ -13,6 +13,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+from bc250cc.application.system import quick_auth
 from bc250cc.infrastructure import SystemdUserService
 from bc250cc.infrastructure.apu_telemetry_service import apu_telemetry_state
 from bc250cc.infrastructure.gddr6_memory_temp_repository import (
@@ -207,6 +208,13 @@ REGLA = {"tipo": "regla"}
 
 # -- secciones ------------------------------------------------------------------------------------
 
+def _fila_sin_clave() -> dict:
+    activo = quick_auth.enabled()
+    orden = accion("settings.quick_auth", quick_auth.TITLE, "" if activo else quick_auth.WARNING,
+                   peligro=not activo, enable=not activo)
+    return fila(quick_auth.TITLE, quick_auth.DETAIL, botones(boton("Disable" if activo else "Enable", orden)))
+
+
 def general(ctx, p) -> list:
     idiomas = [(nombre, codigo) for codigo, nombre in LANGUAGE_OPTIONS]
     paginas = [("Dashboard", "dashboard"), ("CPU / SMU", "cpu"), ("GPU Governor", "gpu"), ("Compute Units", "cu"),
@@ -223,6 +231,7 @@ def general(ctx, p) -> list:
                    interruptor("reopen_last", p["reopen_last"])),
               fila("Collapsed sidebar at launch", "Open the main navigation in compact mode.",
                    interruptor("sidebar_collapsed", p["sidebar_collapsed"]))),
+        grupo("Permissions", _fila_sin_clave()),
         grupo("Help",
               fila("Guided tour", "Walk through the modules again, with each stop pointing at the control it describes.",
                    botones(boton("Start the tour", {"orden": "recorrido"}))),
@@ -588,6 +597,12 @@ def cambiar_gobernador(ctx, p, shell):
     return (2 if elegido != "auto" else 1), cambiar
 
 
+def acciones_sin_clave(ctx, p, shell):
+    validar_campos(p, {"enable"})
+    activar = flag(p, "enable")
+    return (2 if activar else 1), lambda: ctx.service.gestionar_acciones_sin_clave(activar)
+
+
 def validar_campos(parametros, campos):
     if set(parametros) != campos:
         raise Invalid("params")
@@ -749,6 +764,7 @@ LECTURAS = {"preferences": (1, lectura_preferencias)}
 CONSULTAS = {"settings": consultar, "settings.update": novedades, "settings.tour": recorrido,
              "settings.welcome": bienvenida}
 ACCIONES = {"settings.governor": cambiar_gobernador, "settings.telemetry": servicio_telemetria, "settings.driver": controlador,
+            "settings.quick_auth": acciones_sin_clave,
             "settings.memory_boot": memoria_al_arrancar, "settings.daemon": daemon, "settings.update": actualizar}
 AJUSTES = {"settings.preference": guardar_preferencia, "settings.reset": reiniciar_preferencias,
            "settings.daemon_interval": intervalo_daemon}

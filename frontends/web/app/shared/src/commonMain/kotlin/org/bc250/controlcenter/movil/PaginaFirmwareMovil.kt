@@ -100,7 +100,7 @@ private fun CatalogoFirmware(titulo: String, familias: List<JsonObject>, eleccio
             TarjetaPerfilMovil(
                 nombre = familia.texto("title"),
                 valor = "",
-                detalle = familia.texto("summary") + "\n$nucleos · $vram · " + familia.texto("download"),
+                detalle = "$nucleos · $vram · " + familia.texto("download"),
                 elegido = eleccion.familia == familia.texto("key"),
                 adorno = { FlechaDetalle { movil.abrirHoja { DetalleFamilia(familia) } } },
             ) {

@@ -6704,5 +6704,9 @@
   "It is my board": "É a minha placa",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "Digite o endereço mostrado em Acesso remoto, ou cole o link do código QR.",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "Este telefone nunca usou esta placa. Continue só se você mesmo digitou o endereço e está na sua própria rede.",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "A placa apresenta um certificado diferente do anterior. Continue só se você a reinstalou."
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "A placa apresenta um certificado diferente do anterior. Continue só se você a reinstalou.",
+  "Actions without password": "Ações sem senha",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, unidades de computação, GPU e ventoinhas deixam de pedir a senha do Linux. Todo o resto continua pedindo.",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Quem usar a sua sessão, ou um dispositivo emparelhado com controle do hardware, poderá executar estas ações. Você pode desativar quando quiser.",
+  "Update or reinstall Control Center to use this.": "Atualize ou reinstale o Control Center para usar isto."
 }

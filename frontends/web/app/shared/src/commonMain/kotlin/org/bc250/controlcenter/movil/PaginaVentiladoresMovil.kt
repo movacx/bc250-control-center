@@ -156,11 +156,13 @@ private fun FilaVentilador(canal: JsonObject, alPulsar: () -> Unit) {
     val sigue = if (canal.texto("mode") == "curve") " · " + textoVentilador(canal, "follows", "follows_values") else ""
     FilaLibre(altoMinimo = 76.dp, alPulsar = alPulsar) {
         Column(Modifier.weight(1f)) {
-            Texto(nombreVentilador(canal), tamano = 16, peso = 700)
-            Texto(canal.texto("short_header") + " · " + t(canal.texto("mode_label")) + sigue, tamano = 12, color = paleta.sutil)
+            TextoTitulo(nombreVentilador(canal), 19)
+            val conector = canal.texto("short_header")
+            val donde = if (conector == nombreVentilador(canal)) "" else "$conector · "
+            Texto(donde + t(canal.texto("mode_label")) + sigue, tamano = 13, color = paleta.sutil)
         }
         Column(horizontalAlignment = Alignment.End) {
-            ValorConUnidad(canal.texto("rpm", "—"), "RPM", tamano = 20)
+            ValorConUnidad(canal.texto("rpm", "—"), "RPM", tamano = 24)
             Texto(canal.texto("duty", "—") + " %", tamano = 12, color = paleta.apagado)
         }
         Icono(Res.drawable.chevron_right_gray, 14.dp)
@@ -178,10 +180,6 @@ private fun AvisosVentilador(aplicacion: Aplicacion, datos: JsonObject) {
         BotonMovil(t("Prepare PWM driver"), AnchoCompleto, ClaseBoton.ACENTO, libre) {
             herramientaVentilador(aplicacion, "prepare", "Prepare PWM driver")
         }
-    }
-    val resumen = textoVentilador(servicio, "summary", "summary_values")
-    if (resumen.isNotEmpty()) {
-        NotaMovil(resumen, paleta.apagado)
     }
     if (servicio.logico("out_of_date") || servicio.texto("state") == "override") {
         BotonMovil(t("Sync now"), AnchoCompleto, ClaseBoton.ACENTO, ventiladoresLibres(aplicacion, datos)) {
@@ -298,10 +296,10 @@ private fun AjustesVentilador(aplicacion: Aplicacion, datos: JsonObject, libre: 
         }
     }
     GrupoMovil {
-        FilaAbrir(t("Calibrate"), t("Finds the speed at which each fan stops"), activa = libre) {
+        FilaAbrir(t("Calibrate"), activa = libre) {
             movil.abrirHoja { HojaCalibrar(aplicacion, datos) }
         }
-        FilaAbrir(t("Profiles in a file"), t("Import, export and Decky")) { movil.abrirHoja { HojaArchivos(aplicacion) } }
+        FilaAbrir(t("Profiles in a file")) { movil.abrirHoja { HojaArchivos(aplicacion) } }
         FilaAbrir(t("Controller"), valor = datos.texto("chip", "—")) { movil.abrirHoja { HojaControlador(aplicacion, datos) } }
     }
 }

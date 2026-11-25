@@ -12,7 +12,7 @@ from bc250cc.application.preparation.component_engine import (
     normalize_components,
     unavailable_components,
 )
-from bc250cc.infrastructure import memory_autoload
+from bc250cc.infrastructure import memory_autoload, quick_auth
 from bc250cc.infrastructure.accessories import accessory_inventory
 from bc250cc.infrastructure.apu_telemetry_service import (
     APU_TELEMETRY_DIRECTORY,
@@ -367,6 +367,13 @@ class DependenciasRepository(SteamosDependenciesMixin):
         if mode not in {"on", "off"}:
             raise ValueError("Unsupported SMT action.")
         return self._abrir_terminal(system_setup_command('smt-live', smt=mode), 'BC250 SMT (now)')
+
+    def gestionar_acciones_sin_clave(self, enable: bool):
+        """CPU, CU, GPU and fan helpers without the password, for this account only."""
+        if not quick_auth.available():
+            raise ActionNeeded('Update or reinstall Control Center to use this.')
+        action = 'quick-auth-enable' if enable else 'quick-auth-disable'
+        return self._abrir_terminal(system_setup_command(action), 'Actions without password')
 
     def gestionar_acpi(self, action: str):
         # SteamOS keeps the archive beside the kernel in /boot, which is part

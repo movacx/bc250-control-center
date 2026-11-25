@@ -1183,6 +1183,7 @@
    "DependenciasRepository.gestionar_solo_lectura_steamos": "PREP-0028",
    "DependenciasRepository.gestionar_opciones_kernel": "PREP-0029",
    "DependenciasRepository.gestionar_smt_vivo": "PREP-0030",
+   "DependenciasRepository.gestionar_acciones_sin_clave": "PREP-0153",
    "DependenciasRepository.gestionar_acpi": "PREP-0031",
    "DependenciasRepository.liberar_bloqueo_pacman": "PREP-0128",
    "DependenciasRepository.reparar_cabeceras_kernel": "PREP-0141",
@@ -2286,6 +2287,10 @@
    "cu_mode": "DECKY-0040",
    "fan_system_preset": "DECKY-0041"
   },
+  "bc250cc/infrastructure/quick_auth.py": {
+   "enabled": "CORE-0376",
+   "available": "CORE-0377"
+  },
   "bc250cc/infrastructure/radv_async_compute.py": {
    "_kernel_version": "DIST-0032",
    "_read": "DIST-0033",
@@ -2815,6 +2820,7 @@
    "SistemaService.gestionar_solo_lectura_steamos": "SYS-0181",
    "SistemaService.gestionar_opciones_kernel": "SYS-0182",
    "SistemaService.gestionar_smt_vivo": "SYS-0183",
+   "SistemaService.gestionar_acciones_sin_clave": "SYS-0362",
    "SistemaService.gestionar_acpi": "SYS-0184",
    "SistemaService.liberar_bloqueo_pacman": "SYS-0331",
    "SistemaService.reparar_cabeceras_kernel": "SYS-0344",
@@ -7162,6 +7168,7 @@
    "SettingsPage.describe_vrm_detection": "SET-0072",
    "SettingsPage.refresh_vrm_detection": "SET-0073",
    "SettingsPage._gddr6_manual_toggled": "SET-0074",
+   "SettingsPage._quick_auth_clicked": "SET-0350",
    "SettingsPage._confirm_gddr6_manual": "SET-0075",
    "SettingsPage._build_reports_page": "SET-0077",
    "SettingsPage._build_diagnostics_page": "SET-0078",

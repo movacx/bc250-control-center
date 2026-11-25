@@ -14,7 +14,8 @@ def main():
                                            "acpi-install", "acpi-update", "acpi-uninstall", "acpi-check",
                                            "telemetry-fix", "telemetry-restore", "kernel-options-set",
                                            "vram-read", "vram-apply", "ttm-status", "ttm-apply",
-                                           "smt-live", "mdns-repair", "web-firewall-status", "web-firewall-repair", "uninstall-check"))
+                                           "smt-live", "mdns-repair", "web-firewall-status", "web-firewall-repair", "uninstall-check",
+                                           "quick-auth-enable", "quick-auth-disable"))
     parser.add_argument("--policy", choices=("preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"), default="preserve")
     parser.add_argument("--ttm", type=int, choices=(-1, 0, 8, 10, 12), default=0)
     parser.add_argument("--uma-size", type=int, default=0)
@@ -48,6 +49,7 @@ def main():
     import system_setup_kernel_args as kernel_args
     import system_setup_mdns as mdns
     import system_setup_memory as memory
+    import system_setup_quick_auth as quick_auth
     import system_setup_telemetry as telemetry
     import system_setup_ttm as ttm
     import system_setup_vram as vram
@@ -95,6 +97,7 @@ def main():
                 "vram": section(lambda: vram.status(host)),
                 # Without root: no rpm-ostree probe and no CMOS read.
                 "ttm": section(lambda: ttm.status(host, probe=False)),
+                "quick_auth": section(lambda: quick_auth.status(host)),
                 "protocol": 2,
             }
             if args.action == "memory-plan":
@@ -116,6 +119,10 @@ def main():
                 raise SetupError("Another BC250 system setup change is running; try again when it finishes") from None
             if args.action == "web-firewall-repair":
                 result = firewall.repair(host, args.web_port)
+            elif args.action == "quick-auth-enable":
+                result = quick_auth.enable(host)
+            elif args.action == "quick-auth-disable":
+                result = quick_auth.disable(host)
             elif args.action == "mdns-repair":
                 result = mdns.repair(host)
             elif args.action == "memory-apply":
@@ -160,6 +167,10 @@ def main():
         print("BC250_RESULT status=ok component=system_setup code=0")
         if args.action == "web-firewall-repair":
             print("LAN firewall access verified. No reboot is required.")
+        elif args.action == "quick-auth-enable":
+            print("CPU, compute unit, GPU and fan actions no longer ask for the password. No reboot is required.")
+        elif args.action == "quick-auth-disable":
+            print("CPU, compute unit, GPU and fan actions ask for the password again.")
         elif args.action == "mdns-repair":
             print("Local name resolution verified. No reboot is required.")
         elif args.action == "acpi-check":

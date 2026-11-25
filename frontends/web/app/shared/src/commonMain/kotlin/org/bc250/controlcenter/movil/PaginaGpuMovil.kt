@@ -161,10 +161,10 @@ private fun FrecuenciasGpu(aplicacion: Aplicacion, datos: JsonObject, eleccion: 
     if (!oberon) {
         GrupoMovil {
             val ajuste = leerAjusteCyan(datos)
-            FilaAbrir(t("Cyan compatibility"), t("How it reads and controls the GPU"), nombreDeAjuste(ajuste), activa = datos.isNotEmpty()) {
+            FilaAbrir(t("Cyan compatibility"), valor = nombreDeAjuste(ajuste), activa = datos.isNotEmpty()) {
                 movil.abrirHoja { HojaCompatibilidad(aplicacion, datos, ajuste) }
             }
-            FilaAbrir(t("Export to Decky"), t("For game mode"), activa = libre) {
+            FilaAbrir(t("Export to Decky"), activa = libre) {
                 aplicacion.preguntarYEjecutar("gpu.export_decky", t("Export to Decky"))
             }
         }
@@ -218,8 +218,7 @@ private fun Gobernador(aplicacion: Aplicacion, datos: JsonObject, libre: Boolean
     SeccionMovil(t("Governor")) {
         GrupoMovil {
             FilaLibre(altoMinimo = 66.dp) {
-                PuntoEstado(funcionando)
-                val estado = if (funcionando) "Running · starts with the system" else "Stopped · nothing controls the GPU"
+                val estado = if (funcionando) "Running" else "Stopped"
                 TextosFila(if (esOberon(datos)) "Oberon" else "Cyan Skillfish", t(estado))
                 val puede = libre && disponible.logico(if (funcionando) "stop" else "start")
                 InterruptorMovil(funcionando, activo = puede) {

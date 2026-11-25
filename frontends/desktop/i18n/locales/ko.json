@@ -6704,5 +6704,9 @@
   "It is my board": "내 보드입니다",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "원격 접속에 표시된 주소를 입력하거나 QR 코드의 링크를 붙여넣으세요.",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "이 휴대폰은 이 보드를 사용한 적이 없습니다. 주소를 직접 입력했고 자신의 네트워크에 있을 때만 계속하세요.",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "보드의 인증서가 이전과 다릅니다. 다시 설치한 경우에만 계속하세요."
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "보드의 인증서가 이전과 다릅니다. 다시 설치한 경우에만 계속하세요.",
+  "Actions without password": "비밀번호 없이 작업",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, 컴퓨트 유닛, GPU, 팬 작업은 더 이상 Linux 비밀번호를 묻지 않습니다. 나머지는 계속 묻습니다.",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "내 세션을 사용하는 사람이나 하드웨어 제어 권한이 있는 페어링된 기기는 이 작업을 실행할 수 있습니다. 언제든지 끌 수 있습니다.",
+  "Update or reinstall Control Center to use this.": "이 기능을 사용하려면 Control Center를 업데이트하거나 다시 설치하세요."
 }

@@ -6704,5 +6704,9 @@
   "It is my board": "It is my board",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "Enter the address shown in Remote access, or paste the link of its QR code.",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "The board shows a different certificate than before. Continue only if you reinstalled it."
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "The board shows a different certificate than before. Continue only if you reinstalled it.",
+  "Actions without password": "Actions without password",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.",
+  "Update or reinstall Control Center to use this.": "Update or reinstall Control Center to use this."
 }

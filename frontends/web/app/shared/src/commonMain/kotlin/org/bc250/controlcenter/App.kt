@@ -89,10 +89,13 @@ fun App() {
     LaunchedEffect(aplicacion.paleta.esClaro) {
         BarraDelSistema.alCambiarTema(aplicacion.paleta.esClaro)
     }
+    val paleta = remember(aplicacion.paleta, aplicacion.enTelefono) {
+        if (aplicacion.enTelefono) aplicacion.paleta.paraTelefono() else aplicacion.paleta
+    }
     val escala = aplicacion.preferencias.entero("scale", 100) / 100f
     val densidad = LocalDensity.current
     CompositionLocalProvider(
-        ColoresActuales provides aplicacion.paleta,
+        ColoresActuales provides paleta,
         LetrasActuales provides cargarLetras(),
         LocalPaletas provides aplicacion.paletas,
         LocalTelefono provides aplicacion.enTelefono,
@@ -102,7 +105,7 @@ fun App() {
         Box(
             Modifier
                 .fillMaxSize()
-                .background(aplicacion.paleta.ventana)
+                .background(paleta.ventana)
                 .onPreviewKeyEvent { evento -> atenderTecla(evento, aplicacion) },
         ) {
             if (sePuedeDibujar) {

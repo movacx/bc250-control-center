@@ -6704,5 +6704,9 @@
   "It is my board": "這是我的主機板",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "輸入「遠端存取」中顯示的位址，或貼上 QR 碼的連結。",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "這支手機從未使用過此主機板。只有位址由你親自輸入且位於自己的網路時才繼續。",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "主機板的憑證與之前不同。只有在你重新安裝過時才繼續。"
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "主機板的憑證與之前不同。只有在你重新安裝過時才繼續。",
+  "Actions without password": "免密碼操作",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU、運算單元、GPU 和風扇不再詢問 Linux 密碼。其他操作仍會詢問。",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "使用您工作階段的任何人，或擁有硬體控制權限的已配對裝置，都可以執行這些操作。您可以隨時關閉。",
+  "Update or reinstall Control Center to use this.": "請更新或重新安裝 Control Center 以使用此功能。"
 }

@@ -6704,5 +6704,9 @@
   "It is my board": "Είναι η πλακέτα μου",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "Εισαγάγετε τη διεύθυνση από την Απομακρυσμένη πρόσβαση ή επικολλήστε τον σύνδεσμο του κωδικού QR.",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "Αυτό το τηλέφωνο δεν έχει χρησιμοποιήσει την πλακέτα. Συνεχίστε μόνο αν γράψατε εσείς τη διεύθυνση και είστε στο δικό σας δίκτυο.",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Η πλακέτα δείχνει άλλο πιστοποιητικό. Συνεχίστε μόνο αν την επανεγκαταστήσατε."
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Η πλακέτα δείχνει άλλο πιστοποιητικό. Συνεχίστε μόνο αν την επανεγκαταστήσατε.",
+  "Actions without password": "Ενέργειες χωρίς κωδικό",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "Η CPU, οι μονάδες υπολογισμού, η GPU και οι ανεμιστήρες δεν ζητούν πλέον τον κωδικό του Linux. Όλα τα άλλα συνεχίζουν να τον ζητούν.",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Όποιος χρησιμοποιεί τη συνεδρία σας ή μια συζευγμένη συσκευή με έλεγχο υλικού θα μπορεί να εκτελεί αυτές τις ενέργειες. Μπορείτε να το απενεργοποιήσετε οποτεδήποτε.",
+  "Update or reinstall Control Center to use this.": "Ενημερώστε ή επανεγκαταστήστε το Control Center για να το χρησιμοποιήσετε."
 }

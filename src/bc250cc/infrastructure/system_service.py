@@ -541,6 +541,9 @@ class SistemaService:
     def gestionar_smt_vivo(self, mode):
         return self.repo.gestionar_smt_vivo(mode)
 
+    def gestionar_acciones_sin_clave(self, enable: bool):
+        return self.repo.gestionar_acciones_sin_clave(enable)
+
     def gestionar_acpi(self, action: str):
         return self.repo.gestionar_acpi(action)
 

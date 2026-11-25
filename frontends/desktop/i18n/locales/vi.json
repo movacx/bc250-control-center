@@ -6704,5 +6704,9 @@
   "It is my board": "Đây là bo mạch của tôi",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "Nhập địa chỉ trong Truy cập từ xa, hoặc dán liên kết của mã QR.",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "Điện thoại này chưa từng dùng bo mạch này. Chỉ tiếp tục nếu bạn tự nhập địa chỉ và đang ở mạng của mình.",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Bo mạch hiển thị chứng chỉ khác trước. Chỉ tiếp tục nếu bạn đã cài lại nó."
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Bo mạch hiển thị chứng chỉ khác trước. Chỉ tiếp tục nếu bạn đã cài lại nó.",
+  "Actions without password": "Thao tác không cần mật khẩu",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, đơn vị tính toán, GPU và quạt không còn hỏi mật khẩu Linux. Mọi thứ khác vẫn hỏi.",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Bất kỳ ai dùng phiên của bạn, hoặc thiết bị đã ghép đôi có quyền điều khiển phần cứng, đều có thể chạy các thao tác này. Bạn có thể tắt bất cứ lúc nào.",
+  "Update or reinstall Control Center to use this.": "Hãy cập nhật hoặc cài lại Control Center để dùng tính năng này."
 }

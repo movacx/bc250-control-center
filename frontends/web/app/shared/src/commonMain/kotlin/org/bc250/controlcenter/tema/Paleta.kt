@@ -2,6 +2,8 @@ package org.bc250.controlcenter.tema
 
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 
 /**
  * Los colores de un tema. Son los mismos nombres y valores que usa el escritorio:
@@ -49,6 +51,38 @@ class Paleta(private val colores: Map<String, String>, val esClaro: Boolean) {
     val naranja: Color get() = color("orange")
     val pista: Color get() = color("progress_track")
 
+    /**
+     * Los mismos colores con más separación entre superficies. En un teléfono el fondo baja, las tarjetas
+     * suben un paso y el texto secundario se aclara: se mira a la luz del día y desde más lejos.
+     */
+    fun paraTelefono(): Paleta {
+        val cambios = if (esClaro) {
+            mapOf(
+                "window" to mezclar(ventana, Color.Black, 0.035f),
+                "muted" to mezclar(apagado, Color.Black, 0.22f),
+                "subtle" to mezclar(sutil, Color.Black, 0.18f),
+            )
+        } else {
+            mapOf(
+                "window" to mezclar(ventana, Color.Black, 0.5f),
+                "panel" to mezclar(panel, Color.White, 0.022f),
+                "panel_alt" to mezclar(panelAlterno, Color.White, 0.045f),
+                "panel_raised" to mezclar(panelElevado, Color.White, 0.05f),
+                "control" to mezclar(control, Color.White, 0.05f),
+                "control_hover" to mezclar(controlEncima, Color.White, 0.05f),
+                "border" to mezclar(borde, Color.White, 0.03f),
+                "border_soft" to mezclar(bordeSuave, Color.White, 0.04f),
+                "border_strong" to mezclar(bordeFuerte, Color.White, 0.08f),
+                "progress_track" to mezclar(pista, Color.White, 0.06f),
+                "muted" to mezclar(apagado, Color.White, 0.22f),
+                "subtle" to mezclar(sutil, Color.White, 0.14f),
+                "disabled_text" to mezclar(textoInactivo, Color.White, 0.1f),
+            )
+        }
+        val legible = "on_blue" to legibleSobre(acento)
+        return Paleta(colores + (cambios + legible).mapValues { (_, color) -> escribirColor(color) }, esClaro)
+    }
+
     /** El relleno de un grupo dentro de una tarjeta. */
     val grupo: Color get() = panelElevado
 
@@ -71,6 +105,17 @@ fun mezclar(base: Color, encima: Color, cantidad: Float): Color {
         green = base.green * resto + encima.green * cantidad,
         blue = base.blue * resto + encima.blue * cantidad,
     )
+}
+
+/** Blanco o casi negro: el que mejor se lee encima de un color. */
+fun legibleSobre(fondo: Color): Color {
+    val luz = fondo.luminance() + 0.05f
+    return if (1.05f / luz >= luz / 0.055f) Color.White else Color(0xFF0B0B0B)
+}
+
+private fun escribirColor(color: Color): String {
+    val numero = color.toArgb() and 0xFFFFFF
+    return "#" + numero.toString(16).padStart(6, '0')
 }
 
 /** Un color escrito como #RRGGBB. */

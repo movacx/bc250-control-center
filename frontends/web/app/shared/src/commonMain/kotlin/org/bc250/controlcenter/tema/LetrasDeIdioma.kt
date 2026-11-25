@@ -41,6 +41,7 @@ private fun letraDe(idioma: String): FontResource? {
 @Composable
 fun letrasListas(idioma: String): Boolean {
     cargarLetra(Res.font.letra_nombres)
+    cargarLetra(Res.font.letra_th)
     val propia = letraDe(idioma) ?: return true
     return key(idioma) { cargarLetra(propia) }
 }

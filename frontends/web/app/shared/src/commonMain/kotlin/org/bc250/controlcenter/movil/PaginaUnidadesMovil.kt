@@ -143,9 +143,8 @@ fun PaginaUnidadesMovil(aplicacion: Aplicacion) {
         }
         if (movil.pestana("cu") == UNIDADES) {
             TablaMovil(aplicacion, eleccion)
-            LeyendaMovil()
+            LeyendaMovil(eleccion)
             LecturasMovil(eleccion.datos)
-            NotaMovil(t("One WGP always represents two CUs; individual CUs cannot be toggled separately."))
         } else {
             PersistenciaUnidades(aplicacion, eleccion)
         }
@@ -191,8 +190,8 @@ private fun MotorSombreado(eleccion: EleccionUnidades, motor: Int) {
 @Composable
 private fun TituloConCuenta(titulo: String, tamano: Int, cuenta: String) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Texto(titulo, tamano = tamano, peso = 700, modifier = Modifier.weight(1f))
-        Texto(cuenta, tamano = 13, color = ColoresActuales.current.apagado)
+        TextoTitulo(titulo, tamano + 3, Modifier.weight(1f))
+        Texto(cuenta, tamano = 14, color = ColoresActuales.current.apagado)
     }
 }
 
@@ -225,7 +224,7 @@ private fun CasillaWgp(eleccion: EleccionUnidades, fila: Int, wgp: Int, modifier
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Texto("WGP $wgp", tamano = 11, peso = 500, color = ColoresActuales.current.apagado, lineas = 1)
-        Texto(token, tamano = 19, peso = 700, color = colores.texto)
+        TextoTitulo(token, 22, color = colores.texto)
         Texto("${wgp * 2}–${wgp * 2 + 1}", tamano = 11, color = colores.texto)
     }
 }
@@ -237,9 +236,11 @@ private fun PieDeTabla(aplicacion: Aplicacion, eleccion: EleccionUnidades) {
     val pendientes = seleccion.entero("pending")
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         LineaDivisoria()
-        Column {
-            Texto(textoPendiente(eleccion), tamano = 13, color = if (pendientes > 0) paleta.naranja else paleta.apagado)
-            Texto(seleccion.texto("balance_detail"), tamano = 12, color = paleta.sutil)
+        if (pendientes > 0) {
+            Texto(textoPendiente(eleccion), tamano = 14, peso = 500, color = paleta.naranja)
+        }
+        if (!seleccion.logico("balanced", true)) {
+            Texto(seleccion.texto("balance_detail"), tamano = 13, color = paleta.apagado)
         }
         if (!seleccion.logico("balanced", true)) {
             BotonMovil(t("Balance shader engines"), Modifier.fillMaxWidth(), activo = eleccion.libre && !eleccion.delKernel) {
@@ -289,7 +290,7 @@ private fun PrepararHerramientas(aplicacion: Aplicacion, eleccion: EleccionUnida
 }
 
 @Composable
-private fun LeyendaMovil() {
+private fun LeyendaMovil(eleccion: EleccionUnidades) {
     val paleta = ColoresActuales.current
     val leyenda = listOf(
         "D+ " + t("Driver + routed") to paleta.verde,
@@ -297,10 +298,11 @@ private fun LeyendaMovil() {
         "D! " + t("Driver blocked") to paleta.rojo,
         "-- " + t("Not routed") to paleta.sutil,
     )
-    for (pareja in leyenda.chunked(2)) {
+    val presentes = eleccion.seleccion.objetos("rows").flatMap { fila -> fila.objetos("cells") }.map { celda -> celda.texto("token") }.toSet()
+    for (pareja in leyenda.filter { (texto, _) -> texto.take(2) in presentes }.chunked(2)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
             for ((texto, color) in pareja) {
-                Texto(texto, tamano = 12, color = color, modifier = Modifier.weight(1f))
+                Texto(texto, tamano = 13, color = color, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -331,12 +333,6 @@ private fun PersistenciaUnidades(aplicacion: Aplicacion, eleccion: EleccionUnida
         FilaDato(t("In use now"), "${eleccion.vivas.sumOf { mascara -> mascara.countOneBits() * 2 }} / 40", "CU")
     }
     SeccionMovil(t("Boot persistence")) {
-        NotaMovil(
-            t(
-                "Select the WGP pairs above, then use the buttons below in order — Apply now, Save selection, " +
-                    "Install service — to make the change survive a reboot.",
-            ),
-        )
         GrupoMovil {
             FilaAbrir(t("Save selection"), activa = eleccion.permite("save_boot")) { eleccion.operarTabla(guardar = true) }
             FilaAbrir(t("Install service"), activa = eleccion.permite("install_service")) {

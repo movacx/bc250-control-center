@@ -77,6 +77,10 @@ case "${1:-}" in
     if [[ -x "$helper" ]]; then
       "$helper" uninstall-check
     fi
+    # The rules that let one account run these helpers without its password.
+    rm -f -- /etc/sudoers.d/zz-bc250-control-center /etc/polkit-1/rules.d/49-bc250-control-center.rules \
+      /etc/atomic-update.conf.d/bc250-control-center-quick-auth.conf \
+      /var/lib/bc250-control-center/system-setup/quick-auth.json
     # The system fan control service (GitHub #15) runs the fan helper this
     # package is about to remove. Stop it and give the fan back to firmware
     # first, or the unit would fail on every boot afterwards.

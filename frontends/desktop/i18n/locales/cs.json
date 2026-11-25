@@ -6704,5 +6704,9 @@
   "It is my board": "Je to moje deska",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "Zadejte adresu ze Vzdáleného přístupu nebo vložte odkaz z QR kódu.",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "Tento telefon tuto desku ještě nepoužil. Pokračujte, jen pokud jste adresu zadali sami a jste ve vlastní síti.",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Deska ukazuje jiný certifikát než dříve. Pokračujte, jen pokud jste ji přeinstalovali."
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Deska ukazuje jiný certifikát než dříve. Pokračujte, jen pokud jste ji přeinstalovali.",
+  "Actions without password": "Akce bez hesla",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, výpočetní jednotky, GPU a ventilátory se přestanou ptát na heslo Linuxu. Vše ostatní se ptá dál.",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Kdokoli, kdo používá vaši relaci nebo spárované zařízení s ovládáním hardwaru, bude moci tyto akce spouštět. Kdykoli to můžete vypnout.",
+  "Update or reinstall Control Center to use this.": "Pro použití aktualizujte nebo přeinstalujte Control Center."
 }

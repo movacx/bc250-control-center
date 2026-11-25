@@ -6704,5 +6704,9 @@
   "It is my board": "Este placa mea",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "Introdu adresa afișată în Acces la distanță sau lipește linkul codului QR.",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "Acest telefon nu a mai folosit această placă. Continuă doar dacă ai scris tu adresa și ești în rețeaua ta.",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Placa prezintă alt certificat decât înainte. Continuă doar dacă ai reinstalat-o."
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Placa prezintă alt certificat decât înainte. Continuă doar dacă ai reinstalat-o.",
+  "Actions without password": "Acțiuni fără parolă",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "CPU, unitățile de calcul, GPU și ventilatoarele nu mai cer parola Linux. Tot restul o cere în continuare.",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Oricine folosește sesiunea ta sau un dispozitiv asociat cu control hardware va putea rula aceste acțiuni. Poți dezactiva oricând.",
+  "Update or reinstall Control Center to use this.": "Actualizează sau reinstalează Control Center pentru a folosi această funcție."
 }

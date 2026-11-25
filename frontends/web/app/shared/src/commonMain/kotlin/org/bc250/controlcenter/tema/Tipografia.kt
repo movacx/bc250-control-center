@@ -5,6 +5,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import org.bc250.controlcenter.recursos.Res
+import org.bc250.controlcenter.recursos.cifras_bold
+import org.bc250.controlcenter.recursos.cifras_medium
 import org.bc250.controlcenter.recursos.jetbrainsmono_bold
 import org.bc250.controlcenter.recursos.jetbrainsmono_regular
 import org.bc250.controlcenter.recursos.notosans_black
@@ -13,9 +15,10 @@ import org.bc250.controlcenter.recursos.notosans_medium
 import org.bc250.controlcenter.recursos.notosans_regular
 import org.jetbrains.compose.resources.Font
 
-class Letras(val normal: FontFamily, val consola: FontFamily)
+/** La letra de los textos, la de la consola y la estrecha de los títulos y las cifras del teléfono. */
+class Letras(val normal: FontFamily, val consola: FontFamily, val cifras: FontFamily)
 
-val LetrasActuales = staticCompositionLocalOf { Letras(FontFamily.SansSerif, FontFamily.Monospace) }
+val LetrasActuales = staticCompositionLocalOf { Letras(FontFamily.SansSerif, FontFamily.Monospace, FontFamily.SansSerif) }
 
 @Composable
 fun cargarLetras(): Letras {
@@ -29,7 +32,11 @@ fun cargarLetras(): Letras {
         Font(Res.font.jetbrainsmono_regular, FontWeight.Normal),
         Font(Res.font.jetbrainsmono_bold, FontWeight.Bold),
     )
-    return Letras(normal, consola)
+    val cifras = FontFamily(
+        Font(Res.font.cifras_medium, FontWeight.Medium),
+        Font(Res.font.cifras_bold, FontWeight.Bold),
+    )
+    return Letras(normal, consola, cifras)
 }
 
 /** El grosor de Qt (400 a 900) llevado al archivo de letra que Qt elige para él. */

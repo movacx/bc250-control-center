@@ -6704,5 +6704,9 @@
   "It is my board": "Это моя плата",
   "Enter the address shown in Remote access, or paste the link of its QR code.": "Введите адрес из раздела «Удалённый доступ» или вставьте ссылку из QR-кода.",
   "This phone has not used this board before. Continue only if you typed its address yourself and you are on your own network.": "Этот телефон ещё не использовал эту плату. Продолжайте, только если вы сами ввели адрес и находитесь в своей сети.",
-  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Плата показывает другой сертификат. Продолжайте, только если вы её переустанавливали."
+  "The board shows a different certificate than before. Continue only if you reinstalled it.": "Плата показывает другой сертификат. Продолжайте, только если вы её переустанавливали.",
+  "Actions without password": "Действия без пароля",
+  "CPU, compute units, GPU and fans stop asking for the Linux password. Everything else keeps asking.": "ЦП, вычислительные блоки, ГП и вентиляторы больше не запрашивают пароль Linux. Всё остальное по-прежнему запрашивает.",
+  "Anyone using your session, or a paired device with hardware control, will be able to run these actions. You can turn it off at any time.": "Любой, кто пользуется вашим сеансом или сопряжённым устройством с управлением оборудованием, сможет выполнять эти действия. Отключить можно в любой момент.",
+  "Update or reinstall Control Center to use this.": "Обновите или переустановите Control Center, чтобы использовать это."
 }
