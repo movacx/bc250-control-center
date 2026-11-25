@@ -9,7 +9,6 @@ console pane or on a background thread, never on the drawing thread.
 from __future__ import annotations
 
 import configparser
-import json
 import os
 import threading
 import time
@@ -96,67 +95,3 @@ def install_update(ctx, family: str):
             f"\r{plan.asset.name}  {size(done)} / {size(total)}", end="", flush=True))
         print()
     return ctx.service.instalar_actualizacion(plan, str(package) if package else None)
-
-
-def report(ui, *, title: str = "", log: str = "", workflow_details=None) -> None:
-    """The report form, as questions: a problem (or an idea), what happened, a contact.
-
-    ``title``/``log`` come from a failed workflow and are attached as its log.
-    The system facts are read while sending, in the console pane.
-    """
-    from bc250cc.application.system.feedback import reports as form
-    from frontends.desktop.core.report_facts import read_report_facts
-    from frontends.desktop.i18n import current_language
-
-    kind = form.KIND_PROBLEM if log else ui.choose(tr("Report a problem or suggest an idea"), [
-        (form.KIND_PROBLEM, tr("Report this problem")), (form.KIND_IDEA, tr("Suggest an idea"))])
-    if kind is None:
-        return
-    text = ui.ask_text(tr("What went wrong?") if kind == form.KIND_PROBLEM else tr("Suggestions and ideas"), title)
-    while kind == form.KIND_PROBLEM and text and len(text.strip()) < 4:
-        text = ui.ask_text(tr(form.SUMMARY_HINT), text)
-    if not (text or "").strip():
-        return
-    expected = ""
-    if kind == form.KIND_PROBLEM:
-        expected = ui.ask_text(tr("What did you expect to happen?"), "")
-        if expected is None:
-            return
-    contact = ui.ask_text(tr("Telegram or Discord username"), "")
-    if contact is None:
-        return
-
-    def build():
-        from bc250cc.shared.version import application_version
-
-        facts = read_report_facts()
-        fields = {key: facts[key] for key in ("identity", "system", "os_release", "firmware", "history", "attachments",
-                                               "install", "distribution", "bios", "cores") if key in facts}
-        fields["history"] = form.history_items(facts.get("history", ()))
-        problem = kind == form.KIND_PROBLEM
-        return form.Report(
-            kind=kind, expected=expected, summary=text if problem else "", notes="" if problem else text, contact=contact,
-            version=str(facts.get("version") or application_version()), opened_from="tui",
-            language=current_language(), workflow_title=title if log else "", workflow_log=form.clean_log(log),
-            workflow_details=dict(workflow_details or {}), **fields)
-
-    # The same document that would leave, already without personal data: read first, then decide.
-    ok, document = ui.run(tr("Preview"), build)
-    if not ok or not isinstance(document, form.Report):
-        return
-    ui.show_text(tr("Preview"), json.dumps(form.payload(document), indent=2, ensure_ascii=False))
-    if not ui.confirm(tr("Send") + "?"):
-        return
-
-    def send() -> str:
-        try:
-            return f"{tr('Thanks, it was sent')} ({form.submit(document)})"
-        except form.ReportError as error:
-            message = tr_format("It was not sent: {reason}. What you wrote is still here.",
-                                reason=tr(str(error)).rstrip("."))
-            if error.saved is not None:
-                message += " " + tr_format("A copy was saved to {path}.", path=str(error.saved))
-            raise RuntimeError(message) from error
-
-    ok, result = ui.run(tr("Report a problem or suggest an idea"), send)
-    ui.notify(str(result), "ok" if ok else "bad")

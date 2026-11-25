@@ -17,11 +17,10 @@ from frontends.desktop.core.diagnostic_history import (
 
 from ..content import Choice, Field, Gap, Info, Note, Panel
 from ..i18n import current_language, tr, tr_format
-from ..support import report
 from .base import Page, guarded, os_family
 from .guides import GUIDES
 
-TABS = (("report", "Support"), ("errors", "Known errors"), ("sent", "Sent reports"), ("diagnostics", "Diagnostics"),
+TABS = (("errors", "Known errors"), ("sent", "Sent reports"), ("diagnostics", "Diagnostics"),
         ("history", "Movement history"), ("guide", "Guide"))
 
 
@@ -70,18 +69,7 @@ class SupportPage(Page):
     def build(self, ctx, data, tab, ui):
         data = data or {}
         return {"errors": self._errors, "sent": self._sent, "diagnostics": self._diagnostics, "history": self._history,
-                "guide": self._guide}.get(tab, self._report)(ctx, data, ui)
-
-    # -- start -------------------------------------------------------------------------------------
-
-    def _report(self, ctx, data, ui):
-        def open_tab(key):
-            return lambda ui_: ui_.show_tab(key)
-
-        return [
-            Panel(tr("Support"), [
-                Choice(tr("Report a problem"), report, info=Info(tr("Tell us what failed. We attach the diagnostics for you.")))]),
-            Panel("GitHub · Discord", [Note("https://github.com/movacx/bc250-control-center/issues"), Note("Discord: @_movacx", "dim")])]
+                "guide": self._guide}.get(tab, self._errors)(ctx, data, ui)
 
     # -- the error handbook ------------------------------------------------------------------------
 
@@ -149,22 +137,35 @@ class SupportPage(Page):
         def save(ui_):
             path = ui_.ask_text(tr("File"), str(Path.home() / "bc250-diagnostics.txt"))
             if path:
-                text = diagnostic_report(state.get("system") or [], data.get("errors") or [])
-                ok, _result = ui_.run(tr("Save to a file"), lambda: Path(path).expanduser().write_text(text, encoding="utf-8"))
-                ui_.notify(f"{tr('Saved')} · {path}" if ok else tr("The report was not sent."), "ok" if ok else "bad")
+                def write():
+                    from bc250cc.application.system.diagnostics import system_rows
+
+                    state["system"] = state.get("system") or system_rows()  # never an empty file
+                    Path(path).expanduser().write_text(
+                        diagnostic_report(state["system"], data.get("errors") or []), encoding="utf-8")
+
+                ok, result = ui_.run(tr("Save to a file"), write)
+                ui_.notify(f"{tr('Saved')} · {path}" if ok else tr_format("Could not save the file: {reason}", reason=str(result)),
+                           "ok" if ok else "bad")
 
         def clear(ui_):
             if ui_.confirm(tr("Clear history"), danger=True):
                 clear_history()
                 ui_.refresh()
 
-        rows = []
-        for entry in data.get("errors") or ():
+        rows, shown = [], []
+        for entry in data.get("errors") or ():  # the same error again at once is one row and a count
+            if shown and (shown[-1][0].code, shown[-1][0].title) == (entry.code, entry.title) and abs(shown[-1][0].at - entry.at) < 600:
+                shown[-1][1] += 1
+            else:
+                shown.append([entry, 1])
+        for entry, times in shown:
             wording = current_wording(entry)
             stamp = datetime.fromtimestamp(entry.at).strftime("%m-%d %H:%M")
             where = {"terminal": tr("Terminal"), "decky": tr("Decky Quick Access")}.get(entry.source, tr("Window"))
             text = "\n\n".join(filter(None, (tr(wording.summary), tr(wording.cause), tr(wording.action), entry.detail)))
-            rows.append(Choice(f"{stamp}  {entry.code}", lambda ui_, t=text, c=entry.code: ui_.show_text(c, t), tr(wording.summary),
+            rows.append(Choice(f"{stamp}  {entry.code}", lambda ui_, t=text, c=entry.code: ui_.show_text(c, t),
+                               tr(wording.summary) + (f"  ×{times}" if times > 1 else ""),
                                id=f"{entry.at}", info=Info(f"{where} · {entry.title}\n\n{tr(wording.cause)}", undo="", risk="")))
         system = [Field(tr(label), tr(value)) for label, value in state.get("system") or ()]
         return [Panel(tr("System"), [*system, *([Gap()] if system else []),

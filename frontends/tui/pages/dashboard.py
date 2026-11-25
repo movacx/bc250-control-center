@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import time
 
 from bc250cc.application.fan import board_view
@@ -30,7 +31,7 @@ from ..content import (
     number,
     percent,
 )
-from ..i18n import tr
+from ..i18n import tr, tr_format
 from ..support import available_version
 from .base import (
     Page,
@@ -177,7 +178,8 @@ class DashboardPage(Page):
             *heat(tr("Core temperature"), cpu.get("temperature_c")),
             load_meter(tr("CPU usage"), cpu.get("usage_percent")),
             Field(tr("Registered OC"), oc),
-            Field(tr("Topology"), f"{cpu.get('physical_cores', '--')} / {cpu.get('logical_cores', '--')}"),
+            Field(tr("Topology"), tr_format("{cores} cores / {threads} threads", cores=cpu.get("physical_cores", "--"),
+                                            threads=cpu.get("logical_cores", "--"))),
             Heading(tr("Live core monitor")), Gauges(cores, minimum=25),
         ], number(cpu.get("frequency_mhz", 0) / 1000 if cpu.get("frequency_mhz") else None, "GHz", 2))
         gpu_card = Card(tr("Graphics"), [
@@ -234,11 +236,15 @@ class DashboardPage(Page):
         if not hasattr(ui, "_content_box"):
             return []
         width = ui._content_box()[1]
-        times = list(ctx.history.get("moment", ()))
         room = ui._view() - len(build_page(page, width, Glyphs.for_terminal(unicode_ok=True)).rows)
-        series = [(name, list(ctx.history.get(key, ())), tone) for name, key, tone in (
-            ("GPU", "gpu_temp", "accent"), ("CPU", "cpu_temp", "ok"), ("VRM", "vrm_temp", ""))]
-        series = [item for item in series if item[1]]
+        traces = [(name, list(ctx.history.get(f"trace:{key}", ())), tone) for name, key, tone in (
+            ("GPU", "gpu", "accent"), ("CPU", "cpu", "ok"), ("VRM", "vrm", ""))]
+        times = sorted({moment for _name, trace, _tone in traces for moment, _value in trace})
+        series = []
+        for name, trace, tone in traces:
+            values = dict(trace)
+            if values:
+                series.append((name, [values.get(moment, math.nan) for moment in times], tone))
         if room < 13 or width < 100 or len(times) < 2 or not series:
             return []
         window = next((seconds for seconds in (60, 120, 300, 600) if times[-1] - times[0] <= seconds), 600)
@@ -246,7 +252,7 @@ class DashboardPage(Page):
         def show(value):
             return number(value, "°C", 1)
 
-        scale, height = axis_for([v for _n, values, _t in series for v in values], "°C", min(22, room - 5))
+        scale, height = axis_for([v for _n, values, _t in series for v in values if not math.isnan(v)], "°C", min(22, room - 5))
         return [Panel(tr("Temperatures"), [Chart(series, times, scale.minimum, scale.maximum, height, show, window=window,
                                                  ticks=scale.ticks, now=tr("Now"), mark=lambda value: number(value, "°C", 0)
                                                  if float(value).is_integer() else show(value)),

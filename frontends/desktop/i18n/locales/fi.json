@@ -6591,5 +6591,7 @@
   "Save, import or export": "Tallenna, tuo tai vie",
   "Tick a sensor in the list to draw it here.": "Valitse anturi luettelosta, niin se piirretään tähän.",
   "{count} samples in {time}": "{count} näytettä ajassa {time}",
-  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Anturit eivät ole vastanneet {seconds} sekuntiin: näytön lukemat ovat vanhoja."
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Anturit eivät ole vastanneet {seconds} sekuntiin: näytön lukemat ovat vanhoja.",
+  "Applying this profile discards the changes to this fan you have not applied.": "Profiilin käyttöönotto hylkää tämän tuulettimen muutokset, joita ei ole otettu käyttöön.",
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Linuxin muistissa pitämät tiedostot vapautetaan ja luetaan tarvittaessa uudelleen levyltä."
 }

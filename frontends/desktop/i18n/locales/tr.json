@@ -6591,5 +6591,7 @@
   "Save, import or export": "Kaydet, içe veya dışa aktar",
   "Tick a sensor in the list to draw it here.": "Burada çizmek için listeden bir sensör işaretleyin.",
   "{count} samples in {time}": "{time} içinde {count} örnek",
-  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Sensörler {seconds} saniyedir yanıt vermiyor: ekrandaki değerler eski."
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Sensörler {seconds} saniyedir yanıt vermiyor: ekrandaki değerler eski.",
+  "Applying this profile discards the changes to this fan you have not applied.": "Bu profili uygulamak, bu fanın uygulanmamış değişikliklerini siler.",
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Linux'un bellekte tuttuğu dosyalar bırakılır ve gerektiğinde diskten yeniden okunur."
 }

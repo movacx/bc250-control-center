@@ -55,12 +55,12 @@ class AboutPage(Page):
                 *([Choice(tr("Update now"), lambda ui_: self._update(ctx, ui_), tone="primary"),
                    Choice(tr("What's new"), lambda ui_: ui_.show_tab("updates"))] if newer else []),
                 Choice(tr("Check for updates"), lambda ui_: self._check(ctx, ui_))]),
-            Panel(tr("Application"), [
-                Field(tr("Configuration folder"), str(config)), Field(tr("Data folder"), str(data)),
-                Field(tr("State and logs"), str(logs)), Field(tr("System data"), "/var/lib/bc250-control-center")]),
             Panel(tr(TITLE), [Note(tr(WHEN), "warn"), Choice(tr("Details") + " ›", lambda ui_: ui_.show_text(tr(TITLE), note)),
                               Field("Ko-fi", KOFI_URL), Field("Discord", "@_movacx")]),
-            Panel("GitHub", [Note("https://github.com/movacx/bc250-control-center")])]
+            Panel("GitHub", [Note("https://github.com/movacx/bc250-control-center")]),
+            Panel(tr("Application"), [
+                Field(tr("Configuration folder"), str(config)), Field(tr("Data folder"), str(data)),
+                Field(tr("State and logs"), str(logs)), Field(tr("System data"), "/var/lib/bc250-control-center")], wide=True)]
 
     @staticmethod
     def _check(ctx, ui):
@@ -82,6 +82,7 @@ class AboutPage(Page):
             ok, result = ui_.run(tr("What's new"), fetch_latest_release)
             if ok:
                 state["release"] = result
+                check_in_background(ctx, force=True)  # so it can be installed from here, not only read
 
         release = state.get("release")
         if release is None:

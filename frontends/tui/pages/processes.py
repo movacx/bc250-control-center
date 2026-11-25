@@ -4,7 +4,18 @@ from __future__ import annotations
 
 from frontends.desktop.core.process_entries import build_entries
 
-from ..content import Choice, Info, Note, Panel, cell_width, clip, number, pad, size
+from ..content import (
+    Choice,
+    Info,
+    Note,
+    Panel,
+    Raw,
+    cell_width,
+    clip,
+    number,
+    pad,
+    size,
+)
 from ..i18n import tr, tr_format
 from .base import Page, guarded
 
@@ -61,17 +72,18 @@ class ProcessesPage(Page):
                    lambda ui_: self._end(ui_, service, chosen), tone="bad", enabled=bool(chosen)),
             Choice(tr("Resume" if chosen and all(e.paused for e in chosen) else "Pause"),
                    lambda ui_: self._pause(ui_, service, chosen), enabled=bool(chosen)),
-            Choice(tr("Free cache"), lambda ui_: ui_.confirm(tr("Release Linux page cache"))
+            Choice(tr("Free cache"), lambda ui_: ui_.confirm(f"{tr('Release Linux page cache')}: " + tr(
+                       "The files Linux keeps in memory are dropped and read from the disk again when needed."))
                    and guarded(ui_, tr("Free cache"), service.limpiar_cache)),
         ], subtitle=tr("systemd-oomd is running: if the paused game's memory goes to swap, it may close the game and "
                        "Steam with it.") if data.get("oomd") and game is not None and game.paused else ""))
         name_w = min(34, max([cell_width(entry.name) for entry in entries] + [12]) + 5)
-        heads = (tr("CPU"), tr("GPU"), tr("Memory"), tr("GPU memory"))
-        rows = [Note(" " * name_w + "".join(clip(head, width - 1).rjust(width) for head, width in zip(heads, WIDTHS)), "dim")]
+        heads = ("CPU", "GPU", "RAM", "VRAM")
+        rows = [Raw([" " * name_w + "".join(clip(head, width - 1).rjust(width) for head, width in zip(heads, WIDTHS))], "dim")]
         if not entries:
             rows.append(Note(ctx.page_error.get(self.key) or (tr("No results") if data else tr("Waiting for data…")), "dim"))
         rows += [self._row(service, picked, entry, name_w) for entry in entries[:MAX_ROWS]]
-        return [*out, Panel(tr("Processes"), rows, badge=str(len(entries)))]
+        return [*out, Panel(tr("Processes"), rows, badge=str(len(entries)), wide=True)]
 
     @staticmethod
     def _numbers(entry) -> str:

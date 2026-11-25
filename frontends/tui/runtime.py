@@ -95,7 +95,11 @@ def record_metrics(ctx: Context, metrics: dict[str, Any]) -> None:
     gpu, cpu = _section(metrics, "gpu"), _section(metrics, "cpu")
     power, memory = _section(metrics, "power"), _section(metrics, "memory")
     sensors = _section(metrics, "sensors")
-    ctx.record("moment", time.monotonic())
+    now = time.monotonic()
+    for name, value in (("gpu", gpu.get("temperature_c")), ("cpu", cpu.get("temperature_c")),
+                        ("vrm", sensors.get("vrm_temperature_c"))):
+        if isinstance(value, (int, float)):  # with its own moment: a missing reading leaves a gap, not a shift
+            ctx.history.setdefault(f"trace:{name}", deque(maxlen=HISTORY_SAMPLES)).append((now, float(value)))
     ctx.record("gpu_clock", gpu.get("frequency_mhz"))
     ctx.record("gpu_temp", gpu.get("temperature_c"))
     ctx.record("gpu_power", power.get("value_w") if power.get("value_w") is not None else gpu.get("power_w"))

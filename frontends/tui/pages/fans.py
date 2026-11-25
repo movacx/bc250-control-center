@@ -364,7 +364,7 @@ class FansPage(Page):
                 return
             question = f"{tr('Apply profile')}: {tr(name)}"
             if dirty:
-                question += f"\n{tr('The changes to this fan were not applied.')}"
+                question += f"\n{tr('Applying this profile discards the changes to this fan you have not applied.')}"
             if not ui_.confirm(question):
                 return
             if self._run(ctx, ui_, tr("Apply profile"), lambda: self._outcome(actions.apply_profile(name, row["pwm"]))):
@@ -603,7 +603,7 @@ class FansPage(Page):
 
                 blocks.append(Choice(f"#{index + 1} {tr('Follows')}", cycle_source,
                                      f"< {tr(dict(view.SOURCE_LABELS)[member['source']])} >  "
-                                     + " ".join(f"{t}/{s}" for t, s in member["points"]), adjust=cycle_source))
+                                     + " · ".join(f"{t} °C → {s} %" for t, s in member["points"]), adjust=cycle_source))
         if mode != "firmware":
             shown = bool(mine.get("advanced"))
             blocks.append(Choice(f"{'-' if shown else '+'} {tr('Advanced')}",
@@ -726,11 +726,13 @@ class FansPage(Page):
             if value is not None:
                 put(value)
 
+        engine_low, engine_high = min(20, points[0][0]), max(110, points[-1][0])
+
         def nudge(direction: int) -> None:
             """One step, never past its neighbours: a point keeps its place in the curve."""
             if r == 0:
-                low = points[c - 1][0] + 1 if c else 20
-                high = points[c + 1][0] - 1 if c + 1 < len(points) else 110
+                low = points[c - 1][0] + 1 if c else engine_low
+                high = points[c + 1][0] - 1 if c + 1 < len(points) else engine_high
                 put(max(low, min(high, points[c][0] + direction)))
             else:
                 put(max(0, min(100, points[c][1] + direction)))

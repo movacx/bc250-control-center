@@ -172,7 +172,7 @@ class ComputeUnitsPage(Page):
         if tab == "registers":
             return [Panel(tr("Register diagnostics"), [
                 Grid(["SE/SH", "SPI", "CC", "driver", tr("Target")], [
-                    [str(row.get("name")), str(row.get("spi")), str(row.get("cc")), f"0x{int(row.get('driver_mask', 0)):02x}",
+                    [str(row.get("name")), str(row.get("spi") or "--"), str(row.get("cc") or "--"), f"0x{int(row.get('driver_mask', 0)):02x}",
                      f"0x{masks[index]:02x}"] for index, row in enumerate(rows)]),
                 Field(tr("Source"), str(data.get("source") or "--")),
                 Choice(tr("Raw status") + " ›", lambda ui_: ui_.show_text(tr("Raw status"), str(data.get("raw") or "--")))])]

@@ -35,7 +35,7 @@ def test_every_sidebar_page_builds_on_every_tab_without_a_service_error():
 def test_sidebar_covers_the_desktop_sections():
     assert set(build_pages()) == {
         "dashboard", "cpu", "gpu", "extras", "cu", "performance", "fans", "processes", "black_box",
-        "firmware", "remote", "settings", "support", "about",
+        "firmware", "remote", "settings", "report", "support", "about",
     }
 
 

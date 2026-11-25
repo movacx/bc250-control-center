@@ -6591,5 +6591,7 @@
   "Save, import or export": "Lagre, importer eller eksporter",
   "Tick a sensor in the list to draw it here.": "Merk en sensor i listen for å tegne den her.",
   "{count} samples in {time}": "{count} målinger på {time}",
-  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Sensorene har ikke svart på {seconds} s: verdiene på skjermen er gamle."
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Sensorene har ikke svart på {seconds} s: verdiene på skjermen er gamle.",
+  "Applying this profile discards the changes to this fan you have not applied.": "Når profilen brukes, forkastes endringer på viften som ikke er tatt i bruk.",
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Filene Linux holder i minnet frigis og leses fra disken igjen ved behov."
 }

@@ -191,14 +191,15 @@ class SettingsPage(Page):
         rows = [self._switch(ctx, "Alerts", "alertas_activas", bool(config.get("alertas_activas")))]
         for key, label, low, high in ALERT_FIELDS:
             def edit(ui_, key=key, label=label, low=low, high=high):
-                value = ui_.ask_int(tr(label), low, high, int(config.get(key) or low))
+                value = ui_.ask_int(tr(label) + ("" if key.endswith("percent") else " (°C)"), low, high, int(config.get(key) or low))
                 if value is not None:
                     self._save(ctx, ui_, {key: value})
 
             def step(ui_, direction, key=key, low=low, high=high):
                 self._save(ctx, ui_, {key: max(low, min(high, int(config.get(key) or low) + direction))})
 
-            rows.append(Choice(tr(label), edit, f"< {config.get(key, '--')} >", adjust=step, id=key))
+            unit = "%" if key.endswith("percent") else "°C"
+            rows.append(Choice(tr(label), edit, f"< {config[key]} {unit} >" if key in config else "—", adjust=step, id=key))
         return [Panel(tr("Notifications"), rows)]
 
     def _backup(self, ctx, data, config, mine, ui):
@@ -247,4 +248,4 @@ class SettingsPage(Page):
                 *[Choice(str(item.get("id") or item.get("snapshot_id") or item) if isinstance(item, dict) else str(item),
                          lambda ui_, i=item: plan(ui_, i), str(item.get("created_at") or item.get("label") or "") if isinstance(item, dict) else "")
                   for item in shots],
-                *([] if shots else [Note(tr("(empty)"), "dim")])])]
+                *([] if shots else [Note(tr("No recovery snapshots are stored." if "snapshots" in state else "Not checked yet"), "dim")])])]

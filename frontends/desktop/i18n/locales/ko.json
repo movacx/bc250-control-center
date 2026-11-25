@@ -6591,5 +6591,7 @@
   "Save, import or export": "저장, 가져오기 또는 내보내기",
   "Tick a sensor in the list to draw it here.": "목록에서 센서를 선택하면 여기에 그려집니다.",
   "{count} samples in {time}": "{time} 동안 샘플 {count}개",
-  "The sensors have not answered for {seconds} s: the readings on screen are old.": "센서가 {seconds}초 동안 응답하지 않습니다. 화면의 값은 이전 값입니다."
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "센서가 {seconds}초 동안 응답하지 않습니다. 화면의 값은 이전 값입니다.",
+  "Applying this profile discards the changes to this fan you have not applied.": "이 프로필을 적용하면 이 팬의 적용하지 않은 변경 사항이 버려집니다.",
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Linux가 메모리에 보관한 파일을 비우고 필요할 때 디스크에서 다시 읽습니다."
 }

@@ -9,7 +9,7 @@ from frontends.desktop.core.diagnosis_groups import (
     size_kb,
 )
 
-from ..content import Choice, Field, Gap, Grid, Heading, Note
+from ..content import Choice, Field, Gap, Grid, Heading, Note, Panel
 from ..i18n import tr
 from .base import Page, guarded, switch
 
@@ -85,7 +85,8 @@ class BlackBoxPage(Page):
             ui_.refresh()
 
         if sections is None:
-            return [Choice(tr("View full diagnosis"), load)]
+            return [Panel(tr("Full diagnosis"), [Choice(tr("View full diagnosis"), load)],
+                          subtitle=tr("Not checked yet"))]
         chosen = [(title, body) for title, body in sections if tab == "all" or section_group(title) == tab]
         out = [Heading(f"{tr(dict(TABS).get(tab, tab))} · {len(chosen)}"),
                Choice(tr("Refresh"), load),

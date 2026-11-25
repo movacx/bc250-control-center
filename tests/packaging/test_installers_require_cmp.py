@@ -66,7 +66,7 @@ def _fake_package_manager(tmp_path: Path, *, installs: bool) -> tuple[str, Path]
             (Path(path) / tool.name).symlink_to(tool)
     log = tmp_path / "calls.log"
     cmp = shutil.which("cmp")
-    (Path(path) / "sudo").write_text('#!/bin/sh\nexec "$@"\n', encoding="utf-8")
+    (Path(path) / "sudo").write_text('#!/bin/sh\n[ "$1" != -n ] || shift\nexec "$@"\n', encoding="utf-8")
     (Path(path) / "pacman").write_text(
         "#!/bin/sh\n"
         f'echo "pacman $*" >> "{log}"\n'

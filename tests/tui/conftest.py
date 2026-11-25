@@ -53,3 +53,24 @@ def never_the_real_sudo(monkeypatch):
     monkeypatch.setattr(console, "SUDO", terminal)
     yield terminal
     terminal.stop()
+
+
+@pytest.fixture(autouse=True)
+def never_a_real_report(monkeypatch):
+    """No test may send a report, nor read this machine's logs for one."""
+    from bc250cc.application.system.feedback import reports as form
+
+    def refuse(*_args, **_kwargs):
+        raise form.ReportError("No test sends a report.")
+
+    monkeypatch.setattr(form, "submit", refuse)
+    monkeypatch.setattr(form, "earlier_report", lambda *a, **k: None)
+    monkeypatch.setattr("frontends.desktop.core.report_facts.read_report_facts", lambda attachments=True: {})
+
+
+@pytest.fixture(autouse=True)
+def a_failure_asks_nothing(monkeypatch):
+    """A failed action's question waits for a key no scripted test sends; its own tests put it back."""
+    from frontends.tui.screen import Screen
+
+    monkeypatch.setattr(Screen, "_asks_to_report", lambda *_args: False)

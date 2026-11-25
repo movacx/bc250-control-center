@@ -11,8 +11,10 @@ from bc250cc.application.system.feedback import reports as form
 from .diagnostic_history import history_entries
 
 
-def read_report_facts() -> dict[str, object]:
+def read_report_facts(attachments: bool = True) -> dict[str, object]:
     """Everything the app knows about this system, read off the UI thread.
+
+    Without ``attachments`` nothing here can ask for a password.
 
     Every read fails to a blank rather than raising: a system without one of
     the files still sends the rest.
@@ -57,7 +59,7 @@ def read_report_facts() -> dict[str, object]:
         "history": history_entries(),
         # The diagnosis, one entry per section: the unfiltered kernel log,
         # service journals, configuration, storage, the last workflow logs.
-        "attachments": _attachments_or_none(collect_attachments),
+        "attachments": _attachments_or_none(collect_attachments) if attachments else [],
         "version": str(facts.get("Control Center", "")),
         "install": form.suggested_install(str(facts.get("Installation", ""))),
         "distribution": form.suggested_distribution(release),

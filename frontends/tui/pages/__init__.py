@@ -15,6 +15,7 @@ from .gpu import GpuPage
 from .performance import PerformancePage
 from .processes import ProcessesPage
 from .remote import RemoteAccessPage
+from .report import ReportPage
 from .settings import SettingsPage
 from .support import SupportPage
 
@@ -22,7 +23,7 @@ from .support import SupportPage
 def build_pages() -> dict[str, Page]:
     pages = [
         DashboardPage(), CpuPage(), GpuPage(), AdditionalSettingsPage(), ComputeUnitsPage(),
-        PerformancePage(), FansPage(), ProcessesPage(), BlackBoxPage(), FirmwarePage(), RemoteAccessPage(), SupportPage(), SettingsPage(),
+        PerformancePage(), FansPage(), ProcessesPage(), BlackBoxPage(), FirmwarePage(), RemoteAccessPage(), ReportPage(), SupportPage(), SettingsPage(),
         AboutPage(),
     ]
     return {page.key: page for page in pages}

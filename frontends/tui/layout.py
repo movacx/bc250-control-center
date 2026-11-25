@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field, replace
 
 from .content import (
@@ -154,14 +155,14 @@ def _runs(cells: list[tuple[str, str]]) -> list[tuple[str, str]]:
 def chart_rows(chart: Chart, width: int, glyphs: Glyphs) -> list[list[tuple[str, str]]]:
     """``chart`` as rows of spans: the plot, its value axis on the right, the time axis below."""
     braille = glyphs.rule == "─"
-    latest = [values[-1] for _name, values, _tone in chart.series if values]
+    latest = [values[-1] for _name, values, _tone in chart.series if values and not math.isnan(values[-1])]
     mark = chart.mark or chart.show
     labels = [mark(value) for value in (chart.low, chart.high, *chart.ticks)]
     # The newest values are written on the axis too: room for the widest the scale can hold.
     labels += [] if chart.heatmap else [chart.show(value) for value in (*latest[:MARKED], chart.high)]
     axis = max(cell_width(label) for label in labels) + 3
     plot = max(10, width - axis)
-    end = chart.times[-1] if chart.times else 0.0
+    end = chart.end or (chart.times[-1] if chart.times else 0.0)
 
     def column(moment: float, scale: int) -> int:  # where a sample of that moment lands, in dots or cells
         return round((moment - (end - chart.window)) / chart.window * (plot * scale - 1))
@@ -203,6 +204,9 @@ def chart_rows(chart: Chart, width: int, glyphs: Glyphs) -> list[list[tuple[str,
         for number_, (_name, values, tone) in enumerate(chart.series):
             previous = None  # (dot column, dot row, moment)
             for moment, value in zip(chart.times[-len(values):], values):
+                if math.isnan(value):  # no reading then: the line stops and starts again
+                    previous = None
+                    continue
                 x, y = column(moment, dots_x), y_of(value)
                 if x < 0:
                     continue
@@ -221,7 +225,7 @@ def chart_rows(chart: Chart, width: int, glyphs: Glyphs) -> list[list[tuple[str,
                 dot(x, y, tone)
                 bottoms[x] = max(bottoms.get(x, -1), y)
                 previous = (x, y, moment)
-            if previous is not None and number_ < MARKED:
+            if previous is not None and number_ < MARKED and not math.isnan(values[-1]):
                 last_rows.setdefault(previous[1] // dots_y, (values[-1], tone))
         area = len(chart.series) == 1 and braille
         average_row = y_of(chart.average) // dots_y if chart.average is not None else None

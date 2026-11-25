@@ -15,7 +15,7 @@ NAMES = {
 
 # Vim letters and WASD-free aliases, so a keyboard-less pad mapped to arrows
 # and a plain SSH session both work.
-ALIASES = {"k": "up", "j": "down", "h": "left", "l": "right", "b": "esc"}
+ALIASES = {"k": "up", "j": "down", "h": "left", "l": "right"}
 
 
 def name_of(code: int) -> str:

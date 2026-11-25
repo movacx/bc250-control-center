@@ -124,6 +124,8 @@ def main(argv: list[str] | None = None) -> int:
             screen._go(screen.order.index(first))
         pages["performance"].recorder(ctx)  # its charts have a past from the first visit
         poller.start()
+        if crashed:
+            screen.open_report("BC250 Control Center · " + tr("Operation failed"), error=crashed[0])
         try:
             screen.loop()
         finally:
@@ -141,8 +143,18 @@ def main(argv: list[str] | None = None) -> int:
     # Let ncurses query the actual TTY instead of stale exported dimensions.
     os.environ.pop("LINES", None)
     os.environ.pop("COLUMNS", None)
-    curses.wrapper(start)
-    return 0
+    crashed: list[Exception] = []
+    while True:  # an interface that falls over comes back once, on the report of why
+        try:
+            curses.wrapper(start)
+            return 0
+        except Exception as error:
+            logging.getLogger(__name__).exception("The interface stopped")
+            if crashed:
+                print(f"{tr('Operation failed')}: {error}", file=sys.stderr)
+                return 1
+            crashed.append(error)
+            poller = Poller(ctx, pages, metrics_interval=float(preferences.read(config)["tui_interval"]))
 
 
 if __name__ == "__main__":

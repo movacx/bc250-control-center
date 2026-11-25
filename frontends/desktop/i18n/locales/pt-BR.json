@@ -6591,5 +6591,7 @@
   "Save, import or export": "Salvar, importar ou exportar",
   "Tick a sensor in the list to draw it here.": "Marque um sensor na lista para desenhá-lo aqui.",
   "{count} samples in {time}": "{count} amostras em {time}",
-  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Os sensores não respondem há {seconds} s: as leituras na tela são antigas."
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Os sensores não respondem há {seconds} s: as leituras na tela são antigas.",
+  "Applying this profile discards the changes to this fan you have not applied.": "Aplicar este perfil descarta as alterações deste ventilador que você não aplicou.",
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Os arquivos que o Linux mantém na memória são descartados e lidos do disco de novo quando necessário."
 }

@@ -84,7 +84,7 @@ def nothing_real(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))  # "save to a file" answers with a path under the home folder
     for name in ("install_update", "check_in_background"):
         monkeypatch.setattr(about_page, name, lambda *a, **k: None)
-    for name in ("report", "clear_history", "diagnostic_report"):
+    for name in ("clear_history", "diagnostic_report"):
         monkeypatch.setattr(support_page, name, lambda *a, **k: "")
     monkeypatch.setattr("bc250cc.application.system.diagnostics.system_rows", lambda: [("Version", "1")])
     monkeypatch.setattr("bc250cc.application.system.updates.fetch_latest_release", lambda *a, **k: SimpleNamespace(

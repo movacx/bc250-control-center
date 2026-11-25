@@ -219,6 +219,48 @@ for line in failed:
 PY
 }
 
+# Root for the terminal profile's optional steps: sudo, or doas where that is what there is.
+# It never stops the installation: without it the interface still reads everything.
+TUI_ROOT=()
+tui_can_elevate() {
+  [[ "${EUID:-$(id -u)}" -ne 0 ]] || return 0
+  if command -v sudo >/dev/null 2>&1; then
+    TUI_ROOT=(sudo)
+    if [[ ! -t 0 ]]; then sudo -n true 2>/dev/null; else sudo -v; fi
+  elif command -v doas >/dev/null 2>&1; then
+    TUI_ROOT=(doas)
+    if [[ ! -t 0 ]]; then doas -n true 2>/dev/null; else doas true; fi
+  else
+    return 1
+  fi
+}
+
+# A path a distribution package installed is that package's to change.
+tui_refuse_package_files() {
+  local path owner
+  for path in "$BIN_DIR/bc250-control-center-tui" "$APP_DIR/frontends/tui/app.py"; do
+    [[ -e "$path" ]] || continue
+    owner=""
+    if { command -v pacman >/dev/null 2>&1 && owner="$(LC_ALL=C pacman -Qoq -- "$path" 2>/dev/null)"; } ||
+       { command -v rpm >/dev/null 2>&1 && owner="$(LC_ALL=C rpm -qf --qf '%{NAME}\n' -- "$path" 2>/dev/null)"; } ||
+       { command -v dpkg-query >/dev/null 2>&1 && owner="$(LC_ALL=C dpkg-query -S -- "$path" 2>/dev/null)"; } ||
+       { command -v xbps-query >/dev/null 2>&1 && owner="$(xbps-query -o "$path" 2>/dev/null)"; } ||
+       { command -v apk >/dev/null 2>&1 && owner="$(apk info --who-owns "$path" 2>/dev/null)"; }; then
+      if [[ -n "$owner" ]]; then
+        echo "Error: $path belongs to the system package $owner. Upgrade that package, or choose another PREFIX." >&2
+        return 6
+      fi
+    fi
+  done
+}
+if [[ "$INSTALL_PROFILE" == "tui" ]]; then
+  if [[ "$PREFIX" != /* || "$PREFIX" == / ]]; then
+    echo "Error: PREFIX must be an absolute directory other than /." >&2
+    exit 64
+  fi
+  tui_refuse_package_files
+fi
+
 missing_python_deps=0
 missing_python_deps_command=()
 missing_python_deps_command_text=""
@@ -229,7 +271,7 @@ python_gui_deps_missing=0
 # carry, and its absence read as "does not match this build". It is installed
 # here like the GUI dependencies below; the installer stops only when that
 # is not possible.
-if [[ "${BC250_SKIP_PRIVILEGED_HELPER:-0}" != "1" ]] && ! command -v cmp >/dev/null 2>&1; then
+if [[ "${BC250_SKIP_PRIVILEGED_HELPER:-0}" != "1" ]] && ! command -v cmp >/dev/null 2>&1 && [[ "${BC250_TUI_CHECK:-0}" != "1" ]]; then
   diffutils_command=()
   if [[ -e /run/ostree-booted ]]; then
     : # Image-based systems ship diffutils; layering it would need a reboot.
@@ -260,7 +302,11 @@ if [[ "${BC250_SKIP_PRIVILEGED_HELPER:-0}" != "1" ]] && ! command -v cmp >/dev/n
       restore_steamos_install_root 0
     fi
   fi
-  if ! command -v cmp >/dev/null 2>&1; then
+  if ! command -v cmp >/dev/null 2>&1 && [[ "$INSTALL_PROFILE" == "tui" ]]; then
+    # The interface itself does not need it; only the protected helpers do.
+    echo "Warning: cmp (package diffutils) is missing: the interface is installed without its protected helpers." >&2
+    BC250_SKIP_PRIVILEGED_HELPER=1
+  elif ! command -v cmp >/dev/null 2>&1; then
     echo "Error: the cmp command (package diffutils) is required to verify the installed files." >&2
     echo "Install diffutils with your package manager, then run this installer again." >&2
     exit 2
@@ -280,7 +326,7 @@ elif ! check_python_gui_runtime; then
 fi
 
 # In-place source updates require Git even when the GUI imports already work.
-if ! command -v git >/dev/null 2>&1 || { [[ "$INSTALL_PROFILE" == "desktop" ]] && ! command -v openssl >/dev/null 2>&1; }; then
+if [[ "$INSTALL_PROFILE" == "desktop" ]] && { ! command -v git >/dev/null 2>&1 || ! command -v openssl >/dev/null 2>&1; }; then
   python_gui_deps_missing=1
 fi
 
@@ -289,8 +335,7 @@ fi
 # PyQt6 while still lacking jq or the pkexec authentication frontend.
 if command -v apt-get >/dev/null 2>&1 && {
   [[ "$python_gui_deps_missing" -eq 1 ]] ||
-  ! command -v jq >/dev/null 2>&1 ||
-  { [[ "$INSTALL_PROFILE" == "desktop" ]] && ! command -v pkexec >/dev/null 2>&1; }
+  { [[ "$INSTALL_PROFILE" == "desktop" ]] && { ! command -v jq >/dev/null 2>&1 || ! command -v pkexec >/dev/null 2>&1; }; }
 }; then
   debian_polkit_package="pkexec"
   if command -v apt-cache >/dev/null 2>&1 && ! apt-cache show pkexec >/dev/null 2>&1 && apt-cache show policykit-1 >/dev/null 2>&1; then
@@ -308,6 +353,9 @@ elif [[ "$python_gui_deps_missing" -eq 1 ]]; then
     missing_python_deps_command=(rpm-ostree install --idempotent python3-psutil git)
     gui_packages=(python3-pyqt6 qt6-qtsvg python3-pip openssl ca-certificates)
     missing_python_deps_reboot_notice=1
+  elif [[ "$INSTALL_PROFILE" == "tui" ]] && command -v transactional-update >/dev/null 2>&1; then
+    missing_python_deps_command=(transactional-update --non-interactive pkg install python3-psutil python3-curses git)
+    missing_python_deps_reboot_notice=1
   elif command -v dnf >/dev/null 2>&1; then
     missing_python_deps_command=(dnf install -y python3-psutil git)
     gui_packages=(python3-pyqt6 qt6-qtsvg python3-pip openssl ca-certificates)
@@ -317,6 +365,8 @@ elif [[ "$python_gui_deps_missing" -eq 1 ]]; then
   elif command -v zypper >/dev/null 2>&1; then
     missing_python_deps_command=(zypper --non-interactive install python3-psutil python3-curses git)
     gui_packages=(python3-PyQt6 python3-pip openssl ca-certificates)
+  elif [[ "$INSTALL_PROFILE" == "tui" ]] && command -v xbps-install >/dev/null 2>&1; then
+    missing_python_deps_command=(xbps-install -Sy python3 python3-psutil git)
   elif command -v emerge >/dev/null 2>&1; then
     missing_python_deps_command=(emerge --ask=n --getbinpkg dev-lang/python dev-python/psutil dev-vcs/git)
     gui_packages=(dev-python/pyqt6 dev-qt/qtsvg dev-python/pip dev-libs/openssl app-misc/ca-certificates)
@@ -338,12 +388,31 @@ if [[ "$missing_python_deps" -eq 1 ]]; then
   fi
 fi
 
+if [[ "$INSTALL_PROFILE" == "tui" && "$missing_python_deps" -eq 1 && ${#missing_python_deps_command[@]} -eq 0 ]]; then
+  echo "This system's package manager is not known to the installer. Install Python 3.11+ with curses and psutil" >&2
+  echo "(Gentoo: USE=ncurses; Batocera ships both), then run it again. Nothing is installed with pip." >&2
+fi
+if [[ "${BC250_TUI_CHECK:-0}" == "1" ]]; then
+  if [[ "$missing_python_deps" -eq 1 ]]; then echo "Runtime: incomplete (Python curses and psutil)."; else echo "Runtime: ready."; fi
+  echo "Plan: application in $APP_DIR, launchers in $BIN_DIR, protected helpers in /usr/libexec/bc250-control-center when root is available."
+  echo "Nothing was changed."
+  exit 0
+fi
+
 if [[ ${#missing_python_deps_command[@]} -gt 0 && "${BC250_SKIP_DEPENDENCY_INSTALL:-0}" != "1" ]]; then
+  if [[ "$INSTALL_PROFILE" == "tui" ]] && ! tui_can_elevate; then
+    echo "[ERROR] Administrator access is needed to install those packages (no sudo or doas, or no password was given)." >&2
+    echo "[ERROR] Run the command above as root, then this installer again. No installed code was replaced." >&2
+    exit 2
+  fi
   prepare_steamos_pacman_install_local
   echo "Installing missing runtime dependencies..."
   if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
     [[ "${missing_python_deps_command[0]}" != "apt-get" ]] || apt-get update
     "${missing_python_deps_command[@]}"
+  elif [[ "$INSTALL_PROFILE" == "tui" ]]; then
+    [[ "${missing_python_deps_command[0]}" != "apt-get" ]] || "${TUI_ROOT[@]}" apt-get update
+    "${TUI_ROOT[@]}" "${missing_python_deps_command[@]}"
   elif command -v sudo >/dev/null 2>&1; then
     [[ "${missing_python_deps_command[0]}" != "apt-get" ]] || sudo apt-get update
     sudo "${missing_python_deps_command[@]}"
@@ -390,6 +459,10 @@ APP_STAGE="$(mktemp -d "${APP_DIR}.update.XXXXXX")"
 APP_BACKUP="${APP_DIR}.tree.previous.$$"
 VERSION_BACKUP="${APP_DIR}.VERSION.previous.$$"
 APP_SWAP_COMPLETE=0
+TUI_FILES_READY=0
+TUI_FILES=("$BIN_DIR/bc250-control-center" "$BIN_DIR/bc250-control-center-cli"
+  "$BIN_DIR/bc250-control-center-tui" "$BIN_DIR/bc250-control-centerd"
+  "$DOC_DIR/README.md" "$DOC_DIR/LICENSE" "$DOC_DIR/THIRD_PARTY_NOTICES.md")
 APP_HAD_VERSION=0
 APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations requirements-web.txt BUILD_REVISION BUILD_TYPE)
 LEGACY_COMPONENTS=(mvc)
@@ -409,8 +482,16 @@ cleanup_application_swap() {
       mv -- "$VERSION_BACKUP" "$APP_DIR/VERSION"
     fi
   fi
+  if [[ "$status" -ne 0 && "$TUI_FILES_READY" -eq 1 ]]; then
+    for index in "${!TUI_FILES[@]}"; do
+      rm -f -- "${TUI_FILES[$index]}"
+      if [[ -e "$APP_BACKUP/files/$index" ]]; then
+        cp -a -- "$APP_BACKUP/files/$index" "${TUI_FILES[$index]}"
+      fi
+    done
+  fi
   rm -rf -- "$APP_STAGE"
-  if [[ "$status" -eq 0 ]]; then
+  if [[ "$status" -eq 0 || "$INSTALL_PROFILE" == "tui" ]]; then
     rm -rf -- "$APP_BACKUP"
     rm -f -- "$VERSION_BACKUP"
   fi
@@ -421,6 +502,17 @@ cleanup_application_swap() {
   fi
 }
 trap cleanup_application_swap EXIT
+if [[ "$INSTALL_PROFILE" == "tui" ]]; then  # an interrupted update puts the launchers back too
+  trap 'exit 130' INT
+  trap 'exit 143' TERM HUP
+  install -d -m700 "$APP_BACKUP/files"
+  for index in "${!TUI_FILES[@]}"; do
+    if [[ -e "${TUI_FILES[$index]}" ]]; then
+      cp -a -- "${TUI_FILES[$index]}" "$APP_BACKUP/files/$index"
+    fi
+  done
+  TUI_FILES_READY=1
+fi
 for component in src frontends privileged packaging assets; do
   cp -a "$ROOT_DIR/$component" "$APP_STAGE/"
 done
@@ -571,6 +663,21 @@ install_privileged_pwm_components() {
     echo "[WARN] sudo pacman -U dist/bc250-control-center-*-any.pkg.tar.zst), or remove it first (sudo pacman -R $package_name)." >&2
   fi
 
+  if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+    if [[ "$INSTALL_PROFILE" == "tui" ]] && ! tui_can_elevate; then
+      echo "Warning: the protected helpers were not installed: there is no sudo or doas, or no password was given." >&2
+      echo "         The interface reads everything; to change hardware settings, run this installer again with" >&2
+      echo "         administrator access. A SteamOS account without a password needs one first: passwd" >&2
+      return 0
+    fi
+    if [[ "$INSTALL_PROFILE" != "tui" ]] && ! command -v sudo >/dev/null 2>&1; then
+      echo "Warning: sudo is unavailable; the hardened PWM helper and Polkit action were not installed." >&2
+      return 0
+    fi
+    elevate=(sudo)
+    [[ "$INSTALL_PROFILE" != "tui" ]] || elevate=("${TUI_ROOT[@]}")
+  fi
+
   if is_steamos_install_local; then
     echo "SteamOS detected: temporarily opening the root filesystem for Control Center's privileged helpers..."
     if declare -F bc250_steamos_unlock_root >/dev/null 2>&1; then
@@ -579,14 +686,6 @@ install_privileged_pwm_components() {
       echo "Error: SteamOS root-state guard is unavailable; refusing privileged helper installation." >&2
       return 70
     fi
-  fi
-
-  if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-    if ! command -v sudo >/dev/null 2>&1; then
-      echo "Warning: sudo is unavailable; the hardened PWM helper and Polkit action were not installed." >&2
-      return 0
-    fi
-    elevate=(sudo)
   fi
 
   "${elevate[@]}" bash "$ROOT_DIR/packaging/common/bc250-package-maintenance" repair-permissions

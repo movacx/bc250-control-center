@@ -21,11 +21,11 @@ from .console import Console
 from .content import cell_width, clip, heat_tone, load_tone, number, pad, wrap
 from .i18n import tr, tr_format
 from .keys import ALIASES, name_of
-from .layout import Glyphs, Layout, build_page
+from .layout import Glyphs, Layout, _acts, build_page
 from .palette import PaletteSupport
 from .pointer import PointerSupport, character_at
 from .runtime import Context, Poller, describe_error
-from .support import available_version, report
+from .support import available_version
 
 MIN_WIDTH, MIN_HEIGHT = 60, 14
 COLUMN_REACH = 32  # cells: further away than this is another column of boxes
@@ -35,7 +35,7 @@ TONE_PAIRS = {"ok": 1, "warn": 2, "bad": 3, "accent": 4}
 #: The desktop sidebar: its groups, in its order.
 SIDEBAR = (("", ("dashboard",)), ("Hardware", ("cpu", "cu", "gpu", "extras")),
            ("Monitoring", ("performance", "fans", "processes")), ("System", ("black_box", "remote", "firmware")),
-           ("Help", ("support", "about", "settings")))
+           ("Help", ("report", "support", "about", "settings")))
 SIDEBAR_ORDER = tuple(key for _group, keys in SIDEBAR for key in keys)
 SHORTCUTS = dict(zip("1234567890.,", ("dashboard", "cpu", "cu", "gpu", "extras", "performance", "fans",
                                     "processes", "black_box", "firmware", "remote", "settings")))
@@ -298,9 +298,12 @@ class Screen(PaletteSupport, PointerSupport):
             try:
                 blocks = self.page.build(self.ctx, data, tab, self)
             except Exception as error:
-                from .content import Note
+                from .content import Choice, Note
 
-                blocks = [Note(describe_error(error), "bad")]
+                failed = error  # the name is gone once this block ends
+                blocks = [Note(describe_error(error), "bad"),
+                          Choice(tr("Report this problem"), lambda ui_: self.open_report(
+                              tr(self.page.title), error=failed, page=self.page_key))]
         explained = any(choice.info for choice in self._page_choices(blocks))
         (self._explained.add if explained else self._explained.discard)(self.page_key)
         self._layout = build_page(blocks, content_width, self.glyphs)
@@ -363,6 +366,8 @@ class Screen(PaletteSupport, PointerSupport):
                   f"CPU {number(cpu.get('frequency_mhz'), 'MHz')} {number(cpu.get('temperature_c'), '°C')} ")
         if self._live_bar():
             status = ""  # the bar along the bottom says it
+        elif self._stalled():
+            status = "-- "
         title = " BC250 Control Center"
         where = tr(self.page.title)
         version = available_version(self.ctx)
@@ -398,6 +403,10 @@ class Screen(PaletteSupport, PointerSupport):
         quiet = time.monotonic() - at if at else 0.0
         return int(quiet) if quiet > STALLED_AFTER + float(self.prefs["tui_interval"]) else 0
 
+    def _stalled_text(self) -> str:
+        return tr_format("The sensors have not answered for {seconds} s: the readings on screen are old.",
+                         seconds=self._stalled())
+
     def _draw_live_bar(self, height: int, width: int) -> None:
         """What the board is doing now, always in view: clocks, heat, load, fan, memory and power."""
         metrics = self.ctx.metrics or {}
@@ -418,8 +427,7 @@ class Screen(PaletteSupport, PointerSupport):
         self.put(height - 3, 0, self.glyphs.h * width, self.attrs["edge"])
         quiet = self._stalled()
         if quiet:
-            self.put(y, x, clip(tr_format("The sensors have not answered for {seconds} s: the readings on screen are old.",
-                                          seconds=quiet), width - 4), self.attrs["warn"])
+            self.put(y, x, clip(self._stalled_text(), width - 4), self.attrs["warn"])
             return
         for name, _value, text, tone in items:
             if not text or text == "--" or x + cell_width(name) + cell_width(text) + 4 > width:
@@ -592,7 +600,7 @@ class Screen(PaletteSupport, PointerSupport):
         if choice is not None and choice.adjust:
             hints.append(("←→", "Adjust"))
         if choice is not None and (choice.handler or choice.pad):
-            hints.append(("Enter", "Select" if choice.pad else "Open"))
+            hints.append(("Enter", "Select" if choice.pad or _acts(choice) else "Open"))
         if choice is not None and choice.pad is not None and choice.pad.nudge is not None:
             hints.append(("+ -", "Adjust"))
         if self._tabs():
@@ -609,6 +617,10 @@ class Screen(PaletteSupport, PointerSupport):
     def _draw_footer(self, height: int, width: int) -> None:
         if self._live_bar():
             self._draw_live_bar(height, width)
+        elif self._stalled() and not self.toast:
+            self.put(height - 1, 1, pad(clip(self._stalled_text(), width - 2), width - 2), self.attrs["warn"])
+            self._draw_help(height, width)
+            return
         if self.toast and self.toast[2] > time.monotonic():  # over the keys for its few seconds
             self.put(height - 1, 1, pad(self.toast[0], width - 2), self.attrs.get(self.toast[1], 0) | curses.A_BOLD)
         else:
@@ -928,6 +940,9 @@ class Screen(PaletteSupport, PointerSupport):
             raise
         except Exception as error:
             self.notify(describe_error(error), "bad")
+            if not isinstance(error, (OperationCancelled, ActionNeeded)) and self.page_key != "report" \
+                    and self._asks_to_report(choice.label.strip(" ›") or tr(self.page.title), error):
+                self.open_report(choice.label.strip(" ›") or tr(self.page.title), error=error, page=self.page_key)
         self._layout_key = None
 
     def _content_key(self, key: str) -> None:
@@ -1025,7 +1040,7 @@ class Screen(PaletteSupport, PointerSupport):
         rows = [
             ("↑ ↓  j k", tr("Move")), ("→ Enter l", tr("Open")), ("← Esc h", tr("Back")),
             ("Tab / S-Tab", tr("Move")), ("F6", tr("Switch pane")),
-            (":", tr("Commands")), ("b", tr("Menu")), ("a", tr("Activity")), ("i", tr("Details")), ("e", tr("Edit")), ("s / u", f"{tr('Apply')} / {tr('Revert')}"),
+            (":", tr("Commands")), ("b", tr("Sidebar")), ("a", tr("Activity")), ("i", tr("Details")), ("e", tr("Edit")), ("s / u", f"{tr('Apply')} / {tr('Revert')}"),
             ("F2", tr("Go to section")), ("F3", tr("Views")), ("[ ]", tr("Previous / next tab")), ("1-9 0 . ,", tr("Go to section")), ("+ -", tr("Adjust")), ("U", tr("Update available")),
             ("/", tr("Search")), ("PgUp PgDn", tr("Scroll")), ("r", tr("Refresh")), ("?", tr("Help")), ("q", tr("Quit")),
         ]
@@ -1287,14 +1302,44 @@ class Screen(PaletteSupport, PointerSupport):
             self.console_hidden = False
             self._layout_key = None
             self._repaint()
-        if closed_with == "report":  # the failed workflow's own log goes with the report
+        error = console.result if isinstance(console.result, BaseException) else None
+        # Its own report could not be sent: asking to report that would go round in circles.
+        ask = closed_with == "close" and job.page != "report" and console.reportable and outcome_of(console) == "failed"
+        if closed_with == "report" or (ask and self._asks_to_report(label, error)):  # its own log goes with the report
             log = "\n".join("".join(run[0] for run in line).rstrip() for line in console.view(SCROLLBACK_ALL)[0])
-            report(self, title=label, log=log, workflow_details={
+            self.open_report(label, log=log, error=error, page=job.page, details={
                 "action": label, "page": job.page, "exit_status": console.exit_status,
                 "duration_seconds": round(console.finished_at - console.started, 2),
                 "outcome": "timeout" if console.exit_status == 124 else "failed",
             })
         return console.succeeded, console.result
+
+    def _asks_to_report(self, label: str, error: BaseException | None) -> bool:
+        """The error in plain words, then whether to report it."""
+        text = describe_error(error) if error is not None else tr("The workflow did not finish successfully.")
+        while True:
+            self.draw()
+            width = min(self.size()[1] - 4, 76)
+            lines = [line for part in (label, "", text, "", tr("Report this problem") + "?")
+                     for line in (wrap(part, max(10, width - 4)) or [""])]
+            lines = lines[:max(3, self.size()[0] - 6)] + ["", ""]
+            top, left, box_h, box_w = self._box(tr("Operation failed"), lines, width=width)
+            self._answers(top + box_h - 2, left, box_w, [(tr("Report a problem"), "r", "accent"), (tr("Close"), "esc", "dim")])
+            self._present()
+            key = self._modal_key()
+            if key in ("r", "R", "y", "Y"):
+                return True
+            if key in ("esc", "enter", "q", "n", "N"):
+                return False
+
+    def open_report(self, title: str = "", *, log: str = "", error: BaseException | None = None, page: str = "",
+                    details=None) -> None:
+        """The report section, filled in with a failure."""
+        from .report_form import new_draft
+
+        self.pages["report"].open(new_draft(title=title, log=log, error=error, page=page, details=details))
+        self.goto("report")
+        self._focus("content")
 
     def _console_key(self, console: Console, code: int) -> str:
         """Keys while the console is up; "close" or "report" closes it (only once the job is done)."""

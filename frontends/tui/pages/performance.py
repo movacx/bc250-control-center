@@ -316,17 +316,19 @@ class PerformancePage(Page):
             if not plotted:
                 out.append(Note(tr("Tick a sensor in the list to draw it here."), "dim"))
             cards = []
+            newest = max((entry.trace[-1][0] for entry in plotted), default=0.0)
             each = 7 if layout == "graphs" else 5
             for index, entry in enumerate(plotted):
-                recent = [(moment, value) for moment, value in entry.trace
-                          if moment >= entry.trace[-1][0] - recorder.window]
+                recent = [(moment, value) for moment, value in entry.trace if moment >= newest - recorder.window]
+                if not recent:  # it stopped reading before this window
+                    continue
                 times, values = [moment for moment, _v in recent], [value for _m, value in recent]
                 rate = entry.reading.unit == "B/s"
                 show_value = shower(entry.reading.unit, rate)
                 scale, height = fitted_axis(values, entry.reading.unit, False, rate, each)
                 cards.append(Card(sensor_label(entry.reading), [
                     Chart([(sensor_label(entry.reading), values, TONES[index % 4])], times, scale.minimum,
-                          scale.maximum, height, show_value, window=recorder.window,
+                          scale.maximum, height, show_value, end=newest, window=recorder.window,
                           ticks=scale.ticks, now=tr("Now"),
                           mark=tick_label(scale, entry.reading.unit, rate, show_value))],
                     show_value(values[-1])))

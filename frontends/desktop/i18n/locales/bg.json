@@ -6591,5 +6591,7 @@
   "Save, import or export": "Запазване, внасяне или изнасяне",
   "Tick a sensor in the list to draw it here.": "Отметнете сензор в списъка, за да се начертае тук.",
   "{count} samples in {time}": "{count} отчитания за {time}",
-  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Сензорите не отговарят от {seconds} s: показанията на екрана са стари."
+  "The sensors have not answered for {seconds} s: the readings on screen are old.": "Сензорите не отговарят от {seconds} s: показанията на екрана са стари.",
+  "Applying this profile discards the changes to this fan you have not applied.": "Прилагането на този профил отхвърля неприложените промени по този вентилатор.",
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Файловете, които Linux държи в паметта, се освобождават и при нужда се четат отново от диска."
 }

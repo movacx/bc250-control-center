@@ -236,6 +236,7 @@ class Chart:
     heatmap: bool = False
     window: float = 120.0
     ticks: Sequence[float] = ()  # round values to label and rule across the plot
+    end: float = 0.0  # the moment of the right edge, when it is not the newest sample's
     mark: Callable[[float], str] | None = None  # how a tick reads, when shorter than ``show``
     now: str = "Now"
 
