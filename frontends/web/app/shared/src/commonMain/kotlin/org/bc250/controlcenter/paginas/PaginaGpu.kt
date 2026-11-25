@@ -106,21 +106,10 @@ fun PaginaGpu(aplicacion: Aplicacion) {
         editado = true
     }
     fun aplicar() {
-        val bajo = minimo
-        val alto = maximo
-        tareas.launch {
-            val revision = aplicacion.consultar("gpu.range", mapOf("min" to bajo.toString(), "max" to alto.toString()))
-            if (revision.isEmpty()) {
-                aplicacion.avisar(t("Frequency range"), error = true)
-                return@launch
-            }
-            aplicacion.preguntarYEjecutar("gpu.profile", revision.texto("title"), revision.texto("message"),
-                mapOf("min" to JsonPrimitive(bajo), "max" to JsonPrimitive(alto)), peligro = revision.logico("risk"))
-        }
+        tareas.launch { revisarRangoGpu(aplicacion, minimo, maximo) }
     }
     fun guardarArranque() {
-        aplicacion.preguntarYEjecutar("gpu.save_boot", t("Save for startup"),
-            t("Save active range for startup") + "\n${datos.entero("current_min")} – ${datos.entero("current_max")} MHz")
+        guardarArranqueGpu(aplicacion, datos)
     }
     fun abrirConfiguracion() {
         tareas.launch { configuracion = aplicacion.consultar("gpu.config") }
@@ -145,12 +134,7 @@ fun PaginaGpu(aplicacion: Aplicacion) {
             } else {
                 TarjetaPagina(Modifier.fillMaxWidth(), espacio = MedidasGpuCu.espacio) {
                     if (datos.logico("dbus_responsive", true).not()) {
-                        Texto(t(if (datos.objeto("cyan_telemetry").texto("method") == "process")
-                            ("Cyan is running but not answering. Its usage reading is set to process, which reads every open " +
-                                "file of every program; a Proton game keeps tens of thousands open. Choose busy-flag in Cyan " +
-                                "kernel compatibility and apply.")
-                            else ("Cyan is running but not answering on D-Bus, so its range cannot be read or changed right now. " +
-                                "Restart the governor if it does not recover.")), color = paleta.naranja, tamano = 13)
+                        Texto(avisoSinRespuesta(datos), color = paleta.naranja, tamano = 13)
                     }
                     SeccionGpuCu(t("Operating profile"), alto = 33.dp, derecha = {
                             Boton(t("Export to Decky"), {
@@ -207,8 +191,7 @@ fun PaginaGpu(aplicacion: Aplicacion) {
                                         "extra_high" to "2400", "voltage" to "1150")) {
                                 val titulo = t(if (habilitados) "Re-comment the +2000 MHz points" else "Uncomment +2000 MHz points")
                                 Boton(titulo, {
-                                    aplicacion.preguntarYEjecutar("gpu.high_points", titulo, avisoPuntosAltos(!habilitados),
-                                        mapOf("enable" to JsonPrimitive(!habilitados)), peligro = true)
+                                    pedirPuntosAltos(aplicacion, !habilitados)
                                 }, Modifier.width(236.dp), clase = ClaseBoton.PELIGRO,
                                     activo = libre && datos.objeto("availability").logico("high_points"),
                                         alto = MedidasGpuCu.altoAccion, tamano = 12)
@@ -267,10 +250,10 @@ private fun EditorPerfilGpu(aplicacion: Aplicacion, perfil: JsonObject, alCerrar
     var minimo by remember(perfil) { mutableStateOf(perfil.entero("min")) }
     var maximo by remember(perfil) { mutableStateOf(perfil.entero("max")) }
     fun restablecer() {
-        val clave = perfil.texto("key")
-        nombre = when (clave) { "balanced" -> t("Balanced"); "gaming" -> t("Gaming"); else -> t("Benchmark") }
-        minimo = if (clave == "balanced") 500 else 1000
-        maximo = when (clave) { "balanced" -> 1500; "gaming" -> 1850; else -> 2000 }
+        val original = perfilGpuOriginal(perfil.texto("key"))
+        nombre = t(original.nombre)
+        minimo = original.minimo
+        maximo = original.maximo
     }
     Dialogo(alCerrar) {
         Texto(t("EDITING PROFILE"), tamano = 15, peso = 700)

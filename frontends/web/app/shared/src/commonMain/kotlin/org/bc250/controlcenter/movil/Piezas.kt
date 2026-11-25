@@ -53,6 +53,8 @@ import org.bc250.controlcenter.recursos.edit_gray
 import org.bc250.controlcenter.tema.ColoresActuales
 import org.bc250.controlcenter.tema.grosor
 
+val AnchoCompleto = Modifier.fillMaxWidth()
+
 // -- grupos ------------------------------------------------------------------------------------------
 
 /** El título pequeño de una sección y lo que lleva debajo. */
@@ -146,7 +148,7 @@ fun FilaDato(nombre: String, valor: String, unidad: String = "", color: Color? =
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Texto(nombre, tamano = 13, color = paleta.apagado, modifier = Modifier.weight(1f))
-        ValorConUnidad(valor, unidad, color = color, modifier = Modifier.weight(1.2f, fill = false))
+        ValorConUnidad(valor, unidad, color = color, modifier = Modifier.widthIn(max = 230.dp))
     }
 }
 

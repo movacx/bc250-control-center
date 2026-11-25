@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,13 +27,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.bc250.controlcenter.componentes.Texto
+import org.bc250.controlcenter.componentes.TextoConsola
 import org.bc250.controlcenter.componentes.estiloTexto
 import org.bc250.controlcenter.componentes.marco
+import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.tema.ColoresActuales
 import kotlin.math.roundToInt
 
@@ -70,6 +76,34 @@ fun CampoMovil(
             keyboardOptions = KeyboardOptions(keyboardType = if (numerico) KeyboardType.Number else KeyboardType.Text),
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+/** Un cuadro para pegar un texto largo. */
+@Composable
+fun AreaDeTexto(valor: String, alto: Dp = 220.dp, ayuda: String = "", alCambiar: (String) -> Unit) {
+    val paleta = ColoresActuales.current
+    Box(Modifier.fillMaxWidth().height(alto).marco(paleta.control, paleta.borde, 6.dp).padding(12.dp)) {
+        if (valor.isEmpty()) {
+            Texto(ayuda, tamano = 14, color = paleta.sutil)
+        }
+        BasicTextField(
+            value = valor,
+            onValueChange = alCambiar,
+            textStyle = estiloTexto(14),
+            cursorBrush = SolidColor(paleta.texto),
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+/** Un texto largo de solo lectura, con letra de consola y un botón para copiarlo. */
+@Composable
+fun DocumentoMovil(texto: String) {
+    val portapapeles = LocalClipboardManager.current
+    TextoConsola(texto, Modifier.fillMaxWidth())
+    BotonMovil(t("Copy all"), Modifier.fillMaxWidth(), activo = texto.isNotEmpty()) {
+        portapapeles.setText(AnnotatedString(texto))
     }
 }
 

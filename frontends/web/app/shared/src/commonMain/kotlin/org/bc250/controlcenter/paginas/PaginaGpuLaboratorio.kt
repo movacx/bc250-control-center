@@ -33,32 +33,17 @@ internal fun LaboratorioGpu(aplicacion: Aplicacion, datos: JsonObject, libre: Bo
         cargando = false
     }
     fun aplicar(curva: Int) {
-        val parametros: Map<String, JsonElement>
-        val accion: String
-        if (curva == -1) {
-            val actuales = mutableMapOf<String, JsonElement>()
-            for (fila in tabla.objetos("rows")) {
-                if (fila.logico("custom_available")) {
-                    val frecuencia = fila.entero("frequency").toString()
-                    actuales[frecuencia] = valores[frecuencia] ?: JsonPrimitive(fila.entero("editor_value"))
-                }
+        val actuales = mutableMapOf<String, JsonElement>()
+        for (fila in tabla.objetos("rows")) {
+            if (fila.logico("custom_available")) {
+                val frecuencia = fila.entero("frequency").toString()
+                actuales[frecuencia] = valores[frecuencia] ?: JsonPrimitive(fila.entero("editor_value"))
             }
-            parametros = mapOf("values" to JsonObject(actuales))
-            accion = "gpu.voltage_custom"
-        } else {
-            parametros = mapOf("level" to JsonPrimitive(curva))
-            accion = "gpu.voltage"
         }
         tareas.launch {
-            val propuesta = if (curva == nivel) tabla else aplicacion.consultar("gpu.laboratorio", mapOf("level" to curva.toString()))
-            if (propuesta.isEmpty() || !propuesta.logico("available")) {
-                aplicacion.avisar(propuesta.texto("error", t("Not connected")), error = true)
-                return@launch
+            if (pedirVoltaje(aplicacion, curva, JsonObject(actuales), if (curva == nivel) tabla else ObjetoVacio)) {
+                alCerrar()
             }
-            val confirmacion = propuesta.objeto("confirmation")
-            aplicacion.preguntarYEjecutar(accion, confirmacion.texto("title"), confirmacion.texto("message") + "\n" +
-                t("peak {value} mV", "value" to propuesta.entero("peak").toString()), parametros, peligro = true)
-            alCerrar()
         }
     }
     Dialogo(alCerrar, ancho = 880.dp) {

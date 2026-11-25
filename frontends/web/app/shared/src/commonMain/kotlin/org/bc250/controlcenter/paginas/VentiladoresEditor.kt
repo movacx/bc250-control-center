@@ -23,7 +23,7 @@ internal fun curvaInicial(): JsonArray = JsonArray(listOf(
     JsonArray(listOf(JsonPrimitive(82), JsonPrimitive(100))),
 ))
 
-private fun cambiarModo(entrada: JsonObject, modo: String): JsonObject {
+internal fun cambiarModo(entrada: JsonObject, modo: String): JsonObject {
     val campos = entrada.toMutableMap()
     campos["mode"] = JsonPrimitive(modo)
     val predeterminados = mapOf<String, JsonElement>(
@@ -41,7 +41,7 @@ private fun cambiarModo(entrada: JsonObject, modo: String): JsonObject {
 }
 
 /** Solo las claves del modo elegido viajan al motor que valida en el servidor. */
-private fun entradaDelEditor(entrada: JsonObject): JsonObject {
+internal fun entradaDelEditor(entrada: JsonObject): JsonObject {
     val modo = entrada.texto("mode", "firmware")
     val claves = when (modo) {
         "firmware" -> setOf("mode")
@@ -163,9 +163,7 @@ internal fun EditorVentilador(aplicacion: Aplicacion, canal: JsonObject, datos: 
                     AccionSupervision(t(if (calibrando) "Cancel" else "Calibrate"), calibrando ||
                         (disponible && canal.logico("writable") && entrada.texto("role") != "pump")) {
                         if (calibrando) aplicacion.interrumpirTrabajo()
-                        else aplicacion.preguntarYEjecutar("fans.calibrate", t("Calibrate this fan"),
-                            t("The fan goes to full speed, then down step by step until it stops, then up until it starts again. It takes one to two minutes and stops at once if the board reaches 80 °C. It ends at full speed; nothing is saved until you press Apply."),
-                            mapOf("pwm" to JsonPrimitive(numero)), peligro = true)
+                        else calibrarVentilador(aplicacion, numero)
                     }
                 }
                 val calibracion = datos.objeto("calibration")
@@ -211,13 +209,7 @@ internal fun EditorVentilador(aplicacion: Aplicacion, canal: JsonObject, datos: 
             val textoAplicar = t(if (reanudar) "Resume" else if (reintentar && !sucio) "Retry" else "Apply")
             AccionSupervision(textoAplicar, disponible && numero > 0 && (sucio || reintentar || reanudar) && validacion.logico("valid"), primaria = true) {
                 ultimoIntento = aplicacion.trabajo.id
-                val velocidadBaja = enviada.texto("mode") == "fixed" && enviada.entero("percent") < datos.entero("low_duty", 30)
-                aplicacion.preguntarYEjecutar("fans.apply", t("Apply"),
-                    mensaje = if (velocidadBaja) t("A fan this slow can let the board overheat under load.") else textoAplicar,
-                    parametros = mapOf(
-                    "pwm" to JsonPrimitive(numero), "entry" to enviada, "label" to JsonPrimitive(nombre),
-                    "force" to JsonPrimitive(reintentar || reanudar)),
-                    peligro = velocidadBaja)
+                aplicarVentilador(aplicacion, numero, enviada, nombre, textoAplicar, reintentar || reanudar, datos.entero("low_duty", 30))
             }
         }
     }

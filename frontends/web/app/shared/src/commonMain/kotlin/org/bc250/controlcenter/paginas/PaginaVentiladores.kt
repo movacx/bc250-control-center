@@ -89,8 +89,7 @@ fun PaginaVentiladores(aplicacion: Aplicacion) {
             }
         }, derecha = {
             CasillaSupervision(t("Control from boot"), servicio.logico("enabled"), disponible && (servicio.logico("available") || servicio.logico("enabled")), interruptor = true) {
-                aplicacion.preguntarYEjecutar("fan.service", t("Control from boot"), parametros = mapOf(
-                    "operation" to JsonPrimitive(if (it) "enable" else "disable")))
+                cambiarControlArranque(aplicacion, it)
             }
             AccionSupervision(t("More")) { mas = true }
         })
@@ -170,6 +169,42 @@ fun PaginaVentiladores(aplicacion: Aplicacion) {
 internal fun textoVentilador(datos: JsonObject, clave: String, argumentos: String): String {
     val valores = datos.objeto(argumentos).map { it.key to (it.value as? JsonPrimitive)?.content.orEmpty() }.toTypedArray()
     return t(datos.texto(clave), *valores)
+}
+
+internal fun cambiarControlArranque(aplicacion: Aplicacion, encender: Boolean) {
+    val parametros = mapOf("operation" to JsonPrimitive(if (encender) "enable" else "disable"))
+    aplicacion.preguntarYEjecutar("fan.service", t("Control from boot"), parametros = parametros)
+}
+
+internal fun calibrarVentilador(aplicacion: Aplicacion, numero: Int) {
+    val aviso = t(
+        "The fan goes to full speed, then down step by step until it stops, then up until it starts again. " +
+            "It takes one to two minutes and stops at once if the board reaches 80 °C. It ends at full speed; " +
+            "nothing is saved until you press Apply.",
+    )
+    val parametros = mapOf("pwm" to JsonPrimitive(numero))
+    aplicacion.preguntarYEjecutar("fans.calibrate", t("Calibrate this fan"), aviso, parametros, peligro = true)
+}
+
+/** Aplica un ventilador; avisa si la velocidad fija es tan baja que la placa puede calentarse. */
+internal fun aplicarVentilador(
+    aplicacion: Aplicacion,
+    numero: Int,
+    entrada: JsonObject,
+    nombre: String,
+    mensaje: String,
+    forzar: Boolean,
+    velocidadMinima: Int,
+) {
+    val muyLento = entrada.texto("mode") == "fixed" && entrada.entero("percent") < velocidadMinima
+    val parametros = mapOf(
+        "pwm" to JsonPrimitive(numero),
+        "entry" to entrada,
+        "label" to JsonPrimitive(nombre),
+        "force" to JsonPrimitive(forzar),
+    )
+    val aviso = if (muyLento) t("A fan this slow can let the board overheat under load.") else mensaje
+    aplicacion.preguntarYEjecutar("fans.apply", t("Apply"), aviso, parametros, peligro = muyLento)
 }
 
 internal fun herramientaVentilador(aplicacion: Aplicacion, operacion: String, titulo: String, parametros: Map<String, JsonElement> = emptyMap()) {

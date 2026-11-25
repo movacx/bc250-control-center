@@ -15,7 +15,7 @@ import org.bc250.controlcenter.datos.*
 import org.bc250.controlcenter.tema.ColoresActuales
 import kotlin.math.roundToInt
 
-private fun puntosDe(datos: JsonArray): List<Pair<Int, Int>> {
+internal fun puntosDe(datos: JsonArray): List<Pair<Int, Int>> {
     return datos.mapNotNull { elemento ->
         val punto = elemento as? JsonArray
         val temperatura = (punto?.getOrNull(0) as? JsonPrimitive)?.content?.toIntOrNull()
@@ -24,7 +24,7 @@ private fun puntosDe(datos: JsonArray): List<Pair<Int, Int>> {
     }
 }
 
-private fun datosDe(puntos: List<Pair<Int, Int>>): JsonArray {
+internal fun datosDe(puntos: List<Pair<Int, Int>>): JsonArray {
     return JsonArray(puntos.sortedBy { it.first }.map { (temperatura, velocidad) ->
         JsonArray(listOf(JsonPrimitive(temperatura), JsonPrimitive(velocidad)))
     })

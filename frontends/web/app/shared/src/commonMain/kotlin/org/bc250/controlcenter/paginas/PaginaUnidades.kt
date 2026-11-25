@@ -14,7 +14,7 @@ import org.bc250.controlcenter.recursos.chevron_down_gray
 import org.bc250.controlcenter.recursos.chevron_right_gray
 import org.bc250.controlcenter.tema.*
 
-private fun mascarasCu(datos: JsonObject, clave: String): List<Int> {
+internal fun mascarasCu(datos: JsonObject, clave: String): List<Int> {
     val valores = datos.lista(clave).map { (it as? JsonPrimitive)?.content?.toIntOrNull() ?: 0 }
     return if (valores.size == 4) valores else listOf(0, 0, 0, 0)
 }

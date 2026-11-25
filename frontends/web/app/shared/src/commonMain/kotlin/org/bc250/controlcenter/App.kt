@@ -43,6 +43,9 @@ import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.movil.AnchoMovil
 import org.bc250.controlcenter.movil.LocalTelefono
 import org.bc250.controlcenter.movil.PaginaCpuMovil
+import org.bc250.controlcenter.movil.PaginaGpuMovil
+import org.bc250.controlcenter.movil.PaginaUnidadesMovil
+import org.bc250.controlcenter.movil.PaginaVentiladoresMovil
 import org.bc250.controlcenter.movil.VentanaMovil
 import org.bc250.controlcenter.paginas.PaginaAccesoRemoto
 import org.bc250.controlcenter.paginas.PaginaAjustesAdicionales
@@ -176,6 +179,9 @@ private fun VentanaAncha(aplicacion: Aplicacion) {
 private fun PaginaElegidaMovil(aplicacion: Aplicacion) {
     when (aplicacion.pagina) {
         "cpu" -> PaginaCpuMovil(aplicacion)
+        "cu" -> PaginaUnidadesMovil(aplicacion)
+        "gpu" -> PaginaGpuMovil(aplicacion)
+        "fans" -> PaginaVentiladoresMovil(aplicacion)
         else -> Box(Modifier.padding(16.dp)) { PaginaElegida(aplicacion) }
     }
 }

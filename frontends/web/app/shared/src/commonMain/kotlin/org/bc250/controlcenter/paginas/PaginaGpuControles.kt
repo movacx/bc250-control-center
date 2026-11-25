@@ -192,14 +192,7 @@ internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre:
         return valores.map { Eleccion(it, if (it == "smu") "SMU" else if (it == "drm") "DRM" else it) }
     }
     fun aplicar() {
-        aplicacion.preguntarYEjecutar("gpu.compat", t("Apply Cyan compatibility settings"),
-            "$metodo · $uso · $temperatura\n" + t(
-                "This validates and updates only gpu.set-method, gpu-usage.fix-metrics and gpu-usage.fix-freq. " +
-                    "If Cyan is active, its current D-Bus range is read first, the service restarts, and that range is restored.",
-            ).replace("gpu.set-method", "gpu.set-method, gpu-usage.method"),
-            mapOf("set_method" to JsonPrimitive(metodo), "usage_method" to JsonPrimitive(uso),
-                "metrics" to JsonPrimitive(metricas), "frequencies" to JsonPrimitive(frecuencias),
-                "temp_read" to JsonPrimitive(temperatura)), peligro = metodo == "kernel")
+        aplicarCompatibilidad(aplicacion, AjusteCyan(metodo, uso, temperatura, metricas, frecuencias))
         editado = false
     }
     @Composable
@@ -224,9 +217,7 @@ internal fun CompatibilidadGpu(aplicacion: Aplicacion, datos: JsonObject, libre:
             }
         }
         if (uso == "process") {
-            Texto(t("The process reading goes through every open file of every program. With a game open, Cyan " +
-                "stops answering: the range, the +2000 MHz points and the voltage lab stop working until the " +
-                "game closes. busy-flag is the default."),
+            Texto(avisoProcess(),
                 tamano = 12, color = ColoresActuales.current.naranja)
         }
         Separador(clasica)
@@ -359,11 +350,9 @@ internal fun RejillaAccionesServicioGpu(aplicacion: Aplicacion, datos: JsonObjec
             Boton(t("View status"), { aplicacion.ejecutar("gpu.status", t("View status")) }, caja, alto = alto, tamano = tamano)
         } else {
             val accion = if (indice == 1) "reiniciar" else if (funcionando) "desactivar" else "activar"
-            val titulo = t(if (indice == 1) "Restart" else if (funcionando) "Stop governor" else "Start governor")
-            val plan = datos.objeto("service_plans").objeto(accion)
+            val titulo = tituloServicioGpu(accion)
             Boton(titulo, {
-                aplicacion.preguntarYEjecutar("gpu.service", titulo, plan.texto("message", titulo),
-                    mapOf("action" to JsonPrimitive(accion)), peligro = plan.logico("risk"))
+                pedirServicioGpu(aplicacion, datos, accion)
             }, caja, clase = if (accion == "desactivar") ClaseBoton.PELIGRO else ClaseBoton.NORMAL,
                 activo = libre && datos.objeto("availability").logico(
                     if (accion == "reiniciar") "restart" else if (accion == "activar") "start" else "stop",
