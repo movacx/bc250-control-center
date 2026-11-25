@@ -679,7 +679,7 @@ DRIVER_PATCHED = "bc250_memory: SMU payload applied and verified successfully"
 TOOL_ENV = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C", "LC_ALL": "C"}
 
 
-def _driver_left_its_patch(run=subprocess.run) -> bool:
+def _driver_left_its_patch() -> bool:
     """Whether this boot's patch is the one bc250_memory left when it was unloaded.
 
     Only the kernel and root can write to its log, so the line is proof; without
@@ -687,7 +687,7 @@ def _driver_left_its_patch(run=subprocess.run) -> bool:
     """
     for argv in (["dmesg"], ["journalctl", "-k", "-b", "-o", "cat", "--no-pager"]):
         try:
-            result = run(argv, capture_output=True, text=True, check=False, timeout=20, env=TOOL_ENV)
+            result = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=20, env=TOOL_ENV)
         except (OSError, subprocess.SubprocessError):
             continue
         if result.returncode == 0 and DRIVER_PATCHED in result.stdout:
