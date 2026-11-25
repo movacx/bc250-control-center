@@ -29,10 +29,10 @@ def principal() -> int:
             hoja.on("pageerror", lambda e: print("  error:", str(e)[:400]))
             hoja.goto(f"{DIRECCION}/#{pagina}")
             time.sleep(float(os.environ.get("BC250_ESPERA", 7)))
-            foto = salida / f"web_{pagina}.png"
+            foto = salida / f"web_{pagina.replace(chr(47), chr(95) * 2)}.png"
             hoja.screenshot(path=str(foto))
             hoja.close()
-            original = referencia / f"{pagina}.png"
+            original = referencia / f"{pagina.replace(chr(47), chr(95) * 2)}.png"
             if original.exists() and (ANCHO, ALTO) == Image.open(original).size:
                 a, b = Image.open(original).convert("RGB"), Image.open(foto).convert("RGB")
                 resta = ImageChops.difference(a, b).point(lambda v: min(255, v * 3))

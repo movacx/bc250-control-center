@@ -6603,5 +6603,6 @@
   "Prepare the connection": "Forbered forbindelsen",
   "Control Center does these steps in order and stops at the first that fails:": "Control Center udfører trinnene i rækkefølge og stopper ved det første, der fejler:",
   "Firewall and local address are checked at the end and fixed only if needed.": "Firewall og lokal adresse kontrolleres til sidst og rettes kun ved behov.",
-  "The connection is ready: scan the code with your phone.": "Forbindelsen er klar: scan koden med telefonen."
+  "The connection is ready: scan the code with your phone.": "Forbindelsen er klar: scan koden med telefonen.",
+  "This page stops working until web access is started again on the board.": "Denne side holder op med at virke, indtil webadgangen startes igen på kortet."
 }

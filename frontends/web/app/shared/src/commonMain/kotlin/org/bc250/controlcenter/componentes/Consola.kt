@@ -77,8 +77,8 @@ private fun EncabezadoConsola(aplicacion: Aplicacion, trabajo: Trabajo) {
     val paleta = ColoresActuales.current
     val estado = when {
         !trabajo.terminado -> t("Running")
-        trabajo.correcto -> t("Finished")
-        trabajo.cancelado -> t("Cancelled")
+        trabajo.correcto -> t("Completed")
+        trabajo.cancelado -> t("Cancelled.")
         else -> t("Failed")
     }
     val color = when {
@@ -110,7 +110,7 @@ private fun RespuestaConsola(aplicacion: Aplicacion, trabajo: Trabajo) {
             valor = respuesta,
             alCambiar = { nuevo -> respuesta = nuevo },
             secreto = trabajo.esperaClave,
-            ayuda = if (trabajo.esperaClave) t("Linux password") else t("Answer"),
+            ayuda = if (trabajo.esperaClave) t("Linux password") else t("Send"),
             alAceptar = ::enviar,
             modifier = Modifier.weight(1f),
         )

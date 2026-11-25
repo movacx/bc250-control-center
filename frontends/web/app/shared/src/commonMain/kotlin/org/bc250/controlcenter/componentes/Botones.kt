@@ -95,6 +95,7 @@ fun Boton(
     tamano: Int = 13,
     peso: Int = 720,
     icono: DrawableResource? = null,
+    iconoDetras: Boolean = false,
 ) {
     val interaccion = remember { MutableInteractionSource() }
     val encima by interaccion.collectIsHoveredAsState()
@@ -109,10 +110,13 @@ fun Boton(
         horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icono != null) {
+        if (icono != null && !iconoDetras) {
             Icono(icono, tamano = 14.dp)
         }
         Texto(texto, tamano = tamano, peso = peso, color = colores.texto, alineado = TextAlign.Center)
+        if (icono != null && iconoDetras) {
+            Icono(icono, tamano = 11.dp, color = colores.texto)
+        }
     }
 }
 

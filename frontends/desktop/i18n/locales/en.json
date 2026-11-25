@@ -6603,5 +6603,6 @@
   "Prepare the connection": "Prepare the connection",
   "Control Center does these steps in order and stops at the first that fails:": "Control Center does these steps in order and stops at the first that fails:",
   "Firewall and local address are checked at the end and fixed only if needed.": "Firewall and local address are checked at the end and fixed only if needed.",
-  "The connection is ready: scan the code with your phone.": "The connection is ready: scan the code with your phone."
+  "The connection is ready: scan the code with your phone.": "The connection is ready: scan the code with your phone.",
+  "This page stops working until web access is started again on the board.": "This page stops working until web access is started again on the board."
 }

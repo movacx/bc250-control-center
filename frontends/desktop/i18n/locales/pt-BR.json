@@ -6603,5 +6603,6 @@
   "Prepare the connection": "Preparar a conexão",
   "Control Center does these steps in order and stops at the first that fails:": "O Control Center faz estas etapas em ordem e para na primeira que falhar:",
   "Firewall and local address are checked at the end and fixed only if needed.": "O firewall e o endereço local são verificados no final e corrigidos apenas se necessário.",
-  "The connection is ready: scan the code with your phone.": "A conexão está pronta: escaneie o código com seu celular."
+  "The connection is ready: scan the code with your phone.": "A conexão está pronta: escaneie o código com seu celular.",
+  "This page stops working until web access is started again on the board.": "Esta página deixa de funcionar até que o acesso web seja iniciado novamente na placa."
 }

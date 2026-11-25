@@ -6603,5 +6603,6 @@
   "Prepare the connection": "準備連線",
   "Control Center does these steps in order and stops at the first that fails:": "Control Center 依序執行以下步驟，遇到第一個失敗即停止：",
   "Firewall and local address are checked at the end and fixed only if needed.": "最後檢查防火牆和本機位址，僅在需要時修復。",
-  "The connection is ready: scan the code with your phone.": "連線已就緒：用手機掃描代碼。"
+  "The connection is ready: scan the code with your phone.": "連線已就緒：用手機掃描代碼。",
+  "This page stops working until web access is started again on the board.": "在主機板上重新啟動網頁存取之前,此頁面將無法使用。"
 }

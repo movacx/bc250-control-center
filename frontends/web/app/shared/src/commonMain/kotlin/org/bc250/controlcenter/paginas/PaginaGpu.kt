@@ -63,7 +63,7 @@ fun PaginaGpu(aplicacion: Aplicacion) {
         tareas.launch {
             val revision = aplicacion.consultar("gpu.range", mapOf("min" to bajo.toString(), "max" to alto.toString()))
             if (revision.isEmpty()) {
-                aplicacion.avisar(t("Invalid range"), error = true)
+                aplicacion.avisar(t("Frequency range"), error = true)
                 return@launch
             }
             aplicacion.preguntarYEjecutar("gpu.profile", revision.texto("title"), revision.texto("message"),

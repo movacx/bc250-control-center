@@ -6603,5 +6603,6 @@
   "Prepare the connection": "Připravit připojení",
   "Control Center does these steps in order and stops at the first that fails:": "Control Center provede tyto kroky popořadě a zastaví se u prvního neúspěšného:",
   "Firewall and local address are checked at the end and fixed only if needed.": "Firewall a místní adresa se zkontrolují nakonec a opraví se jen v případě potřeby.",
-  "The connection is ready: scan the code with your phone.": "Připojení je připraveno: naskenujte kód telefonem."
+  "The connection is ready: scan the code with your phone.": "Připojení je připraveno: naskenujte kód telefonem.",
+  "This page stops working until web access is started again on the board.": "Tato stránka přestane fungovat, dokud se webový přístup na desce znovu nespustí."
 }

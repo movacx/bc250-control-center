@@ -6603,5 +6603,6 @@
   "Prepare the connection": "Valmistele yhteys",
   "Control Center does these steps in order and stops at the first that fails:": "Control Center tekee vaiheet järjestyksessä ja pysähtyy ensimmäiseen epäonnistuneeseen:",
   "Firewall and local address are checked at the end and fixed only if needed.": "Palomuuri ja paikallinen osoite tarkistetaan lopuksi ja korjataan vain tarvittaessa.",
-  "The connection is ready: scan the code with your phone.": "Yhteys on valmis: skannaa koodi puhelimella."
+  "The connection is ready: scan the code with your phone.": "Yhteys on valmis: skannaa koodi puhelimella.",
+  "This page stops working until web access is started again on the board.": "Tämä sivu lakkaa toimimasta, kunnes verkkokäyttö käynnistetään uudelleen kortilla."
 }

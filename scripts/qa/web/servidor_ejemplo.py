@@ -52,8 +52,15 @@ class WebEjemplo(web_server.Web):
         return "sello-de-ejemplo"
 
 
+def nunca_se_envia(*_a, **_k):
+    raise RuntimeError("ejemplo: un reporte nunca sale de aquí")
+
+
 def principal() -> int:
     puerto = int(sys.argv[1]) if len(sys.argv) > 1 else 8399
+    from bc250cc.infrastructure import problem_report
+
+    problem_report.submit = nunca_se_envia
     contenedor = SimpleNamespace(system_service=ServicioEjemplo(), settings_service=ConfiguracionEjemplo(),
                                  activity_service=ActividadEjemplo(), platform=None)
     web_server.web_devices.session = lambda _ficha: {"control": True, "id": "ejemplo"}

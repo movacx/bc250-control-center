@@ -1,6 +1,7 @@
 package org.bc250.controlcenter
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,20 +15,33 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import org.bc250.controlcenter.componentes.BarraLateral
 import org.bc250.controlcenter.componentes.DialogoConfirmacion
+import org.bc250.controlcenter.componentes.DialogoTexto
+import org.bc250.controlcenter.componentes.LocalPaletas
 import org.bc250.controlcenter.componentes.PanelConsola
 import org.bc250.controlcenter.componentes.Texto
 import org.bc250.controlcenter.componentes.marco
 import org.bc250.controlcenter.datos.Aplicacion
 import org.bc250.controlcenter.datos.Aviso
 import org.bc250.controlcenter.datos.EstadoSesion
+import org.bc250.controlcenter.datos.entero
 import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.paginas.PaginaAccesoRemoto
 import org.bc250.controlcenter.paginas.PaginaAjustesAdicionales
 import org.bc250.controlcenter.paginas.PaginaCajaNegra
-import org.bc250.controlcenter.paginas.PaginaConfiguracion
+import org.bc250.controlcenter.paginas.VentanaActualizacion
+import org.bc250.controlcenter.paginas.VentanaConfiguracion
+import org.bc250.controlcenter.paginas.VentanaRecorrido
 import org.bc250.controlcenter.paginas.PaginaCpu
 import org.bc250.controlcenter.paginas.PaginaFirmware
 import org.bc250.controlcenter.paginas.PaginaGpu
@@ -49,12 +63,26 @@ fun App() {
     LaunchedEffect(Unit) {
         aplicacion.iniciar()
     }
-    CompositionLocalProvider(ColoresActuales provides aplicacion.paleta, LetrasActuales provides cargarLetras()) {
-        Box(Modifier.fillMaxSize().background(aplicacion.paleta.ventana)) {
+    aplicacion.sistemaOscuro = isSystemInDarkTheme()
+    val escala = aplicacion.preferencias.entero("scale", 100) / 100f
+    val densidad = LocalDensity.current
+    CompositionLocalProvider(
+        ColoresActuales provides aplicacion.paleta,
+        LetrasActuales provides cargarLetras(),
+        LocalPaletas provides aplicacion.paletas,
+        LocalDensity provides Density(densidad.density * escala, densidad.fontScale),
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(aplicacion.paleta.ventana)
+                .onPreviewKeyEvent { evento -> atenderTecla(evento, aplicacion) },
+        ) {
             when (aplicacion.sesion) {
                 EstadoSesion.DENTRO -> Ventana(aplicacion)
                 else -> PaginaIngreso(aplicacion)
             }
+            VentanasEncima(aplicacion)
             val confirmacion = aplicacion.confirmacion
             if (confirmacion != null) {
                 DialogoConfirmacion(confirmacion, aplicacion)
@@ -64,6 +92,27 @@ fun App() {
                 CuadroAviso(aviso, Modifier.align(Alignment.BottomEnd))
             }
         }
+    }
+}
+
+/** Lo que se abre sobre la página: Configuración, actualización, recorrido y textos largos. */
+@Composable
+private fun VentanasEncima(aplicacion: Aplicacion) {
+    if (aplicacion.sesion != EstadoSesion.DENTRO) {
+        return
+    }
+    if (aplicacion.seccionAjustes.isNotEmpty()) {
+        VentanaConfiguracion(aplicacion)
+    }
+    if (aplicacion.actualizacionAbierta) {
+        VentanaActualizacion(aplicacion)
+    }
+    if (aplicacion.recorridoAbierto) {
+        VentanaRecorrido(aplicacion)
+    }
+    val texto = aplicacion.textoAbierto
+    if (texto != null) {
+        DialogoTexto(texto) { aplicacion.textoAbierto = null }
     }
 }
 
@@ -100,7 +149,6 @@ private fun PaginaElegida(aplicacion: Aplicacion) {
         "black_box" -> PaginaCajaNegra(aplicacion)
         "remote" -> PaginaAccesoRemoto(aplicacion)
         "firmware" -> PaginaFirmware(aplicacion)
-        "settings" -> PaginaConfiguracion(aplicacion)
     }
 }
 
@@ -111,4 +159,13 @@ private fun CuadroAviso(aviso: Aviso, modifier: Modifier) {
     Box(modifier.padding(24.dp).marco(paleta.panelElevado, borde, Medidas.radioPanel).padding(14.dp)) {
         Texto(t(aviso.texto), tamano = 13)
     }
+}
+
+/** F4 muestra u oculta la consola, como en el escritorio. */
+private fun atenderTecla(evento: KeyEvent, aplicacion: Aplicacion): Boolean {
+    if (evento.key != Key.F4 || evento.type != KeyEventType.KeyDown) {
+        return false
+    }
+    aplicacion.consolaVisible = !aplicacion.consolaVisible
+    return true
 }

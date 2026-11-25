@@ -14,7 +14,10 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import org.bc250.controlcenter.tema.Paleta
+import org.bc250.controlcenter.componentes.TextoAbierto
+import org.bc250.controlcenter.tema.Medidas
 import org.bc250.controlcenter.tema.PaletaInicial
+import org.bc250.controlcenter.tema.Paletas
 
 /** En qué punto está la conexión con el equipo. */
 enum class EstadoSesion { CARGANDO, SIN_CONEXION, PIDE_CLAVE, DENTRO }
@@ -38,10 +41,11 @@ data class Trabajo(
 )
 
 private const val MARCA_DE_PAREJA = "pair="
+private const val MARCA_DE_AJUSTES = "settings/"
 
 private fun primeraPagina(): String {
     val marca = paginaDeLaDireccion()
-    if (marca.isEmpty() || marca.contains("=")) {
+    if (marca.isEmpty() || marca.contains("=") || marca.startsWith(MARCA_DE_AJUSTES)) {
         return "dashboard"
     }
     return marca
@@ -76,9 +80,26 @@ class Aplicacion(private val tareas: CoroutineScope) {
         private set
     var consolaVisible by mutableStateOf(false)
 
+    /** La ventana de Configuración y la sección que muestra; vacía si está cerrada. */
+    var seccionAjustes by mutableStateOf("")
+        private set
+    var textoAbierto by mutableStateOf<TextoAbierto?>(null)
+    var actualizacionAbierta by mutableStateOf(false)
+    var recorridoAbierto by mutableStateOf(false)
+
+    /** Cambia cada vez que se cargan textos en otro idioma. */
+    var revisionDeTextos by mutableStateOf(0)
+        private set
+    var preferencias by mutableStateOf(ObjetoVacio)
+        private set
+    var paletas by mutableStateOf(Paletas())
+        private set
+    var sistemaOscuro = true
+
     /** Lo último que se leyó de cada página. */
     private val lecturas = mutableStateMapOf<String, JsonObject>()
     private var temas = ObjetoVacio
+    private var idiomaPedido = ""
     private var lector: Job? = null
     private var seguimiento: Job? = null
 
@@ -120,7 +141,7 @@ class Aplicacion(private val tareas: CoroutineScope) {
                 mensajeIngreso = ""
                 revisarSesion()
             } else {
-                mensajeIngreso = respuesta.error.ifEmpty { t("No connection") }
+                mensajeIngreso = respuesta.error.ifEmpty { t("Not connected") }
                 revisarSesion()
             }
         }
@@ -136,6 +157,8 @@ class Aplicacion(private val tareas: CoroutineScope) {
 
     private suspend fun entrar() {
         cargarTemas()
+        leerPreferencias()
+        abrirPaginaInicial()
         sesion = EstadoSesion.DENTRO
         lector?.cancel()
         lector = tareas.launch { leerSinParar() }
@@ -143,9 +166,30 @@ class Aplicacion(private val tareas: CoroutineScope) {
 
     /** Abre una página y, si se pide, una parte de ella («Escalado», «Soporte»…). */
     fun irA(nueva: String, parte: String = "") {
+        if (nueva == "settings") {
+            abrirAjustes(parte.ifEmpty { "general" })
+            return
+        }
         pagina = nueva
         partePedida = parte
         anotarPagina(nueva)
+    }
+
+    fun abrirAjustes(seccion: String) {
+        seccionAjustes = seccion
+    }
+
+    fun cerrarAjustes() {
+        seccionAjustes = ""
+    }
+
+    fun abrirActualizacion() {
+        actualizacionAbierta = true
+    }
+
+    fun empezarRecorrido() {
+        cerrarAjustes()
+        recorridoAbierto = true
     }
 
     // -- textos y tema -----------------------------------------------------------------------
@@ -160,6 +204,7 @@ class Aplicacion(private val tareas: CoroutineScope) {
         val cadenas = respuesta.datos.objeto("strings")
         val traducciones = cadenas.keys.associateWith { clave -> cadenas.texto(clave, clave) }
         Textos.cambiar(traducciones)
+        revisionDeTextos += 1
     }
 
     private suspend fun cargarTemas() {
@@ -168,16 +213,115 @@ class Aplicacion(private val tareas: CoroutineScope) {
             return
         }
         temas = respuesta.datos.objeto("palettes")
-        usarTema(respuesta.datos.texto("theme", "dark"), respuesta.datos.texto("accent", "green"))
+        usarTema(respuesta.datos.texto("style", "formal"), respuesta.datos.texto("theme", "dark"), respuesta.datos.texto("accent", "green"))
     }
 
-    fun usarTema(tema: String, acento: String) {
-        val colores = temas.objeto("$tema/$acento")
-        if (colores.isEmpty()) {
+    fun usarTema(estilo: String, tema: String, acento: String) {
+        val delSistema = if (sistemaOscuro) "dark" else "light"
+        val elegido = if (tema == "system") delSistema else tema
+        paletas = Paletas(temas, estilo, elegido)
+        val nueva = paletas.paleta(estilo, elegido, acento)
+        if (nueva != null) {
+            paleta = nueva.conTerminal(coloresDeTerminal())
+        }
+    }
+
+    /** Los colores de consola del tema de terminal elegido, o ninguno si sigue a la aplicación. */
+    private fun coloresDeTerminal(): Map<String, String> {
+        val tema = lectura("preferences").objeto("terminales").objeto(preferencias.texto("console_theme"))
+        if (tema.isEmpty()) {
+            return emptyMap()
+        }
+        return mapOf(
+            "console_bg" to tema.texto("fondo"),
+            "console_text" to tema.texto("texto"),
+            "console_border" to tema.texto("borde"),
+        )
+    }
+
+    // -- preferencias ------------------------------------------------------------------------
+
+    suspend fun leerPreferencias() {
+        leerPagina("preferences")
+        preferencias = lectura("preferences").objeto("valores")
+        if (preferencias.isEmpty()) {
             return
         }
-        val valores = colores.keys.associateWith { clave -> colores.texto(clave) }
-        paleta = Paleta(valores, esClaro = tema == "light")
+        Medidas.compacta = preferencias.texto("density") == "compact"
+        usarTema(preferencias.texto("style"), preferencias.texto("theme"), preferencias.texto("accent"))
+        val idioma = preferencias.texto("language")
+        if (idioma != idiomaPedido) {
+            idiomaPedido = idioma
+            cargarTextos(if (idioma == "auto") "" else idioma)
+        }
+    }
+
+    private fun abrirPaginaInicial() {
+        barraPlegada = preferencias.logico("sidebar_collapsed")
+        val pedida = paginaDeLaDireccion()
+        if (pedida.startsWith(MARCA_DE_AJUSTES)) {
+            abrirAjustes(pedida.removePrefix(MARCA_DE_AJUSTES))
+        } else if (pedida.isEmpty() || pedida.contains("=")) {
+            irA(preferencias.texto("start_page", "dashboard"))
+        }
+    }
+
+    /** Guarda una preferencia y la aplica al momento. */
+    fun guardarPreferencia(clave: String, valor: JsonElement, despues: () -> Unit) {
+        val parametros = mapOf("key" to JsonPrimitive(clave), "value" to valor)
+        guardarYLuego("settings.preference", parametros, despues)
+    }
+
+    /** Guarda algo sin consola, vuelve a leer las preferencias y avisa a quien lo pidió. */
+    fun guardarYLuego(accion: String, parametros: Map<String, JsonElement>, despues: () -> Unit) {
+        tareas.launch {
+            val datos = buildJsonObject {
+                put("action", JsonPrimitive(accion))
+                put("params", JsonObject(parametros))
+            }
+            val respuesta = conexion.enviar("/api/setting", datos)
+            if (!respuesta.correcta) {
+                avisar(respuesta.error.ifEmpty { t("Not connected") }, error = true)
+            }
+            leerPreferencias()
+            despues()
+        }
+    }
+
+    /** Guarda en el equipo los datos grandes de una acción y, si se aceptan, la ejecuta. */
+    fun guardarYEjecutar(ajuste: String, datos: JsonObject, accion: String, titulo: String, mensaje: String) {
+        tareas.launch {
+            val pedido = buildJsonObject {
+                put("action", JsonPrimitive(ajuste))
+                put("params", datos)
+            }
+            val respuesta = conexion.enviar("/api/setting", pedido)
+            if (!respuesta.correcta) {
+                avisar(respuesta.error.ifEmpty { t("Not connected") }, error = true)
+            } else if (mensaje.isEmpty()) {
+                ejecutar(accion, titulo)
+            } else {
+                preguntarYEjecutar(accion, titulo, mensaje)
+            }
+        }
+    }
+
+    /** Guarda algo y dice si se pudo. */
+    suspend fun guardarAhora(accion: String, parametros: JsonObject): Boolean {
+        val pedido = buildJsonObject {
+            put("action", JsonPrimitive(accion))
+            put("params", parametros)
+        }
+        val respuesta = conexion.enviar("/api/setting", pedido)
+        if (!respuesta.correcta) {
+            avisar(respuesta.error.ifEmpty { t("Not connected") }, error = true)
+        }
+        return respuesta.correcta
+    }
+
+    /** Una pregunta de sí o no que no ejecuta ninguna operación del equipo. */
+    fun preguntar(titulo: String, mensaje: String, peligro: Boolean, aceptar: () -> Unit) {
+        confirmacion = Confirmacion(titulo, mensaje, peligro, aceptar)
     }
 
     // -- lecturas ----------------------------------------------------------------------------
@@ -246,7 +390,7 @@ class Aplicacion(private val tareas: CoroutineScope) {
                 consolaVisible = true
                 seguirTrabajo()
             } else {
-                avisar(respuesta.error.ifEmpty { t("No connection") }, error = true)
+                avisar(respuesta.error.ifEmpty { t("Not connected") }, error = true)
             }
         }
     }
@@ -260,7 +404,7 @@ class Aplicacion(private val tareas: CoroutineScope) {
             }
             val respuesta = conexion.enviar("/api/setting", datos)
             if (!respuesta.correcta) {
-                avisar(respuesta.error.ifEmpty { t("No connection") }, error = true)
+                avisar(respuesta.error.ifEmpty { t("Not connected") }, error = true)
             }
             leerPagina(pagina)
         }
@@ -280,7 +424,11 @@ class Aplicacion(private val tareas: CoroutineScope) {
                 delay(350)
                 leerTrabajo()
             } while (!trabajo.terminado)
+            if (trabajo.correcto && preferencias.logico("console_auto_hide")) {
+                consolaVisible = false
+            }
             lecturas.clear()
+            leerPreferencias()
             leerPagina(pagina)
         }
     }

@@ -6603,5 +6603,6 @@
   "Prepare the connection": "Kapcsolat előkészítése",
   "Control Center does these steps in order and stops at the first that fails:": "A Control Center sorban elvégzi ezeket a lépéseket, és az első hibánál megáll:",
   "Firewall and local address are checked at the end and fixed only if needed.": "A tűzfal és a helyi cím ellenőrzése a végén történik, javítás csak szükség esetén.",
-  "The connection is ready: scan the code with your phone.": "A kapcsolat kész: olvassa be a kódot a telefonjával."
+  "The connection is ready: scan the code with your phone.": "A kapcsolat kész: olvassa be a kódot a telefonjával.",
+  "This page stops working until web access is started again on the board.": "Ez az oldal nem működik, amíg a webes hozzáférést újra el nem indítják a lapon."
 }

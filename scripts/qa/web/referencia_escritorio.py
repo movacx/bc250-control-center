@@ -16,7 +16,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+os.environ["QT_QPA_PLATFORM"] = f"offscreen:configfile={Path(__file__).with_name('pantalla.json')}"
 from servicio_ejemplo import (  # noqa: E402
     ActividadEjemplo,
     ConfiguracionEjemplo,
@@ -63,8 +63,10 @@ def guardar_ajustes(escritorio, ventana, QDialog, esperar, guardar) -> None:
 
     dialogo = SettingsDialog(ventana.controller, settings_service=ventana.settings_service,
                              activity_service=ventana.activity_service, app_settings=ventana.settings, parent=ventana)
-    dialogo.resize(1180, 820)
+    dialogo.fit_to_content = lambda *_a, **_k: None
     dialogo.setVisible(True)
+    dialogo.setFixedSize(1216, 816)
+    esperar(1)
     pagina = dialogo.page
     for seccion in (*pagina.section_order, *pagina.SUBPAGES):
         try:

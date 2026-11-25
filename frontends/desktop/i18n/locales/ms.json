@@ -6603,5 +6603,6 @@
   "Prepare the connection": "Sediakan sambungan",
   "Control Center does these steps in order and stops at the first that fails:": "Control Center melakukan langkah ini mengikut tertib dan berhenti pada yang pertama gagal:",
   "Firewall and local address are checked at the end and fixed only if needed.": "Tembok api dan alamat setempat diperiksa di akhir dan dibaiki hanya jika perlu.",
-  "The connection is ready: scan the code with your phone.": "Sambungan sedia: imbas kod dengan telefon anda."
+  "The connection is ready: scan the code with your phone.": "Sambungan sedia: imbas kod dengan telefon anda.",
+  "This page stops working until web access is started again on the board.": "Halaman ini berhenti berfungsi sehingga akses web dimulakan semula pada papan."
 }

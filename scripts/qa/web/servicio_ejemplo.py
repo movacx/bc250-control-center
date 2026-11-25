@@ -125,6 +125,9 @@ class ServicioEjemplo:
     def estado_cpu_oc_persistente(self):
         return {"enabled": "enabled", "persistent": "enabled", "frequency": 3650, "scale": -19, "temperature": 90}
 
+    def driver_inventory(self):
+        return {"supported_components": ["network", "printing"], "network": [], "bluetooth_controllers": [], "printing": {}}
+
     def inventario_procesos(self):
         return {"processes": deepcopy(PROCESOS)}
 

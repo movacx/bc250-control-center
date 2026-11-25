@@ -59,7 +59,7 @@ private fun FormularioClave(aplicacion: Aplicacion) {
     fun entrar() {
         aplicacion.ingresar(clave)
     }
-    Texto(t("Enter the access key shown in Remote access on the board."), tamano = 13, color = paleta.apagado)
+    Texto(t("Enter the access key shown in Remote access on the desktop application."), tamano = 13, color = paleta.apagado)
     CampoTexto(
         valor = clave,
         alCambiar = { nueva -> clave = nueva },
@@ -83,6 +83,6 @@ private fun FormularioClave(aplicacion: Aplicacion) {
 
 @Composable
 private fun SinConexion(aplicacion: Aplicacion) {
-    Texto(t("No connection"), tamano = 13, color = ColoresActuales.current.naranja)
+    Texto(t("Not connected"), tamano = 13, color = ColoresActuales.current.naranja)
     Boton(t("Retry"), aplicacion::iniciar, clase = ClaseBoton.PRINCIPAL, modifier = Modifier.fillMaxWidth())
 }

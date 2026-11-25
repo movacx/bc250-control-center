@@ -177,7 +177,8 @@ private fun TituloGrupo(titulo: String, plegada: Boolean) {
 private fun BotonBarra(seccion: Seccion, aplicacion: Aplicacion) {
     val paleta = ColoresActuales.current
     val plegada = aplicacion.barraPlegada
-    val elegida = aplicacion.pagina == seccion.clave
+    val enAjustes = aplicacion.seccionAjustes.isNotEmpty()
+    val elegida = if (enAjustes) seccion.clave == "settings" else aplicacion.pagina == seccion.clave
     val interaccion = remember { MutableInteractionSource() }
     val encima by interaccion.collectIsHoveredAsState()
     val fondo = when {

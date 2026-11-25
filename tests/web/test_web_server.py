@@ -303,7 +303,7 @@ def test_every_string_the_page_asks_for_is_in_the_catalogue():
 
 def test_the_theme_is_the_desktops_palette(client):
     data = client.call("GET", "/api/theme")[1]
-    assert data["palettes"]["light/green"]["panel"] == "#FFFFFF" and "blue_soft" in data["palettes"]["dark/violet"]
+    assert data["palettes"]["formal/light/green"]["panel"] == "#FFFFFF" and "blue_soft" in data["palettes"]["formal/dark/violet"]
 
 
 def test_a_preference_needs_the_csrf_token_and_only_listed_ones_exist(client):

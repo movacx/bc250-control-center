@@ -6603,5 +6603,6 @@
   "Prepare the connection": "Προετοιμασία σύνδεσης",
   "Control Center does these steps in order and stops at the first that fails:": "Το Control Center κάνει αυτά τα βήματα με τη σειρά και σταματά στο πρώτο που αποτυγχάνει:",
   "Firewall and local address are checked at the end and fixed only if needed.": "Το τείχος προστασίας και η τοπική διεύθυνση ελέγχονται στο τέλος και διορθώνονται μόνο αν χρειάζεται.",
-  "The connection is ready: scan the code with your phone.": "Η σύνδεση είναι έτοιμη: σαρώστε τον κωδικό με το τηλέφωνό σας."
+  "The connection is ready: scan the code with your phone.": "Η σύνδεση είναι έτοιμη: σαρώστε τον κωδικό με το τηλέφωνό σας.",
+  "This page stops working until web access is started again on the board.": "Αυτή η σελίδα σταματά να λειτουργεί μέχρι να ξεκινήσει ξανά η πρόσβαση ιστού στην πλακέτα."
 }

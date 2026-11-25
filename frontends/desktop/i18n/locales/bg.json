@@ -6603,5 +6603,6 @@
   "Prepare the connection": "Подготви връзката",
   "Control Center does these steps in order and stops at the first that fails:": "Control Center изпълнява тези стъпки поред и спира при първата неуспешна:",
   "Firewall and local address are checked at the end and fixed only if needed.": "Защитната стена и локалният адрес се проверяват накрая и се поправят само при нужда.",
-  "The connection is ready: scan the code with your phone.": "Връзката е готова: сканирайте кода с телефона си."
+  "The connection is ready: scan the code with your phone.": "Връзката е готова: сканирайте кода с телефона си.",
+  "This page stops working until web access is started again on the board.": "Тази страница спира да работи, докато уеб достъпът не бъде стартиран отново на платката."
 }

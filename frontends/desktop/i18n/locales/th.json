@@ -6603,5 +6603,6 @@
   "Prepare the connection": "เตรียมการเชื่อมต่อ",
   "Control Center does these steps in order and stops at the first that fails:": "Control Center ทำขั้นตอนเหล่านี้ตามลำดับและหยุดที่ขั้นแรกที่ล้มเหลว:",
   "Firewall and local address are checked at the end and fixed only if needed.": "ไฟร์วอลล์และที่อยู่ภายในจะถูกตรวจสอบในตอนท้ายและแก้ไขเมื่อจำเป็นเท่านั้น",
-  "The connection is ready: scan the code with your phone.": "การเชื่อมต่อพร้อมแล้ว: สแกนรหัสด้วยโทรศัพท์ของคุณ"
+  "The connection is ready: scan the code with your phone.": "การเชื่อมต่อพร้อมแล้ว: สแกนรหัสด้วยโทรศัพท์ของคุณ",
+  "This page stops working until web access is started again on the board.": "หน้านี้จะหยุดทำงานจนกว่าจะเริ่มการเข้าถึงเว็บบนบอร์ดอีกครั้ง"
 }

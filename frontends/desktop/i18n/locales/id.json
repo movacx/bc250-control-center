@@ -6603,5 +6603,6 @@
   "Prepare the connection": "Siapkan koneksi",
   "Control Center does these steps in order and stops at the first that fails:": "Control Center menjalankan langkah ini berurutan dan berhenti pada yang pertama gagal:",
   "Firewall and local address are checked at the end and fixed only if needed.": "Firewall dan alamat lokal diperiksa di akhir dan diperbaiki hanya bila perlu.",
-  "The connection is ready: scan the code with your phone.": "Koneksi siap: pindai kode dengan ponsel Anda."
+  "The connection is ready: scan the code with your phone.": "Koneksi siap: pindai kode dengan ponsel Anda.",
+  "This page stops working until web access is started again on the board.": "Halaman ini berhenti berfungsi sampai akses web dimulai lagi di papan."
 }

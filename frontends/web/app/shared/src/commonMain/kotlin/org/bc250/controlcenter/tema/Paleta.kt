@@ -9,6 +9,11 @@ import androidx.compose.ui.graphics.Color
  */
 class Paleta(private val colores: Map<String, String>, val esClaro: Boolean) {
 
+    /** La misma paleta con otros colores de consola. */
+    fun conTerminal(consola: Map<String, String>): Paleta {
+        return if (consola.isEmpty()) this else Paleta(colores + consola, esClaro)
+    }
+
     /** El color con ese nombre; si falta, uno muy visible para notarlo. */
     fun color(nombre: String): Color {
         val texto = colores[nombre]

@@ -6603,5 +6603,6 @@
   "Prepare the connection": "Pregătește conexiunea",
   "Control Center does these steps in order and stops at the first that fails:": "Control Center face acești pași în ordine și se oprește la primul care eșuează:",
   "Firewall and local address are checked at the end and fixed only if needed.": "Firewallul și adresa locală sunt verificate la final și corectate doar dacă este nevoie.",
-  "The connection is ready: scan the code with your phone.": "Conexiunea este gata: scanați codul cu telefonul."
+  "The connection is ready: scan the code with your phone.": "Conexiunea este gata: scanați codul cu telefonul.",
+  "This page stops working until web access is started again on the board.": "Această pagină nu mai funcționează până când accesul web este repornit pe placă."
 }

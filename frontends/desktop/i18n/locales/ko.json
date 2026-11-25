@@ -6603,5 +6603,6 @@
   "Prepare the connection": "연결 준비",
   "Control Center does these steps in order and stops at the first that fails:": "Control Center가 다음 단계를 순서대로 실행하고 처음 실패한 단계에서 멈춥니다:",
   "Firewall and local address are checked at the end and fixed only if needed.": "방화벽과 로컬 주소는 마지막에 확인하고 필요할 때만 수정합니다.",
-  "The connection is ready: scan the code with your phone.": "연결이 준비되었습니다. 휴대폰으로 코드를 스캔하세요."
+  "The connection is ready: scan the code with your phone.": "연결이 준비되었습니다. 휴대폰으로 코드를 스캔하세요.",
+  "This page stops working until web access is started again on the board.": "보드에서 웹 접속을 다시 시작할 때까지 이 페이지는 작동하지 않습니다."
 }

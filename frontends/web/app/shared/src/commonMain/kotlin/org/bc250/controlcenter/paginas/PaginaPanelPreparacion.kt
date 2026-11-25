@@ -229,7 +229,7 @@ private fun seleccionInicialPanel(componentes: List<JsonObject>): Set<String> {
 
 /** Una pestaña de la preparación: la abierta lleva el fondo suave del acento. */
 @Composable
-private fun PestanaPanel(texto: String, abierta: Boolean, modifier: Modifier, alPulsar: () -> Unit) {
+internal fun PestanaPanel(texto: String, abierta: Boolean, modifier: Modifier, alPulsar: () -> Unit) {
     val paleta = ColoresActuales.current
     val fondo = if (abierta) paleta.acentoSuave else paleta.panel
     val color = if (abierta) paleta.acento else paleta.apagado

@@ -29,6 +29,7 @@ import urllib.parse
 from email.message import Message
 from functools import lru_cache
 from http import HTTPStatus
+from itertools import product
 from pathlib import Path
 
 from cheroot.ssl.builtin import BuiltinSSLAdapter
@@ -51,7 +52,7 @@ from frontends.desktop.i18n import (
     set_language,
     tr,
 )
-from frontends.desktop.theme import ACCENTS, THEMES, _blend, theme_palette
+from frontends.desktop.theme import ACCENTS, STYLES, THEMES, _blend, theme_palette
 from frontends.tui.runtime import Context, describe_error
 from frontends.web.actions import SETTINGS, Invalid, all_actions
 from frontends.web.arguments import argument_parser
@@ -73,7 +74,7 @@ SESSION_COOKIE_SECONDS = web_devices.MAX_SESSION_SECONDS
 #: Browsers cap a cookie's life at about 400 days; a paired device is renewed on every visit.
 PERMANENT_COOKIE_SECONDS = 400 * 24 * 3600
 MAX_FAILS, LOCK_SECONDS = 5, 300
-MAX_BODY = 64 * 1024
+MAX_BODY = 160 * 1024
 CSP = ("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'sha256-+bHRyQ0Z1/Lb6dgSILtTESBRCIFl8jkBb/dPQA4Pdnw='; img-src 'self' data: blob:; connect-src 'self'; "
        "manifest-src 'self'; worker-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
@@ -319,6 +320,9 @@ class Handler:
         return origin is None or (urllib.parse.urlsplit(origin).netloc == self.headers.get("Host")
                                   and urllib.parse.urlsplit(origin).scheme == ("https" if self.server.secure else "http"))
 
+    def may_control(self) -> bool:
+        return bool(web_devices.session(self.token()).get("control"))
+
     def can_type_password(self) -> bool:
         return bool(getattr(self.server, "secure", False)) or is_loopback(self.client_address[0])
 
@@ -436,6 +440,9 @@ class Handler:
         if name not in PAGES and name not in LECTURAS:
             return self.fail("Not found", 404)
         self.web.live.touch()
+        if name == "remote" and not self.may_control():
+            # It carries the access key: a device that may only watch must not read it.
+            return self.fail("This device has monitoring access. Enable hardware control in Remote access on the desktop.", 403)
         if name in LECTURAS:
             return self.json({"ok": True, "data": self.web.live.reading(name)})
         self.json({"ok": True, "data": self.web.live.page(name)})
@@ -444,9 +451,11 @@ class Handler:
         ask = CONSULTAS.get(query.get("name", ""))
         if ask is None:
             return self.fail("Not found", 404)
+        if query.get("name") == "remote.qr" and not self.may_control():
+            return self.fail("This device has monitoring access. Enable hardware control in Remote access on the desktop.", 403)
         self.web.live.touch()
         data = ask(self.web, query)
-        if query.get("name") == "supervision.download":
+        if query.get("name") in {"supervision.download", "remote.certificate"}:
             # Nombre cerrado elegido por el módulo, sin rutas ni nombres del cliente.
             return self.reply(data["text"].encode("utf-8"), "text/plain; charset=utf-8",
                               extra={"Content-Disposition": f'attachment; filename="{data["filename"]}"'})
@@ -627,22 +636,22 @@ def gzipped(target: Path, _stamp: int) -> bytes:
 def _palettes() -> dict:
     """Every desktop palette in the formal style, by "theme/accent"."""
     palettes = {}
-    for theme in THEMES:
-        for accent in ACCENTS:
-            palette = {name: value for name, value in theme_palette(theme, accent, "formal").items() if isinstance(value, str)}
-            fill, line = palette["panel_raised"], palette["border"]
-            # The core-unlock panel: a muted brick, as the desktop draws it.
-            palette["risk_fill"] = _blend(fill, palette["red"], 0.10)
-            palette["risk_line"] = _blend(line, palette["red"], 0.11)
-            palettes[f"{theme}/{accent}"] = palette
+    for style, theme, accent in product(STYLES, THEMES, ACCENTS):
+        palette = {name: value for name, value in theme_palette(theme, accent, style).items() if isinstance(value, str)}
+        fill, line = palette["panel_raised"], palette["border"]
+        # The core-unlock panel: a muted brick, as the desktop draws it.
+        palette["risk_fill"] = _blend(fill, palette["red"], 0.10)
+        palette["risk_line"] = _blend(line, palette["red"], 0.11)
+        palettes[f"{style}/{theme}/{accent}"] = palette
     return palettes
 
 
 def theme_data(config: dict) -> dict:
     """The palettes and the pair chosen for the web, or the desktop's default."""
-    theme = config.get("web_theme") if config.get("web_theme") in THEMES else "dark"
+    theme = config.get("web_theme") if config.get("web_theme") in (*THEMES, "system") else "dark"
+    style = config.get("web_style") if config.get("web_style") in STYLES else "formal"
     accent = config.get("web_accent") if config.get("web_accent") in ACCENTS else "green"
-    return {"theme": theme, "accent": accent, "themes": list(THEMES), "accents": list(ACCENTS), "palettes": _palettes()}
+    return {"style": style, "theme": theme, "accent": accent, "themes": list(THEMES), "accents": list(ACCENTS), "palettes": _palettes()}
 
 
 class Server(WsgiServer):

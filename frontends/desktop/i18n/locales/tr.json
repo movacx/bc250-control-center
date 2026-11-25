@@ -6603,5 +6603,6 @@
   "Prepare the connection": "Bağlantıyı hazırla",
   "Control Center does these steps in order and stops at the first that fails:": "Control Center bu adımları sırayla yapar ve başarısız olan ilk adımda durur:",
   "Firewall and local address are checked at the end and fixed only if needed.": "Güvenlik duvarı ve yerel adres en sonda denetlenir, yalnızca gerekirse düzeltilir.",
-  "The connection is ready: scan the code with your phone.": "Bağlantı hazır: kodu telefonunuzla tarayın."
+  "The connection is ready: scan the code with your phone.": "Bağlantı hazır: kodu telefonunuzla tarayın.",
+  "This page stops working until web access is started again on the board.": "Kartta web erişimi yeniden başlatılana kadar bu sayfa çalışmaz."
 }
