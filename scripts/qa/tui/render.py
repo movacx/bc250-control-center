@@ -96,6 +96,9 @@ def png(window: Window, path: str, dark: bool) -> None:
                 if (ord(char) - 0x2800) >> bit & 1:
                     px, py = x * cw + 1 + dx * 4, y * ch + 2 + dy * 4
                     draw.rectangle((px, py, px + 1, py + 1), fill=fg)
+        elif char in "█▀▄":
+            top, low = y * ch + (9 if char == "▄" else 0), y * ch + (8 if char == "▀" else ch - 1)
+            draw.rectangle((x * cw, top, (x + 1) * cw - 1, low), fill=fg)
         else:
             draw.text((x * cw, y * ch), char, font=fonts[bold], fill=fg)
         if under:
@@ -104,8 +107,8 @@ def png(window: Window, path: str, dark: bool) -> None:
 
 
 def render(args):
-    from frontends.tui.pages import build_pages
     from frontends.tui.i18n import set_language
+    from frontends.tui.pages import build_pages
     from frontends.tui.screen import Screen
     from tests.tui.fakes import make_context
 

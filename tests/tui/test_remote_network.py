@@ -1,6 +1,5 @@
 """Network repairs are available in the TUI and stay inside its guarded console."""
 
-import time
 import unittest
 from unittest.mock import patch
 
@@ -15,7 +14,6 @@ class RemoteNetworkTests(unittest.TestCase):
     def setUp(self):
         set_language("en")
         self.ctx, self.ui, self.page = make_context(), FakeUI(), RemoteAccessPage()
-        self.ctx.state("remote")["visible_until"] = time.monotonic() + 300
         self.web = {
             "lan": True,
             "running": True,
@@ -48,7 +46,7 @@ class RemoteNetworkTests(unittest.TestCase):
 
     def test_network_tab_and_web_shortcut(self):
         self.assertIn(("network", "Network diagnostics"), self.page.tabs(self.ctx))
-        self.choice("Network diagnostics", self.blocks("web")).handler(self.ui)
+        self.choice("Network diagnostics", self.blocks("web")[0].blocks).handler(self.ui)
         self.assertEqual(self.ui.tab, "network")
 
     def test_network_diagnosis_fits_narrow_terminals_in_english_and_spanish(self):
@@ -119,27 +117,12 @@ class RemoteNetworkTests(unittest.TestCase):
         self.assertIn("Avahi", self.ui.confirmations[0][0])
         self.assertEqual(self.ui.ran, ["Repair local address"])
 
-    def test_repair_cancelled_and_expired_privacy_do_not_mutate(self):
+    def test_a_cancelled_repair_changes_nothing(self):
         with patch.object(web_access, "repair_firewall") as call:
             self.ui.confirm_answer = False
             self.choice("Configure LAN firewall").handler(self.ui)
             self.assertEqual(self.ui.ran, [])
-            self.ui.confirm_answer = True
-            action = self.choice("Configure LAN firewall")
-            self.ctx.state("remote")["visible_until"] = 0
-            action.handler(self.ui)
             call.assert_not_called()
-        self.assertNotIn("192.168", self.text())
-
-    def test_expiration_during_confirmation_blocks_repair(self):
-        def confirm(*args, **kwargs):
-            self.ctx.state("remote")["visible_until"] = 0
-            return True
-
-        self.ui.confirm = confirm
-        with patch.object(web_access, "repair_firewall") as call:
-            self.choice("Configure LAN firewall").handler(self.ui)
-        call.assert_not_called()
 
     def test_no_lan_or_unsupported_manager_offers_no_firewall_repair(self):
         self.web["lan"] = False

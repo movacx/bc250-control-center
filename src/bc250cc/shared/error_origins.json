@@ -3074,6 +3074,7 @@
    "ssh_target": "CORE-0202",
    "tls_certificate": "CORE-0203",
    "pairing_svg": "CORE-0204",
+   "pairing_matrix": "CORE-0370",
    "certificate_fingerprint": "CORE-0205",
    "_pid_path": "CORE-0144",
    "write_pid": "CORE-0145",

@@ -1,6 +1,4 @@
 """TUI-only remote ownership: privacy, permissions and independent SSH policy."""
-import time
-
 import pytest
 
 from bc250cc.application.system import remote_access, web_access
@@ -10,21 +8,48 @@ from .fakes import FakeUI, make_context
 from .test_pages import choice, render, text_of
 
 
-def reveal(ctx):
-    ctx.state('remote')['visible_until'] = time.monotonic() + 300
+def test_the_page_opens_with_its_information_and_a_qr_that_never_carries_the_key(isolated_remote_access, monkeypatch):
+    from frontends.tui.pages import remote
 
-
-def test_remote_information_starts_hidden_and_expires_after_five_minutes(isolated_remote_access, monkeypatch):
     web, _ssh = isolated_remote_access
-    web.update(key='SECRET-KEY', urls=['https://private-address:8250'])
+    web.update(running=True, lan=True, key='SECRET-KEY', urls=['http://plain:1', 'https://192.0.2.1:8250', 'https://10.0.0.2:8250'])
+    tokens, encoded = ['TOKEN-1', 'TOKEN-2'], []
+    ages = {'TOKEN-1': 0.0}
+    monkeypatch.setattr(remote.web_pairing, 'issue', lambda: tokens.pop(0))
+    monkeypatch.setattr(remote.web_pairing, 'age', lambda token: ages.get(token))
+    real = web_access.pairing_matrix
+    monkeypatch.setattr(web_access, 'pairing_matrix', lambda url: encoded.append(url) or real(url))
     ctx, ui, page = make_context(), FakeUI(), RemoteAccessPage()
-    assert 'SECRET' not in text_of(render(page, ctx, ui))
-    choice(render(page, ctx, ui), 'Show information').handler(ui)
-    assert 'SECRET-KEY' in text_of(render(page, ctx, ui))
-    ctx.state('remote')['visible_until'] = time.monotonic() - 1
-    assert 'SECRET' not in text_of(render(page, ctx, ui))
-    fresh = make_context()
-    assert 'SECRET' not in text_of(render(page, fresh, ui))
+    shown = text_of(render(page, ctx, ui))
+    assert 'SECRET-KEY' in shown and 'Show information' not in shown and '▀' in shown
+    assert encoded[-1] == 'https://192.0.2.1:8250#pair=TOKEN-1'
+    choice(render(page, ctx, ui), 'Address').adjust(ui, 1)
+    render(page, ctx, ui)
+    assert encoded[-1] == 'https://10.0.0.2:8250#pair=TOKEN-1'
+    ages.clear()  # a phone used it
+    render(page, ctx, ui)
+    assert encoded[-1].endswith('#pair=TOKEN-2') and all('SECRET' not in url for url in encoded)
+
+
+def test_without_access_or_the_local_network_no_code_is_issued(isolated_remote_access, monkeypatch):
+    from frontends.tui.pages import remote
+
+    web, _ssh = isolated_remote_access
+    monkeypatch.setattr(remote.web_pairing, 'issue', lambda: (_ for _ in ()).throw(AssertionError('issued')))
+    for state in ({'running': False, 'lan': True}, {'running': True, 'lan': False}):
+        web.update(state)
+        assert 'to display your QR here' in text_of(render(RemoteAccessPage(), make_context(), FakeUI()))
+
+
+def test_a_new_device_is_announced_but_not_the_ones_already_there(isolated_remote_access):
+    web, _ssh = isolated_remote_access
+    web['devices'] = [{'id': 'one'}]
+    ctx, ui, page = make_context(), FakeUI(), RemoteAccessPage()
+    render(page, ctx, ui)
+    assert not ui.notes
+    web['devices'] = [{'id': 'one'}, {'id': 'two'}]
+    render(page, ctx, ui)
+    assert ui.notes == [('New device paired', 'ok')]
 
 
 def test_permissions_and_session_duration_target_only_the_selected_device(isolated_remote_access, monkeypatch):
@@ -34,7 +59,6 @@ def test_permissions_and_session_duration_target_only_the_selected_device(isolat
     monkeypatch.setattr(web_access, 'set_control', lambda *args: calls.append(('control', args)))
     monkeypatch.setattr(web_access, 'set_lifetime', lambda *args: calls.append(('lifetime', args)))
     ctx, ui, page = make_context(), FakeUI(ints=[120]), RemoteAccessPage()
-    reveal(ctx)
     layout = render(page, ctx, ui, 'devices')
     choice(layout, 'Allow hardware control').handler(ui)
     choice(layout, 'Custom session duration in minutes').handler(ui)
@@ -48,7 +72,6 @@ def test_ssh_start_and_boot_policy_are_independent_and_require_confirmation(isol
     calls = []
     monkeypatch.setattr(remote_access, 'configure', lambda **updates: calls.append(updates))
     ctx, ui, page = make_context(), FakeUI(), RemoteAccessPage()
-    reveal(ctx)
     layout = render(page, ctx, ui, 'ssh')
     choice(layout, 'Start SSH').handler(ui)
     choice(layout, 'Enable · Boot persistence').handler(ui)
@@ -58,7 +81,6 @@ def test_ssh_start_and_boot_policy_are_independent_and_require_confirmation(isol
 
 def test_unsupported_init_disables_ssh_instead_of_faking_success(isolated_remote_access):
     ctx, ui = make_context(), FakeUI()
-    reveal(ctx)
     layout = render(RemoteAccessPage(), ctx, ui, 'ssh')
     assert not choice(layout, 'Start SSH').enabled
     assert not choice(layout, 'Enable · Boot persistence').enabled
@@ -83,13 +105,16 @@ def test_native_ssh_commands_use_the_active_init_adapter(manager, expected, monk
     assert 'enable' not in calls[0] and 'add' not in calls[0]
 
 
-def test_an_idle_remote_dialog_closes_when_visibility_expires():
+def test_a_small_terminal_shows_the_qr_over_the_whole_screen():
+    from frontends.tui.pages.remote import qr_rows
+
     from .test_screen import make_screen
 
-    window, screen = make_screen()
-    screen.goto('remote')
-    screen.ctx.state('remote')['visible_until'] = time.monotonic() - 1
-    window.queue = [-1]
-    assert not screen.confirm('Hardware control', danger=True)
-    assert screen.ctx.state('remote')['visible_until'] == 0
-    assert 'TEST-TEST' not in window.text()
+    rows = qr_rows(web_access.pairing_matrix('https://192.0.2.1:8250#pair=abcdefghijklmnopqrstuvwx'))
+    window, screen = make_screen(height=24, width=80)
+    window.queue = [27]
+    screen.show_qr(rows)
+    assert '▀' in window.text() and screen.toast is None
+    window, screen = make_screen(height=14, width=60)
+    screen.show_qr(rows)
+    assert 'too small' in screen.toast[0]

@@ -123,6 +123,16 @@ def pairing_svg(url: str) -> bytes:
             f'<rect width="100%" height="100%" fill="white"/><path d="{squares}" fill="black"/></svg>').encode()
 
 
+def pairing_matrix(url: str) -> list[list[bool]]:
+    """The same QR as rows of modules (dark is true), with the quiet zone scanners need."""
+    from bc250cc._vendor.qrcodegen import QrCode
+
+    qr = QrCode.encode_text(url, QrCode.Ecc.LOW)  # a terminal shows it without damage: the fewest cells
+    size = qr.get_size()
+    return [[0 <= x < size and 0 <= y < size and qr.get_module(x, y) for x in range(-2, size + 2)]
+            for y in range(-2, size + 2)]
+
+
 def certificate_fingerprint() -> str:
     try:
         pem = (app_config_dir() / "web-tls" / "certificate.pem").read_text(encoding="ascii")

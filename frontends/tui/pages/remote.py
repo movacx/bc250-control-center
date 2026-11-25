@@ -1,15 +1,19 @@
 """Local web ownership and SSH controls for a keyboard-only terminal."""
 from __future__ import annotations
 
-import time
+from bc250cc.application.system import remote_access, web_access, web_pairing
 
-from bc250cc.application.system import remote_access, web_access
-
-from ..content import Choice, Field, Gap, Heading, Note
+from ..content import Choice, Field, Gap, Heading, Note, Panel, Spans
 from ..i18n import tr
-from .base import Page, guarded
+from .base import Page, guarded, switch
 
-PRIVACY_SECONDS = 300
+
+def qr_rows(matrix: list[list[bool]]) -> list[list[tuple[str, str]]]:
+    """A QR as half blocks, two rows of modules a line: black on white whatever the theme."""
+    if len(matrix) % 2:
+        matrix = [*matrix, [False] * len(matrix[0])]
+    glyphs = {(True, True): "█", (True, False): "▀", (False, True): "▄", (False, False): " "}
+    return [[("".join(glyphs[pair] for pair in zip(upper, lower)), "qr")] for upper, lower in zip(matrix[::2], matrix[1::2])]
 
 
 class RemoteAccessPage(Page):
@@ -20,24 +24,76 @@ class RemoteAccessPage(Page):
     def tabs(self, ctx):
         return [("web", tr("Remote access")), ("devices", tr("Connected devices")), ("ssh", "SSH"), ("network", tr("Network diagnostics"))]
 
+    def __init__(self) -> None:
+        self._token = ""  # the one-time code the QR carries; never the access key
+        self._known: set[str] | None = None  # paired devices, to say when one is new
+
     def load(self, ctx):
-        return {"web": web_access.status(), "ssh": remote_access.status()}
+        web = web_access.status()
+        return {"web": web, "ssh": remote_access.status(), "pair": self._pair_token(web)}
+
+    def _pair_token(self, web) -> str:
+        """A fresh code while a phone could use it: replaced once used or close to expiry."""
+        if not (web.get("running") and web.get("lan")):
+            return ""
+        try:
+            age = web_pairing.age(self._token) if self._token else None
+            if age is None or age > web_pairing.RENEW_SECONDS:
+                self._token = web_pairing.issue()
+        except OSError:
+            return ""
+        return self._token
+
+    def _pairing(self, ctx, web, token, ui):
+        """The QR to scan, or what is missing to show one."""
+        urls = [str(url) for url in web.get("urls") or [] if str(url).startswith("https://")]
+        if not token or not urls:
+            return Panel(tr("Scan to connect"), [Note(tr(
+                "Start web access and enable the local network to display your QR here."), "dim")])
+        rows = qr_rows(web_access.pairing_matrix(f"{urls[ctx.state(self.key).get('address', 0) % len(urls)]}#pair={token}"))
+        note = Note(tr("Scan to pair. The code works once and renews by itself."), "dim")
+        width = ui._content_box()[1] if hasattr(ui, "_content_box") else 100
+        tall = ui._view() if hasattr(ui, "_view") else 40
+        if len(rows[0][0][0]) > width or len(rows) + 2 > tall:  # over the whole terminal instead
+            return Panel(tr("Scan to connect"), [Choice(tr("Scan to connect") + " ›", lambda ui_: ui_.show_qr(rows)), note])
+        return Panel(tr("Scan to connect"), [Spans(rows), note])
+
+    def _addresses(self, ctx, urls):
+        """Where it answers; with several, the one the QR carries."""
+        secure = [url for url in urls if url.startswith("https://")]
+        if len(secure) < 2:
+            return [Field(tr("Address"), url) for url in urls]
+        state = ctx.state(self.key)
+        at = state.get("address", 0) % len(secure)
+
+        def step(_ui, direction=1):
+            state["address"] = (at + direction) % len(secure)
+
+        def pick(ui_):
+            chosen = ui_.choose(tr("Address"), list(enumerate(secure)))
+            if chosen is not None:
+                state["address"] = chosen
+
+        return [Choice(tr("Address"), pick, f"< {secure[at]} >", adjust=step)]
+
+    def _greet(self, web, ui) -> None:
+        if "devices" not in web:
+            return
+        current = {str(item.get("id")) for item in web.get("devices") or []}
+        if self._known is not None and current - self._known:
+            ui.notify(tr("New device paired"), "ok")
+        self._known = current
 
     def build(self, ctx, data, tab, ui):
         data = data or {}
-        state = ctx.state(self.key)
-        if time.monotonic() >= state.get("visible_until", 0):
-            return [Heading(tr("Information protected")), Note(tr("Access keys, codes and devices are hidden."), "dim"),
-                    Choice(tr("Show information"), lambda ui_: state.update(
-                        visible_until=time.monotonic() + PRIVACY_SECONDS))]
-        out = [Choice(tr("Lock view"), lambda ui_: state.update(visible_until=0)), Gap()]
         if tab == "ssh":
-            return out + self._ssh(ctx, data.get("ssh") or {})
+            return self._ssh(ctx, data.get("ssh") or {})
         web = data.get("web") or {}
+        self._greet(web, ui)
         if tab == "devices":
-            return out + self._devices(web)
+            return self._devices(web)
         if tab == "network":
-            return out + self._network(ctx, web)
+            return self._network(ctx, web)
 
         def run(label, work, danger=False):
             def handler(ui_):
@@ -51,23 +107,23 @@ class RemoteAccessPage(Page):
                 guarded(ui_, tr("Remote access"), lambda: web_access.configure(port=value))
 
         urls = web.get("urls") or [web.get("local_url") or "--"]
-        out += [Heading(tr("Remote access")), Field(tr("Status"), tr("Active" if web.get("running") else "Stopped")),
-                *[Field(tr("Address"), str(url)) for url in urls], Field(tr("Access key"), str(web.get("key") or "--")),
+        out = [Field(tr("Status"), tr("Active" if web.get("running") else "Stopped")),
+                *self._addresses(ctx, [str(url) for url in urls]), Field(tr("Access key"), str(web.get("key") or "--")),
                 Choice(tr("Stop web access") if web.get("running") else tr("Start web access"),
                        run("Stop web access" if web.get("running") else "Start web access",
                            web_access.stop if web.get("running") else web_access.start)),
                 Choice(tr("New access key"), run("New access key", lambda: (web_access.access_key(renew=True), None)[1], True)),
-                Choice(f"[{'x' if web.get('lan') else ' '}] {tr('Reachable from the local network')}",
+                switch(tr("Reachable from the local network"), bool(web.get("lan")),
                        run("Reachable from the local network", lambda: web_access.configure(lan=not web.get("lan")))),
                 Choice("TCP", port, str(web.get("port") or web_access.DEFAULT_PORT)),
                 Note(tr("Changing the TCP port does not open it in the firewall. Use Network diagnostics to configure LAN access."), "dim"),
                 Choice(tr("Network diagnostics"), lambda ui_: ui_.show_tab("network"), tr("Firewall and local address"))]
         startup = web.get("autostart") or {}
-        out += [Choice(f"[{'x' if startup.get('enabled') else ' '}] {tr('Start with the session')}",
+        out += [switch(tr("Start with the session"), bool(startup.get("enabled")),
                        run("Start with the session", lambda: web_access.set_autostart(not startup.get("enabled"))),
                        enabled=bool(startup.get("supported"))),
                 Field("SHA-256", str(web.get("trust_fingerprint") or "--"))]
-        return out
+        return [Panel(tr("Remote access"), out), self._pairing(ctx, web, data.get("pair") or "", ui)]
 
     def _network(self, ctx, web):
         out = [Heading(tr("Network diagnostics"))]
@@ -120,17 +176,7 @@ class RemoteAccessPage(Page):
 
     def _network_repair(self, ctx, label, message, operation, success):
         def handler(ui_):
-            def unlocked():
-                return time.monotonic() < ctx.state(self.key).get("visible_until", 0)
-            if not unlocked():
-                ui_.notify(tr("Information protected"), "warn")
-                ui_.refresh()
-                return
             if not ui_.confirm(f"{tr(label)}: {message}", danger=True):
-                return
-            if not unlocked():
-                ui_.notify(tr("Information protected"), "warn")
-                ui_.refresh()
                 return
             guarded(ui_, tr(label), operation, success=tr(success))
         return handler

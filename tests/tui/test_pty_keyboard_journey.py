@@ -52,7 +52,7 @@ def test_keyboard_journey_reaches_remote_and_every_resource_on_a_real_pty(tmp_pa
             os.write(fd, bytes([shortcut]))
             time.sleep(.03)
         os.write(fd, b'.')
-        output += read_until(fd, b'Information protected')
+        output += read_until(fd, b'Access key')
         os.write(fd, b'6')
         time.sleep(.1)
         # F3 task picker selects the final tab even when it does not fit the strip.
@@ -108,7 +108,7 @@ def test_mouse_sgr_opens_remote_and_pinned_settings_on_an_actual_terminal(tmp_pa
         read_until(fd, b'Dashboard')
         # At 30 rows, the grouped sidebar places Remote access on row 18 and Settings on row 25.
         os.write(fd, b'\x1b[<0;4;18M\x1b[<0;4;18m')
-        read_until(fd, b'Information protected')
+        read_until(fd, b'Access key')
         # Let the preceding click release finish before the next physical click;
         # ncurses coalesces simultaneous mouse reports in its input queue.
         time.sleep(.15)

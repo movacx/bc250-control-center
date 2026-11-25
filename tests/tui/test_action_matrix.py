@@ -43,7 +43,6 @@ def context(family, extended):
     ctx.state('cpu')['target'] = {'profile': 0, 'manual': extended, 'scale': -34, 'force_mask': extended}
     ctx.state('gpu')['level'] = -1 if extended else 1
     ctx.state('cu')['masks'] = [30, 31, 31, 31]
-    ctx.state('remote')['visible_until'] = float('inf')
     return ctx
 
 

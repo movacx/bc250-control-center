@@ -171,7 +171,7 @@ class Screen(PaletteSupport, PointerSupport):
         light = theme == "light" or (theme == "auto" and detect_light_background())
         attrs = {"": curses.A_NORMAL, "dim": curses.A_DIM, "accent": curses.A_BOLD, "sel": curses.A_REVERSE | curses.A_BOLD,
                  "ok": curses.A_NORMAL, "warn": curses.A_BOLD, "bad": curses.A_BOLD | curses.A_UNDERLINE,
-                 "edge": curses.A_DIM, "bar": curses.A_NORMAL}
+                 "edge": curses.A_DIM, "bar": curses.A_NORMAL, "qr": curses.A_REVERSE}
         if colour:
             try:
                 curses.use_default_colors()
@@ -181,6 +181,10 @@ class Screen(PaletteSupport, PointerSupport):
                     curses.init_pair(pair, color, -1)  # -1: the terminal's own background
                 for tone, pair in TONE_PAIRS.items():
                     attrs[tone] = curses.color_pair(pair) | (curses.A_BOLD if tone in ("accent", "bad") else 0)
+                # A scanner needs dark on light: the same two colours in every theme.
+                curses.init_pair(34, 16 if curses.COLORS >= 256 else curses.COLOR_BLACK,
+                                 231 if curses.COLORS >= 256 else curses.COLOR_WHITE)
+                attrs["qr"] = curses.color_pair(34)
                 if curses.COLORS >= 256:  # softer tones, close to the desktop's
                     dark_tone, light_tone, fill = preferences.ACCENTS[self.prefs["tui_accent"]]
                     text = (65, 130, 124, light_tone) if light else (108, 179, 167, dark_tone)
@@ -1068,17 +1072,28 @@ class Screen(PaletteSupport, PointerSupport):
         self._dialog_rect = top, left, box_h, box_w
         return top, left, box_h, box_w
 
+    def show_qr(self, rows) -> None:
+        """A QR over the whole terminal, for one that does not fit on its page; any key closes it."""
+        wide, tall = cell_width(rows[0][0][0]), len(rows)
+        while True:
+            height, width = self.size()
+            if wide > width or tall > height:
+                self.notify(tr("The terminal is too small ({width}x{height}); it needs at least {min_width}x{min_height}.").format(
+                    width=width, height=height, min_width=wide, min_height=tall), "warn")
+                return
+            self.stdscr.erase()
+            for line, row in enumerate(rows):
+                self.put((height - tall) // 2 + line, (width - wide) // 2, row[0][0], self.attrs["qr"])
+            self._present()
+            if self._modal_key() != "resize":
+                self._layout_key = None
+                return
+
     def _modal_key(self) -> str:
         """Wait for one keyboard event; ignore idle wakeups and pointer events."""
         while True:
             code = self._getch()
             if code == -1:
-                visible = self.ctx.state("remote").get("visible_until", 0)
-                if self.page_key == "remote" and 0 < visible <= time.monotonic():
-                    self.ctx.state("remote")["visible_until"] = 0
-                    self.draw()
-                    self._present()
-                    return "esc"  # do not leave credentials behind an idle dialog
                 continue
             if code == 3:  # Ctrl+C leaves any dialog, whatever it was asking
                 return "esc"
