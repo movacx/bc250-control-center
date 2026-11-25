@@ -12,6 +12,7 @@ from bc250cc.application.preparation.component_engine import (
     normalize_components,
     unavailable_components,
 )
+from bc250cc.infrastructure import memory_autoload
 from bc250cc.infrastructure.accessories import accessory_inventory
 from bc250cc.infrastructure.apu_telemetry_service import (
     APU_TELEMETRY_DIRECTORY,
@@ -218,6 +219,7 @@ from bc250cc.infrastructure.steamos_readonly import (
 from bc250cc.infrastructure.steamos_real_toolkit import STATE_ROOT as TOOLKIT_STATE_ROOT
 from bc250cc.infrastructure.steamos_root_guard import RootReading, session_summary
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
+from bc250cc.infrastructure.system_setup import MEMORY_SENSOR_OPTION
 from bc250cc.infrastructure.system_setup import command as system_setup_command
 from bc250cc.infrastructure.system_setup import inventory as system_setup_inventory
 from bc250cc.infrastructure.tool_inventory import (
@@ -351,10 +353,13 @@ class DependenciasRepository(SteamosDependenciesMixin):
         if family == 'steamos' and set(options) - {'mitigations=off', 'nosmt', 'loglevel=0'}:
             # SteamOS's boot menu takes everything here except the CU unlock.
             raise RuntimeError('Only mitigations=off, nosmt and loglevel=0 can be managed on SteamOS.')
-        return self._abrir_terminal(
-            system_setup_command('kernel-options-set', kernel_options=tuple(options)),
-            'BC250 kernel boot options',
-        )
+        wanted = set(options)
+        memory = memory_autoload.steps(MEMORY_SENSOR_OPTION in wanted)
+        if memory_autoload.loads_by_alias():
+            # Its alias loads it, or its denylist does not: never the command line.
+            wanted.discard(MEMORY_SENSOR_OPTION)
+        command = system_setup_command('kernel-options-set', kernel_options=tuple(wanted))
+        return self._abrir_terminal(command + memory, 'BC250 kernel boot options')
 
     def gestionar_smt_vivo(self, mode: str):
         """Switch simultaneous multithreading now; the next boot starts as its boot options say."""

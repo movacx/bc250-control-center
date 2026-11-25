@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ..memory_autoload import DENYLIST
 from . import _dkms
 
 REPOSITORY = "https://github.com/Hexxeh/bc250-memory-dkms"
@@ -43,9 +44,6 @@ SUPPORTED_BIOS = frozenset({"p3.0", "p3.00"})
 BOARD_NAME_PATH = Path("/sys/class/dmi/id/board_name")
 BIOS_VERSION_PATH = Path("/sys/class/dmi/id/bios_version")
 HWMON_ROOT = Path("/sys/class/hwmon")
-
-#: Written by "Stop loading at boot" (privileged/lib/system_setup_kernel_args.py).
-DENYLIST = "/etc/modprobe.d/bc250-control-center-memory.conf"
 
 KBUILD = "obj-m += bc250_memory.o\n"
 MAKEFILE = _dkms.MAKEFILE

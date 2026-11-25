@@ -1957,6 +1957,14 @@
    "_debian_steps": "CORE-0345",
    "repair_command": "CORE-0346"
   },
+  "bc250cc/infrastructure/memory_autoload.py": {
+   "_read": "MEM-0055",
+   "loaded": "MEM-0056",
+   "loads_by_alias": "MEM-0057",
+   "denied_by": "MEM-0058",
+   "corrected": "MEM-0059",
+   "steps": "MEM-0060"
+  },
   "bc250cc/infrastructure/memory_runtime.py": {
    "_read_text": "MEM-0001",
    "_integer": "MEM-0002",

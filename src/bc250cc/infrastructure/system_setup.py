@@ -7,6 +7,8 @@ import shlex
 import subprocess
 from pathlib import Path
 
+from . import memory_autoload
+
 HELPER = Path("/usr/libexec/bc250-control-center/bc250-system-setup-helper")
 POLICIES = {"preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"}
 #: The BC-250 kernel unlocks all 40 compute units itself when amdgpu is given
@@ -56,6 +58,9 @@ def inventory() -> dict:
         data = json.loads(result.stdout)
         if data.get("protocol") != 2:
             raise ValueError("Unsupported system setup protocol")
+        options = data.get("kernel_options")
+        if isinstance(options, dict):
+            data["kernel_options"] = memory_autoload.corrected(options, MEMORY_SENSOR_OPTION)
         return {**data, "helper_available": True}
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         return {"helper_available": False, "memory": {}, "acpi": {}, "telemetry": {}, "kernel_options": {}, "vram": {}, "reason": str(exc)}

@@ -1801,52 +1801,6 @@ def test_the_memory_driver_is_offered_only_where_the_kernel_ships_it(sandbox):
     assert kernel_args.status(sandbox.host)["arguments"][option]["managed"] is True
 
 
-def _memory_built_with_dkms(sandbox, loaded=True):
-    import os
-
-    release = os.uname().release
-    sandbox.put(f"/usr/lib/modules/{release}/modules.dep", "updates/dkms/bc250_memory.ko.zst:\n")
-    sandbox.put(f"/usr/lib/modules/{release}/modules.alias", "alias dmi*:rn*AMDBC-250*: bc250_memory\n")
-    if loaded:
-        sandbox.put("/sys/module/bc250_memory/refcnt", "0\n")
-
-
-def test_a_memory_driver_that_loads_by_itself_is_stopped_at_boot_and_now(sandbox):
-    """The DKMS copy matches the board by its alias: nothing on the command line decides it."""
-    sandbox.grub()
-    _memory_built_with_dkms(sandbox)
-    option = kernel_args.MEMORY_SENSOR
-    item = kernel_args.status(sandbox.host)["arguments"][option]
-    assert item["managed"] and item["configured"] and item["active"] and not item["external"]
-
-    # Changing another option leaves it as it was.
-    managed = [key for key, value in kernel_args.status(sandbox.host)["arguments"].items() if value["managed"]]
-    kernel_args.apply(sandbox.host, [*managed, "nosmt"])
-    assert not sandbox.host.path(kernel_args.MEMORY_DENYLIST).exists()
-
-    kernel_args.apply(sandbox.host, ["nosmt"])
-    assert "blacklist bc250_memory" in sandbox.host.read(kernel_args.MEMORY_DENYLIST)
-    assert ("modprobe", "-r", "bc250_memory") in sandbox.calls
-    item = kernel_args.status(sandbox.host)["arguments"][option]
-    assert not item["managed"] and not item["configured"]
-
-    kernel_args.apply(sandbox.host, ["nosmt", option])
-    assert not sandbox.host.path(kernel_args.MEMORY_DENYLIST).exists()
-    assert kernel_args.status(sandbox.host)["arguments"][option]["managed"]
-    assert option not in sandbox.host.read(kernel_args.GRUB_DROPIN)
-
-
-def test_someone_elses_block_of_the_memory_driver_is_respected(sandbox):
-    sandbox.grub()
-    _memory_built_with_dkms(sandbox, loaded=False)
-    sandbox.put("/etc/modprobe.d/mine.conf", "blacklist bc250_memory\n")
-    assert not kernel_args.status(sandbox.host)["arguments"][kernel_args.MEMORY_SENSOR]["managed"]
-    with pytest.raises(SetupError, match="mine.conf"):
-        kernel_args.apply(sandbox.host, [kernel_args.MEMORY_SENSOR])
-    kernel_args.apply(sandbox.host, ["nosmt"])
-    assert not sandbox.host.path(kernel_args.MEMORY_DENYLIST).exists()
-
-
 # ---------------------------------------------- the kernel's own CU unlock
 
 
