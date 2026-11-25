@@ -21,6 +21,11 @@ import androidx.compose.ui.unit.dp
 import org.bc250.controlcenter.datos.Aplicacion
 import org.bc250.controlcenter.datos.Confirmacion
 import org.bc250.controlcenter.datos.t
+import org.bc250.controlcenter.movil.BotonMovil
+import org.bc250.controlcenter.movil.CajaDeHoja
+import org.bc250.controlcenter.movil.LocalTelefono
+import org.bc250.controlcenter.movil.ParejaBotones
+import org.bc250.controlcenter.movil.Velo
 import org.bc250.controlcenter.tema.ColoresActuales
 import org.bc250.controlcenter.tema.Medidas
 
@@ -28,6 +33,11 @@ import org.bc250.controlcenter.tema.Medidas
 @Composable
 fun Dialogo(alCerrar: () -> Unit, ancho: Dp = 480.dp, contenido: @Composable ColumnScope.() -> Unit) {
     val paleta = ColoresActuales.current
+    if (LocalTelefono.current) {
+        Velo(visible = true, alTocar = alCerrar)
+        CajaDeHoja(contenido = contenido)
+        return
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -60,6 +70,17 @@ fun DialogoConfirmacion(confirmacion: Confirmacion, aplicacion: Aplicacion) {
     Dialogo(alCerrar = ::cerrar) {
         Texto(confirmacion.titulo, tamano = 17, peso = 800)
         Texto(confirmacion.mensaje, tamano = 13, color = ColoresActuales.current.apagado)
+        if (LocalTelefono.current) {
+            ParejaBotones {
+                BotonMovil(t("Cancel"), Modifier.weight(1f), alPulsar = ::cerrar)
+                val clase = if (confirmacion.peligro) ClaseBoton.PELIGRO else ClaseBoton.PRINCIPAL
+                BotonMovil(t("Continue"), Modifier.weight(1f), clase) {
+                    cerrar()
+                    confirmacion.aceptar()
+                }
+            }
+            return@Dialogo
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),

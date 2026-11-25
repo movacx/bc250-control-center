@@ -118,8 +118,8 @@ def leer(ctx, live):
         temprano = cus_found_at_driver_start(estado)
         aviso = tr(AVISO_KERNEL) if estado.get("kernel_managed") else tr_format(
             "The driver already found {count} compute units when it started, more than the usual 24. "
-            ('The BIOS or another boot program may have turned them on: change them '
-                'there, or both will keep setting them.'), count=temprano) if temprano else ""
+            "The BIOS or another boot program may have turned them on: change them "
+            "there, or both will keep setting them.", count=temprano) if temprano else ""
         return {"guide": {"title": tr("CU stability validation"), "message": tr(GUIA_VALIDACION),
                           "detail": tr("Opening this guide does not change the live WGP table.")},
                               "confirmations": confirmaciones(), "cu": estado, "presentation": asdict(presentacion),

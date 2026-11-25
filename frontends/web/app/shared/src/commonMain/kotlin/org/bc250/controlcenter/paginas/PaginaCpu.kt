@@ -67,8 +67,8 @@ import org.bc250.controlcenter.tema.ColoresActuales
 import org.bc250.controlcenter.tema.Medidas
 import kotlin.math.roundToInt
 
-private const val NUCLEOS_EN_LA_PLACA = 8
-private const val MASCARA_NORMAL = 0x77
+internal const val NUCLEOS_EN_LA_PLACA = 8
+internal const val MASCARA_NORMAL = 0x77
 
 /** Un perfil de funcionamiento de la CPU. */
 data class PerfilCpu(
@@ -82,7 +82,7 @@ data class PerfilCpu(
 /** Los valores menor y mayor que acepta un campo. */
 class Limites(val menor: Int, val mayor: Int)
 
-private fun leerPerfil(datos: JsonObject): PerfilCpu {
+internal fun leerPerfil(datos: JsonObject): PerfilCpu {
     return PerfilCpu(
         clave = datos.texto("key"),
         nombre = datos.texto("name"),
@@ -92,7 +92,7 @@ private fun leerPerfil(datos: JsonObject): PerfilCpu {
     )
 }
 
-private fun leerLimites(datos: JsonObject, nombre: String): Limites {
+internal fun leerLimites(datos: JsonObject, nombre: String): Limites {
     val limites = datos.objeto("limits").objeto(nombre)
     return Limites(limites.entero("min"), limites.entero("max"))
 }
@@ -175,7 +175,7 @@ private fun TarjetaConfiguracion(aplicacion: Aplicacion, datos: JsonObject) {
     }
 }
 
-private fun pedirAplicacion(aplicacion: Aplicacion, perfil: PerfilCpu, escalaManual: Boolean, escala: Int) {
+internal fun pedirAplicacion(aplicacion: Aplicacion, perfil: PerfilCpu, escalaManual: Boolean, escala: Int) {
     val parametros = mutableMapOf<String, JsonElement>(
         "frequency" to JsonPrimitive(perfil.frecuencia),
         "temperature" to JsonPrimitive(perfil.temperatura),
@@ -245,7 +245,7 @@ private fun PanelPerfiles(
     }
 }
 
-private fun exportarADecky(aplicacion: Aplicacion) {
+internal fun exportarADecky(aplicacion: Aplicacion) {
     aplicacion.preguntarYEjecutar("cpu.export_decky", t("Export to Decky"))
 }
 
@@ -421,7 +421,7 @@ private fun AgarreHorizontal() {
 
 // -- consola y resumen del procesador --------------------------------------------------------
 
-private val DatosProcesador = listOf(
+internal val DatosProcesador = listOf(
     "model_name" to "Processor",
     "architecture" to "Architecture",
     "topology" to "Topology",
@@ -476,7 +476,7 @@ private fun DatoProcesador(dato: Pair<String, String>, procesador: JsonObject, p
     }
 }
 
-private fun porcentaje(valor: Double?): String {
+internal fun porcentaje(valor: Double?): String {
     return if (valor == null) "--" else "${valor.roundToInt()} %"
 }
 
@@ -573,7 +573,7 @@ private fun FilaNucleo(posicion: Int, nucleo: JsonObject?) {
     }
 }
 
-private fun gigahercios(megahercios: Double?): String {
+internal fun gigahercios(megahercios: Double?): String {
     if (megahercios == null) {
         return "--"
     }
@@ -589,31 +589,13 @@ private fun PanelArranque(aplicacion: Aplicacion, datos: JsonObject) {
     val disponible = persistente.isNotEmpty() && persistente.logico("persistence_supported", true)
     val libre = aplicacion.puedeControlar && aplicacion.trabajo.terminado
 
-    fun guardar() {
-        val detalle = t(
-            "This enables the exact CPU configuration shown below at boot. " +
-                "The detector result remains unchanged; a manual scale is installed only when that exact value was previously " +
-                "applied live against the same detection run. " +
-                "A successful live apply does not prove long-term stability, so continue only after testing this exact " +
-                "configuration with your real workload.",
-        ) + "\n" + datos.objeto("tuning").texto("detection_value")
-        aplicacion.preguntarYEjecutar("cpu.persist", t("Save for boot"), detalle, peligro = true)
-    }
-
-    fun quitar() {
-        aplicacion.preguntarYEjecutar("cpu.persist_off", t("Remove from boot"),
-            t("This stops and disables bc250-smu-oc.service. The existing configuration file is preserved for inspection."),
-            peligro = true,
-        )
-    }
-
     SubPanel {
         TituloPanel(t("Boot persistence"))
         Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(8.dp), Alignment.CenterVertically) {
-            Boton(t("Save for boot"), ::guardar, Modifier.weight(194f), ClaseBoton.PRINCIPAL, libre && disponible, peso = 740)
+            Boton(t("Save for boot"), { guardarArranqueCpu(aplicacion, datos) }, Modifier.weight(194f), ClaseBoton.PRINCIPAL, libre && disponible, peso = 740)
             Boton(t("Review persistence"), { aplicacion.ejecutar("cpu.review", t("Review persistence")) },
                 Modifier.weight(181f), activo = libre)
-            Boton(t("Remove from boot"), ::quitar, Modifier.weight(180f), ClaseBoton.PELIGRO, libre && habilitada, 36.dp, peso = 760)
+            Boton(t("Remove from boot"), { quitarArranqueCpu(aplicacion) }, Modifier.weight(180f), ClaseBoton.PELIGRO, libre && habilitada, 36.dp, peso = 760)
         }
     }
 }
@@ -631,47 +613,7 @@ private fun PanelDesbloqueo(aplicacion: Aplicacion, datos: JsonObject) {
     var forzar by remember { mutableStateOf(false) }
     val ofrecido = controles.logico("offered")
     val permitido = libre && controles.logico(if (persistente) "persist_allowed" else "temporary_allowed")
-    val accion = if (persistente) controles.texto("action") else t("Unlock cores and restart")
-
-    fun desbloquear() {
-        val nombre = if (persistente) "cpu.unlock_persist" else "cpu.unlock"
-        val parametros = mapOf<String, JsonElement>(
-            "force_mask" to JsonPrimitive(forzar),
-            "mask" to JsonPrimitive(mascara),
-        )
-        var aviso = t(
-            "CPU core unlocking is experimental. Continue with caution and save your work before " +
-                "proceeding, because a restart is required to apply the changes. For compatibility, " +
-                "the selected GPU frequency governor will be stopped and disabled before that restart.",
-        )
-        if (persistente) {
-            aviso = t(
-                "This installs a small boot service that unlocks the two extra cores again " +
-                    "early on every cold boot, without flashing the BIOS. Each cold boot then " +
-                    "restarts once by itself, about 30 seconds. If the board cannot keep the " +
-                    "unlock, the service stops itself after two restarts. To skip it for one " +
-                    "boot, add bc250.core_unlock=0 to the kernel command line.",
-            )
-        }
-        if (forzar) {
-            aviso += "\n\n" + t(
-                "The core mask check is skipped (-f). If this board's mask is not 0x77, the " +
-                    "factory probably disabled cores that were defective, and they are enabled " +
-                    "anyway. Stress test for a few hours and check dmesg for MCE errors before " +
-                    "relying on them.",
-            )
-        }
-        aviso += "\n\n" + datos.texto("unlock_warning")
-        aplicacion.preguntarYEjecutar(nombre, accion, aviso, parametros, peligro = true)
-    }
-
-    fun quitarPersistencia() {
-        val mensaje = t(
-            "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, " +
-                "which brings the board back to 6 cores.",
-        )
-        aplicacion.preguntarYEjecutar("cpu.unlock_persist_off", t("Remove persistence"), mensaje, peligro = true)
-    }
+    val accion = accionDesbloqueo(datos, persistente)
 
     SubPanel(
         fondo = if (paleta.esClaro) paleta.rojoSuave else paleta.color("risk_fill"),
@@ -720,10 +662,10 @@ private fun PanelDesbloqueo(aplicacion: Aplicacion, datos: JsonObject) {
             Texto(t("Force a non-standard core mask (-f)"), tamano = 13)
         }
         Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(8.dp), Alignment.CenterVertically) {
-            Boton(accion, ::desbloquear, Modifier.weight(1f), ClaseBoton.PELIGRO, permitido, 36.dp, peso = 760)
+            Boton(accion, { pedirDesbloqueo(aplicacion, datos, persistente, mascara, forzar) }, Modifier.weight(1f), ClaseBoton.PELIGRO, permitido, 36.dp, peso = 760)
             if (persistente && instalado) {
                 val puedeQuitar = libre && controles.logico("remove_allowed")
-                Boton(t("Remove persistence"), ::quitarPersistencia, Modifier.weight(1f), activo = puedeQuitar)
+                Boton(t("Remove persistence"), { quitarDesbloqueo(aplicacion) }, Modifier.weight(1f), activo = puedeQuitar)
             } else {
                 val guia = datos.texto("firmware_guide")
                 Boton(t("Firmware persistence guide"), { aplicacion.abrirEnlace(guia) }, Modifier.weight(1f))
@@ -768,4 +710,68 @@ private fun OpcionDesbloqueo(
             Texto(detalle, tamano = 12, color = colorDetalle)
         }
     }
+}
+
+internal fun guardarArranqueCpu(aplicacion: Aplicacion, datos: JsonObject) {
+    val detalle = t(
+        "This enables the exact CPU configuration shown below at boot. " +
+            "The detector result remains unchanged; a manual scale is installed only when that exact value was previously " +
+            "applied live against the same detection run. " +
+            "A successful live apply does not prove long-term stability, so continue only after testing this exact " +
+            "configuration with your real workload.",
+    ) + "\n" + datos.objeto("tuning").texto("detection_value")
+    aplicacion.preguntarYEjecutar("cpu.persist", t("Save for boot"), detalle, peligro = true)
+}
+
+internal fun quitarArranqueCpu(aplicacion: Aplicacion) {
+    aplicacion.preguntarYEjecutar("cpu.persist_off", t("Remove from boot"),
+        t("This stops and disables bc250-smu-oc.service. The existing configuration file is preserved for inspection."),
+        peligro = true,
+    )
+}
+
+/** El nombre del botón de desbloqueo según lo que se eligió y lo que ya hay instalado. */
+internal fun accionDesbloqueo(datos: JsonObject, persistente: Boolean): String {
+    return if (persistente) datos.objeto("unlock_controls").texto("action") else t("Unlock cores and restart")
+}
+
+internal fun pedirDesbloqueo(aplicacion: Aplicacion, datos: JsonObject, persistente: Boolean, mascara: Int, forzar: Boolean) {
+    val accion = accionDesbloqueo(datos, persistente)
+    val nombre = if (persistente) "cpu.unlock_persist" else "cpu.unlock"
+    val parametros = mapOf<String, JsonElement>(
+        "force_mask" to JsonPrimitive(forzar),
+        "mask" to JsonPrimitive(mascara),
+    )
+    var aviso = t(
+        "CPU core unlocking is experimental. Continue with caution and save your work before " +
+            "proceeding, because a restart is required to apply the changes. For compatibility, " +
+            "the selected GPU frequency governor will be stopped and disabled before that restart.",
+    )
+    if (persistente) {
+        aviso = t(
+            "This installs a small boot service that unlocks the two extra cores again " +
+                "early on every cold boot, without flashing the BIOS. Each cold boot then " +
+                "restarts once by itself, about 30 seconds. If the board cannot keep the " +
+                "unlock, the service stops itself after two restarts. To skip it for one " +
+                "boot, add bc250.core_unlock=0 to the kernel command line.",
+        )
+    }
+    if (forzar) {
+        aviso += "\n\n" + t(
+            "The core mask check is skipped (-f). If this board's mask is not 0x77, the " +
+                "factory probably disabled cores that were defective, and they are enabled " +
+                "anyway. Stress test for a few hours and check dmesg for MCE errors before " +
+                "relying on them.",
+        )
+    }
+    aviso += "\n\n" + datos.texto("unlock_warning")
+    aplicacion.preguntarYEjecutar(nombre, accion, aviso, parametros, peligro = true)
+}
+
+internal fun quitarDesbloqueo(aplicacion: Aplicacion) {
+    val mensaje = t(
+        "The boot service is removed. Nothing restarts: the cores stay unlocked until the next full power-off, " +
+            "which brings the board back to 6 cores.",
+    )
+    aplicacion.preguntarYEjecutar("cpu.unlock_persist_off", t("Remove persistence"), mensaje, peligro = true)
 }

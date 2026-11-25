@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,6 +40,10 @@ import org.bc250.controlcenter.datos.EstadoSesion
 import org.bc250.controlcenter.datos.entero
 import org.bc250.controlcenter.datos.logico
 import org.bc250.controlcenter.datos.t
+import org.bc250.controlcenter.movil.AnchoMovil
+import org.bc250.controlcenter.movil.LocalTelefono
+import org.bc250.controlcenter.movil.PaginaCpuMovil
+import org.bc250.controlcenter.movil.VentanaMovil
 import org.bc250.controlcenter.paginas.PaginaAccesoRemoto
 import org.bc250.controlcenter.paginas.PaginaAjustesAdicionales
 import org.bc250.controlcenter.paginas.PaginaCajaNegra
@@ -75,6 +80,7 @@ fun App() {
         ColoresActuales provides aplicacion.paleta,
         LetrasActuales provides cargarLetras(),
         LocalPaletas provides aplicacion.paletas,
+        LocalTelefono provides aplicacion.enTelefono,
         LocalDensity provides Density(densidad.density * escala, densidad.fontScale),
     ) {
         val sePuedeDibujar = letrasListas(aplicacion.idioma)
@@ -96,7 +102,7 @@ fun App() {
             if (confirmacion != null) {
                 DialogoConfirmacion(confirmacion, aplicacion)
             }
-            if (!aplicacion.consolaVisible && !aplicacion.trabajo.terminado) {
+            if (!aplicacion.enTelefono && !aplicacion.consolaVisible && !aplicacion.trabajo.terminado) {
                 BalizaConsola(aplicacion, Modifier.align(Alignment.CenterEnd))
             }
             val aviso = aplicacion.aviso
@@ -132,9 +138,23 @@ private fun VentanasEncima(aplicacion: Aplicacion) {
     }
 }
 
-/** La barra lateral y, a su lado, la página elegida. */
+/** En una pantalla ancha, la barra lateral y la página; en un teléfono, su propio diseño. */
 @Composable
 private fun Ventana(aplicacion: Aplicacion) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val telefono = maxWidth < AnchoMovil
+        aplicacion.enTelefono = telefono
+        if (telefono) {
+            VentanaMovil(aplicacion) { PaginaElegidaMovil(aplicacion) }
+        } else {
+            VentanaAncha(aplicacion)
+        }
+    }
+}
+
+/** La barra lateral y, a su lado, la página elegida. */
+@Composable
+private fun VentanaAncha(aplicacion: Aplicacion) {
     Row(
         modifier = Modifier.fillMaxSize().padding(Medidas.margenVentana),
         horizontalArrangement = Arrangement.spacedBy(Medidas.margenVentana),
@@ -148,6 +168,15 @@ private fun Ventana(aplicacion: Aplicacion) {
                 PanelConsola(aplicacion)
             }
         }
+    }
+}
+
+/** La página elegida con el diseño de teléfono. */
+@Composable
+private fun PaginaElegidaMovil(aplicacion: Aplicacion) {
+    when (aplicacion.pagina) {
+        "cpu" -> PaginaCpuMovil(aplicacion)
+        else -> Box(Modifier.padding(16.dp)) { PaginaElegida(aplicacion) }
     }
 }
 

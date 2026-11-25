@@ -88,6 +88,9 @@ class Aplicacion(private val tareas: CoroutineScope) {
     var trabajoElegido by mutableStateOf(0)
     var consolaVisible by mutableStateOf(false)
 
+    /** En un teléfono la consola es una ventana inferior y no se abre sola. */
+    var enTelefono by mutableStateOf(false)
+
     /** La ventana de Configuración y la sección que muestra; vacía si está cerrada. */
     var seccionAjustes by mutableStateOf("")
         private set
@@ -411,7 +414,7 @@ class Aplicacion(private val tareas: CoroutineScope) {
             }
             val respuesta = conexion.enviar("/api/action", datos)
             if (respuesta.correcta) {
-                consolaVisible = true
+                consolaVisible = !enTelefono
                 seguirTrabajo()
             } else {
                 avisar(respuesta.error.ifEmpty { t("Not connected") }, error = true)

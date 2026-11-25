@@ -148,7 +148,7 @@ private fun MarcaBarra(aplicacion: Aplicacion) {
 }
 
 /** «Control Center» en el idioma elegido: el nombre completo sin «BC250». */
-private fun nombreCorto(): String {
+fun nombreCorto(): String {
     val resto = t("BC250 Control Center").replace("BC250", "").trim()
     return resto.replaceFirstChar { letra -> letra.uppercase() }
 }
