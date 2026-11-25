@@ -31,13 +31,14 @@ private fun coloresRuta(token: String): ColoresRuta {
 @Composable
 internal fun LeyendaUnidades() {
     val leyenda = listOf("D+" to "Driver + routed", "S+" to "Live unlock", "D!" to "Driver blocked", "--" to "Not routed")
-    SubPanel(margen = PaddingValues(14.dp, 9.dp), espacio = 0.dp, fondo = ColoresActuales.current.panelAlterno) {
-        RejillaGpuCu(4, 4) { indice, modificador ->
+    SubPanel(margen = PaddingValues(10.dp, 9.dp), espacio = 0.dp, fondo = ColoresActuales.current.panelAlterno, borde = ColoresActuales.current.bordeSuave) {
+        RejillaGpuCu(4, 4, separacion = 10.dp) { indice, modificador ->
             val (token, nombre) = leyenda[indice]
             val colores = coloresRuta(token)
-            Row(modificador, Arrangement.spacedBy(7.dp), Alignment.CenterVertically) {
-                Texto(token, tamano = 11, peso = 830, color = colores.texto,
-                    modifier = Modifier.marco(colores.fondo, colores.borde, Medidas.radioChico).padding(8.dp, 4.dp))
+            Row(modificador.padding(horizontal = 4.dp), Arrangement.spacedBy(6.dp), Alignment.CenterVertically) {
+                Box(Modifier.size(36.dp, 25.dp).marco(colores.fondo, colores.borde, Medidas.radioChico), Alignment.Center) {
+                    Texto(token, tamano = 11, peso = 830, color = colores.texto)
+                }
                 Texto(t(nombre), tamano = 11, peso = 700, color = ColoresActuales.current.apagado)
             }
         }
@@ -50,7 +51,7 @@ internal fun TablaUnidades(filas: List<JsonObject>, editable: Boolean, alAlterna
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val anchoTabla = maxOf(maxWidth, MedidasGpuCu.anchoTablaMinimo)
         Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-            Column(Modifier.width(anchoTabla).marco(paleta.panelAlterno, paleta.bordeSuave, Medidas.radioPanel).padding(12.dp),
+            Column(Modifier.width(anchoTabla).marco(paleta.panelAlterno, paleta.bordeSuave, Medidas.radioPanel).padding(start = 13.dp, top = 15.dp, end = 13.dp, bottom = 17.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(10.dp)) {
                     for (columna in 0..6) {
@@ -58,7 +59,7 @@ internal fun TablaUnidades(filas: List<JsonObject>, editable: Boolean, alAlterna
                         val detalle = when (columna) { 0 -> "SE / SH"; 6 -> t("active / 10"); else -> "CU ${(columna - 1) * 2}–${(columna - 1) * 2 + 1}" }
                         Column(Modifier.weight(if (columna == 0 || columna == 6) 2f else 3f)
                             .height(MedidasGpuCu.altoCabeceraWgp).marco(paleta.panelElevado, paleta.bordeSuave, Medidas.radioChico),
-                            Arrangement.Center, Alignment.CenterHorizontally) {
+                            Arrangement.spacedBy(4.dp, Alignment.CenterVertically), Alignment.CenterHorizontally) {
                             Texto(titulo, tamano = 12, peso = 830)
                             Texto(detalle, tamano = 10, peso = 680, color = paleta.sutil)
                         }

@@ -271,8 +271,7 @@ def terminal(ctx, p) -> list:
                    "separate terminal window.", interruptor("embedded_terminal", p["embedded_terminal"])),
               fila("Hide the terminal when a workflow finishes without errors", "A workflow that fails keeps the terminal open "
                    "so its output can be read.", interruptor("console_auto_hide", p["console_auto_hide"])),
-              fila("Show or hide the terminal", "Press F4 anywhere in the window, as in Dolphin. An empty terminal opens your "
-                   "own shell, without administrator rights.", {"tipo": "tecla", "texto": "F4"})),
+              fila("Show or hide the terminal", "", {"tipo": "tecla", "texto": "F4"})),
         grupo("Game controller",
               fila("Gamepad navigation", "Detect controllers automatically and show controller hints while active.",
                    interruptor("gamepad_navigation", p["gamepad_navigation"])),

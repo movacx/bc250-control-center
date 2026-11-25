@@ -177,11 +177,11 @@ private fun CuadroAviso(aviso: Aviso, modifier: Modifier) {
     }
 }
 
-/** F4 muestra u oculta la consola, como en el escritorio. */
+/** F4 muestra u oculta la consola; sin ninguna operación no hay nada que enseñar. */
 private fun atenderTecla(evento: KeyEvent, aplicacion: Aplicacion): Boolean {
     if (evento.key != Key.F4 || evento.type != KeyEventType.KeyDown) {
         return false
     }
-    aplicacion.consolaVisible = !aplicacion.consolaVisible
+    aplicacion.consolaVisible = !aplicacion.consolaVisible && aplicacion.trabajos.isNotEmpty()
     return true
 }

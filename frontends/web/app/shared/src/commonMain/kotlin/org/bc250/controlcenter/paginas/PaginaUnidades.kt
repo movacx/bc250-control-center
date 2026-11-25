@@ -9,6 +9,9 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
 import org.bc250.controlcenter.componentes.*
 import org.bc250.controlcenter.datos.*
+import org.bc250.controlcenter.recursos.Res
+import org.bc250.controlcenter.recursos.chevron_down_gray
+import org.bc250.controlcenter.recursos.chevron_right_gray
 import org.bc250.controlcenter.tema.*
 
 private fun mascarasCu(datos: JsonObject, clave: String): List<Int> {
@@ -100,7 +103,7 @@ fun PaginaUnidades(aplicacion: Aplicacion) {
                     Boton(t("Validate CUs"), { guia = true })
                 }
             }
-            RejillaGpuCu(2, 2, umbral = 1080.dp) { indice, modificador ->
+            RejillaGpuCu(2, 2, umbral = 1080.dp, separacion = 14.dp) { indice, modificador ->
                 if (indice == 0) {
                     TarjetaPagina(modificador, espacio = 12.dp) {
                         SubPanel(margen = PaddingValues(13.dp, 10.dp), espacio = 8.dp, fondo = paleta.panelAlterno, borde = paleta.bordeSuave) {
@@ -134,22 +137,22 @@ fun PaginaUnidades(aplicacion: Aplicacion) {
                                 }
                             }
                         }
-                        SubPanel(margen = PaddingValues(12.dp, 10.dp), espacio = 8.dp, fondo = paleta.panelAlterno, borde = paleta.bordeSuave) {
+                        SubPanel(margen = PaddingValues(12.dp, 10.dp), espacio = 7.dp, fondo = paleta.panelAlterno, borde = paleta.bordeSuave) {
                             Texto(t("Boot persistence"), tamano = 11, peso = 700, color = paleta.apagado)
                             Texto(t("Select the WGP pairs above, then use the buttons below in order — Apply now, Save selection, Install service — to make the change survive a reboot."),
                                 tamano = 10, color = paleta.sutil)
-                            RejillaGpuCu(6, 3, umbral = 550.dp) { boton, caja ->
+                            RejillaGpuCu(6, 3, umbral = 550.dp, separacion = 8.dp) { boton, caja ->
                                 when (boton) {
-                                    0 -> Boton(t("Save selection"), { operarTabla(true) }, caja,
+                                    0 -> Boton(t("Save selection"), { operarTabla(true) }, caja, alto = 39.dp,
                                         activo = libre && disponibilidad.logico("save_boot") && !consultando)
-                                    1 -> Boton(t("Install service"), { accionServicio("install_service", "Install service") }, caja,
+                                    1 -> Boton(t("Install service"), { accionServicio("install_service", "Install service") }, caja, alto = 39.dp,
                                         activo = libre && disponibilidad.logico("install_service") && !consultando)
-                                    2 -> Boton(t("Remove service"), { accionServicio("remove_service", "Remove service", true) }, caja, ClaseBoton.PELIGRO_SUAVE,
+                                    2 -> Boton(t("Remove service"), { accionServicio("remove_service", "Remove service", true) }, caja, clase = ClaseBoton.PELIGRO_SUAVE, alto = 39.dp,
                                         activo = libre && disponibilidad.logico("remove_service") && !consultando)
-                                    3 -> Boton(t("Restore factory"), { accionServicio("factory_repair", "Restore factory", true) }, caja,
+                                    3 -> Boton(t("Restore factory"), { accionServicio("factory_repair", "Restore factory", true) }, caja, alto = 39.dp,
                                         activo = libre && disponibilidad.logico("restore_factory") && !consultando)
-                                    4 -> Boton(t("Raw status"), { aplicacion.ejecutar("cu.raw", t("Compute Units raw status")) }, caja)
-                                    else -> Boton(t(if (registros) "Hide registers" else "Show registers"), { registros = !registros }, caja)
+                                    4 -> Boton(t("Raw status"), { aplicacion.ejecutar("cu.raw", t("Compute Units raw status")) }, caja, alto = 39.dp)
+                                    else -> Boton(t(if (registros) "Hide registers" else "Show registers"), { registros = !registros }, caja, alto = 39.dp, icono = if (registros) Res.drawable.chevron_down_gray else Res.drawable.chevron_right_gray)
                                 }
                             }
                         }
@@ -165,14 +168,14 @@ fun PaginaUnidades(aplicacion: Aplicacion) {
                     }
                 } else {
                     TarjetaPagina(modificador, margen = PaddingValues(20.dp, 18.dp)) {
-                        SubPanel(margen = PaddingValues(8.dp), espacio = 8.dp, fondo = paleta.panel) {
+                        SubPanel(margen = PaddingValues(8.dp), espacio = 8.dp, fondo = paleta.panel, borde = paleta.borde) {
                             val lecturas = datos.objetos("telemetry")
                             RejillaGpuCu(lecturas.size, 2, umbral = 450.dp) { numero, caja ->
                                 val lectura = lecturas[numero]
                                 SubPanel(caja.heightIn(min = 76.dp), margen = PaddingValues(14.dp, 10.dp), espacio = 1.dp,
                                     fondo = paleta.panelAlterno, borde = paleta.bordeSuave) {
-                                    Texto(lectura.texto("label"), tamano = 10, peso = 760, color = paleta.apagado)
-                                    Texto(lectura.texto("value"), tamano = 17, peso = 800)
+                                    Texto(lectura.texto("label"), tamano = 10, peso = 700, color = paleta.apagado)
+                                    Texto(lectura.texto("value"), tamano = 16, peso = 800)
                                     Texto(lectura.texto("detail"), tamano = 10, color = paleta.sutil)
                                 }
                             }
