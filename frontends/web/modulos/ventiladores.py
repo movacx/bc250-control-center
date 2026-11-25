@@ -7,8 +7,12 @@ from bc250cc.application.fan import board_view as vista
 from bc250cc.application.fan.board_actions import FanBoardActions
 from bc250cc.application.fan.calibration import calibrate
 from bc250cc.domain.fan.profile_exchange import (
-    MAX_DOCUMENT_BYTES, channel_profiles_document, decky_fan_profiles, decky_fan_raised,
-    imported_profile_updates, parse_channel_profiles_document,
+    MAX_DOCUMENT_BYTES,
+    channel_profiles_document,
+    decky_fan_profiles,
+    decky_fan_raised,
+    imported_profile_updates,
+    parse_channel_profiles_document,
 )
 from frontends.tui.i18n import tr
 from frontends.tui.pages.fans import live_temperatures
@@ -69,7 +73,11 @@ def herramientas(ctx, p, shell):
 
 
 def exportar_decky(ctx):
-    from frontends.desktop.core.decky_export_feedback import export_and_check_plugin, export_message, fan_export_notes
+    from frontends.desktop.core.decky_export_feedback import (
+        export_and_check_plugin,
+        export_message,
+        fan_export_notes,
+    )
     guardados = perfiles(ctx.settings.read_local_config())
     publicados = decky_fan_profiles(guardados)
     instalado = export_and_check_plugin(ctx.service, lambda: ctx.service.exportar_perfiles_fan_decky(publicados))
@@ -152,14 +160,22 @@ AJUSTES = {"fans.import": importar}
 
 
 def aplicar(ctx, p, shell):
-    from frontends.web.actions import _entry, _text, _said
     from bc250cc.domain.fan.channels import LABEL_MAX_LENGTH
+    from frontends.web.actions import _entry, _said, _text
     pwm = number(p, "pwm")
     entrada = _entry(p)
     nombre = _text(p, "label", LABEL_MAX_LENGTH, empty=True)
+    forzar = flag(p, "force") if "force" in p else False
 
     def ejecutar():
+        from bc250cc.domain.fan import engine
         tablero = FanBoardActions(ctx.service, ctx.settings)
+        actual = tablero.board().channels.get(str(pwm))
+        normalizada = engine.validate_policy({"schema": 2, "channels": {str(pwm): entrada}})["channels"][str(pwm)] if entrada else None
+        if actual == normalizada and not forzar:
+            # Cambiar solo el nombre no intenta escribir PWM en un canal de lectura.
+            tablero.rename(pwm, nombre)
+            return tr("Saved")
         resultado = tablero.apply_channel(pwm, entrada)
         tablero.rename(pwm, nombre)
         return _said(resultado)
@@ -181,7 +197,7 @@ def validar(web, p):
         normalizada = engine.validate_policy({"schema": 2, "channels": {"1": entrada}})["channels"]["1"] if entrada else {"mode": "firmware"}
         return {"valid": True, "error": "", "entry": normalizada}
     except (ValueError, TypeError) as error:
-        return {"valid": False, "error": str(error)}
+        return {"valid": False, "error": str(error).removeprefix("entry: ")}
 
 
 CONSULTAS["fans.validate"] = validar
@@ -190,6 +206,7 @@ CONSULTAS["fans.validate"] = validar
 def rutas_pwm(estado):
     """El mismo informe de detección, persistencia y verificación, sin widgets."""
     from pathlib import Path
+
     from bc250cc.platform.init.services import detect_init_manager
 
     sensores = estado.get("sensores") or {}

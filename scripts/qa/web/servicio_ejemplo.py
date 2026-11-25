@@ -185,7 +185,17 @@ class InventarioSensoresEjemplo:
     """Nunca examina /sys: devuelve canales estables y uno sin uso para probar el filtro."""
 
     def read(self, _sample):
-        from bc250cc.application.system.sensors import SensorReading, GROUP_CPU, GROUP_GPU, GROUP_GDDR6, GROUP_MEMORY, TEMPERATURE, USAGE, CLOCK, DATA
+        from bc250cc.application.system.sensors import (
+            CLOCK,
+            DATA,
+            GROUP_CPU,
+            GROUP_GDDR6,
+            GROUP_GPU,
+            GROUP_MEMORY,
+            TEMPERATURE,
+            USAGE,
+            SensorReading,
+        )
         lecturas = [
             SensorReading("cpu/usage", GROUP_CPU, "CPU", "CPU usage", USAGE, "%", 16.0),
             SensorReading("hwmon/k10temp/temp1", GROUP_CPU, "CPU", "Core temperature", TEMPERATURE, "°C", 52.0),

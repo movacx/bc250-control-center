@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.semantics.Role
@@ -26,7 +27,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.bc250.controlcenter.tema.ColoresActuales
 import org.bc250.controlcenter.tema.Medidas
+import org.bc250.controlcenter.recursos.Res
+import org.bc250.controlcenter.recursos.logo
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.painterResource
 
 /** Las clases de botón que existen en el escritorio. */
@@ -141,5 +145,16 @@ fun Icono(icono: DrawableResource, tamano: Dp, color: Color? = null, modifier: M
         contentDescription = null,
         modifier = modifier.size(tamano),
         colorFilter = filtro,
+    )
+}
+
+/** El logotipo de la aplicación. */
+@Composable
+fun Logotipo(lado: Dp) {
+    Image(
+        bitmap = imageResource(Res.drawable.logo),
+        contentDescription = null,
+        modifier = Modifier.size(lado),
+        filterQuality = FilterQuality.High,
     )
 }

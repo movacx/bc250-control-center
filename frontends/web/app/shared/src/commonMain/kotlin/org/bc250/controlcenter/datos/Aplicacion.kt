@@ -62,6 +62,8 @@ class Aplicacion(private val tareas: CoroutineScope) {
         private set
     var pagina by mutableStateOf(primeraPagina())
         private set
+    /** La parte de la página que pidió quien la abrió; la página la lee y la borra. */
+    var partePedida by mutableStateOf("")
     var barraPlegada by mutableStateOf(false)
     var metricas by mutableStateOf(ObjetoVacio)
         private set
@@ -139,8 +141,10 @@ class Aplicacion(private val tareas: CoroutineScope) {
         lector = tareas.launch { leerSinParar() }
     }
 
-    fun irA(nueva: String) {
+    /** Abre una página y, si se pide, una parte de ella («Escalado», «Soporte»…). */
+    fun irA(nueva: String, parte: String = "") {
         pagina = nueva
+        partePedida = parte
         anotarPagina(nueva)
     }
 

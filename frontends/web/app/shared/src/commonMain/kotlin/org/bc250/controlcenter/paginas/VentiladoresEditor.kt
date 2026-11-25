@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -107,7 +108,7 @@ internal fun EditorVentilador(aplicacion: Aplicacion, canal: JsonObject, datos: 
                     if (it == "pump") entrada = entrada.conCampo("min_percent", JsonPrimitive(50))
                 }, disponible = disponible)
                 if (modo == "fixed") {
-                    NumeroVentilador(t("Speed"), entrada.entero("percent", 60), 0, 100, "%", disponible) {
+                    VelocidadVentilador(entrada.entero("percent", 60), disponible) {
                         entrada = entrada.conCampo("percent", JsonPrimitive(it))
                     }
                     HerramientasSupervision {
@@ -214,7 +215,8 @@ internal fun EditorVentilador(aplicacion: Aplicacion, canal: JsonObject, datos: 
                 aplicacion.preguntarYEjecutar("fans.apply", t("Apply"),
                     mensaje = if (velocidadBaja) t("A fan this slow can let the board overheat under load.") else textoAplicar,
                     parametros = mapOf(
-                    "pwm" to JsonPrimitive(numero), "entry" to enviada, "label" to JsonPrimitive(nombre)),
+                    "pwm" to JsonPrimitive(numero), "entry" to enviada, "label" to JsonPrimitive(nombre),
+                    "force" to JsonPrimitive(reintentar || reanudar)),
                     peligro = velocidadBaja)
             }
         }
@@ -238,14 +240,18 @@ internal fun NumeroVentilador(titulo: String, valor: Int, minimo: Int, maximo: I
 
 @Composable
 private fun DecimalVentilador(titulo: String, valor: Double, maximo: Double, disponible: Boolean, alCambiar: (Double) -> Unit) {
-    var texto by remember(valor) { mutableStateOf(valor.toString()) }
+    var texto by remember { mutableStateOf(valor.toString()) }
+    var enfocado by remember { mutableStateOf(false) }
+    LaunchedEffect(valor, enfocado) {
+        if (!enfocado) texto = valor.toString()
+    }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Texto(titulo, 12, Modifier.weight(1f).padding(top = 12.dp), color = ColoresActuales.current.apagado)
         CampoTexto(texto, {
             texto = it
             val numero = it.toDoubleOrNull()
             if (numero != null && numero.isFinite() && numero in 0.0..maximo) alCambiar(numero)
-        }, Modifier.width(120.dp), activo = disponible)
+        }, Modifier.width(120.dp).onFocusChanged { enfocado = it.hasFocus }, activo = disponible)
     }
 }
 

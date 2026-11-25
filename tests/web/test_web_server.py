@@ -47,6 +47,7 @@ class Settings:
 def web(monkeypatch, tmp_path):
     monkeypatch.setattr("frontends.tui.console.shutil.which", lambda _name: None)  # no pkttyagent in tests
     web_access.save_settings(pin=KEY, lan_password=False)
+    web_devices.revoke_all()  # each test starts with no device: the list is bounded
     service = Service()
     container = SimpleNamespace(system_service=service, settings_service=Settings(), activity_service=None, platform=None)
     class Terminal:

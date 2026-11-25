@@ -1,13 +1,11 @@
 package org.bc250.controlcenter.paginas
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,16 +18,14 @@ import androidx.compose.ui.unit.dp
 import org.bc250.controlcenter.componentes.Boton
 import org.bc250.controlcenter.componentes.CampoTexto
 import org.bc250.controlcenter.componentes.ClaseBoton
+import org.bc250.controlcenter.componentes.Logotipo
 import org.bc250.controlcenter.componentes.Texto
 import org.bc250.controlcenter.componentes.marco
 import org.bc250.controlcenter.datos.Aplicacion
 import org.bc250.controlcenter.datos.EstadoSesion
 import org.bc250.controlcenter.datos.t
-import org.bc250.controlcenter.recursos.Res
-import org.bc250.controlcenter.recursos.logo
 import org.bc250.controlcenter.tema.ColoresActuales
 import org.bc250.controlcenter.tema.Medidas
-import org.jetbrains.compose.resources.painterResource
 
 /** La entrada: pide la clave que muestra el equipo. */
 @Composable
@@ -45,7 +41,7 @@ fun PaginaIngreso(aplicacion: Aplicacion) {
                 .padding(28.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Image(painterResource(Res.drawable.logo), contentDescription = null, modifier = Modifier.size(48.dp))
+            Logotipo(48.dp)
             Texto("BC250 Control Center", tamano = 19, peso = 830)
             when (aplicacion.sesion) {
                 EstadoSesion.PIDE_CLAVE -> FormularioClave(aplicacion)

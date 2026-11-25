@@ -1,13 +1,15 @@
 """El servicio de ejemplo cubre perfiles, laboratorio y los límites de las acciones GPU."""
-from types import SimpleNamespace
 import json
 import subprocess
 import sys
 import unittest
+from types import SimpleNamespace
+
+from bc250cc.domain.gpu.oberon import OBERON_DESKTOP_PROFILES
 from frontends.web.actions import Invalid, all_actions
 from frontends.web.modulos import gpu
-from bc250cc.domain.gpu.oberon import OBERON_DESKTOP_PROFILES
 from scripts.qa.web.servicio_ejemplo import ConfiguracionEjemplo, ServicioEjemplo
+
 
 class PruebasGpu(unittest.TestCase):
 
@@ -88,7 +90,7 @@ class PruebasGpu(unittest.TestCase):
         for accion, parametros, metodo in [('gpu.profile', {'min': 1000, 'max': 1850}, 'aplicar_perfil_gpu'), ('gpu.compat', {'set_method': 'kernel', 'usage_method': 'kernel', 'metrics': False, 'frequencies': False, 'temp_read': 'sysfs'}, 'configurar_compatibilidad_gpu_cyan'), ('gpu.high_points', {'enable': True}, 'alternar_puntos_gpu_altos'), ('gpu.voltage', {'level': 3}, 'aplicar_laboratorio_voltaje_gpu'), ('gpu.voltage_custom', {'values': {'500': 705}}, 'aplicar_laboratorio_voltaje_gpu_personalizado'), ('gpu.save_boot', {}, 'guardar_rango_gpu_arranque')]:
             with self.subTest(accion=accion, parametros=parametros, metodo=metodo):
                 ctx.service.llamadas.clear()
-                nivel, trabajo = all_actions()[accion](ctx, parametros, lambda _: pytest.fail('No hay comandos del navegador'))
+                nivel, trabajo = all_actions()[accion](ctx, parametros, lambda _: self.fail('No hay comandos del navegador'))
                 assert nivel in (1, 2)
                 assert not ctx.service.llamadas
                 trabajo()
@@ -104,8 +106,8 @@ class PruebasGpu(unittest.TestCase):
         assert not self.ctx.service.llamadas
 
     def test_configuracion_solo_abre_una_ruta_cerrada(self):
-        from unittest.mock import MagicMock, patch
         from io import StringIO
+        from unittest.mock import MagicMock, patch
         archivo = MagicMock()
         archivo.is_symlink.return_value = False
         archivo.open.return_value.__enter__.side_effect = lambda: StringIO("[gpu]\nset-method='smu'\n")

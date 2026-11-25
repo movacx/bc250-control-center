@@ -1,7 +1,10 @@
 """GDDR6 readiness: reuse the desktop's guards, never start hardware on a read."""
 from dataclasses import fields
 
-from frontends.web.modulos.panel_modelo_memoria import LIVE_SESSION_SECONDS, Gddr6Reading
+from frontends.web.modulos.panel_modelo_memoria import (
+    LIVE_SESSION_SECONDS,
+    Gddr6Reading,
+)
 
 
 def readiness(service) -> dict:

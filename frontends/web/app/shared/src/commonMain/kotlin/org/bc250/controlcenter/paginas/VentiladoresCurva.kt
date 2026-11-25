@@ -2,6 +2,7 @@ package org.bc250.controlcenter.paginas
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -105,5 +106,37 @@ internal fun PuntosVentilador(datos: JsonArray, disponible: Boolean, temperatura
     AccionSupervision(t("Add point"), disponible && puntos.size < 8) {
         val hueco = (0..120).firstOrNull { candidato -> puntos.none { it.first == candidato } }
         if (hueco != null) alCambiar(datosDe(puntos + (hueco to 50)))
+    }
+}
+
+@Composable
+internal fun VelocidadVentilador(valor: Int, disponible: Boolean, alCambiar: (Int) -> Unit) {
+    val actual by rememberUpdatedState(valor)
+    val cambiar by rememberUpdatedState(alCambiar)
+    val paleta = ColoresActuales.current
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        Texto(t("Speed"), 12, Modifier.width(92.dp), color = paleta.apagado)
+        Canvas(Modifier.weight(1f).height(27.dp).pointerInput(disponible) {
+            detectDragGestures(onDragStart = { posicion ->
+                if (disponible) cambiar((posicion.x / size.width * 100).roundToInt().coerceIn(0, 100))
+            }) { cambio, _ ->
+                if (disponible) {
+                    cambio.consume()
+                    cambiar((cambio.position.x / size.width * 100).roundToInt().coerceIn(0, 100))
+                }
+            }
+        }.pointerInput(disponible) {
+            detectTapGestures { posicion ->
+                if (disponible) cambiar((posicion.x / size.width * 100).roundToInt().coerceIn(0, 100))
+            }
+        }) {
+            val centro = size.height / 2
+            val final = size.width * actual / 100f
+            drawLine(paleta.pista, Offset(0f, centro), Offset(size.width, centro), 3.dp.toPx())
+            drawLine(paleta.acento, Offset(0f, centro), Offset(final, centro), 3.dp.toPx())
+            drawCircle(if (disponible) paleta.acento else paleta.textoInactivo, 6.dp.toPx(), Offset(final, centro))
+        }
+        CampoNumero(valor, alCambiar, 0, 100, Modifier.width(96.dp).height(27.dp), sufijo = "%", activo = disponible)
     }
 }

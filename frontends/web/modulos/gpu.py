@@ -1,20 +1,26 @@
 """Gobernador y laboratorio: presentación sin Qt y operaciones cerradas."""
 from __future__ import annotations
 
+import json
 from dataclasses import asdict
 from pathlib import Path
-import json
 
-from bc250cc.application.gpu.voltage_apply import plan_voltage_apply
-from bc250cc.domain.gpu.oberon import OBERON_DESKTOP_PROFILES, require_oberon_safe_profile
-
-from bc250cc.application.gpu.voltage_lab_state import build_voltage_lab_state
-from bc250cc.application.gpu.voltage_table import build_voltage_table_plan
 from bc250cc.application.gpu.diagnostics import present_gpu_diagnostics
 from bc250cc.application.gpu.service_action import plan_gpu_service_action
-from bc250cc.domain.gpu.voltage_profiles import GOVERNOR_DEFAULT_VOLTAGES, CUSTOM_VOLTAGE_MIN_MV, CUSTOM_VOLTAGE_MAX_MV
-from frontends.tui.i18n import tr, tr_format
+from bc250cc.application.gpu.voltage_apply import plan_voltage_apply
+from bc250cc.application.gpu.voltage_lab_state import build_voltage_lab_state
+from bc250cc.application.gpu.voltage_table import build_voltage_table_plan
+from bc250cc.domain.gpu.oberon import (
+    OBERON_DESKTOP_PROFILES,
+    require_oberon_safe_profile,
+)
+from bc250cc.domain.gpu.voltage_profiles import (
+    CUSTOM_VOLTAGE_MAX_MV,
+    CUSTOM_VOLTAGE_MIN_MV,
+    GOVERNOR_DEFAULT_VOLTAGES,
+)
 from frontends.desktop.i18n import governor_fix_label, shipped_name
+from frontends.tui.i18n import tr, tr_format
 
 PREDEFINIDOS = (
     {"key": "balanced", "name": "Balanced", "min": 500, "max": 1500},
@@ -41,7 +47,7 @@ def perfiles(ctx, estado=None):
 
 
 def validar_perfil(p):
-    from frontends.web.actions import choice, number, _text, Invalid
+    from frontends.web.actions import Invalid, _text, choice, number
     clave = choice(p, "key", tuple(v["key"] for v in PREDEFINIDOS))
     nombre = _text(p, "name", 28)
     bajo, alto = number(p, "min", "gpu"), number(p, "max", "gpu")
@@ -174,7 +180,7 @@ def configuracion(web, p):
 
 
 def revisar_rango(web, p):
-    from frontends.web.actions import number, Invalid
+    from frontends.web.actions import Invalid, number
     try:
         parametros = {clave: int(p.get(clave, "")) for clave in ("min", "max")}
     except (ValueError, TypeError):
@@ -203,7 +209,10 @@ def revisar_rango(web, p):
 
 
 def exportar(ctx, p, shell):
-    from frontends.desktop.core.decky_export_feedback import export_and_check_plugin, export_message
+    from frontends.desktop.core.decky_export_feedback import (
+        export_and_check_plugin,
+        export_message,
+    )
     def trabajo():
         valores = perfiles(ctx, ctx.service.estado_bc250())
         presente = export_and_check_plugin(ctx.service, lambda: ctx.service.exportar_perfiles_gpu_decky(valores))
@@ -212,7 +221,7 @@ def exportar(ctx, p, shell):
 
 
 def servicio(ctx, p, shell):
-    from frontends.web.actions import choice, GOVERNOR_ACTIONS
+    from frontends.web.actions import GOVERNOR_ACTIONS, choice
     accion = choice(p, "action", GOVERNOR_ACTIONS)
     def trabajo():
         estado = ctx.service.estado_bc250() or {}

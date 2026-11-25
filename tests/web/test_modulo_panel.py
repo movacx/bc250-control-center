@@ -1,13 +1,14 @@
 """Pruebas sin red ni Qt; también las descubre pytest cuando esté disponible."""
+import subprocess
 import sys
 import unittest
 from unittest.mock import patch
 
-from scripts.qa.web.servicio_ejemplo import ServicioEjemplo, ConfiguracionEjemplo
 from frontends.tui.runtime import Context
-from frontends.web.data import Live
 from frontends.web.actions import Invalid, all_actions
+from frontends.web.data import Live
 from frontends.web.modulos import panel
+from scripts.qa.web.servicio_ejemplo import ConfiguracionEjemplo, ServicioEjemplo
 
 
 class PruebasPanel(unittest.TestCase):
@@ -25,7 +26,10 @@ class PruebasPanel(unittest.TestCase):
         self.assertEqual(len(datos["links"]), 4)
         self.assertEqual(datos["quick_access"]["label"], "Install / repair BC250 Quick Access")
         self.assertEqual(self.ctx.service.llamadas, [])
-        self.assertFalse(any(nombre.startswith("PyQt6") for nombre in sys.modules))
+
+    def test_se_importa_sin_qt(self):
+        codigo = "import sys, frontends.web.modulos; sys.exit(any(n.startswith('PyQt6') for n in sys.modules))"
+        self.assertEqual(subprocess.run([sys.executable, "-c", codigo], timeout=60).returncode, 0)
 
     def test_rechaza_componentes_sin_ejecutar(self):
         for seleccion in ([], ["runtime", "evil"], ["runtime", "runtime"], ["umr"],

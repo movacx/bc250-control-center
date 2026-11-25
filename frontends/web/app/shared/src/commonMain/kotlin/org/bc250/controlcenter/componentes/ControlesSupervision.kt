@@ -2,11 +2,16 @@ package org.bc250.controlcenter.componentes
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.background
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.horizontalScroll
@@ -125,7 +130,7 @@ fun DocumentoSupervision(titulo: String, texto: String, descarga: String = "", a
         }
         HerramientasSupervision {
             AccionSupervision(t("Copy all")) { portapapeles.setText(AnnotatedString(texto)) }
-            GuardarDocumentoSupervision(texto, descarga)
+            GuardarDocumentoSupervision(descarga)
             AccionSupervision(t("Close"), alPulsar = alCerrar)
         }
     }
@@ -133,7 +138,7 @@ fun DocumentoSupervision(titulo: String, texto: String, descarga: String = "", a
 
 /** Abre un documento local en el cliente; ninguna ruta del servidor entra en la petición. */
 @Composable
-fun GuardarDocumentoSupervision(texto: String, descarga: String = "") {
+fun GuardarDocumentoSupervision(descarga: String) {
     if (descarga.isEmpty()) return
     val enlaces = LocalUriHandler.current
     var error by remember { mutableStateOf(false) }
@@ -185,6 +190,24 @@ fun FranjaSupervision(izquierda: @Composable () -> Unit, derecha: @Composable ()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { izquierda() }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) { derecha() }
+            }
+        }
+    }
+}
+
+/** La explicación de una lectura, también expuesta a lectores de pantalla. */
+@Composable
+fun AyudaSupervision(texto: String, modifier: Modifier = Modifier, contenido: @Composable () -> Unit) {
+    val interaccion = remember { MutableInteractionSource() }
+    val encima by interaccion.collectIsHoveredAsState()
+    val paleta = ColoresActuales.current
+    Box(modifier.hoverable(interaccion).semantics { stateDescription = texto }) {
+        contenido()
+        if (encima && texto.isNotBlank()) {
+            Popup(alignment = Alignment.BottomCenter, properties = PopupProperties(focusable = false)) {
+                Box(Modifier.widthIn(max = 420.dp).marco(paleta.panelElevado, paleta.bordeFuerte, 4.dp).padding(8.dp)) {
+                    Texto(texto, 12)
+                }
             }
         }
     }

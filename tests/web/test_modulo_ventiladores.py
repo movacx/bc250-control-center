@@ -1,6 +1,5 @@
 """Tablero compartido, curvas, mezcla, herramientas y calibración protegida."""
 import json
-from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
@@ -134,6 +133,8 @@ def test_aplicar_valida_nombre_canal_y_confirma_baja_velocidad(monkeypatch):
     class Tablero:
         def __init__(self, *args):
             pass
+        def board(self):
+            return SimpleNamespace(channels={})
         def apply_channel(self, pwm, entrada):
             from bc250cc.application.fan.board_actions import Outcome
             llamadas.append((pwm, entrada))
@@ -148,3 +149,11 @@ def test_aplicar_valida_nombre_canal_y_confirma_baja_velocidad(monkeypatch):
     assert llamadas[-1] == (2, "APU")
     with pytest.raises(Invalid):
         ventiladores.aplicar(ctx, {"pwm": 2, "entry": {"mode": "fixed", "percent": 120}, "label": "APU"}, None)
+
+
+def test_renombrar_firmware_no_intenta_escribir_en_canal_solo_lectura():
+    ctx = ejemplo()
+    _, trabajo = ventiladores.aplicar(ctx, {"pwm": 2, "entry": {"mode": "firmware"}, "label": "APU"}, None)
+    trabajo()
+    assert ctx.settings.read_local_config()["fan_channel_labels"]["2"] == "APU"
+    assert not ctx.service.llamadas

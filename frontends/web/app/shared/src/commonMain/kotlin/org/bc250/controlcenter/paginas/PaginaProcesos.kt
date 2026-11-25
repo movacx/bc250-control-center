@@ -185,11 +185,18 @@ private fun TablaProcesos(filas: List<JsonObject>, seleccion: Set<String>, alto:
                             }
                         }
                         for (campo in listOf("cpu", "gpu", "memory", "vram")) {
-                            Column(Modifier.width(if (campo == "memory") 104.dp else 96.dp).padding(horizontal = 6.dp)) {
+                            val ayuda = when (campo) {
+                                "memory" -> fila.texto("memory_hint")
+                                "vram" -> fila.texto("vram_hint")
+                                else -> ""
+                            }
+                            AyudaSupervision(ayuda, Modifier.width(if (campo == "memory") 104.dp else 96.dp).padding(horizontal = 6.dp)) {
                                 Texto(fila.texto(if (campo in listOf("cpu", "gpu")) campo + "_text" else campo, "—"), 12, peso = 700)
                             }
                         }
-                        Texto(fila.texto("status"), 12, modifier = Modifier.width(130.dp), color = if (fila.texto("tone") == "gray") paleta.sutil else paleta.color(fila.texto("tone", "green")))
+                        AyudaSupervision(fila.texto("detail"), Modifier.width(130.dp)) {
+                            Texto(fila.texto("status"), 12, color = if (fila.texto("tone") == "gray") paleta.sutil else paleta.color(fila.texto("tone", "green")))
+                        }
                     }
                     LineaDivisoria(color = paleta.bordeSuave)
                 }

@@ -2,7 +2,13 @@
 import threading
 
 from bc250cc.application.system.privacy import redact_machine
-from frontends.desktop.core.diagnosis_groups import TABS, as_text, section_group, size_kb
+from frontends.desktop.core.diagnosis_groups import (
+    TABS,
+    as_text,
+    section_group,
+    size_kb,
+)
+from frontends.tui.i18n import tr, tr_format
 from frontends.web.actions import Invalid, choice, flag
 from frontends.web.blackbox import COLUMNS
 
@@ -69,7 +75,7 @@ def _recoger(ctx):
         resultado = {"loading": False, "ready": True, "sections": filas, "text": as_text(secciones), "error": ""}
     except Exception:
         resultado = {"loading": False, "ready": False, "sections": [],
-                     "error": "The diagnosis could not be read. Try refreshing it."}
+                     "error": tr_format("Could not collect the diagnosis: {reason}", reason=tr("Unavailable")), "text": ""}
     with ctx.lock:
         ctx.state("web_full_diagnosis").update(resultado)
 

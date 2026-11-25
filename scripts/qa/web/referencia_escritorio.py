@@ -113,6 +113,11 @@ def principal() -> int:
         escritorio.ControlCenterWindow.start_tour = lambda *_a, **_k: None
         for tour in (nombre for nombre in dir(escritorio.ControlCenterWindow) if "tour" in nombre and "start" in nombre):
             setattr(escritorio.ControlCenterWindow, tour, lambda *_a, **_k: None)
+        from frontends.desktop.components import toast
+        for nombre in [n for n in dir(toast) if n.startswith("Toast") or n == "show_toast"]:
+            pieza = getattr(toast, nombre)
+            if hasattr(pieza, "show"):
+                pieza.show = lambda *_a, **_k: None
         escritorio.TourGuide.start = lambda _guia: None
         ventana = escritorio.ControlCenterWindow(ServicioEjemplo(), settings_service=ConfiguracionEjemplo(),
                                                  activity_service=ActividadEjemplo())

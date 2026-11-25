@@ -1,6 +1,5 @@
 package org.bc250.controlcenter.componentes
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -32,7 +31,6 @@ import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.recursos.Res
 import org.bc250.controlcenter.recursos.collapse_gray
 import org.bc250.controlcenter.recursos.expand_gray
-import org.bc250.controlcenter.recursos.logo
 import org.bc250.controlcenter.recursos.nav_blackbox
 import org.bc250.controlcenter.recursos.nav_compute
 import org.bc250.controlcenter.recursos.nav_cpu
@@ -47,7 +45,6 @@ import org.bc250.controlcenter.recursos.nav_settings
 import org.bc250.controlcenter.tema.ColoresActuales
 import org.bc250.controlcenter.tema.Medidas
 import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.painterResource
 
 /** Una página de la aplicación, tal como aparece en la barra. */
 class Seccion(val clave: String, val nombre: String, val icono: DrawableResource)
@@ -133,7 +130,7 @@ private fun MarcaBarra(aplicacion: Aplicacion) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (!plegada) {
-            Image(painterResource(Res.drawable.logo), contentDescription = null, modifier = Modifier.size(30.dp))
+            Logotipo(30.dp)
             Column(Modifier.weight(1f)) {
                 Texto("BC250", tamano = 15, peso = 860)
                 Texto(nombreCorto(), tamano = 11, peso = 620, color = paleta.apagado)

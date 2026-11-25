@@ -1,13 +1,17 @@
 """Grabador y filtros con muestras conocidas; se ejecutan también con unittest."""
-from types import SimpleNamespace
 import unittest
+from types import SimpleNamespace
 
-from scripts.qa.web.servicio_ejemplo import ServicioEjemplo, ConfiguracionEjemplo, InventarioSensoresEjemplo
-from frontends.tui.runtime import Context
-from frontends.desktop.core.performance_model import PerformanceRecorder, KIND_FILTERS
+from frontends.desktop.core.performance_model import KIND_FILTERS, PerformanceRecorder
 from frontends.desktop.core.performance_views import views_for
+from frontends.tui.runtime import Context
 from frontends.web.actions import Invalid
 from frontends.web.modulos import rendimiento
+from scripts.qa.web.servicio_ejemplo import (
+    ConfiguracionEjemplo,
+    InventarioSensoresEjemplo,
+    ServicioEjemplo,
+)
 
 
 class PruebasRendimiento(unittest.TestCase):

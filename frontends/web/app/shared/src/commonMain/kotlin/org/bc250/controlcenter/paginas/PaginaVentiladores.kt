@@ -21,6 +21,7 @@ import org.bc250.controlcenter.tema.ColoresActuales
 fun PaginaVentiladores(aplicacion: Aplicacion) {
     var seleccionado by remember { mutableStateOf(0) }
     var perfil by remember { mutableStateOf("Balanced") }
+    var perfilManual by remember { mutableStateOf(false) }
     var mas by remember { mutableStateOf(false) }
     var borrador by remember { mutableStateOf(ObjetoVacio) }
     var nombreBorrador by remember { mutableStateOf("") }
@@ -40,6 +41,12 @@ fun PaginaVentiladores(aplicacion: Aplicacion) {
     val canales = datos.objetos("channels")
     val canal = canales.firstOrNull { it.entero("pwm") == seleccionado } ?: canales.firstOrNull() ?: ObjetoVacio
     val numero = canal.entero("pwm")
+    val perfiles = datos.objeto("profiles")
+    LaunchedEffect(perfiles) {
+        if (!perfilManual) {
+            perfil = perfiles.texto("active").ifEmpty { if (perfiles.logico("custom")) "" else "Balanced" }
+        }
+    }
     val servicio = datos.objeto("service")
     val disponible = aplicacion.puedeControlar && aplicacion.trabajo.terminado && !datos.logico("external")
     fun elegir(nuevo: Int) {
@@ -64,9 +71,15 @@ fun PaginaVentiladores(aplicacion: Aplicacion) {
             val opciones = datos.objeto("profiles").textos("builtin") + datos.objeto("profiles").textos("saved")
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Texto(t("Profile"), 12, color = ColoresActuales.current.apagado)
-                SelectorSupervision(opciones.map { Eleccion(it, t(it)) }, perfil, modifier = Modifier.width(120.dp)) { perfil = it }
+                val elecciones = opciones.map { Eleccion(it, t(it)) }.toMutableList()
+                if (perfiles.logico("custom")) elecciones.add(0, Eleccion("", t("Custom")))
+                SelectorSupervision(elecciones, perfil, disponible, Modifier.width(120.dp)) {
+                    perfil = it
+                    perfilManual = true
+                }
             }
-            AccionSupervision(t("Apply profile"), disponible && opciones.isNotEmpty(), primaria = true) {
+            AccionSupervision(t("Apply profile"), disponible && perfil.isNotEmpty() && opciones.isNotEmpty(), primaria = true) {
+                perfilManual = false
                 aplicacion.preguntarYEjecutar("fan.profile", t("Apply profile"), parametros = mapOf(
                     "operation" to JsonPrimitive("apply"), "name" to JsonPrimitive(perfil), "selected" to JsonPrimitive(numero)))
             }
@@ -84,7 +97,7 @@ fun PaginaVentiladores(aplicacion: Aplicacion) {
         LineaDivisoria()
         Texto(textoVentilador(servicio, "summary", "summary_values"), 12, color = ColoresActuales.current.apagado)
         if (servicio.logico("out_of_date") || servicio.texto("state") == "override") {
-            AccionSupervision(t("Update fan helper"), disponible) {
+            AccionSupervision(t("Sync now"), disponible, primaria = true) {
                 aplicacion.preguntarYEjecutar("fan.service", t("Control from boot"), parametros = mapOf("operation" to JsonPrimitive("sync")))
             }
         }

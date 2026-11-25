@@ -14,4 +14,3 @@ object MedidasSupervision {
     val boton = 31.dp
     val limiteMovil = 700.dp
 }
-

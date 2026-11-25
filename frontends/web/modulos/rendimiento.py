@@ -3,17 +3,18 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime, timedelta
-from frontends.web.actions import Invalid
+
 from frontends.desktop.core.performance_model import KIND_FILTERS, RESOURCE_BY_KEY
-from frontends.desktop.core.performance_views import views_for, VIEW_BY_KEY
+from frontends.desktop.core.performance_views import VIEW_BY_KEY, views_for
 from frontends.tui.i18n import tr, tr_format
+from frontends.web.actions import Invalid
 
 VENTANAS = (60, 120, 300, 600, 1800)
 
 
 def consultar(web, parametros):
     # Importación diferida: data incorpora las tablas de módulos al arrancar.
-    from frontends.web.data import performance, _chart
+    from frontends.web.data import _chart, performance
 
     tab = parametros.get("tab", "sensors")
     if tab != "sensors" and tab not in RESOURCE_BY_KEY:
@@ -122,7 +123,7 @@ def leer_preferencias(ctx, live):
 
 
 def guardar_preferencias(ctx, parametros):
-    from frontends.web.actions import flag, choice
+    from frontends.web.actions import choice, flag
     layout = choice(parametros, "layout", ("list", "split", "graphs"))
     hide = flag(parametros, "hide")
     window = parametros.get("window")

@@ -7,7 +7,11 @@ import pytest
 from frontends.tui.runtime import Context
 from frontends.web.actions import Invalid
 from frontends.web.modulos import procesos
-from scripts.qa.web.servicio_ejemplo import ConfiguracionEjemplo, PROCESOS, ServicioEjemplo
+from scripts.qa.web.servicio_ejemplo import (
+    PROCESOS,
+    ConfiguracionEjemplo,
+    ServicioEjemplo,
+)
 
 
 def contexto():

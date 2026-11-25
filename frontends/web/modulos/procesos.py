@@ -4,8 +4,8 @@ from math import isfinite
 from types import SimpleNamespace
 
 from frontends.desktop.core.process_entries import build_entries, formato_bytes
-from frontends.tui.i18n import tr
 from frontends.desktop.i18n import count_label, tr_format
+from frontends.tui.i18n import tr
 from frontends.web.actions import Invalid, choice
 
 VISTAS = ("apps", "background", "system", "all")

@@ -1,11 +1,13 @@
 """CU: rejilla, balance, persistencia y bloqueos comprobados antes de escribir."""
-from types import SimpleNamespace
-from copy import deepcopy
 import json
 import unittest
+from copy import deepcopy
+from types import SimpleNamespace
+
 from frontends.web.actions import Invalid, all_actions
 from frontends.web.modulos import unidades
-from scripts.qa.web.servicio_ejemplo import ConfiguracionEjemplo, ServicioEjemplo, CU
+from scripts.qa.web.servicio_ejemplo import CU, ConfiguracionEjemplo, ServicioEjemplo
+
 
 class PruebasUnidades(unittest.TestCase):
 

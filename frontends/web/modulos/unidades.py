@@ -1,11 +1,15 @@
 """Topología WGP, disponibilidad y balance: mismas reglas que el escritorio, sin Qt."""
-from dataclasses import asdict
 import json
+from dataclasses import asdict
 
-from frontends.desktop.core.compute_units_presenter import present_compute_units_state, plan_cu_action_availability, cus_found_at_driver_start
-from frontends.desktop.core.cu_balance import balanced_masks, engine_balance
 from bc250cc.application.gpu.telemetry import present_gpu_telemetry
 from bc250cc.application.system.temperature_unit import localize_temperature_text
+from frontends.desktop.core.compute_units_presenter import (
+    cus_found_at_driver_start,
+    plan_cu_action_availability,
+    present_compute_units_state,
+)
+from frontends.desktop.core.cu_balance import balanced_masks, engine_balance
 from frontends.tui.i18n import tr, tr_format
 
 AVISO_KERNEL = (
@@ -98,7 +102,7 @@ def leer(ctx, live):
 
 
 def consultar(web, p):
-    from frontends.web.actions import masks, Invalid
+    from frontends.web.actions import Invalid, masks
     try:
         valores = masks({"masks": json.loads(p.get("masks", "[]"))})
     except (ValueError, TypeError):

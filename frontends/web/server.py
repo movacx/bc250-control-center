@@ -74,7 +74,7 @@ SESSION_COOKIE_SECONDS = web_devices.MAX_SESSION_SECONDS
 PERMANENT_COOKIE_SECONDS = 400 * 24 * 3600
 MAX_FAILS, LOCK_SECONDS = 5, 300
 MAX_BODY = 64 * 1024
-CSP = ("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; "
+CSP = ("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'sha256-+bHRyQ0Z1/Lb6dgSILtTESBRCIFl8jkBb/dPQA4Pdnw='; img-src 'self' data: blob:; connect-src 'self'; "
        "manifest-src 'self'; worker-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 
 
@@ -128,6 +128,14 @@ class Web:
         self.key = web_access.access_key()
         self.fails: dict[str, list[float]] = {}
         self.lock = threading.Lock()
+
+    def speak(self, wanted: str | None) -> None:
+        """Answer in the language of the page in use: what a reader translates is kept until it changes."""
+        wanted = normalize_language(wanted or self.language)
+        if wanted in SUPPORTED_LANGUAGES and wanted != self.language:
+            self.language = wanted
+            set_language(wanted)
+            self.live.forget()
 
     @staticmethod
     def _strings() -> list[str]:
@@ -366,6 +374,8 @@ class Handler:
         if method == "POST" and path not in {"/api/logout", "/api/performance/reset", "/api/job/interrupt", "/api/ssh/close"}:
             if not web_devices.session(self.token()).get("control"):
                 return self.fail("This device has monitoring access. Enable hardware control in Remote access on the desktop.", 403)
+        if method == "GET" and path in {"/api/page", "/api/query", "/api/performance"}:
+            self.web.speak(self.headers.get("X-BC250-Language"))
         handler = {"GET": self.GET, "POST": self.POST}[method].get(path)
         if handler is None:
             return self.fail("Not found", 404)

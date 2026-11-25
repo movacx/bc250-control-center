@@ -79,7 +79,7 @@ internal fun DiagnosticoCajaNegra(aplicacion: Aplicacion, alto: Dp) {
             portapapeles.setText(AnnotatedString(datos.texto("text")))
             aplicacion.avisar(t("Paste it into your problem report."))
         }
-        if (datos.logico("ready")) GuardarDocumentoSupervision(datos.texto("text"), aplicacion.conexion.direccion + "/api/query?name=supervision.download&file=diagnosis")
+        if (datos.logico("ready")) GuardarDocumentoSupervision(aplicacion.conexion.direccion + "/api/query?name=supervision.download&file=diagnosis")
     }
 }
 

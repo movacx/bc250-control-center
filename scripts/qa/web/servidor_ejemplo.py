@@ -58,6 +58,7 @@ def principal() -> int:
                                  activity_service=ActividadEjemplo(), platform=None)
     web_server.web_devices.session = lambda _ficha: {"control": True, "id": "ejemplo"}
     web = WebEjemplo(contenedor, terminal_factory=TerminalEjemplo)
+    web_server.set_language(web.language)
     servidor = web_server.Server(("127.0.0.1", puerto), web)
     print(f"http://127.0.0.1:{puerto}", flush=True)
     servidor.serve_forever()

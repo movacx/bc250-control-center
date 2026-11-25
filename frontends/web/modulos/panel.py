@@ -3,13 +3,21 @@ from __future__ import annotations
 
 import time
 
-from frontends.web.actions import Invalid, choice, flag
-from bc250cc.application.preparation.gpu_dependency_plan import build_gpu_dependency_plan
-from frontends.tui.pages.dashboard import COMPONENTS, DashboardPage, _safe
-from frontends.desktop.core.dashboard_presenter import FAN_OWNER_LABELS
-from frontends.desktop.core.developer_note_text import PARAGRAPHS, TITLE, WHEN, THANKS, SIGNATURE
+from bc250cc.application.preparation.gpu_dependency_plan import (
+    build_gpu_dependency_plan,
+)
 from frontends.desktop.core.compatibility_dialogs import DECKY_BOOTSTRAP
+from frontends.desktop.core.dashboard_presenter import FAN_OWNER_LABELS
+from frontends.desktop.core.developer_note_text import (
+    PARAGRAPHS,
+    SIGNATURE,
+    THANKS,
+    TITLE,
+    WHEN,
+)
 from frontends.tui.i18n import tr, tr_format
+from frontends.tui.pages.dashboard import COMPONENTS, DashboardPage, _safe
+from frontends.web.actions import Invalid, choice, flag
 
 CLAVES = tuple(key for key, _ in COMPONENTS)
 DETALLES = ("Runtime files and packages.", "Cyan or Oberon setup.", "bc250_smu_oc support.",
@@ -236,7 +244,7 @@ def reparar_telemetria(ctx, p, shell):
 
 
 def actualizacion(web, parametros):
-    from bc250cc.infrastructure.release_check import check_for_update, RELEASES_PAGE_URL
+    from bc250cc.infrastructure.release_check import RELEASES_PAGE_URL, check_for_update
     status = check_for_update()
     return {"available": status.update_available, "version": status.published,
             "url": RELEASES_PAGE_URL, "detail": "See what's new"}
@@ -253,8 +261,13 @@ def regulador_atascado(metricas):
 
 
 def presentar_telemetria(gpu, tools):
-    from frontends.desktop.core.error_diagnostics import (TELEMETRY_GUIDE_TITLE, TELEMETRY_GUIDE_BODY,
-        TELEMETRY_GUIDE_PATCH_OFF, TELEMETRY_GUIDE_PATCH_ON, TELEMETRY_GUIDE_BAZZITE_NOTE)
+    from frontends.desktop.core.error_diagnostics import (
+        TELEMETRY_GUIDE_BAZZITE_NOTE,
+        TELEMETRY_GUIDE_BODY,
+        TELEMETRY_GUIDE_PATCH_OFF,
+        TELEMETRY_GUIDE_PATCH_ON,
+        TELEMETRY_GUIDE_TITLE,
+    )
     apu = gpu.get("apu_telemetry") or {}
     reparacion = (tools.get("system_setup") or {}).get("telemetry") or {}
     compatible = not apu or (apu.get("parameters") or {}).get("cs_legacy_8core_metrics") is not None

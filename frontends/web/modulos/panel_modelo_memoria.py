@@ -4,8 +4,10 @@ Las condiciones y textos se conservan de core/gddr6_monitor.py. Este módulo
 solo interpreta disponibilidad: no inicia procesos ni lee el equipo.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any
+
 from frontends.tui.i18n import tr, tr_format
 
 #: How long one authenticated live session lasts, in seconds. Enforced by the
