@@ -22,6 +22,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -106,6 +107,7 @@ fun App() {
             Modifier
                 .fillMaxSize()
                 .background(paleta.ventana)
+                .onSizeChanged { medida -> aplicacion.enTelefono = medida.width < AnchoMovil.value * densidad.density * escala }
                 .onPreviewKeyEvent { evento -> atenderTecla(evento, aplicacion) },
         ) {
             if (sePuedeDibujar) {
