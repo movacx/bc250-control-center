@@ -209,6 +209,8 @@ class Aplicacion(private val tareas: CoroutineScope) {
         if (direccion != conexion.direccion) {
             CertificadoDelEquipo.olvidar()
             lecturas.clear()
+            pedidos.clear()
+            publicados.clear()
         }
         CertificadoDelEquipo.confiarEn(ficha.substringAfter("&ca=", ""))
         conexion.direccion = direccion
@@ -345,15 +347,15 @@ class Aplicacion(private val tareas: CoroutineScope) {
     fun usarTema(estilo: String, tema: String, acento: String) {
         val delSistema = if (sistemaOscuro) "dark" else "light"
         val elegido = if (tema == "system") delSistema else tema
-        val marca = listOf(estilo, elegido, acento, preferencias.texto("console_theme"), temas.size)
+        val marca = listOf(estilo, elegido, acento, preferencias.texto("console_theme"), temas)
         if (marca == temaUsado) {
             return
         }
-        temaUsado = marca
         paletas = Paletas(temas, estilo, elegido)
         val nueva = paletas.paleta(estilo, elegido, acento)
         if (nueva != null) {
             paleta = nueva.conTerminal(coloresDeTerminal())
+            temaUsado = marca
         }
     }
 
@@ -605,6 +607,14 @@ class Aplicacion(private val tareas: CoroutineScope) {
             return
         }
         val datos = respuesta.datos
+        if (datos.entero("id") != trabajo.id && trabajo.id > 0 && !trabajo.terminado) {
+            // El equipo ya no la conoce: se reinició o empezó otra. Que no quede corriendo para siempre.
+            trabajo = trabajo.copy(terminado = true, cancelado = true, esperaClave = false, esperaRespuesta = false)
+            anotarTrabajo(trabajo)
+            if (datos.entero("id") == 0) {
+                return
+            }
+        }
         val nuevo = Trabajo(
             id = datos.entero("id"),
             titulo = datos.texto("label"),
@@ -651,9 +661,14 @@ class Aplicacion(private val tareas: CoroutineScope) {
         }
     }
 
-    fun responderTrabajo(texto: String) {
+    /** Lo que se escribe en la consola; si no llegó, avisa para poder intentarlo otra vez. */
+    fun responderTrabajo(texto: String, siFalla: () -> Unit = {}) {
         tareas.launch {
-            conexion.enviar("/api/job/input", buildJsonObject { put("text", JsonPrimitive(texto)) })
+            val respuesta = conexion.enviar("/api/job/input", buildJsonObject { put("text", JsonPrimitive(texto)) })
+            if (!respuesta.correcta || !respuesta.datos.logico("ok", defecto = true)) {
+                siFalla()
+                avisar(respuesta.error.ifEmpty { t("Not connected") }, error = true)
+            }
         }
     }
 

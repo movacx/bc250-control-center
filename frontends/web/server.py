@@ -153,8 +153,14 @@ class Web:
             return
         with self.warming:
             terminal = self.local_sessions.get(token)
-            if terminal is None or terminal.closed:
-                self.local_sessions[token] = self.terminal_factory()
+            if terminal is not None and not terminal.closed:
+                return
+            terminal = self.terminal_factory()
+            self.local_sessions[token] = terminal
+        # The device may have been disconnected while its console was starting.
+        if not web_devices.session(token) or not handler.may_control():
+            if self.local_sessions.pop(token, None) is terminal:
+                terminal.close()
 
     @staticmethod
     def _strings() -> list[str]:

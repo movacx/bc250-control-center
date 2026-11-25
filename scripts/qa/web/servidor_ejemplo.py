@@ -62,7 +62,7 @@ class TerminalConClave(TerminalEjemplo):
             return {"ok": True, "job": self.trabajo["id"]}
         if operacion == "input":
             self.desde, self.valida = ahora, valores["text"] != "mala"
-            self.trabajo.update(waiting=False, interactive=False, text=self.AVISO + "\n")
+            self.trabajo.update(text=self.AVISO + "\n")  # como sudo: hasta que conteste parece que sigue esperando
             return {"ok": True}
         if operacion == "interrupt":
             self.trabajo.update(done=True, ok=False, cancelled=True, waiting=False, interactive=False)
@@ -73,7 +73,7 @@ class TerminalConClave(TerminalEjemplo):
                 self.trabajo.update(waiting=True, interactive=True, text=f"{self.AVISO}\nSorry, try again.\n{self.AVISO}")
                 self.desde = None
             else:
-                self.trabajo["text"] = self.AVISO + "\nAplicando…"
+                self.trabajo.update(waiting=False, interactive=False, text=self.AVISO + "\nAplicando…")
                 if ahora - desde > 2:
                     self.trabajo.update(done=True, ok=True, text=self.AVISO + "\nListo.")
         return self.trabajo

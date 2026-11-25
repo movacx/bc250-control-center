@@ -46,8 +46,11 @@ import org.bc250.controlcenter.tema.ColoresActuales
 
 private const val AVISO_DE_SUDO = "BC250 Linux password:"
 
-/** Lo que tarda sudo en contestar a una contraseña equivocada, con margen. */
-private const val ESPERA_RESPUESTA = 3200L
+/** Lo que se espera tras un texto suelto, por si es el de una contraseña equivocada. */
+private const val ESPERA_RESPUESTA = 300L
+
+/** Sin respuesta en este tiempo, se puede volver a escribir. */
+private const val ESPERA_MAXIMA = 20_000L
 private const val ESPERA_DE_ENTRADA = 260L
 
 /** La contraseña que pide una operación: cuándo se enseña, si ya se envió y cuántas veces falló. */
@@ -55,6 +58,9 @@ class PeticionDeClave {
     var enviada by mutableStateOf(false)
     var fallos by mutableIntStateOf(0)
     var abierta by mutableStateOf(false)
+
+    /** Cuántas veces la había pedido sudo cuando se envió. */
+    var avisos = 0
 }
 
 /** Abre la ventana cuando la operación pide la contraseña y la cierra en cuanto el equipo la acepta. */
@@ -67,9 +73,17 @@ fun VigilanteDeClave(aplicacion: Aplicacion): PeticionDeClave {
         peticion.enviada = false
         peticion.fallos = 0
     }
-    LaunchedEffect(trabajo.id, trabajo.esperaClave) {
+    val avisos = avisosDe(trabajo)
+    LaunchedEffect(peticion.enviada) {
+        if (peticion.enviada) {
+            delay(ESPERA_MAXIMA)
+            peticion.enviada = false
+        }
+    }
+    LaunchedEffect(trabajo.id, trabajo.esperaClave, avisos) {
         if (trabajo.esperaClave) {
-            if (peticion.enviada) {
+            // sudo la pide otra vez: la anterior no valía. Mientras la comprueba su aviso sigue siendo el último.
+            if (peticion.enviada && avisos > peticion.avisos) {
                 peticion.fallos += 1
                 peticion.enviada = false
             }
@@ -79,18 +93,16 @@ fun VigilanteDeClave(aplicacion: Aplicacion): PeticionDeClave {
             movil.cerrarClave(peticion)
         }
     }
-    val aceptada = peticion.enviada && !trabajo.esperaClave && contesto(trabajo)
-    LaunchedEffect(aceptada, trabajo.terminado) {
-        if (aceptada || trabajo.terminado) {
+    LaunchedEffect(trabajo.terminado) {
+        if (trabajo.terminado) {
             movil.cerrarClave(peticion)
         }
     }
     return peticion
 }
 
-/** Si después del aviso de sudo ya se escribió algo más: la contraseña valió. */
-private fun contesto(trabajo: Trabajo): Boolean {
-    return trabajo.terminado || trabajo.texto.substringAfterLast(AVISO_DE_SUDO, "").isNotBlank()
+private fun avisosDe(trabajo: Trabajo): Int {
+    return trabajo.texto.split(AVISO_DE_SUDO).size - 1
 }
 
 fun EstadoMovil.abrirClave(aplicacion: Aplicacion, peticion: PeticionDeClave) {
@@ -120,7 +132,8 @@ private fun HojaDeClave(aplicacion: Aplicacion, peticion: PeticionDeClave) {
     fun enviar() {
         if (clave.isNotEmpty() && !peticion.enviada) {
             peticion.enviada = true
-            aplicacion.responderTrabajo(clave)
+            peticion.avisos = avisosDe(aplicacion.trabajo)
+            aplicacion.responderTrabajo(clave) { peticion.enviada = false }
             clave = ""
         }
     }

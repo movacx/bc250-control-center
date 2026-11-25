@@ -294,8 +294,7 @@ def revisar_rango(web, p):
             "This updates Oberon's two YAML endpoints to the upstream 1000 mV baseline and restarts the service if it is active."
         )
     else:
-        mensaje = tr("This updates only the active Cyan range through D-Bus. Persistent TOML limits are left unchanged; "
-                     "advanced safe-points are loaded only when explicitly enabled.")
+        mensaje = ""
     if not oberon and alto > int(estado.get("allowed_max") or 2000):
         mensaje += "\n\n" + tr(
             "Cyan will restart once to load the enabled high safe-points, then the requested D-Bus range will be verified."
@@ -310,7 +309,7 @@ def revisar_rango(web, p):
         if aviso.details:
             mensaje += "\n" + aviso.details
     return {"title": tr_format("Apply {minimum} – {maximum} MHz", minimum=bajo, maximum=alto),
-            "message": mensaje, "risk": alto >= 1850 or bajo >= 2000, "min": bajo, "max": alto}
+            "message": mensaje.strip(), "risk": alto >= 1850 or bajo >= 2000, "min": bajo, "max": alto}
 
 
 def aplicar_rango(ctx, p, shell):

@@ -9,7 +9,6 @@ import pytest
 
 from frontends.web.console_session import ConsoleSession
 
-
 #: The real protocol and pty, with a harmless program where the hardware action would run.
 STANDIN = "import subprocess; from frontends.web import console_worker; console_worker.preload=lambda: None; "
 

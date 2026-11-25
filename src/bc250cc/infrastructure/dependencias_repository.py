@@ -1201,9 +1201,12 @@ class DependenciasRepository(SteamosDependenciesMixin):
     def estado_herramientas_bc250(self):
         ahora = time.monotonic()
         partial = HARDWARE_ONLY.get()
-        usable = partial or not getattr(self, 'estado_herramientas_parcial', False)
-        if self.estado_herramientas_cache is not None and usable and ahora - self.estado_herramientas_cache_time < 10:
-            return deepcopy(self.estado_herramientas_cache)
+        kept = self.estado_herramientas_cache
+        # What a full inventory knows and a hardware one leaves out travels inside it, so that
+        # two readers publishing at once can never mark one as the other.
+        usable = kept is not None and (partial or not kept.get('hardware_only'))
+        if usable and ahora - self.estado_herramientas_cache_time < 10:
+            return deepcopy(kept)
 
         os_repository = self._os_repository()
         os_info = os_repository.info
@@ -1478,10 +1481,11 @@ class DependenciasRepository(SteamosDependenciesMixin):
                 if not item.get('feature_available', item['available'])
             ],
         }
+        if partial:
+            resultado['hardware_only'] = True
         self.estado_herramientas_cache = deepcopy(resultado)
-        self.estado_herramientas_parcial = partial
         self.estado_herramientas_cache_time = time.monotonic()
-        return deepcopy(resultado)
+        return resultado
 
     @staticmethod
     def _optional_inventory_probe(probe, default):

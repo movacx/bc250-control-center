@@ -90,6 +90,7 @@ class Live:
         self._thread: threading.Thread | None = None
         self._cache: dict[str, tuple[float, object]] = {}
         self._turn = 0
+        self._cache_lock = threading.Lock()  # a reading is kept only if nothing was forgotten meanwhile
         self._locks = {key: threading.Lock() for key in PAGES}
         ctx.state("performance")["recorder"] = self.recorder
 
@@ -162,8 +163,9 @@ class Live:
         """What was read before an action must not be kept as if it were read after it."""
         turn = self._turn
         value = read()
-        if turn == self._turn:
-            self._cache[key] = (time.monotonic(), value)
+        with self._cache_lock:
+            if turn == self._turn:
+                self._cache[key] = (time.monotonic(), value)
         return value
 
     def _renew(self, key: str, read, lock) -> None:
@@ -175,8 +177,9 @@ class Live:
             lock.release()
 
     def forget(self) -> None:
-        self._turn += 1
-        self._cache.clear()
+        with self._cache_lock:
+            self._turn += 1
+            self._cache.clear()
 
 
 # -- pages ----------------------------------------------------------------------------------------

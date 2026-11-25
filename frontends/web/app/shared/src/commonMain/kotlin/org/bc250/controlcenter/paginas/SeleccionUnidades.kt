@@ -78,7 +78,8 @@ private const val ESPERA_CONSULTA = 60L
 @Stable
 class EleccionUnidades(private val aplicacion: Aplicacion) {
     private var borrador by mutableStateOf<List<Int>?>(null)
-    private var respuesta by mutableStateOf(ObjetoVacio)
+    /** Lo que opinó el servidor y de qué máscaras. */
+    private var respuesta by mutableStateOf<Pair<List<Int>, JsonObject>?>(null)
 
     val datos: JsonObject get() = aplicacion.lectura("cu")
     val estado: JsonObject get() = datos.objeto("cu")
@@ -90,7 +91,7 @@ class EleccionUnidades(private val aplicacion: Aplicacion) {
         get() = aplicacion.puedeControlar && aplicacion.trabajo.terminado && datos.isNotEmpty() && datos.texto("error").isEmpty()
 
     val seleccion: JsonObject by derivedStateOf {
-        val opinion = if (editada && respuesta.isNotEmpty()) respuesta else datos.objeto("selection")
+        val opinion = respuesta?.takeIf { (pedidas, _) -> pedidas == borrador }?.second ?: datos.objeto("selection")
         seleccionInmediata(estado, opinion, mascaras)
     }
 
@@ -98,7 +99,9 @@ class EleccionUnidades(private val aplicacion: Aplicacion) {
         if (accion == "discard") {
             return libre && editada
         }
-        return libre && seleccion.objeto("availability").logico(accion)
+        // Con un borrador solo se aplica lo que el servidor ya revisó: el mensaje describe esas mismas máscaras.
+        val revisada = borrador == null || respuesta?.first == borrador
+        return libre && revisada && seleccion.objeto("availability").logico(accion)
     }
 
     /** Si se puede escribir en la tabla: el kernel no la administra y no hay otra operación. */
@@ -116,7 +119,7 @@ class EleccionUnidades(private val aplicacion: Aplicacion) {
 
     fun restablecer() {
         borrador = null
-        respuesta = ObjetoVacio
+        respuesta = null
     }
 
     fun enJson(): JsonArray {
@@ -126,9 +129,10 @@ class EleccionUnidades(private val aplicacion: Aplicacion) {
     /** Pregunta al servidor qué se puede hacer con el borrador; la tabla ya se ve como quedará. */
     suspend fun consultar() {
         delay(ESPERA_CONSULTA)
+        val pedidas = mascaras
         val nueva = aplicacion.consultar("cu.selection", mapOf("masks" to enJson().toString()))
         if (nueva.isNotEmpty()) {
-            respuesta = nueva
+            respuesta = pedidas to nueva
         }
     }
 
@@ -163,7 +167,7 @@ fun recordarEleccionUnidades(aplicacion: Aplicacion): EleccionUnidades {
             aplicacion.pausar(3000)
         }
     }
-    LaunchedEffect(eleccion.mascaras) {
+    LaunchedEffect(eleccion.mascaras, eleccion.vivas) {
         if (eleccion.editada) {
             eleccion.consultar()
         }
