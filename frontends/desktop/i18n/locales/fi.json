@@ -6593,5 +6593,6 @@
   "{count} samples in {time}": "{count} näytettä ajassa {time}",
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Anturit eivät ole vastanneet {seconds} sekuntiin: näytön lukemat ovat vanhoja.",
   "Applying this profile discards the changes to this fan you have not applied.": "Profiilin käyttöönotto hylkää tämän tuulettimen muutokset, joita ei ole otettu käyttöön.",
-  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Linuxin muistissa pitämät tiedostot vapautetaan ja luetaan tarvittaessa uudelleen levyltä."
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Linuxin muistissa pitämät tiedostot vapautetaan ja luetaan tarvittaessa uudelleen levyltä.",
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Sen kansiossa ei ole peliä. Tarkista, että asema on kytketty ja että Steam näyttää pelin asennettuna."
 }

@@ -6593,5 +6593,6 @@
   "{count} samples in {time}": "{count} mätningar på {time}",
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Sensorerna har inte svarat på {seconds} s: värdena på skärmen är gamla.",
   "Applying this profile discards the changes to this fan you have not applied.": "När profilen tillämpas förkastas ändringar av fläkten som inte tillämpats.",
-  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Filerna som Linux håller i minnet släpps och läses från disken igen vid behov."
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Filerna som Linux håller i minnet släpps och läses från disken igen vid behov.",
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Det finns inget spel i dess mapp. Kontrollera att enheten är ansluten och att Steam visar spelet som installerat."
 }

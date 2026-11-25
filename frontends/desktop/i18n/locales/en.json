@@ -6593,5 +6593,6 @@
   "{count} samples in {time}": "{count} samples in {time}",
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "The sensors have not answered for {seconds} s: the readings on screen are old.",
   "Applying this profile discards the changes to this fan you have not applied.": "Applying this profile discards the changes to this fan you have not applied.",
-  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "The files Linux keeps in memory are dropped and read from the disk again when needed."
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "The files Linux keeps in memory are dropped and read from the disk again when needed.",
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed."
 }

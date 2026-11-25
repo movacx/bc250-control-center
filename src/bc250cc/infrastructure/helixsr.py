@@ -3233,6 +3233,22 @@ def _has_windows_exe(folder: Path) -> bool:
     )
 
 
+def _has_linux_program(folder: Path) -> bool:
+    """An ELF file, or the .sh that starts one, anywhere in the game."""
+    for root, _dirs, names in os.walk(folder):
+        for name in names:
+            path = Path(root) / name
+            if name.lower().endswith((".sh", ".x86_64", ".so")):
+                return True
+            try:
+                with path.open("rb") as handle:
+                    if handle.read(4) == b"\x7fELF":
+                        return True
+            except OSError:
+                continue
+    return False
+
+
 def _refuse_native_game(folder: Path) -> None:
     """HelixSR Scaler goes next to a Windows .exe that runs through Proton.
 
@@ -3242,6 +3258,10 @@ def _refuse_native_game(folder: Path) -> None:
     if not folder.is_dir():
         return
     if not _has_windows_exe(folder):
+        # R-fa5bd3c2: a Windows game on an external drive whose folder held no
+        # game was told it ran natively. Only a Linux program says that.
+        if not _has_linux_program(folder):
+            raise ActionNeeded("There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.")
         raise ActionNeeded(
             "This game runs natively on Linux: it has no Windows .exe. "
             "HelixSR only works with games that run through Proton."

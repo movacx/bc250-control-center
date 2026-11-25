@@ -439,6 +439,13 @@ bc250_forget_damaged_source() {{
     rm -rf -- "$bc250_source"
     echo "The downloaded DirectMesh source was damaged and has been removed. Press Install again to download it fresh."
   fi
+  # R-577961ce: the compiler itself was killed by a segmentation fault; its own
+  # last words are "not reproducible, so it is likely a hardware or OS problem".
+  log="${{XDG_CACHE_HOME:-$HOME/.cache}}/directmesh-build/build.log"
+  if [[ -f "$log" ]] && grep -Eq 'internal compiler error: (Segmentation fault|Bus error|Illegal instruction)' "$log"; then
+    echo "The compiler itself crashed, not DirectMesh's code. An unstable CPU or memory does that under full load:"
+    echo "return the CPU and GPU to their stock settings (including a core unlock), restart, and press Install again."
+  fi
 }}'''
 
 

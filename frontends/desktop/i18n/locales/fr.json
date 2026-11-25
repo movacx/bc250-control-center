@@ -6593,5 +6593,6 @@
   "{count} samples in {time}": "{count} échantillons en {time}",
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Les capteurs ne répondent plus depuis {seconds} s : les valeurs affichées sont anciennes.",
   "Applying this profile discards the changes to this fan you have not applied.": "Appliquer ce profil abandonne les modifications de ce ventilateur non appliquées.",
-  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Les fichiers que Linux garde en mémoire sont libérés et relus depuis le disque au besoin."
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Les fichiers que Linux garde en mémoire sont libérés et relus depuis le disque au besoin.",
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Il n’y a aucun jeu dans son dossier. Vérifiez que le disque est connecté et que Steam affiche le jeu comme installé."
 }

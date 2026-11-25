@@ -6593,5 +6593,6 @@
   "{count} samples in {time}": "{count} metingen in {time}",
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "De sensoren antwoorden al {seconds} s niet: de waarden op het scherm zijn oud.",
   "Applying this profile discards the changes to this fan you have not applied.": "Dit profiel toepassen verwerpt de wijzigingen aan deze ventilator die niet zijn toegepast.",
-  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "De bestanden die Linux in het geheugen houdt worden vrijgegeven en zo nodig opnieuw van schijf gelezen."
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "De bestanden die Linux in het geheugen houdt worden vrijgegeven en zo nodig opnieuw van schijf gelezen.",
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Er staat geen spel in de map. Controleer of de schijf is aangesloten en of Steam het spel als geïnstalleerd toont."
 }

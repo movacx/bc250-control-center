@@ -1900,6 +1900,7 @@
    "_scaler_versions": "UPS-0194",
    "_recorded_scaler_rows": "UPS-0195",
    "_has_windows_exe": "UPS-0306",
+   "_has_linux_program": "UPS-0329",
    "_refuse_native_game": "UPS-0272",
    "_refuse_other_helixsr": "UPS-0196",
    "_scaler_result": "UPS-0197",

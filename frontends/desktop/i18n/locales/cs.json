@@ -6593,5 +6593,6 @@
   "{count} samples in {time}": "{count} vzorků za {time}",
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Snímače neodpovídají {seconds} s: hodnoty na obrazovce jsou staré.",
   "Applying this profile discards the changes to this fan you have not applied.": "Použitím tohoto profilu se zahodí nepoužité změny tohoto ventilátoru.",
-  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Soubory, které Linux drží v paměti, se uvolní a v případě potřeby se znovu načtou z disku."
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Soubory, které Linux drží v paměti, se uvolní a v případě potřeby se znovu načtou z disku.",
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Ve složce není žádná hra. Zkontrolujte, zda je disk připojen a zda Steam zobrazuje hru jako nainstalovanou."
 }

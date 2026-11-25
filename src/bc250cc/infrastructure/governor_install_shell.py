@@ -140,20 +140,32 @@ def cyan_runtime_verification_command() -> str:
                         else systemctl --no-pager --full status cyan-skillfish-governor-smu.service || true; fi;
                         exit 61;
                     fi;
-                    bc250_cyan_ready=0;
-                    bc250_cyan_deadline=$((SECONDS + 8));
-                    for bc250_cyan_attempt in {1..25}; do
-                        if [ "$bc250_cyan_openrc" -eq 1 ]; then
-                            if rc-service cyan-skillfish-governor-smu status >/dev/null 2>&1; then bc250_cyan_ready=1; fi;
-                        else
-                            if systemctl is-active --quiet cyan-skillfish-governor-smu.service; then bc250_cyan_ready=1; fi;
-                        fi;
-                        if [ "$bc250_cyan_ready" -eq 1 ] && bc250_cyan_read_range; then break; fi;
+                    bc250_cyan_wait_ready() {
                         bc250_cyan_ready=0;
-                        [ "$SECONDS" -lt "$bc250_cyan_deadline" ] || break;
-                        sleep 0.2;
-                    done;
+                        bc250_cyan_deadline=$((SECONDS + 8));
+                        for bc250_cyan_attempt in {1..25}; do
+                            if [ "$bc250_cyan_openrc" -eq 1 ]; then
+                                if rc-service cyan-skillfish-governor-smu status >/dev/null 2>&1; then bc250_cyan_ready=1; fi;
+                            else
+                                if systemctl is-active --quiet cyan-skillfish-governor-smu.service; then bc250_cyan_ready=1; fi;
+                            fi;
+                            if [ "$bc250_cyan_ready" -eq 1 ] && bc250_cyan_read_range; then break; fi;
+                            bc250_cyan_ready=0;
+                            [ "$SECONDS" -lt "$bc250_cyan_deadline" ] || break;
+                            sleep 0.2;
+                        done;
+                    };
+                    bc250_cyan_wait_ready;
+                    if [ "$bc250_cyan_ready" -ne 1 ] && grep -Fqs '<allow own="com.cyanskillfish.Governor"/>' /etc/dbus-1/system.d/com.cyanskillfish.Governor.conf /usr/share/dbus-1/system.d/com.cyanskillfish.Governor.conf; then
+                        echo "NOTICE: Cyan runs but the system bus does not know its name. Reloading the bus policy and restarting Cyan once.";
+                        sudo busctl --system call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus ReloadConfig >/dev/null || true;
+                        if [ "$bc250_cyan_openrc" -eq 1 ]; then sudo rc-service cyan-skillfish-governor-smu restart || true;
+                        else sudo systemctl restart cyan-skillfish-governor-smu.service || true; fi;
+                        bc250_cyan_wait_ready;
+                    fi;
                     if [ "$bc250_cyan_ready" -ne 1 ]; then
+                        ls -l /etc/dbus-1/system.d/com.cyanskillfish.Governor.conf /usr/share/dbus-1/system.d/com.cyanskillfish.Governor.conf 2>&1 || true;
+                        busctl --timeout=2s --system get-property com.cyanskillfish.Governor /com/cyanskillfish/Governor/Range/Current com.cyanskillfish.Governor.Range Min 2>&1 || true;
                         echo "ERROR: Cyan D-Bus name is unavailable after restart; check [dbus] enabled = true and the service journal.";
                         if [ "$bc250_cyan_openrc" -eq 1 ]; then rc-service cyan-skillfish-governor-smu status || true;
                         else systemctl --no-pager --full status cyan-skillfish-governor-smu.service || true;

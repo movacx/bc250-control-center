@@ -6593,5 +6593,6 @@
   "{count} samples in {time}": "{count} eșantioane în {time}",
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Senzorii nu răspund de {seconds} s: valorile de pe ecran sunt vechi.",
   "Applying this profile discards the changes to this fan you have not applied.": "Aplicarea acestui profil renunță la modificările neaplicate ale acestui ventilator.",
-  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Fișierele ținute de Linux în memorie sunt eliberate și recitite de pe disc la nevoie."
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Fișierele ținute de Linux în memorie sunt eliberate și recitite de pe disc la nevoie.",
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Nu există niciun joc în dosarul său. Verificați că unitatea este conectată și că Steam arată jocul ca instalat."
 }

@@ -6593,5 +6593,6 @@
   "{count} samples in {time}": "{time} 内 {count} 个样本",
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "传感器已 {seconds} 秒未响应：屏幕上的读数是旧的。",
   "Applying this profile discards the changes to this fan you have not applied.": "应用此配置会丢弃此风扇尚未应用的更改。",
-  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Linux 保存在内存中的文件会被释放，需要时再从磁盘读取。"
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Linux 保存在内存中的文件会被释放，需要时再从磁盘读取。",
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "其文件夹中没有游戏。请检查驱动器已连接，且 Steam 显示该游戏已安装。"
 }

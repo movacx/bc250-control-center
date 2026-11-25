@@ -6593,5 +6593,6 @@
   "{count} samples in {time}": "{count} sampel dalam {time}",
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Sensor tidak merespons selama {seconds} dtk: bacaan di layar sudah lama.",
   "Applying this profile discards the changes to this fan you have not applied.": "Menerapkan profil ini membuang perubahan kipas ini yang belum diterapkan.",
-  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Berkas yang disimpan Linux di memori dilepas dan dibaca lagi dari disk bila diperlukan."
+  "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Berkas yang disimpan Linux di memori dilepas dan dibaca lagi dari disk bila diperlukan.",
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Tidak ada gim di foldernya. Pastikan drive tersambung dan Steam menampilkan gim sebagai terpasang."
 }
