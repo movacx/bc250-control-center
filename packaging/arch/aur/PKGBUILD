@@ -25,7 +25,7 @@ depends=(
   'pciutils'
   'kmod'
 )
-makedepends=('git')
+makedepends=('git' 'python')
 optdepends=(
   'lm_sensors: additional hardware sensor discovery'
   'stress: CPU tuning stability checks'

@@ -8,7 +8,7 @@ hardware rules and system access remain under `src/bc250cc`.
 | --- | --- | --- |
 | Desktop | `bc250-control-center` | PyQt6 pages, components, embedded console, themes and translations in `desktop/` |
 | TUI | `bc250-control-center-tui` or `bc250-control-center tui` | curses pages, keyboard/mouse handling and operation console in `tui/` |
-| Web | **Remote access** in the desktop app or TUI | Python HTTPS backend and React browser interface in `web/` |
+| Web | **Remote access** in the desktop app or TUI | Python HTTPS backend and Compose browser interface in `web/` |
 | CLI | `bc250-control-center-cli` | Command parser and non-graphical operations in `cli.py` |
 
 The optional Game Mode interface lives separately in
@@ -31,21 +31,23 @@ and `psutil`. See the root README for terminal-only installation and key binding
 
 ## Web
 
-`web/app/src/` contains the React pages and shared controls. `web/dist/` is the
+`web/app/` contains the Kotlin Multiplatform pages, shared with the Android app. `web/dist/` is the
 compiled application shipped to users. `server.py` serves HTTPS and enforces
 sessions and request checks; `actions.py` defines the accepted operations;
 `data.py` provides monitoring data. Private workers run operations as the normal
 Linux user and invoke installed privileged helpers through system authorization.
 
-Rebuild after changing React source:
+Rebuild after changing its source:
 
 ```sh
 scripts/development/build-web.sh
 ```
 
-The build requires Node.js and npm; running the server requires Python and
-`requirements-web.txt`, without a Node.js runtime. Commit the rebuilt assets
-alongside their source changes. See the [root README](../README.md#web-interface)
+The build requires a JDK; running the server requires Python and
+`requirements-web.txt` only. The built files are not committed: after a build,
+`scripts/development/empaquetar_web.py` writes the archive to upload to the
+`web-builds` release and records it in `web/web-build.json`, which is committed.
+Installers and packages download exactly that archive and verify it. See the [root README](../README.md#web-interface)
 for connection and authorization details.
 
 ## Shared boundaries

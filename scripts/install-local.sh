@@ -513,6 +513,9 @@ if [[ "$INSTALL_PROFILE" == "tui" ]]; then  # an interrupted update puts the lau
   done
   TUI_FILES_READY=1
 fi
+# The desktop and the terminal work without it: only the web page is missing then.
+python3 "$ROOT_DIR/scripts/lib/fetch_web.py" \
+  || echo "Warning: the web interface was not installed; run this again when there is a connection." >&2
 for component in src frontends privileged packaging assets; do
   cp -a "$ROOT_DIR/$component" "$APP_STAGE/"
 done

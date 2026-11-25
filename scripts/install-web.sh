@@ -44,8 +44,12 @@ HELP
 esac
 [[ $# -le 1 ]] || { echo "Error: unexpected arguments." >&2; exit 64; }
 if [[ ! -s "$ROOT_DIR/frontends/web/dist/webApp.js" ]]; then
-  echo "Error: this copy has no built web interface. Use a release, or run scripts/development/build-web.sh first." >&2
-  exit 2
+  if [[ "$MODE" == check ]]; then
+    echo "The built web interface would be downloaded from the project's releases page and verified."
+  elif ! python3 "$ROOT_DIR/scripts/lib/fetch_web.py"; then
+    echo "Error: the web interface is needed. Check the connection and run this again, or use a release package." >&2
+    exit 2
+  fi
 fi
 if [[ "$MODE" == check ]]; then
   exec bash "$ROOT_DIR/scripts/install-tui.sh" --check

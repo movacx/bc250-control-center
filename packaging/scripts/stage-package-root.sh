@@ -17,6 +17,7 @@ if [[ "$DESTDIR" == / || -z "$DESTDIR" ]]; then
 fi
 
 bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
+python3 "$ROOT_DIR/scripts/lib/fetch_web.py"
 install -d -m755 "$DESTDIR"
 install -d -m755 \
   "$DESTDIR/usr/share/bc250-control-center" \

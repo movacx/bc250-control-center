@@ -15,6 +15,7 @@ RELEASE_SOURCE_EXCLUDES=(--exclude 'archive' --exclude 'tests')
 [[ "$VERSION" =~ ^[0-9]+([.][0-9A-Za-z]+)*(-[0-9A-Za-z.]+)?$ ]] || { echo "Invalid release version: $VERSION" >&2; exit 64; }
 mkdir -p -- "$OUTPUT_DIR"
 bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
+python3 "$ROOT_DIR/scripts/lib/fetch_web.py"
 target="$OUTPUT_DIR/bc250-control-center-$VERSION.tar.gz"
 temporary="$target.tmp.$$"
 stage="$(mktemp -d)"
@@ -30,6 +31,7 @@ tar --create --file - --format=gnu \
   "${RELEASE_SOURCE_EXCLUDES[@]}" \
   --exclude '.git' --exclude '.pytest_cache' --exclude '__pycache__' \
   --exclude '*.pyc' --exclude '*.pyo' --exclude './dist' --exclude 'node_modules' \
+  --exclude 'frontends/web/app/build' --exclude 'frontends/web/app/*/build' --exclude '.gradle' --exclude '.kotlin' --exclude 'local.properties' \
   --transform "s,^,bc250-control-center-$VERSION/," \
   -C "$ROOT_DIR" \
   VERSION README.md LICENSE SECURITY.md pyproject.toml requirements-web.txt run.sh docs/THIRD_PARTY_NOTICES.md \

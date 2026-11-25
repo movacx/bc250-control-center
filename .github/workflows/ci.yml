@@ -41,6 +41,9 @@ jobs:
       - name: Test dependencies
         run: python -m pip install -r requirements-dev.txt
 
+      - name: Built web interface
+        run: python scripts/lib/fetch_web.py
+
       - name: Ruff
         run: ruff check .
 

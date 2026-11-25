@@ -20,8 +20,7 @@ yarn-debug.log*
 build/
 dist/
 !integrations/decky/bc250-quick-access/dist/
-# The web interface ships built: users never need Node.
-!frontends/web/dist/
+# The built web interface is downloaded (scripts/lib/fetch_web.py), never committed.
 !integrations/decky/bc250-quick-access/dist/index.js
 *.egg-info/
 packaging/arch/local/*.pkg.tar.*
