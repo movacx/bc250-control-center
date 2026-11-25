@@ -174,10 +174,14 @@ def build_bazzite_decky_bootstrap_command(installer: str | Path) -> str:
         "  echo 'Using Bazzite native setup-decky recipe.'",
         # The no-argument recipe opens a chooser. The explicit action works in
         # Desktop terminals on both the Desktop and Bazzite-Deck variants.
-        "  ujust setup-decky install",
-        "  test \"$(ujust setup-decky status 2>/dev/null)\" = install || { echo 'ERROR: Bazzite did not report Decky as installed'; exit 65; }",
+        # It can stop on its own (R-545fdbf0: exit 65, nothing printed): the official installer then follows.
+        "  if ujust setup-decky install && test \"$(ujust setup-decky status 2>/dev/null)\" = install; then bc250_decky_native=1;",
+        "  else echo 'Bazzite setup-decky did not finish; using the official stable Decky installer instead.'; bc250_decky_native=0; fi",
         "else",
         "  echo 'Bazzite setup-decky recipe is unavailable; using the official stable Decky installer.'",
+        "  bc250_decky_native=0",
+        "fi",
+        "if [ \"$bc250_decky_native\" = 0 ]; then",
         f"  curl --fail --location --proto '=https' --tlsv1.2 --retry 2 --output \"$workspace/decky-install.sh\" {url}",
         "  test -s \"$workspace/decky-install.sh\" || { echo 'ERROR: official Decky installer download is empty'; exit 63; }",
         "  chmod 0700 \"$workspace/decky-install.sh\"",

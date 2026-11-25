@@ -76,15 +76,30 @@ rpm_ostree_layer() {
       sleep 5
     done
     log="$(mktemp)"
-    as_root rpm-ostree install --idempotent "$@" 2>&1 | tee "$log"
-    status=${PIPESTATUS[0]}
-    if (( status == 0 )); then rm -f "$log"; return 0; fi
+    # Inside an if: with set -e and the ERR trap, a bare failure ended the
+    # whole script here, and none of the retries below ever ran.
+    if as_root rpm-ostree install --idempotent "$@" 2>&1 | tee "$log"; then
+      rm -f "$log"
+      return 0
+    else
+      status=${PIPESTATUS[0]}
+    fi
     attempt=$((attempt + 1))
     if grep -q 'Transaction in progress' "$log"; then
       info "A system update started at the same moment; waiting and trying again..."
       sleep 5
     elif grep -qE 'Status code: 404|All mirrors were tried|Cannot download' "$log"; then
       info "Repository metadata is out of date; refreshing it and trying again..."
+      as_root rpm-ostree refresh-md --force || true
+    elif grep -q 'cannot be verified and repo' "$log" && (( attempt == 1 )); then
+      # A package already in rpm-ostree's cache fails its signature when the
+      # download was cut or the mirror sent a bad copy (R-a12e3e8f, Fedora's own
+      # repository). Drop that copy and the cached metadata, and download again.
+      local cached
+      cached="$(grep -m1 -oE '/var/cache/rpm-ostree/[^ :]+\.rpm' "$log" || true)"
+      info "A downloaded package failed its signature check; downloading it again..."
+      [[ -n "$cached" && "$cached" != *..* ]] && as_root rm -f -- "$cached"
+      as_root rpm-ostree cleanup --repomd || true
       as_root rpm-ostree refresh-md --force || true
     elif grep -q 'Packages not found:' "$log"; then
       warn "$(grep -m1 'Packages not found:' "$log"). If you layered it yourself and the repository no longer ships it for this release, remove it with: rpm-ostree uninstall <package>"
