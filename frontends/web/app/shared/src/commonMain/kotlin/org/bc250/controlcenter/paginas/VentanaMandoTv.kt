@@ -66,7 +66,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /** Lo que sabe el mando mientras está abierto. */
-private class EstadoMando(val aplicacion: Aplicacion, private val tareas: CoroutineScope) {
+internal class EstadoMando(val aplicacion: Aplicacion, private val tareas: CoroutineScope) {
     var datos by mutableStateOf(ObjetoVacio)
     var mensaje by mutableStateOf("")
     var ocupado by mutableStateOf(false)
@@ -364,8 +364,7 @@ private fun FilaAutomatica(estado: EstadoMando, fila: JsonObject, alCerrar: () -
     val nombreBoton = t(if (instalada) "Remove" else "Install")
     fun cambiar() {
         alCerrar()
-        val parametros = mapOf("key" to JsonPrimitive(fila.texto("key")), "enable" to JsonPrimitive(!instalada))
-        estado.aplicacion.preguntarYEjecutar("tv.automation", fila.texto("title"), fila.texto("detail"), parametros, instalada)
+        cambiarAutomatizacionTv(estado.aplicacion, fila)
     }
     Row(
         modifier = Modifier
@@ -385,4 +384,10 @@ private fun FilaAutomatica(estado: EstadoMando, fila: JsonObject, alCerrar: () -
         val activo = estado.aplicacion.puedeControlar && estado.aplicacion.trabajo.terminado && !fila.logico("foreign")
         Boton(nombreBoton, ::cambiar, Modifier.width(88.dp), activo = activo, alto = 32.dp, tamano = 12)
     }
+}
+
+internal fun cambiarAutomatizacionTv(aplicacion: Aplicacion, fila: JsonObject) {
+    val instalada = fila.logico("installed")
+    val parametros = mapOf("key" to JsonPrimitive(fila.texto("key")), "enable" to JsonPrimitive(!instalada))
+    aplicacion.preguntarYEjecutar("tv.automation", fila.texto("title"), fila.texto("detail"), parametros, instalada)
 }

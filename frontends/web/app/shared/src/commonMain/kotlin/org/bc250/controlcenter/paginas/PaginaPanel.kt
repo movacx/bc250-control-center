@@ -129,9 +129,7 @@ private fun InstrumentoPanel(aplicacion: Aplicacion, tarjeta: JsonObject, datos:
         val telemetria = datos.objeto("telemetry")
         if (clave == "gpu" && telemetria.logico("visible")) {
             Boton(telemetria.texto("label"), {
-                if (telemetria.logico("available")) {
-                    aplicacion.preguntarYEjecutar("panel.repair_telemetry", telemetria.texto("label"))
-                } else alTelemetria()
+                repararTelemetriaPanel(aplicacion, telemetria, alTelemetria)
             }, activo = !telemetria.logico("pending") && aplicacion.puedeControlar && aplicacion.trabajo.terminado,
                 alto = 30.dp, tamano = 11)
         }
@@ -255,4 +253,10 @@ private fun FilaNucleoPanel(nucleo: JsonObject) {
         BarraUso(nucleo.numero("usage"), Modifier.weight(1f))
         Texto(nucleo.texto("detail"), 12, Modifier.width(50.dp), peso = 700, color = paleta.apagado, alineado = TextAlign.End)
     }
+}
+
+internal fun repararTelemetriaPanel(aplicacion: Aplicacion, telemetria: JsonObject, alTelemetria: () -> Unit) {
+    if (telemetria.logico("available")) {
+        aplicacion.preguntarYEjecutar("panel.repair_telemetry", telemetria.texto("label"))
+    } else alTelemetria()
 }

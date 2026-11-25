@@ -204,19 +204,23 @@ private fun ControlFila(control: JsonObject, ordenes: Ordenes) {
 @Composable
 private fun ListaAjuste(control: JsonObject, ordenes: Ordenes) {
     val opciones = leerOpciones(control)
-    val orden = control.objeto("orden")
-    fun elegir(valor: String) {
-        val ajuste = control.texto("ajuste")
-        if (orden.isNotEmpty()) {
-            ordenes.cumplir(ordenConValor(orden, valor))
-        } else if (ajuste.isNotEmpty()) {
-            ordenes.cumplir(ordenDeAjuste(ajuste, valor))
-        } else {
-            ordenes.guardar(control.texto("clave"), valorDePreferencia(control.texto("clave"), valor))
-        }
-    }
     val ancho = control.entero("ancho", 275)
-    Desplegable(opciones, control.texto("valor"), ::elegir, Modifier.widthIn(max = ancho.dp).fillMaxWidth())
+    Desplegable(
+        opciones, control.texto("valor"), { valor -> elegirAjuste(control, ordenes, valor) },
+        Modifier.widthIn(max = ancho.dp).fillMaxWidth(),
+    )
+}
+
+internal fun elegirAjuste(control: JsonObject, ordenes: Ordenes, valor: String) {
+    val orden = control.objeto("orden")
+    val ajuste = control.texto("ajuste")
+    if (orden.isNotEmpty()) {
+        ordenes.cumplir(ordenConValor(orden, valor))
+    } else if (ajuste.isNotEmpty()) {
+        ordenes.cumplir(ordenDeAjuste(ajuste, valor))
+    } else {
+        ordenes.guardar(control.texto("clave"), valorDePreferencia(control.texto("clave"), valor))
+    }
 }
 
 fun leerOpciones(control: JsonObject): List<Eleccion> {
@@ -280,16 +284,17 @@ fun Desplegable(
 @Composable
 private fun InterruptorAjuste(control: JsonObject, ordenes: Ordenes) {
     val activo = control.logico("activo")
+    Interruptor(activo, { nuevo -> cambiarInterruptorAjuste(control, ordenes, nuevo) })
+}
+
+internal fun cambiarInterruptorAjuste(control: JsonObject, ordenes: Ordenes, nuevo: Boolean) {
+    val clave = control.texto("clave")
     val aviso = control.objeto("aviso")
-    fun cambiar(nuevo: Boolean) {
-        val clave = control.texto("clave")
-        if (nuevo && aviso.isNotEmpty()) {
-            ordenes.preguntarYGuardar(aviso.texto("titulo"), aviso.texto("mensaje"), clave)
-        } else {
-            ordenes.guardar(clave, JsonPrimitive(nuevo))
-        }
+    if (nuevo && aviso.isNotEmpty()) {
+        ordenes.preguntarYGuardar(aviso.texto("titulo"), aviso.texto("mensaje"), clave)
+    } else {
+        ordenes.guardar(clave, JsonPrimitive(nuevo))
     }
-    Interruptor(activo, ::cambiar)
 }
 
 @Composable

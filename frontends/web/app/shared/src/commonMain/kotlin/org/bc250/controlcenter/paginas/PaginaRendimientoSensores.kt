@@ -97,7 +97,7 @@ private fun ControlesSensores(aplicacion: Aplicacion, ocultar: Boolean, alOculta
     }
     @Composable fun reiniciar() {
         Boton(t("Reset min/max"), {
-            aplicacion.guardar("performance.reset", emptyMap(), "performance")
+            reiniciarRendimiento(aplicacion)
         }, alto = M.altoFiltro, tamano = 12, activo = aplicacion.puedeControlar)
     }
     if (apilado) {
@@ -295,7 +295,7 @@ private fun TrazaSensor(traza: JsonObject, ventana: Int) {
 
 /** La línea de un sensor con sus marcas a la derecha, como la dibuja el escritorio. */
 @Composable
-private fun GraficaTraza(datos: JsonObject, ventana: Int, color: Color, modifier: Modifier) {
+internal fun GraficaTraza(datos: JsonObject, ventana: Int, color: Color, modifier: Modifier) {
     val paleta = ColoresActuales.current
     val esPorcentaje = datos.texto("unit") == "%"
     val minimo = if (esPorcentaje) 0.0 else datos.numero("min") ?: 0.0
@@ -409,4 +409,8 @@ private fun DrawScope.dibujarTraza(
     if (cursor != null && cursor <= size.width) {
         drawLine(colorCursor, Offset(cursor, 0f), Offset(cursor, size.height), 1.dp.toPx())
     }
+}
+
+internal fun reiniciarRendimiento(aplicacion: Aplicacion) {
+    aplicacion.guardar("performance.reset", emptyMap(), "performance")
 }

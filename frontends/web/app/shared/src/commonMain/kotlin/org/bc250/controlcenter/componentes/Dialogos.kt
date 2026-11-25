@@ -23,6 +23,8 @@ import org.bc250.controlcenter.datos.Confirmacion
 import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.movil.BotonMovil
 import org.bc250.controlcenter.movil.CajaDeHoja
+import org.bc250.controlcenter.movil.HojaPrestada
+import org.bc250.controlcenter.movil.LocalMovil
 import org.bc250.controlcenter.movil.LocalTelefono
 import org.bc250.controlcenter.movil.ParejaBotones
 import org.bc250.controlcenter.movil.Velo
@@ -33,6 +35,11 @@ import org.bc250.controlcenter.tema.Medidas
 @Composable
 fun Dialogo(alCerrar: () -> Unit, ancho: Dp = 480.dp, contenido: @Composable ColumnScope.() -> Unit) {
     val paleta = ColoresActuales.current
+    val movil = LocalMovil.current
+    if (movil != null) {
+        HojaPrestada(movil, alCerrar, contenido)
+        return
+    }
     if (LocalTelefono.current) {
         Velo(visible = true, alTocar = alCerrar)
         CajaDeHoja(contenido = contenido)

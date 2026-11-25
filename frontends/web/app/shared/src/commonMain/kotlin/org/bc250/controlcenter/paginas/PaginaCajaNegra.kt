@@ -68,14 +68,14 @@ fun PaginaCajaNegra(aplicacion: Aplicacion) {
     if (carpeta) {
         // El navegador no tiene acceso al explorador del equipo remoto. Se abre
         // el registro completo como documento seleccionable del dispositivo cliente.
-        val cabecera = datos.objetos("columns").joinToString("\t") { it.texto("label") }
-        val claves = datos.objetos("columns").map { it.texto("key") }
-        val registro = datos.objetos("rows").joinToString("\n") { fila -> claves.joinToString("\t") { fila.texto(it) } }
-        DocumentoSupervision(t("Black box"), "$cabecera\n$registro", aplicacion.conexion.direccion + "/api/query?name=supervision.download&file=recording") { carpeta = false }
+        DocumentoSupervision(
+            t("Black box"), textoRegistroCajaNegra(datos),
+            aplicacion.conexion.direccion + "/api/query?name=supervision.download&file=recording",
+        ) { carpeta = false }
     }
 }
 
-private fun controlarCajaNegra(aplicacion: Aplicacion, operacion: String, habilitar: Boolean = false) {
+internal fun controlarCajaNegra(aplicacion: Aplicacion, operacion: String, habilitar: Boolean = false) {
     val parametros = mutableMapOf<String, JsonElement>("operation" to JsonPrimitive(operacion))
     if (operacion == "autostart") parametros["enabled"] = JsonPrimitive(habilitar)
     val titulo = t(when (operacion) { "start" -> "Start recording"; "stop" -> "Stop recording"; else -> "Start with the session" })
@@ -132,4 +132,12 @@ private fun FilaRegistro(fila: JsonObject, columnas: List<JsonObject>) {
 @Composable
 private fun BotonRegistro(texto: String, activo: Boolean = true, alPulsar: () -> Unit) {
     Boton(texto, alPulsar, clase = ClaseBoton.CONTORNO, activo = activo, alto = 33.dp, tamano = 12, peso = 650)
+}
+
+internal fun textoRegistroCajaNegra(datos: JsonObject): String {
+    val columnas = datos.objetos("columns")
+    val cabecera = columnas.joinToString("\t") { it.texto("label") }
+    val claves = columnas.map { it.texto("key") }
+    val registro = datos.objetos("rows").joinToString("\n") { fila -> claves.joinToString("\t") { fila.texto(it) } }
+    return "$cabecera\n$registro"
 }

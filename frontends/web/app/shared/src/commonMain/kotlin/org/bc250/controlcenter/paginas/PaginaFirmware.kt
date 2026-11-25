@@ -79,7 +79,7 @@ private const val TAMANO_MAYOR = 100
 private const val MAX_NUCLEOS = 8
 
 /** Lo que la persona ha elegido para su memoria USB. */
-private class EleccionFirmware {
+internal class EleccionFirmware {
     var familia by mutableStateOf("")
     var imagen by mutableStateOf("")
     var unidad by mutableStateOf("")
@@ -304,18 +304,7 @@ private fun DatosLogo(aplicacion: Aplicacion, admite: Boolean, eleccion: Eleccio
     val logo = eleccion.logo
 
     fun guardar(imagen: ImagenLogo?) {
-        if (!aplicacion.puedeControlar || !aplicacion.trabajo.terminado || eleccion.guardandoLogo) return
-        eleccion.guardandoLogo = true
-        eleccion.logo = imagen
-        val datos = imagen?.jpegBase64 ?: ""
-        tareas.launch {
-            try {
-                val guardado = aplicacion.guardarAhora("firmware.logo", JsonObject(mapOf("logo" to JsonPrimitive(datos))))
-                if (!guardado) eleccion.logo = null
-            } finally {
-                eleccion.guardandoLogo = false
-            }
-        }
+        guardarLogoFirmware(aplicacion, eleccion, imagen, tareas)
     }
 
     fun elegir() {
@@ -488,7 +477,7 @@ private fun textoDescarga(imagen: JsonObject?): String {
     return imagen.texto("size").ifEmpty { imagen.texto("detail") }
 }
 
-private fun prepararUsb(
+internal fun prepararUsb(
     aplicacion: Aplicacion,
     datos: JsonObject,
     familia: JsonObject?,
@@ -510,4 +499,24 @@ private fun prepararUsb(
         "\n\n" + familia.texto("title") + "\n" + unidad.texto("name") + " · " + unidad.texto("size_text") +
         "\n\n" + t(datos.texto("cmos_warning"))
     aplicacion.preguntarYEjecutar("firmware.prepare", t("Erase this USB drive?"), mensaje, parametros, peligro = true)
+}
+
+internal fun guardarLogoFirmware(
+    aplicacion: Aplicacion,
+    eleccion: EleccionFirmware,
+    imagen: ImagenLogo?,
+    tareas: kotlinx.coroutines.CoroutineScope,
+) {
+    if (!aplicacion.puedeControlar || !aplicacion.trabajo.terminado || eleccion.guardandoLogo) return
+    eleccion.guardandoLogo = true
+    eleccion.logo = imagen
+    val datos = imagen?.jpegBase64 ?: ""
+    tareas.launch {
+        try {
+            val guardado = aplicacion.guardarAhora("firmware.logo", JsonObject(mapOf("logo" to JsonPrimitive(datos))))
+            if (!guardado) eleccion.logo = null
+        } finally {
+            eleccion.guardandoLogo = false
+        }
+    }
 }

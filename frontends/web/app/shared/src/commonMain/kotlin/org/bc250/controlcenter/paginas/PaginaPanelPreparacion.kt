@@ -56,23 +56,10 @@ internal fun PreparacionPanel(aplicacion: Aplicacion, datos: JsonObject, alDialo
         Column(Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp, end = 16.dp), Arrangement.spacedBy(10.dp)) {
         if (pestaña == "components") {
             fun marcar(clave: String) {
-                var nuevas = if (clave in seleccionados) seleccionados - clave else seleccionados + clave
-                if (clave == "cu_manager" && clave in nuevas) nuevas = nuevas + "umr"
-                if (clave == "umr" && clave !in nuevas) nuevas = nuevas - "cu_manager"
-                seleccion = nuevas
+                seleccion = marcarComponentePanel(seleccionados, clave)
             }
             fun preparar() {
-                val preparacion = datos.objeto("preparation")
-                val conflicto = "governor" in seleccionados && preparacion.textos("conflicts").isNotEmpty()
-                val parametros = mapOf("components" to JsonArray(seleccionados.sorted().map(::JsonPrimitive)),
-                    "governor" to JsonPrimitive("auto"), "disable_conflicts" to JsonPrimitive(conflicto))
-                val titulos = mutableListOf<String>()
-                for (componente in componentes) {
-                    if (componente.texto("key") in seleccionados) titulos.add(componente.texto("title"))
-                }
-                val titulo = t(if (conflicto) "Switch GPU governor safely" else "Prepare BC250 system")
-                val mensaje = titulos.joinToString("\n") + if (conflicto) "\n\n" + preparacion.texto("message") else ""
-                aplicacion.preguntarYEjecutar("panel.prepare", titulo, mensaje, parametros, peligro = conflicto)
+                prepararPanel(aplicacion, datos, seleccionados)
             }
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val columnas = if (maxWidth >= M.anchoColumnas) 4 else if (maxWidth >= M.anchoMovil) 2 else 1
@@ -105,7 +92,7 @@ internal fun PreparacionPanel(aplicacion: Aplicacion, datos: JsonObject, alDialo
             if (!quick.logico("supported")) Leyenda(t("Unavailable"))
             Row(Modifier.fillMaxWidth(), Arrangement.spacedBy(8.dp)) {
                 Boton(quick.texto("label"), {
-                    aplicacion.preguntarYEjecutar("panel.decky", quick.texto("label"), quick.texto("message"), peligro = true)
+                    prepararDeckyPanel(aplicacion, quick)
                 }, Modifier.weight(1f), activo = libre && quick.logico("supported") && quick.logico("decky_plugin_root_safe", true))
                 Boton(t("Preview"), { alDialogo("decky") })
             }
@@ -218,7 +205,7 @@ internal fun DialogosPanel(aplicacion: Aplicacion, datos: JsonObject, dialogo: S
     }
 }
 
-private fun seleccionInicialPanel(componentes: List<JsonObject>): Set<String> {
+internal fun seleccionInicialPanel(componentes: List<JsonObject>): Set<String> {
     val elegidos = mutableSetOf<String>()
     for (componente in componentes) {
         if (componente.logico("selected") && componente.logico("available")) {
@@ -243,4 +230,30 @@ internal fun PestanaPanel(texto: String, abierta: Boolean, modifier: Modifier, a
     ) {
         Texto(texto, tamano = 13, peso = 700, color = color)
     }
+}
+
+internal fun prepararPanel(aplicacion: Aplicacion, datos: JsonObject, seleccionados: Set<String>) {
+    val componentes = datos.objetos("components")
+    val preparacion = datos.objeto("preparation")
+    val conflicto = "governor" in seleccionados && preparacion.textos("conflicts").isNotEmpty()
+    val parametros = mapOf("components" to JsonArray(seleccionados.sorted().map(::JsonPrimitive)),
+        "governor" to JsonPrimitive("auto"), "disable_conflicts" to JsonPrimitive(conflicto))
+    val titulos = mutableListOf<String>()
+    for (componente in componentes) {
+        if (componente.texto("key") in seleccionados) titulos.add(componente.texto("title"))
+    }
+    val titulo = t(if (conflicto) "Switch GPU governor safely" else "Prepare BC250 system")
+    val mensaje = titulos.joinToString("\n") + if (conflicto) "\n\n" + preparacion.texto("message") else ""
+    aplicacion.preguntarYEjecutar("panel.prepare", titulo, mensaje, parametros, peligro = conflicto)
+}
+
+internal fun marcarComponentePanel(seleccionados: Set<String>, clave: String): Set<String> {
+    var nuevas = if (clave in seleccionados) seleccionados - clave else seleccionados + clave
+    if (clave == "cu_manager" && clave in nuevas) nuevas = nuevas + "umr"
+    if (clave == "umr" && clave !in nuevas) nuevas = nuevas - "cu_manager"
+    return nuevas
+}
+
+internal fun prepararDeckyPanel(aplicacion: Aplicacion, quick: JsonObject) {
+    aplicacion.preguntarYEjecutar("panel.decky", quick.texto("label"), quick.texto("message"), peligro = true)
 }

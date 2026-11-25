@@ -50,7 +50,7 @@ private const val MARCA_DE_AJUSTES = "settings/"
 
 private fun primeraPagina(): String {
     val marca = paginaDeLaDireccion()
-    if (marca.isEmpty() || marca.contains("=") || marca.startsWith(MARCA_DE_AJUSTES)) {
+    if (marca.isEmpty() || marca == "settings" || marca.contains("=") || marca.startsWith(MARCA_DE_AJUSTES)) {
         return "dashboard"
     }
     return marca

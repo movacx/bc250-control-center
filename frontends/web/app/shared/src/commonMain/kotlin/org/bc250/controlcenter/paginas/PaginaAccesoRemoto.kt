@@ -116,7 +116,7 @@ private fun libre(aplicacion: Aplicacion): Boolean {
 
 // -- estado -------------------------------------------------------------------------------------------
 
-private fun avisoDeEstado(web: JsonObject): String {
+internal fun avisoDeEstado(web: JsonObject): String {
     val firewall = web.objeto("firewall").texto("state")
     return when {
         !web.logico("running") -> "Start web access to pair a phone."
@@ -207,16 +207,16 @@ private fun BotonRemoto(
     Boton(texto, alPulsar, clase = clase, activo = activo, alto = 33.dp, tamano = 12, peso = 650)
 }
 
-private fun renovarClave(aplicacion: Aplicacion) {
+internal fun renovarClave(aplicacion: Aplicacion) {
     aplicacion.preguntarYEjecutar("remote.key", t("New access key"),
         t("A paired device keeps hardware control until you disconnect it or create a new access key."), peligro = true)
 }
 
-private fun prepararConexion(aplicacion: Aplicacion, datos: JsonObject) {
+internal fun prepararConexion(aplicacion: Aplicacion, datos: JsonObject) {
     aplicacion.preguntarYEjecutar("remote.prepare", t("Prepare the connection"), datos.texto("prepare_message"))
 }
 
-private fun cambiarAcceso(aplicacion: Aplicacion, activo: Boolean) {
+internal fun cambiarAcceso(aplicacion: Aplicacion, activo: Boolean) {
     if (activo) {
         val aviso = t("This page stops working until web access is started again on the board.")
         aplicacion.preguntarYEjecutar("remote.stop", t("Stop web access"), aviso, peligro = true)
@@ -257,7 +257,7 @@ private fun PanelEmparejar(aplicacion: Aplicacion, datos: JsonObject, web: JsonO
     }
 }
 
-private fun leerMatriz(datos: JsonObject): List<List<Boolean>> {
+internal fun leerMatriz(datos: JsonObject): List<List<Boolean>> {
     val filas = datos["matrix"] as? JsonArray ?: return emptyList()
     return filas.filterIsInstance<JsonArray>().map { fila -> fila.map(::esOscuro) }
 }
@@ -340,7 +340,7 @@ private fun ReparacionNombre(aplicacion: Aplicacion, datos: JsonObject, web: Jso
     }
     if (estado.logico("repairable") || (web.logico("running") && estado.texto("status") == "ready")) {
         Boton(t("Repair local address"), {
-            aplicacion.preguntarYEjecutar("remote.name", t("Repair local address"), datos.texto("name_warning"))
+            repararNombreRemoto(aplicacion, datos)
         }, Modifier.fillMaxWidth(), activo = libre(aplicacion), clase = ClaseBoton.CONTORNO, alto = 33.dp, tamano = 12, peso = 650)
     }
 }
@@ -355,7 +355,7 @@ private fun ReparacionFirewall(aplicacion: Aplicacion, datos: JsonObject, web: J
     Texto(datos.texto("firewall_message"), tamano = 12, color = ColoresActuales.current.naranja)
     if (firewall.logico("repairable")) {
         Boton(t("Configure LAN firewall"), {
-            aplicacion.preguntarYEjecutar("remote.firewall", t("Configure LAN firewall"), datos.texto("firewall_warning"))
+            repararFirewallRemoto(aplicacion, datos)
         }, Modifier.fillMaxWidth(), activo = libre(aplicacion), clase = ClaseBoton.CONTORNO, alto = 33.dp, tamano = 12, peso = 650)
     }
 }
@@ -395,7 +395,7 @@ private fun OpcionArranque(aplicacion: Aplicacion, web: JsonObject, modifier: Mo
     }
 }
 
-private fun cambiarOpcion(aplicacion: Aplicacion, campo: String, valor: JsonElement, aviso: String) {
+internal fun cambiarOpcion(aplicacion: Aplicacion, campo: String, valor: JsonElement, aviso: String) {
     val parametros = mapOf("field" to JsonPrimitive(campo), "value" to valor)
     aplicacion.preguntarYEjecutar("remote.configure", t("Remote access"), aviso, parametros)
 }
@@ -419,8 +419,7 @@ private fun PuertoConexion(aplicacion: Aplicacion, web: JsonObject) {
     val actual = web.entero("port", 8250)
     var puerto by remember(actual) { mutableIntStateOf(actual) }
     fun aplicar() {
-        val aviso = t("This page stops working until web access is started again on the board.")
-        cambiarOpcion(aplicacion, "port", JsonPrimitive(puerto), aviso)
+        cambiarPuertoRemoto(aplicacion, puerto)
     }
     Row(Modifier.padding(top = 6.dp), Arrangement.spacedBy(10.dp), Alignment.CenterVertically) {
         Texto("TCP", tamano = 12, color = ColoresActuales.current.apagado)
@@ -454,13 +453,13 @@ private fun PanelDispositivos(aplicacion: Aplicacion, datos: JsonObject) {
             val puede = libre(aplicacion) && dispositivo != null
             val aprobado = dispositivo?.logico("approved") == true
             BotonDispositivo(t(if (aprobado) "Approved" else "Approve device"), puede && !aprobado) {
-                operar(aplicacion, elegido, "approve", t("Approve device"))
+                aprobarDispositivoRemoto(aplicacion, elegido)
             }
             BotonDispositivo(t("Session"), puede) { editando = true }
-            BotonDispositivo(t("Disconnect"), puede) { operar(aplicacion, elegido, "revoke", t("Disconnect"), peligro = true) }
+            BotonDispositivo(t("Disconnect"), puede) { desconectarDispositivoRemoto(aplicacion, elegido) }
             Spacer(Modifier.weight(1f))
             BotonDispositivo(t("Disconnect all devices"), libre(aplicacion) && dispositivos.isNotEmpty()) {
-                aplicacion.preguntarYEjecutar("remote.revoke_all", t("Disconnect all devices"), peligro = true)
+                desconectarTodosRemoto(aplicacion)
             }
         }
     }
@@ -506,7 +505,7 @@ private fun TablaDispositivos(dispositivos: List<JsonObject>, elegido: String, a
     }
 }
 
-private fun celdasDe(dispositivo: JsonObject): List<String> {
+internal fun celdasDe(dispositivo: JsonObject): List<String> {
     val permiso = if (dispositivo.logico("control")) "Hardware control" else "Monitoring only"
     return listOf(
         dispositivo.texto("name"), dispositivo.texto("address"), dispositivo.texto("id").take(8), t(permiso),
@@ -537,16 +536,13 @@ private fun DialogoDispositivo(aplicacion: Aplicacion, dispositivo: JsonObject, 
     val control = dispositivo.logico("control")
     fun cambiarPermiso() {
         alCerrar()
-        val titulo = t(if (control) "Monitoring only" else "Hardware control")
-        operar(aplicacion, id, "control", titulo, mapOf("value" to JsonPrimitive(!control)), peligro = !control)
+        cambiarPermisoRemoto(aplicacion, id, control)
     }
     fun cambiarDuracion(minutos: Int, titulo: String) {
         alCerrar()
-        operar(aplicacion, id, "lifetime", titulo, mapOf("minutes" to JsonPrimitive(minutos)))
+        cambiarDuracionRemoto(aplicacion, id, minutos, titulo)
     }
-    val duraciones = listOf(
-        0 to t("Permanent"), HORA to t("1 hour"), 8 * HORA to t("8 hours"), 7 * DIA to t("7 days"), 30 * DIA to t("30 days"),
-    )
+    val duraciones = DuracionesRemotas.map { (minutos, clave) -> minutos to t(clave) }
     Dialogo(alCerrar) {
         Texto(dispositivo.texto("name"), tamano = 17, peso = 800)
         Texto(dispositivo.texto("address") + " · " + dispositivo.texto("expiry_text"), 13, color = ColoresActuales.current.apagado)
@@ -581,7 +577,45 @@ private fun PanelSsh(aplicacion: Aplicacion, ssh: JsonObject) {
     }
 }
 
-private fun cambiarSsh(aplicacion: Aplicacion, campo: String, valor: Boolean) {
+internal fun cambiarSsh(aplicacion: Aplicacion, campo: String, valor: Boolean) {
     val parametros = mapOf("field" to JsonPrimitive(campo), "value" to JsonPrimitive(valor))
     aplicacion.preguntarYEjecutar("remote.ssh", "SSH", "SSH", parametros)
+}
+
+internal fun repararNombreRemoto(aplicacion: Aplicacion, datos: JsonObject) {
+    aplicacion.preguntarYEjecutar("remote.name", t("Repair local address"), datos.texto("name_warning"))
+}
+
+internal fun repararFirewallRemoto(aplicacion: Aplicacion, datos: JsonObject) {
+    aplicacion.preguntarYEjecutar("remote.firewall", t("Configure LAN firewall"), datos.texto("firewall_warning"))
+}
+
+internal fun desconectarTodosRemoto(aplicacion: Aplicacion) {
+    aplicacion.preguntarYEjecutar("remote.revoke_all", t("Disconnect all devices"), peligro = true)
+}
+
+internal val DuracionesRemotas = listOf(
+    0 to "Permanent", HORA to "1 hour", 8 * HORA to "8 hours", 7 * DIA to "7 days", 30 * DIA to "30 days",
+)
+
+internal fun aprobarDispositivoRemoto(aplicacion: Aplicacion, id: String) {
+    operar(aplicacion, id, "approve", t("Approve device"))
+}
+
+internal fun desconectarDispositivoRemoto(aplicacion: Aplicacion, id: String) {
+    operar(aplicacion, id, "revoke", t("Disconnect"), peligro = true)
+}
+
+internal fun cambiarPermisoRemoto(aplicacion: Aplicacion, id: String, control: Boolean) {
+    val titulo = t(if (control) "Monitoring only" else "Hardware control")
+    operar(aplicacion, id, "control", titulo, mapOf("value" to JsonPrimitive(!control)), peligro = !control)
+}
+
+internal fun cambiarDuracionRemoto(aplicacion: Aplicacion, id: String, minutos: Int, titulo: String) {
+    operar(aplicacion, id, "lifetime", titulo, mapOf("minutes" to JsonPrimitive(minutos)))
+}
+
+internal fun cambiarPuertoRemoto(aplicacion: Aplicacion, puerto: Int) {
+    val aviso = t("This page stops working until web access is started again on the board.")
+    cambiarOpcion(aplicacion, "port", JsonPrimitive(puerto), aviso)
 }

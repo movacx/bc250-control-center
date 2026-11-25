@@ -55,7 +55,7 @@ internal fun MemoriaPanel(aplicacion: Aplicacion, datos: JsonObject) {
                 if (!externo) {
                     if (!listo) {
                         Boton(t("Prepare readings"), {
-                            aplicacion.preguntarYEjecutar("gddr6.prepare", t("Prepare readings"))
+                            prepararMemoriaPanel(aplicacion)
                         }, activo = libre, alto = 34.dp, tamano = 12)
                     } else if (activo) {
                         Boton(t("Stop"), { aplicacion.interrumpirTrabajo() }, alto = 34.dp, tamano = 12,
@@ -63,8 +63,7 @@ internal fun MemoriaPanel(aplicacion: Aplicacion, datos: JsonObject) {
                                 aplicacion.trabajo.titulo == t("GDDR6 memory temperature"))
                     } else {
                         Boton(t("Monitor live"), {
-                            aplicacion.preguntarYEjecutar("gddr6.monitor", t("GDDR6 memory temperature"),
-                                datos.texto("blocker").ifEmpty { t("Monitor live") }, peligro = true)
+                            monitorizarMemoriaPanel(aplicacion, datos)
                         }, activo = libre && datos.logico("can_monitor"), alto = 34.dp, tamano = 12)
                     }
                 }
@@ -119,7 +118,7 @@ internal fun AlimentacionPanel(aplicacion: Aplicacion, datos: JsonObject, alAyud
                 Boton(t("How to enable"), alAyuda, alto = 34.dp, tamano = 12)
                 if (datos.logico("vrm_repair")) {
                     Boton(t("Repair sensor"), {
-                        aplicacion.preguntarYEjecutar("panel.repair_vrm", t("Repair sensor"))
+                        repararAlimentacionPanel(aplicacion)
                     }, activo = aplicacion.puedeControlar && aplicacion.trabajo.terminado, alto = 34.dp, tamano = 12)
                 }
             }
@@ -141,4 +140,17 @@ internal fun AlimentacionPanel(aplicacion: Aplicacion, datos: JsonObject, alAyud
             }
         }
     }
+}
+
+internal fun prepararMemoriaPanel(aplicacion: Aplicacion) {
+    aplicacion.preguntarYEjecutar("gddr6.prepare", t("Prepare readings"))
+}
+
+internal fun monitorizarMemoriaPanel(aplicacion: Aplicacion, datos: JsonObject) {
+    aplicacion.preguntarYEjecutar("gddr6.monitor", t("GDDR6 memory temperature"),
+        datos.texto("blocker").ifEmpty { t("Monitor live") }, peligro = true)
+}
+
+internal fun repararAlimentacionPanel(aplicacion: Aplicacion) {
+    aplicacion.preguntarYEjecutar("panel.repair_vrm", t("Repair sensor"))
 }

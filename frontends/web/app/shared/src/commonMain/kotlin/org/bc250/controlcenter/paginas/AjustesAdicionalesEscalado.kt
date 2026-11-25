@@ -128,8 +128,7 @@ private fun BotonHerramienta(estado: EstadoExtras, fila: JsonObject, operacion: 
 private fun DialogoHelix(estado: EstadoExtras, ajustes: List<JsonObject>, alCerrar: () -> Unit) {
     val cambios = remember { mutableStateMapOf<String, JsonElement>() }
     fun guardar() {
-        val parametros = mapOf<String, JsonElement>("values" to JsonObject(cambios.toMap()))
-        estado.aplicacion.preguntarYEjecutar("extras.helixsr_settings", t("HelixSR settings"), parametros = parametros)
+        guardarHelix(estado, cambios.toMap())
         alCerrar()
     }
     Dialogo(alCerrar, ancho = 720.dp) {
@@ -183,4 +182,9 @@ private fun CampoNumeroHelix(ajuste: JsonObject, actual: JsonElement?, alCambiar
         }
     }
     CampoTexto(escrito, ::escribir, Modifier.width(120.dp), alto = 36.dp)
+}
+
+internal fun guardarHelix(estado: EstadoExtras, cambios: Map<String, JsonElement>) {
+    val parametros = mapOf<String, JsonElement>("values" to JsonObject(cambios))
+    estado.aplicacion.preguntarYEjecutar("extras.helixsr_settings", t("HelixSR settings"), parametros = parametros)
 }

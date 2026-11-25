@@ -25,11 +25,11 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import org.bc250.controlcenter.componentes.BalizaConsola
 import org.bc250.controlcenter.componentes.BarraLateral
 import org.bc250.controlcenter.componentes.DialogoConfirmacion
 import org.bc250.controlcenter.componentes.DialogoTexto
 import org.bc250.controlcenter.componentes.LocalPaletas
-import org.bc250.controlcenter.componentes.BalizaConsola
 import org.bc250.controlcenter.componentes.NavegacionMando
 import org.bc250.controlcenter.componentes.PanelConsola
 import org.bc250.controlcenter.componentes.Texto
@@ -42,32 +42,40 @@ import org.bc250.controlcenter.datos.logico
 import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.movil.AnchoMovil
 import org.bc250.controlcenter.movil.LocalTelefono
+import org.bc250.controlcenter.movil.PaginaAccesoRemotoMovil
+import org.bc250.controlcenter.movil.PaginaAjustesAdicionalesMovil
+import org.bc250.controlcenter.movil.PaginaCajaNegraMovil
+import org.bc250.controlcenter.movil.PaginaConfiguracionMovil
 import org.bc250.controlcenter.movil.PaginaCpuMovil
+import org.bc250.controlcenter.movil.PaginaFirmwareMovil
 import org.bc250.controlcenter.movil.PaginaGpuMovil
+import org.bc250.controlcenter.movil.PaginaPanelMovil
+import org.bc250.controlcenter.movil.PaginaProcesosMovil
+import org.bc250.controlcenter.movil.PaginaRendimientoMovil
 import org.bc250.controlcenter.movil.PaginaUnidadesMovil
 import org.bc250.controlcenter.movil.PaginaVentiladoresMovil
 import org.bc250.controlcenter.movil.VentanaMovil
 import org.bc250.controlcenter.paginas.PaginaAccesoRemoto
 import org.bc250.controlcenter.paginas.PaginaAjustesAdicionales
 import org.bc250.controlcenter.paginas.PaginaCajaNegra
-import org.bc250.controlcenter.paginas.VentanaActualizacion
-import org.bc250.controlcenter.paginas.VentanaBienvenida
-import org.bc250.controlcenter.paginas.VentanaConfiguracion
-import org.bc250.controlcenter.paginas.VentanaRecorrido
 import org.bc250.controlcenter.paginas.PaginaCpu
 import org.bc250.controlcenter.paginas.PaginaFirmware
 import org.bc250.controlcenter.paginas.PaginaGpu
+import org.bc250.controlcenter.paginas.PaginaIngreso
 import org.bc250.controlcenter.paginas.PaginaPanel
 import org.bc250.controlcenter.paginas.PaginaProcesos
 import org.bc250.controlcenter.paginas.PaginaRendimiento
 import org.bc250.controlcenter.paginas.PaginaUnidades
 import org.bc250.controlcenter.paginas.PaginaVentiladores
-import org.bc250.controlcenter.paginas.PaginaIngreso
+import org.bc250.controlcenter.paginas.VentanaActualizacion
+import org.bc250.controlcenter.paginas.VentanaBienvenida
+import org.bc250.controlcenter.paginas.VentanaConfiguracion
+import org.bc250.controlcenter.paginas.VentanaRecorrido
 import org.bc250.controlcenter.tema.ColoresActuales
 import org.bc250.controlcenter.tema.LetrasActuales
 import org.bc250.controlcenter.tema.Medidas
-import org.bc250.controlcenter.tema.letrasListas
 import org.bc250.controlcenter.tema.cargarLetras
+import org.bc250.controlcenter.tema.letrasListas
 
 @Composable
 fun App() {
@@ -122,7 +130,7 @@ private fun VentanasEncima(aplicacion: Aplicacion) {
     if (aplicacion.sesion != EstadoSesion.DENTRO) {
         return
     }
-    if (aplicacion.seccionAjustes.isNotEmpty()) {
+    if (aplicacion.seccionAjustes.isNotEmpty() && !aplicacion.enTelefono) {
         VentanaConfiguracion(aplicacion)
     }
     if (aplicacion.actualizacionAbierta) {
@@ -177,12 +185,22 @@ private fun VentanaAncha(aplicacion: Aplicacion) {
 /** La página elegida con el diseño de teléfono. */
 @Composable
 private fun PaginaElegidaMovil(aplicacion: Aplicacion) {
+    if (aplicacion.seccionAjustes.isNotEmpty()) {
+        PaginaConfiguracionMovil(aplicacion)
+        return
+    }
     when (aplicacion.pagina) {
+        "dashboard" -> PaginaPanelMovil(aplicacion)
         "cpu" -> PaginaCpuMovil(aplicacion)
         "cu" -> PaginaUnidadesMovil(aplicacion)
         "gpu" -> PaginaGpuMovil(aplicacion)
         "fans" -> PaginaVentiladoresMovil(aplicacion)
-        else -> Box(Modifier.padding(16.dp)) { PaginaElegida(aplicacion) }
+        "performance" -> PaginaRendimientoMovil(aplicacion)
+        "processes" -> PaginaProcesosMovil(aplicacion)
+        "black_box" -> PaginaCajaNegraMovil(aplicacion)
+        "extras" -> PaginaAjustesAdicionalesMovil(aplicacion)
+        "remote" -> PaginaAccesoRemotoMovil(aplicacion)
+        "firmware" -> PaginaFirmwareMovil(aplicacion)
     }
 }
 

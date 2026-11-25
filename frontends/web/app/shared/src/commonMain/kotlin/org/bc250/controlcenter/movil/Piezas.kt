@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -48,6 +50,7 @@ import org.bc250.controlcenter.componentes.marco
 import org.bc250.controlcenter.componentes.pulsable
 import org.bc250.controlcenter.datos.t
 import org.bc250.controlcenter.recursos.Res
+import org.bc250.controlcenter.recursos.check_white
 import org.bc250.controlcenter.recursos.chevron_right_gray
 import org.bc250.controlcenter.recursos.edit_gray
 import org.bc250.controlcenter.tema.ColoresActuales
@@ -136,7 +139,7 @@ fun RowScope.TextosFila(titulo: String, detalle: String = "", color: Color? = nu
 
 /** Un dato: su nombre a la izquierda y su valor a la derecha. */
 @Composable
-fun FilaDato(nombre: String, valor: String, unidad: String = "", color: Color? = null) {
+fun FilaDato(nombre: String, valor: String, unidad: String = "", color: Color? = null, detalle: String = "") {
     val paleta = ColoresActuales.current
     Row(
         modifier = Modifier
@@ -147,7 +150,12 @@ fun FilaDato(nombre: String, valor: String, unidad: String = "", color: Color? =
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Texto(nombre, tamano = 13, color = paleta.apagado, modifier = Modifier.weight(1f))
+        Column(Modifier.weight(1f)) {
+            Texto(nombre, tamano = 13, color = paleta.apagado)
+            if (detalle.isNotEmpty()) {
+                Texto(detalle, tamano = 12, color = paleta.sutil)
+            }
+        }
         ValorConUnidad(valor, unidad, color = color, modifier = Modifier.widthIn(max = 230.dp))
     }
 }
@@ -417,6 +425,58 @@ fun EnlaceMovil(texto: String, activo: Boolean = true, alPulsar: () -> Unit) {
     }
 }
 
+/** Opciones cortas que se deslizan a lo ancho. */
+@Composable
+fun FilaOpciones(opciones: List<Pair<String, String>>, elegidas: Set<String>, alElegir: (String) -> Unit) {
+    val paleta = ColoresActuales.current
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), Arrangement.spacedBy(6.dp)) {
+        for ((valor, nombre) in opciones) {
+            val esta = valor in elegidas
+            val fondo = if (esta) paleta.acentoSuave else paleta.panel
+            val borde = if (esta) paleta.acento else paleta.borde
+            Box(
+                modifier = Modifier.height(40.dp).marco(fondo, borde, 6.dp).pulsable { alElegir(valor) }.padding(horizontal = 13.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Texto(nombre, tamano = 13, peso = 700, color = if (esta) paleta.acento else paleta.apagado, lineas = 1)
+            }
+        }
+    }
+}
+
+/** La casilla de una lista en la que se marcan varias cosas. */
+@Composable
+fun CasillaMovil(marcada: Boolean, activa: Boolean = true) {
+    val paleta = ColoresActuales.current
+    val fondo = if (marcada) paleta.acento else paleta.panelAlterno
+    val borde = if (marcada) paleta.acento else paleta.bordeFuerte
+    Box(Modifier.alpha(if (activa) 1f else 0.5f).size(22.dp).marco(fondo, borde, 4.dp), Alignment.Center) {
+        if (marcada) {
+            Icono(Res.drawable.check_white, 14.dp)
+        }
+    }
+}
+
+/** La flecha al final de una fila que además se puede marcar: abre sus detalles. */
+@Composable
+fun FlechaDetalle(alPulsar: () -> Unit) {
+    Box(Modifier.size(32.dp, 44.dp).pulsable(alPulsar = alPulsar), Alignment.CenterEnd) {
+        Icono(Res.drawable.chevron_right_gray, 14.dp)
+    }
+}
+
+/** El título grande de una tarjeta de lecturas, con su raya de acento. */
+@Composable
+fun TituloLectura(titulo: String, valor: String, unidad: String) {
+    val paleta = ColoresActuales.current
+    Row(Modifier.fillMaxWidth().padding(start = 14.dp, top = 14.dp, end = 14.dp, bottom = 10.dp), Arrangement.spacedBy(6.dp)) {
+        Texto(titulo.uppercase(), 13, Modifier.weight(1f).alignByBaseline(), peso = 700)
+        Texto(valor, 32, Modifier.alignByBaseline(), peso = 800)
+        Texto(unidad, 12, Modifier.alignByBaseline(), peso = 500, color = paleta.apagado)
+    }
+    Box(Modifier.fillMaxWidth().height(2.dp).background(paleta.acento))
+}
+
 // -- perfiles ------------------------------------------------------------------------------------------------
 
 /** Un perfil: se elige tocándolo y se cambia con el lápiz. */
@@ -453,7 +513,9 @@ fun TarjetaPerfilMovil(
                     Texto(valor, tamano = 16, peso = 800, modifier = Modifier.alignByBaseline(), lineas = 1)
                     Texto(" · ", tamano = 12, color = paleta.sutil, modifier = Modifier.alignByBaseline())
                 }
-                Texto(detalle, tamano = 12, color = paleta.sutil, modifier = Modifier.alignByBaseline())
+                if (detalle.isNotEmpty()) {
+                    Texto(detalle, tamano = 12, color = paleta.sutil, modifier = Modifier.alignByBaseline())
+                }
             }
         }
         adorno()

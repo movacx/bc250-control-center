@@ -2,9 +2,11 @@ package org.bc250.controlcenter.movil
 
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.dp
@@ -44,12 +46,19 @@ class EstadoMovil {
         detalle = ""
     }
 
-    fun abrirHoja(contenido: ContenidoHoja) {
+    /** A quién avisar cuando se cierra la ventana que está abierta. */
+    private var alCerrarHoja: () -> Unit = {}
+
+    fun abrirHoja(alCerrar: () -> Unit = {}, contenido: ContenidoHoja) {
         hoja = contenido
+        alCerrarHoja = alCerrar
     }
 
     fun cerrarHoja() {
-        hoja = null
+        if (hoja != null) {
+            hoja = null
+            alCerrarHoja()
+        }
     }
 
     /** Vuelve un paso; dice si había algo que cerrar. */
@@ -81,3 +90,21 @@ fun movil(): EstadoMovil {
 
 /** Si la pantalla es de teléfono; las ventanas sueltas suben entonces desde abajo. */
 val LocalTelefono = staticCompositionLocalOf { false }
+
+/** Una ventana de la versión ancha, enseñada como ventana inferior mientras exista. */
+@Composable
+fun HojaPrestada(movil: EstadoMovil, alCerrar: () -> Unit, contenido: ContenidoHoja) {
+    val actual by rememberUpdatedState(contenido)
+    val cerrar by rememberUpdatedState(alCerrar)
+    DisposableEffect(movil) {
+        var viva = true
+        val propia: ContenidoHoja = { actual() }
+        movil.abrirHoja(alCerrar = { if (viva) cerrar() }, contenido = propia)
+        onDispose {
+            viva = false
+            if (movil.hoja === propia) {
+                movil.cerrarHoja()
+            }
+        }
+    }
+}

@@ -50,22 +50,14 @@ fun PaginaRendimiento(aplicacion: Aplicacion) {
     LaunchedEffect(preferenciasLeidas, distribucion, ocultar, ventana, tipos, marcados) {
         if (preferenciasLeidas && aplicacion.puedeControlar) {
             delay(250)
-            aplicacion.guardar("performance.preferences", mapOf(
-                "layout" to JsonPrimitive(distribucion), "hide" to JsonPrimitive(ocultar),
-                "window" to JsonPrimitive(ventana), "kinds" to JsonArray(tipos.sorted().map(::JsonPrimitive)),
-                "ticked" to (marcados?.let { claves -> JsonArray(claves.sorted().map(::JsonPrimitive)) } ?: JsonNull),
-            ), "performance")
+            guardarPreferenciasRendimiento(aplicacion, distribucion, ocultar, ventana, tipos, marcados)
         }
     }
     val vista = vistas[pestaña] ?: pestaña
     val escala = escalas[pestaña] ?: "auto"
     LaunchedEffect(pestaña, vista, escala, ventana, tipos, buscar, ocultar, marcados) {
         while (true) {
-            val parametros = mutableMapOf("tab" to pestaña, "view" to vista, "scale" to escala,
-                "window" to ventana.toString(), "kinds" to tipos.sorted().joinToString(","), "q" to buscar,
-                "hide" to if (ocultar) "1" else "0")
-            if (marcados != null) parametros["ticked"] = marcados!!.joinToString(",")
-            val respuesta = aplicacion.consultar("performance", parametros)
+            val respuesta = consultarRendimiento(aplicacion, pestaña, vista, escala, ventana, tipos, buscar, ocultar, marcados)
             fallo = respuesta.isEmpty()
             if (!fallo) datos = respuesta
             delay(1000)
@@ -150,4 +142,25 @@ private fun RecursoRendimiento(
 private fun EscalaRendimiento(porcentaje: Boolean, escala: String, alCambiar: (String) -> Unit, modifier: Modifier = Modifier) {
     FilaEleccion(t("Scale"), listOf(Eleccion("auto", t("Auto")), Eleccion("fixed", "0–100%")),
         escala, alCambiar, modifier, activa = porcentaje)
+}
+
+internal fun guardarPreferenciasRendimiento(
+    aplicacion: Aplicacion, distribucion: String, ocultar: Boolean, ventana: Int, tipos: Set<Int>, marcados: Set<String>?,
+) {
+    aplicacion.guardar("performance.preferences", mapOf(
+        "layout" to JsonPrimitive(distribucion), "hide" to JsonPrimitive(ocultar),
+        "window" to JsonPrimitive(ventana), "kinds" to JsonArray(tipos.sorted().map(::JsonPrimitive)),
+        "ticked" to (marcados?.let { claves -> JsonArray(claves.sorted().map(::JsonPrimitive)) } ?: JsonNull),
+    ), "performance")
+}
+
+internal suspend fun consultarRendimiento(
+    aplicacion: Aplicacion, pestaña: String, vista: String, escala: String, ventana: Int,
+    tipos: Set<Int>, buscar: String, ocultar: Boolean, marcados: Set<String>?,
+): JsonObject {
+    val parametros = mutableMapOf("tab" to pestaña, "view" to vista, "scale" to escala,
+        "window" to ventana.toString(), "kinds" to tipos.sorted().joinToString(","), "q" to buscar,
+        "hide" to if (ocultar) "1" else "0")
+    if (marcados != null) parametros["ticked"] = marcados.joinToString(",")
+    return aplicacion.consultar("performance", parametros)
 }

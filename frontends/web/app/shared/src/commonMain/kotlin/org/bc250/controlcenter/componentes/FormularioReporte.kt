@@ -96,7 +96,7 @@ fun FormularioReporte(bloque: JsonObject, ordenes: Ordenes) {
     }
 }
 
-private fun enviar(borrador: BorradorReporte, bloque: JsonObject, ordenes: Ordenes) {
+internal fun enviar(borrador: BorradorReporte, bloque: JsonObject, ordenes: Ordenes) {
     val obligatorio = if (borrador.clase == PROBLEMA) "summary" else "notes"
     if (borrador.leer(obligatorio).isBlank()) {
         ordenes.avisar(bloque.texto("pista"))
@@ -213,7 +213,7 @@ private fun HojaAutomatica(bloque: JsonObject, borrador: BorradorReporte, ordene
             Texto(t("Send the automatic report"), tamano = 13)
             Spacer(Modifier.weight(1f))
             Boton(t("See what is sent"), {
-                ordenes.guardarYEjecutar("support.draft", borrador.comoParametros(), "support.preview", t("See what is sent"), "")
+                previsualizarReporte(borrador, ordenes)
             }, alto = 28.dp, tamano = 12)
         }
         Texto(
@@ -342,4 +342,8 @@ private fun AreaTexto(valor: String, alCambiar: (String) -> Unit, alto: Int) {
             modifier = Modifier.fillMaxWidth(),
         )
     }
+}
+
+internal fun previsualizarReporte(borrador: BorradorReporte, ordenes: Ordenes) {
+    ordenes.guardarYEjecutar("support.draft", borrador.comoParametros(), "support.preview", t("See what is sent"), "")
 }

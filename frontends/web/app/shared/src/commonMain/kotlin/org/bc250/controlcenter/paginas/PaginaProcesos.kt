@@ -40,10 +40,7 @@ fun PaginaProcesos(aplicacion: Aplicacion) {
     LaunchedEffect(vista, buscar, agrupar, orden, descendente, seleccion, recargar) {
         delay(120)
         while (true) {
-            val respuesta = aplicacion.consultar("processes.rows", mapOf("view" to vista, "search" to buscar,
-                "grouped" to if (agrupar) "1" else "0", "sort" to orden,
-                "descending" to if (descendente) "1" else "0",
-                "selected" to JsonArray(seleccion.map { JsonPrimitive(it) }).toString()))
+            val respuesta = consultarProcesos(aplicacion, vista, buscar, agrupar, orden, descendente, seleccion)
             errorConsulta = respuesta.isEmpty()
             if (!errorConsulta) datos = respuesta
             val presentes = datos.objetos("rows").map { it.texto("key") }.toSet()
@@ -105,8 +102,7 @@ fun PaginaProcesos(aplicacion: Aplicacion) {
             AccionSupervision(t("Clear selection"), seleccion.isNotEmpty()) { seleccion = emptySet() }
         }, derecha = {
             AccionSupervision(t("Release page cache"), disponible) {
-                aplicacion.preguntarYEjecutar("processes.cache", t("Release Linux page cache"),
-                    t("The files Linux keeps in memory are dropped and read from the disk again when needed."))
+                liberarCacheProcesos(aplicacion)
             }
             val reanudar = elegidos.isNotEmpty() && elegidos.all { it.logico("paused") }
             AccionSupervision(t(if (reanudar) "Resume" else "Pause"), disponible && elegidos.isNotEmpty()) {
@@ -122,7 +118,7 @@ fun PaginaProcesos(aplicacion: Aplicacion) {
     }
 }
 
-private fun actuarProcesos(aplicacion: Aplicacion, filas: List<JsonObject>, operacion: String) {
+internal fun actuarProcesos(aplicacion: Aplicacion, filas: List<JsonObject>, operacion: String) {
     val objetivos = filas.flatMap { it.lista("targets") }.distinct()
     if (objetivos.isEmpty()) return
     val titulo = t(when (operacion) { "end" -> "End tasks"; "pause" -> "Pause"; else -> "Resume" })
@@ -229,3 +225,17 @@ private fun anchoColumna(clave: String): Dp {
         else -> 124.dp
     }
 }
+
+internal fun liberarCacheProcesos(aplicacion: Aplicacion) {
+    aplicacion.preguntarYEjecutar("processes.cache", t("Release Linux page cache"),
+        t("The files Linux keeps in memory are dropped and read from the disk again when needed."))
+}
+
+internal suspend fun consultarProcesos(
+    aplicacion: Aplicacion, vista: String, buscar: String, agrupar: Boolean,
+    orden: String, descendente: Boolean, seleccion: Set<String>,
+): JsonObject = aplicacion.consultar("processes.rows", mapOf(
+    "view" to vista, "search" to buscar, "grouped" to if (agrupar) "1" else "0", "sort" to orden,
+    "descending" to if (descendente) "1" else "0",
+    "selected" to JsonArray(seleccion.map { JsonPrimitive(it) }).toString(),
+))

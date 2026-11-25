@@ -17,6 +17,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import org.bc250.controlcenter.componentes.*
@@ -25,21 +26,12 @@ import org.bc250.controlcenter.tema.ColoresActuales
 
 @Composable
 internal fun DiagnosticoCajaNegra(aplicacion: Aplicacion, alto: Dp) {
-    var datos by remember { mutableStateOf(ObjetoVacio) }
     var revision by remember { mutableStateOf(0) }
     var pestaña by remember { mutableStateOf("all") }
     var buscar by remember { mutableStateOf("") }
     var abiertas by remember { mutableStateOf(setOf<String>()) }
     val portapapeles = LocalClipboardManager.current
-    LaunchedEffect(revision) {
-        datos = aplicacion.consultar("black_box.diagnosis", mapOf("refresh" to if (revision == 0) "0" else "1"))
-        if (datos.isEmpty()) datos = buildJsonObject { put("error", JsonPrimitive(t("Not connected"))) }
-        while (datos.logico("loading")) {
-            delay(800)
-            datos = aplicacion.consultar("black_box.diagnosis")
-            if (datos.isEmpty()) datos = buildJsonObject { put("error", JsonPrimitive(t("Not connected"))) }
-        }
-    }
+    val datos = recordarDiagnosticoCajaNegra(aplicacion, revision)
     val secciones = datos.objetos("sections")
     val visibles = secciones.filter {
         (pestaña == "all" || it.texto("group") == pestaña) &&
@@ -112,4 +104,19 @@ private fun SeccionDiagnostico(texto: String) {
             altura = if (ajustar) (texto.lines().size * 16f + 32f).coerceIn(90f, 3000f) else 220f
         }.padding(14.dp))
     }
+}
+
+@Composable
+internal fun recordarDiagnosticoCajaNegra(aplicacion: Aplicacion, revision: Int): JsonObject {
+    var datos by remember { mutableStateOf(ObjetoVacio) }
+    LaunchedEffect(revision) {
+        datos = aplicacion.consultar("black_box.diagnosis", mapOf("refresh" to if (revision == 0) "0" else "1"))
+        if (datos.isEmpty()) datos = buildJsonObject { put("error", JsonPrimitive(t("Not connected"))) }
+        while (datos.logico("loading")) {
+            delay(800)
+            datos = aplicacion.consultar("black_box.diagnosis")
+            if (datos.isEmpty()) datos = buildJsonObject { put("error", JsonPrimitive(t("Not connected"))) }
+        }
+    }
+    return datos
 }
