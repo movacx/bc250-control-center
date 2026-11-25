@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "传感器已 {seconds} 秒未响应：屏幕上的读数是旧的。",
   "Applying this profile discards the changes to this fan you have not applied.": "应用此配置会丢弃此风扇尚未应用的更改。",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Linux 保存在内存中的文件会被释放，需要时再从磁盘读取。",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "其文件夹中没有游戏。请检查驱动器已连接，且 Steam 显示该游戏已安装。"
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "其文件夹中没有游戏。请检查驱动器已连接，且 Steam 显示该游戏已安装。",
+  "SSH server": "SSH 服务器",
+  "This computer only": "仅此计算机",
+  "Hardware control lets this device change clocks, power and fans.": "硬件控制允许此设备更改时钟、功耗和风扇。",
+  "Permanent sessions also enable hardware control.": "永久会话也会启用硬件控制。",
+  "SSH gives remote terminal access to your Linux account and files.": "SSH 可通过终端远程访问你的 Linux 账户和文件。"
 }

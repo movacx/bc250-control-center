@@ -4,10 +4,12 @@ import unittest
 from unittest.mock import patch
 
 from bc250cc.application.system import web_access
-from frontends.tui.content import Choice
+from frontends.tui.content import Choice, Panel
 from frontends.tui.i18n import set_language
+from frontends.tui.layout import Glyphs, build_layout
 from frontends.tui.pages.remote import RemoteAccessPage
 from tests.tui.fakes import FakeUI, make_context
+from tests.tui.test_pages import text_of
 
 
 class RemoteNetworkTests(unittest.TestCase):
@@ -31,23 +33,30 @@ class RemoteNetworkTests(unittest.TestCase):
     def blocks(self, tab="network"):
         return self.page.build(self.ctx, {"web": self.web}, tab, self.ui)
 
+    def flattened(self, blocks=None):
+        for block in self.blocks() if blocks is None else blocks:
+            if isinstance(block, Panel):
+                yield from self.flattened(block.blocks)
+            else:
+                yield block
+
     def choice(self, label, blocks=None):
-        return next(
-            block
-            for block in blocks or self.blocks()
-            if isinstance(block, Choice) and block.label == label
-        )
+        return next(block for block in self.flattened(blocks)
+                    if isinstance(block, Choice) and block.label == label)
 
     def text(self):
-        return "\n".join(
-            str(getattr(block, "text", getattr(block, "value", "")))
-            for block in self.blocks()
-        )
+        return text_of(build_layout(self.blocks(), 100, Glyphs.for_terminal(unicode_ok=True)))
 
-    def test_network_tab_and_web_shortcut(self):
+    def test_network_tab_has_no_duplicate_web_shortcut(self):
         self.assertIn(("network", "Network diagnostics"), self.page.tabs(self.ctx))
-        self.choice("Network diagnostics", self.blocks("web")[0].blocks).handler(self.ui)
-        self.assertEqual(self.ui.tab, "network")
+        self.assertFalse(any(isinstance(block, Choice) and block.label == "Network diagnostics"
+                             for block in self.flattened(self.blocks("web"))))
+
+    def test_each_section_says_its_state_in_its_heading(self):
+        self.assertEqual([(block.title, block.badge) for block in self.blocks()],
+                         [("Firewall", "Blocked"), ("Local address", "Not available")])
+        self.assertEqual([block.label for block in self.flattened() if isinstance(block, Choice)],
+                         ["Configure LAN firewall", "Repair local address"])
 
     def test_network_diagnosis_fits_narrow_terminals_in_english_and_spanish(self):
         from frontends.tui.content import cell_width
@@ -129,7 +138,7 @@ class RemoteNetworkTests(unittest.TestCase):
         self.assertFalse(
             any(
                 isinstance(block, Choice) and block.label == "Configure LAN firewall"
-                for block in self.blocks()
+                for block in self.flattened()
             )
         )
         self.web["lan"] = True
@@ -139,7 +148,7 @@ class RemoteNetworkTests(unittest.TestCase):
                 any(
                     isinstance(block, Choice)
                     and block.label == "Configure LAN firewall"
-                    for block in self.blocks()
+                    for block in self.flattened()
                 )
             )
 
@@ -166,3 +175,19 @@ class RemoteNetworkTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_a_single_repair_fits_beside_the_other_reading():
+    from frontends.tui.content import cell_width
+    from frontends.tui.layout import build_page
+
+    page, ctx, ui = RemoteAccessPage(), make_context(), FakeUI()
+    for firewall_repair in (True, False):
+        web = {'lan': True, 'running': True,
+               'firewall': {'state': 'blocked', 'repairable': firewall_repair},
+               'name_health': {'status': 'resolver_failed', 'repairable': not firewall_repair}}
+        layout = build_page(page.build(ctx, {'web': web}, 'network', ui), 142,
+                            Glyphs.for_terminal(unicode_ok=True))
+        assert 'Blocked' in text_of(layout).splitlines()[0]
+        assert len(layout.choices) == 1
+        assert all(sum(cell_width(text) for text, _tone in row.spans) <= 142 for row in layout.rows)

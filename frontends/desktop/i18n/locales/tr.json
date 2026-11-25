@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Sensörler {seconds} saniyedir yanıt vermiyor: ekrandaki değerler eski.",
   "Applying this profile discards the changes to this fan you have not applied.": "Bu profili uygulamak, bu fanın uygulanmamış değişikliklerini siler.",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Linux'un bellekte tuttuğu dosyalar bırakılır ve gerektiğinde diskten yeniden okunur.",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Klasöründe oyun yok. Sürücünün bağlı olduğunu ve Steam'in oyunu yüklü gösterdiğini denetleyin."
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Klasöründe oyun yok. Sürücünün bağlı olduğunu ve Steam'in oyunu yüklü gösterdiğini denetleyin.",
+  "SSH server": "SSH sunucusu",
+  "This computer only": "Yalnızca bu bilgisayar",
+  "Hardware control lets this device change clocks, power and fans.": "Donanım denetimi bu cihazın saat hızlarını, gücü ve fanları değiştirmesini sağlar.",
+  "Permanent sessions also enable hardware control.": "Kalıcı oturumlar donanım denetimini de açar.",
+  "SSH gives remote terminal access to your Linux account and files.": "SSH, Linux hesabınıza ve dosyalarınıza uçbirimden uzaktan erişim verir."
 }

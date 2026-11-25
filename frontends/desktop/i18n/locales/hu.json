@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Az érzékelők {seconds} másodperce nem válaszolnak: a képernyőn lévő értékek régiek.",
   "Applying this profile discards the changes to this fan you have not applied.": "A profil alkalmazása elveti a ventilátor nem alkalmazott módosításait.",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "A Linux által a memóriában tartott fájlok felszabadulnak, és szükség esetén újra beolvasódnak a lemezről.",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "A mappájában nincs játék. Ellenőrizze, hogy a meghajtó csatlakozik-e, és a Steam telepítettként mutatja-e a játékot."
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "A mappájában nincs játék. Ellenőrizze, hogy a meghajtó csatlakozik-e, és a Steam telepítettként mutatja-e a játékot.",
+  "SSH server": "SSH-kiszolgáló",
+  "This computer only": "Csak ez a számítógép",
+  "Hardware control lets this device change clocks, power and fans.": "A hardvervezérléssel ez az eszköz módosíthatja az órajeleket, a teljesítményt és a ventilátorokat.",
+  "Permanent sessions also enable hardware control.": "Az állandó munkamenetek a hardvervezérlést is bekapcsolják.",
+  "SSH gives remote terminal access to your Linux account and files.": "Az SSH távoli terminálos hozzáférést ad a Linux-fiókjához és fájljaihoz."
 }

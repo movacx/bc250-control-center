@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Die Sensoren antworten seit {seconds} s nicht: Die angezeigten Werte sind veraltet.",
   "Applying this profile discards the changes to this fan you have not applied.": "Beim Anwenden dieses Profils gehen die nicht angewendeten Änderungen an diesem Lüfter verloren.",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Die von Linux im Speicher gehaltenen Dateien werden verworfen und bei Bedarf neu von der Platte gelesen.",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "In seinem Ordner liegt kein Spiel. Prüfen Sie, ob das Laufwerk verbunden ist und Steam das Spiel als installiert anzeigt."
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "In seinem Ordner liegt kein Spiel. Prüfen Sie, ob das Laufwerk verbunden ist und Steam das Spiel als installiert anzeigt.",
+  "SSH server": "SSH-Server",
+  "This computer only": "Nur dieser Computer",
+  "Hardware control lets this device change clocks, power and fans.": "Mit Hardwaresteuerung kann dieses Gerät Takte, Leistung und Lüfter ändern.",
+  "Permanent sessions also enable hardware control.": "Dauerhafte Sitzungen aktivieren auch die Hardwaresteuerung.",
+  "SSH gives remote terminal access to your Linux account and files.": "SSH gibt per Terminal Fernzugriff auf Ihr Linux-Konto und Ihre Dateien."
 }

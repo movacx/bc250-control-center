@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Os sensores não respondem há {seconds} s: as leituras no ecrã são antigas.",
   "Applying this profile discards the changes to this fan you have not applied.": "Aplicar este perfil descarta as alterações desta ventoinha que não aplicou.",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Os ficheiros que o Linux guarda em memória são descartados e lidos de novo do disco quando necessário.",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Não há nenhum jogo na sua pasta. Verifique se a unidade está ligada e se o Steam mostra o jogo como instalado."
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Não há nenhum jogo na sua pasta. Verifique se a unidade está ligada e se o Steam mostra o jogo como instalado.",
+  "SSH server": "Servidor SSH",
+  "This computer only": "Apenas este computador",
+  "Hardware control lets this device change clocks, power and fans.": "O controlo de hardware permite a este dispositivo alterar relógios, energia e ventoinhas.",
+  "Permanent sessions also enable hardware control.": "As sessões permanentes também ativam o controlo de hardware.",
+  "SSH gives remote terminal access to your Linux account and files.": "O SSH dá acesso remoto por terminal à sua conta Linux e aos seus ficheiros."
 }

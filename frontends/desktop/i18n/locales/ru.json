@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Датчики не отвечают уже {seconds} с: значения на экране устарели.",
   "Applying this profile discards the changes to this fan you have not applied.": "Применение этого профиля отменит непримененные изменения этого вентилятора.",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Файлы, которые Linux держит в памяти, будут освобождены и при необходимости снова прочитаны с диска.",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "В папке нет игры. Проверьте, что диск подключён и Steam показывает игру как установленную."
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "В папке нет игры. Проверьте, что диск подключён и Steam показывает игру как установленную.",
+  "SSH server": "Сервер SSH",
+  "This computer only": "Только этот компьютер",
+  "Hardware control lets this device change clocks, power and fans.": "Управление оборудованием позволяет устройству менять частоты, питание и вентиляторы.",
+  "Permanent sessions also enable hardware control.": "Постоянные сеансы также включают управление оборудованием.",
+  "SSH gives remote terminal access to your Linux account and files.": "SSH даёт удалённый доступ через терминал к вашей учётной записи Linux и файлам."
 }

@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Сензорите не отговарят от {seconds} s: показанията на екрана са стари.",
   "Applying this profile discards the changes to this fan you have not applied.": "Прилагането на този профил отхвърля неприложените промени по този вентилатор.",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Файловете, които Linux държи в паметта, се освобождават и при нужда се четат отново от диска.",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "В папката няма игра. Проверете дали дискът е свързан и дали Steam показва играта като инсталирана."
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "В папката няма игра. Проверете дали дискът е свързан и дали Steam показва играта като инсталирана.",
+  "SSH server": "SSH сървър",
+  "This computer only": "Само този компютър",
+  "Hardware control lets this device change clocks, power and fans.": "Управлението на хардуера позволява на устройството да променя честоти, мощност и вентилатори.",
+  "Permanent sessions also enable hardware control.": "Постоянните сесии включват и управлението на хардуера.",
+  "SSH gives remote terminal access to your Linux account and files.": "SSH дава отдалечен терминален достъп до вашия Linux акаунт и файлове."
 }

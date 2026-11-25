@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Penderia tidak menjawab selama {seconds} s: bacaan pada skrin sudah lama.",
   "Applying this profile discards the changes to this fan you have not applied.": "Menggunakan profil ini membuang perubahan kipas ini yang belum digunakan.",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Fail yang disimpan Linux dalam memori dilepaskan dan dibaca semula daripada cakera apabila perlu.",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Tiada permainan dalam foldernya. Pastikan pemacu disambungkan dan Steam menunjukkan permainan sebagai dipasang."
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Tiada permainan dalam foldernya. Pastikan pemacu disambungkan dan Steam menunjukkan permainan sebagai dipasang.",
+  "SSH server": "Pelayan SSH",
+  "This computer only": "Komputer ini sahaja",
+  "Hardware control lets this device change clocks, power and fans.": "Kawalan perkakasan membolehkan peranti ini menukar jam, kuasa dan kipas.",
+  "Permanent sessions also enable hardware control.": "Sesi kekal turut menghidupkan kawalan perkakasan.",
+  "SSH gives remote terminal access to your Linux account and files.": "SSH memberi akses terminal jauh ke akaun Linux dan fail anda."
 }

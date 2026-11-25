@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "센서가 {seconds}초 동안 응답하지 않습니다. 화면의 값은 이전 값입니다.",
   "Applying this profile discards the changes to this fan you have not applied.": "이 프로필을 적용하면 이 팬의 적용하지 않은 변경 사항이 버려집니다.",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Linux가 메모리에 보관한 파일을 비우고 필요할 때 디스크에서 다시 읽습니다.",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "폴더에 게임이 없습니다. 드라이브가 연결되어 있고 Steam에 설치됨으로 표시되는지 확인하세요."
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "폴더에 게임이 없습니다. 드라이브가 연결되어 있고 Steam에 설치됨으로 표시되는지 확인하세요.",
+  "SSH server": "SSH 서버",
+  "This computer only": "이 컴퓨터만",
+  "Hardware control lets this device change clocks, power and fans.": "하드웨어 제어를 허용하면 이 기기가 클럭, 전력, 팬을 변경할 수 있습니다.",
+  "Permanent sessions also enable hardware control.": "영구 세션은 하드웨어 제어도 활성화합니다.",
+  "SSH gives remote terminal access to your Linux account and files.": "SSH는 Linux 계정과 파일에 대한 원격 터미널 접근을 제공합니다."
 }

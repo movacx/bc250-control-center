@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Cảm biến không phản hồi trong {seconds} giây: số liệu trên màn hình đã cũ.",
   "Applying this profile discards the changes to this fan you have not applied.": "Áp dụng hồ sơ này sẽ bỏ các thay đổi của quạt này chưa được áp dụng.",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Các tệp Linux giữ trong bộ nhớ được giải phóng và đọc lại từ đĩa khi cần.",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Không có trò chơi trong thư mục. Kiểm tra ổ đĩa đã kết nối và Steam hiển thị trò chơi là đã cài đặt."
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Không có trò chơi trong thư mục. Kiểm tra ổ đĩa đã kết nối và Steam hiển thị trò chơi là đã cài đặt.",
+  "SSH server": "Máy chủ SSH",
+  "This computer only": "Chỉ máy tính này",
+  "Hardware control lets this device change clocks, power and fans.": "Quyền điều khiển phần cứng cho phép thiết bị này thay đổi xung nhịp, điện năng và quạt.",
+  "Permanent sessions also enable hardware control.": "Phiên vĩnh viễn cũng bật quyền điều khiển phần cứng.",
+  "SSH gives remote terminal access to your Linux account and files.": "SSH cho phép truy cập từ xa qua terminal vào tài khoản Linux và tệp của bạn."
 }

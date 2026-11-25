@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Οι αισθητήρες δεν απαντούν εδώ και {seconds} s: οι ενδείξεις στην οθόνη είναι παλιές.",
   "Applying this profile discards the changes to this fan you have not applied.": "Η εφαρμογή αυτού του προφίλ απορρίπτει τις αλλαγές αυτού του ανεμιστήρα που δεν εφαρμόσατε.",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Τα αρχεία που κρατά το Linux στη μνήμη απελευθερώνονται και διαβάζονται ξανά από τον δίσκο όταν χρειαστεί.",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Δεν υπάρχει παιχνίδι στον φάκελό του. Ελέγξτε ότι ο δίσκος είναι συνδεδεμένος και ότι το Steam εμφανίζει το παιχνίδι ως εγκατεστημένο."
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Δεν υπάρχει παιχνίδι στον φάκελό του. Ελέγξτε ότι ο δίσκος είναι συνδεδεμένος και ότι το Steam εμφανίζει το παιχνίδι ως εγκατεστημένο.",
+  "SSH server": "Διακομιστής SSH",
+  "This computer only": "Μόνο αυτός ο υπολογιστής",
+  "Hardware control lets this device change clocks, power and fans.": "Ο έλεγχος υλικού επιτρέπει σε αυτή τη συσκευή να αλλάζει συχνότητες, ισχύ και ανεμιστήρες.",
+  "Permanent sessions also enable hardware control.": "Οι μόνιμες συνεδρίες ενεργοποιούν και τον έλεγχο υλικού.",
+  "SSH gives remote terminal access to your Linux account and files.": "Το SSH δίνει απομακρυσμένη πρόσβαση τερματικού στον λογαριασμό Linux και στα αρχεία σας."
 }

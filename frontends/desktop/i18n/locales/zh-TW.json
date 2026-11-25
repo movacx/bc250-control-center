@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "感測器已 {seconds} 秒未回應：畫面上的讀數是舊的。",
   "Applying this profile discards the changes to this fan you have not applied.": "套用此設定檔會捨棄此風扇尚未套用的變更。",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Linux 保留在記憶體中的檔案會被釋放，需要時再從磁碟讀取。",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "其資料夾中沒有遊戲。請檢查磁碟機已連接，且 Steam 顯示該遊戲已安裝。"
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "其資料夾中沒有遊戲。請檢查磁碟機已連接，且 Steam 顯示該遊戲已安裝。",
+  "SSH server": "SSH 伺服器",
+  "This computer only": "僅此電腦",
+  "Hardware control lets this device change clocks, power and fans.": "硬體控制允許此裝置變更時脈、功耗和風扇。",
+  "Permanent sessions also enable hardware control.": "永久工作階段也會啟用硬體控制。",
+  "SSH gives remote terminal access to your Linux account and files.": "SSH 可透過終端機遠端存取你的 Linux 帳號和檔案。"
 }

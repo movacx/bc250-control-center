@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "センサーが {seconds} 秒間応答していません。表示中の値は古いものです。",
   "Applying this profile discards the changes to this fan you have not applied.": "このプロファイルを適用すると、このファンの未適用の変更は破棄されます。",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Linux がメモリに保持しているファイルを解放し、必要になれば再びディスクから読み込みます。",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "フォルダーにゲームがありません。ドライブが接続され、Steam でインストール済みと表示されているか確認してください。"
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "フォルダーにゲームがありません。ドライブが接続され、Steam でインストール済みと表示されているか確認してください。",
+  "SSH server": "SSH サーバー",
+  "This computer only": "このコンピューターのみ",
+  "Hardware control lets this device change clocks, power and fans.": "ハードウェア制御により、このデバイスはクロック、電力、ファンを変更できます。",
+  "Permanent sessions also enable hardware control.": "無期限セッションではハードウェア制御も有効になります。",
+  "SSH gives remote terminal access to your Linux account and files.": "SSH は Linux アカウントとファイルへのリモート端末アクセスを提供します。"
 }

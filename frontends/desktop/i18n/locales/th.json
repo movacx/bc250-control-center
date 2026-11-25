@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "เซ็นเซอร์ไม่ตอบสนองมา {seconds} วินาที: ค่าบนหน้าจอเป็นค่าเก่า",
   "Applying this profile discards the changes to this fan you have not applied.": "การใช้โปรไฟล์นี้จะละทิ้งการเปลี่ยนแปลงของพัดลมนี้ที่ยังไม่ได้ใช้",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "ไฟล์ที่ Linux เก็บไว้ในหน่วยความจำจะถูกปล่อย และอ่านจากดิสก์ใหม่เมื่อจำเป็น",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "ไม่มีเกมในโฟลเดอร์ ตรวจสอบว่าไดรฟ์เชื่อมต่ออยู่และ Steam แสดงว่าติดตั้งเกมแล้ว"
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "ไม่มีเกมในโฟลเดอร์ ตรวจสอบว่าไดรฟ์เชื่อมต่ออยู่และ Steam แสดงว่าติดตั้งเกมแล้ว",
+  "SSH server": "เซิร์ฟเวอร์ SSH",
+  "This computer only": "เฉพาะคอมพิวเตอร์เครื่องนี้",
+  "Hardware control lets this device change clocks, power and fans.": "การควบคุมฮาร์ดแวร์ให้อุปกรณ์นี้เปลี่ยนสัญญาณนาฬิกา พลังงาน และพัดลมได้",
+  "Permanent sessions also enable hardware control.": "เซสชันถาวรจะเปิดการควบคุมฮาร์ดแวร์ด้วย",
+  "SSH gives remote terminal access to your Linux account and files.": "SSH ให้การเข้าถึงบัญชี Linux และไฟล์ของคุณจากระยะไกลผ่านเทอร์มินัล"
 }

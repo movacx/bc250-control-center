@@ -6594,5 +6594,10 @@
   "The sensors have not answered for {seconds} s: the readings on screen are old.": "Sensorene har ikke svart på {seconds} s: verdiene på skjermen er gamle.",
   "Applying this profile discards the changes to this fan you have not applied.": "Når profilen brukes, forkastes endringer på viften som ikke er tatt i bruk.",
   "The files Linux keeps in memory are dropped and read from the disk again when needed.": "Filene Linux holder i minnet frigis og leses fra disken igjen ved behov.",
-  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Det er ikke noe spill i mappen. Kontroller at stasjonen er tilkoblet, og at Steam viser spillet som installert."
+  "There is no game in its folder. Check that the drive is connected and that Steam shows the game as installed.": "Det er ikke noe spill i mappen. Kontroller at stasjonen er tilkoblet, og at Steam viser spillet som installert.",
+  "SSH server": "SSH-server",
+  "This computer only": "Bare denne datamaskinen",
+  "Hardware control lets this device change clocks, power and fans.": "Maskinvarekontroll lar enheten endre klokker, effekt og vifter.",
+  "Permanent sessions also enable hardware control.": "Permanente økter slår også på maskinvarekontroll.",
+  "SSH gives remote terminal access to your Linux account and files.": "SSH gir ekstern terminaltilgang til Linux-kontoen og filene dine."
 }
