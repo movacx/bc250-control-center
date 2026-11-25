@@ -6599,5 +6599,9 @@
   "This computer only": "Μόνο αυτός ο υπολογιστής",
   "Hardware control lets this device change clocks, power and fans.": "Ο έλεγχος υλικού επιτρέπει σε αυτή τη συσκευή να αλλάζει συχνότητες, ισχύ και ανεμιστήρες.",
   "Permanent sessions also enable hardware control.": "Οι μόνιμες συνεδρίες ενεργοποιούν και τον έλεγχο υλικού.",
-  "SSH gives remote terminal access to your Linux account and files.": "Το SSH δίνει απομακρυσμένη πρόσβαση τερματικού στον λογαριασμό Linux και στα αρχεία σας."
+  "SSH gives remote terminal access to your Linux account and files.": "Το SSH δίνει απομακρυσμένη πρόσβαση τερματικού στον λογαριασμό Linux και στα αρχεία σας.",
+  "Prepare the connection": "Προετοιμασία σύνδεσης",
+  "Control Center does these steps in order and stops at the first that fails:": "Το Control Center κάνει αυτά τα βήματα με τη σειρά και σταματά στο πρώτο που αποτυγχάνει:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Το τείχος προστασίας και η τοπική διεύθυνση ελέγχονται στο τέλος και διορθώνονται μόνο αν χρειάζεται.",
+  "The connection is ready: scan the code with your phone.": "Η σύνδεση είναι έτοιμη: σαρώστε τον κωδικό με το τηλέφωνό σας."
 }

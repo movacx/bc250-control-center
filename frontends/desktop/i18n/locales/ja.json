@@ -6599,5 +6599,9 @@
   "This computer only": "このコンピューターのみ",
   "Hardware control lets this device change clocks, power and fans.": "ハードウェア制御により、このデバイスはクロック、電力、ファンを変更できます。",
   "Permanent sessions also enable hardware control.": "無期限セッションではハードウェア制御も有効になります。",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH は Linux アカウントとファイルへのリモート端末アクセスを提供します。"
+  "SSH gives remote terminal access to your Linux account and files.": "SSH は Linux アカウントとファイルへのリモート端末アクセスを提供します。",
+  "Prepare the connection": "接続を準備",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center は次の手順を順に実行し、最初に失敗したところで停止します:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "ファイアウォールとローカルアドレスは最後に確認し、必要な場合だけ修正します。",
+  "The connection is ready: scan the code with your phone.": "接続の準備ができました。スマートフォンでコードを読み取ってください。"
 }

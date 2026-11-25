@@ -6599,5 +6599,9 @@
   "This computer only": "Nur dieser Computer",
   "Hardware control lets this device change clocks, power and fans.": "Mit Hardwaresteuerung kann dieses Gerät Takte, Leistung und Lüfter ändern.",
   "Permanent sessions also enable hardware control.": "Dauerhafte Sitzungen aktivieren auch die Hardwaresteuerung.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH gibt per Terminal Fernzugriff auf Ihr Linux-Konto und Ihre Dateien."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH gibt per Terminal Fernzugriff auf Ihr Linux-Konto und Ihre Dateien.",
+  "Prepare the connection": "Verbindung vorbereiten",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center führt diese Schritte der Reihe nach aus und hält beim ersten Fehler an:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Firewall und lokale Adresse werden am Ende geprüft und nur bei Bedarf korrigiert.",
+  "The connection is ready: scan the code with your phone.": "Die Verbindung ist bereit: Scannen Sie den Code mit Ihrem Telefon."
 }

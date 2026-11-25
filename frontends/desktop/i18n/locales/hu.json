@@ -6599,5 +6599,9 @@
   "This computer only": "Csak ez a számítógép",
   "Hardware control lets this device change clocks, power and fans.": "A hardvervezérléssel ez az eszköz módosíthatja az órajeleket, a teljesítményt és a ventilátorokat.",
   "Permanent sessions also enable hardware control.": "Az állandó munkamenetek a hardvervezérlést is bekapcsolják.",
-  "SSH gives remote terminal access to your Linux account and files.": "Az SSH távoli terminálos hozzáférést ad a Linux-fiókjához és fájljaihoz."
+  "SSH gives remote terminal access to your Linux account and files.": "Az SSH távoli terminálos hozzáférést ad a Linux-fiókjához és fájljaihoz.",
+  "Prepare the connection": "Kapcsolat előkészítése",
+  "Control Center does these steps in order and stops at the first that fails:": "A Control Center sorban elvégzi ezeket a lépéseket, és az első hibánál megáll:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "A tűzfal és a helyi cím ellenőrzése a végén történik, javítás csak szükség esetén.",
+  "The connection is ready: scan the code with your phone.": "A kapcsolat kész: olvassa be a kódot a telefonjával."
 }

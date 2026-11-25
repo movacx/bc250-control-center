@@ -257,7 +257,7 @@ def test_port_adjustment_and_web_switches_keep_confirmation_and_calls(isolated_r
     choice(layout, 'TCP').handler(ui)
     choice(layout, 'Reachable from the local network').handler(ui)
     assert calls == [(['Remote access'], {'port': 8251}),
-                     (['Remote access', 'Reachable from the local network'], {'lan': True})]
+                     (['Remote access', 'Reachable from the local network'], {'lan': True, 'tls': True})]
     assert len(ui.confirmations) == 2
     ui.confirm_answer = False
     choice(layout, 'TCP').handler(ui)
@@ -381,3 +381,24 @@ def test_a_custom_session_replaces_the_permanent_reading(isolated_remote_access)
     text = text_of(render(RemoteAccessPage(), make_context(), FakeUI(), 'devices'))
     assert 'Permanent' not in text
     assert '--' not in text.split('Session')[-1]
+
+
+def test_one_action_offers_everything_a_phone_still_needs(isolated_remote_access, monkeypatch):
+    from frontends.tui.pages import remote
+
+    web, _ssh = isolated_remote_access
+    ran = []
+    monkeypatch.setattr(remote.web_setup, 'apply', lambda say: ran.append(True))
+    ctx, ui, page = make_context(), FakeUI(), RemoteAccessPage()
+    for tab in ('web', 'network'):
+        choice(render(page, ctx, ui, tab), 'Prepare the connection').handler(ui)
+    question, danger = ui.confirmations[-1]
+    assert danger and '1. Reachable from the local network' in question and '2. Start web access' in question
+    assert 'Avahi' in question and 'fixed only if needed' in question
+    assert len(ran) == 2 and ui.ran == ['Prepare the connection'] * 2
+    ui.confirm_answer = False
+    choice(render(page, ctx, ui), 'Prepare the connection').handler(ui)
+    assert len(ran) == 2
+    web.update(running=True, lan=True, firewall={'state': 'ready'}, name_health={'status': 'ready'})
+    for tab in ('web', 'network'):
+        assert not any(item.label == 'Prepare the connection' for item in render(page, ctx, ui, tab).choices)

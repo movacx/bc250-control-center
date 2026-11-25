@@ -6599,5 +6599,9 @@
   "This computer only": "Doar acest calculator",
   "Hardware control lets this device change clocks, power and fans.": "Controlul hardware permite dispozitivului să schimbe frecvențele, alimentarea și ventilatoarele.",
   "Permanent sessions also enable hardware control.": "Sesiunile permanente activează și controlul hardware.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH oferă acces de la distanță, prin terminal, la contul Linux și la fișiere."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH oferă acces de la distanță, prin terminal, la contul Linux și la fișiere.",
+  "Prepare the connection": "Pregătește conexiunea",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center face acești pași în ordine și se oprește la primul care eșuează:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Firewallul și adresa locală sunt verificate la final și corectate doar dacă este nevoie.",
+  "The connection is ready: scan the code with your phone.": "Conexiunea este gata: scanați codul cu telefonul."
 }

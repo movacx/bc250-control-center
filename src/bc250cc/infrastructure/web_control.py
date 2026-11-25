@@ -397,7 +397,9 @@ def last_server_error() -> str:
 
 def configure(**changes) -> dict:
     """Validate a restart before stopping the working endpoint; restore on failure."""
-    if set(changes) - {"lan", "tls"} or any(not isinstance(value, bool) for value in changes.values()):
+    port = changes.get("port", DEFAULT_PORT)
+    if set(changes) - {"lan", "tls", "port"} or type(port) is not int or not 1024 <= port <= 65535 \
+            or any(not isinstance(value, bool) for name, value in changes.items() if name != "port"):
         raise ValueError("Invalid web network option")
     previous = options()
     running = _listening(previous["port"])

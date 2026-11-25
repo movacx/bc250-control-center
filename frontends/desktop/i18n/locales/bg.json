@@ -6599,5 +6599,9 @@
   "This computer only": "Само този компютър",
   "Hardware control lets this device change clocks, power and fans.": "Управлението на хардуера позволява на устройството да променя честоти, мощност и вентилатори.",
   "Permanent sessions also enable hardware control.": "Постоянните сесии включват и управлението на хардуера.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH дава отдалечен терминален достъп до вашия Linux акаунт и файлове."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH дава отдалечен терминален достъп до вашия Linux акаунт и файлове.",
+  "Prepare the connection": "Подготви връзката",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center изпълнява тези стъпки поред и спира при първата неуспешна:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Защитната стена и локалният адрес се проверяват накрая и се поправят само при нужда.",
+  "The connection is ready: scan the code with your phone.": "Връзката е готова: сканирайте кода с телефона си."
 }

@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from bc250cc.application.system import web_access, web_pairing
+from bc250cc.application.system import web_access, web_pairing, web_setup
 
 from ..components.async_tools import BackgroundExecutor
 from ..components.buttons import WrappingButton as QPushButton
@@ -123,6 +123,10 @@ class RemoteAccessPage(QWidget):
         status.addWidget(self.key_row, 1)
         self.web_open_button = self._button("Open in browser", self._open_web)
         self.web_switch_button = self._button("Start web access", self._toggle_web, primary=True)
+        # Everything a phone still needs, as one press; hidden when nothing is missing.
+        self.web_prepare_button = self._button("Prepare the connection", self._prepare_connection, primary=True)
+        self.web_prepare_button.hide()
+        status.addWidget(self.web_prepare_button)
         status.addWidget(self.web_open_button)
         status.addWidget(self.web_switch_button)
         body.addWidget(status_panel)
@@ -418,6 +422,11 @@ class RemoteAccessPage(QWidget):
         urls = state.get("urls") or []
         available = urls or ([state["local_url"]] if state.get("local_url") else [])
         self.web_state_label.setText(tr("Web access is active" if running else "Web access is stopped"))
+        steps = web_setup.pending(state) if state else []
+        preparing = self._background.is_running("prepare_connection")
+        self.web_prepare_button.setVisible(bool(steps) or preparing)
+        self.web_prepare_button.setEnabled(not preparing)
+        self.web_prepare_button.setToolTip("\n".join(tr(web_setup.LABELS[step]) for step in steps))
         notice = self._notice(state, firewall)
         self.web_notice.setText(tr(notice) if notice else "")
         self.web_notice.setVisible(bool(notice))
@@ -603,6 +612,33 @@ class RemoteAccessPage(QWidget):
         self._run("revoke_all", web_access.revoke_all)
 
     # -- network repairs --------------------------------------------------------------------------
+
+    def _prepare_connection(self):
+        """Web access, local network, firewall and local name: what is missing, in order."""
+        steps = web_setup.pending(self._web_state)
+        if not steps or self._background.is_running("prepare_connection"):
+            return
+        follow = web_setup.may_follow(steps)
+        message = tr("Control Center does these steps in order and stops at the first that fails:") + "\n\n" \
+            + "\n".join(f"{number}. {tr(web_setup.LABELS[step])}" for number, step in enumerate(steps, 1))
+        if follow:
+            message += "\n\n" + tr("Firewall and local address are checked at the end and fixed only if needed.")
+        if follow or web_setup.FIREWALL in steps:
+            message += "\n\n" + tr("Configure LAN firewall") + ": " + tr("Allow this web port only from the connected private networks? Existing firewall rules are preserved. Administrator authorization is required.")
+        if follow or web_setup.NAME in steps:
+            message += "\n\n" + tr("Repair local address") + ": " + tr("Repair local name discovery and lookup? This may install Avahi and its resolver module, enable the Avahi service and update the system resolver configuration. A configuration backup is saved and failed resolver changes are reverted. Administrator authorization is required.")
+        if QMessageBox.question(self, tr("Prepare the connection"), message,
+                                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
+            return
+        self._background.start(
+            "prepare_connection", web_setup.apply,
+            on_success=lambda _result: show_toast(
+                self, tr("Remote access"), tr("The connection is ready: scan the code with your phone."), tone="green"),
+            on_error=lambda text: show_toast(self, tr("Remote access"), tr(text), tone="red"),
+            on_finished=self.refresh,
+        )
+        self._render_web()
 
     def _repair_firewall(self):
         if self._firewall_repair_pending:

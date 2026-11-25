@@ -6599,5 +6599,9 @@
   "This computer only": "仅此计算机",
   "Hardware control lets this device change clocks, power and fans.": "硬件控制允许此设备更改时钟、功耗和风扇。",
   "Permanent sessions also enable hardware control.": "永久会话也会启用硬件控制。",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH 可通过终端远程访问你的 Linux 账户和文件。"
+  "SSH gives remote terminal access to your Linux account and files.": "SSH 可通过终端远程访问你的 Linux 账户和文件。",
+  "Prepare the connection": "准备连接",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center 按顺序执行以下步骤，遇到第一个失败即停止：",
+  "Firewall and local address are checked at the end and fixed only if needed.": "最后检查防火墙和本地地址，仅在需要时修复。",
+  "The connection is ready: scan the code with your phone.": "连接已就绪：用手机扫描代码。"
 }

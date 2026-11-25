@@ -401,6 +401,12 @@
    "_convert_number": "CORE-0364",
    "localize_temperature_text": "CORE-0365"
   },
+  "bc250cc/application/system/web_setup.py": {
+   "pending": "CORE-0371",
+   "may_follow": "CORE-0372",
+   "_settled_name": "CORE-0373",
+   "apply": "CORE-0374"
+  },
   "bc250cc/domain/common/proceso.py": {
    "Proceso.__init__": "PROC-0091",
    "Proceso.memoria_mb": "PROC-0092",
@@ -7022,6 +7028,7 @@
    "RemoteAccessPage._disconnect_selected_device": "UI-0677",
    "RemoteAccessPage._run": "UI-0670",
    "RemoteAccessPage._revoke_all": "UI-0672",
+   "RemoteAccessPage._prepare_connection": "UI-0882",
    "RemoteAccessPage._repair_firewall": "UI-0706",
    "RemoteAccessPage._repair_local_name": "UI-0704",
    "RemoteAccessPage._toggle_web": "UI-0658",

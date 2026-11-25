@@ -54,9 +54,9 @@ class RemoteNetworkTests(unittest.TestCase):
 
     def test_each_section_says_its_state_in_its_heading(self):
         self.assertEqual([(block.title, block.badge) for block in self.blocks()],
-                         [("Firewall", "Blocked"), ("Local address", "Not available")])
+                         [("Network and connection", ""), ("Firewall", "Blocked"), ("Local address", "Not available")])
         self.assertEqual([block.label for block in self.flattened() if isinstance(block, Choice)],
-                         ["Configure LAN firewall", "Repair local address"])
+                         ["Prepare the connection", "Configure LAN firewall", "Repair local address"])
 
     def test_network_diagnosis_fits_narrow_terminals_in_english_and_spanish(self):
         from frontends.tui.content import cell_width

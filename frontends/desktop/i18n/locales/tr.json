@@ -6599,5 +6599,9 @@
   "This computer only": "Yalnızca bu bilgisayar",
   "Hardware control lets this device change clocks, power and fans.": "Donanım denetimi bu cihazın saat hızlarını, gücü ve fanları değiştirmesini sağlar.",
   "Permanent sessions also enable hardware control.": "Kalıcı oturumlar donanım denetimini de açar.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH, Linux hesabınıza ve dosyalarınıza uçbirimden uzaktan erişim verir."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH, Linux hesabınıza ve dosyalarınıza uçbirimden uzaktan erişim verir.",
+  "Prepare the connection": "Bağlantıyı hazırla",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center bu adımları sırayla yapar ve başarısız olan ilk adımda durur:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Güvenlik duvarı ve yerel adres en sonda denetlenir, yalnızca gerekirse düzeltilir.",
+  "The connection is ready: scan the code with your phone.": "Bağlantı hazır: kodu telefonunuzla tarayın."
 }

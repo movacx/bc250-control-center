@@ -6599,5 +6599,9 @@
   "This computer only": "Chỉ máy tính này",
   "Hardware control lets this device change clocks, power and fans.": "Quyền điều khiển phần cứng cho phép thiết bị này thay đổi xung nhịp, điện năng và quạt.",
   "Permanent sessions also enable hardware control.": "Phiên vĩnh viễn cũng bật quyền điều khiển phần cứng.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH cho phép truy cập từ xa qua terminal vào tài khoản Linux và tệp của bạn."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH cho phép truy cập từ xa qua terminal vào tài khoản Linux và tệp của bạn.",
+  "Prepare the connection": "Chuẩn bị kết nối",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center thực hiện các bước này theo thứ tự và dừng ở bước đầu tiên thất bại:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Tường lửa và địa chỉ cục bộ được kiểm tra cuối cùng và chỉ sửa khi cần.",
+  "The connection is ready: scan the code with your phone.": "Kết nối đã sẵn sàng: quét mã bằng điện thoại của bạn."
 }

@@ -6599,5 +6599,9 @@
   "This computer only": "Vain tämä tietokone",
   "Hardware control lets this device change clocks, power and fans.": "Laitteiston hallinta antaa tämän laitteen muuttaa kelloja, tehoa ja tuulettimia.",
   "Permanent sessions also enable hardware control.": "Pysyvät istunnot ottavat myös laitteiston hallinnan käyttöön.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH antaa etäkäytön päätteellä Linux-tiliisi ja tiedostoihisi."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH antaa etäkäytön päätteellä Linux-tiliisi ja tiedostoihisi.",
+  "Prepare the connection": "Valmistele yhteys",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center tekee vaiheet järjestyksessä ja pysähtyy ensimmäiseen epäonnistuneeseen:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Palomuuri ja paikallinen osoite tarkistetaan lopuksi ja korjataan vain tarvittaessa.",
+  "The connection is ready: scan the code with your phone.": "Yhteys on valmis: skannaa koodi puhelimella."
 }

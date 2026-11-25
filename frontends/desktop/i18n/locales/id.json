@@ -6599,5 +6599,9 @@
   "This computer only": "Hanya komputer ini",
   "Hardware control lets this device change clocks, power and fans.": "Kontrol perangkat keras memungkinkan perangkat ini mengubah clock, daya, dan kipas.",
   "Permanent sessions also enable hardware control.": "Sesi permanen juga mengaktifkan kontrol perangkat keras.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH memberi akses terminal jarak jauh ke akun Linux dan berkas Anda."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH memberi akses terminal jarak jauh ke akun Linux dan berkas Anda.",
+  "Prepare the connection": "Siapkan koneksi",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center menjalankan langkah ini berurutan dan berhenti pada yang pertama gagal:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Firewall dan alamat lokal diperiksa di akhir dan diperbaiki hanya bila perlu.",
+  "The connection is ready: scan the code with your phone.": "Koneksi siap: pindai kode dengan ponsel Anda."
 }

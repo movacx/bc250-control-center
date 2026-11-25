@@ -6599,5 +6599,9 @@
   "This computer only": "This computer only",
   "Hardware control lets this device change clocks, power and fans.": "Hardware control lets this device change clocks, power and fans.",
   "Permanent sessions also enable hardware control.": "Permanent sessions also enable hardware control.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH gives remote terminal access to your Linux account and files."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH gives remote terminal access to your Linux account and files.",
+  "Prepare the connection": "Prepare the connection",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center does these steps in order and stops at the first that fails:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Firewall and local address are checked at the end and fixed only if needed.",
+  "The connection is ready: scan the code with your phone.": "The connection is ready: scan the code with your phone."
 }

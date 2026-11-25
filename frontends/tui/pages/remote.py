@@ -6,11 +6,17 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from bc250cc.application.system import remote_access, web_access, web_pairing
+from bc250cc.application.system import (
+    remote_access,
+    web_access,
+    web_pairing,
+    web_setup,
+)
 
 from ..content import (
     Choice,
     Field,
+    Gap,
     Info,
     Note,
     Pad,
@@ -128,11 +134,11 @@ class RemoteAccessPage(Page):
         badge, badge_tone = tr("Active" if running else "Stopped"), "ok" if running else "dim"
         reach = tr("Access is limited to this computer and its home network." if lan else "This computer only")
         notice = self._notice(web)
-        controls = [switch(tr("Remote access"), running,
+        controls = [*self._prepare(web), switch(tr("Remote access"), running,
                            run("Stop web access" if running else "Start web access", web_access.stop if running else web_access.start),
                            info=Info(tr("Control and monitor this board from a browser on your home network."))),
                     switch(tr("Reachable from the local network"), lan,
-                           run("Reachable from the local network", lambda: web_access.configure(lan=not lan)),
+                           run("Reachable from the local network", lambda: web_access.configure(lan=not lan, tls=True)),
                            info=Info(tr("HTTPS is required for home-network access. No router ports or public tunnels are configured by this application."))),
                     switch(tr("Start with the session"), bool(startup.get("enabled")),
                            run("Start with the session", lambda: web_access.set_autostart(not startup.get("enabled"))),
@@ -175,6 +181,37 @@ class RemoteAccessPage(Page):
         return [Panel(tr("Remote access"), [*status, *controls], badge=badge, badge_tone=badge_tone), pairing, certificates]
 
     @staticmethod
+    def _prepare(web):
+        """One action for everything a phone still needs, listed before it is done."""
+        steps = web_setup.pending(web)
+        if not steps:
+            return []
+        labels = [tr(web_setup.LABELS[step]) for step in steps]
+        firewall, name = (tr("Allow this web port only from the connected private networks? Existing firewall rules are preserved. Administrator authorization is required."),
+                          tr("Repair local name discovery and lookup? This may install Avahi and its resolver module, enable the Avahi service and update the system resolver configuration. A configuration backup is saved and failed resolver changes are reverted. Administrator authorization is required."))
+        follow = web_setup.may_follow(steps)
+        question = tr("Control Center does these steps in order and stops at the first that fails:") + "\n" \
+            + "\n".join(f"{number}. {label}" for number, label in enumerate(labels, 1))
+        if follow:
+            question += "\n" + tr("Firewall and local address are checked at the end and fixed only if needed.")
+        if follow or web_setup.FIREWALL in steps:
+            question += f"\n· {tr('Configure LAN firewall')}: {firewall}"
+        if follow or web_setup.NAME in steps:
+            question += f"\n· {tr('Repair local address')}: {name}"
+
+        def prepare(ui_):
+            if ui_.confirm(f"{tr('Prepare the connection')}: {question}", danger=True):
+                def work():
+                    web_setup.apply(lambda step: print(f"== {tr(web_setup.LABELS[step])} ==", flush=True))
+                    return tr("The connection is ready: scan the code with your phone.")
+
+                guarded(ui_, tr("Prepare the connection"), work)
+
+        return [Choice(tr("Prepare the connection"), prepare, tone="primary", id="prepare",
+                       info=Info(tr("Firewall and local address are checked at the end and fixed only if needed."))),
+                Note(" · ".join(labels), "dim"), Gap()]
+
+    @staticmethod
     def _notice(web):
         if not web.get("running"):
             return "Start web access to pair a phone."
@@ -205,8 +242,9 @@ class RemoteAccessPage(Page):
         }
         networks = ", ".join(firewall.get("networks") or []) or "—"
         if not lan:
-            return [Panel(tr("Network diagnostics"), [Note(tr("Enable access from the local network before configuring its firewall."))],
-                          badge=tr("Disabled"))]
+            return [Panel(tr("Network diagnostics"), [
+                *self._prepare(web), Note(tr("Enable access from the local network before configuring its firewall."), "dim")],
+                badge=tr("Disabled"))]
         firewall_state = tr({"ready": "Ready", "blocked": "Blocked", "inactive": "Inactive"}.get(firewall.get("state"), "Not verified"))
         name_ready = health.get("status") == "ready"
         firewall_blocks = [Field(tr("Manager"), backend), Field("TCP", port),
@@ -233,7 +271,9 @@ class RemoteAccessPage(Page):
             message = tr("Repair local name discovery and lookup? This may install Avahi and its resolver module, enable the Avahi service and update the system resolver configuration. A configuration backup is saved and failed resolver changes are reverted. Administrator authorization is required.")
             name_blocks.append(Choice(tr("Repair local address"), self._network_repair(
                 ctx, "Repair local address", message, web_access.repair_local_name, name_messages["ready"]), tone="primary", info=Info(risk=message)))
-        return [Panel(tr("Firewall"), firewall_blocks, badge=firewall_state,
+        both = self._prepare(web) if len(web_setup.pending(web)) > 1 else []
+        return [*([Panel(tr("Network and connection"), both)] if both else []),
+                Panel(tr("Firewall"), firewall_blocks, badge=firewall_state,
                       badge_tone="ok" if firewall.get("state") == "ready" else "warn"),
                 Panel(tr("Local address"), name_blocks, badge=tr("Ready" if name_ready else "Not available"),
                       badge_tone="ok" if name_ready else "warn")]

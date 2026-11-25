@@ -41,3 +41,25 @@ def test_qr_carries_a_one_time_token_never_the_access_key(qtbot, monkeypatch):
     # Once redeemed the next refresh shows a fresh code.
     page._apply_web(state)
     assert urls[-1].split("#pair=")[1] != token
+
+
+def test_everything_missing_is_offered_as_one_press_and_hidden_when_nothing_is(qtbot, monkeypatch):
+    from PyQt6.QtWidgets import QMessageBox
+
+    from bc250cc.application.system import web_setup
+
+    page = RemoteAccessPage()
+    qtbot.addWidget(page)
+    page._apply_web({"running": False, "lan": False})
+    assert not page.web_prepare_button.isHidden()
+    asked, started = [], []
+    monkeypatch.setattr(QMessageBox, "question", lambda _parent, _title, text, *_more: asked.append(text) or QMessageBox.StandardButton.No)
+    monkeypatch.setattr(page._background, "start", lambda name, work, **_more: started.append((name, work)) or True)
+    page.web_prepare_button.click()
+    assert asked and not started
+    monkeypatch.setattr(QMessageBox, "question", lambda *_args: QMessageBox.StandardButton.Yes)
+    page.web_prepare_button.click()
+    assert started == [("prepare_connection", web_setup.apply)]
+    page._apply_web({"running": True, "lan": True, "urls": ["https://192.0.2.1:8250"], "key": "K", "firewall": {"state": "ready"},
+                     "name_health": {"status": "ready"}})
+    assert page.web_prepare_button.isHidden()

@@ -6599,5 +6599,9 @@
   "This computer only": "Alleen deze computer",
   "Hardware control lets this device change clocks, power and fans.": "Met hardwarebeheer kan dit apparaat klokken, vermogen en ventilatoren wijzigen.",
   "Permanent sessions also enable hardware control.": "Permanente sessies schakelen ook hardwarebeheer in.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH geeft via de terminal externe toegang tot uw Linux-account en bestanden."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH geeft via de terminal externe toegang tot uw Linux-account en bestanden.",
+  "Prepare the connection": "Verbinding voorbereiden",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center voert deze stappen op volgorde uit en stopt bij de eerste die mislukt:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Firewall en lokaal adres worden aan het eind gecontroleerd en alleen zo nodig hersteld.",
+  "The connection is ready: scan the code with your phone.": "De verbinding is klaar: scan de code met uw telefoon."
 }

@@ -6599,5 +6599,9 @@
   "This computer only": "Komputer ini sahaja",
   "Hardware control lets this device change clocks, power and fans.": "Kawalan perkakasan membolehkan peranti ini menukar jam, kuasa dan kipas.",
   "Permanent sessions also enable hardware control.": "Sesi kekal turut menghidupkan kawalan perkakasan.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH memberi akses terminal jauh ke akaun Linux dan fail anda."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH memberi akses terminal jauh ke akaun Linux dan fail anda.",
+  "Prepare the connection": "Sediakan sambungan",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center melakukan langkah ini mengikut tertib dan berhenti pada yang pertama gagal:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Tembok api dan alamat setempat diperiksa di akhir dan dibaiki hanya jika perlu.",
+  "The connection is ready: scan the code with your phone.": "Sambungan sedia: imbas kod dengan telefon anda."
 }

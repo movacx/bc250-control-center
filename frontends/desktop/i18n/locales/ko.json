@@ -6599,5 +6599,9 @@
   "This computer only": "이 컴퓨터만",
   "Hardware control lets this device change clocks, power and fans.": "하드웨어 제어를 허용하면 이 기기가 클럭, 전력, 팬을 변경할 수 있습니다.",
   "Permanent sessions also enable hardware control.": "영구 세션은 하드웨어 제어도 활성화합니다.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH는 Linux 계정과 파일에 대한 원격 터미널 접근을 제공합니다."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH는 Linux 계정과 파일에 대한 원격 터미널 접근을 제공합니다.",
+  "Prepare the connection": "연결 준비",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center가 다음 단계를 순서대로 실행하고 처음 실패한 단계에서 멈춥니다:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "방화벽과 로컬 주소는 마지막에 확인하고 필요할 때만 수정합니다.",
+  "The connection is ready: scan the code with your phone.": "연결이 준비되었습니다. 휴대폰으로 코드를 스캔하세요."
 }

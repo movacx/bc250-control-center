@@ -6599,5 +6599,9 @@
   "This computer only": "เฉพาะคอมพิวเตอร์เครื่องนี้",
   "Hardware control lets this device change clocks, power and fans.": "การควบคุมฮาร์ดแวร์ให้อุปกรณ์นี้เปลี่ยนสัญญาณนาฬิกา พลังงาน และพัดลมได้",
   "Permanent sessions also enable hardware control.": "เซสชันถาวรจะเปิดการควบคุมฮาร์ดแวร์ด้วย",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH ให้การเข้าถึงบัญชี Linux และไฟล์ของคุณจากระยะไกลผ่านเทอร์มินัล"
+  "SSH gives remote terminal access to your Linux account and files.": "SSH ให้การเข้าถึงบัญชี Linux และไฟล์ของคุณจากระยะไกลผ่านเทอร์มินัล",
+  "Prepare the connection": "เตรียมการเชื่อมต่อ",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center ทำขั้นตอนเหล่านี้ตามลำดับและหยุดที่ขั้นแรกที่ล้มเหลว:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "ไฟร์วอลล์และที่อยู่ภายในจะถูกตรวจสอบในตอนท้ายและแก้ไขเมื่อจำเป็นเท่านั้น",
+  "The connection is ready: scan the code with your phone.": "การเชื่อมต่อพร้อมแล้ว: สแกนรหัสด้วยโทรศัพท์ของคุณ"
 }

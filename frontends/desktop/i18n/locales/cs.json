@@ -6599,5 +6599,9 @@
   "This computer only": "Pouze tento počítač",
   "Hardware control lets this device change clocks, power and fans.": "Ovládání hardwaru umožní zařízení měnit takty, výkon a ventilátory.",
   "Permanent sessions also enable hardware control.": "Trvalé relace také zapnou ovládání hardwaru.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH dává vzdálený terminálový přístup k účtu Linux a souborům."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH dává vzdálený terminálový přístup k účtu Linux a souborům.",
+  "Prepare the connection": "Připravit připojení",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center provede tyto kroky popořadě a zastaví se u prvního neúspěšného:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Firewall a místní adresa se zkontrolují nakonec a opraví se jen v případě potřeby.",
+  "The connection is ready: scan the code with your phone.": "Připojení je připraveno: naskenujte kód telefonem."
 }

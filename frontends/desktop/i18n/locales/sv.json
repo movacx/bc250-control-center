@@ -6599,5 +6599,9 @@
   "This computer only": "Endast den här datorn",
   "Hardware control lets this device change clocks, power and fans.": "Maskinvarukontroll låter enheten ändra klockor, effekt och fläktar.",
   "Permanent sessions also enable hardware control.": "Permanenta sessioner aktiverar även maskinvarukontroll.",
-  "SSH gives remote terminal access to your Linux account and files.": "SSH ger fjärråtkomst via terminal till ditt Linux-konto och dina filer."
+  "SSH gives remote terminal access to your Linux account and files.": "SSH ger fjärråtkomst via terminal till ditt Linux-konto och dina filer.",
+  "Prepare the connection": "Förbered anslutningen",
+  "Control Center does these steps in order and stops at the first that fails:": "Control Center gör stegen i ordning och stannar vid det första som misslyckas:",
+  "Firewall and local address are checked at the end and fixed only if needed.": "Brandvägg och lokal adress kontrolleras sist och rättas bara vid behov.",
+  "The connection is ready: scan the code with your phone.": "Anslutningen är klar: skanna koden med telefonen."
 }
